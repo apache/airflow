@@ -294,7 +294,8 @@ private fun toValue(
     // `!datetime` is an ISO 8601 timestamp, and `!timedelta` a number of seconds.
     FieldType.DATETIME -> OffsetDateTime.parse(node.asText())
     FieldType.TIMEDELTA -> Duration.ofNanos((node.asText().toDouble() * 1e9).toLong())
-    FieldType.STRING_ARRAY -> node.map { it.asText() }
+    FieldType.STRING_ARRAY, FieldType.DAG_RUN_STATES -> node.map { it.asText() }
+    FieldType.JSON_OBJECT -> toJsonValue(node)!!
   }
 
 /** Reads a YAML literal as the plain value `Serde` writes out. */

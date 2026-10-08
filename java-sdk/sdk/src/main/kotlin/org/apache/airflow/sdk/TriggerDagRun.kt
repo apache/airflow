@@ -19,43 +19,33 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.Field
+import org.apache.airflow.sdk.internal.FieldType
+import org.apache.airflow.sdk.internal.checkConfigValue
 import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
-
-/** A Dag run state, as `allowed_states` and `failed_states` name one. */
-internal val DAG_RUN_STATES = listOf("queued", "running", "success", "failed")
-
-/** Shape of one `TriggerDagRun` setting, for [TriggerDagRun.config] to check a value against. */
-private enum class Setting {
-  STRING,
-  BOOLEAN,
-  DURATION,
-  DATETIME,
-  STATES,
-  CONF,
-}
 
 /**
  * Settings named as `TriggerDagRunOperator` names its parameters. The Dag ID
  * is the constructor argument, so `trigger_dag_id` is not among them.
  */
-private val SETTINGS =
-  linkedMapOf(
-    "trigger_run_id" to Setting.STRING,
-    "conf" to Setting.CONF,
-    "logical_date" to Setting.DATETIME,
-    "run_after" to Setting.DATETIME,
-    "reset_dag_run" to Setting.BOOLEAN,
-    "wait_for_completion" to Setting.BOOLEAN,
-    "poke_interval" to Setting.DURATION,
-    "allowed_states" to Setting.STATES,
-    "failed_states" to Setting.STATES,
-    "skip_when_already_exists" to Setting.BOOLEAN,
-    "fail_when_dag_is_paused" to Setting.BOOLEAN,
-    "note" to Setting.STRING,
-    "deferrable" to Setting.BOOLEAN,
-  )
+private val TRIGGER_FIELDS: Map<String, Field> =
+  listOf(
+    Field("trigger_run_id", "triggerRunId", FieldType.STRING, null),
+    Field("conf", "conf", FieldType.JSON_OBJECT, null),
+    Field("logical_date", "logicalDate", FieldType.DATETIME, null),
+    Field("run_after", "runAfter", FieldType.DATETIME, null),
+    Field("reset_dag_run", "resetDagRun", FieldType.BOOLEAN, null),
+    Field("wait_for_completion", "waitForCompletion", FieldType.BOOLEAN, null),
+    Field("poke_interval", "pokeInterval", FieldType.TIMEDELTA, null),
+    Field("allowed_states", "allowedStates", FieldType.DAG_RUN_STATES, null),
+    Field("failed_states", "failedStates", FieldType.DAG_RUN_STATES, null),
+    Field("skip_when_already_exists", "skipWhenAlreadyExists", FieldType.BOOLEAN, null),
+    Field("fail_when_dag_is_paused", "failWhenDagIsPaused", FieldType.BOOLEAN, null),
+    Field("note", "note", FieldType.STRING, null),
+    Field("deferrable", "deferrable", FieldType.BOOLEAN, null),
+  ).associateBy { it.key }
 
 /**
  * A task that starts a run of another Dag, in place of a task class.
@@ -121,85 +111,67 @@ class TriggerDagRun(
     key: String,
     value: Any?,
   ): TriggerDagRun {
-    val setting =
-      requireNotNull(SETTINGS[key]) {
-        if (key == "trigger_dag_id") {
-          "The Dag to trigger is the TriggerDagRun argument, not the config key 'trigger_dag_id'"
-        } else {
-          "Unknown TriggerDagRun config key: '$key'"
+    require(key != "trigger_dag_id") {
+      "The Dag to trigger is the TriggerDagRun argument, not the config key 'trigger_dag_id'"
+    }
+    val checked = checkConfigValue("TriggerDagRun", TRIGGER_FIELDS, key, value)
+    settings[key] =
+      when (key) {
+        "poke_interval" -> {
+          val duration = checked as Duration
+          // Python's poke_interval is a number of seconds, and the serialized Dag carries it as one.
+          require(!duration.isNegative && duration.nano == 0) {
+            "Value for TriggerDagRun config key '$key' is $duration; it must be a whole, " +
+              "non-negative number of seconds"
+          }
+          duration
         }
+        "conf" -> jsonValue(key, checked)!!
+        // Python generates a run ID for an empty one, which the runtime does not.
+        "trigger_run_id", "note" -> {
+          require((checked as String).isNotEmpty()) {
+            "Value for TriggerDagRun config key '$key' must not be empty"
+          }
+          checked
+        }
+        else -> checked
       }
-    requireNotNull(value) { "Value for TriggerDagRun config key '$key' must not be null" }
-    settings[key] = check(key, setting, value)
     return this
   }
 
-  /** A copy that later calls on this builder cannot change, down to the maps and lists inside `conf`. */
-  internal fun snapshot(): TriggerDagRun {
-    val copy = TriggerDagRun(dagId)
-    settings.forEach { (key, value) -> copy.settings[key] = deepCopy(value)!! }
-    return copy
-  }
-
-  private fun deepCopy(value: Any?): Any? =
-    when (value) {
-      is Map<*, *> -> value.entries.associateTo(linkedMapOf<Any?, Any?>()) { it.key to deepCopy(it.value) }
-      is Iterable<*> -> value.map { deepCopy(it) }
-      is Array<*> -> value.map { deepCopy(it) }
-      else -> value
-    }
-
-  private fun check(
-    key: String,
-    setting: Setting,
-    value: Any,
-  ): Any {
-    fun mismatch(expected: String): Nothing =
-      throw IllegalArgumentException(
-        "Value for TriggerDagRun config key '$key' must be $expected, got: ${value.javaClass.name}",
-      )
-    return when (setting) {
-      Setting.STRING -> value as? String ?: mismatch("a String")
-      Setting.BOOLEAN -> value as? Boolean ?: mismatch("a Boolean")
-      Setting.DATETIME ->
-        when (value) {
-          is OffsetDateTime, is Instant -> value
-          else -> mismatch("a java.time.OffsetDateTime or java.time.Instant")
-        }
-      Setting.DURATION -> {
-        val duration = value as? Duration ?: mismatch("a java.time.Duration")
-        // Python's poke_interval is a number of seconds, and the serialized Dag carries it as one.
-        require(!duration.isNegative && duration.nano == 0) {
-          "Value for TriggerDagRun config key '$key' is $duration; it must be a whole, " +
-            "non-negative number of seconds"
-        }
-        duration
-      }
-      Setting.STATES -> {
-        val states =
-          when (value) {
-            is Iterable<*> -> value.toList()
-            is Array<*> -> value.toList()
-            else -> mismatch("an Iterable of Dag run states")
-          }
-        states.map { state ->
-          require(state is String && state in DAG_RUN_STATES) {
-            "Value for TriggerDagRun config key '$key' holds $state, which is not a Dag run " +
-              "state; use one of ${DAG_RUN_STATES.joinToString()}"
-          }
-          state as String
-        }
-      }
-      Setting.CONF -> {
-        val conf = value as? Map<*, *> ?: mismatch("a Map")
-        conf.entries.associate { (confKey, entry) ->
-          require(confKey is String) { "The conf of TriggerDagRun has a key that is not a String" }
-          confKey to entry
-        }
-      }
-    }
-  }
+  /** A copy that later calls on this builder cannot change. */
+  internal fun snapshot(): TriggerDagRun = TriggerDagRun(dagId).also { it.settings.putAll(settings) }
 }
+
+/** [value] as plain JSON, as a fresh structure, rejecting anything that has no JSON form. */
+private fun jsonValue(
+  key: String,
+  value: Any?,
+): Any? =
+  when (value) {
+    null, is String, is Boolean, is Int, is Long, is Short, is Byte -> value
+    is Double ->
+      value.also {
+        require(it.isFinite()) {
+          "Value for TriggerDagRun config key '$key' must hold only finite numbers, got: $it"
+        }
+      }
+    is Float -> jsonValue(key, value.toDouble())
+    is Collection<*> -> value.map { jsonValue(key, it) }
+    is Array<*> -> value.map { jsonValue(key, it) }
+    is Map<*, *> ->
+      value.entries.associateTo(linkedMapOf<String, Any?>()) { (entryKey, entry) ->
+        require(entryKey is String) {
+          "Value for TriggerDagRun config key '$key' must have String keys, got: ${entryKey?.javaClass?.name}"
+        }
+        entryKey to jsonValue(key, entry)
+      }
+    else ->
+      throw IllegalArgumentException(
+        "Value for TriggerDagRun config key '$key' must hold only JSON values (null, String, " +
+          "Boolean, Number, List, Map), got: ${value.javaClass.name}",
+      )
+  }
 
 /**
  * Stands in for the class of a task that triggers a Dag run. The runtime runs

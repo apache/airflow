@@ -90,6 +90,60 @@ internal class TriggerDagRunTest {
   }
 
   @Test
+  @DisplayName("Should reject a conf value that has no JSON form when the setting is made")
+  fun shouldRejectConfWithoutJsonForm() {
+    val error =
+      assertThrows(IllegalArgumentException::class.java) {
+        TriggerDagRun("downstream").config("conf", mapOf("at" to Duration.ofSeconds(1)))
+      }
+
+    assertEquals(
+      "Value for TriggerDagRun config key 'conf' must hold only JSON values (null, String, " +
+        "Boolean, Number, List, Map), got: java.time.Duration",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject a conf holding a number JSON has no form for")
+  fun shouldRejectNonFiniteConf() {
+    val error =
+      assertThrows(IllegalArgumentException::class.java) {
+        TriggerDagRun("downstream").config("conf", mapOf("ratio" to listOf(Double.NaN)))
+      }
+
+    assertEquals(
+      "Value for TriggerDagRun config key 'conf' must hold only finite numbers, got: NaN",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject an empty run ID or note")
+  fun shouldRejectEmptyRunIdAndNote() {
+    listOf("trigger_run_id", "note").forEach { key ->
+      val error =
+        assertThrows(IllegalArgumentException::class.java) { TriggerDagRun("downstream").config(key, "") }
+
+      assertEquals("Value for TriggerDagRun config key '$key' must not be empty", error.message)
+    }
+  }
+
+  @Test
+  @DisplayName("Should check a value against its key's shape as other config does")
+  fun shouldReportMismatchInSharedShape() {
+    val error =
+      assertThrows(IllegalArgumentException::class.java) {
+        TriggerDagRun("downstream").config("wait_for_completion", "yes")
+      }
+
+    assertEquals(
+      "Value for TriggerDagRun config key 'wait_for_completion' must be a Boolean, got: java.lang.String",
+      error.message,
+    )
+  }
+
+  @Test
   @DisplayName("Should reject an unknown setting")
   fun shouldRejectUnknownKey() {
     val error =

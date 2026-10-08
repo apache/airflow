@@ -715,6 +715,8 @@ class BuilderProcessor : AbstractProcessor() {
         parseTemporal(field, text) { OffsetDateTime.parse(text) }
         CodeBlock.of($$"$T.parse($S)", ClassName.get(OffsetDateTime::class.java), text)
       }
+      FieldType.DAG_RUN_STATES, FieldType.JSON_OBJECT ->
+        error("Field '${field.key}' is not an annotation attribute")
     }
 
   private fun parseTemporal(

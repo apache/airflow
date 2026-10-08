@@ -217,7 +217,7 @@ private fun writeTriggerDagRun(
   data["wait_for_completion"] = settings["wait_for_completion"] ?: false
   data["skip_when_already_exists"] = settings["skip_when_already_exists"] ?: false
   settings["trigger_run_id"]?.let { data["trigger_run_id"] = it }
-  settings["conf"]?.let { data["conf"] = plainJson(it, "conf", trigger.dagId) }
+  settings["conf"]?.let { data["conf"] = it }
   // A field that is not a template field is read back with
   // BaseSerialization.deserialize, which returns a datetime only for the
   // type-encoded form.
