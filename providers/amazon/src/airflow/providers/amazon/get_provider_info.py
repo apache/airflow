@@ -1320,11 +1320,11 @@ def get_provider_info():
                         "version_added": "3.1.1",
                     },
                     "cloudwatch_task_handler_json_serializer": {
-                        "description": "By default, when logging non-string messages, all non-json objects are logged as `null`.\nExcept `datetime` objects which are ISO formatted. Users can optionally use a `repr` serializer or\nprovide their own JSON serializer for any non-JSON-serializable objects in the logged message.\n\n* `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize` uses `repr` (be aware\n  there is the potential of logging sensitive data depending on the `repr` method of logged objects)\n* `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serializer_legacy` uses `null`.\n\nIf a custom serializer is provided, it must adhere to `Callable[[Any], str | None]`, where `None`\nserializes to `null` (e.g. `def my_serializer(o: Any) -> str | None`). Since this is on the logging\npath and it's possible there's an exception being handled, special care should be taken to fail\ngracefully without raising a new exception inside of your serializer.\n",
+                        "description": "By default, when logging non-string messages, all non-json objects are logged as `null`.\nExcept `datetime` objects which are ISO formatted. Users can optionally use a `repr` serializer or\nprovide their own JSON serializer for any non-JSON-serializable objects in the logged message.\n\n* `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize` uses `repr` (be aware\n  there is the potential of logging sensitive data depending on the `repr` method of logged objects)\n* `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy` uses `null`.\n\nIf a custom serializer is provided, it must adhere to `Callable[[Any], str | None]`, where `None`\nserializes to `null` (e.g. `def my_serializer(o: Any) -> str | None`). Since this is on the logging\npath and it's possible there's an exception being handled, special care should be taken to fail\ngracefully without raising a new exception inside of your serializer.\n",
                         "type": "string",
                         "version_added": "8.7.2",
                         "example": "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize",
-                        "default": "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serializer_legacy",
+                        "default": "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy",
                     },
                     "s3_task_handler_acl_policy": {
                         "description": "The ACL applied to task log objects uploaded to S3 by the S3 remote log handler,\nfor example ``bucket-owner-full-control``.\n\nThis is primarily useful for cross-account remote logging: when Airflow runs under one AWS\naccount but writes logs to a bucket owned by another account, S3 makes the writing account\nthe object owner, so the bucket owner cannot read or manage the log objects. Setting\n``bucket-owner-full-control`` grants the bucket owner full control over the uploaded logs.\n\nWhen unset, no ACL is sent and the bucket's default object ownership applies.\n",
@@ -1374,21 +1374,21 @@ def get_provider_info():
                         "default": None,
                     },
                     "job_queue": {
-                        "description": "The name of the AWS Region where Amazon Batch is configured. Required.\n",
+                        "description": "The job queue where the job is submitted. You can specify either the name\nor the Amazon Resource Name (ARN) of the queue.\n",
                         "version_added": "8.11",
                         "type": "string",
                         "example": "airflow-batch-executor-job-queue",
                         "default": None,
                     },
                     "job_definition": {
-                        "description": "The job definition used by the Batch client to create or update the job definition.\n",
+                        "description": "The job definition used by the job. You can specify either the name\nor the Amazon Resource Name (ARN) of the job definition with or\nwithout the revision. If the revision is not specified, then the\nlatest active revision is used.\n",
                         "version_added": "8.11",
                         "type": "string",
                         "example": "airflow-batch-executor-job-definition",
                         "default": None,
                     },
                     "submit_job_kwargs": {
-                        "description": "Additional parameters to pass to the submit_job method of the AWS Batch client.\n",
+                        "description": "Additional parameters to pass to the submit_job method of the\nAWS Batch client.\n",
                         "version_added": "8.11",
                         "type": "string",
                         "example": '{"Tags": [{"Key": "key", "Value": "value"}]}',
@@ -1435,7 +1435,7 @@ def get_provider_info():
                         "default": None,
                     },
                     "dead_letter_queue_url": {
-                        "description": "The URL of the SQS dead letter queue to use for the Lambda function. The Lambda executor\nwill poll this queue for timeout/exception results of the lambda function's Airflow Task. Required\n",
+                        "description": "The URL of the SQS dead letter queue to use for the Lambda function. The Lambda executor\nwill poll this queue for timeout/exception results of the lambda function. Required\n",
                         "version_added": "9.9.0",
                         "type": "string",
                         "example": "airflow-lambda-executor-dlq",
@@ -1503,7 +1503,7 @@ def get_provider_info():
                         "default": None,
                     },
                     "container_name": {
-                        "description": "The name of the container that will be used to execute Airflow tasks via the AWS ECS executor.\nThe container should be specified in the ECS Task Definition and will receive an airflow\nCLI command as an additional parameter to its entrypoint. For more info see url to Boto3\ndocs above. Required.\n",
+                        "description": "Name of the container that will be used to execute Airflow tasks via the ECS executor.\nThe container should be specified in the ECS Task Definition and will receive an airflow\nCLI command as an additional parameter to its entrypoint. For more info see url to Boto3\ndocs above. Required.\n",
                         "version_added": "8.10",
                         "type": "string",
                         "example": "ecs_executor_container",
@@ -1517,14 +1517,14 @@ def get_provider_info():
                         "default": None,
                     },
                     "platform_version": {
-                        "description": "The platform version the task uses. A platform version is only specified\nfor tasks hosted on Fargate. If one isn't specified, the LATEST platform version is used.\n",
+                        "description": "The platform version the task uses. A platform version is only specified\nfor tasks hosted on Fargate. If one isn't specified, the LATEST platform\nversion is used.\n",
                         "version_added": "8.10",
                         "type": "string",
-                        "example": "1.4",
+                        "example": "1.4.0",
                         "default": "LATEST",
                     },
                     "security_groups": {
-                        "description": "The comma-separated IDs of the security groups associated with the task or service. If you\ndon't specify a security group, the default security group for the VPC is used.\nThere's a limit of 5 security groups. For more info see url to Boto3 docs above.\n",
+                        "description": "The comma-separated IDs of the security groups associated with the task. If you\ndon't specify a security group, the default security group for the VPC is used.\nThere's a limit of 5 security groups. For more info see url to Boto3 docs above.\n",
                         "version_added": "8.10",
                         "type": "string",
                         "example": "sg-XXXX,sg-YYYY",
@@ -1538,7 +1538,7 @@ def get_provider_info():
                         "default": None,
                     },
                     "task_definition": {
-                        "description": "The family and revision (family:revision) or full ARN of the task definition\nto run. If a revision isn't specified, the LATEST ACTIVE revision is used.\n",
+                        "description": "The family and revision (family:revision) or full ARN of the task definition\nto run. If a revision isn't specified, the latest ACTIVE revision is used.\nFor more info see url to Boto3 docs above.\n",
                         "version_added": "8.10",
                         "type": "string",
                         "example": "executor_task_definition:LATEST",
@@ -1552,10 +1552,10 @@ def get_provider_info():
                         "default": "3",
                     },
                     "run_task_kwargs": {
-                        "description": "A JSON string containing arguments to provide to the ECS `run_task` API (see url above).\n",
+                        "description": "A JSON string containing arguments to provide the ECS `run_task` API (see url above).\n",
                         "version_added": "8.10",
                         "type": "string",
-                        "example": '{"tags": {"key": "schema", "value": "value"}}',
+                        "example": '{"tags": {"key": "schema", "value": "1.0"}}',
                         "default": None,
                     },
                     "check_health_on_startup": {
