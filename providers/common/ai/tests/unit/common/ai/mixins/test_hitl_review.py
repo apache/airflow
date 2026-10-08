@@ -60,7 +60,7 @@ class FakeAgenticOperator(HITLReviewMixin):
         self.max_hitl_iterations = 5
         self.hitl_timeout = hitl_timeout or timedelta(seconds=30)
         self.hitl_poll_interval = hitl_poll_interval
-        self.log = MagicMock(spec=["info", "warning"])
+        self.log = MagicMock(spec=["info", "warning", "error"])
 
     def regenerate_with_feedback(self, *, feedback: str, message_history):
         return f"Revised: {feedback}", message_history
@@ -236,6 +236,11 @@ class TestHITLReviewMixin:
             fake_op.run_hitl_review(context, "Output")
 
         assert mock_ti.xcom_pull.call_count == _MAX_CONSECUTIVE_XCOM_PULL_FAILURES
+        assert fake_op.log.warning.call_count == _MAX_CONSECUTIVE_XCOM_PULL_FAILURES - 1
+        fake_op.log.error.assert_called_once_with(
+            "Giving up HITL review after %d consecutive XCom pull failures",
+            _MAX_CONSECUTIVE_XCOM_PULL_FAILURES,
+        )
 
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)
     def test_xcom_pull_failure_counter_resets_on_success(self, mock_sleep, fake_op, mock_ti, context):
