@@ -366,7 +366,8 @@ _HISTORY_CONFIG = dataclasses.replace(
 
 def _check_for_rows(*, session: Session, query: Select, table_name: str, print_rows: bool = False) -> int:
     num_entities = session.scalars(select(func.count()).select_from(query.subquery())).one()
-    print(f"Found {num_entities} rows in table {table_name} meeting deletion criteria.")
+    row_label = "row" if num_entities == 1 else "rows"
+    print(f"Found {num_entities} {row_label} in table {table_name} meeting deletion criteria.")
     if not print_rows or num_entities == 0:
         return num_entities
 
