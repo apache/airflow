@@ -44,16 +44,20 @@ Define the body with ``@task_group`` and call ``.loop()`` on the decorated
 function. Supply a positive integer ``max_iterations`` to limit the number of
 iterations. An optional ``until`` callable decides when to stop early.
 
-Airflow evaluates ``until`` in a gate task downstream of the body's terminal task:
+Airflow evaluates ``until`` in a gate task downstream of the body's terminal task.
+It must return a ``bool``:
 
 * ``True`` means stop: the condition has been met.
 * ``False`` means continue, provided another iteration is allowed.
 
+Any other return value, including the ``None`` that a forgotten ``return`` produces, will result in
+the gate task failing, and the loop not continuing.
+
 Airflow creates the next iteration when the gate says to continue.
 It does not create all ``max_iterations`` up front:
 if the loop stops after four iterations, you see those four, without a tail
-of skipped iterations. For a fixed-count loop, the gate continues until the
-count is reached.
+of skipped iterations. A fixed-count loop runs exactly ``max_iterations``
+iterations.
 
 This example improves an estimate of the square root of two until the error
 is small enough:
@@ -66,6 +70,13 @@ is small enough:
 ``loop.result``. If another iteration runs, ``improve`` reads that same result
 through ``loop.previous``. The gate appears as a task in the loop, named after
 the condition function: ``refine.accurate_enough`` in this example.
+
+Tasks inside a loop body receive ``loop`` as a context parameter, so a parameter with that name in a
+loop body must be keyword-only and cannot have a default other than ``None``.
+
+In a templated field, a Jinja ``{% for %}`` block defines its own ``loop`` that hides this one for
+the length of the block. Read the Airflow value before the block and use that inside it, for example
+``{% set iteration = loop.index %}``.
 
 When ``until`` has no usable name, the gate is named ``__loop_gate`` instead.
 That covers a lambda, a ``functools.partial`` and a callable object. A gate name
@@ -224,14 +235,25 @@ Skipping the body's terminal task also skips the gate under its
 ``all_success`` trigger rule, so no next iteration is created. Downstream
 tasks with the default ``all_success`` rule are skipped too; give a downstream
 task ``trigger_rule="none_failed"`` if it should still run when the loop ends
-without running.
+without running:
+
+.. code-block:: python
+
+   @task(trigger_rule="none_failed")
+   def finished(): ...
+
+
+   refinement >> finished()
+
 If some branches may be skipped but the loop should continue, give the final
 combining task a trigger rule that permits those skips and have it return the
 iteration's result.
 
 Manually marking a gate successful completes it without evaluating ``until``
 or creating another iteration. This is an explicit override of normal gate
-execution. Any later iterations retained after a selective clear remain unchanged.
+execution. Downstream tasks then run as they would after any successful gate: they cannot tell a
+gate that was marked successful by hand from one that stopped because ``until`` returned ``True``.
+Any later iterations retained after a selective clear remain unchanged.
 
 Iterations and execution history
 ================================
