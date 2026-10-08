@@ -566,23 +566,31 @@ class TestSQLToolsetCheckQuery:
         )
         assert json.loads(result)["valid"] is expected_valid
 
-    @pytest.mark.parametrize(
-        ("table", "expected_valid"),
-        [("orders", True), ("secret_salaries", False)],
-    )
-    def test_writes_are_checked_against_allowed_tables(self, table, expected_valid):
+    def test_write_to_allowed_table_is_valid(self):
         ts = SQLToolset("pg_default", allowed_tables=["orders"], allow_writes=True)
         ts._hook = _make_mock_db_hook()
 
-        result = asyncio.run(
-            ts.call_tool(
-                "check_query",
-                {"sql": f"INSERT INTO {table} (id) VALUES (1)"},
-                ctx=MagicMock(),
-                tool=MagicMock(),
-            )
-        )
-        assert json.loads(result)["valid"] is expected_valid
+        assert _run_check(ts, "INSERT INTO orders (id) VALUES (1)")["valid"] is True
+
+    def test_write_to_disallowed_table_is_invalid_and_names_the_table(self):
+        ts = SQLToolset("pg_default", allowed_tables=["orders"], allow_writes=True)
+        ts._hook = _make_mock_db_hook()
+
+        data = _run_check(ts, "INSERT INTO secret_salaries (id) VALUES (1)")
+
+        assert data["valid"] is False
+        assert "secret_salaries" in data["error"]
+
+    def test_malformed_write_is_invalid_for_check_query_but_still_reaches_the_hook_for_query(self):
+        """check_query syntax-checks writes; query without an allow-list leaves them unparsed."""
+        sql = "INSERT INTO users VALUES ("
+        ts = SQLToolset("pg_default", allow_writes=True)
+        ts._hook = _make_mock_db_hook(records=[], last_description=None)
+
+        assert _run_check(ts, sql)["valid"] is False
+
+        _run_query(ts, sql)
+        _assert_executed(ts._hook, sql)
 
     @pytest.mark.parametrize(
         ("toolset_kwargs", "expected_valid"),
