@@ -37,7 +37,7 @@ Exasol To Amazon S3 transfer operator
 
 This operator exports data from an Exasol database to an Amazon S3 file.
 It uses the ``export_to_file`` method of the underlying
-`pyexasol <https://exasol.github.io/pyexasol/master/>`__ connection to export the data to a local
+`pyexasol <https://exasol.github.io/pyexasol/>`__ connection to export the data to a local
 temporary file, and then uploads the file to S3 with the
 :class:`~airflow.providers.amazon.aws.hooks.s3.S3Hook`.
 
@@ -59,5 +59,5 @@ Example usage:
 Reference
 ---------
 
-* `pyexasol library documentation <https://exasol.github.io/pyexasol/master/>`__
+* `pyexasol library documentation <https://exasol.github.io/pyexasol/>`__
 * `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
