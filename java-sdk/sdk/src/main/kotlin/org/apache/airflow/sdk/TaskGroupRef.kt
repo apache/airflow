@@ -107,34 +107,34 @@ class TaskGroupRef internal constructor(
   ): ConditionRef = ConditionRef.of(task(id, definition))
 
   /**
-   * Declares a branch in this group, as [DagDef.Branch] does for the Dag.
+   * Declares a switch in this group, as [DagDef.Switch] does for the Dag.
    *
-   * @param definition Class that implements [BranchTask]. Must have a public
+   * @param definition Class that implements [SwitchTask]. Must have a public
    *    no-arg constructor.
-   * @return The branch, to list its cases on.
+   * @return The switch, to list its cases on.
    * @throws IllegalArgumentException if the Dag already has a task or task
    *    group with the resulting ID.
    */
   @Suppress("ktlint:standard:function-naming")
-  fun Branch(definition: Class<out BranchTask>): BranchRef = Branch(deriveTaskId(definition), definition)
+  fun Switch(definition: Class<out SwitchTask>): SwitchRef = Switch(deriveTaskId(definition), definition)
 
   /**
-   * Declares a branch in this group under the task ID `<group ID>.<id>`.
+   * Declares a switch in this group under the task ID `<group ID>.<id>`.
    *
    * @param id Task ID within this group.
-   * @param definition Class that implements [BranchTask]. Must have a public
+   * @param definition Class that implements [SwitchTask]. Must have a public
    *    no-arg constructor.
-   * @return The branch, to list its cases on.
+   * @return The switch, to list its cases on.
    * @throws IllegalArgumentException if the Dag already has a task or task
    *    group with the resulting ID.
    *
-   * @see Branch
+   * @see Switch
    */
   @Suppress("ktlint:standard:function-naming")
-  fun Branch(
+  fun Switch(
     id: String,
-    definition: Class<out BranchTask>,
-  ): BranchRef = BranchRef.of(task<Any?>(id, definition))
+    definition: Class<out SwitchTask>,
+  ): SwitchRef = SwitchRef.of(task<Any?>(id, definition))
 
   /**
    * Nests a task group inside this one.

@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
-/** A case of the branches under test; a second class so a branch can tell two cases apart. */
+/** A case of the switches under test; a second class so a switch can tell two cases apart. */
 internal class HandleLong : Task {
   override fun execute(
     context: Context,
@@ -32,8 +32,8 @@ internal class HandleLong : Task {
   ) = Unit
 }
 
-/** A branch that chooses whatever [choice] holds. */
-class PickPath : BranchTask {
+/** A switch that chooses whatever [choice] holds. */
+class PickPath : SwitchTask {
   override fun choose(
     context: Context,
     client: Client,
@@ -44,51 +44,51 @@ class PickPath : BranchTask {
   }
 }
 
-internal class BranchTest {
-  private fun dagWithCases(): Triple<DagDef, BranchRef, Pair<TaskRef<Unit>, TaskRef<Unit>>> {
+internal class SwitchTest {
+  private fun dagWithCases(): Triple<DagDef, SwitchRef, Pair<TaskRef<Unit>, TaskRef<Unit>>> {
     val dag = DagDef("d")
     val handleLong = dag.task<Unit>("handle_long", HandleLong::class.java)
     val handleShort = dag.task<Unit>("handle_short", NoopTask::class.java)
-    return Triple(dag, dag.Branch(PickPath::class.java), handleLong to handleShort)
+    return Triple(dag, dag.Switch(PickPath::class.java), handleLong to handleShort)
   }
 
   @Test
-  @DisplayName("Should take the branch's task ID from its class when none is given")
+  @DisplayName("Should take the switch's task ID from its class when none is given")
   fun shouldDeriveTaskIdFromClass() {
-    val (dag, branch, cases) = dagWithCases()
-    branch.option(cases.first)
+    val (dag, switch, cases) = dagWithCases()
+    switch.Case(cases.first)
 
-    assertEquals("pickPath", branch.id)
+    assertEquals("pickPath", switch.id)
     assertEquals(setOf(dag.tasks.getValue("pickPath")), cases.first.def.upstreams)
   }
 
   @Test
   @DisplayName("Should reject naming the same case twice")
   fun shouldRejectDuplicateCase() {
-    val (_, branch, cases) = dagWithCases()
-    branch.option(cases.first)
+    val (_, switch, cases) = dagWithCases()
+    switch.Case(cases.first)
 
-    val error = assertThrows(IllegalArgumentException::class.java) { branch.option(cases.first) }
+    val error = assertThrows(IllegalArgumentException::class.java) { switch.Case(cases.first) }
 
     assertEquals(
-      "Branch 'pickPath' already chooses between 'handle_long' and others; name each case once",
+      "Switch 'pickPath' already chooses between 'handle_long' and others; name each case once",
       error.message,
     )
   }
 
   @Test
-  @DisplayName("Should reject two cases a class-named branch could not tell apart")
+  @DisplayName("Should reject two cases a class-named switch could not tell apart")
   fun shouldRejectCasesSharingAClass() {
     val dag = DagDef("d")
     val first = dag.task<Unit>("first", HandleLong::class.java)
     val second = dag.task<Unit>("second", HandleLong::class.java)
-    val branch = dag.Branch(PickPath::class.java).option(first)
+    val switch = dag.Switch(PickPath::class.java).Case(first)
 
-    val error = assertThrows(IllegalArgumentException::class.java) { branch.option(second) }
+    val error = assertThrows(IllegalArgumentException::class.java) { switch.Case(second) }
 
     assertEquals(
-      "Branch 'pickPath' cannot choose between 'first' and 'second': both run " +
-        "'org.apache.airflow.sdk.HandleLong', and a branch names its case by class",
+      "Switch 'pickPath' cannot choose between 'first' and 'second': both run " +
+        "'org.apache.airflow.sdk.HandleLong', and a switch names its case by class",
       error.message,
     )
   }
@@ -96,44 +96,44 @@ internal class BranchTest {
   @Test
   @DisplayName("Should reject a case declared in another Dag")
   fun shouldRejectCaseFromAnotherDag() {
-    val (_, branch, _) = dagWithCases()
+    val (_, switch, _) = dagWithCases()
     val other = DagDef("other").task<Unit>("handle_long", HandleLong::class.java)
 
-    val error = assertThrows(IllegalArgumentException::class.java) { branch.option(other) }
+    val error = assertThrows(IllegalArgumentException::class.java) { switch.Case(other) }
 
     assertEquals(
-      "Branch 'pickPath' of Dag 'd' cannot run task 'handle_long' of Dag 'other'; " +
+      "Switch 'pickPath' of Dag 'd' cannot run task 'handle_long' of Dag 'other'; " +
         "name a task of the same Dag",
       error.message,
     )
   }
 
   @Test
-  @DisplayName("Should reject registering a branch with nothing to choose between")
-  fun shouldRejectBranchWithoutCases() {
+  @DisplayName("Should reject registering a switch with nothing to choose between")
+  fun shouldRejectSwitchWithoutCases() {
     val (dag, _, _) = dagWithCases()
 
     val error = assertThrows(IllegalArgumentException::class.java) { Bundle().register(dag) }
 
     assertEquals(
-      "Branch 'pickPath' has no task to choose between; call option(...), in Dag 'd'",
+      "Switch 'pickPath' has no task to choose between; call Case(...), in Dag 'd'",
       error.message,
     )
   }
 
   @Test
-  @DisplayName("Should reject a branch over a task that chooses nothing")
-  fun shouldRejectBranchOverAPlainTask() {
+  @DisplayName("Should reject a switch over a task that chooses nothing")
+  fun shouldRejectSwitchOverAPlainTask() {
     val dag = DagDef("d")
 
     val error =
       assertThrows(IllegalArgumentException::class.java) {
-        BranchRef.of(dag.task<Unit>("plain", NoopTask::class.java))
+        SwitchRef.of(dag.task<Unit>("plain", NoopTask::class.java))
       }
 
     assertEquals(
       "Task 'plain' runs 'org.apache.airflow.sdk.NoopTask', which chooses nothing; " +
-        "a branch runs a BranchTask",
+        "a switch runs a SwitchTask",
       error.message,
     )
   }
@@ -141,28 +141,28 @@ internal class BranchTest {
   @Test
   @DisplayName("Should reject naming a case after the Dag was registered")
   fun shouldRejectCaseAfterRegistration() {
-    val (dag, branch, cases) = dagWithCases()
-    branch.option(cases.first)
+    val (dag, switch, cases) = dagWithCases()
+    switch.Case(cases.first)
     Bundle().register(dag)
 
-    val error = assertThrows(IllegalArgumentException::class.java) { branch.option(cases.second) }
+    val error = assertThrows(IllegalArgumentException::class.java) { switch.Case(cases.second) }
 
     assertEquals(
-      "Branch 'pickPath' of Dag 'd' is already registered; name every case before the Dag is " +
+      "Switch 'pickPath' of Dag 'd' is already registered; name every case before the Dag is " +
         "added to a Bundle",
       error.message,
     )
   }
 
   @Test
-  @DisplayName("Should declare a branch inside a task group under the group's prefix")
-  fun shouldDeclareBranchInGroup() {
+  @DisplayName("Should declare a switch inside a task group under the group's prefix")
+  fun shouldDeclareSwitchInGroup() {
     val dag = DagDef("d")
     val reports = dag.taskGroup("reports")
     val long = reports.task<Unit>("long", HandleLong::class.java)
-    val branch = reports.Branch("pick", PickPath::class.java).option(long)
+    val switch = reports.Switch("pick", PickPath::class.java).Case(long)
 
-    assertEquals("reports.pick", branch.id)
+    assertEquals("reports.pick", switch.id)
     assertEquals(listOf("reports.long", "reports.pick"), dag.tasks.keys.toList())
   }
 

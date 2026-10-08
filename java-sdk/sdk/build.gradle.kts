@@ -620,22 +620,22 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   * The method returns the [TaskId] of the task it chose, which the
             |   * generated `<Dag>Builder.TaskIds` declares a constant for, so a
             |   * choice that is not a task of this Dag does not compile. Its
-            |   * wiring-view method returns a [BranchRef], so the cases are listed
+            |   * wiring-view method returns a [SwitchRef], so the cases are listed
             |   * where the Dag is wired:
             |   *
             |   * ```java
-            |   * @Builder.Branch(id = "pick_path")
+            |   * @Builder.Switch(id = "pick_path")
             |   * public TaskId pickPath(long rows) {
             |   *   return rows > 1000 ? EtlBuilder.TaskIds.HANDLE_LONG : EtlBuilder.TaskIds.HANDLE_SHORT;
             |   * }
             |   *
             |   * @Builder.Deps
             |   * static class Wiring implements EtlDeps {
-            |   *   void depends() { pickPath(extract()).option(handleLong()).option(handleShort()); }
+            |   *   void depends() { pickPath(extract()).Case(handleLong()).Case(handleShort()); }
             |   * }
             |   * ```
             |   *
-            |   * A branch chooses exactly one case, so a task that runs after
+            |   * A switch chooses exactly one case, so a task that runs after
             |   * several of them needs a trigger rule that tolerates a skipped
             |   * upstream, such as `none_failed_min_one_success`.
             |   *
@@ -644,7 +644,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   */
             |  @Target(AnnotationTarget.FUNCTION)
             |  @MustBeDocumented
-            |  annotation class Branch(
+            |  annotation class Switch(
             |    /** Task ID. Empty derives it from the annotated function's name. */
             |    val id: String = "",
             |${attrLines(taskFields)}

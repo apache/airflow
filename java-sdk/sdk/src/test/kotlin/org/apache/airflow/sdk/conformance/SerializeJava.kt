@@ -32,7 +32,6 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
 import org.apache.airflow.sdk.Arg
-import org.apache.airflow.sdk.BranchRef
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.ConditionRef
@@ -40,10 +39,11 @@ import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.Deps
+import org.apache.airflow.sdk.SwitchRef
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskGroupRef
 import org.apache.airflow.sdk.TaskId
-import org.apache.airflow.sdk.TaskIdBranchTask
+import org.apache.airflow.sdk.TaskIdSwitchTask
 import org.apache.airflow.sdk.TaskRef
 import org.apache.airflow.sdk.execution.serializeDag
 import org.apache.airflow.sdk.internal.Field
@@ -69,7 +69,7 @@ class ConformanceCondition : ConditionTask {
 
 // Names its case by task ID: every conformance task runs the same class, so a
 // branch that named a case by class could not tell two of them apart.
-class ConformanceBranch : TaskIdBranchTask {
+class ConformanceSwitch : TaskIdSwitchTask {
   override fun choose(
     context: Context,
     client: Client,
@@ -111,7 +111,7 @@ private fun buildDag(case: JsonNode): DagDef {
     val definition =
       when {
         branch.isMissingNode -> ConformanceTask::class.java
-        branch.has("cases") -> ConformanceBranch::class.java
+        branch.has("cases") -> ConformanceSwitch::class.java
         else -> ConformanceCondition::class.java
       }
     val ref =
@@ -121,7 +121,7 @@ private fun buildDag(case: JsonNode): DagDef {
         groups.getValue(groupId).task<Any?>(localId, definition)
       }
     if (!branch.isMissingNode) {
-      deciders += (if (branch.has("cases")) BranchRef.of(ref) else asCondition(ref)) to branch
+      deciders += (if (branch.has("cases")) SwitchRef.of(ref) else asCondition(ref)) to branch
     }
     task.path("spec").fields().forEach { (key, value) -> ref.config(key, toValue(SchemaFields.TASK, key, value)) }
     // A task's `upstream` handles and its `literals` are its call arguments, in that order, so the
@@ -138,7 +138,7 @@ private fun buildDag(case: JsonNode): DagDef {
 
   deciders.forEach { (decider, branch) ->
     when (decider) {
-      is BranchRef -> branch.path("cases").forEach { decider.option(tasks.getValue(it.asText())) }
+      is SwitchRef -> branch.path("cases").forEach { decider.Case(tasks.getValue(it.asText())) }
       is ConditionRef -> {
         decider.Then(tasks.getValue(branch.path("then").asText()))
         branch.path("else").takeIf { !it.isMissingNode }?.let { decider.Else(tasks.getValue(it.asText())) }

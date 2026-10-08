@@ -109,7 +109,7 @@ capabilities:
   branching:
     supported: true
     since: "3.4"
-    note: "DagDef.If and DagDef.Branch, or @Builder.If and @Builder.Branch"
+    note: "DagDef.If and DagDef.Switch, or @Builder.If and @Builder.Switch"
   dag-test:
     supported: false
   task-group:

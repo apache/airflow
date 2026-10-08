@@ -24,7 +24,7 @@ import kotlin.Throws
 /**
  * The Airflow task ID of one task of a Dag.
  *
- * A `@Builder.Branch` method names the task it chose with one of these. The
+ * A `@Builder.Switch` method names the task it chose with one of these. The
  * generated `<Dag>Builder.TaskIds` holds a constant per task of the Dag, so
  * the choice is checked where it is written rather than when the task runs.
  *
@@ -54,11 +54,11 @@ class TaskId private constructor(
 /**
  * A task that chooses one of several tasks to run; every other one is skipped.
  *
- * Register one with [DagDef.Branch], then list what it can choose with
- * [BranchRef.option]. The choice is the task's own class, so javac checks it:
+ * Register one with [DagDef.Switch], then list what it can choose with
+ * [SwitchRef.Case]. The choice is the task's own class, so javac checks it:
  *
  * ```java
- * public class PickPath implements BranchTask {
+ * public class PickPath implements SwitchTask {
  *   @Override
  *   public Class<? extends Task> choose(Context context, Client client) {
  *     return ((Number) client.getXCom("extract")).longValue() > 1000
@@ -71,12 +71,12 @@ class TaskId private constructor(
  * The SDK runs [choose] and pushes the chosen task's ID as this task's return
  * value, so [execute] is never called.
  *
- * Because a branch names a case by its class, no two of its cases may be
+ * Because a switch names a case by its class, no two of its cases may be
  * registered from the same class; registering the Dag reports that.
  *
- * @see DagDef.Branch
+ * @see DagDef.Switch
  */
-interface BranchTask : Task {
+interface SwitchTask : Task {
   /**
    * Chooses the one case that runs.
    *
@@ -85,7 +85,7 @@ interface BranchTask : Task {
    *
    * @param context Runtime context for the current execution workload.
    * @param client Client for Airflow API calls scoped to this execution.
-   * @return The class of one of this branch's cases.
+   * @return The class of one of this switch's cases.
    * @throws Exception on failure; the task instance is marked failed.
    */
   @Throws(Exception::class)
@@ -94,24 +94,24 @@ interface BranchTask : Task {
     client: Client,
   ): Class<out Task>
 
-  /** Never called: the SDK runs a branch through [choose]. */
+  /** Never called: the SDK runs a switch through [choose]. */
   override fun execute(
     context: Context,
     client: Client,
   ): Unit =
     throw IllegalStateException(
-      "Branch '${javaClass.name}' runs through choose(), so execute() is never called",
+      "Switch '${javaClass.name}' runs through choose(), so execute() is never called",
     )
 }
 
 /**
  * @suppress
  *
- * What a generated `@Builder.Branch` task implements: a branch whose method
+ * What a generated `@Builder.Switch` task implements: a switch whose method
  * named the case with a [TaskId]. Public so generated code can implement it;
- * a Dag written against [DagDef.Branch] implements [BranchTask] instead.
+ * a Dag written against [DagDef.Switch] implements [SwitchTask] instead.
  */
-interface TaskIdBranchTask : Task {
+interface TaskIdSwitchTask : Task {
   @Throws(Exception::class)
   fun choose(
     context: Context,
@@ -123,49 +123,49 @@ interface TaskIdBranchTask : Task {
     client: Client,
   ): Unit =
     throw IllegalStateException(
-      "Branch '${javaClass.name}' runs through choose(), so execute() is never called",
+      "Switch '${javaClass.name}' runs through choose(), so execute() is never called",
     )
 }
 
 /**
- * A branch registered with a Dag: list the tasks it can choose between.
+ * A switch registered with a Dag: list the tasks it can choose between.
  *
  * ```java
- * dag.Branch(PickPath.class).option(handleLong).option(handleShort);
+ * dag.Switch(PickPath.class).Case(handleLong).Case(handleShort);
  * ```
  *
- * A case runs after the branch, so naming it records that edge, as
- * [Deps.Flow.before] would. The branch chooses exactly one case and skips
+ * A case runs after the switch, so naming it records that edge, as
+ * [Deps.Flow.before] would. The switch chooses exactly one case and skips
  * every other, so a task that runs after several cases needs a trigger rule
  * that tolerates a skipped upstream, such as `none_failed_min_one_success`.
  *
- * @see DagDef.Branch
+ * @see DagDef.Switch
  */
-class BranchRef private constructor(
+class SwitchRef private constructor(
   private val ref: TaskRef<*>,
-  private val cases: BranchDef,
+  private val cases: SwitchDef,
 ) : Deps.Flow {
   companion object {
     /**
      * @suppress
      *
-     * Marks a registered task as a branch. Public so a generated wiring view
-     * can call it; user code reaches a branch through [DagDef.Branch].
+     * Marks a registered task as a switch. Public so a generated wiring view
+     * can call it; user code reaches a switch through [DagDef.Switch].
      */
     @JvmStatic
-    fun of(ref: TaskRef<*>): BranchRef {
+    fun of(ref: TaskRef<*>): SwitchRef {
       require(ref.def.decider == null) {
         "Task '${ref.def.id}' already decides what to skip; declare it once"
       }
       val definition = ref.def.definition
       require(
-        BranchTask::class.java.isAssignableFrom(definition) ||
-          TaskIdBranchTask::class.java.isAssignableFrom(definition),
+        SwitchTask::class.java.isAssignableFrom(definition) ||
+          TaskIdSwitchTask::class.java.isAssignableFrom(definition),
       ) {
-        "Task '${ref.def.id}' runs '${definition.name}', which chooses nothing; a branch runs a " +
-          "BranchTask"
+        "Task '${ref.def.id}' runs '${definition.name}', which chooses nothing; a switch runs a " +
+          "SwitchTask"
       }
-      return BranchRef(ref, BranchDef().also { ref.def.decider = it })
+      return SwitchRef(ref, SwitchDef().also { ref.def.decider = it })
     }
   }
 
@@ -173,19 +173,20 @@ class BranchRef private constructor(
   val id: String get() = ref.def.id
 
   /**
-   * Adds a task this branch can choose. Every other case is skipped when the
-   * branch chooses this one.
+   * Adds a task this switch can choose. Every other case is skipped when the
+   * switch chooses this one.
    *
    * @param task Task of the same Dag.
-   * @return This branch, for chaining.
+   * @return This switch, for chaining.
    * @throws IllegalArgumentException if the task belongs to another Dag or is
-   *    already a case of this branch.
+   *    already a case of this switch.
    */
-  fun option(task: TaskRef<*>): BranchRef {
+  @Suppress("ktlint:standard:function-naming")
+  fun Case(task: TaskRef<*>): SwitchRef {
     cases.add(ref.def, task.def)
-    // The case runs after the branch, which is what puts the branch in the
+    // The case runs after the switch, which is what puts the switch in the
     // serialized Dag as its upstream and lets registration see a cycle that
-    // runs through a branch.
+    // runs through a switch.
     ref.before(task)
     return this
   }
@@ -195,33 +196,33 @@ class BranchRef private constructor(
    *
    * @param key Airflow task setting name.
    * @param value Value matching the key's schema type.
-   * @return This branch, for chaining.
+   * @return This switch, for chaining.
    * @throws IllegalArgumentException if the key is unknown or the value type
    *    does not match.
    */
   fun config(
     key: String,
     value: Any?,
-  ): BranchRef {
+  ): SwitchRef {
     ref.config(key, value)
     return this
   }
 
   override fun nodes(): List<TaskDef> = ref.nodes()
 
-  override fun before(vararg next: Deps.Flow): BranchRef {
+  override fun before(vararg next: Deps.Flow): SwitchRef {
     ref.before(*next)
     return this
   }
 
-  override fun after(vararg previous: Deps.Flow): BranchRef {
+  override fun after(vararg previous: Deps.Flow): SwitchRef {
     ref.after(*previous)
     return this
   }
 }
 
-/** The cases of one branch, as [BranchRef.option] listed them. */
-internal class BranchDef : DeciderDef {
+/** The cases of one switch, as [SwitchRef.Case] listed them. */
+internal class SwitchDef : DeciderDef {
   private val options = mutableListOf<TaskDef>()
 
   override val cases: List<TaskDef> get() = options
@@ -230,19 +231,19 @@ internal class BranchDef : DeciderDef {
     decider: TaskDef,
     case: TaskDef,
   ) {
-    requireUnregistered(decider, "Branch")
-    requireSameDag(decider, case, "Branch")
+    requireUnregistered(decider, "Switch")
+    requireSameDag(decider, case, "Switch")
     require(options.none { it === case }) {
-      "Branch '${decider.id}' already chooses between '${case.id}' and others; name each case once"
+      "Switch '${decider.id}' already chooses between '${case.id}' and others; name each case once"
     }
-    // A BranchTask names its case by class, so two cases sharing one would be
+    // A SwitchTask names its case by class, so two cases sharing one would be
     // indistinguishable. Checked here rather than at registration so the error
-    // points at the second option(...) call.
-    if (BranchTask::class.java.isAssignableFrom(decider.definition)) {
+    // points at the second Case(...) call.
+    if (SwitchTask::class.java.isAssignableFrom(decider.definition)) {
       options.firstOrNull { it.definition == case.definition }?.let { first ->
         throw IllegalArgumentException(
-          "Branch '${decider.id}' cannot choose between '${first.id}' and '${case.id}': both run " +
-            "'${case.definition.name}', and a branch names its case by class",
+          "Switch '${decider.id}' cannot choose between '${first.id}' and '${case.id}': both run " +
+            "'${case.definition.name}', and a switch names its case by class",
         )
       }
     }
@@ -250,7 +251,7 @@ internal class BranchDef : DeciderDef {
   }
 
   override fun describe(decider: TaskDef): String? =
-    if (options.isEmpty()) "Branch '${decider.id}' has no task to choose between; call option(...)" else null
+    if (options.isEmpty()) "Switch '${decider.id}' has no task to choose between; call Case(...)" else null
 
   override fun decide(
     decider: TaskDef,
@@ -260,10 +261,10 @@ internal class BranchDef : DeciderDef {
   ): Decision {
     val chosen =
       when (instance) {
-        is BranchTask -> byClass(decider, instance.choose(context, client))
-        is TaskIdBranchTask -> byId(decider, instance.choose(context, client).value)
+        is SwitchTask -> byClass(decider, instance.choose(context, client))
+        is TaskIdSwitchTask -> byId(decider, instance.choose(context, client).value)
         else -> throw IllegalStateException(
-          "Task '${decider.id}' is a branch, but '${instance.javaClass.name}' is not a BranchTask",
+          "Task '${decider.id}' is a switch, but '${instance.javaClass.name}' is not a SwitchTask",
         )
       }
     return Decision(chosen.id, options.filterNot { it === chosen }.map { it.id })
@@ -275,7 +276,7 @@ internal class BranchDef : DeciderDef {
   ): TaskDef =
     options.firstOrNull { it.definition == definition }
       ?: throw IllegalArgumentException(
-        "Branch '${decider.id}' chose ${definition?.name ?: "nothing"}, which is not one of its cases: ${describeCases()}",
+        "Switch '${decider.id}' chose ${definition?.name ?: "nothing"}, which is not one of its cases: ${describeCases()}",
       )
 
   private fun byId(
@@ -284,7 +285,7 @@ internal class BranchDef : DeciderDef {
   ): TaskDef =
     options.firstOrNull { it.id == taskId }
       ?: throw IllegalArgumentException(
-        "Branch '${decider.id}' chose '$taskId', which is not one of its cases: ${describeCases()}",
+        "Switch '${decider.id}' chose '$taskId', which is not one of its cases: ${describeCases()}",
       )
 
   private fun describeCases(): String = options.joinToString { "'${it.id}'" }

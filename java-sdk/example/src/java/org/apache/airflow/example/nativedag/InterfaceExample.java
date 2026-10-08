@@ -85,9 +85,9 @@ public class InterfaceExample {
     }
   }
 
-  // A branch: it names the one case that runs by its class, and every other
+  // A switch: it names the one case that runs by its class, and every other
   // case is skipped.
-  public static class PickReport implements BranchTask {
+  public static class PickReport implements SwitchTask {
     @Override
     public Class<? extends Task> choose(Context context, Client client) {
       return ((Number) client.getXCom("transform")).longValue() > 100
@@ -119,7 +119,7 @@ public class InterfaceExample {
     // With no task id given, a decider takes one from its class: "hasRows" and
     // "pickReport".
     dag.If(HasRows.class).after(transform).Then(load).Else(loadEmpty);
-    dag.Branch(PickReport.class).after(transform).option(reportLong).option(reportShort);
+    dag.Switch(PickReport.class).after(transform).Case(reportLong).Case(reportShort);
     return dag;
   }
 }

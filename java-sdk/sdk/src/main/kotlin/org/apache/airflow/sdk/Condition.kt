@@ -103,7 +103,7 @@ class ConditionRef private constructor(
     @JvmStatic
     fun of(ref: TaskRef<Boolean>): ConditionRef {
       ref.def.decider?.let { existing ->
-        require(existing is ConditionDef) { "Task '${ref.def.id}' already decides what to skip as a branch" }
+        require(existing is ConditionDef) { "Task '${ref.def.id}' already decides what to skip as a switch" }
         return ConditionRef(ref, existing)
       }
       return ConditionRef(ref, ConditionDef().also { ref.def.decider = it })

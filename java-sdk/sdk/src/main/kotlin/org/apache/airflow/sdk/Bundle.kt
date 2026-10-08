@@ -67,7 +67,7 @@ class Bundle(
    * @throws IllegalArgumentException if another Dag shares its ID, task
    *    handlers are already registered against it, a task depends on an
    *    upstream not registered in the same Dag, a task that decides which task
-   *    runs is not declared with `If` or `Branch`, or the dependencies contain
+   *    runs is not declared with `If` or `Switch`, or the dependencies contain
    *    a cycle.
    * @throws IllegalStateException if [Server.serve] has already been called.
    */
@@ -88,7 +88,7 @@ class Bundle(
       require(decides == (def.decider != null)) {
         if (decides) {
           "Task '${def.id}' runs '${def.definition.name}', which decides which task runs, but nothing names " +
-            "what it chooses; declare it with If(...) or Branch(...), in Dag '${dag.id}'"
+            "what it chooses; declare it with If(...) or Switch(...), in Dag '${dag.id}'"
         } else {
           "Task '${def.id}' chooses which task runs, but '${def.definition.name}' decides nothing, in Dag '${dag.id}'"
         }
@@ -213,7 +213,7 @@ class Bundle(
 }
 
 /** Task types the SDK runs through a decider, so each needs the sides it chooses between. */
-private val DECIDER_TYPES = listOf(ConditionTask::class.java, BranchTask::class.java, TaskIdBranchTask::class.java)
+private val DECIDER_TYPES = listOf(ConditionTask::class.java, SwitchTask::class.java, TaskIdSwitchTask::class.java)
 
 // Reject cycles produced by before and after at registration time. This is (non-tailrec-eligible)
 // recursive and could blow up with deep dependency chains. I kept the recursive implementation

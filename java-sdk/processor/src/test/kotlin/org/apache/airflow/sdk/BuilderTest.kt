@@ -2301,8 +2301,8 @@ class BuilderTest {
   }
 
   @Test
-  @DisplayName("generate a branch that names its case with a generated task-id constant")
-  fun generateBranchTask() {
+  @DisplayName("generate a switch that names its case with a generated task-id constant")
+  fun generateSwitchTask() {
     val compilation =
       compile(
         """
@@ -2313,7 +2313,7 @@ class BuilderTest {
 
         @Builder.Dag(id = "etl")
         public class TestExample {
-          @Builder.Branch(id = "pick_path")
+          @Builder.Switch(id = "pick_path")
           public TaskId pickPath() {
             return TestExampleBuilder.TaskIds.HANDLE_LONG;
           }
@@ -2327,7 +2327,7 @@ class BuilderTest {
           @Builder.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
-              pickPath().option(handleLong()).option(handleShort());
+              pickPath().Case(handleLong()).Case(handleShort());
             }
           }
         }
@@ -2350,7 +2350,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskId;
-         import org.apache.airflow.sdk.TaskIdBranchTask;
+         import org.apache.airflow.sdk.TaskIdSwitchTask;
          import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
 
@@ -2360,7 +2360,7 @@ class BuilderTest {
              return Refs.record(dag, List.of("pick_path", "handleLong", "handleShort"), List.of(), new TestExample.Wiring()::depends);
            }
 
-           public static final class PickPath implements TaskIdBranchTask {
+           public static final class PickPath implements TaskIdSwitchTask {
              @Override
              public TaskId choose(Context context, Client client) throws Exception {
                return new TestExample().pickPath();
@@ -2382,7 +2382,7 @@ class BuilderTest {
            }
 
            /**
-            * The task ids of this Dag, for a {@code @Builder.Branch} method to name its case with.
+            * The task ids of this Dag, for a {@code @Builder.Switch} method to name its case with.
             */
            public static final class TaskIds {
              public static final TaskId PICK_PATH = TaskId.of("pick_path");
@@ -2402,15 +2402,15 @@ class BuilderTest {
          package org.apache.airflow.example;
 
          import java.lang.Void;
-         import org.apache.airflow.sdk.BranchRef;
          import org.apache.airflow.sdk.Deps;
+         import org.apache.airflow.sdk.SwitchRef;
          import org.apache.airflow.sdk.TaskDef;
          import org.apache.airflow.sdk.TaskRef;
          import org.apache.airflow.sdk.internal.Refs;
 
          public interface TestExampleDeps extends Deps {
-           default BranchRef pickPath() {
-             return BranchRef.of(Refs.node("", new TaskDef("pick_path", TestExampleBuilder.PickPath.class)));
+           default SwitchRef pickPath() {
+             return SwitchRef.of(Refs.node("", new TaskDef("pick_path", TestExampleBuilder.PickPath.class)));
            }
 
            default TaskRef<Void> handleLong() {
@@ -2436,7 +2436,7 @@ class BuilderTest {
         import org.apache.airflow.sdk.TaskId;
         @Builder.Dag
         public class TestExample {
-          @Builder.Branch
+          @Builder.Switch
           public TaskId pick() {
             return TestExampleBuilder.TaskIds.TASK_IDS;
           }
@@ -2469,7 +2469,7 @@ class BuilderTest {
         import org.apache.airflow.sdk.TaskId;
         @Builder.Dag
         public class TestExample {
-          @Builder.Branch
+          @Builder.Switch
           public TaskId pick() {
             return null;
           }
@@ -2492,8 +2492,8 @@ class BuilderTest {
   }
 
   @Test
-  @DisplayName("reject a branch that does not return a task id")
-  fun rejectNonTaskIdBranch() {
+  @DisplayName("reject a switch that does not return a task id")
+  fun rejectNonTaskIdSwitch() {
     val compilation =
       compile(
         """
@@ -2501,7 +2501,7 @@ class BuilderTest {
         import org.apache.airflow.sdk.Builder;
         @Builder.Dag
         public class TestExample {
-          @Builder.Branch
+          @Builder.Switch
           public String pickPath() {
             return "handleLong";
           }
@@ -2516,7 +2516,7 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Branch method 'pickPath' returns java.lang.String, but a branch returns a TaskId",
+      "@Builder.Switch method 'pickPath' returns java.lang.String, but a switch returns a TaskId",
     )
   }
 
@@ -2531,7 +2531,7 @@ class BuilderTest {
         import org.apache.airflow.sdk.TaskId;
         @Builder.Dag
         public class TestExample {
-          @Builder.Branch
+          @Builder.Switch
           public TaskId pick() {
             return TestExampleBuilder.TaskIds.HANDLE_LONG;
           }

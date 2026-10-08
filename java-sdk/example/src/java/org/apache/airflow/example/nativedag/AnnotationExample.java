@@ -76,10 +76,10 @@ public class AnnotationExample {
     log.log(INFO, "Short report");
   }
 
-  // A branch: it names the one case that runs, and every other case is
+  // A switch: it names the one case that runs, and every other case is
   // skipped. TaskIds is generated beside the builder, so a case that is not a
   // task of this Dag does not compile.
-  @Builder.Branch(id = "pick_report")
+  @Builder.Switch(id = "pick_report")
   public TaskId pickReport(long transformed) {
     return transformed > 100
         ? AnnotationExampleBuilder.TaskIds.REPORT_LONG
@@ -104,7 +104,7 @@ public class AnnotationExample {
       var extracted = extract();
       var transformed = transform(extracted, lit(1.5));
       hasRows(transformed).Then(load(transformed)).Else(loadEmpty());
-      pickReport(transformed).option(reportLong()).option(reportShort());
+      pickReport(transformed).Case(reportLong()).Case(reportShort());
       // Ordering-only edge: the checks group runs after extract, with no data
       // flowing.
       extracted.before(checks());

@@ -19,17 +19,17 @@
 
 package org.apache.airflow.sdk.execution
 
-import org.apache.airflow.sdk.BranchRef
-import org.apache.airflow.sdk.BranchTask
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.SwitchRef
+import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
 import org.apache.airflow.sdk.TaskId
-import org.apache.airflow.sdk.TaskIdBranchTask
+import org.apache.airflow.sdk.TaskIdSwitchTask
 import org.apache.airflow.sdk.execution.comm.BundleInfo
 import org.apache.airflow.sdk.execution.comm.DagRun
 import org.apache.airflow.sdk.execution.comm.RetryTask
@@ -250,12 +250,12 @@ class TaskTest {
   }
 
   @Test
-  @DisplayName("Should push the case a branch chose and skip every other one")
+  @DisplayName("Should push the case a switch chose and skip every other one")
   fun shouldSkipTheCasesNotChosen() {
-    TestBranch.choice = HandleLongTask::class.java
+    TestSwitch.choice = HandleLongTask::class.java
     val transport = RecordingTransport()
 
-    val result = runTask(branchBundle(), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
+    val result = runTask(switchBundle(), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
 
     Assertions.assertInstanceOf(SucceedTask::class.java, result)
     Assertions.assertEquals(listOf("handle_short"), transport.skipped)
@@ -266,12 +266,12 @@ class TaskTest {
   }
 
   @Test
-  @DisplayName("Should fail a branch that chose a task it cannot run")
-  fun shouldFailBranchThatChoseAnUnknownCase() {
-    TestBranch.choice = SuccessTask::class.java
+  @DisplayName("Should fail a switch that chose a task it cannot run")
+  fun shouldFailSwitchThatChoseAnUnknownCase() {
+    TestSwitch.choice = SuccessTask::class.java
     val transport = RecordingTransport()
 
-    val result = runTask(branchBundle(), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
+    val result = runTask(switchBundle(), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
     Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
@@ -280,12 +280,12 @@ class TaskTest {
   }
 
   @Test
-  @DisplayName("Should let a generated branch name its case by task ID")
+  @DisplayName("Should let a generated switch name its case by task ID")
   fun shouldChooseByTaskId() {
     val dag = DagDef("test_dag")
     val long = dag.task<Unit>("handle_long", HandleLongTask::class.java)
     val short = dag.task<Unit>("handle_short", HandleShortTask::class.java)
-    BranchRef.of(dag.task<Unit>("pick", TestTaskIdBranch::class.java)).option(long).option(short)
+    SwitchRef.of(dag.task<Unit>("pick", TestTaskIdSwitch::class.java)).Case(long).Case(short)
     val transport = RecordingTransport()
 
     runTask(Bundle(listOf(dag)), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
@@ -294,11 +294,11 @@ class TaskTest {
     Assertions.assertEquals("handle_short", transport.xComs.last().second)
   }
 
-  private fun branchBundle(): Bundle {
+  private fun switchBundle(): Bundle {
     val dag = DagDef("test_dag")
     val long = dag.task<Unit>("handle_long", HandleLongTask::class.java)
     val short = dag.task<Unit>("handle_short", HandleShortTask::class.java)
-    dag.Branch("pick", TestBranch::class.java).option(long).option(short)
+    dag.Switch("pick", TestSwitch::class.java).Case(long).Case(short)
     return Bundle(listOf(dag))
   }
 
@@ -432,7 +432,7 @@ class TaskTest {
   }
 
   /** Chooses whatever [choice] holds, so a test can drive it to a case or past one. */
-  class TestBranch : BranchTask {
+  class TestSwitch : SwitchTask {
     override fun choose(
       context: Context,
       client: Client,
@@ -443,8 +443,8 @@ class TaskTest {
     }
   }
 
-  /** The shape the annotation processor generates: a branch that names its case by ID. */
-  class TestTaskIdBranch : TaskIdBranchTask {
+  /** The shape the annotation processor generates: a switch that names its case by ID. */
+  class TestTaskIdSwitch : TaskIdSwitchTask {
     override fun choose(
       context: Context,
       client: Client,

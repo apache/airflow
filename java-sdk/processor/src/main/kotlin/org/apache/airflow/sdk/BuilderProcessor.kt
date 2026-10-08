@@ -99,7 +99,7 @@ import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
   "org.apache.airflow.sdk.Builder.Dag",
   "org.apache.airflow.sdk.Builder.Task",
   "org.apache.airflow.sdk.Builder.If",
-  "org.apache.airflow.sdk.Builder.Branch",
+  "org.apache.airflow.sdk.Builder.Switch",
   "org.apache.airflow.sdk.Builder.TaskGroup",
   "org.apache.airflow.sdk.Builder.TaskHandler",
   "org.apache.airflow.sdk.Builder.Deps",
@@ -278,14 +278,14 @@ class BuilderProcessor : AbstractProcessor() {
     builderClass.addMethod(buildMethod.build())
 
     declarations.forEach { builderClass.addType(buildTask(it)) }
-    // Only a branch needs to name a task in code, so a Dag without one keeps
+    // Only a switch needs to name a task in code, so a Dag without one keeps
     // the generated builder to the classes that run its tasks.
-    if (declarations.any { it.kind == TaskKind.BRANCH }) builderClass.addType(buildTaskIds(declarations))
+    if (declarations.any { it.kind == TaskKind.SWITCH }) builderClass.addType(buildTaskIds(declarations))
     return builderClass.build()
   }
 
   /**
-   * Generates the `TaskIds` holder a `@Builder.Branch` method names its case
+   * Generates the `TaskIds` holder a `@Builder.Switch` method names its case
    * with: one constant per task of the Dag, so a choice that is not a task of
    * this Dag does not compile.
    */
@@ -295,9 +295,9 @@ class BuilderProcessor : AbstractProcessor() {
         .classBuilder(TASK_IDS)
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
         .addJavadoc(
-          "The task ids of this Dag, for a {@code @Builder.Branch} method to name its case with.\n\n" +
-            "<p>Every task of the Dag has one, so naming a task that is not a case of the branch\n" +
-            "compiles and fails when the branch runs.\n",
+          "The task ids of this Dag, for a {@code @Builder.Switch} method to name its case with.\n\n" +
+            "<p>Every task of the Dag has one, so naming a task that is not a case of the switch\n" +
+            "compiles and fails when the switch runs.\n",
         )
     declarations.forEach { decl ->
       holder.addField(
@@ -599,18 +599,18 @@ class BuilderProcessor : AbstractProcessor() {
         "Dag has both a task and a task group with ID '${group.fullId}'; rename one"
       }
     }
-    if (declarations.any { it.kind == TaskKind.BRANCH }) {
+    if (declarations.any { it.kind == TaskKind.SWITCH }) {
       val byConstant = mutableMapOf<String, TaskDeclaration>()
       declarations.forEach { decl ->
         val constant = constantName(decl.id)
         require(SourceVersion.isName(constant)) {
           "Task '${decl.id}' becomes the constant '$constant' of the generated TaskIds, which is not " +
-            "a Java name; give the task an id a branch can name it by, with ${decl.kind.spelling}(id = \"...\")"
+            "a Java name; give the task an id a switch can name it by, with ${decl.kind.spelling}(id = \"...\")"
         }
         byConstant.put(constant, decl)?.let { first ->
           throw IllegalArgumentException(
             "Tasks '${first.id}' and '${decl.id}' both become the constant " +
-              "'$constant' of the generated TaskIds; rename one so a branch can tell them apart",
+              "'$constant' of the generated TaskIds; rename one so a switch can tell them apart",
           )
         }
       }
@@ -775,9 +775,9 @@ class BuilderProcessor : AbstractProcessor() {
           "@Builder.If method '${method.simpleName}' returns $returns, but a condition returns boolean: " +
             "true runs the task named by Then, false the one named by Else"
         }
-      TaskKind.BRANCH ->
+      TaskKind.SWITCH ->
         require(with(processingEnv) { isType(returns, TASK_ID_TYPE) }) {
-          "@Builder.Branch method '${method.simpleName}' returns $returns, but a branch returns a " +
+          "@Builder.Switch method '${method.simpleName}' returns $returns, but a switch returns a " +
             "TaskId: name the case it chose with a constant of the generated TaskIds"
         }
     }
@@ -803,7 +803,7 @@ class BuilderProcessor : AbstractProcessor() {
           when (decl.kind) {
             TaskKind.TASK -> TypeName.VOID
             TaskKind.CONDITION -> TypeName.BOOLEAN
-            TaskKind.BRANCH -> TASK_ID_TYPE
+            TaskKind.SWITCH -> TASK_ID_TYPE
           },
         ).addParameter(CONTEXT_TYPE, "context")
         .addParameter(CLIENT_TYPE, "client")
@@ -1045,8 +1045,8 @@ private val TASK_HANDLE_TYPE = ClassName.get(TaskRef::class.java)
 private val TASK_TYPE = ClassName.get(Task::class.java)
 private val CONDITION_TASK_TYPE = ClassName.get(ConditionTask::class.java)
 private val CONDITION_REF_TYPE = ClassName.get(ConditionRef::class.java)
-private val BRANCH_TASK_TYPE = ClassName.get(TaskIdBranchTask::class.java)
-private val BRANCH_REF_TYPE = ClassName.get(BranchRef::class.java)
+private val SWITCH_TASK_TYPE = ClassName.get(TaskIdSwitchTask::class.java)
+private val SWITCH_REF_TYPE = ClassName.get(SwitchRef::class.java)
 private val TASK_ID_TYPE = ClassName.get(TaskId::class.java)
 
 /** Name of the generated holder of a Dag's task ids, which no task class may take. */
@@ -1073,7 +1073,7 @@ private enum class TaskKind(
 ) {
   TASK("org.apache.airflow.sdk.Builder.Task", "@Builder.Task", "execute", TASK_TYPE, null),
   CONDITION("org.apache.airflow.sdk.Builder.If", "@Builder.If", "decide", CONDITION_TASK_TYPE, CONDITION_REF_TYPE),
-  BRANCH("org.apache.airflow.sdk.Builder.Branch", "@Builder.Branch", "choose", BRANCH_TASK_TYPE, BRANCH_REF_TYPE),
+  SWITCH("org.apache.airflow.sdk.Builder.Switch", "@Builder.Switch", "choose", SWITCH_TASK_TYPE, SWITCH_REF_TYPE),
 }
 
 /** Whether this annotation is the one [name] qualifies. */
