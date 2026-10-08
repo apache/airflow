@@ -92,7 +92,8 @@ def _read_callback_remote_logs(relative_path: str) -> StreamingLogResponse:
     if remote_io is None:
         return [], []
 
-    # Callbacks have no TaskInstance; remote handlers only use ``ti`` for optional metadata.
+    # Prefer .stream(), which yields the remote log lazily, over .read(), which loads it all into memory.
+    # Callbacks have no TaskInstance, so ti is None.
     if stream_method := getattr(remote_io, "stream", None):
         sources, logs = stream_method(relative_path, None)
         return sources, logs or []
