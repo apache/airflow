@@ -25,6 +25,7 @@ from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import task_group
 from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.definitions.xcom_arg import (
@@ -420,7 +421,6 @@ def test_mapped_producer_length_ignores_other_iterations(
 
 
 def test_member_of_mapped_task_group_has_no_map_length(dag_maker, session):
-    from airflow.sdk import task_group
 
     with dag_maker(session=session, serialized=True):
 

@@ -357,6 +357,7 @@ class _XComOperations:
             if (
                 any(value is not None for value in (task_ids, dag_ids, map_indexes))
                 or include_prior_dates
+                or try_number is not None
                 or region_id != SENTINEL_REGION_ID
             ):
                 raise ValueError("producer_ids cannot be combined with coordinate filters")

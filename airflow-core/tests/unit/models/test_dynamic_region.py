@@ -251,17 +251,69 @@ def test_loop_iteration_lookup_loads_only_the_selected_iterations_rows(producer_
     expected_ids = {ti.id for ti in expected}
     session.expunge_all()
     loaded = []
-    event.listen(session, "loaded_as_persistent", lambda _, instance: loaded.append(instance))
-    selected = resolve_current_producers(
-        dag_id=mapped.dag_id,
-        run_id=mapped.run_id,
-        task_id="mapped",
-        is_mapped=True,
-        context=ProducerContext(consumer.region_id, consumer.region_index, "loop"),
-        session=session,
-    )
+
+    def record_loaded(_, instance):
+        loaded.append(instance)
+
+    event.listen(session, "loaded_as_persistent", record_loaded)
+    try:
+        selected = resolve_current_producers(
+            dag_id=mapped.dag_id,
+            run_id=mapped.run_id,
+            task_id="mapped",
+            is_mapped=True,
+            context=ProducerContext(consumer.region_id, consumer.region_index, "loop"),
+            session=session,
+        )
+    finally:
+        event.remove(session, "loaded_as_persistent", record_loaded)
     assert {ti.id for ti in selected} == expected_ids
     assert {instance.id for instance in loaded if isinstance(instance, TaskInstance)} == expected_ids
+
+
+def test_loop_iteration_lookup_ignores_another_loops_nested_regions(producer_tis, session):
+    tis, regions, _ = producer_tis
+    consumer, mapped = tis["consumer"], tis["mapped"]
+    other_loop = DynamicRegion(dag_id=mapped.dag_id, run_id=mapped.run_id, node_id="other_loop")
+    session.add(other_loop)
+    session.flush()
+    placed = {}
+    for owner, parent in (("own", regions[0]), ("other", other_loop)):
+        nested = DynamicRegion(
+            dag_id=mapped.dag_id,
+            run_id=mapped.run_id,
+            node_id="mapped",
+            parent_region_id=parent.id,
+            parent_region_index=consumer.region_index,
+        )
+        session.add(nested)
+        session.flush()
+        placed[owner] = TaskInstance(
+            mapped.task, mapped.dag_version_id, run_id=mapped.run_id, map_index=0, region_id=nested.id
+        )
+        session.add(placed[owner])
+    session.flush()
+    own_id, other_id = placed["own"].id, placed["other"].id
+    session.expunge_all()
+    loaded = []
+
+    def record_loaded(_, instance):
+        loaded.append(instance)
+
+    event.listen(session, "loaded_as_persistent", record_loaded)
+    try:
+        selected = resolve_current_producers(
+            dag_id=mapped.dag_id,
+            run_id=mapped.run_id,
+            task_id="mapped",
+            is_mapped=True,
+            context=ProducerContext(consumer.region_id, consumer.region_index, "loop"),
+            session=session,
+        )
+    finally:
+        event.remove(session, "loaded_as_persistent", record_loaded)
+    assert [ti.id for ti in selected] == [own_id]
+    assert other_id not in {instance.id for instance in loaded if isinstance(instance, TaskInstance)}
 
 
 def test_previous_iteration_zero_is_missing(producer_tis, session):
@@ -404,6 +456,7 @@ def test_get_many_rejects_region_filter_with_prior_dates(regional_tis):
         {"region_id": None},
         {"region_id": uuid4()},
         {"include_prior_dates": True},
+        {"try_number": 2},
     ],
 )
 def test_get_many_rejects_producer_ids_with_coordinate_filters(coordinate_filter):

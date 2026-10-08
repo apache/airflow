@@ -1738,8 +1738,8 @@ class DagRun(Base, LoggingMixin):
 
         # Check dependencies.
         expansion_happened = False
-        # Set of task ids for which was already done _revise_map_indexes_if_mapped
-        revised_map_index_task_ids: set[tuple[str, UUID]] = set()
+        # (task id, region id) pairs for which _revise_map_indexes_if_mapped was already done
+        revised_expansion_keys: set[tuple[str, UUID]] = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             if TYPE_CHECKING:
                 assert isinstance(schedulable.task, Operator)
@@ -1764,10 +1764,10 @@ class DagRun(Base, LoggingMixin):
                     # later in this same pass must see the post-expansion count).
                     dep_context.invalidate_upstream_task_id_counts()
             if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
-                # It's enough to revise map index once per task id,
+                # It's enough to revise map index once per task and region,
                 # checking the map index for each mapped task significantly slows down scheduling
                 expansion_key = (schedulable.task.task_id, schedulable.region_id)
-                if expansion_key not in revised_map_index_task_ids:
+                if expansion_key not in revised_expansion_keys:
                     revised_tis = self._revise_map_indexes_if_mapped(
                         schedulable.task,
                         dag_version_id=schedulable.dag_version_id,
@@ -1775,7 +1775,7 @@ class DagRun(Base, LoggingMixin):
                         session=session,
                     )
                     ready_tis.extend(revised_tis)
-                    revised_map_index_task_ids.add(expansion_key)
+                    revised_expansion_keys.add(expansion_key)
                     if revised_tis:
                         # Revising a mapped task can add new instances, growing its instance count
                         # the same way expansion does. Drop the upstream-count memo so a downstream
