@@ -1429,7 +1429,8 @@ class TestDagRun:
         clear_task_instances([ti0], session, run_on_latest_version=True)
         session.commit()
 
-        dag_run = session.scalar(select(DagRun).where(DagRun.run_id == dag_run.run_id))
+        dag_run = session.get(DagRun, dag_run.id)
+        assert dag_run is not None
         assert dag_run.created_dag_version_id == new_dag_version.id
         assert dag_run.bundle_version == new_dag_version.bundle_version
 
@@ -1486,7 +1487,8 @@ class TestDagRun:
         clear_task_instances(list(dag_run.task_instances), session, run_on_latest_version=True)
         session.commit()
 
-        dag_run = session.scalar(select(DagRun).where(DagRun.run_id == dag_run.run_id))
+        dag_run = session.get(DagRun, dag_run.id)
+        assert dag_run is not None
         assert dag_run.created_dag_version_id == new_dag_version.id
         assert dag_run.bundle_version == new_dag_version.bundle_version
         assert {ti.dag_version_id for ti in dag_run.task_instances} == {new_dag_version.id}

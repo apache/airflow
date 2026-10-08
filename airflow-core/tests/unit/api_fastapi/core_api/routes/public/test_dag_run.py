@@ -33,9 +33,9 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
-from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunPatchBody, DAGRunResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.api_fastapi.core_api.routes.public.dag_run import get_dag_run
+from airflow.api_fastapi.core_api.routes.public.dag_run import get_dag_run, patch_dag_run
 from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
@@ -140,6 +140,51 @@ DAG1_RUN1_NOTE = "test_note"
 DAG2_PARAM = {"validated_number": Param(1, minimum=1, maximum=10)}
 
 DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
+
+
+def _create_bundled_run_with_history(dag_id, dag_maker, session):
+    with dag_maker(
+        dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v1", serialized=True
+    ):
+        EmptyOperator(task_id="0")
+        EmptyOperator(task_id="1")
+    dag_run = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
+    old_dag_version = DagVersion.get_latest_version(dag_id)
+    for ti in dag_run.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+        session.merge(ti)
+    session.flush()
+
+    with dag_maker(
+        dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v2", serialized=True
+    ):
+        EmptyOperator(task_id="0")
+        EmptyOperator(task_id="1")
+    new_dag_version = DagVersion.get_latest_version(dag_id)
+    assert old_dag_version.id != new_dag_version.id
+
+    clear_task_instances(list(dag_run.task_instances), session, run_on_latest_version=True)
+    session.commit()
+
+    tih_version_ids = set(
+        session.scalars(
+            select(TaskInstanceHistory.dag_version_id).where(
+                TaskInstanceHistory.dag_id == dag_id,
+                TaskInstanceHistory.run_id == dag_run.run_id,
+                TaskInstanceHistory.dag_version_id.isnot(None),
+            )
+        )
+    )
+    assert old_dag_version.id in tih_version_ids
+    return dag_run.run_id, old_dag_version, new_dag_version
+
+
+def _assert_serialization_leaves_ti_collections_unloaded(dag_run, *, old_dag_version, new_dag_version):
+    serialized = DAGRunResponse.model_validate(dag_run)
+    unloaded = sa_inspect(dag_run).unloaded
+    assert "task_instances" in unloaded
+    assert "task_instances_histories" in unloaded
+    assert {dv.id for dv in serialized.dag_versions} == {old_dag_version.id, new_dag_version.id}
 
 
 @pytest.fixture(autouse=True)
@@ -444,51 +489,17 @@ class TestGetDagRun:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_run_serialization_leaves_ti_collections_unloaded(self, test_client, dag_maker, session):
         dag_id = "test_get_dag_run_prefetch_history"
-        with dag_maker(
-            dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v1", serialized=True
-        ):
-            EmptyOperator(task_id="0")
-            EmptyOperator(task_id="1")
-        dag_run = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
-        old_dag_version = DagVersion.get_latest_version(dag_id)
-        for ti in dag_run.task_instances:
-            ti.state = TaskInstanceState.SUCCESS
-            session.merge(ti)
-        session.flush()
-
-        with dag_maker(
-            dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v2", serialized=True
-        ):
-            EmptyOperator(task_id="0")
-            EmptyOperator(task_id="1")
-        new_dag_version = DagVersion.get_latest_version(dag_id)
-        assert old_dag_version.id != new_dag_version.id
-
-        clear_task_instances(list(dag_run.task_instances), session, run_on_latest_version=True)
-        session.commit()
-        run_id = dag_run.run_id
-
-        tih_version_ids = set(
-            session.scalars(
-                select(TaskInstanceHistory.dag_version_id).where(
-                    TaskInstanceHistory.dag_id == dag_id,
-                    TaskInstanceHistory.run_id == run_id,
-                    TaskInstanceHistory.dag_version_id.isnot(None),
-                )
-            )
+        run_id, old_dag_version, new_dag_version = _create_bundled_run_with_history(
+            dag_id, dag_maker, session
         )
-        assert old_dag_version.id in tih_version_ids
 
         # Call the route directly: the request-scoped session is gone by the time the HTTP
         # client returns, so this is the only way to inspect what serialization loaded.
         session.expire_all()
         dag_run = get_dag_run(dag_id=dag_id, dag_run_id=run_id, session=session)
-        serialized = DAGRunResponse.model_validate(dag_run)
-
-        unloaded = sa_inspect(dag_run).unloaded
-        assert "task_instances" in unloaded
-        assert "task_instances_histories" in unloaded
-        assert {dv.id for dv in serialized.dag_versions} == {old_dag_version.id, new_dag_version.id}
+        _assert_serialization_leaves_ti_collections_unloaded(
+            dag_run, old_dag_version=old_dag_version, new_dag_version=new_dag_version
+        )
 
         response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
         assert response.status_code == 200
@@ -1737,6 +1748,34 @@ class TestPatchDagRun:
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch("/dags/dag_1/dagRuns/run_1", json={})
         assert response.status_code == 403
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @mock.patch(
+        "airflow.api_fastapi.core_api.routes.public.dag_run.get_dag_for_run",
+        autospec=True,
+        return_value=mock.Mock(),
+    )
+    def test_patch_dag_run_serialization_leaves_ti_collections_unloaded(
+        self, mock_get_dag_for_run, dag_maker, session
+    ):
+        dag_id = "test_patch_dag_run_prefetch_history"
+        run_id, old_dag_version, new_dag_version = _create_bundled_run_with_history(
+            dag_id, dag_maker, session
+        )
+
+        session.expunge_all()
+        dag_run = patch_dag_run(
+            dag_id=dag_id,
+            dag_run_id=run_id,
+            patch_body=DAGRunPatchBody(note="prefetch-note"),
+            session=session,
+            dag_bag=mock.Mock(),
+            user=SimpleAuthManagerUser(username="test", role="admin"),
+            update_mask=None,
+        )
+        _assert_serialization_leaves_ti_collections_unloaded(
+            dag_run, old_dag_version=old_dag_version, new_dag_version=new_dag_version
+        )
 
     @pytest.mark.parametrize(
         ("query_params", "patch_body", "response_body", "expected_status_code", "note_data"),
