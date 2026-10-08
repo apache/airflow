@@ -52,12 +52,12 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``[main] Upgrade important CI environment (#73629)``
    * ``Apply ruff Python 3.11 fixes to providers (#74155)``
    * ``Remove Python 3.10 compatibility shims (#74153)``
    * ``Keep retried task attempts and their data under the attempt UUID (#74222)``
    * ``Parse native Lang-SDK Dags in a Dag bag (#74043)``
    * ``Align standard provider tests with source paths (#73267)``
+   * ``[main] Upgrade important CI environment (#73629)``
    * ``Remove the task_map table, folding its length into xcom.mapped_length (#73005)``
 
 1.20.0

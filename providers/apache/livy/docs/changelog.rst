@@ -44,8 +44,8 @@ Doc-only
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Apply ruff Python 3.11 fixes to providers (#74155)``
-   * ``[main] Upgrade important CI environment (#73629)``
    * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``[main] Upgrade important CI environment (#73629)``
 
 4.6.2
 .....

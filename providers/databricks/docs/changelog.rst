@@ -46,10 +46,10 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
-   * ``[main] Upgrade important CI environment (#73629)``
    * ``Fix Databricks async connection test on Airflow before 3.1 (#74427)``
    * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
 
 7.21.0
 ......

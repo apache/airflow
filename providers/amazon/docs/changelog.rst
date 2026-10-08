@@ -74,7 +74,6 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``[main] Upgrade important CI environment (#73629)``
    * ``Verify SSH host keys by default in SSH and SFTP hooks (#73419)``
    * ``Apply ruff Python 3.11 fixes to providers (#74155)``
    * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
@@ -83,6 +82,7 @@ Doc-only
    * ``Create the Athena Spark work group and results bucket in the system test (#73929)``
    * ``Run the deferred AWS hook configuration check as a prek hook (#73681)``
    * ``Fix example_neptune_analytics by pinning an explicit region (#73851)``
+   * ``[main] Upgrade important CI environment (#73629)``
    * ``Keep the AWS no-credentials tests hermetic on EC2 and developer hosts (#73707)``
    * ``Fix example_neptune_analytics system test in deferrable mode (#73685)``
    * ``Raise curated dependency floors in ci upgrade runs (#73657)``

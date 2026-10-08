@@ -52,8 +52,8 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``[main] Upgrade important CI environment (#73629)``
    * ``Correlate executor task events by attempt UUID (#73916)``
+   * ``[main] Upgrade important CI environment (#73629)``
 
 3.24.1
 ......

@@ -118,8 +118,8 @@ Doc-only
 ~~~~~~~~
 
 * ``Add toolset overview and MCP tool filtering example to 'common.ai' docs (#74378)``
-* ``Add restricted-agent examples to common.ai toolset guides (#74379)``
 * ``Link registry modules to the guide section that documents them (#71477)``
+* ``Add restricted-agent examples to common.ai toolset guides (#74379)``
 * ``Support PAT and key-pair auth in the Snowflake Cortex Agent hook (#73932)``
 * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
 * ``Lead the 'common.ai' sandbox docs with when to use it and where each piece runs (#74297)``
@@ -136,11 +136,11 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``[main] Upgrade important CI environment (#73629)``
    * ``Apply ruff Python 3.11 fixes to providers (#74155)``
    * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
    * ``Add AIP-85 to the AIP progress tracker registry (#74304)``
    * ``Fix flaky AgentOperator durable usage budget tests (#73996)``
+   * ``[main] Upgrade important CI environment (#73629)``
 
 0.10.0
 ......

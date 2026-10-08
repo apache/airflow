@@ -48,12 +48,12 @@ Doc-only
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Apply ruff Python 3.11 fixes to providers (#74155)``
-   * ``[main] Upgrade important CI environment (#73629)``
-   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
-   * ``[main] Upgrade important CI environment (#73308)``
    * ``Stop Kafka hook tests from leaving live clients behind (#74285)``
    * ``Fix flaky Kafka trigger tests by awaiting the event instead of a fixed sleep (#74124)``
+   * ``[main] Upgrade important CI environment (#73629)``
    * ``Prepare providers release 2026-09-22 (#73506)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
 
 2.0.0
 .....

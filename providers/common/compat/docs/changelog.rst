@@ -48,9 +48,9 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``[main] Upgrade important CI environment (#73629)``
    * ``Test get_async_extra_dejson against the real supervisor comms (#74166)``
    * ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+   * ``[main] Upgrade important CI environment (#73629)``
 
 1.20.0
 ......
