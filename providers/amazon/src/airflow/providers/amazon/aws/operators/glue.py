@@ -23,7 +23,7 @@ import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, cast
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import GlueJobRunStoppedError
@@ -347,7 +347,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
             next_token = response.get("NextToken")
             if not next_token:
                 return None
-        self.log.info(
+        self.log.warning(
             "Stopped scanning Glue job runs for task UUID after %s pages without a match",
             self.TASK_UUID_SCAN_MAX_PAGES,
         )
