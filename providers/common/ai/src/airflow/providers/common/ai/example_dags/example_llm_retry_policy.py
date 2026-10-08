@@ -36,7 +36,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import timedelta
 
-from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, dag, task
 
 try:
     from airflow.providers.common.ai.policies.retry import (
@@ -170,6 +170,7 @@ try:
         task_ambiguous()
 
     example_llm_retry_policy_classifier()
-except ImportError:
-    # RetryPolicy requires Airflow 3.3+; example DAG is skipped on older versions.
+except (ImportError, AirflowOptionalProviderFeatureException):
+    # RetryPolicy requires Airflow 3.3+; policies/retry.py raises AirflowOptionalProviderFeatureException
+    # (not an ImportError) on older versions, so the example Dag is skipped there.
     pass
