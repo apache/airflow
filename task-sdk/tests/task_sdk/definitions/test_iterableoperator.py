@@ -59,6 +59,7 @@ from airflow.sdk.exceptions import (
     AirflowFailException,
     AirflowRescheduleException,
     AirflowSkipException,
+    AirflowTaskTerminated,
     AirflowTaskTimeout,
     DagRunTriggerException,
     DownstreamTasksSkipped,
@@ -2395,6 +2396,68 @@ class TestItemThreads:
                     iterable_op.execute(context=context)
 
         assert [fired for fired in FIRED_CALLBACKS if fired[1] == "sleeper"] == []
+
+
+KILL_TARGET: list = []
+
+
+class MockKillingOperator(BaseOperator):
+    """Operator whose ``arg1="kill"`` item kills the iterated task from inside, as SIGTERM would."""
+
+    template_fields = ("arg1",)
+
+    def __init__(self, arg1=None, **kwargs):
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+
+    def execute(self, context):
+        if self.arg1 == "kill":
+            KILL_TARGET[0].on_kill()
+        return self.arg1
+
+
+class TestAKillSticks:
+    """on_kill() stops the iteration: nothing new starts, and the task fails without a retry."""
+
+    def test_a_kill_stops_the_iteration_and_fails_the_task(self):
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": "kill"}, {"arg1": 1}, {"arg1": 2}, {"arg1": 3}]),
+                task_id="killed",
+                task_concurrency=1,
+                operator_class=MockKillingOperator,
+            )
+            KILL_TARGET[:] = [iterable_op]
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+                with pytest.raises(AirflowTaskTerminated, match="1 of 4 items ran"):
+                    iterable_op.execute(context=context)
+
+        assert "_iterable_completed" not in store
+        assert store["_iterable_0"]["status"] == "success"
+        assert all(f"_iterable_{index}" not in store for index in (1, 2, 3))
+
+    def test_a_kill_before_any_item_started_is_not_an_empty_input(self):
+        """A kill while the input is resolved leaves nothing to run; that is a kill, not a skip."""
+        xcom_arg = make_xcom_arg(None)
+
+        async def aresolve(*a, **kw):
+            KILL_TARGET[0].on_kill()
+            return [{"arg1": 1}, {"arg1": 2}]
+
+        xcom_arg.aresolve = aresolve
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput(xcom_arg), task_id="killed_early", operator_class=MockKillingOperator
+            )
+            KILL_TARGET[:] = [iterable_op]
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+                with pytest.raises(AirflowTaskTerminated, match="0 of 2 items ran"):
+                    iterable_op.execute(context=context)
+
+        assert "_iterable_completed" not in store
 
 
 KILLED_ON_TIMEOUT: list = []

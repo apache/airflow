@@ -153,6 +153,24 @@ class TestAsyncAwareExecutor:
         # Allow overhead for thread pool scheduling (typically ~0.15-0.2s on busy systems).
         assert time.monotonic() - started < 0.35
 
+    def test_imap_unordered_stops_pulling_once_stop_says_so(self):
+        """Once ``stop`` answers True nothing more is pulled or submitted; what was submitted drains."""
+        pulled: list[int] = []
+        results: list[int] = []
+
+        async def source():
+            for item in range(6):
+                pulled.append(item)
+                yield item
+
+        with event_loop() as loop:
+            with AsyncAwareExecutor(loop=loop, max_workers=2) as executor:
+                for result in executor.imap_unordered(lambda x: x, source(), stop=lambda: len(results) >= 1):
+                    results.append(result)
+
+        assert len(pulled) <= 3
+        assert sorted(results) == sorted(pulled)
+
     def test_shutdown_cancel_futures_cancels_async_tasks(self):
         """shutdown(cancel_futures=True) cancels submitted async tasks."""
 

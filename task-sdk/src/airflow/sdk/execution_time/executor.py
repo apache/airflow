@@ -178,6 +178,7 @@ class AsyncAwareExecutor(Executor):
         fn: Callable[..., Any],
         *iterables: AsyncIterable[Any],
         timeout: float | None = None,
+        stop: Callable[[], bool] | None = None,
     ) -> Iterator[Any]:
         """
         Apply ``fn`` to async iterables, zipped, and stream results in completion order.
@@ -199,6 +200,11 @@ class AsyncAwareExecutor(Executor):
 
         Results are handed to the caller while the loop is paused, which is safe: the caller only
         consumes them.
+
+        ``stop`` is asked before and after every pull; once it answers True nothing more is
+        submitted, an item pulled at that moment included, and the calls already submitted are
+        drained as usual. A kill sets such a flag,
+        so that killing what is in flight is not followed by starting the next items.
         """
         if self._shutdown:
             raise RuntimeError("cannot schedule new futures after shutdown")
@@ -230,8 +236,13 @@ class AsyncAwareExecutor(Executor):
             """Submit calls until pending reaches max_workers or an iterable is exhausted."""
             nonlocal exhausted
             while not exhausted and len(pending) < self._max_workers:
+                if stop is not None and stop():
+                    exhausted = True
+                    return
                 args = await _next_args()
-                if args is None:
+                if args is None or (stop is not None and stop()):
+                    # Exhausted, or stopped while the item was pulled: an item pulled at that
+                    # moment is dropped rather than started.
                     exhausted = True
                     return
                 pending.add(self.submit(fn, *args))

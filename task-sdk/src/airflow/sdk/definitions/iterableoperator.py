@@ -578,6 +578,9 @@ class IterableOperator(BaseOperator):
         # The retry policy's decision for the exception handed to the runner, kept so the failed
         # items' callbacks follow it instead of evaluating the policy once more (see _task_will_retry).
         self._decision_for_the_runner: tuple[BaseException, RetryDecision] | None = None
+        # Set by on_kill(): the executor pulls no further item once it is set (see _run_tasks), so
+        # a kill stops the iteration instead of being followed by the next items starting.
+        self._stop_requested = threading.Event()
 
     def __deepcopy__(self, memo: dict[int, Any]) -> IterableOperator:
         # A copy (deepcopy, dag.partial_subset) is another task with no sub-tasks in flight: it gets
@@ -587,12 +590,16 @@ class IterableOperator(BaseOperator):
         memo[id(self._active_sub_operators_lock)] = threading.Lock()
         memo[id(self._killed_sub_operators)] = set()
         memo[id(self._failed_runners)] = []
+        memo[id(self._stop_requested)] = threading.Event()
         return super().__deepcopy__(memo)
 
     def on_kill(self) -> None:
         # The default BaseOperator.on_kill() is a no-op, which would otherwise leave every
         # currently in-flight sub-task unaware that the IterableOperator itself was killed
         # (SIGTERM) or hit its execution_timeout: propagate to each active sub-operator instead.
+        # First stop the iteration from starting anything else: the killed items come back as
+        # failures and free their slots, which would otherwise be filled with the next items.
+        self._stop_requested.set()
         with self._active_sub_operators_lock:
             active_operators = [
                 op for key, op in self._active_sub_operators.items() if key not in self._killed_sub_operators
@@ -686,6 +693,7 @@ class IterableOperator(BaseOperator):
 
         self._failed_runners = []
         self._decision_for_the_runner = None
+        self._stop_requested.clear()
         try:
             self.log.info("Running tasks with %d workers", self.max_workers)
 
@@ -702,6 +710,7 @@ class IterableOperator(BaseOperator):
                                     since=checkpoints.since,
                                 ),
                                 tasks,
+                                stop=self._stop_requested.is_set,
                             ):
                                 total += 1
                                 do_xcom_push = task.do_xcom_push
@@ -780,6 +789,19 @@ class IterableOperator(BaseOperator):
                                 self.on_kill()
                             raise
 
+                if self._stop_requested.is_set():
+                    # Killed: nothing started once on_kill() ran, and what was in flight has
+                    # finished one way or another. The task fails without a retry, as the runner
+                    # treats a terminated task; no completion marker is written, so a later clear
+                    # resumes from the checkpoints of the items that did finish. Checked before the
+                    # other outcomes: with every killed item returning normally there would be no
+                    # failure to raise, and a kill while the input resolves is not an empty input.
+                    length = self._resolved.length if self._resolved is not None else None
+                    raise AirflowTaskTerminated(
+                        f"The iterated task was killed: {total} of {length} items ran, the rest never started."
+                        if length is not None
+                        else "The iterated task was killed while its input was being resolved."
+                    ) from (BaseExceptionGroup("Sub-task failures", exceptions) if exceptions else None)
                 if exceptions:
                     raise self._failure_for_the_runner(context, exceptions)
                 # Nothing to iterate over is skipped, as a mapped task over an empty input is.
