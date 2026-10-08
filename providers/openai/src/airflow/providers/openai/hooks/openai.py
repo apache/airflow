@@ -33,6 +33,7 @@ from openai.auth import (
 if TYPE_CHECKING:
     from openai.auth import SubjectTokenProvider, WorkloadIdentity
     from openai.types import (
+        CreateEmbeddingResponse,
         FileDeleted,
         FileObject,
         VectorStore,
@@ -587,9 +588,7 @@ class OpenAIHook(BaseHook):
         :return: One embedding for a single text or token array; one embedding per item for a batch.
         """
         response = self.conn.embeddings.create(model=model, input=text, **kwargs)
-        if isinstance(text, str) or (text and isinstance(text[0], int)):
-            return response.data[0].embedding
-        return [item.embedding for item in sorted(response.data, key=lambda item: item.index)]
+        return self._embeddings_result(text, response)
 
     @overload
     async def acreate_embeddings(
@@ -624,6 +623,13 @@ class OpenAIHook(BaseHook):
         """
         client = await self._aget_cached_conn()
         response = await client.embeddings.create(model=model, input=text, **kwargs)
+        return self._embeddings_result(text, response)
+
+    @staticmethod
+    def _embeddings_result(
+        text: str | list[str] | list[int] | list[list[int]], response: CreateEmbeddingResponse
+    ) -> list[float] | list[list[float]]:
+        """Return one vector for a single text or token array, one vector per item in input order for a batch."""
         if isinstance(text, str) or (text and isinstance(text[0], int)):
             return response.data[0].embedding
         return [item.embedding for item in sorted(response.data, key=lambda item: item.index)]
