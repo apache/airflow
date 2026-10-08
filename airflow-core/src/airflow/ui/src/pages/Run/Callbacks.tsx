@@ -28,6 +28,7 @@ import { useDagRunServiceGetDagRun, useDeadlinesServiceGetDeadlines } from "open
 import type { DeadlineResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
@@ -43,7 +44,7 @@ export const getCallbackColumns = (
   translate: TFunction,
   runEndDate: string | null | undefined,
   renderDuration: DurationFormat["renderDuration"],
-): Array<ColumnDef<DeadlineResponse>> => [
+): Array<ColumnDef<DataTableFeatures, DeadlineResponse>> => [
   {
     accessorKey: "callback_path",
     cell: ({ row: { original } }) => <TruncatedText text={original.callback_path ?? original.callback_id} />,
