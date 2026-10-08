@@ -37,8 +37,6 @@ import java.nio.file.Paths
 import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 
 // Serializes Dags to Airflow DagSerialization v3 JSON, mirroring the TypeScript
 // SDK's serde (ts-sdk/src/coordinator/serde.ts), which in turn matches Python's
@@ -212,7 +210,7 @@ private fun writeTriggerDagRun(
   // Python's logical_date defaults to NOTSET, which lets the operator pick the
   // trigger time, and writes that sentinel as its name. A template field holds
   // a datetime as str(datetime), not as a {"__type": "datetime"} object.
-  data["logical_date"] = settings["logical_date"]?.let { pythonStr(it) } ?: "NOTSET"
+  data["logical_date"] = asOffsetDateTime(settings["logical_date"])?.let { pythonIsoformat(it, ' ') } ?: "NOTSET"
   // Python writes these two template fields whatever they hold.
   data["wait_for_completion"] = settings["wait_for_completion"] ?: false
   data["skip_when_already_exists"] = settings["skip_when_already_exists"] ?: false
@@ -229,15 +227,6 @@ private fun writeTriggerDagRun(
   settings["fail_when_dag_is_paused"]?.takeIf { it == true }?.let { data["fail_when_dag_is_paused"] = true }
   settings["note"]?.let { data["note"] = it }
   settings["deferrable"]?.let { data["deferrable"] = it }
-}
-
-/** `str(datetime)` in UTC, which is how Python writes a datetime in a template field. */
-private fun pythonStr(value: Any): String {
-  val instant = if (value is OffsetDateTime) value.toInstant() else value as Instant
-  val utc = instant.atOffset(ZoneOffset.UTC)
-  val micros = utc.nano / 1000
-  val seconds = utc.format(DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss"))
-  return if (micros == 0) "$seconds+00:00" else "$seconds.%06d+00:00".format(micros)
 }
 
 /**

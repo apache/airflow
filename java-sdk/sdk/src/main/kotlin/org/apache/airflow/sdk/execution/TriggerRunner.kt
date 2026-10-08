@@ -300,11 +300,17 @@ private val RUN_ID_RANDOM = SecureRandom().asKotlinRandom()
 
 internal fun randomRunIdSuffix(): String = (1..8).map { RUN_ID_SUFFIX_CHARS.random(RUN_ID_RANDOM) }.joinToString("")
 
-/** `datetime.isoformat()` of a UTC instant, which is how Python spells a run ID's date. */
-internal fun pythonIsoformat(moment: OffsetDateTime): String {
+/**
+ * `datetime.isoformat(sep)` of a UTC instant, which is how Python spells a run ID's date. `str(datetime)` is the
+ * same with a space as [separator].
+ */
+internal fun pythonIsoformat(
+  moment: OffsetDateTime,
+  separator: Char = 'T',
+): String {
   val utc = moment.withOffsetSameInstant(ZoneOffset.UTC)
   val micros = utc.nano / 1000
-  val seconds = utc.format(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss"))
+  val seconds = utc.format(DateTimeFormatter.ofPattern("uuuu-MM-dd'$separator'HH:mm:ss"))
   return if (micros == 0) "$seconds+00:00" else "$seconds.%06d+00:00".format(micros)
 }
 
