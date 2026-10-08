@@ -27,16 +27,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
-/** A condition the tests register; what it decides is driven from the runtime tests. */
+/** A condition the tests register; it always holds. */
 class HasRows : ConditionTask {
   override fun decide(
     context: Context,
     client: Client,
-  ): Boolean = decision
-
-  companion object {
-    var decision: Boolean = true
-  }
+  ): Boolean = true
 }
 
 internal class ConditionTest {
