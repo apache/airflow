@@ -201,6 +201,20 @@ class AirflowSdkPluginTest {
   }
 
   @Test
+  fun givesUpOnADescribeRunThatOutlastsTheConfiguredTimeout(
+    @TempDir dir: File,
+  ) {
+    project(dir, mainBody = "Thread.sleep(60000);")
+    dir.write(
+      "build.gradle",
+      File(dir, "build.gradle").readText() + "\nairflowBundle { describeTimeout = java.time.Duration.ofSeconds(2) }\n",
+    )
+    val result = gradle(dir, "jar")
+
+    assertTrue(result.output.contains("it did not finish within 2 seconds"), result.output)
+  }
+
+  @Test
   fun fallsBackToEntrypointOnlyWhenMainWritesNothing(
     @TempDir dir: File,
   ) {

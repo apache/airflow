@@ -39,19 +39,13 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.jvm.toolchain.JavaLauncher
 import java.io.File
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 internal const val SOURCES_MANIFEST_ATTRIBUTE = "Airflow-Java-SDK-Sources"
 internal const val SOURCES_JSON_PATH = "META-INF/airflow/sources.json"
 internal const val SOURCES_DIR_PATH = "META-INF/airflow/sources"
 
-/**
- * How long the describe run gets before the build gives up on it and packs
- * the entrypoint's source alone. A `main` that does not reach
- * `Server.create(args)` never answers `--describe-sources`, and one that
- * starts serving instead would otherwise hold the build open.
- */
-private const val DESCRIBE_TIMEOUT_SECONDS = 120L
 private const val DRAIN_TIMEOUT_MILLIS = 2_000L
 
 /**
@@ -121,6 +115,15 @@ abstract class PackDagSources : DefaultTask() {
   @get:Input
   @get:Optional
   abstract val mainClass: Property<String>
+
+  /**
+   * How long the describe run gets before the build gives up on it and packs
+   * the entrypoint's source alone. A `main` that does not reach
+   * `Server.create(args)` never answers `--describe-sources`, and one that
+   * starts serving instead would otherwise hold the build open.
+   */
+  @get:Input
+  abstract val describeTimeout: Property<Duration>
 
   @get:Classpath
   abstract val classesDirs: ConfigurableFileCollection
@@ -209,11 +212,12 @@ abstract class PackDagSources : DefaultTask() {
         val drain = Thread { output = process.inputStream.bufferedReader().readText() }
         drain.isDaemon = true
         drain.start()
-        val finished = process.waitFor(DESCRIBE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        val timeout = describeTimeout.get()
+        val finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)
         if (!finished) process.destroyForcibly()
         drain.join(DRAIN_TIMEOUT_MILLIS)
         when {
-          !finished -> "it did not finish within $DESCRIBE_TIMEOUT_SECONDS seconds"
+          !finished -> "it did not finish within ${timeout.seconds} seconds"
           process.exitValue() != 0 -> "exit code ${process.exitValue()}"
           else -> null
         }

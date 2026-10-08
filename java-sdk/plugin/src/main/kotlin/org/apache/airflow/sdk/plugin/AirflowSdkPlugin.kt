@@ -31,6 +31,7 @@ import org.gradle.api.tasks.bundling.Jar
 import org.gradle.jvm.toolchain.JavaToolchainService
 import java.lang.reflect.Modifier
 import java.net.URLClassLoader
+import java.time.Duration
 import java.util.jar.JarFile
 import kotlin.jvm.java
 
@@ -41,6 +42,7 @@ import kotlin.jvm.java
  * airflowBundle {
  *     mainClass = "com.example.ExampleBundleBuilder"
  *     // fatJar = false  // opt out of shadow JAR creation
+ *     // describeTimeout = Duration.ofSeconds(60)
  * }
  * ```
  */
@@ -63,6 +65,10 @@ abstract class AirflowBundleExtension {
    */
   @get:Input
   abstract val fatJar: Property<Boolean>
+
+  /** How long the describe run may take before the build gives up and packs only the entrypoint's source. */
+  @get:Input
+  abstract val describeTimeout: Property<Duration>
 }
 
 /**
@@ -114,6 +120,7 @@ class AirflowSdkPlugin : Plugin<Project> {
 
     val ext = project.extensions.create("airflowBundle", AirflowBundleExtension::class.java)
     ext.fatJar.convention(true)
+    ext.describeTimeout.convention(Duration.ofSeconds(30))
 
     project.afterEvaluate {
       val main = project.extensions.getByType(SourceSetContainer::class.java).getByName("main")
@@ -125,6 +132,7 @@ class AirflowSdkPlugin : Plugin<Project> {
           task.dependsOn(project.tasks.named("classes"))
           task.onlyIf { ext.mainClass.isPresent }
           task.mainClass.set(ext.mainClass)
+          task.describeTimeout.set(ext.describeTimeout)
           task.classesDirs.from(main.output.classesDirs)
           task.runtimeClasspath.from(main.runtimeClasspath)
           task.sourceDirs.from(main.allSource.srcDirs)
