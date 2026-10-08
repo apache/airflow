@@ -75,7 +75,12 @@ private class FakeTrigger(
   override fun getDagRunState(
     dagId: String,
     runId: String,
-  ): String = states[polls++.coerceAtMost(states.lastIndex)]
+  ): String {
+    val started = triggered.last()
+    assertEquals(started.dagId, dagId)
+    assertEquals(started.runId, runId)
+    return states[polls++.coerceAtMost(states.lastIndex)]
+  }
 
   override fun isDagPaused(dagId: String): Boolean = paused
 
@@ -293,6 +298,17 @@ internal class TriggerRunnerTest {
   }
 
   @Test
+  @DisplayName("Should trigger a Dag that is not paused though the task would fail on a paused one")
+  fun shouldTriggerUnpausedDagWhenFailingOnPaused() {
+    val transport = FakeTrigger(paused = false)
+
+    val result = run(TriggerDagRun("downstream").config("fail_when_dag_is_paused", true), transport)
+
+    assertInstanceOf(SucceedTask::class.java, result)
+    assertEquals(listOf("downstream"), transport.triggered.map { it.dagId })
+  }
+
+  @Test
   @DisplayName("Should wait until the triggered run reaches an allowed state")
   fun shouldWaitForCompletion() {
     val transport = FakeTrigger(states = listOf("running", "success"))
@@ -356,6 +372,31 @@ internal class TriggerRunnerTest {
       ),
       defer.triggerKwargs,
     )
+  }
+
+  @Test
+  @DisplayName("Should follow the default deferrable setting when the task sets none")
+  fun shouldDeferByDefaultWhenConfigured() {
+    val result =
+      run(
+        TriggerDagRun("downstream").config("wait_for_completion", true),
+        FakeTrigger(),
+        env = mapOf("AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE" to "true"),
+      )
+
+    assertInstanceOf(DeferTask::class.java, result)
+  }
+
+  @Test
+  @DisplayName("Should leave the deferred task's queue unset when triggerer queues are not enabled")
+  fun shouldNotQueueDeferralWithoutTriggererQueues() {
+    val result =
+      run(
+        TriggerDagRun("downstream").config("wait_for_completion", true).config("deferrable", true),
+        FakeTrigger(),
+      )
+
+    assertNull(assertInstanceOf(DeferTask::class.java, result).queue)
   }
 
   @Test
