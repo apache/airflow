@@ -23,7 +23,7 @@ import copy
 import functools
 import json
 import os
-import select
+import selectors
 import shlex
 import shutil
 import subprocess
@@ -179,20 +179,29 @@ def run_beam_command(
     # Waits for Apache Beam pipeline to complete.
     log.info("Start waiting for Apache Beam process to complete.")
     reads = [fd for fd in (proc.stderr, proc.stdout) if fd is not None]
-    while True:
-        # Wait for at least one available fd.
-        readable_fds, _, _ = select.select(reads, [], [], 5)
-        if readable_fds is None:
-            log.info("Waiting for Apache Beam process to complete.")
-            continue
+    # Use selectors (epoll/poll) rather than select.select(). select() cannot
+    # watch a file descriptor numbered >= FD_SETSIZE (1024) and raises
+    # "filedescriptor out of range in select()" when the subprocess's pipe fds
+    # land above that number, which happens when the task process already holds
+    # many open descriptors. selectors has no such ceiling.
+    selector = selectors.DefaultSelector()
+    for fd in reads:
+        selector.register(fd, selectors.EVENT_READ)
+    try:
+        while True:
+            # Wait for at least one available fd.
+            events = selector.select(timeout=5)
+            readable_fds = [key.fileobj for key, _ in events]
 
-        for readable_fd in readable_fds:
-            process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
-            if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
-                return
+            for readable_fd in readable_fds:
+                process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
+                if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
+                    return
 
-        if proc.poll() is not None:
-            break
+            if proc.poll() is not None:
+                break
+    finally:
+        selector.close()
 
     # Corner case: check if more output was created between the last read and the process termination
     for readable_fd in reads:
