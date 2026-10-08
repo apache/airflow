@@ -20,9 +20,7 @@ from __future__ import annotations
 import copy
 import os
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict, cast
-
-from typing_extensions import NotRequired
+from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict, cast
 
 if TYPE_CHECKING:
     import jinja2

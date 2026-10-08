@@ -67,6 +67,11 @@ def register_adapter(adapter_cls: type[BatchAdapter]) -> None:
     """
     Register an adapter class for its own :attr:`~airflow.providers.common.ai.batch.base.BatchAdapter.name` prefix.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Intended for other provider packages that ship a batch engine (Bedrock,
     Vertex, Azure OpenAI). A registration overrides a built-in or entry-point
     adapter with the same prefix.

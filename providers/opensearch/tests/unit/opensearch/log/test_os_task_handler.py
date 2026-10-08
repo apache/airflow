@@ -24,7 +24,9 @@ import os
 import re
 from io import StringIO
 from pathlib import Path
-from unittest.mock import Mock, patch
+from types import SimpleNamespace
+from unittest.mock import Mock, call, patch
+from uuid import UUID, uuid4
 
 import pendulum
 import pytest
@@ -37,7 +39,9 @@ from airflow.providers.opensearch.log.os_task_handler import (
     OpensearchRemoteLogIO,
     OpensearchTaskHandler,
     _build_log_fields,
+    _build_log_query,
     _format_error_detail,
+    _get_ti_id_fields,
     _render_log_id,
     _safe_build_structured_log_message,
     _strip_userinfo,
@@ -54,6 +58,41 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 opensearchpy = pytest.importorskip("opensearchpy")
 
 
+@pytest.mark.parametrize(
+    ("is_airflow_3_4_plus", "expected"),
+    [(False, {}), (True, {"ti_id": "some-ti-id"})],
+)
+def test_ti_id_is_only_written_from_airflow_3_4(is_airflow_3_4_plus, expected):
+    ti = SimpleNamespace(id="some-ti-id")
+
+    with patch("airflow.providers.opensearch.log.os_task_handler.AIRFLOW_V_3_4_PLUS", is_airflow_3_4_plus):
+        assert _get_ti_id_fields(ti) == expected
+
+
+@pytest.mark.parametrize("is_airflow_3_4_plus", [False, True])
+def test_log_query_matches_ti_id_or_documents_without_it(is_airflow_3_4_plus):
+    ti = SimpleNamespace(id=uuid4())
+    log_id_match = {"match_phrase": {"log_id": "some-log-id"}}
+
+    with patch("airflow.providers.opensearch.log.os_task_handler.AIRFLOW_V_3_4_PLUS", is_airflow_3_4_plus):
+        must = _build_log_query("some-log-id", ti)
+
+    if not is_airflow_3_4_plus:
+        assert must == [log_id_match]
+        return
+    assert must == [
+        {
+            "bool": {
+                "should": [
+                    {"match_phrase": {"ti_id": str(ti.id)}},
+                    {"bool": {"must": [log_id_match], "must_not": {"exists": {"field": "ti_id"}}}},
+                ],
+                "minimum_should_match": 1,
+            }
+        }
+    ]
+
+
 @dataclasses.dataclass
 class _MockTI:
     dag_id: str = "dag_for_testing_os_log_handler"
@@ -61,6 +100,7 @@ class _MockTI:
     run_id: str = "run_for_testing_os_log_handler"
     try_number: int = 1
     map_index: int = -1
+    id: UUID = dataclasses.field(default_factory=uuid4)
 
 
 def get_ti(dag_id, task_id, logical_date, create_task_instance):
@@ -287,6 +327,37 @@ class TestOpensearchTaskHandler:
             index_patterns=patterns,
         )
         assert handler.index_patterns == patterns
+
+    @pytest.mark.parametrize(
+        ("username", "password", "expect_http_auth"),
+        [
+            ("admin", "secret", True),
+            ("admin", "", True),
+            ("", "secret", True),
+        ],
+    )
+    def test_client_with_auth(self, username, password, expect_http_auth):
+        """If either username or password are provided, the handler should pass http_auth to the client."""
+        handler = OpensearchTaskHandler(
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            host="localhost",
+            port=9200,
+            username=username,
+            password=password,
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
+        )
+
+        transport_args = handler.client.transport.kwargs
+        if expect_http_auth:
+            assert "http_auth" in transport_args
+            assert transport_args["http_auth"] == (username, password)
+        else:
+            assert "http_auth" not in handler.client.transport.kwargs
 
     @pytest.mark.db_test
     @pytest.mark.parametrize("metadata_mode", ["provided", "none", "empty"])
@@ -698,15 +769,19 @@ class TestOpensearchRemoteLogIO:
         mock_parse.assert_not_called()
         mock_write.assert_not_called()
 
+    @patch("airflow.providers.opensearch.log.os_task_handler.AIRFLOW_V_3_4_PLUS", True)
     def test_write_to_opensearch(self, tmp_json_file, ti):
         self.opensearch_io.write_stdout = False
         log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
-        expected_log_lines = self.opensearch_io._parse_raw_log(tmp_json_file.read_text(), log_id)
+        expected_log_lines = self.opensearch_io._parse_raw_log(
+            tmp_json_file.read_text(), log_id, {"ti_id": str(ti.id)}
+        )
 
         with patch.object(self.opensearch_io, "_write_to_opensearch", return_value=True) as mock_write:
             self.opensearch_io.upload(tmp_json_file, ti)
 
         mock_write.assert_called_once_with(expected_log_lines)
+        assert all(line["ti_id"] == str(ti.id) for line in expected_log_lines)
 
     def test_raw_log_contains_log_id_and_offset(self, tmp_json_file, ti):
         raw_log = tmp_json_file.read_text()
@@ -733,7 +808,7 @@ class TestOpensearchRemoteLogIO:
             "query": {
                 "bool": {
                     "filter": [{"range": {self.opensearch_io.offset_field: {"gt": 2}}}],
-                    "must": [{"match_phrase": {"log_id": log_id}}],
+                    "must": _build_log_query(log_id, ti),
                 }
             }
         }
@@ -792,6 +867,46 @@ class TestOpensearchRemoteLogIO:
         assert log_source_info == []
         assert f"*** Log {log_id} not found in Opensearch" in log_messages[0]
 
+    def test_read_returns_all_logs_when_exceeding_page_size(self, ti):
+        log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
+
+        first_page = [
+            {
+                "event": f"log line {i}",
+                "log_id": log_id,
+                "offset": i + 1,
+            }
+            for i in range(1000)
+        ]
+        second_page = [
+            {
+                "event": f"log line {1000 + i}",
+                "log_id": log_id,
+                "offset": 1001 + i,
+            }
+            for i in range(500)
+        ]
+
+        responses = [
+            _make_os_response(self.opensearch_io, *first_page),
+            _make_os_response(self.opensearch_io, *second_page),
+            None,
+        ]
+
+        with patch.object(self.opensearch_io, "_os_read", side_effect=responses) as mock_os_read:
+            log_source_info, log_messages = self.opensearch_io.read("", ti)
+
+        assert log_source_info == ["http://localhost"]
+        assert len(log_messages) == 1500
+        assert json.loads(log_messages[0])["event"] == "log line 0"
+        assert json.loads(log_messages[-1])["event"] == "log line 1499"
+
+        assert mock_os_read.call_args_list == [
+            call(log_id, 0, ti),
+            call(log_id, 1000, ti),
+            call(log_id, 1500, ti),
+        ]
+
     def test_get_index_patterns_with_callable(self):
         with patch("airflow.providers.opensearch.log.os_task_handler.import_string") as mock_import_string:
             mock_callable = Mock(return_value="callable_index_pattern")
@@ -808,6 +923,35 @@ class TestOpensearchRemoteLogIO:
         log_file = tmp_path / "1.log"
         log_file.write_text('{"message": "test"}\n')
         self.opensearch_io.upload(log_file, ti=None)
+
+    @pytest.mark.parametrize(
+        ("username", "password", "expect_http_auth"),
+        [
+            ("admin", "secret", True),
+            ("admin", "", True),
+            ("", "secret", True),
+        ],
+    )
+    def test_client_with_auth(self, username, password, expect_http_auth):
+        """If either username or password are provided, the IO should pass http_auth to the client."""
+        opensearch_io = OpensearchRemoteLogIO(
+            write_to_opensearch=True,
+            write_stdout=True,
+            delete_local_copy=True,
+            host="localhost",
+            port=9200,
+            username=username,
+            password=password,
+            base_log_folder=self.opensearch_io.base_log_folder,
+            log_id_template="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+        )
+
+        transport_args = opensearch_io.client.transport.kwargs
+        if expect_http_auth:
+            assert "http_auth" in transport_args
+            assert transport_args["http_auth"] == (username, password)
+        else:
+            assert "http_auth" not in opensearch_io.client.transport.kwargs
 
 
 class TestOpensearchRemoteLogIOFromConfig:

@@ -17,8 +17,13 @@
 
 .. _howto/operator:llm_schema_compare:
 
-Detect schema drift: ``LLMSchemaCompareOperator``
-=================================================
+Detect schema drift: ``LLMSchemaCompareOperator`` and ``@task.llm_schema_compare``
+==================================================================================
+
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
 
 Use :class:`~airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator`
 to compare schemas across different database systems and detect drift using LLM reasoning.
@@ -65,7 +70,7 @@ With Object Storage or a Database Table
 
 Use ``data_sources`` with
 :class:`~airflow.providers.common.sql.config.DataSourceConfig` to include
-object-storage sources (S3 or GCS Parquet, CSV, Iceberg, etc.) in the comparison.
+object-storage sources (S3, GCS, Azure Blob Storage, Parquet, CSV, Iceberg, etc.) in the comparison.
 These can be freely combined with ``db_conn_ids``. Whether an entry is
 introspected via ``DbApiHook`` or DataFusion depends on what its ``conn_id``
 resolves to, not on its ``uri``/``format`` fields: a ``DataSourceConfig``

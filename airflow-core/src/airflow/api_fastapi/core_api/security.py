@@ -67,6 +67,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 )
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, BulkDAGRunClearBody
+from airflow.api_fastapi.core_api.datamodels.dags import BulkDAGBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
@@ -365,8 +366,12 @@ class PermittedTIFilter(PermittedDagFilter):
 class PermittedXComFilter(PermittedDagFilter):
     """A parameter that filters the permitted XComs for the user."""
 
+    def __init__(self, value: set[str] | None = None, *, entity=XComModel):
+        super().__init__(value)
+        self.entity = entity
+
     def to_orm(self, select: Select) -> Select:
-        return select.where(XComModel.dag_id.in_(self.value or set()))
+        return select.where(self.entity.dag_id.in_(self.value or set()))
 
 
 class PermittedTagFilter(PermittedDagFilter):
@@ -1091,6 +1096,39 @@ def requires_access_dag_run_bulk() -> Callable[[BulkBody[BulkDAGRunBody], BaseUs
                     entity_methods.append((entity_dag_id, method))
 
         requests = _build_dag_run_access_requests(entity_methods)
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
+                requests=requests,
+                user=user,
+            )
+        )
+
+    return inner
+
+
+def requires_access_dag_bulk() -> Callable[[BulkBody[BulkDAGBody], BaseUser], None]:
+    def inner(
+        request: BulkBody[BulkDAGBody],
+        user: GetUserDep,
+    ) -> None:
+        entity_methods: list[tuple[str, ResourceMethod]] = []
+        for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
+            for entity in action.entities:
+                entity_dag_id = entity if isinstance(entity, str) else entity.dag_id
+                for method in methods:
+                    entity_methods.append((entity_dag_id, method))
+
+        if not entity_methods:
+            return
+
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(
+            list({dag_id for dag_id, _ in entity_methods})
+        )
+        requests: list[IsAuthorizedDagRequest] = [
+            {"method": method, "details": DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id))}
+            for dag_id, method in entity_methods
+        ]
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
                 requests=requests,

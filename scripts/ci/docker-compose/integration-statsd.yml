@@ -19,6 +19,8 @@ services:
   statsd-exporter:
     image: quay.io/prometheus/statsd-exporter:v0.28.0
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for Statsd hooks."
     container_name: "breeze-statsd-exporter"
     ports:
@@ -27,6 +29,9 @@ services:
       - "29102:9102"
 
   prometheus:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
     image: prom/prometheus
     container_name: "breeze-prometheus"
     user: "0"
@@ -37,6 +42,9 @@ services:
       - ./prometheus/volume:/prometheus
 
   grafana:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
     image: grafana/grafana:12.2.1
     container_name: "breeze-grafana"
     environment:

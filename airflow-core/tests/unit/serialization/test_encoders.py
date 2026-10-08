@@ -120,7 +120,7 @@ _TRIGGER_PARAMS = [
     ),
     pytest.param(
         _GenericKwargsTrigger(
-            moment=datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.timezone.utc),
+            moment=datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.UTC),
         ),
         id="datetime_kwarg",
     ),

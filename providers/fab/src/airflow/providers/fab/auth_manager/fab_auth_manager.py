@@ -156,8 +156,8 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
 }
 
 # ``AccessView.IMPORT_ERRORS_ALL`` and ``AccessView.AUDIT_LOGS_ALL`` only exist on
-# core >= 3.4.0, and ``AccessView.REPARSE_ALL`` after it; the compat shim yields ``None``
-# on older core so this provider still imports there.
+# Airflow >= 3.4.0, and ``AccessView.REPARSE_ALL`` in a later version; the compat shim yields ``None``
+# on older Airflow versions so this provider still imports there.
 if IMPORT_ERRORS_ALL_ACCESS_VIEW is not None:
     _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[IMPORT_ERRORS_ALL_ACCESS_VIEW] = RESOURCE_IMPORT_ERROR_ALL
 if AUDIT_LOGS_ALL_ACCESS_VIEW is not None:

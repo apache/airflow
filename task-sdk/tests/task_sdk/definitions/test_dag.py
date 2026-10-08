@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 import warnings
 import weakref
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest import mock
 
@@ -27,6 +27,7 @@ import pytest
 
 from airflow.sdk import (
     DAG,
+    Asset,
     Context,
     Label,
     Param,
@@ -41,7 +42,7 @@ from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
 
-DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
+DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=UTC)
 
 
 class TestDag:
@@ -638,12 +639,23 @@ def test_allowed_run_types_conflicting_schedule(schedule, allowed_run_types, mat
 
 
 def test_allowed_run_types_asset_triggered_missing_with_asset_schedule():
-    from airflow.sdk.definitions.asset import Asset
-
     with pytest.raises(ValueError, match="allowed_run_types must include ASSET_TRIGGERED"):
         DAG(
             "test-allowed-asset",
             schedule=[Asset("test")],
+            allowed_run_types=[DagRunType.MANUAL],
+        )
+
+
+def test_allowed_run_types_uses_asset_triggered_behavior():
+    class CustomAssetTriggeredTimetable(BaseTimetable):
+        asset_triggered = True
+        asset_condition = Asset("test")
+
+    with pytest.raises(ValueError, match="allowed_run_types must include ASSET_TRIGGERED"):
+        DAG(
+            "test-allowed-custom-asset",
+            schedule=CustomAssetTriggeredTimetable(),
             allowed_run_types=[DagRunType.MANUAL],
         )
 
@@ -685,7 +697,7 @@ class TestDagDecorator:
     DEFAULT_ARGS = {
         "owner": "test",
         "depends_on_past": True,
-        "start_date": datetime.now(tz=timezone.utc),
+        "start_date": datetime.now(tz=UTC),
         "retries": 1,
         "retry_delay": timedelta(minutes=1),
     }
@@ -889,6 +901,8 @@ class TestCycleTester:
             create_cluster >> pod_task >> delete_cluster
             create_cluster >> pod_task_xcom >> delete_cluster
             pod_task_xcom >> pod_task_xcom_result
+
+        assert not dag.check_cycle()
 
     def test_cycle_no_cycle(self):
         # test no cycle

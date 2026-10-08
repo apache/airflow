@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -41,10 +42,16 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.packages import get_available_distributions
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
+    LONG_RUNNING_TEST_PROVIDERS,
+    PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS,
     SelectiveChecks,
+    _find_test_helper_importers,
     _get_test_list_as_json,
+    _get_test_type_description,
+    _imports_module,
     _split_list,
 )
 
@@ -106,7 +113,7 @@ LIST_OF_ALL_PROVIDER_TESTS_AS_JSON = json.dumps(
 
 
 ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -114,13 +121,13 @@ ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = "identity,update-uv-lock"
 
 ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,"
     "lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,"
     "mypy-airflow-e2e-tests,mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,"
     "mypy-kubernetes-tests,mypy-scripts,mypy-shared-configuration,mypy-shared-dagnode,"
@@ -128,32 +135,32 @@ ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED = (
     "mypy-shared-observability,mypy-shared-plugins_manager,mypy-shared-providers_discovery,"
     "mypy-shared-secrets_backend,mypy-shared-secrets_masker,mypy-shared-serialization,"
     "mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,"
-    "mypy-task-sdk-integration-tests,update-uv-lock"
+    "mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI = (
-    "check-ts-sdk-supervisor-schema,identity,ktlint,mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
-    "check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,update-uv-lock"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
-    "check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -161,14 +168,14 @@ ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 # API source/test change with NO OpenAPI spec change: the full matrix is no longer
 # forced. airflow-core Python changed (so mypy-airflow-core + flynt run); no
 # provider.yaml, helm, or UI files changed, so those checks stay skipped.
 ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -177,11 +184,11 @@ ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED = (
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,"
     "mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -189,11 +196,11 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -201,12 +208,12 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -214,22 +221,22 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,update-uv-lock"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,regenerate-java-sdk-verification-metadata,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -237,7 +244,7 @@ ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 
@@ -474,7 +481,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "false",
                     "docs-build": "true",
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -482,7 +489,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -520,7 +527,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-api-tests": "true",
                     "docs-build": "true",
                     "skip-prek-hooks": (
-                        "check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -529,7 +536,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,"
                         "mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
@@ -540,7 +547,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                             {
                                 "description": "amazon...google",
                                 "test_types": "Providers[amazon] "
-                                "Providers[common.compat,common.sql,fab,microsoft.azure,openlineage,pgvector,postgres] "
+                                "Providers[cncf.kubernetes,common.compat,common.sql,fab,microsoft.azure,openlineage,pgvector,postgres] "
                                 "Providers[google]",
                             }
                         ]
@@ -775,7 +782,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "full-tests-needed": "false",
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -783,7 +790,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
@@ -813,7 +820,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "false",
                     "full-tests-needed": "false",
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -821,7 +828,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -876,7 +883,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "full-tests-needed": "false",
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-core,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -884,7 +891,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -912,7 +919,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "false",
                     "full-tests-needed": "false",
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -920,7 +927,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -960,7 +967,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                             {
                                 "description": "amazon...google",
                                 "test_types": "Providers[amazon] "
-                                "Providers[common.compat,common.sql,microsoft.azure,openlineage,pgvector,postgres] "
+                                "Providers[cncf.kubernetes,common.compat,common.sql,microsoft.azure,openlineage,pgvector,postgres] "
                                 "Providers[google]",
                             }
                         ]
@@ -1000,7 +1007,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [
                             {
                                 "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,common.compat,dbt.cloud,dingding,discord,http,informatica,pagerduty] Providers[google]",
+                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,cncf.kubernetes,common.compat,dbt.cloud,dingding,discord,http,informatica,pagerduty] Providers[google]",
                             }
                         ]
                     ),
@@ -1130,7 +1137,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
+                "common.ai common.compat common.messaging common.sql databricks duckdb exasol ftp google http imap "
+                "microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1156,7 +1164,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
+                            "common.ai,common.compat,common.messaging,common.sql,databricks,duckdb,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -1202,7 +1210,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
+                "common.ai common.compat common.messaging common.sql databricks duckdb exasol ftp google http imap "
+                "microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1225,7 +1234,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
+                            "common.ai,common.compat,common.messaging,common.sql,databricks,duckdb,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -1259,7 +1268,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "docs-build": "false",
                 "run-kubernetes-tests": "false",
                 "skip-prek-hooks": (
-                    "check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                    "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                     "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                     "mypy-scripts,"
@@ -1267,7 +1276,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
@@ -1277,7 +1286,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     [
                         {
                             "description": "common.compat,common.io,openl",
-                            "test_types": "Providers[common.compat,common.io,openlineage]",
+                            "test_types": "Providers[cncf.kubernetes,common.compat,common.io,openlineage]",
                         }
                     ]
                 ),
@@ -1311,25 +1320,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow-core/tests/unit/utils/test_cli_util.py",),
                 {
-                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                    "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                    "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
-                    "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "selected-providers-list-as-string": None,
                     "ci-image-build": "true",
-                    "prod-image-build": "true",
-                    "run-helm-tests": "true",
+                    "prod-image-build": "false",
                     "run-unit-tests": "true",
-                    "run-amazon-tests": "true",
-                    "docs-build": "true",
-                    "full-tests-needed": "true",
-                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
-                    "upgrade-to-newer-dependencies": "false",
+                    "full-tests-needed": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "run-mypy-providers": "true",
+                    "providers-test-types-list-as-strings-in-json": "null",
+                    "run-mypy-providers": "false",
                 },
-                id="All tests should be run when tests/utils/ change",
+                id="Core tests only when airflow-core/tests/unit/utils/ change",
             )
         ),
         (
@@ -1353,11 +1353,63 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "testable-core-integrations": "['kerberos', 'otel', 'redis']",
-                    "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'elasticsearch', 'tinkerpop', 'kafka', "
+                    "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'elasticsearch', 'opensearch', 'tinkerpop', 'kafka', "
                     "'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "run-mypy-providers": "true",
                 },
                 id="All tests should be run when devel-common/ change",
+            )
+        ),
+        (
+            pytest.param(
+                ("devel-common/src/tests_common/pytest_plugin.py",),
+                {
+                    "full-tests-needed": "true",
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
+                },
+                id="All tests should be run when the tests_common pytest plugin changes",
+            )
+        ),
+        (
+            pytest.param(
+                ("devel-common/src/tests_common/test_utils/mock_plugins.py",),
+                {
+                    "full-tests-needed": "true",
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
+                },
+                id="All tests should be run when a test helper imported by the pytest plugin changes",
+            )
+        ),
+        (
+            pytest.param(
+                ("devel-common/src/tests_common/test_utils/permissions.py",),
+                {
+                    "selected-providers-list-as-string": "common.compat fab",
+                    "full-tests-needed": "false",
+                    "run-unit-tests": "true",
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "common.compat,fab",
+                                "test_types": "Providers[cncf.kubernetes,common.compat,fab]",
+                            }
+                        ]
+                    ),
+                },
+                id="Only the tests importing a test helper should run when it changes",
+            )
+        ),
+        (
+            pytest.param(
+                ("devel-common/src/sphinx_exts/exampleinclude.py",),
+                {
+                    "full-tests-needed": "false",
+                    "docs-build": "true",
+                    "run-unit-tests": "true",
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": "null",
+                },
+                id="Docs build and core tests, not the full matrix, when a Sphinx extension changes",
             )
         ),
         (
@@ -1423,7 +1475,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "false",
                 "docs-build": "true",
                 "skip-prek-hooks": (
-                    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,"
+                    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,"
                     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                     "mypy-scripts,"
@@ -1431,7 +1483,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": None,
@@ -1595,6 +1647,41 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "false",
             },
             id="Skip go unit and e2e tests for go-sdk ADR-only change",
+        ),
+        pytest.param(
+            ("providers/common/ai/src/airflow/providers/common/ai/toolsets/sql.py",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when a common.ai toolset changes",
+        ),
+        pytest.param(
+            ("providers/common/ai/tests/unit/common/ai/tools/test_strands.py",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when a common.ai test changes",
+        ),
+        pytest.param(
+            ("providers/common/ai/pyproject.toml",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when common.ai dependencies change",
+        ),
+        pytest.param(
+            ("providers/common/sql/src/airflow/providers/common/sql/hooks/sql.py",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when common.sql changes",
+        ),
+        pytest.param(
+            ("uv.lock",),
+            {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
+            id="Run agent framework tests when the lock file changes",
+        ),
+        pytest.param(
+            ("providers/common/ai/docs/frameworks/strands.rst",),
+            {"run-agent-framework-tests": "false"},
+            id="Skip agent framework tests for a common.ai docs-only change",
+        ),
+        pytest.param(
+            ("providers/openai/src/airflow/providers/openai/hooks/openai.py",),
+            {"run-agent-framework-tests": "false"},
+            id="Skip agent framework tests when another provider changes",
         ),
         pytest.param(
             ("airflow-e2e-tests/docker/go.yml",),
@@ -1792,7 +1879,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("shared/logging/src/airflow_shared/logging/remote.py",),
                 {
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,"
                         "mypy-airflow-e2e-tests,mypy-dev,mypy-devel-common,mypy-docker-tests,"
                         "mypy-helm-tests,mypy-kubernetes-tests,mypy-scripts,"
@@ -1802,7 +1889,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                         "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,"
                         "mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                        "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                        "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                 },
                 id=("Shared logging change keeps only mypy-shared-logging among the mypy-shared-* hooks"),
@@ -1825,27 +1912,34 @@ def test_expected_output_pull_request_main(
 
 
 @pytest.mark.parametrize(
-    ("files", "ktlint_skipped"),
+    "hook",
+    ["ktlint", "regenerate-java-sdk-verification-metadata", "check-java-sdk-serialization-conformance"],
+)
+@pytest.mark.parametrize(
+    ("files", "hook_skipped"),
     [
         pytest.param(
             ("java-sdk/sdk/build.gradle.kts",),
             False,
-            id="ktlint runs when java-sdk files change",
+            id="runs when java-sdk files change",
         ),
         pytest.param(
             ("SECURITY.md",),
             True,
-            id="ktlint skipped when no java-sdk files change",
+            id="skipped when no java-sdk files change",
         ),
         pytest.param(
             ("java-sdk/README.md",),
             True,
-            id="ktlint skipped when only java-sdk docs change",
+            id="skipped when only java-sdk docs change",
         ),
     ],
 )
-def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktlint_skipped: bool):
-    # ktlint downloads the Gradle distribution, so it must be skipped unless java-sdk changed.
+def test_java_sdk_gradle_hooks_only_run_for_java_sdk_changes(
+    files: tuple[str, ...], hook_skipped: bool, hook: str
+):
+    # Both hooks run the java-sdk Gradle wrapper and download from it, so they must be skipped
+    # unless java-sdk changed.
     stderr = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
@@ -1854,7 +1948,44 @@ def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktli
         default_branch="main",
     )
     skipped_hooks = get_outputs_from_stderr(str(stderr))["skip-prek-hooks"].split(",")
-    assert ("ktlint" in skipped_hooks) is ktlint_skipped
+    assert (hook in skipped_hooks) is hook_skipped
+
+
+@pytest.mark.parametrize(
+    ("files", "hook_skipped"),
+    [
+        pytest.param(
+            ("airflow-core/src/airflow/serialization/serialized_objects.py",),
+            False,
+            id="runs when Airflow's serializer changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/serialization/schema.json",),
+            False,
+            id="runs when Airflow's Dag schema changes",
+        ),
+        pytest.param(
+            ("scripts/ci/lang_sdk_serialization/compare.py",),
+            False,
+            id="runs when the shared conformance harness changes",
+        ),
+        pytest.param(
+            ("SECURITY.md",),
+            True,
+            id="skipped when none of its inputs change",
+        ),
+    ],
+)
+def test_java_sdk_conformance_hook_runs_for_serializer_changes(files: tuple[str, ...], hook_skipped: bool):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=tuple(),
+        default_branch="main",
+    )
+    skipped_hooks = get_outputs_from_stderr(str(stderr))["skip-prek-hooks"].split(",")
+    assert ("check-java-sdk-serialization-conformance" in skipped_hooks) is hook_skipped
 
 
 @pytest.mark.parametrize(
@@ -2539,6 +2670,11 @@ def test_expected_output_full_tests_needed(
             "only chart/providers changed in non-main but PROD image should be built",
         ),
         pytest.param(
+            ("providers/common/ai/src/airflow/providers/common/ai/toolsets/sql.py",),
+            {"run-agent-framework-tests": "false", "skip-providers-tests": "true"},
+            id="No agent framework tests on a release branch, which releases no providers",
+        ),
+        pytest.param(
             (
                 "airflow-core/src/airflow/cli/test.py",
                 "chart/aaaa.txt",
@@ -2725,7 +2861,7 @@ def test_expected_output_push(
                 "docs-build": "true",
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "skip-prek-hooks": (
-                    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                     "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                     "mypy-scripts,"
@@ -2733,7 +2869,7 @@ def test_expected_output_push(
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
@@ -2751,7 +2887,7 @@ def test_expected_output_push(
             ),
             {
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
-                "cncf.kubernetes common.compat common.messaging common.sql databricks "
+                "cncf.kubernetes common.ai common.compat common.messaging common.sql databricks "
                 "facebook google hashicorp http microsoft.azure microsoft.mssql mongo mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -2763,18 +2899,18 @@ def test_expected_output_push(
                 "skip-providers-tests": "false",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
-                "apache.kafka cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http microsoft.azure "
+                "apache.kafka cncf.kubernetes common.ai common.compat common.messaging common.sql databricks facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mongo mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh standard trino",
                 "skip-prek-hooks": (
-                    "check-ts-sdk-supervisor-schema,identity,ktlint,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                    "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                     "mypy-scripts,"
                     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -2786,7 +2922,7 @@ def test_expected_output_push(
                         {
                             "description": "amazon...standard",
                             "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
-                            "apache.kafka,cncf.kubernetes,common.compat,common.messaging,common.sql,databricks,facebook,"
+                            "apache.kafka,cncf.kubernetes,common.ai,common.compat,common.messaging,common.sql,databricks,facebook,"
                             "hashicorp,http,microsoft.azure,microsoft.mssql,mongo,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
                             "Providers[google] "
@@ -2812,7 +2948,7 @@ def test_expected_output_push(
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow",
                 "skip-prek-hooks": (
-                    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                     "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                     "mypy-scripts,"
@@ -2820,7 +2956,7 @@ def test_expected_output_push(
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
                     "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
-                    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+                    "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -3069,7 +3205,7 @@ def test_upgrade_to_newer_dependencies(
             ("providers/google/docs/some_file.rst",),
             {
                 "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
-                "cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http "
+                "cncf.kubernetes common.ai common.compat common.messaging common.sql databricks facebook google hashicorp http "
                 "microsoft.azure microsoft.mssql mongo mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh standard trino",
             },
@@ -3636,6 +3772,19 @@ def test_testable_providers_integrations_gated_by_affected_provider():
     # Unrelated integrations whose providers are not affected must be absent.
     assert "mongo" not in result
     assert "ydb" not in result
+
+
+def test_opensearch_provider_integration_triggered_by_affected_provider():
+    """Verify that changes to the OpenSearch provider trigger its integration test."""
+    selective_checks = SelectiveChecks(
+        files=("providers/opensearch/src/airflow/providers/opensearch/log/os_task_handler.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
+    )
+    result = selective_checks.testable_providers_integrations
+    assert "opensearch" in result
+    assert "cassandra" not in result
 
 
 def test_individual_providers_excludes_platform_excluded_on_arm():
@@ -4224,3 +4373,258 @@ def test_helm_test_kubernetes_versions(
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("source", "importer_package", "expected"),
+    [
+        pytest.param(
+            "from tests_common.test_utils.mock_context import mock_context\n", None, True, id="from-module"
+        ),
+        pytest.param("from tests_common.test_utils import mock_context\n", None, True, id="from-package"),
+        pytest.param(
+            "from tests_common.test_utils import (\n    db,\n    mock_context,\n)\n",
+            None,
+            True,
+            id="multiline-from",
+        ),
+        pytest.param("import tests_common.test_utils.mock_context as mc\n", None, True, id="import"),
+        pytest.param(
+            'pytest_plugins = ["tests_common.test_utils.mock_context"]\n', None, True, id="dotted-string"
+        ),
+        pytest.param("mock_context = {}\n", None, False, id="same-name-variable"),
+        pytest.param(
+            "from tests_common.test_utils.mock_context_extra import x\n", None, False, id="longer-module"
+        ),
+        pytest.param(
+            "# mock_context\nfrom tests_common.test_utils import db\n", None, False, id="other-package-member"
+        ),
+        pytest.param(
+            "from ..mock_context import mock_context\n",
+            "tests_common.test_utils.operators",
+            True,
+            id="relative-from-parent",
+        ),
+        pytest.param("from . import mock_context\n", "tests_common.test_utils", True, id="relative-package"),
+        pytest.param("from .mock_context import mock_context\n", None, False, id="relative-without-package"),
+        pytest.param(
+            "from .mock_context import mock_context\n",
+            "tests_common.other",
+            False,
+            id="relative-other-package",
+        ),
+    ],
+)
+def test_imports_module(source: str, importer_package: str | None, expected: bool):
+    assert _imports_module(source, "tests_common.test_utils.mock_context", importer_package) is expected
+
+
+@pytest.mark.parametrize(
+    ("grep_results", "expected"),
+    [
+        pytest.param(
+            [(0, "airflow-core/tests/unit/utils/test_db.py\n")],
+            frozenset({"airflow-core/tests/unit/utils/test_db.py"}),
+            id="importer",
+        ),
+        pytest.param(
+            [(0, "dev/airflow_perf/x.py\nairflow-core/tests/unit/utils/test_db.py\n")],
+            frozenset({"airflow-core/tests/unit/utils/test_db.py"}),
+            id="skips-dev-importer",
+        ),
+        pytest.param(
+            [
+                (0, "devel-common/src/tests_common/test_utils/other_helper.py\n"),
+                (0, "providers/fab/tests/unit/fab/test_x.py\n"),
+            ],
+            frozenset({"providers/fab/tests/unit/fab/test_x.py"}),
+            id="transitive-importer",
+        ),
+        pytest.param([(1, "")], frozenset(), id="no-importers"),
+        pytest.param([(128, "")], None, id="search-failed"),
+        pytest.param(
+            [(0, "devel-common/src/tests_common/test_utils/__init__.py\n")],
+            None,
+            id="imported-by-package-init",
+        ),
+        pytest.param(
+            [(0, "devel-common/src/tests_common/pytest_plugin.py\n")], None, id="imported-by-pytest-plugin"
+        ),
+        pytest.param([(0, "clients/python/test_python_client.py\n")], None, id="importer-outside-test-trees"),
+        pytest.param(
+            [(0, "airflow-core/tests/integration/otel/test_otel.py\n")],
+            None,
+            id="importer-in-core-integration-tests",
+        ),
+    ],
+)
+@patch("airflow_breeze.utils.selective_checks._imports_module", autospec=True, return_value=True)
+@patch("airflow_breeze.utils.selective_checks.run_command", autospec=True)
+def test_find_test_helper_importers(
+    mock_run_command, mock_imports_module, grep_results, expected, tmp_path, monkeypatch
+):
+    helper = "devel-common/src/tests_common/test_utils/mock_context.py"
+    for name in [helper, *(line for _, output in grep_results for line in output.splitlines())]:
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).touch()
+    monkeypatch.setattr("airflow_breeze.utils.selective_checks.AIRFLOW_ROOT_PATH", tmp_path)
+    mock_run_command.side_effect = [
+        subprocess.CompletedProcess(args=[], returncode=returncode, stdout=output)
+        for returncode, output in grep_results
+    ]
+    assert _find_test_helper_importers(helper) == expected
+    assert mock_run_command.call_args.kwargs["dry_run_override"] is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command", autospec=True)
+def test_find_test_helper_importers_missing_helper(mock_run_command, tmp_path, monkeypatch):
+    monkeypatch.setattr("airflow_breeze.utils.selective_checks.AIRFLOW_ROOT_PATH", tmp_path)
+    assert _find_test_helper_importers("devel-common/src/tests_common/test_utils/removed.py") is None
+    mock_run_command.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("files", "importers"),
+    [
+        pytest.param(
+            (
+                "providers/common/compat/src/airflow/providers/common/compat/check.py",
+                "devel-common/src/tests_common/test_utils/permissions.py",
+            ),
+            frozenset({"providers/fab/tests/unit/fab/auth_manager/test_security.py"}),
+            id="importer-in-other-provider",
+        ),
+        pytest.param(
+            (
+                "providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",
+                "devel-common/src/tests_common/test_utils/permissions.py",
+            ),
+            frozenset({"providers/common/compat/tests/unit/common/compat/test_check.py"}),
+            id="importer-in-common-compat",
+        ),
+    ],
+)
+@patch("airflow_breeze.utils.selective_checks._find_test_helper_importers", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.run_command", autospec=True)
+def test_common_compat_check_ignores_test_helper_importers(
+    mock_run_command, mock_find_test_helper_importers, files, importers
+):
+    mock_find_test_helper_importers.return_value = importers
+    mock_run_command.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout='"apache-airflow-providers-common-compat>=1.8.0",\n'
+    )
+    selective_checks = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert selective_checks.common_compat_changed_without_next_version is False
+
+
+@patch("airflow_breeze.utils.selective_checks.get_provider_dependencies", autospec=True)
+@patch("airflow_breeze.utils.selective_checks._find_test_helper_importers", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.run_command", autospec=True)
+def test_suspended_provider_check_ignores_test_helper_importers(
+    mock_run_command, mock_find_test_helper_importers, mock_get_provider_dependencies
+):
+    mock_get_provider_dependencies.return_value = {
+        provider: deps for provider, deps in get_provider_dependencies().items() if provider != "fab"
+    }
+    mock_find_test_helper_importers.return_value = frozenset(
+        {"providers/fab/tests/unit/fab/auth_manager/test_security.py"}
+    )
+    mock_run_command.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="")
+    selective_checks = SelectiveChecks(
+        files=("devel-common/src/tests_common/test_utils/permissions.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert selective_checks.selected_providers_list_as_string is None
+
+
+@pytest.mark.parametrize(
+    ("providers_to_test", "changed_providers", "suspended", "expected"),
+    [
+        pytest.param(
+            ["common.compat", "edge3"],
+            {"edge3"},
+            set(),
+            ["cncf.kubernetes", "common.compat", "edge3"],
+            id="changed provider runs after the leaking one in the shared canary process",
+        ),
+        pytest.param(
+            ["apache.beam", "common.compat"],
+            {"apache.beam"},
+            set(),
+            ["apache.beam", "common.compat"],
+            id="only a dependent runs after the leaking one",
+        ),
+        pytest.param(
+            ["apache.beam"],
+            {"apache.beam"},
+            set(),
+            ["apache.beam"],
+            id="changed provider runs before the leaking one",
+        ),
+        pytest.param(
+            ["cncf.kubernetes", "edge3"],
+            {"edge3"},
+            set(),
+            ["cncf.kubernetes", "edge3"],
+            id="leaking provider already selected",
+        ),
+        pytest.param(
+            ["amazon", "common.compat"],
+            {"amazon"},
+            set(),
+            ["amazon", "common.compat"],
+            id="long running providers run in their own process",
+        ),
+        pytest.param(
+            ["amazon", "edge3"],
+            {"amazon", "edge3"},
+            set(),
+            ["amazon", "cncf.kubernetes", "edge3"],
+            id="only shared-process providers decide",
+        ),
+        pytest.param(
+            ["edge3"],
+            {"edge3"},
+            {"cncf.kubernetes"},
+            ["edge3"],
+            id="suspended leaking provider is not added",
+        ),
+    ],
+)
+def test_add_providers_sharing_test_process_state(providers_to_test, changed_providers, suspended, expected):
+    assert (
+        SelectiveChecks._add_providers_sharing_test_process_state(
+            providers_to_test, changed_providers=changed_providers, suspended=suspended
+        )
+        == expected
+    )
+
+
+@pytest.mark.parametrize(
+    ("test_types", "expected"),
+    [
+        pytest.param(
+            ["Providers[cncf.kubernetes,common.compat,edge3]"], "common.compat,edge3", id="stripped"
+        ),
+        pytest.param(["Providers[cncf.kubernetes]"], "cncf.kubernetes", id="only the leaking provider"),
+        pytest.param(["Providers[-amazon,google]"], "-amazon,google", id="excluded"),
+        pytest.param(["Providers[amazon]", "Providers[cncf.kubernetes,edge3]"], "amazon...edge3", id="range"),
+    ],
+)
+def test_get_test_type_description_names_selected_providers(test_types, expected):
+    assert _get_test_type_description(test_types) == expected
+
+
+def test_providers_with_test_side_effects_are_shared_process_providers():
+    for provider in PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS:
+        assert provider in get_available_distributions()
+        assert provider not in LONG_RUNNING_TEST_PROVIDERS

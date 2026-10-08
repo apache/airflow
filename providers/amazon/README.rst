@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-amazon``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -57,8 +57,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.18.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-http``
-``boto3``                                   ``>=1.41.0``
-``botocore``                                ``>=1.41.0``
+``boto3``                                   ``>=1.42.79``
+``botocore``                                ``>=1.42.79``
 ``inflection``                              ``>=0.5.1``
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``

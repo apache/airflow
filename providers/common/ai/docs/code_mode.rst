@@ -20,9 +20,15 @@
 Code mode
 =========
 
-Set ``code_mode=True`` to collapse the agent's tools into a single ``run_code``
-tool powered by the `Monty <https://github.com/pydantic/monty>`__ sandbox (via
-pydantic-ai-harness). Instead of one model round-trip per tool call, the model
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
+Pass pydantic-ai-harness's ``CodeMode`` capability in ``capabilities=`` (see
+:ref:`capabilities`) to collapse the
+agent's tools into a single ``run_code`` tool powered by the
+`Monty <https://github.com/pydantic/monty>`__ sandbox. Instead of one model round-trip per tool call, the model
 writes a single Python snippet that calls the tools as functions -- with loops,
 conditionals, and ``asyncio.gather`` -- in one turn. For multi-tool workflows
 this cuts round-trips and token use.
@@ -63,7 +69,7 @@ mode:
   genuinely required rather than by default. See :doc:`sandbox/index` for the
   backends and their limitations.
 
-The two are not exclusive: ``code_mode=True`` and a ``SandboxToolset`` can be
+The two are not exclusive: ``CodeMode`` and a ``SandboxToolset`` can be
 enabled together, and the file tools fold into ``run_code`` while ``run_command``
 stays a tool of its own.
 
@@ -71,17 +77,31 @@ Requires the ``code-mode`` extra::
 
     pip install "apache-airflow-providers-common-ai[code-mode]"
 
+and the import ``from pydantic_ai_harness import CodeMode`` in the Dag file.
+
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python
     :start-after: [START howto_operator_agent_code_mode]
     :end-before: [END howto_operator_agent_code_mode]
 
-Unlike passing a capability through ``agent_params`` (see
-:ref:`capabilities-passthrough`), ``code_mode`` is a plain boolean and is
-serialization-safe: the ``CodeMode`` capability is built at execution time, not
-stored on the serialized operator.
+``CodeMode`` takes its own arguments; see the
+`pydantic-ai-harness code mode docs <https://ai.pydantic.dev/harness/code-mode/>`__. The one
+you are most likely to need is ``max_tool_calls``: each ``run_code`` snippet may make at most
+that many nested tool calls, 100 by default. A snippet that asks for more fails, the calls it
+already made are not undone, and the model has to split the work across several snippets. If the
+agent fans out over a list, for example one tool call per row or per file, set it above the
+largest list you expect.
+
+Code mode cannot be combined with ``durable=True`` (see :doc:`capabilities` for which
+capabilities durable replay covers), and it turns off :doc:`tool_approval`. A tool that needs
+approval and is called from ``run_code`` does not run: the model gets an error back and may
+carry on without it, so the task can still succeed. To keep such a tool out of ``run_code``,
+list the other tools in ``CodeMode(tools=[...])``; called directly, it fails the task.
+
+Importing ``CodeMode`` in the Dag file loads pydantic-ai-harness and Monty each time the file is
+parsed. Keep code mode agents in their own Dag file if the rest of the file does not need them.
 
 .. note::
 
-    Monty is pre-1.0. The ``code-mode`` extra is opt-in so its dependency churn
+    pydantic-ai-harness is pre-1.0. The ``code-mode`` extra is opt-in so its dependency churn
     never affects the base provider install.

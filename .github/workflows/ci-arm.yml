@@ -119,6 +119,7 @@ jobs:
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
+      run-agent-framework-tests: ${{ steps.selective-checks.outputs.run-agent-framework-tests }}
       run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-airflow-ctl-integration-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-integration-tests }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
@@ -1002,6 +1003,11 @@ jobs:
       - name: Run Go tests
         working-directory: ./go-sdk
         run: gotestsum --format github-actions ./...
+      # Without -race, the Go SDK tests for concurrent use can still pass when a lock is missing.
+      # The plain run above has to stay because the race build leaves out files with `//go:build !race`.
+      - name: Run Go tests with the race detector
+        working-directory: ./go-sdk
+        run: gotestsum --format github-actions -- -race ./...
       # Go modules have no central registry that pre-scans releases, so we scan our own
       # dependency graph against the Go vulnerability database. govulncheck is reachability
       # based, so it only fails on advisories that actually affect code we call. The version
@@ -1127,6 +1133,23 @@ jobs:
       test-timeout: 20
     if: needs.build-info.outputs.run-airflow-ctl-tests == 'true'
 
+  tests-agent-frameworks:
+    name: "Agent framework tests"
+    uses: ./.github/workflows/agent-framework-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
+    # Not a dependency of finalize-tests: on a canary run the frameworks' own pins win, and a
+    # breaking framework release should not stop finalize-tests from pushing the image cache.
+    if: needs.build-info.outputs.run-agent-framework-tests == 'true'
+
   finalize-tests:
     name: Finalize tests
     permissions:
@@ -1186,6 +1209,7 @@ jobs:
     needs:
       - build-info
       - finalize-tests
+      - tests-agent-frameworks
     if: >-
       always() &&
       !cancelled() &&

@@ -16,15 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { Wrapper } from "src/utils/Wrapper";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    i18n: { language: "en" },
+    // eslint-disable-next-line id-length
+    t: (key: string) => key,
+  }),
+}));
 
 describe("TaskInstanceTooltip", () => {
   it("renders children directly when both taskInstance and tooltip are undefined", () => {
@@ -215,6 +223,26 @@ describe("TaskInstanceTooltip", () => {
     expect(screen.getByText(/2\s+common:states\.none/iu)).toBeInTheDocument();
     expect(screen.queryByText(/^common:states\.None$/iu)).toBeNull();
     expect(screen.getByText(/1\s+common:states\.success/iu)).toBeInTheDocument();
+  });
+
+  it("groups thousands in the child state breakdown", () => {
+    const taskInstance: LightGridTaskInstanceSummary = {
+      child_states: { success: 1234 },
+      max_end_date: null,
+      min_start_date: null,
+      state: "success",
+      task_display_name: "Mapped Task",
+      task_id: "mapped_task",
+    };
+
+    render(
+      <TaskInstanceTooltip open taskInstance={taskInstance}>
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText(/1,234\s+common:states\.success/iu)).toBeInTheDocument();
   });
 
   it("shows run ID when provided explicitly for grid summaries", () => {

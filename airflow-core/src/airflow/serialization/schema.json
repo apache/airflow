@@ -257,7 +257,18 @@
     },
     "tasks": {
       "type": "array",
-      "additionalProperties": { "$ref": "#/definitions/operator" }
+      "items": {
+        "type": "object",
+        "required": [ "__type", "__var" ],
+        "properties": {
+          "__type": { "const": "operator" },
+          "__var": {
+            "type": "object",
+            "required": [ "task_id" ],
+            "properties": { "task_id": { "type": "string" } }
+          }
+        }
+      }
     },
     "params": {
       "type": "array",
@@ -367,7 +378,7 @@
         "max_active_tis_per_dag": {"type": "integer"},
         "max_active_tis_per_dagrun": {"type": "integer"},
         "_arg_bindings": {
-          "$comment": "Only present on @task.stub tasks called with TaskFlow arguments",
+          "$comment": "Used for mixed-language tasks (the @task.stub operator) or tasks defined in a non-Python SDK Dag",
           "type": "array",
           "items": { "$ref": "#/definitions/arg_binding" }
         }

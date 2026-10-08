@@ -105,8 +105,6 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.14.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``jaydebeapi``                              ``>=1.1.1``
-``jpype1``                                  ``>=1.4.0,!=1.7.0; python_version == "3.10" and sys_platform == "darwin" and platform_machine == "arm64"``
-``jpype1``                                  ``>=1.4.0; python_version == "3.10" and (sys_platform != "darwin" or platform_machine != "arm64")``
 ``jpype1``                                  ``>=1.4.1,!=1.7.0; python_version == "3.11" and sys_platform == "darwin" and platform_machine == "arm64"``
 ``jpype1``                                  ``>=1.4.1; python_version == "3.11" and (sys_platform != "darwin" or platform_machine != "arm64")``
 ``jpype1``                                  ``>=1.5.0,!=1.7.0; python_version == "3.12" and sys_platform == "darwin" and platform_machine == "arm64"``
@@ -150,7 +148,7 @@ Install them when installing from PyPI. For example:
 Extra            Dependencies
 ===============  ========================================
 ``openlineage``  ``apache-airflow-providers-openlineage``
-``sqlalchemy``   ``sqlalchemy>=1.4.54``
+``sqlalchemy``   ``sqlalchemy>=1.4.54,!=2.1.0``
 ===============  ========================================
 
 Downloading official packages

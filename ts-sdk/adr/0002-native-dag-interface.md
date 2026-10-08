@@ -27,16 +27,13 @@ Proposed. Revised after the review on #72047.
 
 1. **`dag.task(handler)` returns a factory, and the task id is optional.** With no id the task takes
    the handler's function name (`dag.task(extract)` → task `"extract"`); `dag.task(taskId, handler)`
-   sets it explicitly, which an anonymous handler must do. Calling the factory both places the task in
-   the Dag and supplies its arguments, in the order the handler declares them
-   (`load(transform(extract(), "us"))`). A handler that declares a single object of named arguments can
-   also be called with that object — the shape Python TaskFlow uses for
-   `load(transformed=transform(...))`.
-2. **The call graph is the task graph.** `tsc` checks every wired key against the handler's own
-   parameter type, and a `TaskRef` exists only once its producing call has returned, so a cycle
-   through arguments is unrepresentable rather than rejected by a validator. A reference passed by
-   position is checked against the argument's own type, which is what tells the two call shapes apart
-   when a handler declares a single argument.
+   sets it explicitly, which an anonymous handler must do. A handler takes one object of named
+   arguments, and calling the factory both places the task in the Dag and names each of its inputs
+   (`load({ total: transform({ rows: extract(), region: "us" }) })`) — the shape Python TaskFlow uses
+   for `load(transformed=transform(...))`.
+2. **The call graph is the task graph.** `tsc` checks every named input against the handler's own
+   argument type, and a `TaskRef` exists only once its producing call has returned, so a cycle
+   through arguments is unrepresentable rather than rejected by a validator.
 3. **Every task is called exactly once.** An uncalled task fails when the Dag is read, so none can be
    silently left out of the graph.
 4. **`before` and `after` draw order-only edges** — the TypeScript pair for `>>` and `<<`, both
@@ -107,13 +104,12 @@ const extract = dag.task(async function extract(): Promise<number> {
 // task id "extract"
 ```
 
-The id comes from the handler's *source* name, resolved when the bundle is packed and written into
-the registration — not from `handler.name` at runtime, which minification renames (see
-Implementation Notes). A handler with no source name — a bare anonymous arrow passed inline,
-`dag.task(async () => 42)` — has nothing to resolve and is a compile error until given an explicit
-id. This default is for native Dags, where both ends of every name are TypeScript; a mixed-language
-handler names the Python-owned task explicitly and does not default from the handler's function
-name ([ADR-0001](0001-mixed-lang-dag-interface.md), decision 3).
+The id is the handler's `name`, which `airflow-ts-pack` keeps through minification (see
+Implementation Notes). A handler with no name, such as a bare anonymous arrow passed inline,
+`dag.task(async () => 42)`, has nothing to take an id from and fails when the Dag is declared until
+given an explicit id. This default is for native Dags, where both ends of every name are
+TypeScript; a mixed-language handler names the Python-owned task explicitly and does not default
+from the handler's function name ([ADR-0001](0001-mixed-lang-dag-interface.md), decision 3).
 
 The `TaskSpec` also carries the task id, so it can be set alongside the other task options:
 
@@ -139,6 +135,81 @@ data is the wiring object itself — `summarize({ north: extractNorth(), south: 
 does. This matches `Before`/`After` in the Go SDK's native Dag interface, spelled to TypeScript
 convention.
 
+### Conditional branching: `if` and `else`
+
+`dag.if(handler)` is TypeScript's spelling of the construct
+[`airflow-core/adr/lang-sdk/0008`](../../airflow-core/adr/lang-sdk/0008-control-flow-constructs.md)
+names after the host language's control flow:
+
+```ts
+async function hasRows({ rows }: { rows: number }): Promise<boolean> {
+  return rows > 0;
+}
+
+const gate = dag.if(hasRows, { rows: validated });
+gate.then(loadIfReady).else(loadFallback);
+```
+
+**The condition is a handler, declared and wired in one call.** That ADR writes
+`dag.If(hasRows, airflow.Inputs(validated), airflow.TaskSpec{...})` in Go, and
+`dag.if(hasRows, { rows: validated }, { ... })` reads the same way: inputs, then an optional
+`TaskSpec`. The deciding task takes its id from the function's name unless the spec's `taskId` sets
+it, and the spec carries its other options, such as `queue` and `retries`. The compiler checks that
+the handler returns a `boolean`, and that the inputs match its argument.
+
+**A condition is a node.** What `dag.if` returns carries `before` and `after`, and stands at the
+other end of an edge as the deciding task, so `notified.after(gate)` reads as Go's `.After(gate)`. It
+is also a valid branch of another condition.
+
+**A `then` chain is a thenable, and is guarded rather than avoided.** An object with a callable
+`then` is a *thenable*: were the condition `dag.if` returns to reach an `await`, the runtime would hand
+its `then` a resolve function where a task reference belongs. Two things contain that. `.then(...)`
+returns an object carrying only `.else`, so nothing past the first step is awaitable at all; and
+`.then` rejects a function argument by naming the cause, so an author who does await it reads "this
+builds a branch, drop the await" rather than a type error about references.
+
+**A branch is a real branch to Airflow.** The control edges serialize as ordinary order-only edges
+and carry no branch-candidate field, as that ADR's consequences require. The condition task is
+serialized with `_can_skip_downstream`, and it writes the `skipmixin_key` XCom alongside the skip, so
+clearing a skipped branch re-skips it the way a Python `@task.branch` does rather than running the
+side the condition rejected.
+
+A one-sided `if` is a branch with one candidate — it skips `then` and follows nothing — rather than a
+`ShortCircuitOperator`, which would also skip the whole downstream closure and ignore trigger rules.
+A guarded task takes no argument for the control edge: a condition's boolean is a signal, not data.
+
+### Multi-way branching: `switch` and `case`
+
+`dag.switch(pickPath)` follows
+[`airflow-core/adr/lang-sdk/0008`](../../airflow-core/adr/lang-sdk/0008-control-flow-constructs.md)
+decision 2 without divergence: a case **is** the reference the SDK handed back, not a label kept in
+step with one. The decider is a handler, declared and wired in one call as `dag.if` declares a condition, as
+Go's `dag.Switch(pickPath)` does.
+
+```ts
+async function pickPath({ rows }: { rows: number }): Promise<TaskRef> {
+  return rows > 1000 ? handleLong : handleShort;
+}
+
+dag.switch(pickPath, { rows: extracted }).case(handleLong).case(handleShort);
+```
+
+A case is a task, never a condition or a branch: the decider returns the case from an async handler,
+and a condition carries `then`, so returning one would be awaited as a thenable instead.
+
+An earlier draft selected a case by a string label the author writes, on the grounds that a handler's
+function name does not survive bundling. That concern does not apply: a `TaskRef` carries the task's
+own id, which the SDK fixed when the task was declared and esbuild never touches. Selecting by
+reference keeps the compiler checking that a candidate exists, which a label cannot.
+
+The cases chain, as they do in Go. `case` reads the candidate list when the task runs rather than
+when it is declared, which is what lets the chain follow the `dag.switch` call; and unlike a
+condition's `then`, `case` is not a thenable trap, so nothing has to be guarded here.
+
+**No default case**, per decision 3, and **exactly one case is selected**, the limitation that ADR
+records for every Lang SDK. A branch with no case at all decides nothing, and is rejected when the
+Dag is read.
+
 ## Consequences
 
 - One authoring surface (`dag.task()` plus its factory) covers the graph and each task's arguments,
@@ -149,9 +220,8 @@ convention.
   by design. Native declaration is what fills them, generated from the serialized-Dag JSON schema the
   way `src/generated/supervisor.ts` is. This ADR does not choose those fields; it fixes where an
   author writes them.
-- `TaskOptions` carries the spec and the handler's positional argument names, which the packer fills in
-  from the parameter list so the Dag names each argument as its handler does. With wiring moved to the
-  factory call, `inputs` is no longer an option.
+- `TaskOptions` carries the task's spec and nothing else: the names on the wire are the keys of the
+  call itself. With wiring moved to the factory call, `inputs` is no longer an option.
 - `TaskHandlerArgs` is removed from the public API, `DagRegistry` becomes `Bundle`, and
   `serveDags(registry)` becomes `bundle.serve()`, which breaks
   0.1.0-beta1 authors; see [ADR-0001](0001-mixed-lang-dag-interface.md) for the shipped call sites
@@ -159,10 +229,10 @@ convention.
 
 ## Alternatives
 
-- **Named-only wiring**, rejected in the review on #73435: naming every input reads well at twenty
-  tasks but forces an object around a single argument, and positional calls are what TypeScript
-  authors write. Both are offered, and the handler's own parameter list decides which one a task can
-  use.
+- **Positional handlers**, `async (rows: number, region: string) => ...`, offered first and then
+  dropped: a positional parameter list has no names on the wire unless the SDK reads them out of the
+  handler's source, and a single object of named arguments is what a TypeScript library takes
+  anyway.
 - **Injected `ctx`/`client` arguments**, mimicking the Python signature. Rejected, per the above and
   because feeling native to TypeScript matters more than matching Python's parameter list.
 
@@ -181,17 +251,14 @@ convention.
 - **The spec argument already has its slot.** `dag.task(taskId, handler, options)` reads `{ spec = {} }`
   and runs `validateEmptySpec` on it (`ts-sdk/src/sdk/dag.ts`), so task fields land on a path that
   exists rather than a new one.
-- **A positional argument binds by order, and its name is a label.** The serialized Dag names each
-  argument, so the packer reads the names from the handler's parameter list; `arg0`, `arg1` and so on
-  stand in for a name it cannot see, without changing which value reaches which argument.
 - **A `TaskRef` is inert** — a handle for wiring, not a promise. Nothing in a Dag file executes a task
   body.
-- **A defaulted task id is resolved at pack time, not read at runtime.** esbuild renames function
-  identifiers, so `handler.name` in a packed bundle is the minified name, not the author's. The pack
-  step (`ts-sdk/src/cli/pack.ts`) therefore reads an omitted id from the handler's declared name in
-  source and writes it into the registration, rather than depending on `handler.name` or enabling
-  esbuild's `keepNames` across the whole bundle. A handler with no source name leaves nothing to
-  read, which is why an anonymous handler must state its id.
+- **A defaulted task id is read off the handler itself.** The pack step (`ts-sdk/src/cli/pack.ts`)
+  minifies and passes esbuild's `keepNames`, so `handler.name` is the author's in a packed bundle as
+  much as in one run from source. Rewriting the call at pack time was tried first and dropped: it
+  needed a TypeScript parser in the packer to tell a real `.task(` from one inside a string or a
+  comment, and it could not see a handler declared in another module. A handler with no name leaves
+  nothing to read, which is why an anonymous handler must state its id.
 - **`withArgNames` and the name folding behind it** ([ADR-0001](0001-mixed-lang-dag-interface.md))
   exist for the mixed-language case and are never needed here: both ends of every name are
   TypeScript, so `tsc` checks the wiring end to end and there is no foreign name to reconcile.
