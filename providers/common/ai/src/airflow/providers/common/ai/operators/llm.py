@@ -308,8 +308,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         output = result.output
 
         model_confidence = ModelConfidence.from_result(result)
-        if model_confidence.model is not None:
-            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_confidence.model)
+        self._push_model_name(context, model_confidence)
         # Gated by the least confident of the fields that reported a confidence; a field whose type
         # reports none is not gated. A bare output type is the one field ``response``.
         fields = list(model_confidence.confidence) or ["response"]
@@ -416,6 +415,11 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
             self.log.warning("No task instance in the context; %r was not pushed to XCom.", key)
             return
         push(key=key, value=value)
+
+    def _push_model_name(self, context: Context, model_confidence: ModelConfidence) -> None:
+        """Expose the model that actually answered on its own namespaced XCom key."""
+        if model_confidence.model is not None:
+            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_confidence.model)
 
     def _push_decision(self, context: Context, record: dict[str, Any]) -> None:
         """Expose what the model proposed, its confidence, and what the gate decided, on XCom."""

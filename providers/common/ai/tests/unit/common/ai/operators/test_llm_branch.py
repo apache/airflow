@@ -29,6 +29,7 @@ from pydantic_ai.models.function import FunctionModel
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.operators.llm_branch import BranchOption, DecisionPolicy, LLMBranchOperator
+from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 from airflow.providers.common.compat.sdk import Param, ParamValidationError, TaskDeferred
 from airflow.providers.standard.exceptions import HITLRejectException
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -934,6 +935,46 @@ class TestLLMBranchOperatorConfidenceGate:
 
         mock_do_branch.assert_called_once_with(context, "rerun")
         ti.xcom_push.assert_not_called()
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_resolved_model_name_pushed_to_xcom(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
+        """The model that actually answered is exposed on its own namespaced XCom key, same as LLMOperator."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, "rerun", confidence=0.94)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(
+            decision_policy=DecisionPolicy(min_confidence=0.7), branches={"rerun": "Transient failure."}
+        )
+        context = _make_context()
+
+        op.execute(context)
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes[MODEL_NAME_XCOM_KEY] == "jev-1.13.0"
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_no_model_name_xcom_when_the_model_is_unreported(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        """A result that reports no model name must not push an empty/None value under the key."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(
+            make_mock_run_result, "rerun", confidence=0.94, model=None
+        )
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(
+            decision_policy=DecisionPolicy(min_confidence=0.7), branches={"rerun": "Transient failure."}
+        )
+        context = _make_context()
+
+        op.execute(context)
+
+        pushed_keys = {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list}
+        assert MODEL_NAME_XCOM_KEY not in pushed_keys
 
 
 @pytest.mark.skipif(

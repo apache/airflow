@@ -247,6 +247,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
 
         # The pick is one field, ``response``; its confidence is what the bar is compared against.
         model_confidence = ModelConfidence.from_result(result)
+        self._push_model_name(context, model_confidence)
         picked = [branches] if isinstance(branches, str) else branches
         policy = self.decision_policy
         threshold = threshold_for(policy.min_confidence, self._branch_bars, picked)
