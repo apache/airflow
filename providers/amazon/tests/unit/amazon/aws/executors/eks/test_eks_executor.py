@@ -121,6 +121,22 @@ class TestAwsEksExecutor:
         with pytest.raises(RuntimeError, match="401 Unauthorized"):
             executor.start()
 
+    @conf_vars(
+        {
+            ("aws_eks_executor", "cluster_name"): "test-eks-cluster",
+            ("aws_eks_executor", "check_health_on_startup"): "False",
+        }
+    )
+    @mock.patch.object(KubernetesExecutor, "start", autospec=True)
+    def test_start_skips_health_check_when_disabled(self, mock_start):
+        executor = AwsEksExecutor()
+        executor.kube_client = mock.MagicMock()
+
+        executor.start()
+
+        mock_start.assert_called_once_with(executor)
+        executor.kube_client.list_namespaced_pod.assert_not_called()
+
     @pytest.mark.parametrize(
         "provider_info",
         [

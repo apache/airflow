@@ -1528,22 +1528,9 @@ config:
       extra of this provider. The executor supplies the Kubernetes client for
       the configured Amazon EKS cluster; all pod-level settings are still read
       from the ``[kubernetes_executor]`` section.
+      For boto3 credential management, see
+      https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
     options:
-      cluster_name:
-        description: |
-          The name of the Amazon EKS cluster to run Airflow tasks on. Required.
-        version_added: 9.38.0
-        type: string
-        example: "airflow-eks-cluster"
-        default: ~
-      region_name:
-        description: |
-          The name of the AWS Region where the EKS cluster is located. If not
-          specified then the default boto3 behaviour is used.
-        version_added: 9.38.0
-        type: string
-        example: "us-east-1"
-        default: ~
       conn_id:
         description: |
           The Airflow connection (i.e. credentials) used by the EKS executor to
@@ -1552,6 +1539,28 @@ config:
         type: string
         example: "aws_default"
         default: "aws_default"
+      region_name:
+        description: |
+          The name of the AWS Region where the EKS cluster is located. If not
+          specified then the default boto3 behaviour is used.
+        version_added: 9.38.0
+        type: string
+        example: "us-east-1"
+        default: ~
+      check_health_on_startup:
+        description: |
+          Whether or not to check the EKS Executor health on startup.
+        version_added: 9.38.0
+        type: boolean
+        example: "True"
+        default: "True"
+      cluster_name:
+        description: |
+          The name of the Amazon EKS cluster to run Airflow tasks on. Required.
+        version_added: 9.38.0
+        type: string
+        example: "airflow-eks-cluster"
+        default: ~
   aws_auth_manager:
     description: |
       This section only applies if you are using the AwsAuthManager. In other words, if you set

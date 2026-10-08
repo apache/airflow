@@ -1567,14 +1567,14 @@ def get_provider_info():
                 },
             },
             "aws_eks_executor": {
-                "description": "This section only applies if you are using the AwsEksExecutor in\nAirflow's ``[core]`` configuration. It requires the ``cncf.kubernetes``\nextra of this provider. The executor supplies the Kubernetes client for\nthe configured Amazon EKS cluster; all pod-level settings are still read\nfrom the ``[kubernetes_executor]`` section.\n",
+                "description": "This section only applies if you are using the AwsEksExecutor in\nAirflow's ``[core]`` configuration. It requires the ``cncf.kubernetes``\nextra of this provider. The executor supplies the Kubernetes client for\nthe configured Amazon EKS cluster; all pod-level settings are still read\nfrom the ``[kubernetes_executor]`` section.\nFor boto3 credential management, see\nhttps://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html\n",
                 "options": {
-                    "cluster_name": {
-                        "description": "The name of the Amazon EKS cluster to run Airflow tasks on. Required.\n",
+                    "conn_id": {
+                        "description": "The Airflow connection (i.e. credentials) used by the EKS executor to\nmake API calls to Amazon EKS.\n",
                         "version_added": "9.38.0",
                         "type": "string",
-                        "example": "airflow-eks-cluster",
-                        "default": None,
+                        "example": "aws_default",
+                        "default": "aws_default",
                     },
                     "region_name": {
                         "description": "The name of the AWS Region where the EKS cluster is located. If not\nspecified then the default boto3 behaviour is used.\n",
@@ -1583,12 +1583,19 @@ def get_provider_info():
                         "example": "us-east-1",
                         "default": None,
                     },
-                    "conn_id": {
-                        "description": "The Airflow connection (i.e. credentials) used by the EKS executor to\nmake API calls to Amazon EKS.\n",
+                    "check_health_on_startup": {
+                        "description": "Whether or not to check the EKS Executor health on startup.\n",
+                        "version_added": "9.38.0",
+                        "type": "boolean",
+                        "example": "True",
+                        "default": "True",
+                    },
+                    "cluster_name": {
+                        "description": "The name of the Amazon EKS cluster to run Airflow tasks on. Required.\n",
                         "version_added": "9.38.0",
                         "type": "string",
-                        "example": "aws_default",
-                        "default": "aws_default",
+                        "example": "airflow-eks-cluster",
+                        "default": None,
                     },
                 },
             },

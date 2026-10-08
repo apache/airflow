@@ -37,7 +37,11 @@ except ImportError as e:
         "pip install 'apache-airflow-providers-amazon[cncf.kubernetes]'"
     ) from e
 
-from airflow.providers.amazon.aws.executors.eks._client_factory import CONFIG_GROUP_NAME
+from airflow.providers.amazon.aws.executors.eks.utils import (
+    CONFIG_DEFAULTS,
+    CONFIG_GROUP_NAME,
+    AllEksConfigKeys,
+)
 
 # Import paths, because cncf.kubernetes re-resolves the factories in each process (see _client_factory).
 _FACTORY_MODULE = "airflow.providers.amazon.aws.executors.eks._client_factory"
@@ -68,12 +72,31 @@ class AwsEksExecutor(KubernetesExecutor):
         super().__init__(*args, **kwargs)
 
     def start(self) -> None:
+        """Call this when the Executor is run for the first time by the scheduler."""
         super().start()
-        self._check_health()
+        check_health = conf.getboolean(
+            CONFIG_GROUP_NAME,
+            AllEksConfigKeys.CHECK_HEALTH_ON_STARTUP,
+            fallback=CONFIG_DEFAULTS[AllEksConfigKeys.CHECK_HEALTH_ON_STARTUP],
+        )
 
-    def _check_health(self) -> None:
-        # Building the client only proves the cluster exists; without this, a missing EKS access
-        # entry or RBAC binding only shows up later as a watcher error loop.
+        if not check_health:
+            return
+
+        self.log.info("Starting EKS Executor and determining health...")
+        try:
+            self.check_health()
+        except RuntimeError:
+            self.log.error("Stopping the Airflow Scheduler from starting until the issue is resolved.")
+            raise
+
+    def check_health(self) -> None:
+        """
+        Make a test Kubernetes API call to check the health of the EKS Executor.
+
+        Building the client only proves the cluster exists; without this, a missing EKS access
+        entry or RBAC binding only shows up later as a watcher error loop.
+        """
         if TYPE_CHECKING:
             assert self.kube_client
         namespace = self.kube_config.kube_namespace
@@ -81,10 +104,10 @@ class AwsEksExecutor(KubernetesExecutor):
             self.kube_client.list_namespaced_pod(namespace, limit=1)
         except ApiException as e:
             raise RuntimeError(
-                f"AwsEksExecutor health check failed: cannot list pods in namespace {namespace} "
+                f"EKS Executor health check has failed because: cannot list pods in namespace {namespace} "
                 f"({e.status} {e.reason}). Check the EKS access entry and RBAC for the executor's IAM role."
             ) from e
-        self.log.info("AwsEksExecutor health check succeeded.")
+        self.log.info("EKS Executor health check has succeeded.")
 
     @staticmethod
     def _require_client_factory_support() -> None:
@@ -100,7 +123,7 @@ class AwsEksExecutor(KubernetesExecutor):
 
     @staticmethod
     def _validate_eks_config() -> None:
-        if not conf.get(CONFIG_GROUP_NAME, "cluster_name", fallback=None):
+        if not conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.CLUSTER_NAME, fallback=None):
             raise ValueError(f"AwsEksExecutor requires [{CONFIG_GROUP_NAME}] cluster_name to be set")
 
     @staticmethod

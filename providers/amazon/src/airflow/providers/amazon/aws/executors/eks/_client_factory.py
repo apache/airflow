@@ -28,6 +28,11 @@ import tempfile
 from base64 import b64decode
 from typing import TYPE_CHECKING
 
+from airflow.providers.amazon.aws.executors.eks.utils import (
+    CONFIG_DEFAULTS,
+    CONFIG_GROUP_NAME,
+    AllEksConfigKeys,
+)
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.amazon.aws.utils.eks_get_token import fetch_access_token_for_cluster
@@ -37,7 +42,6 @@ if TYPE_CHECKING:
     from kubernetes import client
     from kubernetes_asyncio import client as async_client
 
-CONFIG_GROUP_NAME = "aws_eks_executor"
 # UPDATING still serves the Kubernetes API, so only creating, deleting and failed clusters are refused.
 _USABLE_CLUSTER_STATUSES = ("ACTIVE", "UPDATING")
 
@@ -61,11 +65,15 @@ def _get_eks_async_kube_client() -> async_client.CoreV1Api:
 
 
 def _configure_eks_auth(configuration: client.Configuration | async_client.Configuration) -> None:
-    cluster_name = conf.get(CONFIG_GROUP_NAME, "cluster_name", fallback=None)
+    cluster_name = conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.CLUSTER_NAME, fallback=None)
     if not cluster_name:
         raise ValueError(f"[{CONFIG_GROUP_NAME}] cluster_name is required to build an EKS client")
-    region_name = conf.get(CONFIG_GROUP_NAME, "region_name", fallback=None)
-    conn_id = conf.get(CONFIG_GROUP_NAME, "conn_id", fallback="aws_default")
+    region_name = conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.REGION_NAME, fallback=None)
+    conn_id = conf.get(
+        CONFIG_GROUP_NAME,
+        AllEksConfigKeys.AWS_CONN_ID,
+        fallback=CONFIG_DEFAULTS[AllEksConfigKeys.AWS_CONN_ID],
+    )
 
     eks_hook = EksHook(aws_conn_id=conn_id, region_name=region_name)
     cluster = eks_hook.conn.describe_cluster(name=cluster_name)["cluster"]

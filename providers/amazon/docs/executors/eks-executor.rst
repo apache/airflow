@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. |executorName| replace:: EKS
+
 .. _eks_executor:
 
 ================
@@ -81,8 +83,8 @@ refreshing that often costs very little. Rotation of the underlying AWS credenti
 is handled by botocore in the usual way.
 
 Before it accepts any tasks, the executor checks that the cluster is ``ACTIVE`` (or
-``UPDATING``) and that it is allowed to list pods in its namespace, and it refuses to
-start if either check fails.
+``UPDATING``) and, unless ``check_health_on_startup`` is turned off, that it is allowed
+to list pods in its namespace. It refuses to start if either check fails.
 
 .. _eks_config_options:
 
@@ -99,16 +101,18 @@ how to set these options, see `Setting Configuration Options
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-- ``cluster_name``: The name of the Amazon EKS cluster that tasks run on. The
-  executor refuses to start if this is unset.
+-  CLUSTER_NAME - The name of the Amazon EKS cluster that tasks run on. The
+   executor refuses to start if this is unset. Required.
 
 Optional config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-- ``region_name``: The AWS Region the cluster is in. When this is left empty, the
-  region comes from the standard boto3 resolution order.
-- ``conn_id``: The Airflow connection that supplies the AWS credentials. Defaults to
-  ``aws_default``.
+-  CONN_ID - The Airflow connection (i.e. credentials) used by the EKS
+   executor to make API calls to Amazon EKS. Defaults to ``aws_default``.
+-  REGION_NAME - The AWS Region the cluster is in. When this is left empty, the
+   region comes from the standard boto3 resolution order.
+-  CHECK_HEALTH_ON_STARTUP - Whether to check on startup that the executor can
+   list pods in its namespace. Defaults to ``True``.
 
 Pod-level configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -136,16 +140,29 @@ the executor needs, so the failure arrives later and somewhere else, usually as 
 rejected pod or a task that never reports back.
 
 The file must define a container named ``base`` as the first entry in
-``spec.containers``, and that container has to run the worker image described above.
+``spec.containers``, and that container has to run your Airflow worker image.
 The ``pod_template_file`` section of
 :doc:`apache-airflow-providers-cncf-kubernetes:kubernetes_executor` covers the full set
 of requirements and includes templates for Dags baked into the image, Dags on a volume,
 and git-sync. Any of those works here unchanged, since this executor only replaces how
 the Kubernetes client is authenticated.
 
+.. _eks_logging:
+
+.. include:: general.rst
+  :start-after: .. BEGIN LOGGING
+  :end-before: .. END LOGGING
+
+-  Worker pods are deleted once their task finishes (``[kubernetes_executor]
+   delete_worker_pods``), and their logs go with them, so configure remote
+   logging to CloudWatch Logs or S3 to keep task logs viewable in the Airflow UI.
+-  The remote logging configuration must be set on the worker pods as well as on
+   the scheduler and API server, and the worker pods need an IAM role, for
+   example through EKS Pod Identity, that can write to the log destination.
+
 .. _eks_setup_guide:
 
-Setting up an EKS executor for Apache Airflow
+Setting up an EKS Executor for Apache Airflow
 ---------------------------------------------
 
 Grant access to the cluster
@@ -164,7 +181,7 @@ Select the executor and name your cluster:
 .. code-block:: ini
 
     [core]
-    executor = airflow.providers.amazon.aws.executors.eks.AwsEksExecutor
+    executor = airflow.providers.amazon.aws.executors.eks.eks_executor.AwsEksExecutor
 
     [aws_eks_executor]
     cluster_name = airflow-eks-cluster
@@ -184,11 +201,8 @@ Kubernetes executor worker does.
 Task logging
 ~~~~~~~~~~~~
 
-Worker pods are deleted once their task finishes (``[kubernetes_executor]
-delete_worker_pods``), and their logs go with them. Configure
-:doc:`remote logging </logging/index>` to CloudWatch Logs or S3 so that task logs stay
-viewable in the Airflow UI, and give the worker pods an IAM role, for example through
-EKS Pod Identity, that can write to the log destination.
+Configure remote logging as described in the :ref:`logging <eks_logging>` section, so
+that task logs stay viewable in the Airflow UI after the worker pods are deleted.
 
 Verify the setup
 ~~~~~~~~~~~~~~~~
