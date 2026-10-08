@@ -41,7 +41,6 @@
   },
   "close": "Kapat",
   "configForm": {
-    "advancedOptions": "Gelişmiş Seçenekler",
     "configJson": "Yapılandırma JSON",
     "invalidJson": "Geçersiz JSON formatı: {{errorMessage}}"
   },

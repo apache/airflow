@@ -52,7 +52,6 @@
   },
   "close": "Tancar",
   "configForm": {
-    "advancedOptions": "Opcions avançades",
     "configJson": "Configuració JSON",
     "invalidJson": "Format JSON no vàlid: {{errorMessage}}"
   },

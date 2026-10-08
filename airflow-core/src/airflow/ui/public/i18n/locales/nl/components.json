@@ -41,7 +41,6 @@
   },
   "close": "Sluiten",
   "configForm": {
-    "advancedOptions": "Geavanceerde opties",
     "configJson": "Configuratie JSON",
     "invalidJson": "Ongeldig JSON formaat: {{errorMessage}}"
   },

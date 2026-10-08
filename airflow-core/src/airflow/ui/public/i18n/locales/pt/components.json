@@ -40,7 +40,6 @@
   },
   "close": "Fechar",
   "configForm": {
-    "advancedOptions": "Opções Avançadas",
     "configJson": "Configuração JSON",
     "invalidJson": "Formato JSON inválido: {{errorMessage}}"
   },
