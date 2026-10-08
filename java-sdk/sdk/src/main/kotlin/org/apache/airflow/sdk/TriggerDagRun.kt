@@ -63,9 +63,9 @@ private val TRIGGER_FIELDS: Map<String, Field> =
  * In an annotated Dag, a `@Builder.Task` method returns one instead; the
  * method runs when the Dag is built, not when the task runs.
  *
- * The task runs no Java code, takes no arguments and pushes no result other
- * than the triggered run's ID. It renders no templates, so a value such as
- * `"{{ ds }}"` reaches the new run unchanged.
+ * The task runs no Java code and takes no arguments. It pushes the triggered
+ * run's ID, and the link the "Triggered DAG" extra link reads. It renders no
+ * templates, so a value such as `"{{ ds }}"` reaches the new run unchanged.
  *
  * @param dagId `trigger_dag_id`: the Dag to trigger.
  * @throws IllegalArgumentException if [dagId] is empty.
@@ -85,9 +85,9 @@ class TriggerDagRun(
    *
    * | Key | Value |
    * | --- | --- |
-   * | `trigger_run_id` | `String`; generated from the trigger time when unset |
+   * | `trigger_run_id` | `String`; generated when unset, and for a run with no logical date from `run_after` plus a random eight-character suffix |
    * | `conf` | `Map` with string keys and JSON values |
-   * | `logical_date` | [OffsetDateTime] or [Instant]; the trigger time when unset |
+   * | `logical_date` | [OffsetDateTime] or [Instant]; the trigger time when neither this nor `run_after` is set, and none when only `run_after` is |
    * | `run_after` | [OffsetDateTime] or [Instant] |
    * | `reset_dag_run` | `Boolean`: clear a run with the same ID instead of failing |
    * | `wait_for_completion` | `Boolean`: hold this task open until the run finishes |
