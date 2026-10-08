@@ -641,11 +641,11 @@ class TestLocalExecutorBookkeeping:
         if workload.running_state is None:
             assert key not in executor.event_buffer
         else:
-            assert executor.event_buffer[key] == (workload.running_state, None)
+            assert executor.event_buffer[key] == (workload.running_state, None, None)
         terminal = workload.success_state if succeeded else workload.failure_state
         executor.result_queue.put((proc.pid, key, terminal, None))
         executor.sync()
-        assert executor.event_buffer[key] == (terminal, None)
+        assert executor.event_buffer[key] == (terminal, None, None)
         assert not executor._worker_tasks
         assert not executor._dispatch_counts
         assert executor.slots_available == 1
@@ -666,7 +666,7 @@ class TestLocalExecutorBookkeeping:
         executor.sync()
         events, captured = executor._drain_events_with_task_ids()
 
-        assert events == {key: (workload.success_state, None)}
+        assert events == {key: (workload.success_state, None, None)}
         assert captured == {key: coordinates}
         assert executor.slots_available == 1
 
@@ -686,7 +686,7 @@ class TestLocalExecutorBookkeeping:
         proc.is_alive.side_effect = died_after_start
         executor.sync()
 
-        assert executor.event_buffer[key] == (workload.failure_state, None)
+        assert executor.event_buffer[key] == (workload.failure_state, None, None)
         assert not executor.running
         assert not executor._worker_tasks
         proc.close.assert_called_once()
@@ -760,7 +760,7 @@ class TestLocalExecutorBookkeeping:
         assert not executor._worker_tasks
         assert executor.slots_available == 1
         expected_state = workload.running_state if kind == "connection" else workload.failure_state
-        expected = {key: (expected_state, None)}
+        expected = {key: (expected_state, None, None)}
         assert executor.event_buffer == expected
         assert executor.workers[proc.pid] is proc
 
@@ -778,8 +778,8 @@ class TestLocalExecutorBookkeeping:
             executor.sync()
             assert not executor._worker_tasks
         assert executor.event_buffer == {
-            first_key: (first.success_state, None),
-            second_key: (second.success_state, None),
+            first_key: (first.success_state, None, None),
+            second_key: (second.success_state, None, None),
         }
         assert executor.slots_available == 1
 
@@ -801,12 +801,12 @@ class TestLocalExecutorBookkeeping:
 
         executor.sync()
 
-        assert executor.event_buffer[key] == (workload.success_state, None)
+        assert executor.event_buffer[key] == (workload.success_state, None, None)
         assert executor.has_task(workload.ti)
         assert executor._worker_tasks == {second_proc.pid: key}
         executor.result_queue.put((second_proc.pid, key, workload.failure_state, None))
         executor.sync()
-        assert executor.event_buffer[key] == (workload.failure_state, None)
+        assert executor.event_buffer[key] == (workload.failure_state, None, None)
         assert not executor.running
         assert not executor._worker_tasks
         assert not executor._dispatch_counts
@@ -834,7 +834,7 @@ class TestLocalExecutorBookkeeping:
         assert executor._worker_tasks == {second_proc.pid: key}
         second_proc.is_alive.return_value = False
         executor.sync()
-        assert executor.event_buffer[key] == (workload.failure_state, None)
+        assert executor.event_buffer[key] == (workload.failure_state, None, None)
         assert not executor.running
 
     def test_late_start_after_connection_test_reaped_is_ignored(self, local_executor_with_mock_worker):
@@ -942,13 +942,13 @@ class TestLocalExecutorBookkeeping:
 
             executor.sync()
 
-            assert executor.event_buffer[key] == (workload.failure_state, None)
+            assert executor.event_buffer[key] == (workload.failure_state, None, None)
             assert executor.slots_available == 1
             assert not executor._worker_tasks
             assert not executor.workers
             executor.result_queue.put((pid, key, workload.success_state, None))
             executor.sync()
-            assert executor.event_buffer[key] == (workload.failure_state, None)
+            assert executor.event_buffer[key] == (workload.failure_state, None, None)
         finally:
             executor.terminate()
             executor.end()

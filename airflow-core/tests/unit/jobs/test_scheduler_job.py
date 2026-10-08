@@ -716,7 +716,7 @@ class TestSchedulerJob:
         assert history.max_tries == max_tries
         assert history.end_date is not None
         replacement_id = replacement.id
-        executor.event_buffer[TaskInstanceUuid(retiring_id)] = executor_state, None
+        executor.event_buffer[TaskInstanceUuid(retiring_id)] = executor_state, None, None
         job_runner._process_executor_events(executor=executor, session=session)
         replacement.refresh_from_db(session=session)
         assert (replacement.id, replacement.try_number, replacement.state) == (replacement_id, 5, None)
@@ -823,7 +823,7 @@ class TestSchedulerJob:
         ti = dag_maker.create_dagrun().get_task_instance("task", session=session)
         executor = MockExecutor(do_update=False)
         executor._register_task(ti)
-        executor.event_buffer[TaskInstanceUuid(ti.id)] = event_state, None
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = event_state, None, None
         scalars = mocker.patch.object(session, "scalars", autospec=True, return_value=iter(()))
         runner = SchedulerJobRunner(Job(), executors=[executor])
 
@@ -1023,7 +1023,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
 
         ct_key = ConnectionTestKey(id=str(uuid4()))
-        executor.event_buffer[ct_key] = (ConnectionTestState.SUCCESS, None)
+        executor.event_buffer[ct_key] = (ConnectionTestState.SUCCESS, None, None)
 
         with mock.patch.object(session, "get", wraps=session.get) as spy_get:
             self.job_runner._process_executor_events(executor=executor, session=session)
@@ -1035,7 +1035,7 @@ class TestSchedulerJob:
         """An unrecognised key must fail loudly, matching run_workload and state_class_for_key."""
         executor = MockExecutor(do_update=False)
         self.job_runner = SchedulerJobRunner(Job(), executors=[executor])
-        executor.event_buffer[key] = (TaskInstanceState.SUCCESS, None)
+        executor.event_buffer[key] = (TaskInstanceState.SUCCESS, None, None)
 
         with pytest.raises(TypeError, match="Unknown workload key type in event buffer"):
             self.job_runner._process_executor_events(executor=executor, session=session)
@@ -10252,9 +10252,9 @@ class TestSchedulerJob:
         )
         assert current.external_executor_id is None
         assert executor_key not in executor.running
-        assert executor.event_buffer == {executor_key: (TaskInstanceState.FAILED, None)}
+        assert executor.event_buffer == {executor_key: (TaskInstanceState.FAILED, None, None)}
         assert executor._drain_events_with_task_ids() == (
-            {TaskInstanceUuid(old_id): (TaskInstanceState.FAILED, None)},
+            {TaskInstanceUuid(old_id): (TaskInstanceState.FAILED, None, None)},
             {TaskInstanceUuid(old_id): old_key},
         )
         requests = [call.args[0] for call in executor.callback_sink.send.call_args_list]
@@ -10316,7 +10316,7 @@ class TestSchedulerJob:
         assert (current.try_number, current.state, current.max_tries) == (4, None, expected_max_tries)
         assert current.external_executor_id is None
         assert TaskInstanceUuid(old_id) not in executor.running
-        assert executor.event_buffer == {TaskInstanceUuid(old_id): (State.FAILED, None)}
+        assert executor.event_buffer == {TaskInstanceUuid(old_id): (State.FAILED, None, None)}
 
         history = session.scalars(
             select(TaskInstance)
@@ -10503,7 +10503,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
 
         # Simulate executor reporting task as failed
-        executor_event = {TaskInstanceUuid(ti.id): (TaskInstanceState.FAILED, None)}
+        executor_event = {TaskInstanceUuid(ti.id): (TaskInstanceState.FAILED, None, None)}
         mock_executor._drain_events_with_task_ids.return_value = executor_event, {}
 
         # Process the executor events
