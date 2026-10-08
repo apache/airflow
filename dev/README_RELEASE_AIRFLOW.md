@@ -114,6 +114,30 @@ moves `vX-Y-test` forward to the current `main` - only the branch-specific commi
 `Update default branches for X.Y`) are kept on top of `main`. Each beta is cut from the branch
 in that state, so everything merged to `main` lands in the next beta.
 
+### Cutting a beta
+
+A beta is cut with `breeze release-management start-beta-process`, not `start-rc-process`. A beta is
+released from `vX-Y-test` only: there is no `vX-Y-stable` branch yet and therefore no sync PR (a sync
+PR exists only to carry changes from `vX-Y-test` into `vX-Y-stable` for an `rc`/final), and there is
+no vote.
+
+1. Push the version-bump and release-notes commits to `vX-Y-test` through normal PRs, so the tip of
+   `vX-Y-test` is exactly what the beta should ship.
+2. Run:
+
+   ```shell script
+   breeze release-management start-beta-process \
+       --version ${VERSION} \
+       --task-sdk-version ${TASK_SDK_VERSION}
+   ```
+
+   It validates that `vX-Y-test` exists, checks out its tip, tags the beta there, builds and signs
+   the artifacts, resolves constraints through the `release-constraints` workflow from `vX-Y-test`
+   (exactly like an `rc`: provider rc waves are allowed and the result lands on its own
+   `constraints-X.Y.0bN` branch and tag, leaving the shared `constraints-X-Y` untouched), uploads to
+   SVN dev and PyPI, and pushes the tags. Everything downstream of the tag is the same as an `rc`;
+   only the branch/sync/vote handling differs.
+
 During this phase, all automation that would add commits directly to `vX-Y-test` must be paused -
 any such commit makes `vX-Y-test` diverge from `main` and breaks the next fast-forward. Upgrades and
 fixes land on `main` only and reach `vX-Y-test` with the next fast-forward. When you add the new
