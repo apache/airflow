@@ -205,6 +205,11 @@ def _merge_outlet_events(target: OutletEventAccessorsProtocol, source: OutletEve
     Used both to fold a sub-task's isolated accessor into the IterableOperator's shared
     ``context["outlet_events"]`` right after it succeeds, and to replay a checkpointed
     snapshot (via ``_replay_outlet_events``) for a sub-task skipped on retry.
+
+    A task instance sends one event per asset, so items that emit to the same asset end up in
+    that one event: ``extra`` keeps what the last item to finish wrote, while partition keys and
+    alias events accumulate. ``.expand()`` sends one event per mapped task instance instead; the
+    docs page says so in its comparison table.
     """
     for asset_or_alias, accessor in source.items():
         target_accessor = target[asset_or_alias]

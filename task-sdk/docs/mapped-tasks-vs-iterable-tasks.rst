@@ -371,6 +371,11 @@ Comparison
        with ``none_failed`` they run over the other items
      - The same: a skipped iteration is left out of the result, downstream tasks with
        ``all_success`` are skipped, and with ``none_failed`` they run over the other items
+   * - Asset events
+     - One event per mapped task instance that emits to an asset
+     - One event per asset for the whole task instance: items emitting to the same asset are
+       merged into it, their ``extra`` with the last item to finish winning, partitions and alias
+       events accumulated. A per-file ``Metadata`` pattern from ``.expand()`` produces one event here
    * - Empty input
      - The mapped task is skipped, and so are downstream tasks with ``all_success``
      - The same: the task is skipped and pushes no result
