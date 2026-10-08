@@ -21,7 +21,7 @@ import json
 import smtplib
 import tempfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -53,8 +53,8 @@ TEST_DAG_ID = "test_dag"
 TEST_TASK_ID = "test_task"
 TEST_TASK_STATE = TaskInstanceState.FAILED
 TEST_RUN_ID = "test_run"
-TEST_START_DATE = datetime(2026, 2, 8, 19, 19, 29, tzinfo=timezone.utc)
-TEST_END_DATE = datetime(2026, 2, 8, 19, 19, 35, tzinfo=timezone.utc)
+TEST_START_DATE = datetime(2026, 2, 8, 19, 19, 29, tzinfo=UTC)
+TEST_END_DATE = datetime(2026, 2, 8, 19, 19, 35, tzinfo=UTC)
 TEST_LOG_URL = "http://localhost:8080/log-url"
 
 # Jinja template patterns
