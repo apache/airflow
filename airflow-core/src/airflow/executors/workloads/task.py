@@ -48,7 +48,6 @@ class TaskInstanceDTO(TaskInstance):
     external_executor_id: str | None = Field(default=None, exclude=True)
     executor_config: dict | None = Field(default=None, exclude=True)
 
-    # TODO: Task-SDK: Can we replace TaskInstanceKey with just the uuid across the codebase?
     @property
     def key(self) -> TaskInstanceKey:
         from airflow.models.taskinstancekey import TaskInstanceKey
@@ -72,7 +71,7 @@ class ExecuteTask(BaseDagBundleWorkload):
 
     @property
     def key(self) -> TaskInstanceKey:
-        """Return the TaskInstanceKey for this workload."""
+        """Return the coordinate key used by existing executor providers."""
         return self.ti.key
 
     @property

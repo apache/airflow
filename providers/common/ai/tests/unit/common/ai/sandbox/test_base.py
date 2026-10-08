@@ -17,12 +17,15 @@
 from __future__ import annotations
 
 import inspect
+import io
+import os
 import subprocess
 from types import SimpleNamespace
 
 import pytest
 import time_machine
 
+from airflow.providers.common.ai.sandbox import base
 from airflow.providers.common.ai.sandbox.base import (
     EXPIRES_AT_TAG,
     HOLDER_TAG,
@@ -124,7 +127,7 @@ class TestBackendContract:
         assert required == {"create", "run_command", "destroy"}
 
     def test_file_operations_are_overridable_defaults(self):
-        for name in ("read_file", "write_file", "list_directory"):
+        for name in ("read_file", "write_file", "list_directory", "export_file"):
             method = getattr(SandboxBackend, name)
             assert not getattr(method, "__isabstractmethod__", False)
 
@@ -251,6 +254,164 @@ class TestDefaultFileOperations:
     def test_listing_a_missing_directory_is_an_error(self, local, tmp_path):
         with pytest.raises(SandboxError):
             local.list_directory("s", str(tmp_path / "nope"))
+
+
+class TestDefaultExport:
+    """The inherited export_file, against a real shell, with slices small enough to need several."""
+
+    @pytest.fixture(autouse=True)
+    def _small_slices(self, monkeypatch):
+        monkeypatch.setattr(base, "_EXPORT_CHUNK_BYTES", 64)
+
+    @pytest.mark.parametrize("size", [0, 1, 63, 64, 128, 1000], ids=lambda n: f"{n}-bytes")
+    def test_copies_the_file_byte_for_byte_across_slices(self, local, tmp_path, size):
+        blob = os.urandom(size)
+        (tmp_path / "out.bin").write_bytes(blob)
+        dest = io.BytesIO()
+
+        written = local.export_file("s", str(tmp_path / "out.bin"), dest, max_bytes=10_000)
+
+        assert written == size
+        assert dest.getvalue() == blob
+
+    def test_a_relative_path_resolves_like_read_file(self, local, tmp_path):
+        (tmp_path / "report.csv").write_bytes(b"a,b\n1,2\n")
+        dest = io.BytesIO()
+
+        local.export_file("s", "report.csv", dest, max_bytes=100)
+
+        assert dest.getvalue() == local.read_file("s", "report.csv", max_bytes=100)
+
+    @pytest.mark.parametrize("name", ["with space.bin", "with'quote.bin", "semi;colon.bin", "$dollar.bin"])
+    def test_hostile_filenames_are_quoted(self, local, tmp_path, name):
+        (tmp_path / name).write_bytes(b"payload")
+        dest = io.BytesIO()
+
+        local.export_file("s", str(tmp_path / name), dest, max_bytes=100)
+
+        assert dest.getvalue() == b"payload"
+
+    def test_a_missing_file_is_an_error(self, local, tmp_path):
+        with pytest.raises(SandboxError, match="does not exist"):
+            local.export_file("s", str(tmp_path / "nope.bin"), io.BytesIO(), max_bytes=100)
+
+    def test_a_directory_is_refused(self, local, tmp_path):
+        (tmp_path / "sub").mkdir()
+
+        with pytest.raises(SandboxError, match="is a directory"):
+            local.export_file("s", str(tmp_path / "sub"), io.BytesIO(), max_bytes=100)
+
+    def test_a_stream_with_no_size_is_refused_rather_than_read_without_end(self, local):
+        with pytest.raises(SandboxError, match="not a regular file"):
+            local.export_file("s", "/dev/zero", io.BytesIO(), max_bytes=100)
+
+    def test_a_file_over_the_budget_is_refused_before_anything_is_written(self, local, tmp_path):
+        (tmp_path / "big.bin").write_bytes(b"x" * 500)
+        dest = io.BytesIO()
+
+        with pytest.raises(SandboxFileTooLargeError) as error:
+            local.export_file("s", str(tmp_path / "big.bin"), dest, max_bytes=100)
+
+        assert error.value.size_bytes == 500
+        assert dest.getvalue() == b""
+
+    def test_a_file_that_grows_while_it_is_exported_is_an_error(self, local, tmp_path):
+        target = tmp_path / "growing.bin"
+        target.write_bytes(b"x" * 100)
+        run_command = local.run_command
+
+        def grow_after_the_check(sandbox, command, **kwargs):
+            result = run_command(sandbox, command, **kwargs)
+            if "stat" in command:
+                with target.open("ab") as f:
+                    f.write(b"y" * 10)
+            return result
+
+        local.run_command = grow_after_the_check
+
+        with pytest.raises(SandboxError, match="changed while it was exported"):
+            local.export_file("s", str(target), io.BytesIO(), max_bytes=1000)
+
+    def test_a_file_that_grows_past_the_budget_mid_copy_is_refused(self, local, tmp_path):
+        target = tmp_path / "growing.bin"
+        target.write_bytes(b"x" * 100)
+        run_command = local.run_command
+
+        def grow_after_the_check(sandbox, command, **kwargs):
+            result = run_command(sandbox, command, **kwargs)
+            if "stat" in command:
+                with target.open("ab") as f:
+                    f.write(b"y" * 500)
+            return result
+
+        local.run_command = grow_after_the_check
+
+        with pytest.raises(SandboxFileTooLargeError):
+            local.export_file("s", str(target), io.BytesIO(), max_bytes=200)
+
+    def test_an_export_slower_than_its_deadline_is_ended(self, local, tmp_path, monkeypatch):
+        # Each slice has its own command timeout, so only the whole-copy deadline stops a
+        # guest that sends every slice just inside it.
+        (tmp_path / "out.bin").write_bytes(b"x" * 100)
+        monkeypatch.setattr(base, "_export_allowance", lambda max_bytes: 0.0)
+
+        with pytest.raises(SandboxError, match="took longer than"):
+            local.export_file("s", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=1000)
+
+    def test_the_deadline_scales_with_the_budget(self):
+        assert base._export_allowance(1024**3) == 1024
+        assert base._export_allowance(1024) == base._FILE_OP_TIMEOUT
+
+    def test_a_truncated_slice_is_an_error_not_a_short_file(self, local, tmp_path):
+        # A slice cut short decodes cleanly into the wrong bytes, so it must not be
+        # mistaken for the end of the file.
+        (tmp_path / "out.bin").write_bytes(b"x" * 100)
+        run_command = local.run_command
+
+        def truncate_slices(sandbox, command, **kwargs):
+            result = run_command(sandbox, command, **kwargs)
+            if "tail" in command:
+                return SandboxExecResult(
+                    exit_code=0, stdout=result.stdout[:8], stderr="", stdout_truncated=True
+                )
+            return result
+
+        local.run_command = truncate_slices
+
+        with pytest.raises(SandboxError, match="Could not export"):
+            local.export_file("s", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=1000)
+
+    def test_a_sandbox_that_ends_mid_export_is_terminal(self, local, tmp_path):
+        (tmp_path / "out.bin").write_bytes(b"x" * 100)
+        run_command = local.run_command
+
+        def end_on_first_slice(sandbox, command, **kwargs):
+            if "tail" in command:
+                return SandboxExecResult(exit_code=-1, stdout="", stderr="", sandbox_terminated=True)
+            return run_command(sandbox, command, **kwargs)
+
+        local.run_command = end_on_first_slice
+
+        with pytest.raises(SandboxTerminalError, match="ended"):
+            local.export_file("s", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=1000)
+
+    def test_the_size_is_found_among_other_output(self, local, tmp_path):
+        # A vendor CLI can print notices on the same stream as the guest.
+        (tmp_path / "out.bin").write_bytes(b"x" * 10)
+        run_command = local.run_command
+
+        def noisy(sandbox, command, **kwargs):
+            result = run_command(sandbox, command, **kwargs)
+            if "stat" in command:
+                return SandboxExecResult(
+                    exit_code=0, stdout=f"Starting daemon...\n{result.stdout}", stderr=""
+                )
+            return result
+
+        local.run_command = noisy
+        dest = io.BytesIO()
+
+        assert local.export_file("s", str(tmp_path / "out.bin"), dest, max_bytes=100) == 10
 
 
 class TestDagRunOwner:

@@ -38,6 +38,7 @@ import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Editor, { type EditorProps } from "src/components/MonacoEditor";
 import Time from "src/components/Time";
+import { VersionCompareSelect } from "src/components/VersionCompareSelect";
 
 import { useMonacoTheme } from "src/context/colorMode";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
@@ -48,7 +49,6 @@ import { useDurationFormat } from "src/utils";
 
 import { CodeDiffViewer } from "./CodeDiffViewer";
 import { FileLocation } from "./FileLocation";
-import { VersionCompareSelect } from "./VersionCompareSelect";
 
 export const Code = () => {
   const { t: translate } = useTranslation(["dag", "common", "components"]);

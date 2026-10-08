@@ -581,18 +581,25 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                         }
                     )
                     return
-                elif (
-                    first_job_response_from_hook["status"] == "pending"
-                    or second_job_response_from_hook["status"] == "pending"
+                elif "error" in (
+                    first_job_response_from_hook["status"],
+                    second_job_response_from_hook["status"],
                 ):
+                    # Report the job that failed, which is not necessarily the second one.
+                    failed_job_response = (
+                        first_job_response_from_hook
+                        if first_job_response_from_hook["status"] == "error"
+                        else second_job_response_from_hook
+                    )
+                    yield TriggerEvent(
+                        {"status": "error", "message": failed_job_response["message"], "data": None}
+                    )
+                    return
+                else:
+                    # Neither job failed, and at least one is still "pending" or "running".
                     self.log.info("Query is still running...")
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
-                else:
-                    yield TriggerEvent(
-                        {"status": "error", "message": second_job_response_from_hook["message"], "data": None}
-                    )
-                    return
 
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
@@ -684,15 +691,16 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
                     hook.value_check(self.sql, self.pass_value, _records, self.tolerance)
                     yield TriggerEvent({"status": "success", "message": "Job completed", "records": _records})
                     return
-                elif response_from_hook["status"] == "pending":
-                    self.log.info("Query is still running...")
-                    self.log.info("Sleeping for %s seconds.", self.poll_interval)
-                    await asyncio.sleep(self.poll_interval)
-                else:
+                elif response_from_hook["status"] == "error":
                     yield TriggerEvent(
                         {"status": "error", "message": response_from_hook["message"], "records": None}
                     )
                     return
+                else:
+                    # The job is still "pending" or "running".
+                    self.log.info("Query is still running...")
+                    self.log.info("Sleeping for %s seconds.", self.poll_interval)
+                    await asyncio.sleep(self.poll_interval)
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
             yield TriggerEvent({"status": "error", "message": str(e)})

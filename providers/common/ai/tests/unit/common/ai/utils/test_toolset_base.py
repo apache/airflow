@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import threading
 import time
 import traceback
@@ -35,7 +34,7 @@ from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
-from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, MaskingToolset, with_masking
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, MaskingToolset, ensure_masked
 
 
 class _ScriptedToolset(AirflowToolset):
@@ -51,7 +50,7 @@ class _ScriptedToolset(AirflowToolset):
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
         return {}
 
-    async def _execute_tool(self, name, tool_args, ctx, tool) -> Any:
+    async def execute_tool(self, name, tool_args, *, ctx, tool) -> Any:
         if isinstance(self._outcome, BaseException):
             raise self._outcome
         return self._outcome
@@ -162,14 +161,13 @@ class TestMasking:
         assert caught.value.metadata == {"reason": "***"}
         assert "failed" not in caplog.text
 
-    @pytest.mark.skipif(sys.version_info < (3, 11), reason="ExceptionGroup is built in from Python 3.11")
     def test_masks_the_exceptions_inside_an_exception_group(self, registered_secret):
         cause = ConnectionError(f"socket closed by {registered_secret}")
         inner = ValueError(f"login failed for {registered_secret}")
         inner.__cause__ = cause
-        group = ExceptionGroup("tool calls failed", [inner])  # noqa: F821
+        group = ExceptionGroup("tool calls failed", [inner])
 
-        with pytest.raises(ExceptionGroup) as caught:  # noqa: F821
+        with pytest.raises(ExceptionGroup) as caught:
             _call(_ScriptedToolset(group))
 
         assert [str(e) for e in caught.value.exceptions] == ["login failed for ***"]
@@ -257,14 +255,14 @@ class TestWithMasking:
         def per_run(ctx: RunContext[Any]) -> FunctionToolset:
             return _ApiToolset(registered_secret)
 
-        assert _run_agent(with_masking(per_run)) == "postgres://svc:***@db"
+        assert _run_agent(ensure_masked(per_run)) == "postgres://svc:***@db"
 
     def test_an_airflow_toolset_that_overrides_call_tool_is_wrapped(self, registered_secret):
         class Overriding(_ScriptedToolset):
             async def call_tool(self, name, tool_args, ctx, tool) -> Any:
                 return f"token {registered_secret}"
 
-        masked = with_masking(Overriding("unused"))
+        masked = ensure_masked(Overriding("unused"))
 
         assert isinstance(masked, MaskingToolset)
         assert _call(masked) == "token ***"
@@ -272,7 +270,7 @@ class TestWithMasking:
     def test_an_airflow_toolset_that_masks_itself_is_not_wrapped(self):
         toolset = _ScriptedToolset("ok")
 
-        assert with_masking(toolset) is toolset
+        assert ensure_masked(toolset) is toolset
 
     def test_a_failure_masked_by_two_layers_is_logged_once(self, caplog):
         with pytest.raises(ValueError, match="boom"):

@@ -23,14 +23,16 @@ import concurrent.futures
 import contextvars
 import logging
 import math
+import sys
 import threading
 import time
-from typing import TYPE_CHECKING, Any, NamedTuple
+import uuid
+from typing import TYPE_CHECKING, Any, NamedTuple, Self
 
+from fsspec.implementations.local import LocalFileSystem
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
-from typing_extensions import Self
 
 from airflow.providers.common.ai.sandbox.base import (
     AttachableSandboxBackend,
@@ -54,10 +56,10 @@ from airflow.providers.common.ai.utils.tool_definition import (
     return_schema_kwargs,
 )
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
-from airflow.providers.common.compat.sdk import get_current_context
+from airflow.providers.common.compat.sdk import ObjectStoragePath, get_current_context
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from pydantic_ai._run_context import RunContext
 
@@ -74,6 +76,16 @@ _RELEASE_RETRY_DELAY = 1.0
 _provisioning = concurrent.futures.ThreadPoolExecutor(thread_name_prefix="sandbox-create")
 
 RUN_COMMAND = "run_command"
+
+
+def _sentence(error: BaseException) -> str:
+    """Return an exception's message ending in exactly one full stop, to join into a longer one."""
+    return f"{str(error).rstrip('.')}."
+
+
+# Ends the name of the staging key an export is copied to before it is moved into place,
+# so a consumer globbing its destination's own extension never matches one.
+_PARTIAL_SUFFIX = ".partial"
 
 
 class _Identity(NamedTuple):
@@ -186,6 +198,15 @@ class SandboxToolset(AirflowToolset):
     the handle travels from the provisioning task:
     ``attach_to="{{ ti.xcom_pull('provision') }}"``.
 
+    **Files the agent builds can leave.** ``exports`` maps a path in the sandbox to
+    an object-storage destination, and when the run ends the toolset copies each
+    file there before it destroys the sandbox. The copy streams through the worker
+    in bounded pieces and never passes through the model's context or XCom, so a
+    parquet file, a chart, or a trained model is as easy to hand downstream as a
+    line of text. The destinations are templated the same way ``attach_to`` is. A
+    promised file that cannot be exported fails the task, and a failed run exports
+    nothing; a sandbox that cannot be destroyed afterwards does not fail the task.
+
     A non-zero exit or a timeout is normal tool output -- the model reads it and
     corrects itself. A recoverable sandbox failure becomes a bounded retry. Only
     a terminal failure (credentials rejected, daemon unreachable) fails the task,
@@ -213,6 +234,17 @@ class SandboxToolset(AirflowToolset):
         which ``ModalSandboxBackend`` is and ``SbxSandboxBackend`` is not), and
         cannot be combined with ``spec``, since the sandbox is already provisioned.
         The toolset never destroys an attached sandbox.
+    :param exports: Files to copy out of the sandbox when the run ends, as a
+        mapping from a path in the sandbox (relative paths resolve the way the
+        ``read_file`` tool resolves them) to an object-storage URL such as
+        ``"s3://bucket/{{ run_id }}/report.parquet"``, anything
+        :class:`~airflow.sdk.ObjectStoragePath` can open. Only a regular file is
+        exported. Cannot be combined with ``attach_to``: the task that owns an
+        attached sandbox collects its files itself.
+    :param export_conn_id: Airflow connection for the export destinations, or
+        ``None`` for the storage's default credentials. Only meaningful with
+        ``exports``.
+    :param max_export_bytes: Largest file an export will copy. Default 1 GiB.
     :param owner: The owner the attached sandbox must carry. Defaults to the Dag
         run the task is part of, which is what a provisioning task in the same run
         stamps with ``SandboxSpec(owner=dag_run_owner(context))``. Set it only when
@@ -222,7 +254,7 @@ class SandboxToolset(AirflowToolset):
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
     # Airflow's templater would render in place wherever the toolset is nested.
-    agent_template_fields: Sequence[str] = ("attach_to",)
+    agent_template_fields: Sequence[str] = ("attach_to", "_exports", "_export_conn_id")
 
     def __init__(
         self,
@@ -237,12 +269,16 @@ class SandboxToolset(AirflowToolset):
         tool_prefix: str = "",
         attach_to: str | None = None,
         owner: str | None = None,
+        exports: Mapping[str, str] | None = None,
+        export_conn_id: str | None = None,
+        max_export_bytes: int = 1024 * 1024 * 1024,
     ) -> None:
         _validate_positive_finite(default_command_timeout, "default_command_timeout")
         _validate_positive_finite(max_command_timeout, "max_command_timeout")
         _validate_positive_finite(max_output_lines, "max_output_lines")
         _validate_positive_finite(max_output_bytes, "max_output_bytes")
         _validate_positive_finite(max_read_bytes, "max_read_bytes")
+        _validate_positive_finite(max_export_bytes, "max_export_bytes")
         if default_command_timeout > max_command_timeout:
             raise ValueError(
                 f"default_command_timeout ({default_command_timeout}) must not exceed "
@@ -267,6 +303,11 @@ class SandboxToolset(AirflowToolset):
                 )
             if not attach_to:
                 raise ValueError("attach_to must be a sandbox handle, not an empty string.")
+            if exports:
+                raise ValueError(
+                    "exports cannot be combined with attach_to: the sandbox belongs to the task that "
+                    "created it, and that task reads out whatever the agent left behind."
+                )
         elif owner is not None:
             raise ValueError("owner only applies together with attach_to.")
         elif spec is not None and spec.owner is not None:
@@ -277,6 +318,14 @@ class SandboxToolset(AirflowToolset):
                 "sandbox it provisions itself when the run ends, so an owner on it would mean nothing; "
                 "provision the sandbox in a task and pass its handle as attach_to instead."
             )
+        for path, destination in (exports or {}).items():
+            if not path or not destination:
+                raise ValueError(
+                    f"exports maps a sandbox path to a destination, and neither may be empty; got "
+                    f"{path!r} -> {destination!r}."
+                )
+        if export_conn_id is not None and not exports:
+            raise ValueError("export_conn_id only applies together with exports.")
         self._backend = backend
         self.attach_to = attach_to
         # Fixed here, not re-derived from ``attach_to`` later: the templater rewrites
@@ -296,6 +345,9 @@ class SandboxToolset(AirflowToolset):
         self._max_output_lines = int(max_output_lines)
         self._max_output_bytes = int(max_output_bytes)
         self._max_read_bytes = int(max_read_bytes)
+        self._exports = dict(exports or {})
+        self._export_conn_id = export_conn_id
+        self._max_export_bytes = int(max_export_bytes)
         self._tool_prefix = tool_prefix
         self._sandbox: str | None = None
         self._create_lock = threading.Lock()
@@ -310,6 +362,13 @@ class SandboxToolset(AirflowToolset):
         # Tools run only between enter and exit, so nothing outside a run can provision a
         # sandbox that no exit will destroy, or use one it has not claimed.
         self._open = False
+        # The exception already being handled when a run entered, if any. The run was
+        # started from inside that handler, so finding it again at exit says nothing
+        # about how the run went (see ``_run_failed``).
+        self._handling_at_enter: BaseException | None = None
+        # Set on an instance that has handed its runs to copies (see ``for_run``). It
+        # never holds a sandbox itself, so it has nothing to export or to fail over.
+        self._forked = False
 
     @property
     def id(self) -> str:
@@ -335,6 +394,7 @@ class SandboxToolset(AirflowToolset):
         # other's. The backend keys all state by unique sandbox handle, so
         # sharing the backend itself is safe. ``type(self)`` so a subclass does
         # not silently degrade to this class on every run.
+        self._forked = True
         return type(self)(
             self._backend,
             # Attach mode refuses a spec, and the default one filled in above is
@@ -348,6 +408,9 @@ class SandboxToolset(AirflowToolset):
             tool_prefix=self._tool_prefix,
             attach_to=self._attached_handle if self._attach_mode else None,
             owner=self._owner,
+            exports=self._exports or None,
+            export_conn_id=self._export_conn_id,
+            max_export_bytes=self._max_export_bytes,
         )
 
     @property
@@ -375,13 +438,32 @@ class SandboxToolset(AirflowToolset):
         # nothing leaks if the run fails before any tool executes. An attached one is
         # claimed now, so a wrong handle or a held sandbox fails the run before the
         # model has spent anything, and the tool descriptions can state the lifetime.
+        # Read here, not in the thread: the exception being handled belongs to this frame.
+        self._handling_at_enter = sys.exc_info()[1]
         await asyncio.to_thread(self._open_run)
         return self
 
     def _open_run(self) -> None:
         if self._attach_mode:
             self._attach(self._attached_handle)
+        else:
+            self._check_export_destinations()
         self._open = True
+
+    def _check_export_destinations(self) -> None:
+        """
+        Refuse a rendered destination that is not a URL, before the model spends anything.
+
+        The destinations are templated, and a value that rendered to nothing reads as a
+        path relative to the worker's working directory, where the file would land and
+        the export report success. The same failure shape ``_attached_handle`` guards.
+        """
+        for path, destination in self._exports.items():
+            if not isinstance(destination, str) or "://" not in destination:
+                raise SandboxTerminalError(
+                    f"exports[{path!r}] rendered to {destination!r}, which is not a storage URL such as "
+                    "s3://bucket/key or file:///path. Check the template or the value it reads."
+                )
 
     def _attach(self, handle: str) -> None:
         owner, holder = self._identity()
@@ -469,8 +551,24 @@ class SandboxToolset(AirflowToolset):
         return _Identity(owner=self._owner if self._owner is not None else run, holder=holder)
 
     async def __aexit__(self, *args: Any) -> bool | None:
-        await asyncio.to_thread(self._close)
+        # Read here, not in the thread: the exception being handled belongs to this frame.
+        run_failed = args[0] is not None or self._run_failed
+        await asyncio.to_thread(self._close, run_failed=run_failed)
         return None
+
+    @property
+    def _run_failed(self) -> bool:
+        """
+        Whether the run this toolset served ended in an exception.
+
+        pydantic-ai exits its toolsets through an exit stack that passes no exception to
+        them, whether the run succeeded or not, so the exception being handled at exit is
+        the only record of a failure. One that was already being handled when the run
+        entered is not it: that run was started from inside an ``except`` block, and it
+        may well have succeeded.
+        """
+        handling = sys.exc_info()[1]
+        return handling is not None and handling is not self._handling_at_enter
 
     def __enter__(self) -> Self:
         """Own the sandbox's lifetime from synchronous code, such as a task running a native agent."""
@@ -478,10 +576,11 @@ class SandboxToolset(AirflowToolset):
         return self
 
     def __exit__(self, *args: Any) -> bool | None:
-        self._close()
+        # A with statement passes the exception that ended the block, so it is the answer.
+        self._close(run_failed=args[0] is not None)
         return None
 
-    def _close(self) -> None:
+    def _close(self, *, run_failed: bool) -> None:
         with self._create_lock:
             self._open = False
             pending = self._create_future
@@ -506,8 +605,92 @@ class SandboxToolset(AirflowToolset):
             if holder is not None:
                 self._release(self._attached_handle, holder)
             return
+        export = bool(self._exports) and not run_failed
         if sandbox is None:
+            if export and not self._forked:
+                # The run never called a tool, so it never provisioned a sandbox, or the
+                # sandbox ended under its last command and nothing replaced it. Either
+                # way the files it was to leave behind do not exist.
+                raise SandboxTerminalError(
+                    "The run ended with no sandbox standing, so none of the files it was to export "
+                    f"exist: {', '.join(repr(path) for path in self._exports)}."
+                )
             return
+        try:
+            if export:
+                self._export(sandbox)
+        finally:
+            self._destroy(sandbox)
+
+    def _export(self, sandbox: str) -> None:
+        """
+        Copy every file in ``exports`` out of the sandbox, failing the task on the first that cannot be.
+
+        Before teardown, and never best effort: a task that promised a file and did not
+        deliver it must fail, or its downstream task finds nothing and cannot tell why.
+
+        Each file is copied to a staging key next to its destination, and only once every
+        file has been copied are they moved into place. A failed export therefore leaves
+        every destination as it was, including one an earlier run filled, rather than
+        holding a truncated copy or a part of this run's set.
+        """
+        staged: list[tuple[ObjectStoragePath, ObjectStoragePath]] = []
+        for path, destination in self._exports.items():
+            target = self._export_target(destination)
+            partial = target.with_name(f"{target.name}.{uuid.uuid4().hex[:12]}{_PARTIAL_SUFFIX}")
+            try:
+                if isinstance(target.fs, LocalFileSystem):
+                    # A per-run destination names a directory nothing has created yet. Only
+                    # locally: on object storage a key needs no parent, and an s3fs mkdir
+                    # can create a bucket.
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                staged.append((partial, target))
+                with partial.open("wb") as stream:
+                    size = self._backend.export_file(sandbox, path, stream, max_bytes=self._max_export_bytes)
+            except Exception as e:
+                raise self._export_failed(
+                    staged,
+                    f"Could not export {path!r} from sandbox {sandbox} "
+                    f"on backend {self._backend.name!r} to {destination}: {_sentence(e)}",
+                ) from e
+            log.info("Exported %s from sandbox %s (%s)", path, sandbox, format_size(size))
+        published: list[str] = []
+        for partial, target in staged:
+            try:
+                # Within one store: a rename on a local disk, a server-side copy on object
+                # storage, so the bytes do not pass through the worker a second time.
+                partial.move(target)
+            except Exception as e:
+                done = f" Already in place: {', '.join(published)}." if published else ""
+                raise self._export_failed(
+                    staged, f"Could not move the export into {target}: {_sentence(e)}{done}"
+                ) from e
+            published.append(str(target))
+            log.info("Published %s", target)
+
+    @staticmethod
+    def _export_failed(
+        staged: list[tuple[ObjectStoragePath, ObjectStoragePath]], message: str
+    ) -> SandboxTerminalError:
+        """Remove the staging keys of a failed export, and build the error that names any left behind."""
+        left_behind = []
+        for partial, _ in staged:
+            try:
+                partial.unlink(missing_ok=True)
+            except Exception:
+                log.warning("Could not remove %s after a failed export", partial, exc_info=True)
+                left_behind.append(str(partial))
+        note = f" Left behind, to delete by hand: {', '.join(left_behind)}." if left_behind else ""
+        return SandboxTerminalError(f"{message}{note}")
+
+    def _export_target(self, destination: str) -> ObjectStoragePath:
+        # ``conn_id`` only when one is set: on Airflow 3.0 and 3.1 an explicit None
+        # discards a connection named in the URL itself (``s3://conn@bucket/key``).
+        if self._export_conn_id is None:
+            return ObjectStoragePath(destination)
+        return ObjectStoragePath(destination, conn_id=self._export_conn_id)
+
+    def _destroy(self, sandbox: str) -> None:
         try:
             self._backend.destroy(sandbox)
         except Exception:
@@ -622,6 +805,17 @@ class SandboxToolset(AirflowToolset):
             return self._attach_note or "This sandbox was set up by an earlier task."
         return self._describe_network(self._spec)
 
+    @property
+    def _export_note(self) -> str:
+        """Which files leave the sandbox when the run ends, so the model writes them where they are collected."""
+        if not self._exports:
+            return ""
+        paths = ", ".join(self._exports)
+        return (
+            f" When this run ends, these files are copied out of the sandbox and everything else is "
+            f"discarded, so write your results to them before you finish: {paths}."
+        )
+
     @staticmethod
     def _describe_network(spec: SandboxSpec) -> str:
         if not spec.block_network:
@@ -663,7 +857,7 @@ class SandboxToolset(AirflowToolset):
             name = self._tool_name(base)
             description = _DESCRIPTIONS[base]
             if base == RUN_COMMAND:
-                description = f"{description} {self._network_note}"
+                description = f"{description} {self._network_note}{self._export_note}"
             tool_def = ToolDefinition(
                 name=name,
                 description=description,
@@ -680,10 +874,11 @@ class SandboxToolset(AirflowToolset):
             )
         return tools
 
-    async def _execute_tool(
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:

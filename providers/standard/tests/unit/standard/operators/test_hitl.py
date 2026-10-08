@@ -335,7 +335,7 @@ class TestHITLOperator:
                 "poke_interval": 5.0,
             }
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_1_3_PLUS, reason="This only works in airflow-core >= 3.1.3")
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_3_PLUS, reason="This only works on Airflow >= 3.1.3")
     @pytest.mark.parametrize(
         ("input_params", "expected_params"),
         [
@@ -393,7 +393,7 @@ class TestHITLOperator:
 
     @pytest.mark.skipif(
         AIRFLOW_V_3_1_3_PLUS,
-        reason="Preserve the old behavior if airflow-core < 3.1.3. Otherwise the UI will break.",
+        reason="Preserve the old behavior on Airflow versions < 3.1.3. Otherwise the UI will break.",
     )
     def test_serialzed_params_legacy(self) -> None:
         hitl_op = HITLOperator(

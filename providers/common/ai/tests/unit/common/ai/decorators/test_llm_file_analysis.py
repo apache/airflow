@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.decorators.llm_file_analysis import _LLMFileAnalysisDecoratedOperator
 from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
@@ -28,12 +29,14 @@ def _make_mock_run_result(output):
     mock_result = MagicMock(spec=["output", "usage", "response", "all_messages"])
     mock_result.output = output
     mock_result.usage = MagicMock(
-        spec=["requests", "tool_calls", "input_tokens", "output_tokens", "total_tokens", "cost"],
+        spec=RunUsage,
         requests=1,
         tool_calls=0,
         input_tokens=0,
         output_tokens=0,
         total_tokens=0,
+        cache_read_tokens=0,
+        cache_write_tokens=0,
         cost=None,
     )
     mock_result.response = MagicMock(spec=["model_name"], model_name="test-model")

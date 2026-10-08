@@ -218,6 +218,7 @@ func TestTaskNeedsTaskIDWhenFnHasNoName(t *testing.T) {
 
 func TestTaskRejectsASecondTaskSpec(t *testing.T) {
 	literal := func(Context) error { return nil }
+	var nilSpec *TaskSpec
 
 	tests := []struct {
 		name string
@@ -239,9 +240,21 @@ func TestTaskRejectsASecondTaskSpec(t *testing.T) {
 			task: `given`,
 		},
 		{
+			name: "TaskID in a *TaskSpec",
+			fn:   literal,
+			opts: []TaskOption{TaskSpec{}, &TaskSpec{TaskID: "given"}},
+			task: `given`,
+		},
+		{
 			name: "no TaskID",
 			fn:   ExtractRows,
 			opts: []TaskOption{TaskSpec{}, TaskSpec{}},
+			task: `ExtractRows`,
+		},
+		{
+			name: "nil *TaskSpec after the second spec",
+			fn:   ExtractRows,
+			opts: []TaskOption{TaskSpec{}, TaskSpec{}, nilSpec},
 			task: `ExtractRows`,
 		},
 		{
@@ -251,13 +264,19 @@ func TestTaskRejectsASecondTaskSpec(t *testing.T) {
 			task: `github\.com/apache/airflow/go-sdk/airflow\.` +
 				`TestTaskRejectsASecondTaskSpec\.func\d+`,
 		},
+		{
+			name: "TriggerDagRun and no TaskID",
+			fn:   TriggerDagRun(TriggerDagRunSpec{DagID: "downstream_etl"}),
+			opts: []TaskOption{TaskSpec{}, TaskSpec{}},
+			task: `airflow\.TriggerDagRun`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := panicMessage(t, func() { Dag("etl").Task(tt.fn, tt.opts...) })
 			assert.Regexp(t,
-				`^airflow\.DagRef\.Task: task "`+tt.task+`" of Dag "etl" got 2 airflow\.TaskSpec `+
-					`values; set all of the task's attributes in one TaskSpec$`,
+				`^airflow\.DagRef\.Task: task "`+tt.task+`" of Dag "etl": got more than one `+
+					`airflow\.TaskSpec; set all of the task's attributes in one TaskSpec$`,
 				msg,
 			)
 		})
@@ -296,6 +315,11 @@ func TestTaskPanicsOnBadFunction(t *testing.T) {
 			name: "no leading Context",
 			fn:   func(context.Context) error { return nil },
 			want: "parameter 0 is context.Context, but the first parameter must be airflow.Context",
+		},
+		{
+			name: "error result of a concrete type",
+			fn:   func(Context) (int, *taskError) { return 0, nil },
+			want: "must declare its last result as error, not *airflow.taskError",
 		},
 		{
 			// The name of a method expression keeps a dot, as a function literal's name does.
@@ -458,4 +482,69 @@ func TestTaskOptionRejectsForeignTypes(t *testing.T) {
 	// error does not break it.
 	assert.Contains(t, string(out), "foreignOption")
 	assert.Contains(t, string(out), "airflow.TaskOption")
+}
+
+// withStorage returns a value of type t that points at something, which is what makes a
+// copy observable: a copy points at storage of its own to compare against.
+func withStorage(t reflect.Type) reflect.Value {
+	switch t.Kind() {
+	case reflect.Pointer:
+		return reflect.New(t.Elem())
+	case reflect.Map:
+		m := reflect.MakeMap(t)
+		m.SetMapIndex(reflect.Zero(t.Key()), reflect.Zero(t.Elem()))
+		return m
+	default:
+		return reflect.MakeSlice(t, 1, 1)
+	}
+}
+
+// TestDagAndTaskCopyTheReferenceFieldsOfTheirSpecs pins the copy invariant DagRef
+// documents. Assigning a spec copies a pointer, or a slice or map header, and not what it
+// points at, so a caller that keeps what it passed could otherwise change a registered Dag
+// through it. The fields are read from the spec types rather than named, so a field added to
+// a generated spec is covered without this test being edited.
+func TestDagAndTaskCopyTheReferenceFieldsOfTheirSpecs(t *testing.T) {
+	for _, tt := range []struct {
+		spec  any
+		store func(spec reflect.Value) reflect.Value
+	}{
+		{
+			spec: DagSpec{},
+			store: func(spec reflect.Value) reflect.Value {
+				return reflect.ValueOf(Dag("etl", spec.Interface().(DagSpec)).spec)
+			},
+		},
+		{
+			spec: TaskSpec{},
+			store: func(spec reflect.Value) reflect.Value {
+				return reflect.ValueOf(Dag("etl").Task(extract, spec.Interface().(TaskSpec)).spec)
+			},
+		},
+	} {
+		specType := reflect.TypeOf(tt.spec)
+		for i := range specType.NumField() {
+			field := specType.Field(i)
+			switch field.Type.Kind() {
+			case reflect.Pointer, reflect.Slice, reflect.Map:
+			default:
+				continue
+			}
+			t.Run(specType.Name()+"."+field.Name, func(t *testing.T) {
+				given := reflect.New(specType).Elem()
+				given.Field(i).Set(withStorage(field.Type))
+
+				stored := tt.store(given).Field(i)
+
+				require.False(t, stored.IsNil(), "the field did not reach the registered spec")
+				assert.NotEqual(
+					t,
+					given.Field(i).Pointer(),
+					stored.Pointer(),
+					"%s shares its contents with the caller; copy it in Dag or Task",
+					field.Name,
+				)
+			})
+		}
+	}
 }

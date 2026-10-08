@@ -19,12 +19,15 @@
 
 export type DataIntervalMode = "auto" | "manual";
 
+export type PausedDagAction = "drain" | "keepPaused" | "unpause";
+
 export type DagRunTriggerParams = {
   conf: string;
   dagRunId: string;
   dataIntervalEnd: string;
   dataIntervalMode: DataIntervalMode;
   dataIntervalStart: string;
+  drainDag?: boolean;
   logicalDate: string;
   note: string;
   partitionKey: string | undefined;

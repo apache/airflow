@@ -85,6 +85,7 @@ class TestDataFusionEngine:
             ("s3", "csv", "s3"),
             ("s3", "avro", "s3"),
             ("gcs", "parquet", "gs"),
+            ("azure", "parquet", "az"),
         ],
     )
     @patch("airflow.providers.common.sql.datafusion.engine.get_object_storage_provider", autospec=True)
@@ -393,6 +394,452 @@ class TestDataFusionEngine:
 
         with pytest.raises(ValueError, match="'impersonation_chain' is not supported"):
             engine._get_credentials(mock_conn)
+
+    @pytest.mark.parametrize(
+        ("password", "extra_dejson", "expected_access_key"),
+        [
+            ("mykey", {}, "mykey"),
+            (None, {"shared_access_key": "extra-key"}, "extra-key"),
+            (None, {"account_key": "extra-key"}, "extra-key"),
+        ],
+        ids=["password", "shared_access_key_extra", "account_key_extra"],
+    )
+    def test_get_credentials_azure_with_shared_key(self, password, extra_dejson, expected_access_key):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = password
+        mock_conn.extra_dejson = extra_dejson
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {"account": "myaccount", "access_key": expected_access_key}
+        assert extra_config == {}
+
+    def test_get_credentials_azure_with_service_principal(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "client-id"
+        mock_conn.password = "client-secret"
+        mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {
+            "account": "client-id",
+            "client_id": "client-id",
+            "client_secret": "client-secret",
+            "tenant_id": "tenant-id",
+        }
+        assert extra_config == {}
+
+    def test_get_credentials_azure_with_service_principal_and_host_prefers_host_account(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = "realaccount.blob.core.windows.net"
+        mock_conn.login = "11111111-2222-3333-4444-555555555555"
+        mock_conn.password = "client-secret"
+        mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {
+            "account": "realaccount",
+            "client_id": "11111111-2222-3333-4444-555555555555",
+            "client_secret": "client-secret",
+            "tenant_id": "tenant-id",
+        }
+        assert extra_config == {}
+
+    @pytest.mark.parametrize(
+        ("login", "password", "missing"),
+        [
+            (None, "client-secret", "login"),
+            ("client-id", None, "password"),
+            (None, None, "login"),
+        ],
+    )
+    def test_get_credentials_azure_partial_service_principal_raises(self, login, password, missing):
+        """A partial service-principal config must raise, not silently authenticate with a
+        different identity (ambient auth, or the client secret sent as a shared key) --
+        DataFusion's binding also panics on a partial client_id/client_secret/tenant_id
+        combination."""
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = login
+        mock_conn.password = password
+        mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match=f"{missing}.*is not"):
+            engine._get_credentials(mock_conn)
+
+    def test_get_credentials_azure_fully_empty_connection_omits_account(self):
+        """Neither host nor login set (the shape of the ``wasb_default`` connection ``airflow
+        db`` creates) must drop `account` entirely, not send the literal string 'None' --
+        the binding then falls back to AZURE_STORAGE_ACCOUNT_NAME."""
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = None
+        mock_conn.password = None
+        mock_conn.extra_dejson = {}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {}
+        assert extra_config == {}
+
+    def test_get_credentials_azure_shared_access_key_takes_priority_over_sas_token(self):
+        """Matches WasbHook.get_conn, which checks the `shared_access_key` extra before
+        `sas_token`."""
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {
+            "sas_token": "?sv=2020-08-04&sp=rl&sig=abc",
+            "shared_access_key": "extra-key",
+        }
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {"account": "myaccount", "access_key": "extra-key"}
+        assert extra_config == {}
+
+    def test_get_credentials_azure_with_sas_token(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {
+            "account": "myaccount",
+            "sas_query_pairs": [("sv", "2020-08-04"), ("sp", "rl"), ("sig", "abc")],
+        }
+        assert extra_config == {}
+
+    def test_get_credentials_azure_without_credentials_uses_ambient_auth(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {"account": "myaccount"}
+        assert extra_config == {}
+
+    @pytest.mark.parametrize(
+        "unsupported_field",
+        ["connection_string", "managed_identity_client_id", "workload_identity_tenant_id"],
+    )
+    def test_get_credentials_azure_rejects_unsupported_identity_fields(self, unsupported_field):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.extra_dejson = {unsupported_field: "some-value"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match=f"{unsupported_field!r} is not supported"):
+            engine._get_credentials(mock_conn)
+
+    def test_get_credentials_azure_reads_legacy_extra_prefixed_sas_token(self):
+        """Older Airflow connection UIs wrote custom extra fields as
+        extra__wasb__<field>; WasbHook still reads that spelling as a fallback."""
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"extra__wasb__sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {
+            "account": "myaccount",
+            "sas_query_pairs": [("sv", "2020-08-04"), ("sp", "rl"), ("sig", "abc")],
+        }
+        assert extra_config == {}
+
+    def test_get_credentials_azure_rejects_legacy_extra_prefixed_unsupported_field(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"extra__wasb__connection_string": "some-conn-string"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match="'connection_string' is not supported"):
+            engine._get_credentials(mock_conn)
+
+    def test_get_credentials_azure_rejects_url_form_sas_token(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"sas_token": "https://myaccount.blob.core.windows.net/?sv=2020-08-04"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match="URL-form `sas_token` is not supported"):
+            engine._get_credentials(mock_conn)
+
+    @pytest.mark.parametrize(
+        ("env_vars", "should_raise"),
+        [
+            (["AZURE_STORAGE_ACCOUNT_KEY"], True),
+            (["AZURE_STORAGE_ACCESS_KEY"], True),
+            (["AZURE_STORAGE_MASTER_KEY"], True),
+            (["AZURE_STORAGE_TOKEN"], True),
+            (["AZURE_STORAGE_SAS_KEY"], False),
+            (["AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_FEDERATED_TOKEN_FILE"], True),
+            (["AZURE_FEDERATED_TOKEN_FILE"], False),
+            (["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID"], True),
+            (["AZURE_STORAGE_CLIENT_ID", "AZURE_STORAGE_CLIENT_SECRET", "AZURE_STORAGE_TENANT_ID"], True),
+            (["AZURE_STORAGE_CLIENT_ID", "AZURE_STORAGE_CLIENT_SECRET", "AZURE_STORAGE_AUTHORITY_ID"], True),
+            (["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_AUTHORITY_ID"], True),
+            (["AZURE_CLIENT_ID"], False),
+        ],
+        ids=[
+            "account-key",
+            "access-key",
+            "master-key",
+            "bearer",
+            "sas-key-checked-after-query-pairs",
+            "workload-identity-triple",
+            "workload-identity-partial",
+            "client-secret-triple-bare",
+            "client-secret-triple-storage-prefixed",
+            "client-secret-triple-storage-authority",
+            "client-secret-triple-bare-authority",
+            "client-secret-partial",
+        ],
+    )
+    def test_get_credentials_azure_sas_env_precedence(self, env_vars, should_raise, monkeypatch):
+        """A SAS connection sits at the bottom of object_store's precedence order and occupies
+        none of the higher tiers' fields, so a bearer token or any access-key spelling always
+        outranks it, and a complete workload-identity or client-secret triple (any recognized
+        spelling) does too -- but a partial triple, or AZURE_STORAGE_SAS_KEY (checked only after
+        the connection's own sas_query_pairs within SAS resolution itself), must not raise."""
+        for var in env_vars:
+            monkeypatch.setenv(var, "some-value")
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
+        engine = DataFusionEngine()
+
+        if should_raise:
+            with pytest.raises(ValueError, match=", ".join(env_vars)):
+                engine._get_credentials(mock_conn)
+        else:
+            credentials, extra_config = engine._get_credentials(mock_conn)
+            assert credentials == {
+                "account": "myaccount",
+                "sas_query_pairs": [("sv", "2020-08-04"), ("sp", "rl"), ("sig", "abc")],
+            }
+            assert extra_config == {}
+
+    @pytest.mark.parametrize(
+        ("env_vars", "should_raise"),
+        [
+            (["AZURE_STORAGE_TOKEN"], True),
+            (["AZURE_STORAGE_ACCOUNT_KEY"], False),
+            (["AZURE_STORAGE_ACCESS_KEY"], False),
+            (["AZURE_STORAGE_MASTER_KEY"], False),
+            (["AZURE_FEDERATED_TOKEN_FILE"], False),
+            (["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID"], False),
+        ],
+        ids=[
+            "bearer",
+            "account-key",
+            "access-key",
+            "master-key",
+            "federated-token-file",
+            "client-secret-triple",
+        ],
+    )
+    def test_get_credentials_azure_access_key_env_precedence(self, env_vars, should_raise, monkeypatch):
+        """A shared-key connection overwrites the same field object_store's build() would
+        otherwise read from env, and build() picks access_key ahead of every lower tier -- so
+        only a bearer token, the one tier above access_key, can actually outrank it, even on an
+        AKS pod where the workload-identity webhook injects AZURE_FEDERATED_TOKEN_FILE into
+        every labelled pod."""
+        for var in env_vars:
+            monkeypatch.setenv(var, "some-value")
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = "mykey"
+        mock_conn.extra_dejson = {}
+        engine = DataFusionEngine()
+
+        if should_raise:
+            with pytest.raises(ValueError, match=", ".join(env_vars)):
+                engine._get_credentials(mock_conn)
+        else:
+            credentials, extra_config = engine._get_credentials(mock_conn)
+            assert credentials == {"account": "myaccount", "access_key": "mykey"}
+            assert extra_config == {}
+
+    @pytest.mark.parametrize(
+        ("env_vars", "should_raise"),
+        [
+            (["AZURE_STORAGE_TOKEN"], True),
+            (["AZURE_STORAGE_ACCOUNT_KEY"], True),
+            (["AZURE_STORAGE_ACCESS_KEY"], True),
+            (["AZURE_STORAGE_MASTER_KEY"], True),
+            (["AZURE_FEDERATED_TOKEN_FILE"], True),
+            (["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID"], False),
+        ],
+        ids=[
+            "bearer",
+            "account-key",
+            "access-key",
+            "master-key",
+            "federated-token-file",
+            "client-secret-triple",
+        ],
+    )
+    def test_get_credentials_azure_service_principal_env_precedence(
+        self, env_vars, should_raise, monkeypatch
+    ):
+        """A bearer token or any access-key spelling sits above client secret in object_store's
+        precedence order, and the connection's own client_id and tenant_id already complete two
+        of workload identity's three fields, so a federated token file alone is enough for env to
+        complete that tier -- but a client-secret triple in env is moot, since the connection's
+        own client_id/client_secret/tenant_id overwrite the same fields."""
+        for var in env_vars:
+            monkeypatch.setenv(var, "some-value")
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "client-id"
+        mock_conn.password = "client-secret"
+        mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
+        engine = DataFusionEngine()
+
+        if should_raise:
+            with pytest.raises(ValueError, match=", ".join(env_vars)):
+                engine._get_credentials(mock_conn)
+        else:
+            credentials, extra_config = engine._get_credentials(mock_conn)
+            assert credentials == {
+                "account": "client-id",
+                "client_id": "client-id",
+                "client_secret": "client-secret",
+                "tenant_id": "tenant-id",
+            }
+            assert extra_config == {}
+
+    def test_get_credentials_azure_env_precedence_guard_ignores_pure_ambient_auth(self, monkeypatch):
+        """The guard only fires for an explicit connection credential -- a connection with none
+        at all is meant to rely on the environment, so the same env vars must not raise here."""
+        monkeypatch.setenv("AZURE_STORAGE_ACCOUNT_KEY", "some-value")
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {"account": "myaccount"}
+        assert extra_config == {}
+
+    @pytest.mark.parametrize(
+        ("host", "login", "expected"),
+        [
+            ("myaccount.blob.core.windows.net", None, "myaccount"),
+            ("https://myaccount.blob.core.windows.net/container/path", None, "myaccount"),
+            (None, "myaccount", "myaccount"),
+            ("justanadid", "myaccount", "myaccount"),
+            ("a" * 40 + ".blob.core.windows.net", "x", "a" * 24),
+            (None, None, None),
+        ],
+    )
+    def test_resolve_wasb_account(self, host, login, expected):
+        assert DataFusionEngine._resolve_wasb_account(host, login) == expected
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "myaccount.blob.core.chinacloudapi.cn",
+            "myaccount.blob.core.usgovcloudapi.net",
+        ],
+    )
+    def test_resolve_wasb_account_rejects_non_public_cloud_hosts(self, host):
+        """The binding has no endpoint override, so a sovereign-cloud host would otherwise be
+        silently misrouted to the public *.blob.core.windows.net account of the same name."""
+        with pytest.raises(ValueError, match="does not resolve to the public"):
+            DataFusionEngine._resolve_wasb_account(host, None)
+
+    @pytest.mark.parametrize("env_var", ["AZURE_STORAGE_ENDPOINT", "AZURE_ENDPOINT"])
+    def test_resolve_wasb_account_allows_non_public_cloud_host_when_endpoint_set(self, env_var, monkeypatch):
+        """Once the worker sets an endpoint override, object_store uses it verbatim instead of
+        deriving the URL from the account name, so a real (dotted, portless) sovereign-cloud
+        hostname no longer needs to match *.blob.core.windows.net."""
+        monkeypatch.setenv(env_var, "https://myaccount.blob.core.chinacloudapi.cn")
+
+        account = DataFusionEngine._resolve_wasb_account("myaccount.blob.core.chinacloudapi.cn", None)
+
+        assert account == "myaccount"
+
+    @pytest.mark.parametrize(
+        ("host", "login"),
+        [
+            ("http://127.0.0.1:10000/devstoreaccount1", None),
+            ("azurite:10000", None),
+            ("azurite:10000", "devstoreaccount1"),
+        ],
+        ids=["ip-port-url", "dotless-host-port", "dotless-host-port-with-login"],
+    )
+    def test_resolve_wasb_account_rejects_emulator_style_hosts(self, host, login, monkeypatch):
+        """A host:port netloc (Azurite's shape) is never a real DNS hostname -- resolving the
+        account from it would otherwise silently produce the wrong value ("127", or "None" once
+        the dotless fallback for an Active Directory ID kicks in), so this must always raise
+        regardless of login or of the endpoint override, which does not help this shape either."""
+        monkeypatch.setenv("AZURE_STORAGE_ENDPOINT", host.split("/")[0])
+
+        with pytest.raises(ValueError, match="looks like an emulator address"):
+            DataFusionEngine._resolve_wasb_account(host, login)
+
+    def test_resolve_wasb_account_rejects_dotless_host_without_login(self):
+        """The Active Directory ID fallback assumes login holds the real account name; without
+        one there's nothing to build a netloc from, and silently using the literal string "None"
+        is exactly the bug this function's own empty-connection case is meant to avoid."""
+        with pytest.raises(ValueError, match="no `login` was given"):
+            DataFusionEngine._resolve_wasb_account("azurite", None)
+
+    def test_resolve_wasb_account_azurite_workaround_uses_login_with_empty_host(self):
+        """The documented Azurite workaround -- the account name in login, host left empty --
+        already resolves correctly without needing the non-public-suffix check at all."""
+        assert DataFusionEngine._resolve_wasb_account(None, "devstoreaccount1") == "devstoreaccount1"
 
     def test_get_credentials_unknown_type(self):
         mock_conn = MagicMock()

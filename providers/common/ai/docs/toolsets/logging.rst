@@ -34,8 +34,9 @@ in real time. ``AgentOperator`` applies it automatically (see
     from airflow.providers.common.ai.toolsets.logging import LoggingToolset
     from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
-    sql_toolset = SQLToolset(db_conn_id="my_db")
-    logged_toolset = LoggingToolset(wrapped=sql_toolset, logger=my_logger)
+    logged_toolset = LoggingToolset(wrapped=SQLToolset(db_conn_id="my_db"))
 
-Each tool call produces two INFO log lines (name + timing) and optional
-DEBUG-level argument logging. Exceptions are logged and re-raised.
+Each call logs the tool's name and how long it took at INFO, inside a collapsible
+``::group::`` block in the task log, and its arguments at DEBUG. A call that raises
+is logged with its traceback and the exception is re-raised. Pass ``logger`` to
+send the lines to a logger other than the toolset module's own.

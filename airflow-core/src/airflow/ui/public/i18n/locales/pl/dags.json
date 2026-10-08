@@ -10,8 +10,6 @@
   "filters": {
     "allRunTypes": "Wszystkie Typy Wykonań Dagów",
     "allStates": "Wszystkie Stany",
-    "anyRunState": "Dowolne wykonanie",
-    "anyRunStatePlaceholder": "Wybierz dowolny stan wykonania…",
     "favorite": {
       "all": "Wszystkie",
       "favorite": "Ulubione",
@@ -19,8 +17,6 @@
     },
     "favoriteState": "Stan ulubionych",
     "favoriteStatePlaceholder": "Wybierz stan ulubionych…",
-    "lastRunState": "Ostatnie wykonanie",
-    "lastRunStatePlaceholder": "Wybierz stan ostatniego wykonania…",
     "noTimetableTypesFound": "Nie znaleziono typów harmonogramu",
     "paused": {
       "active": "Aktywne",

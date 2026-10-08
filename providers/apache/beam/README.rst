@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-beam``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -58,8 +58,7 @@ PIP package                                 Version required
 ``apache-beam``                             ``>=2.76.0``
 ``pyarrow``                                 ``>=16.1.0; python_version < "3.14"``
 ``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
-``numpy``                                   ``>=1.22.4; python_version < "3.11"``
-``numpy``                                   ``>=1.23.2; python_version < "3.12" and python_version >= "3.11"``
+``numpy``                                   ``>=1.23.2; python_version < "3.12"``
 ``numpy``                                   ``>=1.26.0; python_version >= "3.12" and python_version < "3.14"``
 ``numpy``                                   ``>=2.4.3; python_version >= "3.14"``
 ==========================================  ==================================================================

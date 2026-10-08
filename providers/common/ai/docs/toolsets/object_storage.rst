@@ -72,6 +72,44 @@ the task: an image or PDF, a binary file, a file larger than ``max_read_bytes`` 
 by default), a corrupt file, a path that does not exist, or one the connection may not
 read.
 
+.. _object-storage-toolset-restricted:
+
+Restricting the agent
+---------------------
+
+This agent can read only under ``s3://acme-reports/finance/``, and every list and read
+is bounded:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_object_storage_toolset.py
+    :language: python
+    :start-after: [START howto_toolset_object_storage_restricted]
+    :end-before: [END howto_toolset_object_storage_restricted]
+
+Run against an S3 endpoint where an ``acme-payroll`` bucket sits beside the reports,
+these reads were refused. Each refusal comes back to the model as the tool's result,
+so it does not use ``max_retries``, and the run carries on:
+
+``../../acme-payroll/salaries.csv``
+    ``'../../acme-payroll/salaries.csv' leaves the storage root; '..' is not allowed.``
+
+``s3://acme-payroll/salaries.csv``
+    ``'s3://acme-payroll/salaries.csv' is not a relative path. Name files relative to
+    the storage root.``
+
+``/etc/passwd``
+    ``'/etc/passwd' is not a relative path. Name files relative to the storage root.``
+
+``2026-09/chart.png``
+    ``'2026-09/chart.png' is a png file, which this tool cannot read as text.``
+
+``2026-09/ledger.csv``, a 1.5 MB file
+    ``'2026-09/ledger.csv' is larger than the 1.0MB this tool reads.``
+
+Because refused reads cost nothing from ``max_retries``, bound a run that keeps
+asking with the operator's ``usage_limits``. The path check is the toolset's only
+boundary on location; credentials that can read only ``s3://acme-reports/finance/`` keep that limit
+if the check has a gap.
+
 Parameters
 ----------
 
@@ -90,6 +128,9 @@ Parameters
     A prefix for the tool names, needed when the agent has another toolset with the same
     tool names: a second ``ObjectStorageToolset``, or a ``SandboxToolset``, which has a
     ``read_file`` of its own.
+``max_retries``
+    How many times the model may correct a call with invalid arguments. A failed read does
+    not count. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
 When to choose it
 -----------------
@@ -101,7 +142,9 @@ storage already uses; Parquet and Avro need this provider's ``parquet`` or ``avr
 extra. To hand the model a known file rather than let it find one, ``@task.llm_file_analysis``
 reads the file for it. For read-only access through a hook's own methods,
 ``HookToolset(S3Hook(), allowed_methods=["list_keys", "read_key"])`` works too, but the
-model then chooses the bucket and key, where this toolset holds it under one root.
+model then chooses the bucket and key. Pinning ``bucket_name`` with ``pinned_arguments``
+fixes the bucket and still leaves the model any key in it, where this toolset keeps the
+model under one root.
 
 **What it cannot do**
 
