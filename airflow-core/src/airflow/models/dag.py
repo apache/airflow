@@ -39,7 +39,6 @@ from sqlalchemy import (
     Text,
     and_,
     case,
-    cast,
     func,
     inspect as sa_inspect,
     or_,
@@ -843,7 +842,7 @@ class DagModel(Base):
                             # not SQL NULL, for JSON columns; compare the JSON
                             # text form, which renders as 'null' on SQLite,
                             # Postgres (jsonb::text) and MySQL (CAST AS CHAR).
-                            cast(cls.allowed_run_types, Text) == "null",
+                            sa.cast(cls.allowed_run_types, Text) == "null",
                             JsonArrayContains(cls.allowed_run_types, DagRunType.SCHEDULED.value),
                         ),
                     ),
