@@ -525,8 +525,9 @@ class CommandFactory:
         ]
         # Datamodels whose generated bool flags follow the datamodel field defaults instead of
         # defaulting to False, so the CLI keeps the API semantics (e.g. a bare ``tasks clear``
-        # must keep ``dry_run=True`` and preview instead of clearing).
-        self.field_bool_default_datamodels = ["ClearTaskInstancesBody"]
+        # must keep ``dry_run=True`` and preview instead of clearing, and a bare ``dags update``
+        # must not send ``is_paused=False`` and unpause the Dag).
+        self.field_bool_default_datamodels = ["ClearTaskInstancesBody", "DAGPatchBody"]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
