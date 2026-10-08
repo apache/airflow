@@ -4084,6 +4084,103 @@ class TestSchedulerJob:
         session.refresh(dr)
         assert dr.conf == {}
 
+    def test_purge_without_heartbeat_requests_failure_callback_and_notifies_listeners(
+        self, dag_maker, session
+    ):
+        """A signal-killed task with no retries left must get a FAILED callback and a listener call.
+
+        This is the scheduler half of the SIGKILL fix. The supervisor no longer
+        reports a terminal state for an externally killed task, so the task is left
+        ``running`` and this purge is what finalises it. Two things have to happen
+        here or the fix delivers nothing:
+
+        * the callback request must be typed ``FAILED`` (retries are exhausted), so
+          the dag processor looks up ``on_failure_callback`` rather than
+          ``on_retry_callback``
+        * ``on_task_instance_failed`` must fire, so OpenLineage emits a task FAIL
+          event and anything built on it (Astro alerts, lineage) sees the failure
+
+        See apache/airflow#60858.
+        """
+
+        def _on_failure(context):
+            pass
+
+        with dag_maker("test_purge_requests_failure_callback", session=session):
+            EmptyOperator(task_id="task", on_failure_callback=_on_failure, retries=0)
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        ti = dag_run.get_task_instance(task_id="task", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(hours=1)
+        session.merge(ti)
+        session.commit()
+
+        # retries=0, so the task is not retry-eligible and the callback must be FAILED
+        assert ti.max_tries == 0
+
+        with mock.patch.object(
+            get_listener_manager().hook, "on_task_instance_failed", autospec=True
+        ) as on_failed:
+            self.job_runner._purge_task_instances_without_heartbeats([ti], session=session)
+
+        mock_executor.send_callback.assert_called_once()
+        request = mock_executor.send_callback.call_args.args[0]
+        assert isinstance(request, TaskCallbackRequest)
+        assert request.task_callback_type == TaskInstanceState.FAILED
+        assert request.ti.task_id == "task"
+
+        on_failed.assert_called_once()
+
+    def test_purge_without_heartbeat_requests_retry_callback_when_retries_remain(self, dag_maker, session):
+        """With retries left the callback must be typed UP_FOR_RETRY, not FAILED.
+
+        The task is going to run again, so ``on_retry_callback`` is the correct hook
+        and firing ``on_failure_callback`` here would be wrong. This guards the
+        boundary of the fix above.
+        """
+
+        def _on_failure(context):
+            pass
+
+        def _on_retry(context):
+            pass
+
+        with dag_maker("test_purge_requests_retry_callback", session=session):
+            EmptyOperator(
+                task_id="task",
+                on_failure_callback=_on_failure,
+                on_retry_callback=_on_retry,
+                retries=2,
+            )
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        ti = dag_run.get_task_instance(task_id="task", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(hours=1)
+        session.merge(ti)
+        session.commit()
+
+        assert ti.max_tries == 2
+
+        self.job_runner._purge_task_instances_without_heartbeats([ti], session=session)
+
+        mock_executor.send_callback.assert_called_once()
+        request = mock_executor.send_callback.call_args.args[0]
+        assert request.task_callback_type == TaskInstanceState.UP_FOR_RETRY
+
     def test_purge_without_heartbeat_skips_when_missing_dag_version(self, dag_maker, session, caplog):
         with dag_maker("test_purge_without_heartbeat_skips_when_missing_dag_version", session=session):
             EmptyOperator(task_id="task")

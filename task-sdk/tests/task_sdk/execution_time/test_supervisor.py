@@ -1897,6 +1897,21 @@ class TestWatchedSubprocessKill:
         proc.selector = mock_selector
         return proc
 
+    def test_kill_marks_killed_by_supervisor(self, watched_subprocess, mock_process, mocker):
+        """kill() must record that the signal came from us.
+
+        `update_task_state_if_needed` relies on this to tell a deliberate shutdown
+        apart from an external kill, so that in-flight tasks are still reported
+        terminal on a rolling restart.
+        """
+        assert watched_subprocess._killed_by_supervisor is False
+        mocker.patch("os.getpgid", side_effect=ProcessLookupError)
+        mock_process.wait.side_effect = psutil.NoSuchProcess(pid=1234)
+
+        watched_subprocess.kill(signal.SIGINT, force=True)
+
+        assert watched_subprocess._killed_by_supervisor is True
+
     def test_kill_process_already_exited(self, watched_subprocess, mock_process, mocker):
         """Test behavior when the process has already exited."""
         # When the process is gone, getpgid raises ProcessLookupError and the
@@ -3939,6 +3954,72 @@ class TestHandleRequest:
         process.client.task_instances.finish.assert_called_once()
         assert process.client.task_instances.finish.call_args.kwargs["state"] == SERVER_TERMINATED
         assert process.client.task_instances.finish.call_args.kwargs["pid"] == process.pid
+
+    @pytest.mark.parametrize(
+        "exit_code",
+        [
+            pytest.param(-signal.SIGKILL, id="sigkill"),
+            pytest.param(-signal.SIGSEGV, id="sigsegv"),
+        ],
+    )
+    def test_externally_signal_killed_task_is_left_for_the_scheduler(self, watched_subprocess, exit_code):
+        """A task killed from outside must not be reported terminal by the supervisor.
+
+        Reporting it here makes the TI terminal before the scheduler sees the
+        executor event, so no ``TaskCallbackRequest`` is built and
+        ``on_task_instance_failed`` never fires. Leaving it ``running`` lets the
+        scheduler finalise it through ``handle_failure``. See #60858.
+        """
+        process, _ = watched_subprocess
+        process._exit_code = exit_code
+        process._terminal_state = None
+        process._pending_terminal_state_msg = None
+
+        process.update_task_state_if_needed()
+
+        process.client.task_instances.finish.assert_not_called()
+
+    def test_supervisor_initiated_kill_still_reports_state(self, watched_subprocess, mocker):
+        """A kill we sent ourselves (shutdown, heartbeat failure) must still report.
+
+        Without this guard every rolling restart would strand its in-flight tasks
+        in ``running`` until the heartbeat timeout.
+        """
+        process, _ = watched_subprocess
+        # Set directly rather than calling kill(): this fixture's process mock
+        # cannot service a real kill. That kill() sets the flag is covered by
+        # TestWatchedSubprocessKill::test_kill_marks_killed_by_supervisor.
+        process._killed_by_supervisor = True
+
+        process._exit_code = -signal.SIGKILL
+        process._terminal_state = None
+        process._pending_terminal_state_msg = None
+
+        process.update_task_state_if_needed()
+
+        process.client.task_instances.finish.assert_called_once()
+
+    def test_task_reported_state_wins_over_signal_kill(self, watched_subprocess):
+        """If the task reported an outcome before dying, that outcome is respected."""
+        process, _ = watched_subprocess
+        process._exit_code = -signal.SIGKILL
+        process._terminal_state = TaskInstanceState.FAILED
+        process._pending_terminal_state_msg = None
+
+        process.update_task_state_if_needed()
+
+        process.client.task_instances.finish.assert_called_once()
+
+    def test_non_signal_exit_code_still_reports_state(self, watched_subprocess):
+        """An ordinary non-zero exit is unaffected; only signal deaths are deferred."""
+        process, _ = watched_subprocess
+        process._exit_code = 1
+        process._terminal_state = None
+        process._pending_terminal_state_msg = None
+
+        process.update_task_state_if_needed()
+
+        process.client.task_instances.finish.assert_called_once()
 
     @pytest.mark.parametrize("arrival", ["during_kill", "after_kill"])
     @pytest.mark.parametrize(

@@ -839,6 +839,14 @@ class WatchedSubprocess:
     """
 
     _exit_code: int | None = attrs.field(default=None, init=False)
+
+    _killed_by_supervisor: bool = attrs.field(default=False, init=False)
+    """Whether *this* supervisor signalled the subprocess.
+
+    Used to tell a deliberate shutdown (graceful exit, heartbeat failure, server
+    termination, startup abort) apart from an external kill such as the kernel's
+    OOM killer. Only the latter should be left for the scheduler to finalise.
+    """
     _process_exit_monotonic: float | None = attrs.field(default=None, init=False)
     _open_sockets: weakref.WeakKeyDictionary[socket, str] = attrs.field(
         factory=weakref.WeakKeyDictionary, init=False
@@ -1323,6 +1331,10 @@ class WatchedSubprocess:
         if self._exit_code is not None:
             return
 
+        # Record that the signal came from us, so `update_task_state_if_needed` does
+        # not mistake a deliberate shutdown for an external kill.
+        self._killed_by_supervisor = True
+
         # Escalation sequence: SIGINT -> SIGTERM -> SIGKILL
         escalation_path: list[signal.Signals] = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
 
@@ -1794,6 +1806,24 @@ class ActivitySubprocess(WatchedSubprocess):
                 )
             return
 
+        # The task process was killed by something outside this supervisor (the
+        # kernel's OOM killer, an external SIGKILL, SIGSEGV) and never reported a
+        # state of its own. Leave the task instance in `running` so the scheduler
+        # finalises it through `handle_failure`, which fires
+        # `on_task_instance_failed` and builds a `TaskCallbackRequest`. The
+        # supervisor can do neither: it never parses the dag, and has no database
+        # access. Reporting the state here instead makes the task terminal before
+        # the scheduler ever looks at it, so no callback is raised and no
+        # OpenLineage FAIL event is emitted. See #60858.
+        if self._externally_killed_without_reporting():
+            log.warning(
+                "Task process was killed by a signal without reporting a terminal state; "
+                "leaving it for the scheduler to finalise",
+                exit_code=self._exit_code,
+                ti_id=self.id,
+            )
+            return
+
         # Without a worker outcome, only report inferred states that finish() accepts.
         if self.final_state not in STATES_SENT_DIRECTLY:
             self.client.task_instances.finish(
@@ -1802,6 +1832,23 @@ class ActivitySubprocess(WatchedSubprocess):
                 when=datetime.now(tz=UTC),
                 rendered_map_index=self._rendered_map_index,
             )
+
+    def _externally_killed_without_reporting(self) -> bool:
+        """
+        Whether the task died to an outside signal before reporting any state.
+
+        A negative exit code means death by signal. We additionally require that
+        the task never sent a state of its own (so an explicit outcome always
+        wins) and that we did not send the signal ourselves (so shutdowns,
+        heartbeat-failure kills and server-requested terminations still report
+        normally).
+        """
+        return (
+            self._exit_code is not None
+            and self._exit_code < 0
+            and self._terminal_state is None
+            and not self._killed_by_supervisor
+        )
 
     def _send_terminal_state_msg(
         self, msg: TaskState | SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask
