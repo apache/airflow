@@ -41,7 +41,6 @@
   },
   "close": "Κλείσιμο",
   "configForm": {
-    "advancedOptions": "Προχωρημένες Επιλογές",
     "configJson": "Ρυθμίσεις JSON",
     "invalidJson": "Μη έγκυρη μορφή JSON: {{errorMessage}}"
   },

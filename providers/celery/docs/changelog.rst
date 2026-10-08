@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+3.25.0
+......
+
+Features
+~~~~~~~~
+
+* ``Carry task attempt UUIDs through remote executor providers (#73917)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use configured default queue for Celery executor callbacks (#73552)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Correlate executor task events by attempt UUID (#73916)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 3.24.1
 ......
 

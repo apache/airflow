@@ -52,7 +52,6 @@
   },
   "close": "Schließen",
   "configForm": {
-    "advancedOptions": "Erweiterte Optionen",
     "configJson": "JSON der Konfiguration",
     "invalidJson": "Ungültiges JSON Format: {{errorMessage}}"
   },
