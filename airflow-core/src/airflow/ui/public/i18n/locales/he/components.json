@@ -42,7 +42,6 @@
   },
   "close": "סגור",
   "configForm": {
-    "advancedOptions": "אפשרויות מתקדמות",
     "configJson": "הגדרות JSON",
     "invalidJson": "מבנה ה-JSON אינו תקין: {{errorMessage}}"
   },

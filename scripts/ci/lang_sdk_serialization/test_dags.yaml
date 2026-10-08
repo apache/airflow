@@ -79,7 +79,7 @@ dags:
           wait_for_past_depends_before_skipping: true
           wait_for_downstream: true
           retries: 2
-          queue: typescript
+          queue: workers
           pool: tiny
           pool_slots: 2
           execution_timeout: !timedelta 120
@@ -143,7 +143,7 @@ dags:
 
   # Fan-out and fan-in, so downstream_task_ids has to be sorted rather than kept in wiring
   # order. The schedule is not written "@daily" because Python expands a preset before
-  # serializing it, which serde.test.ts covers separately.
+  # serializing it, which each SDK's own serializer tests cover separately.
   - dag_id: conformance_diamond
     spec:
       schedule: "0 0 * * *"

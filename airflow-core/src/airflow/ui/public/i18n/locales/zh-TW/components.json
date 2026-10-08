@@ -52,7 +52,6 @@
   },
   "close": "關閉",
   "configForm": {
-    "advancedOptions": "進階選項",
     "configJson": "設定 JSON",
     "invalidJson": "無效的 JSON 格式: {{errorMessage}}"
   },

@@ -23,6 +23,7 @@ import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.Deps
 import org.apache.airflow.sdk.LiteralArg
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
@@ -32,6 +33,12 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+
+/** Stands in for the generated wiring view of a task group. */
+private fun groupView(id: String) =
+  object : Deps.TaskGroup {
+    override fun groupId() = id
+  }
 
 private class NoopRefTask : Task {
   override fun execute(
@@ -45,9 +52,9 @@ internal class RefsTest {
   @DisplayName("Should register the task, record inputs, and wire handle edges")
   fun shouldRegisterTaskWithInputsAndEdges() {
     val dag = DagDef("d")
-    Refs.record(dag, listOf("p", "c")) {
-      val producer = Refs.node<Long>(TaskDef("p", NoopRefTask::class.java))
-      Refs.call<Unit>(TaskDef("c", NoopRefTask::class.java), producer, Arg.lit(5))
+    Refs.record(dag, listOf("p", "c"), emptyList()) {
+      val producer = Refs.node<Long>("", TaskDef("p", NoopRefTask::class.java))
+      Refs.call<Unit>("", TaskDef("c", NoopRefTask::class.java), emptyList(), producer, Arg.lit(5))
     }
 
     val consumerDef = dag.tasks.getValue("c")
@@ -62,11 +69,11 @@ internal class RefsTest {
   @DisplayName("Should return the same handle wherever a task is wired")
   fun shouldMemoizeHandleByTaskId() {
     val dag = DagDef("d")
-    Refs.record(dag, listOf("a", "b")) {
-      val first = Refs.node<Unit>(TaskDef("a", NoopRefTask::class.java))
-      val again = Refs.node<Unit>(TaskDef("a", NoopRefTask::class.java))
+    Refs.record(dag, listOf("a", "b"), emptyList()) {
+      val first = Refs.node<Unit>("", TaskDef("a", NoopRefTask::class.java))
+      val again = Refs.node<Unit>("", TaskDef("a", NoopRefTask::class.java))
       assertSame(first, again)
-      first.before(Refs.node<Unit>(TaskDef("b", NoopRefTask::class.java)))
+      first.before(Refs.node<Unit>("", TaskDef("b", NoopRefTask::class.java)))
     }
 
     assertEquals(setOf("a", "b"), dag.tasks.keys)
@@ -78,7 +85,7 @@ internal class RefsTest {
   fun shouldPassWhenWiringComplete() {
     val dag = DagDef("d")
 
-    Refs.record(dag, listOf("t")) { Refs.node<Unit>(TaskDef("t", NoopRefTask::class.java)) }
+    Refs.record(dag, listOf("t"), emptyList()) { Refs.node<Unit>("", TaskDef("t", NoopRefTask::class.java)) }
   }
 
   @Test
@@ -88,7 +95,7 @@ internal class RefsTest {
 
     val error =
       assertThrows(IllegalArgumentException::class.java) {
-        Refs.record(dag, listOf("t", "x", "y")) { Refs.node<Unit>(TaskDef("t", NoopRefTask::class.java)) }
+        Refs.record(dag, listOf("t", "x", "y"), emptyList()) { Refs.node<Unit>("", TaskDef("t", NoopRefTask::class.java)) }
       }
 
     assertEquals(
@@ -103,7 +110,7 @@ internal class RefsTest {
   fun shouldRefuseWiringOutsideRecording() {
     val error =
       assertThrows(IllegalStateException::class.java) {
-        Refs.node<Unit>(TaskDef("t", NoopRefTask::class.java))
+        Refs.node<Unit>("", TaskDef("t", NoopRefTask::class.java))
       }
 
     assertEquals(
@@ -118,8 +125,8 @@ internal class RefsTest {
   fun shouldRejectRawNullArgument() {
     val error =
       assertThrows(IllegalArgumentException::class.java) {
-        Refs.record(DagDef("d"), listOf("t")) {
-          Refs.call<Unit>(TaskDef("t", NoopRefTask::class.java), Arg.lit(1), null)
+        Refs.record(DagDef("d"), listOf("t"), emptyList()) {
+          Refs.call<Unit>("", TaskDef("t", NoopRefTask::class.java), emptyList(), Arg.lit(1), null)
         }
       }
 
@@ -131,9 +138,9 @@ internal class RefsTest {
   fun shouldRejectTaskWiredTwiceWithArguments() {
     val error =
       assertThrows(IllegalArgumentException::class.java) {
-        Refs.record(DagDef("d"), listOf("t")) {
-          Refs.node<Unit>(TaskDef("t", NoopRefTask::class.java))
-          Refs.call<Unit>(TaskDef("t", NoopRefTask::class.java), Arg.lit(1))
+        Refs.record(DagDef("d"), listOf("t"), emptyList()) {
+          Refs.node<Unit>("", TaskDef("t", NoopRefTask::class.java))
+          Refs.call<Unit>("", TaskDef("t", NoopRefTask::class.java), emptyList(), Arg.lit(1))
         }
       }
 
@@ -148,11 +155,52 @@ internal class RefsTest {
   fun shouldRefuseNestedRecording() {
     val error =
       assertThrows(IllegalStateException::class.java) {
-        Refs.record(DagDef("outer"), emptyList()) {
-          Refs.record(DagDef("inner"), emptyList()) {}
+        Refs.record(DagDef("outer"), emptyList(), emptyList()) {
+          Refs.record(DagDef("inner"), emptyList(), emptyList()) {}
         }
       }
 
     assertEquals("Dag wiring is already being recorded on this thread", error.message)
+  }
+
+  @Test
+  @DisplayName("Should make every group before the wiring runs and register each task in its own")
+  fun shouldRegisterGroupedTaskInGroup() {
+    val dag = DagDef("d")
+    Refs.record(
+      dag,
+      listOf("extract", "staging.checks.nulls"),
+      listOf("staging", "staging.checks", "staging.empty"),
+    ) {
+      val extract = Refs.node<Unit>("", TaskDef("extract", NoopRefTask::class.java))
+      extract.before(groupView("staging"))
+      Refs.node<Unit>("staging.checks", TaskDef("staging.checks.nulls", NoopRefTask::class.java))
+    }
+
+    // staging.empty holds no task, so only the group list can have made it.
+    assertEquals(listOf("staging", "staging.checks", "staging.empty"), dag.groups.keys.toList())
+    assertEquals(listOf("staging.checks.nulls"), dag.groups.getValue("staging.checks").taskIds)
+    assertEquals(1, dag.groupEdges.size)
+  }
+
+  @Test
+  @DisplayName("Should resolve the group a wiring-view group stands for")
+  fun shouldResolveGroupOfView() {
+    val dag = DagDef("d")
+    Refs.record(dag, listOf("staging.stage"), listOf("staging")) {
+      Refs.node<Unit>("staging", TaskDef("staging.stage", NoopRefTask::class.java))
+      assertEquals(listOf("staging.stage"), groupView("staging").nodes().map { it.id })
+    }
+  }
+
+  @Test
+  @DisplayName("Should fail naming a group the Dag does not have")
+  fun shouldFailOnUnknownGroup() {
+    val error =
+      assertThrows(IllegalArgumentException::class.java) {
+        Refs.record(DagDef("d"), emptyList(), emptyList()) { Refs.group("staging") }
+      }
+
+    assertEquals("Dag 'd' has no task group 'staging'", error.message)
   }
 }

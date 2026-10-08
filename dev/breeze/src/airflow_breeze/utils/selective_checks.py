@@ -140,6 +140,7 @@ class FileGroupForCi(Enum):
     AGENT_FRAMEWORK_FILES = auto()
     GO_SDK_FILES = auto()
     JAVA_SDK_FILES = auto()
+    JAVA_SDK_CONFORMANCE_FILES = auto()
     TS_SDK_FILES = auto()
     TS_SDK_DOCS_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
@@ -516,6 +517,14 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.JAVA_SDK_FILES: [
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
+        ],
+        FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES: [
+            # The Java SDK, plus what its serialization conformance check compares it against:
+            # Airflow's serializer and schema, and the shared harness.
+            r"^java-sdk/(?!.*\.md$).*",
+            r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
+            r"^airflow-core/src/airflow/serialization/schema\.json$",
+            r"^scripts/ci/lang_sdk_serialization/.*",
         ],
         FileGroupForCi.TS_SDK_DOCS_FILES: [
             # TypeDoc renders the reference from the SDK sources and category entry points,
@@ -1942,6 +1951,11 @@ class SelectiveChecks:
             # from Maven Central. Skip it when no java-sdk files changed so unrelated PRs do not
             # depend on that resolution.
             prek_hooks_to_skip.add("regenerate-java-sdk-verification-metadata")
+        if not self._matching_files(FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES, CI_FILE_GROUP_MATCHES):
+            # This hook compiles the Java SDK with Gradle and resolves its dependencies from Maven
+            # Central. Skip it unless a java-sdk file, Airflow's serializer or schema, or the shared
+            # harness changed. Those last do not force full_tests_needed, so they need their own group.
+            prek_hooks_to_skip.add("check-java-sdk-serialization-conformance")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
             # This hook regenerates ts-sdk/src/generated/supervisor.ts from the wire schema and
             # diffs it. Schema-only changes deliberately do not trigger it: regenerating the

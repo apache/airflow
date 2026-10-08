@@ -129,6 +129,6 @@ internal class NoopTask : Task {
 internal fun contextWiredWith(inputs: List<Arg<*>>): Context {
   val dag = DagDef("d")
   val def = TaskDef("t", NoopTask::class.java)
-  Refs.record(dag, listOf("t")) { Refs.call<Unit>(def, *inputs.toTypedArray()) }
+  Refs.record(dag, listOf("t"), emptyList()) { Refs.call<Unit>("", def, emptyList(), *inputs.toTypedArray()) }
   return taskContext().also { it.taskDef = def }
 }

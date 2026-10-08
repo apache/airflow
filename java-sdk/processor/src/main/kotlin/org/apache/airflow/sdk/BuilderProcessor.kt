@@ -32,6 +32,7 @@ import com.squareup.javapoet.WildcardTypeName
 import org.apache.airflow.sdk.internal.ArgValues
 import org.apache.airflow.sdk.internal.Field
 import org.apache.airflow.sdk.internal.FieldType
+import org.apache.airflow.sdk.internal.GROUP_ID
 import org.apache.airflow.sdk.internal.Refs
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.TaskArgs
@@ -57,6 +58,7 @@ import javax.lang.model.element.VariableElement
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
 import javax.tools.Diagnostic
+import java.lang.reflect.Modifier as ReflectModifier
 import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
 
 /**
@@ -93,6 +95,7 @@ import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
 @SupportedAnnotationTypes(
   "org.apache.airflow.sdk.Builder.Dag",
   "org.apache.airflow.sdk.Builder.Task",
+  "org.apache.airflow.sdk.Builder.TaskGroup",
   "org.apache.airflow.sdk.Builder.TaskHandler",
   "org.apache.airflow.sdk.Builder.Deps",
 )
@@ -109,6 +112,20 @@ class BuilderProcessor : AbstractProcessor() {
         processingEnv.messager.printMessage(
           Diagnostic.Kind.ERROR,
           "@Builder.Deps class '${el.simpleName}' must be nested directly in a @Builder.Dag class",
+          el,
+        )
+      }
+    }
+    roundEnv.getElementsAnnotatedWith(Builder.TaskGroup::class.java).forEach { el ->
+      val owner = el.enclosingElement
+      val nested =
+        owner is TypeElement &&
+          (owner.getAnnotation(Builder.Dag::class.java) != null || owner.getAnnotation(Builder.TaskGroup::class.java) != null)
+      if (!nested) {
+        processingEnv.messager.printMessage(
+          Diagnostic.Kind.ERROR,
+          "@Builder.TaskGroup class '${el.simpleName}' must be nested in a @Builder.Dag class or in " +
+            "another @Builder.TaskGroup class",
           el,
         )
       }
@@ -131,7 +148,8 @@ class BuilderProcessor : AbstractProcessor() {
       with(processingEnv) {
         runCatching {
           val packageName = elementUtils.getPackageOf(el).qualifiedName.toString()
-          val declarations = collectTasks(el)
+          val scope = collectScope(el, emptyList(), emptyList())
+          checkIds(scope)
           val builderName =
             ClassName.get(
               packageName,
@@ -139,12 +157,12 @@ class BuilderProcessor : AbstractProcessor() {
             )
           val depsName = ClassName.get(packageName, "${el.simpleName}Deps")
           val deps = findDeps(el, depsName)
-          declarations.forEach { checkViewName(it) }
+          checkViewNames(scope)
           JavaFile
-            .builder(packageName, buildBuilder(el, declarations, deps, builderName))
+            .builder(packageName, buildBuilder(el, scope, deps, builderName))
             .build()
             .writeTo(filer)
-          JavaFile.builder(packageName, buildDeps(el, declarations, builderName, depsName)).build().writeTo(filer)
+          JavaFile.builder(packageName, buildDeps(el, scope, builderName, depsName)).build().writeTo(filer)
         }.onFailure { e ->
           messager.printMessage(
             Diagnostic.Kind.ERROR,
@@ -193,13 +211,13 @@ class BuilderProcessor : AbstractProcessor() {
       require(handler.dag.isNotBlank()) {
         "@Builder.TaskHandler on '${inner.simpleName}' must name the Dag the Python file declares"
       }
-      val decl = TaskDeclaration(inner, handler.task.ifBlank { inner.simpleName.toString() }, collectDataParams(inner))
+      val decl = TaskDeclaration(inner, handler.task.ifBlank { inner.simpleName.toString() }, collectDataParams(inner), el)
       require(names.add(inner.simpleName.toString())) {
         "Class ${el.simpleName} overloads task-handler method '${inner.simpleName}'; a method's name is " +
           "the name of its generated task class, so rename one and keep its task id with " +
           "@Builder.TaskHandler(task = \"${decl.id}\")"
       }
-      registrar.addType(buildTask(decl, el))
+      registrar.addType(buildTask(decl))
       registerInto.addStatement(
         $$"bundle.register($S, $S, $L.class)",
         handler.dag,
@@ -214,10 +232,11 @@ class BuilderProcessor : AbstractProcessor() {
 
   private fun buildBuilder(
     el: TypeElement,
-    declarations: List<TaskDeclaration>,
+    scope: Scope,
     deps: TypeElement,
     builderName: ClassName,
   ): TypeSpec {
+    val declarations = scope.allTasks()
     val ann = dagAnnotation(el)
 
     val builderClass =
@@ -234,16 +253,20 @@ class BuilderProcessor : AbstractProcessor() {
     explicitConfig(el, DAG_ANNOTATION, DAG_STRUCTURAL_ATTRIBUTES, SchemaFields.DAG).forEach { (key, value) ->
       buildMethod.addStatement($$"dag.config($S, $L)", key, value)
     }
+    val taskIds = CodeBlock.join(declarations.map { CodeBlock.of($$"$S", it.id) }, ", ")
+    val groupIds = CodeBlock.join(scope.allGroups().map { CodeBlock.of($$"$S", it.fullId) }, ", ")
     buildMethod.addStatement(
-      $$"return $T.record(dag, $T.of($L), new $T()::depends)",
+      $$"return $T.record(dag, $T.of($L), $T.of($L), new $T()::depends)",
       REFS_TYPE,
-      ClassName.get(List::class.java),
-      CodeBlock.join(declarations.map { CodeBlock.of($$"$S", it.id) }, ", "),
+      LIST_TYPE,
+      taskIds,
+      LIST_TYPE,
+      groupIds,
       ClassName.get(deps),
     )
     builderClass.addMethod(buildMethod.build())
 
-    declarations.forEach { builderClass.addType(buildTask(it, el)) }
+    declarations.forEach { builderClass.addType(buildTask(it)) }
     return builderClass.build()
   }
 
@@ -258,7 +281,7 @@ class BuilderProcessor : AbstractProcessor() {
    */
   private fun buildDeps(
     el: TypeElement,
-    declarations: List<TaskDeclaration>,
+    scope: Scope,
     builderName: ClassName,
     depsName: ClassName,
   ): TypeSpec {
@@ -271,31 +294,87 @@ class BuilderProcessor : AbstractProcessor() {
           "Wiring view of {@link \$T}'s task methods, for declaring its task graph.\n\n" +
             "<p>Calling one registers its task with the Dag being built; passing the handle it\n" +
             "returned into another call feeds the upstream's output into that task's parameter\n" +
-            "and wires the data edge. {@code before} and {@code after} wire an ordering-only edge.\n",
+            "and wires the data edge. {@code before} and {@code after} wire an ordering-only edge.\n" +
+            "<p>A task group is reached by calling it, and stands at either end of an edge:\n" +
+            "{@code staging().stage(rows)} and {@code extract().before(staging())}.\n",
           ClassName.get(el),
         )
-
-    for (decl in declarations) {
-      val method =
-        MethodSpec
-          .methodBuilder(decl.method.simpleName.toString())
-          .addModifiers(Modifier.PUBLIC, Modifier.DEFAULT)
-          .returns(ParameterizedTypeName.get(TASK_HANDLE_TYPE, TypeName.get(decl.method.returnType).boxIfPossible()))
-      decl.dataParams.forEach { method.addParameter(inType(it.type), it.name) }
-      val def = taskDefCode(decl, CodeBlock.of($$"$T.$L", builderName, decl.className))
-      if (decl.dataParams.isEmpty()) {
-        method.addStatement($$"return $T.node($L)", REFS_TYPE, def)
-      } else {
-        method.addStatement(
-          $$"return $T.call($L, $L)",
-          REFS_TYPE,
-          def,
-          decl.dataParams.joinToString { it.name },
-        )
-      }
-      view.addMethod(method.build())
-    }
+    addScope(view, scope, builderName, depsName)
     return view.build()
+  }
+
+  /** Adds one scope's task methods, and a nested interface plus accessor per group it holds. */
+  private fun addScope(
+    view: TypeSpec.Builder,
+    scope: Scope,
+    builderName: ClassName,
+    viewName: ClassName,
+    inGroup: Boolean = false,
+  ) {
+    scope.tasks.forEach { view.addMethod(viewMethod(it, builderName, inGroup)) }
+    for (group in scope.groups) {
+      val nested = viewName.nestedClass(group.element.simpleName.toString())
+      view.addMethod(
+        MethodSpec
+          .methodBuilder(group.accessor)
+          .addModifiers(Modifier.PUBLIC, Modifier.DEFAULT)
+          .returns(nested)
+          .addJavadoc("The task group {@code \$L}, and everything declared in it.\n", group.fullId)
+          .addStatement($$"return new $T() {}", nested)
+          .build(),
+      )
+      val groupView =
+        TypeSpec
+          .interfaceBuilder(nested)
+          .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+          .addSuperinterface(GROUP_TYPE)
+          .addJavadoc("Wiring view of the task group {@code \$L}.\n", group.fullId)
+          .addMethod(
+            MethodSpec
+              .methodBuilder("groupId")
+              .addAnnotation(Override::class.java)
+              .addModifiers(Modifier.PUBLIC, Modifier.DEFAULT)
+              .returns(String::class.java)
+              .addStatement($$"return $S", group.fullId)
+              .build(),
+          )
+      addScope(groupView, group.scope, builderName, nested, inGroup = true)
+      view.addType(groupView.build())
+    }
+  }
+
+  /** One task's method on the wiring view: injected arguments stripped, inputs lifted to [Arg]. */
+  private fun viewMethod(
+    decl: TaskDeclaration,
+    builderName: ClassName,
+    inGroup: Boolean,
+  ): MethodSpec {
+    val method =
+      MethodSpec
+        .methodBuilder(decl.method.simpleName.toString())
+        .addModifiers(Modifier.PUBLIC, Modifier.DEFAULT)
+        .returns(ParameterizedTypeName.get(TASK_HANDLE_TYPE, TypeName.get(decl.method.returnType).boxIfPossible()))
+    decl.dataParams.forEach { method.addParameter(inType(it.type), it.name) }
+    val def = taskDefCode(decl, CodeBlock.of($$"$T.$L", builderName, decl.className))
+    // The view knows the group it belongs to, so the recorder is told where
+    // the task goes instead of deriving it from the task's ID.
+    val group = if (inGroup) CodeBlock.of("groupId()") else CodeBlock.of($$"$S", "")
+    if (decl.dataParams.isEmpty()) {
+      method.addStatement($$"return $T.node($L, $L)", REFS_TYPE, group, def)
+    } else {
+      // The parameter names ride along so the serialized Dag can name each
+      // argument, as the binding spec ADR-0007 defines requires.
+      method.addStatement(
+        $$"return $T.call($L, $L, $T.of($L), $L)",
+        REFS_TYPE,
+        group,
+        def,
+        LIST_TYPE,
+        CodeBlock.join(decl.dataParams.map { CodeBlock.of($$"$S", it.name) }, ", "),
+        decl.dataParams.joinToString { it.name },
+      )
+    }
+    return method.build()
   }
 
   /**
@@ -326,22 +405,64 @@ class BuilderProcessor : AbstractProcessor() {
   private fun inType(paramType: TypeMirror): TypeName =
     ParameterizedTypeName.get(ARG_TYPE, WildcardTypeName.subtypeOf(TypeName.get(paramType).boxIfPossible()))
 
-  private fun collectTasks(el: TypeElement): List<TaskDeclaration> {
-    val declarations = mutableListOf<TaskDeclaration>()
+  /** The Dag's tasks and task groups, read from the class tree the author wrote. */
+  private fun collectScope(
+    el: TypeElement,
+    path: List<String>,
+    classPath: List<String>,
+  ): Scope {
+    val tasks = mutableListOf<TaskDeclaration>()
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
       val ann = inner.getAnnotation(Builder.Task::class.java) ?: continue
       if (inner.isVarArgs) throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
-      val id = ann.id.ifBlank { inner.simpleName.toString() }
-      require(declarations.none { it.id == id }) { "Tasks in Dag have duplicate ID: $id" }
-      require(declarations.none { it.method.simpleName.contentEquals(inner.simpleName) }) {
-        "Dag class ${el.simpleName} overloads task method '${inner.simpleName}'; a method's name is the " +
+      val localId = ann.id.ifBlank { inner.simpleName.toString() }
+      require(tasks.none { it.method.simpleName.contentEquals(inner.simpleName) }) {
+        "Class ${el.simpleName} overloads task method '${inner.simpleName}'; a method's name is the " +
           "name of its generated task class and of its wiring-view method, so rename one and keep its " +
-          "task id with @Builder.Task(id = \"$id\")"
+          "task id with @Builder.Task(id = \"$localId\")"
       }
-      declarations += TaskDeclaration(inner, id, collectDataParams(inner))
+      tasks +=
+        TaskDeclaration(inner, (path + localId).joinToString("."), collectDataParams(inner), el, classPath)
     }
-    return declarations
+
+    val groups = mutableListOf<GroupDeclaration>()
+    for (inner in el.enclosedElements.filterIsInstance<TypeElement>()) {
+      val ann = inner.getAnnotation(Builder.TaskGroup::class.java) ?: continue
+      val localId = checkGroupClass(inner, ann)
+      require(groups.none { it.id == localId }) {
+        "Class ${el.simpleName} declares more than one task group '$localId'"
+      }
+      val scope = collectScope(inner, path + localId, classPath + inner.simpleName.toString())
+      groups += GroupDeclaration(inner, localId, (path + localId).joinToString("."), scope)
+    }
+    return Scope(tasks, groups)
+  }
+
+  /** Checks that `new <group class>()` compiles and names a valid group, and returns its local ID. */
+  private fun checkGroupClass(
+    el: TypeElement,
+    ann: Builder.TaskGroup,
+  ): String {
+    val name = el.simpleName
+    require(el.kind == ElementKind.CLASS && Modifier.ABSTRACT !in el.modifiers) {
+      "@Builder.TaskGroup '$name' must be a concrete class"
+    }
+    require(Modifier.STATIC in el.modifiers && Modifier.PRIVATE !in el.modifiers) {
+      "@Builder.TaskGroup class '$name' must be static and non-private"
+    }
+    require(
+      el.enclosedElements
+        .filterIsInstance<ExecutableElement>()
+        .any { it.kind == ElementKind.CONSTRUCTOR && it.parameters.isEmpty() && Modifier.PRIVATE !in it.modifiers },
+    ) {
+      "@Builder.TaskGroup class '$name' needs a non-private no-argument constructor"
+    }
+    val id = ann.id.ifBlank { name.toString() }
+    require(GROUP_ID.matches(id)) {
+      "Task group ID '$id' must contain only ASCII letters, digits, underscores, or dashes"
+    }
+    return id
   }
 
   /**
@@ -403,15 +524,67 @@ class BuilderProcessor : AbstractProcessor() {
   }
 
   /**
-   * Rejects a task method whose wiring-view twin would clash with a member
-   * the view or the wiring class already has: `depends`, `lit`, or a method
-   * of `Object`.
+   * Rejects two tasks of the Dag sharing an ID, a task and a task group
+   * sharing one, and two task methods whose generated classes would collide.
    */
-  private fun checkViewName(decl: TaskDeclaration) {
-    val name = decl.method.simpleName.toString()
-    require(name !in RESERVED_VIEW_NAMES) {
-      "Task method '$name' clashes with a member of the wiring view; rename the method and keep " +
-        "the task id with @Builder.Task(id = \"${decl.id}\")"
+  private fun checkIds(scope: Scope) {
+    val declarations = scope.allTasks()
+    val taskIds = mutableSetOf<String>()
+    declarations.forEach { decl ->
+      require(taskIds.add(decl.id)) { "Tasks in Dag have duplicate ID: ${decl.id}" }
+    }
+    scope.allGroups().forEach { group ->
+      require(group.fullId !in taskIds) {
+        "Dag has both a task and a task group with ID '${group.fullId}'; rename one"
+      }
+    }
+    val byClassName = mutableMapOf<String, TaskDeclaration>()
+    declarations.forEach { decl ->
+      byClassName.put(decl.className, decl)?.let { first ->
+        throw IllegalArgumentException(
+          "Task methods '${first.id}' and '${decl.id}' both generate the task class " +
+            "'${decl.className}'; rename one of them or an enclosing @Builder.TaskGroup class",
+        )
+      }
+    }
+  }
+
+  /**
+   * Rejects a task method or task group whose wiring-view twin would clash
+   * with a member the view already has: `depends`, `lit`, a method of
+   * `Object`, or, inside a group, one of `Deps.TaskGroup`'s own. Names scope to their
+   * own group, so only one scope is compared.
+   */
+  private fun checkViewNames(
+    scope: Scope,
+    inGroup: Boolean = false,
+  ) {
+    val reserved = if (inGroup) RESERVED_VIEW_NAMES + RESERVED_GROUP_VIEW_NAMES else RESERVED_VIEW_NAMES
+    scope.tasks.forEach { decl ->
+      val name = decl.method.simpleName.toString()
+      require(name !in reserved) {
+        "Task method '$name' clashes with a member of the wiring view; rename the method and keep " +
+          "the task id with @Builder.Task(id = \"${decl.id.substringAfterLast('.')}\")"
+      }
+    }
+    val accessors = mutableMapOf<String, GroupDeclaration>()
+    scope.groups.forEach { group ->
+      require(group.accessor !in reserved) {
+        "Task group class '${group.element.simpleName}' clashes with a member of the wiring view; " +
+          "rename the class and keep the group id with @Builder.TaskGroup(id = \"${group.id}\")"
+      }
+      require(scope.tasks.none { it.method.simpleName.contentEquals(group.accessor) }) {
+        "Task group class '${group.element.simpleName}' and task method '${group.accessor}' would both " +
+          "be '${group.accessor}()' on the wiring view; rename one"
+      }
+      accessors[group.accessor]?.let { first ->
+        throw IllegalArgumentException(
+          "Task group classes '${first.element.simpleName}' and '${group.element.simpleName}' would both " +
+            "be '${group.accessor}()' on the wiring view; rename one",
+        )
+      }
+      accessors[group.accessor] = group
+      checkViewNames(group.scope, inGroup = true)
     }
   }
 
@@ -502,10 +675,7 @@ class BuilderProcessor : AbstractProcessor() {
     }
   }
 
-  private fun buildTask(
-    decl: TaskDeclaration,
-    parent: TypeElement,
-  ): TypeSpec {
+  private fun buildTask(decl: TaskDeclaration): TypeSpec {
     val executeSpec =
       MethodSpec
         .methodBuilder("execute")
@@ -564,7 +734,7 @@ class BuilderProcessor : AbstractProcessor() {
     }.also {
       executeSpec.addStatement(
         it,
-        ClassName.get(parent),
+        ClassName.get(decl.owner),
         inner.simpleName,
         innerArgs,
       )
@@ -682,13 +852,43 @@ class BuilderProcessor : AbstractProcessor() {
   }
 }
 
-/** One [Builder.Task]-annotated method with its resolved id and data parameters. */
+/** The tasks and task groups one class declares. */
+private class Scope(
+  val tasks: List<TaskDeclaration>,
+  val groups: List<GroupDeclaration>,
+) {
+  /** Every task of this scope and the groups beneath it, outermost first. */
+  fun allTasks(): List<TaskDeclaration> = tasks + groups.flatMap { it.scope.allTasks() }
+
+  /** Every group beneath this scope, parents before the groups nested in them. */
+  fun allGroups(): List<GroupDeclaration> = groups.flatMap { listOf(it) + it.scope.allGroups() }
+}
+
+/** One `@Builder.TaskGroup` class, and what it declares. */
+private class GroupDeclaration(
+  val element: TypeElement,
+  val id: String,
+  val fullId: String,
+  val scope: Scope,
+) {
+  /** The view method that reaches this group, named after the class it is declared as. */
+  val accessor: String = element.simpleName.toString().replaceFirstChar(Char::lowercase)
+}
+
+/**
+ * One [Builder.Task]-annotated method with its resolved id and data parameters.
+ * [owner] is the class that declares it, which the generated body instantiates,
+ * and [classPath] the task-group classes enclosing it.
+ */
 private class TaskDeclaration(
   val method: ExecutableElement,
   val id: String,
   val dataParams: List<DataParam>,
+  val owner: TypeElement,
+  val classPath: List<String> = emptyList(),
 ) {
-  val className: String = method.simpleName.toString().replaceFirstChar(Char::uppercase)
+  val className: String =
+    (classPath + method.simpleName.toString().replaceFirstChar(Char::uppercase)).joinToString("_")
 }
 
 /**
@@ -717,6 +917,8 @@ private val REFS_TYPE = ClassName.get(Refs::class.java)
 private val ARG_TYPE = ClassName.get(Arg::class.java)
 private val TASK_HANDLE_TYPE = ClassName.get(TaskRef::class.java)
 private val DEPS_TYPE = ClassName.get(Deps::class.java)
+private val GROUP_TYPE = DEPS_TYPE.nestedClass("TaskGroup")
+private val LIST_TYPE = ClassName.get(List::class.java)
 
 private const val DAG_ANNOTATION = "org.apache.airflow.sdk.Builder.Dag"
 private const val TASK_ANNOTATION = "org.apache.airflow.sdk.Builder.Task"
@@ -735,6 +937,18 @@ private val RESERVED_VIEW_NAMES =
     "toString",
     "wait",
   )
+
+/**
+ * What a group's view inherits from `Deps.TaskGroup`, on top of
+ * [RESERVED_VIEW_NAMES]. Read from the interface so it cannot drift when a
+ * member is added there.
+ */
+private val RESERVED_GROUP_VIEW_NAMES: Set<String> =
+  Deps.TaskGroup::class.java
+    .methods
+    .filterNot { ReflectModifier.isStatic(it.modifiers) }
+    .map { it.name }
+    .toSet()
 
 private val DAG_STRUCTURAL_ATTRIBUTES = setOf("id", "to")
 private val TASK_STRUCTURAL_ATTRIBUTES = setOf("id")
