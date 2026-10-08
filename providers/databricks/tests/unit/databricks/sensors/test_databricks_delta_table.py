@@ -220,9 +220,22 @@ class TestDatabricksDeltaTableVersionSensor:
         )
         outlet_asset = sensor.outlets[0]
         outlet_event_mock = MagicMock()
+
+        class _FakeOutletEvents:
+            """Minimal accessor double supporting unhashable Asset keys across Airflow versions."""
+
+            def __init__(self, pairs):
+                self._pairs = list(pairs)
+
+            def __getitem__(self, key):
+                for k, v in self._pairs:
+                    if k is key or k == key:
+                        return v
+                raise KeyError(key)
+
         context = {
             "ti": MagicMock(),
-            "outlet_events": {outlet_asset: outlet_event_mock},
+            "outlet_events": _FakeOutletEvents([(outlet_asset, outlet_event_mock)]),
         }
 
         assert sensor.poke(context) is True
@@ -239,6 +252,50 @@ class TestDatabricksDeltaTableVersionSensor:
             "operation": "WRITE",
             "timestamp": "2026-10-05 12:00:00",
         }
+
+    @patch("airflow.providers.databricks.sensors.databricks_delta_table.DatabricksSqlHook")
+    def test_templated_baseline_not_copied_in_init_and_initialized_on_poke(self, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.host = UNITY_TABLE.host
+        mock_hook.run.return_value = _make_history_row(version=10)
+
+        sensor = DatabricksDeltaTableVersionSensor(
+            task_id=TASK_ID,
+            table_name=TABLE_NAME,
+            baseline_version="{{ params.baseline }}",
+            sql_warehouse_name="test_wh",
+        )
+        assert sensor.baseline_version == "{{ params.baseline }}"
+        assert sensor._baseline_version is None
+        assert sensor._baseline_initialized is False
+
+        # Rendered by Airflow engine prior to poke/execute
+        sensor.baseline_version = 8
+
+        context = {"ti": MagicMock()}
+        assert sensor.poke(context) is True
+        assert sensor._baseline_version == 8
+        assert sensor._baseline_initialized is True
+
+    @patch("airflow.providers.databricks.sensors.databricks_delta_table.DatabricksSqlHook")
+    def test_user_baseline_retained_across_pokes(self, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.host = UNITY_TABLE.host
+        mock_hook.run.return_value = _make_history_row(version=5)
+
+        sensor = DatabricksDeltaTableVersionSensor(
+            task_id=TASK_ID,
+            table_name=TABLE_NAME,
+            baseline_version=5,
+            sql_warehouse_name="test_wh",
+        )
+        context = {"ti": MagicMock()}
+        assert sensor.poke(context) is False
+        assert sensor._baseline_version == 5
+
+        mock_hook.run.return_value = _make_history_row(version=6)
+        assert sensor.poke(context) is True
+        assert sensor._baseline_version == 5
 
     @patch("airflow.providers.databricks.sensors.databricks_delta_table.DatabricksSqlHook")
     def test_poke_initial_enrollment_captures_baseline(self, mock_hook_cls):
@@ -305,6 +362,20 @@ class TestDatabricksDeltaTableVersionSensor:
 
         mock_hook.run.return_value = _make_history_row(version=10)
         assert sensor.poke({"ti": MagicMock()}) is True
+
+    @patch("airflow.providers.databricks.sensors.databricks_delta_table.DatabricksSqlHook")
+    def test_poke_transient_error_reraised(self, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.side_effect = ConnectionResetError("Connection reset by peer")
+
+        sensor = DatabricksDeltaTableVersionSensor(
+            task_id=TASK_ID,
+            table_name=TABLE_NAME,
+            baseline_version=1,
+            sql_warehouse_name="test_wh",
+        )
+        with pytest.raises(ConnectionResetError, match="Connection reset by peer"):
+            sensor.poke({"ti": MagicMock()})
 
     @patch("airflow.providers.databricks.sensors.databricks_delta_table.DatabricksSqlHook")
     def test_poke_non_delta_or_inaccessible_table_raises(self, mock_hook_cls):

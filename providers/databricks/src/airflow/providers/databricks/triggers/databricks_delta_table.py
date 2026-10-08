@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Sequence
 from typing import Any
 
 from asgiref.sync import sync_to_async
@@ -129,10 +130,15 @@ class DatabricksDeltaTableVersionTrigger(BaseTrigger):
         hook = self._get_hook()
         sql = f"DESCRIBE HISTORY {self.table_name} LIMIT 1"
         result = hook.run(sql, handler=fetch_all_handler)
-        if not result:
+        if not isinstance(result, Sequence) or not result:
             return None, None, None
         row = result[0]
-        version = int(row[0])
+        if not isinstance(row, Sequence) or not row:
+            return None, None, None
+        version_raw = row[0]
+        if not isinstance(version_raw, (int, str)):
+            return None, None, None
+        version = int(version_raw)
         timestamp = str(row[1]) if len(row) > 1 and row[1] is not None else None
         operation = str(row[4]) if len(row) > 4 and row[4] is not None else None
         return version, timestamp, operation
