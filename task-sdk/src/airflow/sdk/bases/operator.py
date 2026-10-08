@@ -748,6 +748,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
     :param start_date: The ``start_date`` for the task. The best practice
         is to have the ``start_date`` aligned with your Dag's ``schedule``.
+        Daily jobs have their start_date some day at 00:00:00, hourly jobs
+        have their start_date at 00:00 of a specific hour.
         It is also very important to note that different tasks' dependencies
         need to line up in time. If task A depends on task B and their
         start_date are offset in a way that their logical_date don't line
