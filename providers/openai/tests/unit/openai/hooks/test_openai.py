@@ -1060,9 +1060,10 @@ async def test_aget_conn_api_key(password, extra, expected_kwargs):
         patch.object(OpenAIHook, "get_connection", side_effect=AssertionError("sync get_connection")),
         patch("airflow.providers.openai.hooks.openai.AsyncOpenAI") as mock_client,
     ):
-        client = await OpenAIHook(conn_id="openai_async").aget_conn()
+        hook = OpenAIHook(conn_id="openai_async")
+        client = await hook.aget_conn()
 
-    mock_get_async_connection.assert_awaited_once_with("openai_async")
+    mock_get_async_connection.assert_awaited_once_with("openai_async", hook=hook)
     conn.aextra_dejson.assert_awaited_once_with()
     mock_client.assert_called_once_with(**expected_kwargs)
     assert client is mock_client.return_value
@@ -1102,6 +1103,25 @@ async def test_aget_conn_workload_identity(mock_client):
     conn.aextra_dejson.assert_awaited_once_with()
     build.assert_called_once_with(extra)
     mock_client.assert_called_once_with(workload_identity={"provider": "custom"}, base_url="https://host/v1")
+
+
+@pytest.mark.asyncio
+@patch("airflow.providers.openai.hooks.openai.AsyncOpenAI")
+async def test_aget_conn_resolves_the_connection_through_the_hook(mock_client):
+    """A subclass overriding ``aget_connection`` supplies the connection, as ``get_connection`` does for ``get_conn``."""
+    conn = _async_conn({}, password="api_key_from_subclass")
+
+    class SubclassedOpenAIHook(OpenAIHook):
+        @classmethod
+        async def aget_connection(cls, conn_id: str):
+            assert conn_id == "openai_async"
+            return conn
+
+    with patch.object(OpenAIHook, "get_connection", side_effect=AssertionError("sync get_connection")):
+        await SubclassedOpenAIHook(conn_id="openai_async").aget_conn()
+
+    conn.aextra_dejson.assert_awaited_once_with()
+    mock_client.assert_called_once_with(api_key="api_key_from_subclass", base_url=None)
 
 
 @pytest.mark.asyncio

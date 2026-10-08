@@ -217,7 +217,7 @@ class OpenAIHook(BaseHook):
         secret masking of ``extra_dejson`` send to the supervisor synchronously, which raises
         ``DeadlockImminentError`` on an event loop with another async call in flight.
         """
-        conn = await get_async_connection(self.conn_id)
+        conn = await get_async_connection(self.conn_id, hook=self)
         return AsyncOpenAI(**self._client_kwargs(conn, await get_async_extra_dejson(conn)))
 
     async def _aget_cached_conn(self) -> AsyncOpenAI:
