@@ -381,6 +381,14 @@ class TestDagFileProcessorManager:
     def clear_parse_import_errors(self):
         clear_db_import_errors()
 
+    def test_client_uses_dag_processor_retry_configuration(self, mocker):
+        client_class = mocker.patch("airflow.sdk.api.client.Client", autospec=True)
+        manager = DagFileProcessorManager(max_runs=1)
+
+        manager.client
+
+        assert client_class.call_args.kwargs["retry_config_section"] == "dag_processor"
+
     @pytest.mark.usefixtures("clear_parse_import_errors")
     @conf_vars({("core", "load_examples"): "False"})
     def test_remove_file_clears_import_error(self, tmp_path, configure_testing_dag_bundle):

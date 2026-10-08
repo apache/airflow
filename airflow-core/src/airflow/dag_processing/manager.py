@@ -1479,7 +1479,13 @@ class DagFileProcessorManager(LoggingMixin):
     def client(self) -> Client:
         from airflow.sdk.api.client import Client
 
-        client = Client(base_url=None, token="", dry_run=True, transport=self._api_server.transport)
+        client = Client(
+            base_url=None,
+            token="",
+            dry_run=True,
+            transport=self._api_server.transport,
+            retry_config_section="dag_processor",
+        )
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
         return client

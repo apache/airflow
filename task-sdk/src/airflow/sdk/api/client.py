@@ -35,8 +35,8 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel, JsonValue
 from tenacity import (
+    Retrying,
     before_log,
-    retry,
     retry_if_exception,
     stop_after_attempt,
     wait_random_exponential,
@@ -1175,10 +1175,6 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, json={"text": "Hello, world!"})
 
 
-# Note: Given defaults make attempts after 1, 3, 7, 15 and fails after 31seconds
-API_RETRIES = conf.getint("workers", "execution_api_retries")
-API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
-API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
 API_SSL_CA_FILE_PATH = conf.get("api", "ssl_ca_file", fallback=None)
 API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
@@ -1215,10 +1211,41 @@ class Client(httpx.Client):
             ctx.load_verify_locations(ca_path)
         return ctx
 
-    def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
+    def __init__(
+        self,
+        *,
+        base_url: str | None,
+        dry_run: bool = False,
+        token: str,
+        retry_config_section: str = "workers",
+        **kwargs: Any,
+    ):
         if (not base_url) ^ dry_run:
             raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
         auth = BearerAuth(token)
+
+        retries = conf.getint("workers", "execution_api_retries")
+        retry_wait_min = conf.getfloat("workers", "execution_api_retry_wait_min")
+        retry_wait_max = conf.getfloat("workers", "execution_api_retry_wait_max")
+        if retry_config_section != "workers":
+            retries = conf.getint(retry_config_section, "execution_api_retries", fallback=retries)
+            retry_wait_min = conf.getfloat(
+                retry_config_section,
+                "execution_api_retry_wait_min",
+                fallback=retry_wait_min,
+            )
+            retry_wait_max = conf.getfloat(
+                retry_config_section,
+                "execution_api_retry_wait_max",
+                fallback=retry_wait_max,
+            )
+        self._request_with_retry = Retrying(
+            retry=retry_if_exception(_should_retry_api_request),
+            stop=stop_after_attempt(retries),
+            wait=wait_random_exponential(min=retry_wait_min, max=retry_wait_max),
+            before_sleep=_log_and_trace_retry,
+            reraise=True,
+        ).wraps(self._request_without_retry)
 
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
@@ -1276,16 +1303,6 @@ class Client(httpx.Client):
             kwargs["headers"] = {"content-type": "application/json"}
 
         return super().request(*args, **kwargs)
-
-    @retry(
-        retry=retry_if_exception(_should_retry_api_request),
-        stop=stop_after_attempt(API_RETRIES),
-        wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
-        before_sleep=_log_and_trace_retry,
-        reraise=True,
-    )
-    def _request_with_retry(self, *args, **kwargs):
-        return self._request_without_retry(*args, **kwargs)
 
     # We "group" or "namespace" operations by what they operate on, rather than a flat namespace with all
     # methods on one object prefixed with the object type (`.task_instances.update` rather than

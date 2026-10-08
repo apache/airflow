@@ -3048,6 +3048,30 @@ connection_test:
 triggerer:
   description: ~
   options:
+    execution_api_retries:
+      description: |
+        The maximum number of retry attempts to the execution API server.
+        If not set, ``[workers] execution_api_retries`` is used.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: ~
+    execution_api_retry_wait_min:
+      description: |
+        The minimum amount of time (in seconds) to wait before retrying a failed API request.
+        If not set, ``[workers] execution_api_retry_wait_min`` is used.
+      version_added: 3.4.0
+      type: float
+      example: ~
+      default: ~
+    execution_api_retry_wait_max:
+      description: |
+        The maximum amount of time (in seconds) to wait before retrying a failed API request.
+        If not set, ``[workers] execution_api_retry_wait_max`` is used.
+      version_added: 3.4.0
+      type: float
+      example: ~
+      default: ~
     capacity:
       description: |
         How many triggers a single Triggerer will run at once, by default.
@@ -3233,6 +3257,30 @@ dag_processor:
          - how often to refresh DAGs from those sources
          - how many files to parse concurrently
   options:
+    execution_api_retries:
+      description: |
+        The maximum number of retry attempts to the execution API server.
+        If not set, ``[workers] execution_api_retries`` is used.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: ~
+    execution_api_retry_wait_min:
+      description: |
+        The minimum amount of time (in seconds) to wait before retrying a failed API request.
+        If not set, ``[workers] execution_api_retry_wait_min`` is used.
+      version_added: 3.4.0
+      type: float
+      example: ~
+      default: ~
+    execution_api_retry_wait_max:
+      description: |
+        The maximum amount of time (in seconds) to wait before retrying a failed API request.
+        If not set, ``[workers] execution_api_retry_wait_max`` is used.
+      version_added: 3.4.0
+      type: float
+      example: ~
+      default: ~
     dag_bundle_storage_path:
       description: |
         String path to folder where Airflow bundles can store files locally. Not templated.
