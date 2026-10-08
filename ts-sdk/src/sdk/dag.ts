@@ -22,6 +22,7 @@
 // Dag and supplies its arguments, the way calling a TaskFlow function does in
 // Python.
 
+import type { CoordinatorClient } from "../coordinator/client.js";
 import {
   DAG_SCHEMA_FIELDS,
   TASK_SCHEMA_FIELDS,
@@ -31,9 +32,11 @@ import {
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import type { JsonValue } from "./client-types.js";
 import { getCurrentModuleSource } from "./module-source.js";
-import type { TaskFunction } from "./task.js";
+import { isTriggerDagRunTask, type TriggerDagRunTask } from "./trigger-dag-run.js";
+import { getClient, type TaskFunction } from "./task.js";
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
+/** Internal: whether `value` is an object literal, not an array or a class instance. */
+export function isPlainRecord(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
@@ -84,7 +87,7 @@ function kindOf(value: object): string {
   return prototype?.constructor?.name ?? "value";
 }
 
-const DAG_SPEC_KEYS: ReadonlySet<string> = new Set(Object.keys(DAG_SCHEMA_FIELDS));
+const DAG_SPEC_KEYS: ReadonlySet<string> = new Set([...Object.keys(DAG_SCHEMA_FIELDS), "queue"]);
 // `taskId` is hand-written rather than generated: the schema's task_id is
 // serializer-owned, and this is the authoring surface's own way to set it.
 const TASK_SPEC_KEYS: ReadonlySet<string> = new Set([...Object.keys(TASK_SCHEMA_FIELDS), "taskId"]);
@@ -97,10 +100,20 @@ const TASK_SPEC_KEYS: ReadonlySet<string> = new Set([...Object.keys(TASK_SCHEMA_
  * break a call site. An unknown key is rejected, so a misspelled field is an
  * error rather than a Dag that quietly ignores it.
  *
- * Setting a field records it. A Dag declared in TypeScript is not served to
- * Airflow yet, so nothing reads it.
+ * `queue` is the one hand-written field: Airflow's schema has no Dag-level
+ * queue, but every task of a native Dag runs on the same coordinator, so the
+ * queue that routes them there belongs on the Dag rather than on each task.
  */
-export type DagSpec = GeneratedDagFields;
+export interface DagSpec extends GeneratedDagFields {
+  /**
+   * Queue the Dag's tasks run on, unless a task names its own.
+   *
+   * A native Dag's tasks are executed by the Node coordinator, which the
+   * deployment's `queue_to_coordinator` maps a queue to, so this is what
+   * routes them there. `queue` on a {@link TaskSpec} wins for that task.
+   */
+  readonly queue?: string;
+}
 
 /**
  * Task-level options: the retries, the pool, the trigger rule, and the rest of
@@ -136,7 +149,26 @@ declare const RETURN_TYPE: unique symbol;
  * object is not one: an input also takes a plain JSON value, and without the
  * brand such an object could not be told apart from an upstream reference.
  */
-export interface TaskRef<TReturn = unknown> {
+/**
+ * What an order-only edge can connect: a task, or a whole task group.
+ *
+ * The TypeScript counterpart of Python's `DAGNode` and the Go SDK's
+ * `airflow.Node`. A group carries edges as a task does, so `before` and
+ * `after` take either.
+ */
+export interface Node {
+  /** Identifier of the Dag this node belongs to. */
+  readonly dagId: string;
+  /**
+   * Run this node before each of `downstream`, carrying no value — the
+   * TypeScript spelling of Python's `>>`.
+   */
+  before(...downstream: readonly Node[]): Node;
+  /** Run this node after each of `upstream`, carrying no value — Python's `<<`. */
+  after(...upstream: readonly Node[]): Node;
+}
+
+export interface TaskRef<TReturn = unknown> extends Node {
   /** Identifier of the Dag this task belongs to. */
   readonly dagId: string;
   /** Airflow task ID, including any TaskGroup prefix. */
@@ -155,7 +187,7 @@ export interface TaskRef<TReturn = unknown> {
    * than its arguments: a fan-out has no single "next" reference to hand back.
    * Declaring an edge that already exists changes nothing.
    */
-  before(...downstream: readonly TaskRef[]): TaskRef<TReturn>;
+  before(...downstream: readonly Node[]): TaskRef<TReturn>;
   /**
    * Run this task after each of `upstream`, carrying no value — Python's `<<`.
    *
@@ -168,11 +200,62 @@ export interface TaskRef<TReturn = unknown> {
    * direction has an answer: named keys when values flow, `after` when only
    * order does.
    */
-  after(...upstream: readonly TaskRef[]): TaskRef<TReturn>;
+  after(...upstream: readonly Node[]): TaskRef<TReturn>;
 }
 
 /**
- * An order-only edge of a Dag: upstream task ID, then downstream task ID.
+ * A scope that declares tasks under a shared id prefix, and carries edges as a
+ * whole — Python's `TaskGroup`, spelled to TypeScript convention.
+ *
+ * Offers the same `task` and `taskGroup` methods as the Dag, so nesting is the
+ * same call at every depth. Each id it declares is prefixed with the group id
+ * unless {@link TaskGroupOptions.prefixGroupId} turns that off, and the group
+ * itself stands at either end of an edge, so a whole group can be ordered
+ * against a task or against another group.
+ */
+export interface TaskGroupRef extends Node {
+  /** Identifier of the Dag this group belongs to. */
+  readonly dagId: string;
+  /** Group ID, including any enclosing group's prefix. */
+  readonly groupId: string;
+  /** Declare a task in this group; its id carries the group prefix unless it is turned off. */
+  task<TArgs extends object | void = void, TReturn = unknown>(
+    taskId: string,
+    handler: (args: TArgs) => TReturn | Promise<TReturn>,
+    options?: TaskOptions,
+  ): TaskFactory<TArgs, TReturn>;
+  /** Declare a task whose id is the handler's function name, prefixed the same way. */
+  task<TArgs extends object | void = void, TReturn = unknown>(
+    handler: (args: TArgs) => TReturn | Promise<TReturn>,
+    options?: TaskOptions,
+  ): TaskFactory<TArgs, TReturn>;
+  /** Declare a `triggerDagRun(...)` task in this group, prefixed the same way. */
+  task(taskId: string, trigger: TriggerDagRunTask, options?: TaskOptions): () => TaskRef<void>;
+  task(trigger: TriggerDagRunTask, options: TaskOptions): () => TaskRef<void>;
+  /** Nest a group inside this one. */
+  taskGroup(groupId: string, options?: TaskGroupOptions): TaskGroupRef;
+  before(...downstream: readonly Node[]): TaskGroupRef;
+  after(...upstream: readonly Node[]): TaskGroupRef;
+}
+
+/** Options of a task group, the trailing argument of `taskGroup()`. */
+export interface TaskGroupOptions {
+  /**
+   * Whether the ids declared in the group are prefixed with the group's, as
+   * in `staging.load`. On by default, as in Python; turning it off keeps them
+   * as written, as `prefix_group_id=False` does, so they have to be unique
+   * across the Dag.
+   */
+  readonly prefixGroupId?: boolean;
+}
+
+/**
+ * An order-only edge of a Dag, between two node IDs.
+ *
+ * An endpoint is a task ID or a group ID; the two share one namespace, so a
+ * bare ID names exactly one node. {@link TaskGroupRecord} is what tells a
+ * consumer which kind an endpoint is, and which tasks a group endpoint stands
+ * for.
  *
  * Kept apart from the wiring a factory call records, because an edge that
  * carries no value has no argument name to be recorded under.
@@ -185,9 +268,50 @@ export interface OrderEdge {
 // A task id cannot hold a NUL, so a joined pair cannot collide with one.
 const EDGE_KEY_SEPARATOR = "\u0000";
 
-/** Whether `value` is a TaskRef returned by any copy of this package. */
-function isTaskRef(value: unknown): value is TaskRef {
+/** Internal: one group of a Dag, and the tree beneath it. */
+export interface TaskGroupRecord {
+  /** Group ID, including any enclosing group's prefix. */
+  readonly groupId: string;
+  /** Enclosing group's ID, absent for a group declared on the Dag itself. */
+  readonly parentGroupId?: string;
+  /** Whether the IDs declared in this group carry its ID as a prefix. */
+  readonly prefixGroupId: boolean;
+  /** Task IDs declared directly in this group, in declaration order. */
+  readonly taskIds: readonly string[];
+  /** Group IDs nested directly in this group, in declaration order. */
+  readonly childGroupIds: readonly string[];
+}
+
+/** Separates a group ID from what it contains, as Python's `prefix_group_id` does. */
+const GROUP_SEPARATOR = ".";
+
+/** The Dag's own view of a group, which it appends to as an author declares. */
+interface MutableTaskGroupRecord extends TaskGroupRecord {
+  readonly taskIds: string[];
+  readonly childGroupIds: string[];
+}
+
+/** Whether `value` is a task group returned by any copy of this package. */
+function isTaskGroupRef(value: unknown): value is TaskGroupRef {
+  return hasBrand(value, "TaskGroupRef");
+}
+
+/** The ID an edge endpoint is recorded under: a task ID or a group ID. */
+function nodeId(node: Node): string | undefined {
+  if (isTaskRef(node)) return node.taskId;
+  if (isTaskGroupRef(node)) return node.groupId;
+  return undefined;
+}
+
+/** Internal: whether `value` is a TaskRef returned by any copy of this package. */
+export function isTaskRef(value: unknown): value is TaskRef {
   return hasBrand(value, "TaskRef");
+}
+
+const conditionTasks = new WeakMap<object, TaskRef>();
+
+function resolveNode(node: Node): Node {
+  return (typeof node === "object" && node !== null && conditionTasks.get(node)) || node;
 }
 
 /**
@@ -288,12 +412,65 @@ export type TaskFactory<TArgs extends object | void = void, TReturn = unknown> =
  */
 export type TaskOptions = TaskSpec;
 
-/** Per-task record a Dag retains: the reference, the handler, and its spec. */
-export interface TaskRecord {
-  readonly task: TaskRef;
-  readonly fn: TaskFunction;
-  readonly spec: TaskSpec;
+/**
+ * A placed condition: name the task each outcome runs. `else` is optional.
+ *
+ * ```ts
+ * dag.if(hasRows, { rows: validated }).then(loadIfReady).else(loadFallback);
+ * ```
+ */
+export interface Condition extends Node {
+  /** Airflow task ID of the deciding task. */
+  readonly taskId: string;
+  then(taskRef: TaskRef | Condition | Branch): ConditionElse;
+  before(...downstream: readonly Node[]): Condition;
+  after(...upstream: readonly Node[]): Condition;
 }
+
+/** What `.then(...)` returns: the other side, which a one-sided condition omits. */
+export interface ConditionElse {
+  else(taskRef: TaskRef | Condition | Branch): void;
+}
+
+/** The arguments after a decider's handler: its inputs, then its {@link TaskSpec}. */
+export type DeciderArgs<TArgs extends object | void> = [TArgs] extends [void]
+  ? [inputs?: undefined, spec?: TaskOptions]
+  : [inputs: TaskInputs<TArgs>, spec?: TaskOptions];
+
+/**
+ * A placed multi-way branch: name each task the decider chooses between.
+ *
+ * ```ts
+ * dag.switch(pickPath, { rows: extracted }).case(handleLong).case(handleShort);
+ * ```
+ */
+export interface Branch extends Node {
+  /** Airflow task ID of the deciding task. */
+  readonly taskId: string;
+  case(taskRef: TaskRef): Branch;
+  before(...downstream: readonly Node[]): Branch;
+  after(...upstream: readonly Node[]): Branch;
+}
+
+/** Per-task record a Dag retains: the reference, what runs it, and its spec. */
+export type TaskRecord = {
+  readonly task: TaskRef;
+  readonly spec: TaskSpec;
+  /** Whether this task decides which of its downstream tasks to skip. */
+  readonly canSkipDownstream?: boolean;
+} & (
+  | { readonly fn: TaskFunction; readonly trigger?: never }
+  | { readonly fn?: never; readonly trigger: TriggerDagRunTask }
+);
+
+interface ConditionRecord {
+  whenTrue?: TaskRef;
+  whenFalse?: TaskRef;
+}
+
+// Mirrors `SkipMixin.skip` in `task-sdk/src/airflow/sdk/bases/skipmixin.py`.
+const SKIPMIXIN_XCOM_KEY = "skipmixin_key";
+const SKIPMIXIN_SKIPPED = "skipped";
 
 /**
  * Internal: what one call to a task factory recorded, by argument name.
@@ -317,6 +494,7 @@ let taskRecordsOf: (dag: Dag) => ReadonlyMap<string, TaskRecord>;
 let inputsOf: (dag: Dag) => ReadonlyMap<string, RecordedInputs>;
 let orderEdgesOf: (dag: Dag) => readonly OrderEdge[];
 let definedInOf: (dag: Dag) => string | undefined;
+let groupsOf: (dag: Dag) => ReadonlyMap<string, TaskGroupRecord>;
 let finalizeOf: (dag: Dag) => void;
 
 /** Internal: whether `value` is a Dag built by any copy of this package. */
@@ -354,6 +532,14 @@ export class Dag {
   // insertion-ordered so the serialized Dag reads as written.
   readonly #orderEdges = new Map<string, OrderEdge>();
   readonly #definedIn: string | undefined;
+  readonly #conditions = new Map<string, ConditionRecord>();
+  readonly #branches = new Map<string, readonly TaskRef[]>();
+  // Keyed by full group ID; a group's own record holds what it declares, so
+  // the tree is reconstructed by walking from the roots.
+  readonly #groups = new Map<string, MutableTaskGroupRecord>();
+  // The one reference each group was handed out as, so an edge endpoint can be
+  // checked by identity the way a task's is.
+  readonly #groupRefs = new Map<string, TaskGroupRef>();
   #finalized = false;
 
   static {
@@ -361,6 +547,7 @@ export class Dag {
     inputsOf = (dag) => dag.#inputs;
     orderEdgesOf = (dag) => [...dag.#orderEdges.values()];
     definedInOf = (dag) => dag.#definedIn;
+    groupsOf = (dag) => dag.#groups;
     finalizeOf = (dag) => dag.#finalize();
   }
 
@@ -411,15 +598,225 @@ export class Dag {
     handler: (args: TArgs) => TReturn | Promise<TReturn>,
     options?: TaskOptions,
   ): TaskFactory<TArgs, TReturn>;
+  /**
+   * Declare a task that triggers another Dag's run, from `triggerDagRun(spec)`.
+   * It has no handler to take an id from, so the id is required.
+   */
+  task(taskId: string, trigger: TriggerDagRunTask, options?: TaskOptions): () => TaskRef<void>;
+  task(trigger: TriggerDagRunTask, options: TaskOptions): () => TaskRef<void>;
   task<TArgs extends object | void = void, TReturn = unknown>(
-    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>),
-    handlerOrOptions?: ((args: TArgs) => TReturn | Promise<TReturn>) | TaskOptions,
+    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask,
+    handlerOrOptions?:
+      ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask | TaskOptions,
+    maybeOptions?: TaskOptions,
+  ): TaskFactory<TArgs, TReturn> {
+    return this.#addTask(undefined, taskIdOrHandler, handlerOrOptions, maybeOptions);
+  }
+
+  /**
+   * Declare a task whose boolean picks a branch; the side not taken is skipped.
+   *
+   * ```ts
+   * dag.if(hasRows, { rows: validated }).then(loadIfReady).else(loadFallback);
+   * dag.if(hasRows, { rows: validated }, { taskId: "has_rows", retries: 2 }).then(loadIfReady);
+   * ```
+   */
+  if<TArgs extends object | void = void>(
+    handler: (args: TArgs) => boolean | Promise<boolean>,
+    ...args: DeciderArgs<NoInfer<TArgs>>
+  ): Condition {
+    return this.#placeCondition(this.#placeDecider(handler, args) as TaskRef<boolean>);
+  }
+
+  #placeDecider(handler: (args: never) => unknown, args: readonly unknown[]): TaskRef {
+    const [inputs, spec] = args as [unknown, TaskOptions | undefined];
+    const factory = this.#addTask(undefined, handler, spec) as (...inputs: unknown[]) => TaskRef;
+    return inputs === undefined ? factory() : factory(inputs);
+  }
+
+  #placeCondition(condition: TaskRef<boolean>): Condition {
+    const taskId = condition.taskId;
+    const branches: ConditionRecord = {};
+    this.#conditions.set(taskId, branches);
+    this.#wrapDecider(taskId, async (held: unknown) => {
+      if (typeof held !== "boolean") {
+        throw new Error(
+          `Condition "${taskId}" of Dag "${this.dagId}" returned ${describeValue(held)} ` +
+            "rather than a boolean, so there is no branch to take",
+        );
+      }
+      const skipped = held ? branches.whenFalse : branches.whenTrue;
+      return { skip: skipped ? [skipped.taskId] : [], result: held };
+    });
+
+    const named = new Set<"then" | "else">();
+    const name = (side: "then" | "else", target: TaskRef | Condition | Branch): void => {
+      // `await` calls `then(resolve, reject)`, so a function here means the condition was awaited.
+      if (typeof target === "function") {
+        throw new Error(
+          `dag.if(...) of Dag "${this.dagId}" was awaited. It builds a branch rather than ` +
+            "doing work, so there is nothing to wait for; drop the await",
+        );
+      }
+      if (named.has(side)) {
+        throw new Error(
+          `Condition "${taskId}" of Dag "${this.dagId}" already has a "${side}" branch; ` +
+            "a condition names each side once",
+        );
+      }
+      const taskRef = resolveNode(target) as TaskRef;
+      this.#validateOwnNode(taskRef, `the "${side}" branch of "${taskId}"`);
+      if (!isTaskRef(taskRef)) {
+        throw new Error(
+          `The "${side}" branch of Dag "${this.dagId}" condition "${taskId}" has to be a task, ` +
+            "not a task group",
+        );
+      }
+      if (side === "else" && taskRef === branches.whenTrue) {
+        throw new Error(
+          `Both branches of Dag "${this.dagId}" condition "${taskId}" are ` +
+            `"${taskRef.taskId}", so the condition decides nothing; drop the else branch`,
+        );
+      }
+      named.add(side);
+      if (side === "then") branches.whenTrue = taskRef;
+      else branches.whenFalse = taskRef;
+      condition.before(taskRef);
+    };
+
+    const elseStep: ConditionElse = {
+      else: (taskRef) => name("else", taskRef),
+    };
+    const placed: Condition = {
+      dagId: this.dagId,
+      taskId,
+      then: (taskRef) => {
+        name("then", taskRef);
+        return elseStep;
+      },
+      ...this.#forwardEdges(condition, () => placed),
+    };
+    conditionTasks.set(placed, condition);
+    return Object.freeze(placed);
+  }
+
+  #wrapDecider(
+    taskId: string,
+    decide: (returned: unknown) => Promise<{ skip: string[]; result: unknown }>,
+  ): void {
+    const { task, spec, fn } = this.#tasks.get(taskId)!;
+    // A decider is always declared from a handler, never from triggerDagRun.
+    const inner = fn!;
+    const wrapped: TaskFunction = async (args) => {
+      const { skip, result } = await decide(await inner(args as never));
+      if (skip.length > 0) {
+        const client = getClient() as CoordinatorClient;
+        // Written before the skip so a cleared downstream is re-skipped, as SkipMixin does.
+        await client.setXCom({ key: SKIPMIXIN_XCOM_KEY, value: { [SKIPMIXIN_SKIPPED]: skip } });
+        await client.skipDownstreamTasks(skip);
+      }
+      return result;
+    };
+    this.#tasks.set(taskId, { task, spec, canSkipDownstream: true, fn: wrapped });
+  }
+
+  /**
+   * Declare a task that returns one of its cases; every other case is skipped.
+   *
+   * ```ts
+   * dag.switch(pickPath, { rows: extracted }).case(handleLong).case(handleShort);
+   * ```
+   */
+  switch<TArgs extends object | void = void>(
+    handler: (args: TArgs) => TaskRef | Promise<TaskRef>,
+    ...args: DeciderArgs<NoInfer<TArgs>>
+  ): Branch {
+    return this.#placeBranch(this.#placeDecider(handler, args) as TaskRef<TaskRef>);
+  }
+
+  #forwardEdges<T>(ref: TaskRef, self: () => T) {
+    return {
+      before: (...downstream: readonly Node[]) => {
+        ref.before(...downstream);
+        return self();
+      },
+      after: (...upstream: readonly Node[]) => {
+        ref.after(...upstream);
+        return self();
+      },
+    };
+  }
+
+  #placeBranch(decider: TaskRef<TaskRef>): Branch {
+    const taskId = decider.taskId;
+    const candidates: TaskRef[] = [];
+    this.#branches.set(taskId, candidates);
+    this.#wrapDecider(taskId, async (chosen: unknown) => {
+      const known = candidates.map((ref) => ref.taskId);
+      const picked = isTaskRef(chosen) && chosen.dagId === this.dagId ? chosen.taskId : undefined;
+      if (picked === undefined || !known.includes(picked)) {
+        throw new Error(
+          `Task "${taskId}" of Dag "${this.dagId}" chose ` +
+            `${isTaskRef(chosen) ? `"${chosen.taskId}"` : describeValue(chosen)}, ` +
+            `which is not one of its cases: ${known.join(", ")}`,
+        );
+      }
+      return { skip: known.filter((id) => id !== picked), result: picked };
+    });
+
+    const branch: Branch = {
+      dagId: this.dagId,
+      taskId,
+      case: (taskRef) => {
+        this.#validateOwnNode(taskRef, `a case of "${taskId}"`);
+        if (!isTaskRef(taskRef)) {
+          throw new Error(
+            `A case of Dag "${this.dagId}" branch "${taskId}" has to be a task, not a task group`,
+          );
+        }
+        if (candidates.some((candidate) => candidate.taskId === taskRef.taskId)) {
+          throw new Error(
+            `Dag "${this.dagId}" branch "${taskId}" lists "${taskRef.taskId}" twice; ` +
+              "each case names a different task",
+          );
+        }
+        candidates.push(taskRef);
+        decider.before(taskRef);
+        return branch;
+      },
+      ...this.#forwardEdges(decider, () => branch),
+    };
+    conditionTasks.set(branch, decider);
+    return Object.freeze(branch);
+  }
+
+  /**
+   * Declare a task group of this Dag.
+   *
+   * The group prefixes the id of everything declared in it, unless
+   * {@link TaskGroupOptions.prefixGroupId} turns that off, and stands at
+   * either end of an order-only edge in its own right.
+   *
+   * ```ts
+   * const staging = dag.taskGroup("staging"); // tasks "staging.<id>"
+   * const checks = dag.taskGroup("checks", { prefixGroupId: false }); // ids as written
+   * ```
+   */
+  taskGroup(groupId: string, options?: TaskGroupOptions): TaskGroupRef {
+    return this.#addGroup(undefined, groupId, options);
+  }
+
+  #addTask<TArgs extends object | void, TReturn>(
+    groupId: string | undefined,
+    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask,
+    handlerOrOptions?:
+      ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask | TaskOptions,
     maybeOptions?: TaskOptions,
   ): TaskFactory<TArgs, TReturn> {
     const idGiven = typeof taskIdOrHandler === "string";
-    const handler = (idGiven ? handlerOrOptions : taskIdOrHandler) as (
-      args: TArgs,
-    ) => TReturn | Promise<TReturn>;
+    const body = idGiven ? handlerOrOptions : taskIdOrHandler;
+    const trigger = isTriggerDagRunTask(body) ? body : undefined;
+    const handler = body as (args: TArgs) => TReturn | Promise<TReturn>;
     const given = idGiven ? maybeOptions : (handlerOrOptions as TaskOptions | undefined);
     // Defaulted only when absent: an explicit `null` is a bad spec, not an
     // omitted one, and #taskSpecOf is what reports it.
@@ -430,13 +827,19 @@ export class Dag {
     // wins and the spec's is dropped without a word.
     if (idGiven && specTaskId !== undefined) {
       throw new Error(
-        `Task "${taskIdOrHandler}" of Dag "${this.dagId}" also carries taskId "${specTaskId}" in ` +
-          "its spec; give the id once, either positionally or in the spec",
+        `Task "${taskIdOrHandler as string}" of Dag "${this.dagId}" also carries taskId ` +
+          `"${specTaskId}" in its spec; give the id once, either positionally or in the spec`,
       );
     }
     const defaulted = idGiven ? undefined : (specTaskId ?? readFunctionName(handler));
-    const taskId = idGiven ? taskIdOrHandler : defaulted;
-    if (taskId === undefined) {
+    const declared = idGiven ? (taskIdOrHandler as string) : defaulted;
+    if (declared === undefined && trigger !== undefined) {
+      throw new Error(
+        `A triggerDagRun task of Dag "${this.dagId}" has no taskId; name it with ` +
+          'dag.task(triggerDagRun({ dagId: "..." }), { taskId: "trigger_downstream" })',
+      );
+    }
+    if (declared === undefined) {
       throw new Error(
         `A task of Dag "${this.dagId}" has no id: its handler has no name to take one from. ` +
           'Pass an id — dag.task("my_task", handler) — or give the handler a name. A bundler ' +
@@ -453,19 +856,25 @@ export class Dag {
           'underscores — dag.task("my_task", handler)',
       );
     }
-    if (typeof handler !== "function") {
+    if (declared.includes(GROUP_SEPARATOR)) {
+      // The separator is what joins a group to what it holds, so a task id
+      // carrying one would name a group that does not exist.
+      throw new Error(
+        `Task ID "${declared}" of Dag "${this.dagId}" cannot contain "${GROUP_SEPARATOR}"; ` +
+          "declare a task group with taskGroup(...) and the prefix is added for you",
+      );
+    }
+    const taskId = this.#childId(groupId, declared);
+    if (trigger === undefined && typeof handler !== "function") {
       throw new Error(`handler for Dag "${this.dagId}" task "${taskId}" must be a function`);
     }
     // TypeScript already says so, but a plain-JavaScript author lands here
     // with the argument list Python would take.
-    if (handler.length > 1) {
+    if (trigger === undefined && handler.length > 1) {
       throw new Error(
         `Handler for Dag "${this.dagId}" task "${taskId}" declares ${handler.length} parameters; ` +
           "a handler takes one object of named arguments — async ({ rows, region }) => ...",
       );
-    }
-    if (this.#tasks.has(taskId)) {
-      throw new Error(`Task "${taskId}" is already registered for Dag "${this.dagId}"`);
     }
     // A task added after the Dag was read could no longer be wired into it, and
     // would sit in the Dag unplaced and unreported.
@@ -476,12 +885,14 @@ export class Dag {
       );
     }
     const spec = this.#taskSpecOf(taskId, options);
+    this.#reserveNodeId(taskId, "Task");
     const task = this.#createTaskRef(taskId);
+    if (groupId !== undefined) this.#groups.get(groupId)!.taskIds.push(taskId);
     this.#tasks.set(taskId, {
       task,
       // The runtime dispatches every handler through one instantiation, as it
       // does a registered TaskHandler.
-      fn: handler as unknown as TaskFunction,
+      ...(trigger ? { trigger } : { fn: handler as unknown as TaskFunction }),
       spec: freezeSpec(spec, () => `The spec for Dag "${this.dagId}" task "${taskId}"`),
     });
     return ((...inputs: unknown[]) => {
@@ -491,6 +902,11 @@ export class Dag {
         throw new Error(
           `Task "${taskId}" of Dag "${this.dagId}" was given ${inputs.length} arguments; ` +
             "it takes one object naming its inputs: myTask({ rows, region })",
+        );
+      }
+      if (trigger !== undefined && inputs[0] !== undefined) {
+        throw new Error(
+          `Task "${taskId}" of Dag "${this.dagId}" is a triggerDagRun task, which takes no inputs`,
         );
       }
       this.#wire(taskId, inputs[0]);
@@ -517,6 +933,123 @@ export class Dag {
     return spec as TaskSpec;
   }
 
+  #addGroup(
+    parentGroupId: string | undefined,
+    groupId: string,
+    options: TaskGroupOptions = {},
+  ): TaskGroupRef {
+    if (typeof groupId !== "string" || groupId.length === 0) {
+      throw new Error(`A task group of Dag "${this.dagId}" must have a non-empty ID`);
+    }
+    if (groupId.includes(GROUP_SEPARATOR)) {
+      // The separator is what joins a group to what it holds, so one inside an
+      // ID would make the resulting task id ambiguous.
+      throw new Error(
+        `Task group ID "${groupId}" of Dag "${this.dagId}" cannot contain ` +
+          `"${GROUP_SEPARATOR}"; nest groups with taskGroup(...) instead`,
+      );
+    }
+    // Python's validate_group_key. The length is in code points, as Python's
+    // len() counts, not in UTF-16 units.
+    const length = [...groupId].length;
+    if (length > GROUP_ID_MAX_LENGTH) {
+      throw new Error(
+        `Task group ID "${groupId}" of Dag "${this.dagId}" has ${length} characters; ` +
+          `at most ${GROUP_ID_MAX_LENGTH} are allowed`,
+      );
+    }
+    if (!GROUP_ID_CHARACTERS.test(groupId)) {
+      throw new Error(
+        `Task group ID "${groupId}" of Dag "${this.dagId}" has to be made of letters, digits, ` +
+          "dashes and underscores",
+      );
+    }
+    const prefixGroupId = this.#prefixGroupIdOf(groupId, options);
+    if (this.#finalized) {
+      throw new Error(
+        `Task group "${groupId}" cannot be added to Dag "${this.dagId}" after the Dag was read; ` +
+          "declare every group while the module is loading",
+      );
+    }
+    const fullId = this.#childId(parentGroupId, groupId);
+    this.#reserveNodeId(fullId, "Task group");
+    this.#groups.set(fullId, {
+      groupId: fullId,
+      ...(parentGroupId !== undefined && { parentGroupId }),
+      prefixGroupId,
+      taskIds: [],
+      childGroupIds: [],
+    });
+    if (parentGroupId !== undefined) this.#groups.get(parentGroupId)!.childGroupIds.push(fullId);
+    const group = this.#createTaskGroupRef(fullId);
+    this.#groupRefs.set(fullId, group);
+    return group;
+  }
+
+  // TypeScript is bypassable, as for #taskSpecOf, so a misspelled or mistyped
+  // option is rejected rather than read as the default.
+  #prefixGroupIdOf(groupId: string, options: TaskGroupOptions): boolean {
+    const value: unknown = options;
+    if (!isPlainRecord(value)) {
+      throw new Error(`options for Dag "${this.dagId}" task group "${groupId}" must be an object`);
+    }
+    for (const key of Reflect.ownKeys(value)) {
+      if (key !== "prefixGroupId") {
+        throw new Error(
+          `Unknown option "${String(key)}" for Dag "${this.dagId}" task group "${groupId}"`,
+        );
+      }
+    }
+    const { prefixGroupId = true } = value;
+    if (typeof prefixGroupId !== "boolean") {
+      throw new Error(
+        `prefixGroupId for Dag "${this.dagId}" task group "${groupId}" must be a boolean`,
+      );
+    }
+    return prefixGroupId;
+  }
+
+  // Python's TaskGroup.child_id: a group adds its ID in front of what it holds
+  // only when prefixGroupId is on, and a nested group's ID is built the same way.
+  #childId(groupId: string | undefined, id: string): string {
+    if (groupId === undefined || !this.#groups.get(groupId)!.prefixGroupId) return id;
+    return `${groupId}${GROUP_SEPARATOR}${id}`;
+  }
+
+  // Tasks and groups share one namespace, as they do in Python: a serialized
+  // Dag addresses both by a bare ID, so `dag.task("x")` and `dag.taskGroup("x")`
+  // cannot both exist.
+  #reserveNodeId(id: string, kind: "Task" | "Task group"): void {
+    if (this.#tasks.has(id) || this.#groups.has(id)) {
+      throw new Error(`${kind} "${id}" is already registered for Dag "${this.dagId}"`);
+    }
+  }
+
+  #createTaskGroupRef(groupId: string): TaskGroupRef {
+    const group: TaskGroupRef = {
+      dagId: this.dagId,
+      groupId,
+      task: <TArgs extends object | void, TReturn>(
+        taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask,
+        handlerOrOptions?:
+          ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask | TaskOptions,
+        maybeOptions?: TaskOptions,
+      ) => this.#addTask<TArgs, TReturn>(groupId, taskIdOrHandler, handlerOrOptions, maybeOptions),
+      taskGroup: (childId: string, options?: TaskGroupOptions) =>
+        this.#addGroup(groupId, childId, options),
+      before: (...downstream) => {
+        for (const other of downstream) this.#addOrderEdge(group, other, "before");
+        return group;
+      },
+      after: (...upstream) => {
+        for (const other of upstream) this.#addOrderEdge(other, group, "after");
+        return group;
+      },
+    } as TaskGroupRef;
+    brand(group, "TaskGroupRef");
+    return Object.freeze(group);
+  }
+
   #createTaskRef(taskId: string): TaskRef {
     const task: TaskRef = {
       dagId: this.dagId,
@@ -534,51 +1067,58 @@ export class Dag {
     return Object.freeze(task);
   }
 
-  #addOrderEdge(upstream: TaskRef, downstream: TaskRef, verb: "before" | "after"): void {
+  #addOrderEdge(upstreamNode: Node, downstreamNode: Node, verb: "before" | "after"): void {
+    const upstream = resolveNode(upstreamNode);
+    const downstream = resolveNode(downstreamNode);
     if (this.#finalized) {
       throw new Error(
         `An edge was drawn on Dag "${this.dagId}" after the Dag was read; ` +
           "declare every edge while the module is loading",
       );
     }
-    // The argument is the one that can be foreign: the receiver is a reference
-    // this Dag handed out, since it is what carries the method.
+    // The argument is the one that can be foreign: the receiver is a node this
+    // Dag handed out, since it is what carries the method.
     const other = verb === "before" ? downstream : upstream;
-    this.#validateOwnRef(other, verb);
-    if (upstream.taskId === downstream.taskId) {
+    this.#validateOwnNode(other, `${verb}()`);
+    const upstreamId = nodeId(upstream);
+    const downstreamId = nodeId(downstream);
+    if (upstreamId === downstreamId) {
       throw new Error(
-        `${verb}() cannot draw an edge from task "${upstream.taskId}" of Dag "${this.dagId}" to ` +
-          "itself; an edge orders two different tasks",
+        `${verb}() cannot draw an edge from node "${upstreamId}" of Dag "${this.dagId}" to ` +
+          "itself; an edge orders two different nodes",
       );
     }
-    const key = `${upstream.taskId}${EDGE_KEY_SEPARATOR}${downstream.taskId}`;
+    const key = `${upstreamId}${EDGE_KEY_SEPARATOR}${downstreamId}`;
     // Idempotent, so an edge drawn from both ends is one edge.
     if (!this.#orderEdges.has(key)) {
       this.#orderEdges.set(
         key,
-        Object.freeze({ upstream: upstream.taskId, downstream: downstream.taskId }),
+        Object.freeze({ upstream: upstreamId!, downstream: downstreamId! }),
       );
     }
   }
 
-  #validateOwnRef(ref: TaskRef, verb: string): void {
-    if (!isTaskRef(ref)) {
+  #validateOwnNode(node: Node, label: string): void {
+    const id = nodeId(node);
+    if (id === undefined) {
       throw new Error(
-        `${verb}() on Dag "${this.dagId}" takes task references returned by calling a task, ` +
+        `${label} on Dag "${this.dagId}" takes tasks and task groups this Dag handed out, ` +
           "not arbitrary values",
       );
     }
-    if (ref.dagId !== this.dagId) {
+    if (node.dagId !== this.dagId) {
       throw new Error(
-        `${verb}() cannot draw an edge to Dag "${ref.dagId}" task "${ref.taskId}" from Dag ` +
-          `"${this.dagId}"; an edge joins two tasks of one Dag`,
+        `${label} cannot reach Dag "${node.dagId}" node "${id}" from Dag ` +
+          `"${this.dagId}"; an edge joins two nodes of one Dag`,
       );
     }
-    // Identity, not the ID pair: two Dag objects can carry the same dagId, and
-    // a second resolved copy of this package brands its own references.
-    if (this.#tasks.get(ref.taskId)?.task !== ref) {
+    // Identity, not the ID: two Dag objects can carry the same dagId, and a
+    // second resolved copy of this package brands its own nodes. A group is
+    // checked the same way — matching on the ID alone would silently retarget
+    // the edge at this Dag's own group of that name.
+    if (isTaskRef(node) ? this.#tasks.get(id)?.task !== node : this.#groupRefs.get(id) !== node) {
       throw new Error(
-        `${verb}() was given a reference to "${ref.taskId}" that this Dag did not hand out; ` +
+        `${label} was given a reference to "${id}" that this Dag did not hand out; ` +
           `it comes from another Dag object with the same ID, or ${DUPLICATE_COPY_HINT}`,
       );
     }
@@ -663,6 +1203,22 @@ export class Dag {
 
   #finalize(): void {
     if (this.#finalized) return;
+    for (const [taskId, branches] of this.#conditions) {
+      if (branches.whenTrue === undefined) {
+        throw new Error(
+          `Condition "${taskId}" of Dag "${this.dagId}" names no branch, so it decides nothing; ` +
+            "give it one with dag.if(handler, inputs).then(task)",
+        );
+      }
+    }
+    for (const [taskId, cases] of this.#branches) {
+      if (cases.length === 0) {
+        throw new Error(
+          `Branch "${taskId}" of Dag "${this.dagId}" has no cases, so it decides nothing; ` +
+            "give it the tasks to choose between with dag.switch(handler, inputs).case(task)",
+        );
+      }
+    }
     for (const taskId of this.#tasks.keys()) {
       if (!this.#inputs.has(taskId)) {
         throw new Error(
@@ -680,6 +1236,19 @@ export class Dag {
 // What Airflow accepts as a task id, and so what a name taken from a handler
 // has to look like.
 const TASK_ID_CHARACTERS = /^[\p{L}\p{N}_.-]+$/u;
+
+// Python's GROUP_KEY_REGEX and validate_group_key limit: a group ID has no dot,
+// since the dot is what joins it to what it holds.
+const GROUP_ID_CHARACTERS = /^[\p{L}\p{N}_-]+$/u;
+const GROUP_ID_MAX_LENGTH = 200;
+
+/** A value as an error message names it: its type, or the literal when short. */
+function describeValue(value: unknown): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value === "object") return Array.isArray(value) ? "an array" : "an object";
+  return `the ${typeof value} ${typeof value === "string" ? JSON.stringify(value) : String(value)}`;
+}
 
 /**
  * A handler's own function name, or undefined when it has none.
@@ -714,6 +1283,11 @@ function validateDagSpec(dagId: string, spec: DagSpec): void {
  */
 export function getDagTaskRecords(dag: Dag): ReadonlyMap<string, TaskRecord> {
   return taskRecordsOf(dag);
+}
+
+/** Internal: every task group of a Dag, keyed by full group ID. */
+export function getDagTaskGroups(dag: Dag): ReadonlyMap<string, TaskGroupRecord> {
+  return groupsOf(dag);
 }
 
 /** Internal: the order-only edges of a Dag, in the order they were drawn. */

@@ -58,7 +58,9 @@ jobs:
   # Check that the image builds quickly from the registry cache. This build is slow from
   # scratch, so we only run it on regular PRs.
   check-that-image-builds-quickly:
-    timeout-minutes: 25
+    # A PR that touches install_os_dependencies.sh or scripts/docker/keys misses the cache for the
+    # layer that builds Python from source, which takes 11-18 minutes for Python 3.11+ on hosted runners.
+    timeout-minutes: 35
     name: Check that image builds quickly
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
@@ -83,5 +85,5 @@ jobs:
         uses: ./.github/actions/breeze
       - name: "Check that image builds quickly"
         # Synchronize to be a little bit shorter than above timeout-minutes to make sure that
-        # if the build takes too long the job will fail with logs. 22 minutes * 60 s = 1320 seconds
-        run: breeze shell --max-time 1320 --platform "${PLATFORM}"
+        # if the build takes too long the job will fail with logs. 33 minutes * 60 s = 1980 seconds
+        run: breeze shell --max-time 1980 --platform "${PLATFORM}"

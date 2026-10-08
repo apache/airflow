@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-microsoft-azure``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -55,13 +55,13 @@ PIP package                                 Version required
 ==========================================  ===================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
-``adlfs``                                   ``>=2023.10.0``
+``adlfs``                                   ``>=2026.5.0``
 ``aiohttp``                                 ``>=3.14.0``
 ``azure-batch``                             ``>=15.0.0``
 ``azure-ai-projects``                       ``>=2.2.0``
 ``azure-cosmos``                            ``>=4.15.0``
 ``azure-mgmt-cosmosdb``                     ``>=9.9.0``
-``azure-datalake-store``                    ``>=0.0.45,<1``
+``azure-datalake-store``                    ``>=1.0.1``
 ``azure-identity``                          ``>=1.25.3``
 ``azure-keyvault-secrets``                  ``>=4.10.0``
 ``azure-mgmt-datalake-store``               ``>=0.5.0``
@@ -80,7 +80,7 @@ PIP package                                 Version required
 ``azure-mgmt-containerinstance``            ``>=10.1.0``
 ``msgraph-core``                            ``>=1.3.3``
 ``msgraphfs``                               ``>=0.3.0``
-``microsoft-kiota-http``                    ``>=1.9.4,<2.0.0``
+``microsoft-kiota-http``                    ``<1.13.0,>=1.9.4``
 ``microsoft-kiota-serialization-json``      ``>=1.9.4``
 ``microsoft-kiota-serialization-text``      ``>=1.9.4``
 ``microsoft-kiota-abstractions``            ``>=1.9.4,<2.0.0``

@@ -19,6 +19,8 @@ package airflow
 
 import (
 	"fmt"
+	"log/slog"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -31,7 +33,11 @@ import (
 type BundleRef struct {
 	// closed ends registration for everything the bundle can hold, so a kind added later
 	// is covered without a flag of its own. Serve sets it; Register reads it.
-	closed       atomic.Bool
+	closed atomic.Bool
+	// mu is the lock for writes to taskHandlers and dags. Register holds it for the whole call,
+	// so two concurrent calls cannot register a task handler and a Dag with the same dag_id.
+	// Readers such as LookupTask take only the lock of the map they read.
+	mu           sync.Mutex
 	taskHandlers taskHandlerMap
 	dags         dagMap
 }
@@ -72,25 +78,56 @@ type Registerable interface{ registerable() }
 //
 //	bundle.Register(reports.Handlers()...)
 //
-// Add every task to a Dag before registering the Dag. [DagRef.Task] panics once the Dag is
-// registered.
+// Add every task to a Dag before registering the Dag. [DagRef.Task], [DagRef.If],
+// [DagRef.Switch], [DagRef.TaskGroup], [IfRef.Then], [IfRef.Else], [SwitchRef.Case] and the
+// methods of [TaskGroupRef] panic once the Dag is registered.
+//
+// Register is where a Dag's task dependencies are checked for a cycle, over the whole graph at
+// once: [TaskRef.Before], [TaskRef.After] and [Inputs] each record an edge without walking the
+// graph, so building a Dag stays linear in its edges however many a task has. Register also turns
+// each edge to or from a task group, which [TaskGroupRef.Before] describes, into edges between
+// tasks. It expands those edges one at a time, in the order they were first declared, each
+// against every task, every edge declared between two tasks, and the task edges that earlier
+// group edges expanded into.
 //
 // Register panics if a task handler with the same dag_id and task_id is already registered,
-// if a Dag with the same dag_id is already registered, or if [BundleRef.Serve] has already
-// been called: registration closes when serving starts.
+// if a Dag with the same dag_id is already registered, if a task handler and a Dag have the
+// same dag_id, if the task dependencies of a Dag contain a cycle, or if [BundleRef.Serve] has
+// already been called: registration closes when serving starts. A task handler runs a task of a
+// Python Dag, so its dag_id cannot also belong to a Dag authored in Go. Register also panics if a
+// Dag has a condition from [DagRef.If] without a task from [IfRef.Then], or a switch from
+// [DagRef.Switch] without a case from [SwitchRef.Case].
 func (b *BundleRef) Register(items ...Registerable) {
 	if b.closed.Load() {
 		panic(
 			"airflow.BundleRef.Register: Serve has already been called; register everything before Serve",
 		)
 	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	for _, item := range items {
 		switch item := item.(type) {
 		case *taskHandler:
+			if b.dags.has(item.dagID) {
+				panic(fmt.Sprintf(
+					"airflow.BundleRef.Register: Dag %q is already registered as a Dag from "+
+						"airflow.Dag, so it cannot also have task handlers from "+
+						"airflow.TaskHandler",
+					item.dagID,
+				))
+			}
 			b.taskHandlers.add(item.dagID, item.taskID, item.task)
 		case *DagRef:
 			if item == nil {
 				panic("airflow.BundleRef.Register: cannot register a nil *airflow.DagRef")
+			}
+			if b.taskHandlers.hasDag(item.dagID) {
+				panic(fmt.Sprintf(
+					"airflow.BundleRef.Register: Dag %q already has task handlers from "+
+						"airflow.TaskHandler, so it cannot also be registered as a Dag from "+
+						"airflow.Dag",
+					item.dagID,
+				))
 			}
 			b.dags.add(item)
 		default:
@@ -135,6 +172,14 @@ func (m *taskHandlerMap) add(dagID, taskID string, task bundle.Task) {
 	m.order = append(m.order, bundle.TaskHandlerInfo{DagID: dagID, TaskID: taskID})
 }
 
+func (m *taskHandlerMap) hasDag(dagID string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	_, exists := m.handlers[dagID]
+	return exists
+}
+
 func (m *taskHandlerMap) LookupTask(dagID, taskID string) (bundle.Task, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -150,10 +195,11 @@ func (m *taskHandlerMap) ListTaskHandlers() []bundle.TaskHandlerInfo {
 	return slices.Clone(m.order)
 }
 
-// dagMap holds the registered Dags by dag_id.
+// dagMap holds the registered Dags by dag_id, in registration order.
 type dagMap struct {
-	mu   sync.Mutex
-	dags map[string]*DagRef
+	mu    sync.Mutex
+	dags  map[string]*DagRef
+	order []*DagRef
 }
 
 func (m *dagMap) add(dag *DagRef) {
@@ -168,4 +214,58 @@ func (m *dagMap) add(dag *DagRef) {
 		m.dags = make(map[string]*DagRef)
 	}
 	m.dags[dag.dagID] = dag
+	m.order = append(m.order, dag)
+}
+
+func (m *dagMap) has(dagID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	_, exists := m.dags[dagID]
+	return exists
+}
+
+// serialize serializes the Dags in registration order. If a Dag panics, the panic becomes that
+// Dag's Err.
+func (m *dagMap) serialize(fileloc, relativeFileloc string) []bundle.SerializedDag {
+	m.mu.Lock()
+	dags := slices.Clone(m.order)
+	m.mu.Unlock()
+
+	serialized := make([]bundle.SerializedDag, len(dags))
+	for i, dag := range dags {
+		serialized[i] = serializeRecovering(dag, fileloc, relativeFileloc)
+	}
+	return serialized
+}
+
+func serializeRecovering(dag *DagRef, fileloc, relativeFileloc string) (s bundle.SerializedDag) {
+	s.DagID = dag.dagID
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error(
+				"Dag serialization panicked",
+				"dag_id", dag.dagID, "panic", r, "stack", string(debug.Stack()),
+			)
+			s.Data, s.Err = nil, fmt.Errorf("%v", r)
+		}
+	}()
+	s.Data = dag.serialize(fileloc, relativeFileloc)
+	return s
+}
+
+// coordinatorSource is what Serve hands to execution.Serve: the task handlers and the Dags of one
+// bundle.
+type coordinatorSource struct {
+	*taskHandlerMap
+	dags *dagMap
+}
+
+var (
+	_ bundle.Bundle        = coordinatorSource{}
+	_ bundle.DagSerializer = coordinatorSource{}
+)
+
+func (s coordinatorSource) SerializeDags(fileloc, relativeFileloc string) []bundle.SerializedDag {
+	return s.dags.serialize(fileloc, relativeFileloc)
 }

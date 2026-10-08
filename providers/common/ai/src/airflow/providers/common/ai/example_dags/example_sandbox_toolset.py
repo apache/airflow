@@ -18,7 +18,7 @@
 """
 Example Dags for ``SandboxToolset``.
 
-Three shapes, each a job a data team actually runs:
+Five shapes, each a job a data team actually runs:
 
 1. An agent investigates a revenue anomaly. It queries the warehouse through a
    ``SQLToolset`` (the credential stays in the task, the model only sees rows) and
@@ -34,11 +34,14 @@ Three shapes, each a job a data team actually runs:
    ``@task`` reads the report the agent wrote and destroys the sandbox. The task
    that creates the sandbox decides what goes in, in ordinary Python at run time,
    and a file the agent built comes out without crossing the model's context.
+5. An agent writes a file and the toolset exports it to object storage when the
+   run ends, for a downstream task to load. No task has to own the sandbox, so
+   this is the shorter shape whenever the file is all that must come out.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
@@ -93,7 +96,7 @@ if SQLToolset is not None and modal is not None:
 
     @dag(
         schedule=None,
-        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        start_date=datetime(2024, 1, 1, tzinfo=UTC),
         catchup=False,
         tags=["example", "sandbox"],
     )
@@ -155,7 +158,7 @@ A-1003,Initech,2 Mar 2026,"1,100.00",DE
 # [START howto_sandbox_agent_local]
 @dag(
     schedule=None,
-    start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+    start_date=datetime(2024, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["example", "sandbox"],
 )
@@ -214,7 +217,7 @@ print(f"{len(frame)} rows, {len(frame.columns)} columns")
 
 @dag(
     schedule=None,
-    start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+    start_date=datetime(2024, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["example", "sandbox"],
     params={
@@ -229,10 +232,10 @@ def example_sandbox_task_artifact():
     Convert a CSV to parquet inside a sandbox and land the result in object storage.
 
     No agent is involved. The Dag knows exactly what to run, so a model would add
-    nothing, and a file produced inside an *agent's* sandbox could only come back
-    through the model's context, which is text-only and capped. Driving the
-    backend from a task has neither limit: the bytes move through the worker, and
-    the caller owns the sandbox's lifetime.
+    nothing. Driving the backend from a task also gives the caller the sandbox's
+    whole lifetime: it puts the input in, runs the conversion, and reads the result
+    out, with the bytes moving through the worker. When an agent has to produce the
+    file instead, see example 5.
     """
 
     # [START howto_sandbox_task_artifact]
@@ -293,7 +296,7 @@ if modal is not None:
 
     @dag(
         schedule=None,
-        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        start_date=datetime(2024, 1, 1, tzinfo=UTC),
         catchup=False,
         tags=["example", "sandbox"],
         params={
@@ -372,3 +375,60 @@ if modal is not None:
         # [END howto_sandbox_attach]
 
     example_sandbox_attach()
+
+
+# ---------------------------------------------------------------------------
+# 5. An agent builds a file, and the toolset exports it when the run ends.
+# ---------------------------------------------------------------------------
+
+# [START howto_sandbox_agent_export]
+# Templated per run. Point it at ``s3://`` or ``gs://`` and pass ``export_conn_id``
+# in a real deployment; ``file://`` keeps the example runnable on a laptop.
+STAGING_URI = "file:///tmp/airflow-sandbox-example/{{ run_id }}/staging.csv"
+
+
+@dag(
+    schedule=None,
+    start_date=datetime(2024, 1, 1, tzinfo=UTC),
+    catchup=False,
+    tags=["example", "sandbox"],
+)
+def example_sandbox_agent_export():
+    """Have an agent normalize a vendor file, export the result, and load it downstream."""
+    normalize = AgentOperator(
+        task_id="normalize",
+        prompt=(
+            "Here is a sample of this month's vendor export:\n\n"
+            f"{VENDOR_SAMPLE}\n"
+            "Write it to a file, then write a Python script that turns it into staging.csv with "
+            "the columns order_id, customer_name, ordered_at (ISO date), amount_usd (decimal) "
+            "and country_code. Run the script and fix it until every row parses, then report "
+            "the column mapping you settled on."
+        ),
+        system_prompt=(
+            "You have a sandbox with Python 3.12 and the standard library, no network, and "
+            "an empty working directory. Read tracebacks and fix the code rather than guessing."
+        ),
+        llm_conn_id="pydanticai_default",
+        output_type=ColumnMapping,
+        toolsets=[
+            SandboxToolset(
+                SbxSandboxBackend(host_network_policy="deny-all"),
+                # Copied out before the sandbox is destroyed. If the agent never wrote
+                # staging.csv, the task fails rather than leaving ``load`` to find nothing.
+                exports={"staging.csv": STAGING_URI},
+            ),
+        ],
+    )
+
+    @task
+    def load(staging_uri: str) -> int:
+        with ObjectStoragePath(staging_uri).open() as staging:
+            return sum(1 for _ in staging) - 1
+
+    normalize >> load(STAGING_URI)
+
+
+# [END howto_sandbox_agent_export]
+
+example_sandbox_agent_export()

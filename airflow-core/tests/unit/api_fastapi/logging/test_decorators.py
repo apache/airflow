@@ -444,6 +444,58 @@ class TestActionLoggingResourceTeamName:
 
         assert log.team_name == "infra"
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_a_query_param_dag_id_does_not_hijack_the_resource_team(self, session):
+        """A ``?dag_id=`` query parameter must not scope the row to that Dag, so the team still comes
+        from the resource being acted on rather than being deferred to the unrelated Dag."""
+        self._create_resources_owned_by_a_team(session)
+        request = Request(
+            {
+                "type": "http",
+                "method": "DELETE",
+                "headers": [],
+                "query_string": b"dag_id=some_unrelated_dag",
+                "path_params": {"connection_id": "team_conn"},
+            }
+        )
+
+        asyncio.run(action_logging(event="delete_connection")(request=request, session=session, user=None))
+
+        log = session.scalar(select(Log).order_by(Log.id.desc()))
+        assert log.dag_id is None
+        assert log.team_name == "payments"
+
+
+class TestActionLoggingDagScope:
+    """``dag_id``/``task_id``/``run_id`` scope an audit row to a Dag, so a query parameter must not
+    set them: a query filter must not file an unrelated write (a connection, a variable) among a
+    Dag's audit rows, which the per-Dag audit endpoints then expose to anyone who can read that Dag.
+
+    Scoping from the route path and the request body is unchanged, and stays covered by the endpoint
+    tests -- ``test_favorite_dag`` for a path-named dag_id, ``test_create_backfill`` for a body-named
+    one.
+    """
+
+    @staticmethod
+    def _logged_row(*, event, query_string):
+        request = Request(
+            {"type": "http", "method": "POST", "headers": [], "query_string": query_string, "path_params": {}}
+        )
+        session = MagicMock(spec=Session)
+        asyncio.run(action_logging(event=event)(request=request, session=session, user=None))
+        (logged,) = session.add.call_args.args
+        return logged
+
+    def test_query_param_dag_id_does_not_scope_the_row(self):
+        # POST /connections?dag_id=victim_dag must not land the connection write among victim_dag's rows.
+        logged = self._logged_row(event="post_connection", query_string=b"dag_id=victim_dag")
+        assert logged.dag_id is None
+
+    def test_query_param_task_id_and_run_id_do_not_scope_the_row(self):
+        logged = self._logged_row(event="post_connection", query_string=b"task_id=t1&run_id=r1")
+        assert logged.task_id is None
+        assert logged.run_id is None
+
 
 class TestActionLoggingUnparsableBody:
     """

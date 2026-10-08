@@ -217,6 +217,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
     """
 
     description: str = "Triggered by assets"
+    asset_triggered = True
 
     def __init__(self, assets: Collection[SerializedAsset] | SerializedAssetBase) -> None:
         super().__init__()

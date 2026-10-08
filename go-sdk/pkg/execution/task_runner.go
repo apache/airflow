@@ -34,8 +34,10 @@ import (
 // RunTask executes a task based on StartupDetails received from the supervisor.
 //
 // It looks up the task in the bundle, creates a CoordinatorClient for SDK
-// calls, executes the task, and returns the terminal body to ship as the final
-// response frame: one of genmodels.SucceedTask, TaskState, or RetryTask.
+// calls, deletes the XComs that ti_context.xcom_keys_to_clear lists, executes
+// the task, and returns the terminal body to ship as the final response frame:
+// one of genmodels.SucceedTask, TaskState, or RetryTask. When RunTask cannot
+// delete an XCom, or arg_bindings is invalid, the task fails without running.
 //
 // The supervisor owns the Execution-API state transitions, so the runtime only
 // invokes the user's task function and returns its terminal response.
@@ -61,7 +63,7 @@ func RunTask(
 		}
 	}
 
-	client := NewCoordinatorClient(comm)
+	client := NewCoordinatorClient(comm, details.TI.ID)
 
 	// runtimeContext carries the task instance and Dag run that binding puts
 	// on the task's airflow.Context. The scheduling timestamps live on the
@@ -69,16 +71,17 @@ func RunTask(
 	// context is a placeholder, because binding reads only the task instance
 	// and Dag run from this value and builds the airflow.Context around the
 	// live task context.
+	ti := sdk.TaskInstance{
+		DagID:     details.TI.DagID,
+		RunID:     details.TI.RunID,
+		TaskID:    details.TI.TaskID,
+		MapIndex:  mapIndexPtr(details.TI.MapIndex),
+		TryNumber: details.TI.TryNumber,
+	}
 	dagRun := details.TIContext.DagRun
 	runtimeContext := sdk.NewTIRunContext(
 		context.Background(),
-		sdk.TaskInstance{
-			DagID:     details.TI.DagID,
-			RunID:     details.TI.RunID,
-			TaskID:    details.TI.TaskID,
-			MapIndex:  mapIndexPtr(details.TI.MapIndex),
-			TryNumber: details.TI.TryNumber,
-		},
+		ti,
 		sdk.DagRun{
 			DagID:             details.TI.DagID,
 			RunID:             details.TI.RunID,
@@ -90,6 +93,24 @@ func RunTask(
 
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))
 	ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
+	ctx = bundle.WithSkipDownstreamTasks(ctx, client.skipDownstreamTasks)
+
+	// Airflow keeps the XComs that a task instance already has when it starts a new try. It lists
+	// their keys in xcom_keys_to_clear, and the runtime deletes them before the task runs, as the
+	// Python task runner does before it renders templates. The list is empty when the task resumes
+	// from a deferral.
+	for _, key := range details.TIContext.XcomKeysToClear {
+		logger.Debug("Clearing XCom with key", "key", key)
+		if err := client.deleteXCom(ctx, ti, key); err != nil {
+			logger.Error("Unable to clear XCom",
+				"dag_id", details.TI.DagID,
+				"task_id", details.TI.TaskID,
+				"key", key,
+				"error", err,
+			)
+			return failTask(details.TIContext.ShouldRetry, err)
+		}
+	}
 
 	args, err := convertArgBindings(details.TIContext.ArgBindings)
 	if err != nil {
@@ -98,19 +119,25 @@ func RunTask(
 			"task_id", details.TI.TaskID,
 			"error", err,
 		)
-		if details.TIContext.ShouldRetry {
-			return genmodels.RetryTask{
-				EndDate:     time.Now().UTC(),
-				RetryReason: err.Error(),
-			}
-		}
-		return genmodels.TaskState{
-			State:   genmodels.TaskStateStateFailed,
-			EndDate: time.Now().UTC(),
-		}
+		return failTask(details.TIContext.ShouldRetry, err)
 	}
 
 	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
+}
+
+// failTask returns the terminal body for a task that fails before it runs: RetryTask when
+// ti_context.should_retry is set, otherwise a FAILED TaskState.
+func failTask(shouldRetry bool, err error) any {
+	if shouldRetry {
+		return genmodels.RetryTask{
+			EndDate:     time.Now().UTC(),
+			RetryReason: err.Error(),
+		}
+	}
+	return genmodels.TaskState{
+		State:   genmodels.TaskStateStateFailed,
+		EndDate: time.Now().UTC(),
+	}
 }
 
 func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) {

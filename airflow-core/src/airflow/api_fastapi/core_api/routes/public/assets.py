@@ -93,7 +93,6 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
-from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -214,7 +213,7 @@ def get_assets(
     )
 
     # The below type annotation is acceptable on SQLA2.1, but not on 2.0
-    assets_rows: Result[Unpack[tuple[AssetModel, int, datetime]]] = session.execute(  # type: ignore[type-arg]
+    assets_rows: Result[*tuple[AssetModel, int, datetime]] = session.execute(  # type: ignore[type-arg]
         assets_select.options(
             *eager_load_asset_reference_teams(),
             subqueryload(AssetModel.consuming_tasks),
@@ -509,6 +508,16 @@ def materialize_asset(
             )
 
         params = body.validate_context(context_dag)
+        if body.drain_dag:
+            if not get_auth_manager().is_authorized_dag(
+                method="PUT",
+                details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
+                user=user,
+            ):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN, f"Draining requires permission to edit Dag: {dag_id}"
+                )
+            DagModel.start_drain(dag_id, session=session)
         return dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],

@@ -32,11 +32,11 @@ fingerprint, so stale tool results recorded under the old conversation no
 longer match.
 
 Fields that pydantic-ai regenerates on every attempt (message-level
-``timestamp``/``run_id``/``conversation_id`` and part-level ``timestamp``)
-are excluded from the fingerprint.  Requests that cannot be serialized to
-JSON fingerprint as ``None``, which degrades that step to unverified
-positional replay (the pre-fingerprint behavior) rather than disabling
-caching.
+``timestamp``/``run_id``/``conversation_id``, part-level ``timestamp``) and
+capability ids are excluded from the fingerprint, and set-valued request
+parameters are sorted.  Requests that cannot be serialized to JSON
+fingerprint as ``None``, which degrades that step to unverified positional
+replay (the pre-fingerprint behavior) rather than disabling caching.
 """
 
 from __future__ import annotations
@@ -45,16 +45,18 @@ import hashlib
 import json
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from pydantic import TypeAdapter
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import ModelRequestParameters
+
+from airflow.providers.common.ai.utils.prompt_cache import PROMPT_CACHE_SETTING_NAMES
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.settings import ModelSettings
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 _MODEL_REQUEST_PARAMETERS_ADAPTER = TypeAdapter(ModelRequestParameters)
 
@@ -65,8 +67,10 @@ _VOLATILE_MESSAGE_KEYS = ("timestamp", "run_id", "conversation_id")
 # fingerprint: changing them should not invalidate a cached response, and some
 # (``timeout`` can be an ``httpx.Timeout``) are not JSON-serializable, which
 # would otherwise force the whole fingerprint to ``None`` and silently disable
-# replay verification for every step.
-_TRANSPORT_ONLY_SETTINGS = frozenset({"timeout"})
+# replay verification for every step. Prompt cache settings only decide what the
+# provider keeps for the next request, so ``cache_prompt`` can change between
+# attempts without re-running the steps the previous one completed.
+_TRANSPORT_ONLY_SETTINGS = frozenset({"timeout"}) | PROMPT_CACHE_SETTING_NAMES
 
 
 def _content_settings(model_settings: ModelSettings | None) -> dict[str, Any] | None:
@@ -98,6 +102,24 @@ def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]
     return stripped
 
 
+def _normalize_params(params_dump: dict[str, Any]) -> dict[str, Any]:
+    """
+    Drop capability ids and sort set-valued fields from dumped request parameters.
+
+    A capability without an explicit ``id`` gets a random one per run (``<toolset:d0d75e>``),
+    stamped on its tools' ``capability_id``, so hashing it would make every retry miss the
+    cache. What the model sees of capabilities (the deferred-capability catalog in the
+    instructions, tool visibility, revealed tool names) is hashed through other fields, so
+    ``deferred_capability_ids`` is dropped too. A set dumps in iteration order, which differs
+    between processes (``PYTHONHASHSEED``), and a retry runs in a new process.
+    """
+    cleaned = {k: v for k, v in params_dump.items() if k != "deferred_capability_ids"}
+    cleaned["revealed_tool_names"] = sorted(cleaned["revealed_tool_names"])
+    for key in ("function_tools", "output_tools"):
+        cleaned[key] = [{k: v for k, v in tool.items() if k != "capability_id"} for tool in cleaned[key]]
+    return cleaned
+
+
 def _digest(payload: Any) -> str:
     # No ``default=`` fallback: a non-JSON-serializable value must raise so the
     # callers degrade to an unverifiable (None) fingerprint instead of hashing
@@ -115,9 +137,9 @@ def fingerprint_model_request(
     """
     Fingerprint a model request: model identity, message history, settings, and request parameters.
 
-    The full ``ModelRequestParameters`` object is hashed (tool definitions,
-    output mode and schema, native tools, ...) so any change to what is sent
-    to the model invalidates the cached response.
+    The ``ModelRequestParameters`` object is hashed (tool definitions, output
+    mode and schema, native tools, ...) so any change to what is sent to the
+    model invalidates the cached response; only capability ids are left out.
 
     Returns ``None`` when the request cannot be serialized; ``None`` compares
     equal to ``None``, so requests that cannot be fingerprinted degrade to
@@ -131,7 +153,7 @@ def fingerprint_model_request(
                 "model": model_identifier,
                 "messages": _strip_volatile(dumped),
                 "settings": _content_settings(model_settings),
-                "params": params,
+                "params": _normalize_params(params),
             }
         )
     except (TypeError, ValueError):

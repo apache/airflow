@@ -18,6 +18,13 @@
 Changelog
 =========
 
+.. warning::
+  In multi-team mode with ``use_team_secrets_path`` enabled (the default) and no ``global_secrets_path``
+  set, a connection or variable looked up with no team is no longer resolved when its id contains the
+  path separator. Such an id resolves under the same base path that team-scoped secrets are stored
+  under, so it could name a team's secret. Set ``global_secrets_path`` to give secrets used outside any
+  team a namespace of their own, in which nested ids keep working.
+
 0.3.1
 .....
 

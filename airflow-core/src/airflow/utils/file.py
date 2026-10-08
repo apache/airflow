@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import ast
-import logging
 import os
 import re
 import zipfile
@@ -32,10 +31,6 @@ from airflow._shared.module_loading import (
     might_contain_dag as might_contain_dag,
     might_contain_dag_via_default_heuristic as might_contain_dag_via_default_heuristic,
 )
-from airflow.configuration import conf
-
-log = logging.getLogger(__name__)
-
 
 ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
 
@@ -76,47 +71,14 @@ def open_maybe_zipped(fileloc, mode="r"):
     return open(fileloc, mode=mode)
 
 
-def list_py_file_paths(
-    directory: str | os.PathLike[str] | None,
-    safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True),
-) -> list[str]:
+def find_enclosing_file(path: Path) -> Path | None:
     """
-    Traverse a directory and look for Python files.
+    Return ``path`` or its nearest ancestor that is a file, or ``None`` if there is none.
 
-    :param directory: the directory to traverse
-    :param safe_mode: whether to use a heuristic to determine whether a file
-        contains Airflow DAG definitions. If not provided, use the
-        core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
-        to safe.
-    :return: a list of paths to Python files in the specified directory
+    A Dag definition nested in a container is referenced by a path that does not exist on
+    disk (``archive.zip/dag.py``, for instance); this resolves it to the container.
     """
-    file_paths: list[str] = []
-    if directory is None:
-        file_paths = []
-    elif os.path.isfile(directory):
-        file_paths = [str(directory)]
-    elif os.path.isdir(directory):
-        file_paths.extend(find_dag_file_paths(directory, safe_mode))
-    return file_paths
-
-
-def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> list[str]:
-    """Find file paths of all DAG files."""
-    from airflow._shared.module_loading.file_discovery import find_path_from_directory
-
-    file_paths = []
-    ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
-
-    for file_path in find_path_from_directory(directory, ".airflowignore", ignore_file_syntax):
-        path = Path(file_path)
-        try:
-            if path.is_file() and (path.suffix == ".py" or zipfile.is_zipfile(path)):
-                if might_contain_dag(file_path, safe_mode, conf=conf):
-                    file_paths.append(file_path)
-        except Exception:
-            log.exception("Error while examining %s", file_path)
-
-    return file_paths
+    return next((candidate for candidate in (path, *path.parents) if candidate.is_file()), None)
 
 
 COMMENT_PATTERN = re.compile(r"\s*#.*")

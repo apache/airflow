@@ -27,7 +27,7 @@ import stat
 import tempfile
 import warnings
 from collections.abc import Generator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import unquote
 
@@ -235,6 +235,11 @@ class GitHook(BaseHook):
 
         return " ".join(parts)
 
+    @property
+    def uses_github_app_auth(self) -> bool:
+        """Whether the connection authenticates as a GitHub App and mints its own installation tokens."""
+        return self.github_app_id is not None and self.github_installation_id is not None
+
     def _get_github_app_token(self):
         try:
             from github import Auth, GithubIntegration
@@ -258,7 +263,7 @@ class GitHook(BaseHook):
         TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
         if (
             self.github_app_token_exp is None
-            or self.github_app_token_exp < datetime.now(timezone.utc) + TOKEN_REFRESH_BUFFER
+            or self.github_app_token_exp < datetime.now(UTC) + TOKEN_REFRESH_BUFFER
         ):
             log.info(
                 "GitHub App token is missing or near expiry (expires at: %s). Refreshing token.",
@@ -392,7 +397,7 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
 
     @contextlib.contextmanager
     def configure_hook_env(self):
-        if self.github_app_id is not None and self.github_installation_id is not None:
+        if self.uses_github_app_auth:
             self._ensure_github_app_token()
             with self._token_credential_env():
                 yield

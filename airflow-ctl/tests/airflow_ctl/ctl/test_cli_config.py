@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 from argparse import BooleanOptionalAction
+from datetime import UTC
 from pathlib import Path
 from textwrap import dedent
 from unittest import mock
@@ -26,10 +27,13 @@ from unittest import mock
 import httpx
 import pytest
 
-from airflowctl.api.datamodels.generated import ClearTaskInstancesBody
-from airflowctl.api.operations import DagRunOperations, ServerResponseError
+from airflowctl.api.client import Client
+from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, ConnectionTestResponse
+from airflowctl.api.operations import ConnectionsOperations, DagRunOperations, ServerResponseError
+from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
+    ARG_OUTPUT,
     ActionCommand,
     Arg,
     CommandFactory,
@@ -39,6 +43,7 @@ from airflowctl.ctl.cli_config import (
     merge_commands,
     safe_call_command,
 )
+from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
@@ -477,6 +482,19 @@ class TestCommandFactory:
         assert limit_arg.flags == ("--limit",)
         assert limit_arg.kwargs["type"] is int
 
+    def test_every_generated_command_accepts_the_output_flag(self):
+        """``_get_func`` always prints through ``args.output``, so every generated command must declare it."""
+        command_factory = CommandFactory()
+
+        missing = [
+            f"{group_command.name} {sub_command.name}"
+            for group_command in command_factory.group_commands
+            for sub_command in group_command.subcommands
+            if ARG_OUTPUT not in sub_command.args
+        ]
+
+        assert missing == []
+
 
 class TestCliConfigMethods:
     @pytest.mark.parametrize(
@@ -729,7 +747,7 @@ class TestCliConfigMethods:
 
     def test_trigger_dag_run_defaults_logical_date_to_now(self):
         """Test that trigger command defaults logical_date to now when not provided."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
@@ -759,7 +777,7 @@ class TestCliConfigMethods:
             and "logical_date" in method_params[datamodel_param_name]
             and method_params[datamodel_param_name]["logical_date"] is None
         ):
-            method_params[datamodel_param_name]["logical_date"] = datetime.now(timezone.utc)
+            method_params[datamodel_param_name]["logical_date"] = datetime.now(UTC)
 
         # Step 3: Create the Pydantic model (what happens in the actual code)
         trigger_body = datamodel.model_validate(method_params[datamodel_param_name])
@@ -769,7 +787,7 @@ class TestCliConfigMethods:
         assert isinstance(trigger_body.logical_date, datetime)
 
         # Verify it's close to current time (within 5 seconds)
-        time_diff = abs((datetime.now(timezone.utc) - trigger_body.logical_date).total_seconds())
+        time_diff = abs((datetime.now(UTC) - trigger_body.logical_date).total_seconds())
         assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
 
         # Also verify timezone is UTC
@@ -777,7 +795,7 @@ class TestCliConfigMethods:
 
     def test_apply_datamodel_defaults_trigger_dag_run_with_none(self):
         """Test _apply_datamodel_defaults sets logical_date to now when None for TriggerDAGRunPostBody."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
@@ -791,7 +809,7 @@ class TestCliConfigMethods:
         assert isinstance(result["logical_date"], datetime)
 
         # Verify it's close to current time (within 5 seconds)
-        time_diff = abs((datetime.now(timezone.utc) - result["logical_date"]).total_seconds())
+        time_diff = abs((datetime.now(UTC) - result["logical_date"]).total_seconds())
         assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
 
         # Verify timezone is UTC
@@ -799,14 +817,14 @@ class TestCliConfigMethods:
 
     def test_apply_datamodel_defaults_trigger_dag_run_with_value(self):
         """Test _apply_datamodel_defaults preserves existing logical_date for TriggerDAGRunPostBody."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
         command_factory = CommandFactory()
 
         # Test with an existing logical_date value
-        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
         params = {"logical_date": specific_date, "conf": {}}
         result = command_factory._apply_datamodel_defaults(TriggerDAGRunPostBody, params)
 
@@ -957,3 +975,16 @@ class TestCliConfigMethods:
         call_kwargs = self._call_generated_command(monkeypatch, DagRunOperations, "list")
 
         assert call_kwargs["state"] is None
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(ConnectionsOperations, "test", autospec=True)
+    def test_connections_test_reaches_the_printer(self, mocked_test, mocked_print_as):
+        """``connections test`` has no CRUD-verb prefix, so argparse used to leave ``args.output`` undefined."""
+        mocked_test.return_value = ConnectionTestResponse(status=True, message="ok")
+        args = cli_parser.get_parser().parse_args(
+            ["connections", "test", "--connection-id", "my_conn", "--conn-type", "http"]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_print_as.call_args.kwargs["output"] == "json"

@@ -22,14 +22,8 @@ from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 import structlog
 
 if TYPE_CHECKING:
-    import sys
     from collections.abc import Collection, Iterable
-
-    # Replicate `airflow.typing_compat.Self` to avoid illegal imports
-    if sys.version_info >= (3, 11):
-        from typing import Self
-    else:
-        from typing_extensions import Self
+    from typing import Self
 
     from ..logging.types import Logger
 
