@@ -130,6 +130,8 @@ def example_agent_skills_restricted():
                 exclude_tools={"run_skill_script"},
                 # Keep matching files out of the resources the model can list and read.
                 exclude_resources=["*.env", "secrets/*"],
+                # Allow up to 3 corrections per skills tool; a successful call resets the count.
+                max_retries=3,
             )
         ],
     )

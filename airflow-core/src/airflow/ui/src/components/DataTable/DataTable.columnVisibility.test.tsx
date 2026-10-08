@@ -17,15 +17,16 @@
  * under the License.
  */
 import type { ColumnDef } from "@tanstack/react-table";
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ChakraWrapper } from "src/utils/ChakraWrapper.tsx";
 
 import { DataTable } from "./DataTable.tsx";
+import type { DataTableFeatures } from "./features.ts";
 
-const columns: Array<ColumnDef<{ name: string }>> = ["Name", "Added"].map((header) => ({
+const columns: Array<ColumnDef<DataTableFeatures, { name: string }>> = ["Name", "Added"].map((header) => ({
   cell: () => header,
   header,
   id: header,

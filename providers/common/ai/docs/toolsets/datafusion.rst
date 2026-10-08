@@ -175,27 +175,11 @@ Iceberg is looked up by ``db_name`` instead, and ``DataSourceConfig`` raises
   error message against regular expressions, which a wording change upstream can
   quietly defeat.
 
-**A real example.** The same bucket as the ``HookToolset`` example on :doc:`hook`, reached
-the other way. Rather than exposing ``list_keys`` and ``read_key`` and leaving
-the agent to reassemble files, this registers the prefix as a table and lets it
-write SQL:
-
-.. code-block:: python
-
-    from airflow.providers.common.ai.toolsets.datafusion import DataFusionToolset
-    from airflow.providers.common.sql.config import DataSourceConfig
-
-    toolset = DataFusionToolset(
-        datasource_configs=[
-            DataSourceConfig(
-                conn_id="aws_default",
-                table_name="sales",
-                uri="s3://my-bucket/data/sales/",
-                format="parquet",
-            ),
-        ],
-        max_rows=100,
-    )
+**Compared with the hook route.** The ``sales`` table at the top of this page
+reaches an S3 prefix the other way from the ``HookToolset`` example on
+:doc:`hook`. Rather than exposing
+``list_keys`` and ``read_key`` and leaving the agent to reassemble files, it
+registers the prefix as a table and lets the agent write SQL.
 
 Which of the two fits depends on the question. "Read me this object" is a hook
 method. "What were last quarter's returns by region" is a query, and expressing

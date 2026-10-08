@@ -28,6 +28,7 @@ import { useDagBundleServiceGetDagBundleFiles } from "openapi/queries";
 import type { DagBundleFileResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { DurationCell } from "src/components/DurationCell";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -47,7 +48,7 @@ const createColumns = (
   translate: TFunction,
   locale: string,
   onShowImportError: (relativeFileloc: string) => void,
-): Array<ColumnDef<DagBundleFileResponse>> => [
+): Array<ColumnDef<DataTableFeatures, DagBundleFileResponse>> => [
   {
     accessorKey: "relative_fileloc",
     cell: ({ row: { original } }: FileRow) => <Text fontFamily="mono">{original.relative_fileloc}</Text>,
