@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, create_autospec, patch
+from unittest.mock import AsyncMock, Mock, create_autospec, patch
 
 try:
     # Python 3.11+
@@ -572,6 +572,38 @@ class TestIterableOperator:
             assert iterable_op.params["p"] == 1
             assert iterable_op.weight_rule == WeightRule.UPSTREAM
             assert iterable_op.retry_policy is retry_policy
+
+    def test_default_args_callbacks_and_hooks_stay_with_the_items(self):
+        """
+        Callbacks and execute hooks in ``default_args`` reach the items, not the iterated task.
+
+        ``_apply_defaults`` fills every ``BaseOperator.__init__`` parameter the call leaves out
+        from ``default_args``; the IterableOperator passes them as ``None``, so a DAG-level
+        ``on_failure_callback`` runs once per failed item, as through ``.partial()``, and not once
+        more for the task with the parent's context.
+        """
+        callback = Mock()
+        with DAG(
+            "test_dag",
+            default_args={
+                "on_failure_callback": callback,
+                "on_success_callback": callback,
+                "on_execute_callback": callback,
+                "pre_execute": callback,
+                "post_execute": callback,
+            },
+        ):
+            iterated = MockOperator.partial(task_id="op").iterate(arg1=["a", "b"])
+
+        assert iterated.on_failure_callback == []
+        assert iterated.on_success_callback == []
+        assert iterated.on_execute_callback == []
+        assert iterated._pre_execute_hook is None
+        assert iterated._post_execute_hook is None
+        item = iterated._operator.unmap({"arg1": "a"})
+        assert item.on_failure_callback == [callback]
+        assert item.on_success_callback == [callback]
+        assert item._pre_execute_hook is callback
 
     def test_forwards_do_xcom_push(self):
         """Test that IterableOperator forwards do_xcom_push from the wrapped operator's
@@ -2046,9 +2078,9 @@ class TestIterableOperator:
         iterable_op.on_kill()  # should not raise
 
     def test_run_task_tracks_active_sub_operator_during_execution(self, monkeypatch: pytest.MonkeyPatch):
-        """``_run_task`` must register the sub-task's unmapped operator in
-        ``_active_sub_operators`` only for the duration of its execution, so ``on_kill()``
-        propagates only to sub-tasks that are actually running."""
+        """``_run_task`` must register the sub-task's unmapped operator in the iteration state
+        only for the duration of its execution, so ``on_kill()`` propagates only to sub-tasks that
+        are actually running."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{}])
             iterable_op = create_iterable_operator(
@@ -2563,7 +2595,10 @@ class TestAKillSticks:
         xcom_arg.aresolve = aresolve
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
-                dag, ListOfDictsExpandInput(xcom_arg), task_id="killed_early", operator_class=MockKillingOperator
+                dag,
+                ListOfDictsExpandInput(xcom_arg),
+                task_id="killed_early",
+                operator_class=MockKillingOperator,
             )
             KILL_TARGET[:] = [iterable_op]
             with mock_context(task=iterable_op) as context:

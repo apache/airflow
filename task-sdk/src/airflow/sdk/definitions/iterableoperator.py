@@ -610,6 +610,17 @@ class IterableOperator(BaseOperator):
                 "doc_rst": operator.doc_rst,
                 "task_display_name": operator.task_display_name,
                 "allow_nested_operators": operator.allow_nested_operators,
+                # The iterated task has no callbacks and no execute hooks of its own: they run per
+                # item, from the wrapped operator's partial kwargs. Passed explicitly, since
+                # _apply_defaults would otherwise fill them from the DAG's default_args and the
+                # runner would run them for the task on top of the items' own.
+                "on_execute_callback": None,
+                "on_success_callback": None,
+                "on_failure_callback": None,
+                "on_retry_callback": None,
+                "on_skipped_callback": None,
+                "pre_execute": None,
+                "post_execute": None,
             }
         )
         self._operator = operator
