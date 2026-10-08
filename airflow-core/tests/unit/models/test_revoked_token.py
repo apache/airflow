@@ -21,7 +21,8 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
 
 from airflow.models.revoked_token import RevokedToken
 from airflow.utils.session import create_session
@@ -111,7 +112,7 @@ class TestRevokedTokenCleanup:
 
     def test_cleanup_skipped_while_another_thread_is_cleaning(self):
         """The interval bookkeeping is not thread safe, so only one pass may run at a time."""
-        mock_session = MagicMock()
+        mock_session = MagicMock(spec=Session)
         mock_session.scalar.return_value = False
 
         original_last_cleanup = RevokedToken._last_cleanup_time
@@ -132,11 +133,40 @@ class TestRevokedTokenCleanup:
             RevokedToken._cleanup_lock.release()
             RevokedToken._last_cleanup_time = original_last_cleanup
 
-    def test_failed_cleanup_rolls_back_so_the_revocation_read_still_works(self):
-        """A failed statement aborts the transaction on PostgreSQL; the read after it must not inherit that."""
-        mock_session = MagicMock()
+    def test_cleanup_skipped_when_another_thread_finished_a_pass_before_the_lock(self):
+        mock_session = MagicMock(spec=Session)
         mock_session.scalar.return_value = False
-        mock_session.scalars.side_effect = RuntimeError("database is on fire")
+
+        class LockAcquiredRightAfterAnotherPass:
+            def acquire(self, blocking=True):
+                RevokedToken._last_cleanup_time = 8000.0
+                return True
+
+            def release(self):
+                pass
+
+        original_last_cleanup = RevokedToken._last_cleanup_time
+        try:
+            RevokedToken._last_cleanup_time = 0.0
+            with (
+                patch.object(RevokedToken, "_cleanup_lock", LockAcquiredRightAfterAnotherPass()),
+                patch("airflow.models.revoked_token.time.monotonic", return_value=8000.0),
+                patch("airflow.models.revoked_token.conf.getint", return_value=3600),
+            ):
+                assert RevokedToken.is_revoked("test-jti", session=mock_session) is False
+
+            mock_session.scalars.assert_not_called()
+            mock_session.execute.assert_not_called()
+        finally:
+            RevokedToken._last_cleanup_time = original_last_cleanup
+
+    @pytest.mark.parametrize("failing_statement", ["scalars", "execute"], ids=["select", "delete"])
+    def test_failed_cleanup_rolls_back_so_the_revocation_read_still_works(self, failing_statement):
+        """A failed statement aborts the transaction on PostgreSQL; the read after it must not inherit that."""
+        mock_session = MagicMock(spec=Session)
+        mock_session.scalar.return_value = False
+        mock_session.scalars.return_value.all.return_value = ["expired-jti"]
+        getattr(mock_session, failing_statement).side_effect = RuntimeError("database is on fire")
 
         original_last_cleanup = RevokedToken._last_cleanup_time
         try:
@@ -179,9 +209,9 @@ class TestRevokedTokenCleanupIsBounded:
                 session.add(RevokedToken(jti=f"live-{i}", exp=now + timedelta(hours=1)))
 
     @staticmethod
-    def _remaining() -> int:
+    def _remaining_jtis() -> set[str]:
         with create_session() as session:
-            return session.scalars(select(func.count()).select_from(RevokedToken)).one()
+            return set(session.scalars(select(RevokedToken.jti)))
 
     @conf_vars({("api_auth", "jwt_expiration_time"): "3600"})
     def test_cleanup_deletes_at_most_one_batch(self):
@@ -194,8 +224,9 @@ class TestRevokedTokenCleanupIsBounded:
         ):
             RevokedToken.is_revoked("live-0")
 
-        # 3 of the 7 expired rows gone, both unexpired rows untouched
-        assert self._remaining() == 6
+        remaining = self._remaining_jtis()
+        assert len(remaining) == 6
+        assert {"live-0", "live-1"} <= remaining
 
     @conf_vars({("api_auth", "jwt_expiration_time"): "3600"})
     def test_full_batch_lets_the_next_check_resume_draining(self):
@@ -208,13 +239,13 @@ class TestRevokedTokenCleanupIsBounded:
         ):
             # Each full batch rewinds the interval, so the passes chain on a frozen clock.
             RevokedToken.is_revoked("expired-0")
-            assert self._remaining() == 4
+            assert len(self._remaining_jtis()) == 4
             RevokedToken.is_revoked("expired-0")
-            assert self._remaining() == 1
+            assert len(self._remaining_jtis()) == 1
             RevokedToken.is_revoked("expired-0")
-            assert self._remaining() == 0
+            assert len(self._remaining_jtis()) == 0
 
             # The last pass did not fill the batch, so the interval applies again
             self._add_tokens(expired=2, live=0)
             RevokedToken.is_revoked("expired-0")
-            assert self._remaining() == 2
+            assert len(self._remaining_jtis()) == 2

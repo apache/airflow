@@ -85,6 +85,9 @@ class RevokedToken(Base):
         if not cls._cleanup_lock.acquire(blocking=False):
             return
         try:
+            # Another thread may have finished a pass between the check above and the acquire.
+            if now - cls._last_cleanup_time < cleanup_interval:
+                return
             # Set before the delete so a failing database is not retried on every request.
             cls._last_cleanup_time = now
             expired_jtis = session.scalars(
