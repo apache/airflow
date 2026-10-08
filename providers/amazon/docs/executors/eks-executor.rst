@@ -40,10 +40,6 @@ For a quick start guide please see :ref:`here <eks_setup_guide>`.
 Requirements
 ------------
 
-.. TODO: The two 10.24.0 mentions below are the expected next cncf.kubernetes minor and
-   must be confirmed against the release that actually ships the client_factory seam.
-   Keep them in step with MIN_CNCF_KUBERNETES_VERSION in eks_executor.py.
-
 The executor needs ``apache-airflow-providers-cncf-kubernetes`` version 10.24.0 or
 newer, the release that added the ``client_factory`` setting the executor is built on.
 Install the ``cncf.kubernetes`` extra of the Amazon provider together with that

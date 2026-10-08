@@ -43,7 +43,6 @@ from airflow.providers.amazon.aws.executors.eks._client_factory import CONFIG_GR
 _FACTORY_MODULE = "airflow.providers.amazon.aws.executors.eks._client_factory"
 _CLIENT_FACTORY_PATH = f"{_FACTORY_MODULE}._get_eks_kube_client"
 _ASYNC_CLIENT_FACTORY_PATH = f"{_FACTORY_MODULE}._get_eks_async_kube_client"
-# TODO: confirm once the cncf.kubernetes release carrying the client_factory seam is cut.
 # Only used in the error message below. The check looks for the client_factory option instead of
 # comparing versions, because an unreleased source tree still reports the previous release.
 MIN_CNCF_KUBERNETES_VERSION = "10.24.0"
