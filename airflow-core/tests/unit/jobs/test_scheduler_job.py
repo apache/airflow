@@ -11759,6 +11759,50 @@ def test_dags_needing_dagruns_routes_custom_timetable_by_behavior(
     assert (dag_model.dag_id in triggered_date_by_dag) is asset_triggered
 
 
+@pytest.mark.db_test
+def test_dags_needing_dagruns_excludes_dags_disallowing_scheduled_runs(session: Session, dag_maker):
+    """Dags that disallow scheduled runs must not occupy scheduled-run creation slots.
+
+    Regression test for https://github.com/apache/airflow/issues/74428: an
+    AssetOrTimeSchedule Dag with ``allowed_run_types=["asset_triggered", "manual"]``
+    was repeatedly selected for scheduled-run creation and skipped, consuming the
+    ``max_dagruns_to_create_per_loop`` batch and starving unrelated Dags.
+    """
+    with dag_maker(dag_id="victim_cron", schedule="* * * * *", session=session):
+        EmptyOperator(task_id="t")
+    victim_model = dag_maker.dag_model
+    victim_model.next_dagrun_create_after = timezone.utcnow() - timedelta(minutes=1)
+
+    # Models an AssetOrTimeSchedule Dag restricted to asset-triggered/manual runs:
+    # time-due, but scheduled runs are disallowed.
+    with dag_maker(dag_id="restricted_or", schedule="* * * * *", session=session):
+        EmptyOperator(task_id="t")
+    restricted_model = dag_maker.dag_model
+    restricted_model.next_dagrun_create_after = timezone.utcnow() - timedelta(minutes=2)
+    restricted_model.allowed_run_types = ["asset_triggered", "manual"]
+    session.flush()
+
+    query, _ = DagModel.dags_needing_dagruns(session)
+    assert [model.dag_id for model in query.all()] == ["victim_cron"]
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("allowed_run_types", [["scheduled"], ["scheduled", "manual"], None])
+def test_dags_needing_dagruns_selects_dags_allowing_scheduled_runs(
+    session: Session, dag_maker, allowed_run_types
+):
+    """Dags with no restriction (or explicitly allowing scheduled runs) stay selectable."""
+    with dag_maker(dag_id="schedulable", schedule="* * * * *", session=session):
+        EmptyOperator(task_id="t")
+    dag_model = dag_maker.dag_model
+    dag_model.next_dagrun_create_after = timezone.utcnow() - timedelta(minutes=1)
+    dag_model.allowed_run_types = allowed_run_types
+    session.flush()
+
+    query, _ = DagModel.dags_needing_dagruns(session)
+    assert [model.dag_id for model in query.all()] == ["schedulable"]
+
+
 @time_machine.travel("2026-03-29 18:30:00+00:00")
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
