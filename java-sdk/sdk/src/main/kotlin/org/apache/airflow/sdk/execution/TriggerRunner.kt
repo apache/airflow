@@ -18,7 +18,7 @@
  */
 
 // Mirrors TriggerDagRunOperator.execute and execute_complete in the standard
-// provider, as the Go and TypeScript SDK runtimes do.
+// provider, as the TypeScript SDK runtime does.
 
 package org.apache.airflow.sdk.execution
 
