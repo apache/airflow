@@ -56,9 +56,15 @@ Command (Extra field)
     Examples: ``uvx``, ``python``, ``node``
 
 Arguments (Extra field)
-    JSON array of arguments for the stdio command.
+    Arguments for the stdio command. Enter a JSON array of strings in the form
+    field. A value that does not start with ``[`` (ignoring leading whitespace)
+    is passed as a single argument, so use the array form for more than one
+    argument. A value starting with ``[`` must be a valid JSON array of
+    strings, otherwise an error is raised. To pass one literal argument that
+    starts with ``[``, wrap it in an array, for example ``["[::1]"]``.
 
-    Examples: ``["mcp-run-python"]``, ``["-m", "my_mcp_server"]``
+    Examples: ``["mcp-run-python"]``, ``["-m", "my_mcp_server"]``,
+    ``mcp-run-python`` (same as ``["mcp-run-python"]``)
 
 Environment (Extra field)
     JSON object of environment variables for the ``stdio`` subprocess. Ignored

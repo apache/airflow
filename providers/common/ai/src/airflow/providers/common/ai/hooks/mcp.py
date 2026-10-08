@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import BaseHook
@@ -46,7 +47,8 @@ class MCPHook(BaseHook):
         - **password**: Auth token (optional)
         - **Extra.transport**: Transport type — ``http`` (default), ``sse``, or ``stdio``
         - **Extra.command**: Command to run for stdio transport (e.g. ``uvx``)
-        - **Extra.args**: Command arguments for stdio transport (e.g. ``["mcp-run-python"]``)
+        - **Extra.args**: Command arguments for stdio transport, as a list or a JSON array string
+          (e.g. ``["mcp-run-python"]``). Any other string is a single argument.
         - **Extra.env**: Environment variables for the stdio subprocess (e.g.
           ``{"API_KEY": "..."}``). Ignored for HTTP/SSE.
         - **Extra.timeout**: Connection init timeout in seconds for stdio (default: 10)
@@ -190,6 +192,23 @@ class MCPHook(BaseHook):
 
         return env or None
 
+    def _parse_args_string(self, value: str) -> list[str]:
+        """Parse a string ``args`` value: a JSON array (as the UI form stores it) or a single argument."""
+        if not value.strip().startswith("["):
+            return [value]
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"'args' in extra for connection {self.mcp_conn_id!r} looks like a JSON array "
+                f"but is not valid JSON: {e}"
+            ) from e
+        if not all(isinstance(arg, str) for arg in parsed):
+            raise ValueError(
+                f"'args' in extra for connection {self.mcp_conn_id!r} must be a JSON array of strings."
+            )
+        return parsed
+
     def get_conn(self) -> Any:
         """
         Return a configured PydanticAI MCP toolset instance.
@@ -238,7 +257,7 @@ class MCPHook(BaseHook):
                 )
             args = extra.get("args", [])
             if isinstance(args, str):
-                args = [args]
+                args = self._parse_args_string(args)
             timeout = extra.get("timeout", 10)
             toolset = MCPToolset(
                 StdioTransport(command=command, args=args, env=self._stdio_env(extra)),

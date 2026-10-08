@@ -178,6 +178,46 @@ class TestMCPHookGetConn:
 
         mock_transport_cls.assert_called_once_with(command="uvx", args=["mcp-run-python"], env=None)
 
+    @pytest.mark.parametrize(
+        ("args", "expected"),
+        [
+            pytest.param('["-m", "my_server"]', ["-m", "my_server"], id="json-array-string"),
+            pytest.param('  ["-m", "my_server"]  ', ["-m", "my_server"], id="json-array-string-whitespace"),
+        ],
+    )
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
+    def test_args_string_parsing(self, mock_transport_cls, mock_toolset_cls, args, expected):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "python", "args": args}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        mock_transport_cls.assert_called_once_with(command="python", args=expected, env=None)
+
+    @pytest.mark.parametrize(
+        ("args", "match"),
+        [
+            pytest.param('["-m", "my_server"', "not valid JSON", id="malformed-json"),
+            pytest.param('["-m", 1]', "JSON array of strings", id="non-string-item"),
+        ],
+    )
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
+    def test_invalid_args_json_array_string_raises(self, mock_transport_cls, mock_toolset_cls, args, match):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "python", "args": args}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn), pytest.raises(ValueError, match=match):
+            hook.get_conn()
+
     def test_http_without_host_raises(self):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(conn_id="test_conn", conn_type="mcp")
