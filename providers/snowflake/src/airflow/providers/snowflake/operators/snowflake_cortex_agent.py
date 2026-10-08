@@ -250,6 +250,9 @@ class SnowflakeCortexAgentUpdateOperator(BaseOperator):
     """
     Update a Snowflake Cortex Agent.
 
+    Only fields explicitly provided are included in the update request. Fields left
+    as ``None`` retain their current values in Snowflake.
+
     :param database: Database containing the Cortex Agent.
     :param schema: Schema containing the Cortex Agent.
     :param agent_name: Name of the Cortex Agent.

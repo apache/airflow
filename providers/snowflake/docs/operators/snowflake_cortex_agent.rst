@@ -41,12 +41,6 @@ To use these operators, you must do the following:
 Use the ``snowflake_conn_id`` argument to specify the connection used by an
 operator. If not specified, ``snowflake_default`` is used.
 
-.. note::
-
-   Parameters passed directly to an operator take precedence over corresponding
-   values configured in the Airflow connection metadata, such as ``database``
-   and ``schema``.
-
 Authentication
 ^^^^^^^^^^^^^^
 
@@ -65,6 +59,7 @@ See the :doc:`Snowflake connection </connections/snowflake>` page for the full f
 A hook instance keeps its resolved key-pair JWT and reuses it within its renewal window instead of
 signing a new one on every request. This benefits code that calls ``SnowflakeCortexAgentHook``
 several times on the same instance; the operator makes one request per ``execute`` call.
+
 .. _howto/operator:SnowflakeCortexAgentCreateOperator:
 
 SnowflakeCortexAgentCreateOperator
@@ -86,6 +81,9 @@ SnowflakeCortexAgentUpdateOperator
 
 To update an existing Snowflake Cortex Agent you can use
 :class:`~airflow.providers.snowflake.operators.snowflake_cortex_agent.SnowflakeCortexAgentUpdateOperator`.
+
+Only fields explicitly provided are updated. Optional fields left as ``None``
+retain their existing values on the Cortex Agent.
 
 .. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_cortex_agent.py
     :language: python
