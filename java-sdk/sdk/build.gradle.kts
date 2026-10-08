@@ -494,9 +494,9 @@ abstract class GenerateDagDslTask : DefaultTask() {
         (excludedTaskKeys - excludedSeen).takeIf { it.isNotEmpty() }?.let {
             throw GradleException("Excluded task keys match no eligible schema property; remove or fix: $it")
         }
-        // "id"/"to" name the annotations' structural attributes, so a schema
-        // key camel-casing to either would silently shadow them.
-        (dagFields + taskFields).firstOrNull { it.attribute == "id" || it.attribute == "to" }?.let {
+        // "id" and "to" name the annotations' structural attributes, so a schema
+        // key camel-casing to one would silently shadow it.
+        (dagFields + taskFields).firstOrNull { it.attribute in setOf("id", "to") }?.let {
             throw GradleException("Schema key '${it.key}' collides with a structural annotation attribute")
         }
 
@@ -636,6 +636,43 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |  @Target(AnnotationTarget.CLASS)
             |  @MustBeDocumented
             |  annotation class Deps
+            |
+            |  /**
+            |   * Marks a nested class that groups the tasks declared inside it, as
+            |   * Python's `TaskGroup` does.
+            |   *
+            |   * Declare it as a `static` nested class of the [Dag] class, or of
+            |   * another [TaskGroup] class to nest one group in another. Everything it
+            |   * declares carries its ID as a prefix, so `stage` in `Staging` is the
+            |   * task `Staging.stage`:
+            |   *
+            |   * ```java
+            |   * @Builder.TaskGroup
+            |   * static class Staging {
+            |   *   @Builder.Task
+            |   *   public long stage(long rows) { ... }
+            |   *
+            |   *   @Builder.TaskGroup(id = "checks")
+            |   *   static class Checks {
+            |   *     @Builder.Task
+            |   *     public void nulls(long staged) { ... }
+            |   *   }
+            |   * }
+            |   * ```
+            |   *
+            |   * The wiring class reaches them through the generated view, where the
+            |   * group is both a namespace and a point in the flow:
+            |   * `staging().checks().nulls(staged)` and `extract().before(staging())`.
+            |   *
+            |   * @param id Group ID within its enclosing group. Empty derives it from
+            |   *    the annotated class's name. Must contain only ASCII letters,
+            |   *    digits, underscores, or dashes.
+            |   */
+            |  @Target(AnnotationTarget.CLASS)
+            |  @MustBeDocumented
+            |  annotation class TaskGroup(
+            |    val id: String = "",
+            |  )
             |}
             |
             """.trimMargin(),

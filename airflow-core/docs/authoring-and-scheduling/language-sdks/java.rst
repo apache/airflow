@@ -694,6 +694,69 @@ class that supplies only task bodies, for a Dag a Python file declares, carries
    for a run (see :ref:`java-sdk/arg-binding`), the binding at a parameter's position is what the
    task receives.  Wired inputs are the fallback, which is what a native Java Dag always uses.
 
+Task groups
+~~~~~~~~~~~
+
+A task group gathers tasks that the Airflow UI shows as one node, as Python's ``TaskGroup`` does.
+Everything declared in a group carries the group's ID as a prefix, so task ``stage`` in group
+``staging`` is the task ``staging.stage``.  On the interface surface, ``taskGroup`` declares a group on
+the Dag or inside another group, and the group declares its tasks:
+
+.. code-block:: java
+
+    var staging = dag.taskGroup("staging");
+    var stage = staging.task("stage", Stage.class);              // "staging.stage"
+    staging.taskGroup("checks").task("nulls", Nulls.class).after(stage); // "staging.checks.nulls"
+    extract.before(staging);
+
+With annotations, a ``@Builder.TaskGroup`` class holds the tasks of one group, and nesting one in
+another nests the groups:
+
+.. code-block:: java
+
+    @Builder.TaskGroup                      // the group "Staging", after the class
+    static class Staging {
+      @Builder.Task
+      public long stage(long rows) { ... }  // the task "Staging.stage"
+
+      @Builder.TaskGroup(id = "checks")
+      static class Checks {
+        @Builder.Task
+        public void nulls(long staged) { ... }   // "Staging.checks.nulls"
+      }
+    }
+
+    @Builder.Deps
+    static class Wiring implements EtlPipelineDeps {
+      void depends() {
+        var rows = extract();
+        load(transform(rows, lit(0.9)));
+        rows.before(audit());
+        var staged = staging().stage(rows);
+        staging().checks().nulls(staged);
+        extract().before(staging());
+      }
+    }
+
+The generated view nests the same way, so a group is both the namespace of what it holds and a point
+in the flow: ``staging().checks().nulls(staged)`` reaches a task, and ``extract().before(staging())``
+orders the whole group.  Task method names scope to their own group, so two groups can each declare
+``run()``.  A group class is ``static``, non-private, and needs a no-argument constructor, because the
+generated task bodies instantiate it.
+
+A group stands at either end of ``before``, ``after`` and ``Flow.of``.  As an upstream it stands for
+its leaves, the tasks nothing else in the group runs after; as a downstream, for its roots, the tasks
+that run after nothing else in the group.  A group ID contains only ASCII letters, digits,
+underscores, or dashes, and no task or other group in the Dag can share it.
+
+.. note::
+
+    What a group holds is read once, when the Dag is serialized, which is what lets the wiring class
+    above order a whole group before any of its tasks are declared, as ``extract().before(staging())``
+    does.  Python instead reads it at each ``>>``.  Edges are still resolved in the order they were
+    drawn, as Python resolves them, so drawing an inner edge before or after an outer one gives
+    different upstreams.
+
 Configuration attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
