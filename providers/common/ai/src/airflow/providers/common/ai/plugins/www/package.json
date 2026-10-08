@@ -21,7 +21,7 @@
   ],
   "scripts": {
     "dev": "vite --port 5174 --strictPort",
-    "build": "vite build",
+    "build": "vite build && vite build --mode model",
     "build:types": "tsc --p tsconfig.lib.json",
     "build:lib": "vite build",
     "lint": "tsc --p tsconfig.app.json --noEmit",
@@ -32,6 +32,7 @@
     "@emotion/react": "^11.14.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-icons": "^5.7.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   },

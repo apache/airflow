@@ -101,7 +101,11 @@ def get_provider_info():
             {
                 "name": "hitl_review",
                 "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
-            }
+            },
+            {
+                "name": "ai_model_panel",
+                "plugin-class": "airflow.providers.common.ai.plugins.model_panel.ModelPanelPlugin",
+            },
         ],
         "config": {
             "common.ai": {

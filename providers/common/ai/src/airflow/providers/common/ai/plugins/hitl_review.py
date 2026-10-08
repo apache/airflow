@@ -18,45 +18,15 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Any
-from urllib.parse import urlparse
 
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.common.compat.sdk import conf
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS, get_base_airflow_version_tuple
-
-AIRFLOW_V_3_4_PLUS = get_base_airflow_version_tuple() >= (3, 4, 0)
+from airflow.providers.common.ai.plugins._plugin_urls import get_bundle_url
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_4_PLUS
 
 if TYPE_CHECKING:
     from airflow.plugins_manager import FastAPIAppDict, ReactAppDict
 
 _PLUGIN_PREFIX = "/hitl-review"
-
-
-def _get_base_url_path(path: str) -> str:
-    """Construct URL path with webserver base_url prefix for non-root deployments."""
-    base_url = conf.get("api", "base_url", fallback="/")
-    if base_url.startswith(("http://", "https://")):
-        base_path = urlparse(base_url).path
-    else:
-        base_path = base_url
-    base_path = base_path.rstrip("/")
-    return base_path + path
-
-
-def _get_bundle_url() -> str:
-    """
-    Return bundle URL for the React plugin.
-
-    Uses an absolute URL when api.base_url is a full URL so the bundle loads
-    correctly in Vite dev mode, where import() resolves relative to the script
-    origin (5173) rather than the document origin (28080).
-    """
-    path = _get_base_url_path(f"{_PLUGIN_PREFIX}/static/main.umd.cjs")
-    base_url = conf.get("api", "base_url", fallback="/")
-    if base_url.startswith(("http://", "https://")):
-        parsed = urlparse(base_url)
-        return f"{parsed.scheme}://{parsed.netloc}" + path
-    return path
 
 
 if AIRFLOW_V_3_1_PLUS:
@@ -557,7 +527,7 @@ class HITLReviewPlugin(AirflowPlugin):
         react_apps = [
             {
                 "name": "HITL Review",
-                "bundle_url": _get_bundle_url(),
+                "bundle_url": get_bundle_url(_PLUGIN_PREFIX, "main.umd.cjs"),
                 "destination": "task_instance",
                 "url_route": "hitl-review",
             }
