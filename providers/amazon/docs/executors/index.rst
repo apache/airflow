@@ -20,6 +20,37 @@
 Amazon Executors
 ================
 
+Each Amazon executor runs every Airflow task in its own container, pod or function
+invocation. They differ in which AWS service runs it.
+
+Choosing an executor
+--------------------
+
+.. list-table::
+    :header-rows: 1
+    :widths: 15 25 60
+
+    * - Executor
+      - Each task runs as
+      - A good fit when
+    * - :doc:`ECS <ecs-executor>`
+      - An ECS task, on Fargate or EC2
+      - You want each task in its own container without running a Kubernetes cluster.
+    * - :doc:`Batch <batch-executor>`
+      - An AWS Batch job on a job queue
+      - You run many tasks at once and want Batch's job queues and priorities, with Batch
+        managing Fargate, EC2 or EKS compute for you.
+    * - :doc:`EKS <eks-executor>`
+      - A pod on an Amazon EKS cluster
+      - You already run EKS, or want Kubernetes executor features such as pod templates
+        and per-task ``pod_override``. It does not support multi-team mode.
+    * - :doc:`Lambda <lambda-executor>` (experimental)
+      - An asynchronous Lambda invocation
+      - Tasks are short and light, and always finish within Lambda's 15 minute limit.
+
+You can also run more than one of them side by side, see
+:ref:`apache-airflow:using-multiple-executors-concurrently`.
+
 
 .. toctree::
     :maxdepth: 1
