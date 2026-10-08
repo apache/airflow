@@ -88,7 +88,7 @@ Reaching ``max_iterations`` while the condition remains ``False`` means the
 loop did not converge: the gate task in the final iteration is marked as
 failed. Meeting the condition on the last allowed iteration marks the gate task as success.
 
-For a fixed-count loop, omit ``until``. The definition ``refine.loop(max_iterations=3)`` runs
+For a fixed-count loop, omit ``until``. The definition ``accumulate.loop(max_iterations=3)`` runs
 three iterations, carrying results between them. Reaching the cap completes
 a fixed-count loop successfully. Its gate is named ``__loop_gate`` within the group.
 
@@ -159,6 +159,11 @@ outputs. For example, if two branches end in ``refine_left`` and
 through ``loop.result["left"]`` and ``loop.result["right"]``; tasks in the
 next iteration use the corresponding keys in ``loop.previous``.
 
+Setup and teardown tasks may be used in the body, but teardowns do not count as
+terminal tasks and the gate does not wait for them. A failing teardown does not stop the
+loop, and the next iteration can start while the previous iteration's teardowns are
+still running.
+
 Limitations:
 
 * ``include_prior_dates=True`` cannot select a loop iteration from another Dag run. Push the result to XCom through a task outside the loop if later Dag runs need to retrieve it with an ordinary XCom pull.
@@ -221,17 +226,22 @@ A retry stays in the same iteration and does not consume another iteration.
 Tasks in the body follow normal trigger rules. For example, a final combining
 task with ``all_done`` can handle a branch failure and return a result. If that
 task succeeds, the gate evaluates its result normally. If the terminal task
-fails, the gate's ``all_success`` rule prevents it from running, and
-no next iteration is created. You cannot change the gate task's trigger rule.
-The gate has exactly one upstream, the body's terminal task, so set
-``trigger_rule`` on that task to change when the gate runs.
+fails, the gate does not run under the default ``all_success`` rule, and
+no next iteration is created. The gate has no settings of its own: it takes
+``trigger_rule`` and ``retries`` from the Dag's ``default_args`` like any other
+task. With ``trigger_rule="all_done"`` in ``default_args``, the gate runs after
+a failed terminal task, and a fixed-count loop continues because it only
+counts iterations.
 
-An exception in ``until`` fails the gate task and appears in its logs. If the
-loop reaches its iteration limit without meeting ``until``, the final gate
-fails; downstream tasks with the default ``all_success`` trigger rule will not
-run, as described under non-convergence above.
+An exception in ``until`` fails the gate task and appears in its logs; the
+gate is retried according to ``retries``. An ``until`` that returns anything
+other than a ``bool``, and a loop that reaches its iteration limit without
+meeting ``until``, fail the gate without retrying, because a retry would see the
+same result. In the second case the final gate fails; downstream tasks with the
+default ``all_success`` trigger rule will not run, as described under
+non-convergence above.
 
-Skipping the body's terminal task also skips the gate under its
+Skipping the body's terminal task also skips the gate under the default
 ``all_success`` trigger rule, so no next iteration is created. Downstream
 tasks with the default ``all_success`` rule are skipped too; give a downstream
 task ``trigger_rule="none_failed"`` if it should still run when the loop ends
@@ -273,12 +283,12 @@ Clear tasks inside a loop
 
 Use these controls to select how far a clear extends through the loop:
 
-* **Downstream** includes downstream tasks. It starts selected unless you have
+* **Clear downstream tasks** includes downstream tasks. It starts selected unless you have
   changed your saved clear options. Clearing a task this way can also clear
   the gate in the same iteration.
 * **Clear later loop iterations**, selected by default, clears later
   iterations when the selection includes a gate task, whether selected
-  directly or through **Downstream**. The gate runs again and decides
+  directly or through **Clear downstream tasks**. The gate runs again and decides
   whether the loop should continue from that point.
 
 Clearing later iterations does not require the loop to run the same number of
@@ -295,7 +305,7 @@ Suppose each iteration contains this sequence:
    prepare → process → consume → gate
 
 The loop has already run iterations 0 through 4. You clear ``process`` in
-iteration 2 with **Downstream** and **Clear later loop iterations** both selected:
+iteration 2 with **Clear downstream tasks** and **Clear later loop iterations** both selected:
 
 * ``prepare`` in iteration 2 remains completed.
 * ``process``, ``consume``, and the gate in iteration 2 run again.
