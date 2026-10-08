@@ -26,7 +26,7 @@ import logging
 import os
 import sys
 import time
-from asyncio import CancelledError, wait_for
+from asyncio import CancelledError, to_thread, wait_for
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import dataclass, replace
@@ -1204,22 +1204,22 @@ class IndexedTaskRunner(LoggingMixin):
         Entered by :meth:`run` and :meth:`arun`, so in the worker thread or coroutine that executes
         the operator: a sync operator stays registered while its thread is still inside ``execute``,
         even after the coroutine waiting for it was cancelled, and ``IterableOperator.on_kill`` can
-        reach it. When the parent's execution timeout strikes this very operator (it runs on the
-        main thread, as async operators do), it is killed here, since it leaves the register as the
-        timeout unwinds and the parent's ``on_kill`` would no longer see it.
+        reach it. The operator the parent's execution timeout strikes stays registered as well:
+        the timeout lands on the loop thread (where async operators run; a sync one runs in a
+        worker thread the signal never reaches), and its ``on_kill`` must not run there, where a
+        synchronous SDK call raises, so ``IterableOperator._run_tasks`` kills it off the loop
+        thread with the others once the timeout has unwound.
         """
         if self._register is not None:
             self._register.register(self.operator)
+        struck_by_the_parent = False
         try:
             yield
         except AirflowTaskTimeout:
-            try:
-                self.operator.on_kill()
-            except Exception:
-                self.log.exception("Error calling on_kill() for sub-task operator %s", self.task_id)
+            struck_by_the_parent = True
             raise
         finally:
-            if self._register is not None:
+            if self._register is not None and not struck_by_the_parent:
                 self._register.unregister(self.operator)
 
     def run(self, context: Context):
@@ -2704,7 +2704,10 @@ async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Lo
             # TimeoutError, which the operator may raise itself (a socket or HTTP timeout), and
             # that is an ordinary failure of the operator, not a reason to call on_kill().
             if time.monotonic() - started >= timeout:
-                task.on_kill()
+                # Off the loop thread: a synchronous SDK call in on_kill (cancelling a remote job
+                # through a sync hook) would raise DeadlockImminentError here, and the item's
+                # timeout would become a failure without a retry, with the job left running.
+                await to_thread(task.on_kill)
             raise
 
     _run_post_execute(task, context, outlet_events, result, log)

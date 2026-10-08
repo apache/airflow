@@ -2720,6 +2720,42 @@ class TestExecutionTimeoutKillsInFlightSubTasks:
 
         assert sorted(KILLED_ON_TIMEOUT) == [(kind, 1), (kind, 2)]
 
+    def test_the_struck_async_items_on_kill_runs_off_the_loop_thread(self):
+        """
+        The parent's timeout can land inside the async item running on the loop thread. Its on_kill
+        may make a sync SDK call (cancelling a remote job through a sync hook), which raises
+        DeadlockImminentError on that thread; killed there, the timeout would turn into a failure
+        without a retry and the job would go on. The struck item stays registered and the parent
+        kills it off the loop with the others. The strike is simulated by the item raising the
+        timeout itself, as the signal handler would inside its coroutine.
+        """
+
+        class SyncHookOnKill(MockSlowAsyncKillableOperator):
+            async def aexecute(self, context):
+                if self.arg1 == 1:
+                    raise AirflowTaskTimeout("the parent ran out of time")
+                await asyncio.sleep(3)
+
+            def on_kill(self):
+                if asyncio._get_running_loop() is not None:
+                    raise DeadlockImminentError("sync SDK call on the loop thread")
+                super().on_kill()
+
+        KILLED_ON_TIMEOUT.clear()
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}]),
+                task_id="timed_out_sync_hook",
+                task_concurrency=2,
+                operator_class=SyncHookOnKill,
+            )
+            with mock_context(task=iterable_op) as context:
+                with pytest.raises(AirflowTaskTimeout):
+                    iterable_op.execute(context=context)
+
+        assert sorted(KILLED_ON_TIMEOUT) == [("async", 1), ("async", 2)]
+
 
 class TestFailureHandedToTheRunner:
     """

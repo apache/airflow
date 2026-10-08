@@ -2905,8 +2905,11 @@ class TestIndexedTaskRunner:
         assert ti.task not in state
         ti.task.on_kill.assert_not_called()
 
-    def test_in_flight_kills_the_operator_the_parent_timeout_strikes(self, make_indexed_ti):
-        """It leaves the register as the timeout unwinds, before the parent's on_kill() could see it."""
+    def test_in_flight_leaves_the_operator_the_parent_timeout_strikes_registered(self, make_indexed_ti):
+        """
+        The timeout lands on the loop thread; the operator's on_kill must not run there, so the
+        operator stays registered for the parent's kill off the loop once the timeout has unwound.
+        """
         ti = make_indexed_ti()
         state = IterationState()
         runner = IndexedTaskRunner(task_instance=ti, register=state)
@@ -2915,8 +2918,8 @@ class TestIndexedTaskRunner:
             with runner.in_flight():
                 raise AirflowTaskTimeout("the task ran out of time")
 
-        ti.task.on_kill.assert_called_once_with()
-        assert ti.task not in state
+        ti.task.on_kill.assert_not_called()
+        assert ti.task in state
 
     def test_in_flight_keeps_operators_that_compare_equal_apart(self, make_indexed_ti):
         """Sub-operators of one iterated task compare equal; each is registered on its own."""
@@ -3188,6 +3191,7 @@ class TestExecuteAsyncTask:
 
         def on_kill(self):
             self.killed = True
+            self.killed_on_the_loop_thread = asyncio._get_running_loop() is not None
 
     async def _run(self, make_indexed_ti, behaviour, execution_timeout):
         operator = self._Operator(
@@ -3207,9 +3211,11 @@ class TestExecuteAsyncTask:
         assert operator.killed is False
 
     @pytest.mark.asyncio
-    async def test_running_out_of_the_limit_kills_it(self, make_indexed_ti):
+    async def test_running_out_of_the_limit_kills_it_off_the_loop_thread(self, make_indexed_ti):
+        """A sync SDK call in on_kill (cancelling a remote job) raises on the loop thread."""
         operator = await self._run(make_indexed_ti, "sleep", timedelta(milliseconds=50))
         assert operator.killed is True
+        assert operator.killed_on_the_loop_thread is False
 
 
 class TestSerializeOutletEvents:
