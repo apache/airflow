@@ -1,1 +1,0 @@
-Fix ``GET /ui/dags`` recent-runs query degradation on large, skewed ``dag_run`` tables: the per-Dag ``UNION ALL`` branches planned as unbounded backward ``run_after`` index scans for cold Dags; recent runs are now fetched by one page-scoped ``row_number()`` query.
