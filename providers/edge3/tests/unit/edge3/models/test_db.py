@@ -281,7 +281,7 @@ class TestEdgeDBManager:
             version = conn.execute(text("SELECT version_num FROM alembic_version_edge3")).scalar()
             columns = {col["name"] for col in inspect(conn).get_columns("edge_worker")}
 
-        assert version == "f2a4b6c8d0e1"
+        assert version == "cd96a0a0e458"
         assert "concurrency" in columns
         assert "team_name" in columns
 
