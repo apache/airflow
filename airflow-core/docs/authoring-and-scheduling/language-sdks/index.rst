@@ -50,7 +50,7 @@ messages between it and Airflow. See :ref:`language-sdks/coordinator-config`.
    * - Go
      - :class:`task-sdk:airflow.sdk.coordinators.executable.ExecutableCoordinator`
      - None (native binary)
-     - Not yet
+     - Yes
      - :doc:`go`
    * - TypeScript
      - :class:`task-sdk:airflow.sdk.coordinators.node.NodeCoordinator`

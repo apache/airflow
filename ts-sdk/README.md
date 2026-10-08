@@ -61,7 +61,7 @@ A handler takes one object of named arguments, and calling a task names its inpu
 reference another task's call returned, which makes this task wait for it and receive its value, or a literal.
 
 A Dag also has order-only dependencies (`before` and `after`), task groups, branching with `dag.if` and
-`dag.switch`, and `dag.triggerDagRun`. See the
+`dag.switch`, and `triggerDagRun`. See the
 [guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
 for all of them.
 

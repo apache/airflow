@@ -217,7 +217,7 @@ spelled in camelCase, and a misspelled one is a compile error:
     const load = dag.task("load", loadRows, { retries: 2, retryDelay: 30 });
 
 ``schedule`` accepts ``@once``, ``@continuous``, a cron expression, or a cron preset such as ``@daily``. Leave
-it out for a Dag that only runs when triggered.
+it out for a Dag that only runs when triggered. A cron schedule runs in UTC.
 
 Every task of the Dag runs on the Node.js coordinator, so it needs a queue that
 :ref:`queue_to_coordinator <typescript-sdk/coordinator-config>` sends there. Set ``queue`` once on the Dag and
@@ -269,17 +269,19 @@ underscores, and is at most 200 characters.
 Conditional branching
 ~~~~~~~~~~~~~~~~~~~~~
 
-``dag.if`` takes a task whose handler returns a boolean, and names the task each outcome runs:
+``dag.if`` declares a task from a handler that returns a boolean, and names the task each outcome runs:
 
 .. code-block:: typescript
 
-    const hasRows = dag.task("has_rows", async ({ total }: { total: number }) => total > 0);
-    const checked = hasRows({ total });
+    async function hasRows({ total }: { total: number }): Promise<boolean> {
+      return total > 0;
+    }
 
-    dag.if(checked).then(loaded).else(reportedEmpty);
+    dag.if(hasRows, { total }).then(loaded).else(reportedEmpty);
 
-The condition is an ordinary task, and the compiler checks that its handler returns a boolean. ``else`` is
-optional: without it, the ``then`` task is skipped when the condition is false.
+Its inputs come second, and an optional third argument takes task options, such as ``taskId``; the id is
+otherwise the handler's name. The compiler checks that the handler returns a boolean. ``else`` is optional:
+without it, the ``then`` task is skipped when the condition is false.
 
 The tasks a condition guards take no input from it. To use a value the condition computed, read it with
 ``getClient().getXCom``.
@@ -291,22 +293,24 @@ skips every direct downstream task it did not choose.
 Multi-way branching
 ~~~~~~~~~~~~~~~~~~~
 
-``dag.switch`` takes a task whose handler returns the reference of the task to run, and lists the candidates:
+``dag.switch`` declares a task from a handler that returns the reference of the task to run, and lists the
+candidates:
 
 .. code-block:: typescript
 
     const daily = publishDaily();
     const weekly = publishWeekly();
 
-    const pickCadence = dag.task("pick_cadence", async () => {
+    async function pickCadence() {
       const cadence = await getClient().getVariable("cadence");
       return cadence === "weekly" ? weekly : daily;
-    });
+    }
 
-    dag.switch(pickCadence()).case(daily).case(weekly);
+    dag.switch(pickCadence).case(daily).case(weekly);
 
-A case is a task reference, so the compiler checks it exists, and renaming a handler cannot silently change
-which task runs. The deciding task's value is the id of the task it chose.
+It takes inputs and options as ``dag.if`` does. A case is a task reference, so the compiler checks it exists,
+and renaming a handler cannot silently change which task runs. The deciding task's value is the id of the
+task it chose.
 
 Exactly one case runs, and there is no default: a decider that returns anything else fails, naming what it
 returned and what it could have returned. To run several tasks together on one outcome, put them behind a
@@ -315,27 +319,26 @@ single task, or give each its own ``dag.if``.
 Triggering another Dag
 ~~~~~~~~~~~~~~~~~~~~~~
 
-``dag.triggerDagRun`` adds a task that starts a run of another Dag:
+``triggerDagRun`` makes a task that starts a run of another Dag. Pass it to ``dag.task`` in place of a handler:
 
 .. code-block:: typescript
 
-    dag
-      .triggerDagRun({
-        taskId: "trigger_downstream",
-        dagId: "downstream_etl",
-        conf: { source: "{{ dag.dag_id }}" },
-        waitForCompletion: true,
-      })
-      .after(loaded);
+    import { triggerDagRun } from "apache-airflow-ts-sdk";
 
-It returns the task reference directly, since there is nothing to call. It takes the options of Python's
-``TriggerDagRunOperator``, such as ``conf``, ``waitForCompletion``, ``deferrable``, ``pokeInterval``,
-``allowedStates`` and ``failedStates``, and a second object carries the task's own options, as ``dag.task``
-takes. Jinja templates in ``conf`` are rendered as they are for a Python Dag.
+    const triggered = dag.task(
+      "trigger_downstream",
+      triggerDagRun({ dagId: "downstream_etl", conf: { source: "ts_etl" }, waitForCompletion: true }),
+    )();
 
-This task runs on a Python worker, not on Node.js, so it does not inherit the Dag's ``queue``. The deployment
-needs the standard provider installed and a Python worker that picks the task up; set ``queue`` in the second
-object to choose which.
+    triggered.after(loaded);
+
+The task has no handler to take an id from, so it needs one, and it takes no inputs. ``triggerDagRun`` takes
+the options of Python's ``TriggerDagRunOperator``, such as ``conf``, ``waitForCompletion``, ``deferrable``,
+``pokeInterval``, ``allowedStates`` and ``failedStates``. Values are sent as written, so Jinja in ``conf`` is
+not rendered.
+
+The task runs on Node.js like the Dag's other tasks, and inherits the Dag's ``queue``. With ``deferrable``, it
+waits in the triggerer, which needs the standard provider installed.
 
 A complete example
 ~~~~~~~~~~~~~~~~~~
@@ -616,14 +619,15 @@ needs Node.js and the same ``[sdk]`` configuration as the workers:
     coordinators = {"ts": {"classpath": "airflow.sdk.coordinators.node.NodeCoordinator"}}
     queue_to_coordinator = {"typescript": "ts"}
 
+With more than one ``NodeCoordinator``, map each Dag bundle that holds ``*.min.mjs`` bundles to one of them in
+``[sdk] dag_bundle_to_coordinator``, such as ``{"dags-folder": "ts"}``, or its bundles fail to parse.
+
 Their tasks run from the same Dag bundle, at the version their Dag run was created with, so a Dag declared in
 TypeScript needs no coordinator option to find its bundle.
 
-A bundle that fails its integrity check, or whose Dags cannot be read, shows up as an import error, and the
-other Dags keep working.
-
-A task that runs on a Python worker, such as one ``dag.triggerDagRun`` declares, needs that worker to have
-Node.js and the same coordinator configuration too.
+A bundle that fails its integrity check, or whose Dags cannot be read or have a cycle, shows up as an import
+error, and the other Dags keep working. Do not declare the same ``dag_id`` in a Python file of that Dag bundle
+too: the two overwrite each other on every parse.
 
 Mixed-language tasks
 ~~~~~~~~~~~~~~~~~~~~
@@ -648,15 +652,16 @@ the version that bundle is on when the task starts:
 File names do not matter beyond the ``.min.mjs`` suffix, so one Dag bundle can hold several bundles.
 
 The Dag processor also reads a bundle that only implements stub tasks, which starts ``node`` once per parse
-and finds no Dags.
+and finds no Dags. List such bundles in ``.airflowignore`` to skip that; the coordinator still finds them.
 
 Where the configuration is needed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The coordinator runs where tasks run, so the ``[sdk]`` configuration and Node.js are needed on the workers.
 With ``CeleryExecutor``, set them on the Celery workers. With ``LocalExecutor``, tasks run in the scheduler's
-process, so set them there. The Dag processor needs them only to read Dags declared in TypeScript, and the API
-server never does.
+process, so set them there. The Dag processor needs them to read Dags declared in TypeScript. If it has the
+``[sdk]`` configuration, it needs Node.js even without such Dags, since it runs every ``*.min.mjs`` bundle it
+finds. The API server never needs them.
 
 There is no separate Node.js service to run: the worker starts the bundle with ``node`` once per task
 instance.
@@ -679,7 +684,7 @@ The ``kwargs`` of a ``coordinators`` entry are passed to
    * - ``task_handler_bundle_name``
      - *(unset)*
      - The Dag bundle to load the bundles that implement stub tasks from. When unset, a stub task loads its
-       bundle from its own Dag bundle.
+       bundle from its own Dag bundle. It must be registered in ``[dag_processor] dag_bundle_config_list``.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary.
@@ -703,6 +708,8 @@ Limitations
   its tasks in TypeScript with :func:`@task.stub <airflow.sdk.task.stub>`.
 * **Cluster policies do not apply to Dags declared in TypeScript.** ``dag_policy`` and ``task_policy`` do not
   run when the Dag processor reads them.
+* **Some CLI commands do not take a Dag declared in TypeScript.** ``airflow dags test``, ``tasks test`` and
+  ``tasks render`` refuse it, and ``airflow dags reserialize`` skips it.
 * **Beta.** The API may change in incompatible ways between releases.
 * **One Node.js process per task instance.** Tasks cannot share in-process state; use XComs or an external
   store.
