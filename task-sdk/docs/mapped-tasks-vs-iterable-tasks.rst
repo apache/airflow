@@ -278,6 +278,17 @@ IT is designed to address limitations of task mapping in specific scenarios:
   execute on workers, which scale more effectively and support custom XCom
   backends.
 
+  A custom XCom backend is not the whole story for IT, though: each item's result
+  is also written to its checkpoint in the task state store, so that a retry can
+  replay it instead of running the item again. Those checkpoints land in the
+  ``task_state_store`` table of the metadata database and stay there for the
+  store's retention (``[state_store] default_retention_days``, 30 days unless
+  configured) unless a ``[state_store] state_store_backend`` is configured, in
+  which case the table only holds a reference to the payload. Iterating over
+  large results therefore needs both a custom XCom backend and a state store
+  backend; with only the first, the payloads move from the XCom table to the
+  task state store table.
+
   For more on deferred vs async trade-offs, see :doc:`deferred-vs-async-operators`.
 
 IT is especially useful for patterns such as:
@@ -374,7 +385,8 @@ Comparison
      - Not supported (raises a non-retryable failure)
    * - XCom backend
      - Workers support custom XCom backends
-     - Workers support custom XCom backends (triggerers do not)
+     - Workers support custom XCom backends (triggerers do not); each item's result is also
+       checkpointed in the task state store, so large results need a ``state_store_backend`` too
    * - Use case
      - Independent, trackable units of work
      - High-throughput or streaming workloads

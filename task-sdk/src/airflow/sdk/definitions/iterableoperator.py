@@ -323,7 +323,11 @@ class IterableOperator(BaseOperator):
     running. The checkpoint is only consulted from the second attempt onwards, and solely to decide
     whether an index already succeeded. Once every index has succeeded, a completion marker is written
     so that a *subsequent* manual clear (which does not reset ``try_number``) re-runs every index from
-    scratch instead of replaying the previous run's stale results (see :class:`Checkpoints`).
+    scratch instead of replaying the previous run's stale results (see :class:`Checkpoints`). A
+    checkpoint carries the item's full result (plus its extra XComs and outlet events) and lives in
+    the ``task_state_store`` table for the store's retention, unless a ``[state_store]
+    state_store_backend`` is configured and only a reference is stored; a custom XCom backend alone
+    does not keep large item results out of the metadata database.
 
     :param operator: The :class:`MappedOperator` to unmap and execute for
         each element of ``expand_input``. Each indexed runtime receives a
