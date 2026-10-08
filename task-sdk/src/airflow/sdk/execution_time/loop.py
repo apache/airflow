@@ -23,7 +23,7 @@ import attrs
 from airflow.sdk.bases.decorator import determine_kwargs
 from airflow.sdk.definitions._internal.loop import LOOP_DECISION_KEY
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
-from airflow.sdk.exceptions import AirflowException, AirflowFailException
+from airflow.sdk.exceptions import AirflowFailException
 from airflow.sdk.execution_time.comms import SetXCom
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import XCom
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
 
-class LoopMaxIterationsExceeded(AirflowException):
+class LoopMaxIterationsExceeded(AirflowFailException):
     """The loop condition remained false at its iteration cap."""
 
 

@@ -36,6 +36,7 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+from airflow.sdk.execution_time.loop import LoopMaxIterationsExceeded
 
 
 @pytest.fixture
@@ -148,6 +149,16 @@ def test_unsuccessful_gate_does_not_publish_decision(loop_ti, mock_supervisor_co
     with pytest.raises(Exception, match="condition failed" if raises else "max_iterations"):
         ti.task.execute(ti.get_template_context())
 
+    mock_supervisor_comms.send.assert_not_called()
+
+
+def test_gate_fails_without_retrying_when_the_condition_is_false_at_the_cap(loop_ti, mock_supervisor_comms):
+    ti = loop_ti(index=2, until=lambda: False)
+
+    with pytest.raises(LoopMaxIterationsExceeded, match="max_iterations=3") as exc_info:
+        ti.task.execute(ti.get_template_context())
+
+    assert isinstance(exc_info.value, AirflowFailException)
     mock_supervisor_comms.send.assert_not_called()
 
 
