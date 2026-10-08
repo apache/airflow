@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import socket
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import mock
 
 import httpx
@@ -54,7 +54,7 @@ pytestmark = pytest.mark.db_test
 SECRET = "processor-client-test-secret-" * 3
 AUDIENCE = "urn:airflow.apache.org:task"
 SESSION_ID = "00000000-0000-0000-0000-0000000000aa"
-HEARTBEAT_EXPIRED = datetime(2026, 10, 5, 11, 0, tzinfo=timezone.utc)
+HEARTBEAT_EXPIRED = datetime(2026, 10, 5, 11, 0, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)

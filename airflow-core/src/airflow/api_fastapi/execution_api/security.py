@@ -95,6 +95,7 @@ Why ``ExecutionAPIRoute`` is needed:
 
 from collections.abc import Callable
 from typing import Any, ParamSpec, TypeVar, get_args
+from uuid import UUID
 
 import structlog
 import svcs
@@ -106,7 +107,16 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
-from airflow.api_fastapi.execution_api.datamodels.token import ExecutionClaims, ExecutionToken, TokenScope
+from airflow.api_fastapi.execution_api.datamodels.token import (
+    DagParseClaims,
+    DagProcessorClaims,
+    DagProcessorSessionToken,
+    DagProcessorToken,
+    ExecutionToken,
+    TaskTokenScope,
+    TIToken,
+    TokenScope,
+)
 from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.models.callback import Callback
 from airflow.models.taskinstance import TaskInstance
@@ -115,6 +125,12 @@ from airflow.utils.session import create_session_async
 log = structlog.get_logger(logger_name=__name__)
 
 VALID_TOKEN_TYPES: frozenset[str] = frozenset(get_args(TokenScope))
+_TOKEN_MODELS: dict[str, type[ExecutionToken]] = {
+    **dict.fromkeys(get_args(TaskTokenScope), TIToken),
+    "dag_processor_session": DagProcessorSessionToken,
+    "dag_processor": DagProcessorToken,
+    "dag_parse": ExecutionToken,
+}
 
 _REQUEST_SCOPE_TOKEN_KEY = "ti_token"
 _REQUEST_SCOPE_LIVE_ATTEMPT_KEY = "live_attempt_checked"
@@ -175,8 +191,11 @@ class JWTBearer(HTTPBearer):
         claims.setdefault("scope", "execution")
 
         try:
-            claim_model = ExecutionClaims(**claims)
-            token = ExecutionToken.model_validate({"id": claims.get("sub"), "claims": claim_model})
+            scope = claims["scope"]
+            token_type = (
+                _TOKEN_MODELS.get(scope, ExecutionToken) if isinstance(scope, str) else ExecutionToken
+            )
+            token = token_type.model_validate({"id": claims.get("sub"), "claims": claims})
         except ValidationError as err:
             log.warning("JWT claims did not match Execution API principal schema", exc_info=True)
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
@@ -227,8 +246,10 @@ async def require_auth(
             f"Allowed types: {', '.join(sorted(allowed_token_types))}",
         )
 
-    if token_scope in ("dag_processor", "dag_parse") and getattr(route, "requires_open_job", True):
-        await _require_open_dag_processor_job(request, token)
+    if isinstance(token.claims, (DagProcessorClaims, DagParseClaims)) and getattr(
+        route, "requires_open_job", True
+    ):
+        await _require_open_dag_processor_job(request, token.id, token.claims)
 
     if "ti:self" in security_scopes.scopes:
         ti_self_id = str(request.path_params["task_instance_id"])
@@ -309,7 +330,9 @@ async def _require_live_attempt(token: ExecutionToken, *, allow_callback: bool) 
     )
 
 
-async def _require_open_dag_processor_job(request: Request, token: ExecutionToken) -> None:
+async def _require_open_dag_processor_job(
+    request: Request, token_id: UUID, claims: DagProcessorClaims | DagParseClaims
+) -> None:
     """Refuse processor or parsing access after the Job ends or is replaced."""
     if request.scope.get(_REQUEST_SCOPE_JOB_KEY):
         return
@@ -317,10 +340,10 @@ async def _require_open_dag_processor_job(request: Request, token: ExecutionToke
     from airflow.jobs.job import Job
 
     async with create_session_async() as session:
-        session_id = token.claims.session_id if token.claims.scope == "dag_parse" else token.id
+        session_id = claims.session_id if isinstance(claims, DagParseClaims) else token_id
         job_id = await session.scalar(
             select(Job.id).where(
-                Job.id == token.claims.job_id, Job.session_id == session_id, Job.end_date.is_(None)
+                Job.id == claims.job_id, Job.session_id == session_id, Job.end_date.is_(None)
             )
         )
     if job_id is None:
@@ -335,7 +358,31 @@ async def _require_open_dag_processor_job(request: Request, token: ExecutionToke
 
 
 CurrentExecutionToken: ExecutionToken = Depends(require_auth)
-CurrentTIToken = CurrentExecutionToken
+
+
+def require_task_token(token: ExecutionToken = CurrentExecutionToken) -> TIToken:
+    if not isinstance(token, TIToken):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Task token required")
+    return token
+
+
+def require_dag_processor_session_token(
+    token: ExecutionToken = CurrentExecutionToken,
+) -> DagProcessorSessionToken:
+    if not isinstance(token, DagProcessorSessionToken):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Dag processor session token required")
+    return token
+
+
+def require_dag_processor_token(token: ExecutionToken = CurrentExecutionToken) -> DagProcessorToken:
+    if not isinstance(token, DagProcessorToken):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Dag processor token required")
+    return token
+
+
+CurrentTIToken: TIToken = Depends(require_task_token)
+CurrentDagProcessorSessionToken: DagProcessorSessionToken = Depends(require_dag_processor_session_token)
+CurrentDagProcessorToken: DagProcessorToken = Depends(require_dag_processor_token)
 
 DAG_BUNDLE_HEADER = "Airflow-Dag-Bundle"
 

@@ -18,21 +18,37 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
+import tempfile
 import time
 from pathlib import Path
 
 import uuid6
 
-from airflow.api_fastapi.execution_api.dag_processor_tokens import (
-    generate_dag_processor_session_token,
-    write_token_file,
-)
+from airflow.api_fastapi.execution_api.app import create_jwt_generator
+from airflow.api_fastapi.execution_api.dag_processor_tokens import generate_dag_processor_session_token
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 log = logging.getLogger(__name__)
+
+
+def write_token_file(path: Path, token: str) -> None:
+    """Replace the token file in one step, so a processor rereading it never sees a partial token."""
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
+    try:
+        with os.fdopen(fd, "w") as tmp:
+            tmp.write(token)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp_path, path)
+    except BaseException:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(tmp_path)
+        raise
 
 
 # Not wrapped in ``action_cli``: its audit logging writes to the metadata database, which a provisioning
@@ -52,7 +68,7 @@ def dag_processor_token(args) -> None:
     log.info("Issuing Dag processor session %s for bundles %s", session_id, ", ".join(sorted(bundle_names)))
     while True:
         token = generate_dag_processor_session_token(
-            session_id=session_id, bundle_names=bundle_names, valid_for=valid_for
+            create_jwt_generator(), session_id=session_id, bundle_names=bundle_names, valid_for=valid_for
         )
         write_token_file(token_file, token)
         if not args.rotate:

@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from threading import Event
 from types import SimpleNamespace
+from typing import get_args
 from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
 
@@ -36,7 +37,18 @@ from structlog.testing import capture_logs
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api import security
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI, lifespan
-from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
+from airflow.api_fastapi.execution_api.datamodels.token import (
+    DagParseClaims,
+    DagProcessorClaims,
+    DagProcessorSessionClaims,
+    DagProcessorSessionToken,
+    DagProcessorToken,
+    ExecutionClaims,
+    ExecutionToken,
+    TIClaims,
+    TIToken,
+    TokenScope,
+)
 from airflow.api_fastapi.execution_api.security import (
     DAG_BUNDLE_HEADER,
     DagInGrantedBundle,
@@ -72,12 +84,13 @@ from tests_common.test_utils.db import (
     clear_db_variables,
 )
 
-DAG_PROCESSOR_CLAIMS = TIClaims(scope="dag_processor", dag_bundles=frozenset({"granted"}), job_id=1)
+TOKEN_EXPIRY = datetime(2030, 1, 1, tzinfo=UTC).timestamp()
+DAG_PROCESSOR_CLAIMS = DagProcessorClaims(dag_bundles=frozenset({"granted"}), job_id=1, exp=TOKEN_EXPIRY)
 SESSION_SUB = "00000000-0000-0000-0000-000000000001"
 JOB_ID = 4242
 REGISTRATION_ID = UUID("00000000-0000-0000-0000-00000000000a")
 OTHER_REGISTRATION_ID = UUID("00000000-0000-0000-0000-00000000000b")
-LONG_AGO = datetime(2020, 1, 1, tzinfo=timezone.utc)
+LONG_AGO = datetime(2020, 1, 1, tzinfo=UTC)
 
 
 class TestTIClaims:
@@ -86,28 +99,106 @@ class TestTIClaims:
 
         assert claims.scope == "execution"
         assert claims.team == "data"
+        assert claims.exp is None
 
     def test_accepts_sub_as_extra_claim(self):
         claims = TIClaims(sub="not-a-uuid")
 
         assert claims.sub == "not-a-uuid"
 
-    @pytest.mark.parametrize("scope", ["dag_processor_session", "dag_processor"])
+    @pytest.mark.parametrize("scope", ["dag_processor_session", "dag_processor", "dag_parse"])
+    def test_rejects_processor_scopes(self, scope):
+        with pytest.raises(ValidationError):
+            TIClaims.model_validate(
+                {
+                    "scope": scope,
+                    "dag_bundles": ["granted"],
+                    "job_id": JOB_ID,
+                    "session_id": SESSION_SUB,
+                    "relative_fileloc": "dag.py",
+                }
+            )
+
+    def test_task_token_rejects_processor_claims(self):
+        with pytest.raises(ValidationError):
+            TIToken.model_validate({"id": SESSION_SUB, "claims": DAG_PROCESSOR_CLAIMS})
+
+
+class TestExecutionClaims:
+    @pytest.mark.parametrize(
+        ("scope", "claims_type"),
+        [
+            ("execution", TIClaims),
+            ("workload", TIClaims),
+            ("callback", TIClaims),
+            ("dag_processor_session", DagProcessorSessionClaims),
+            ("dag_processor", DagProcessorClaims),
+            ("dag_parse", DagParseClaims),
+        ],
+    )
+    def test_selects_claims_by_scope(self, scope, claims_type):
+        token = ExecutionToken.model_validate(
+            {
+                "id": SESSION_SUB,
+                "claims": {
+                    "scope": scope,
+                    "exp": TOKEN_EXPIRY,
+                    "dag_bundles": ["granted"],
+                    "job_id": JOB_ID,
+                    "session_id": SESSION_SUB,
+                    "relative_fileloc": "dag.py",
+                },
+            }
+        )
+
+        assert type(token.claims) is claims_type
+
+    @pytest.mark.parametrize("scope", ["dag_processor_session", "dag_processor", "dag_parse"])
     @pytest.mark.parametrize("dag_bundles", [None, [], [""]])
     def test_dag_processor_scopes_require_a_bundle_grant(self, scope, dag_bundles):
         with pytest.raises(ValidationError):
-            TIClaims.model_validate({"scope": scope, "dag_bundles": dag_bundles, "job_id": 1})
+            ExecutionToken.model_validate(
+                {
+                    "id": SESSION_SUB,
+                    "claims": {
+                        "scope": scope,
+                        "exp": TOKEN_EXPIRY,
+                        "dag_bundles": dag_bundles,
+                        "job_id": JOB_ID,
+                        "session_id": SESSION_SUB,
+                        "relative_fileloc": "dag.py",
+                    },
+                }
+            )
 
     def test_dag_processor_scope_requires_a_job(self):
-        with pytest.raises(ValidationError, match="must name the Job"):
-            TIClaims.model_validate({"scope": "dag_processor", "dag_bundles": ["a"]})
+        with pytest.raises(ValidationError, match="job_id"):
+            DagProcessorClaims.model_validate({"dag_bundles": ["a"], "exp": TOKEN_EXPIRY})
 
     def test_dag_processor_scopes_keep_their_claims(self):
-        claims = TIClaims.model_validate(
-            {"scope": "dag_processor", "dag_bundles": ["a", "b", "a"], "job_id": 7}
+        claims = DagProcessorClaims.model_validate(
+            {"scope": "dag_processor", "dag_bundles": ["a", "b", "a"], "job_id": 7, "exp": TOKEN_EXPIRY}
         )
 
         assert (claims.dag_bundles, claims.job_id) == (frozenset({"a", "b"}), 7)
+
+    @pytest.mark.parametrize("scope", ["dag_processor_session", "dag_processor", "dag_parse"])
+    @pytest.mark.parametrize("expiry", [{}, {"exp": None}], ids=["missing", "null"])
+    def test_processor_credentials_require_expiry(self, scope, expiry):
+        with pytest.raises(ValidationError, match="exp"):
+            ExecutionToken.model_validate(
+                {
+                    "id": SESSION_SUB,
+                    "claims": {
+                        "scope": scope,
+                        "dag_bundles": ["granted"],
+                        "job_id": JOB_ID,
+                        "session_id": SESSION_SUB,
+                        "relative_fileloc": "dag.py",
+                        **expiry,
+                    },
+                }
+            )
 
 
 class TestExecutionAPIRoute:
@@ -203,8 +294,7 @@ class TestTokenTypeScopeEnforcement:
         ti_id = self.TI_ID
 
         async def mock_jwt(request: Request):
-            claims = TIClaims(scope=scope)
-            return TIToken(id=UUID(ti_id), claims=claims)
+            return ExecutionToken.model_validate({"id": ti_id, "claims": {"scope": scope}})
 
         app.dependency_overrides[_jwt_bearer] = mock_jwt
 
@@ -233,17 +323,102 @@ class TestTokenTypeScopeEnforcement:
         assert run.status_code == 200
 
 
-class TestJWTBearerLogging:
+class TestJWTBearer:
     @pytest.fixture
     def app(self):
         app = FastAPI()
         app.state.svcs_registry = svcs.Registry()
+        router = APIRouter(route_class=ExecutionAPIRoute)
 
-        @app.get("/protected")
-        def protected(token: TIToken = Security(require_auth)):
-            return {"id": str(token.id)}
+        @router.get(
+            "/protected",
+            dependencies=[
+                Security(require_auth, scopes=["token:execution", "token:workload", "token:callback"])
+            ],
+        )
+        def protected(token: TIToken = security.CurrentTIToken):
+            return {
+                "id": str(token.id),
+                "token_type": type(token).__name__,
+                "claims_type": type(token.claims).__name__,
+            }
 
+        @router.get(
+            "/principal",
+            dependencies=[
+                Security(
+                    require_auth,
+                    scopes=[
+                        *[f"token:{scope}" for scope in get_args(TokenScope)],
+                        security.JOB_UNCHECKED_SCOPE,
+                    ],
+                )
+            ],
+        )
+        def principal(token: ExecutionToken = security.CurrentExecutionToken):
+            return {"token_type": type(token).__name__, "claims_type": type(token.claims).__name__}
+
+        app.include_router(router)
         return app
+
+    @pytest.mark.parametrize("scope", [pytest.param(None, id="legacy"), "execution", "workload", "callback"])
+    def test_task_token_dependency_returns_task_token(self, app, scope):
+        validator = MagicMock(spec=JWTValidator)
+        claims = {"sub": SESSION_SUB}
+        if scope is not None:
+            claims["scope"] = scope
+        validator.avalidated_claims.return_value = claims
+        app.state.svcs_registry.register_value(JWTValidator, validator)
+
+        response = TestClient(app).get("/protected", headers={"Authorization": "Bearer task-token"})
+
+        assert response.status_code == 200
+        assert response.json() == {"id": SESSION_SUB, "token_type": "TIToken", "claims_type": "TIClaims"}
+
+    @pytest.mark.parametrize(
+        ("scope", "token_type", "claims_type"),
+        [
+            ("dag_processor_session", "DagProcessorSessionToken", "DagProcessorSessionClaims"),
+            ("dag_processor", "DagProcessorToken", "DagProcessorClaims"),
+            ("dag_parse", "ExecutionToken", "DagParseClaims"),
+        ],
+    )
+    def test_processor_token_construction(self, app, scope, token_type, claims_type):
+        validator = MagicMock(spec=JWTValidator)
+        validator.avalidated_claims.return_value = {
+            "sub": SESSION_SUB,
+            "scope": scope,
+            "exp": TOKEN_EXPIRY,
+            "dag_bundles": ["granted"],
+            "job_id": JOB_ID,
+            "session_id": SESSION_SUB,
+            "relative_fileloc": "dag.py",
+        }
+        app.state.svcs_registry.register_value(JWTValidator, validator)
+
+        response = TestClient(app).get("/principal", headers={"Authorization": "Bearer processor-token"})
+
+        assert response.status_code == 200
+        assert response.json() == {"token_type": token_type, "claims_type": claims_type}
+
+    @pytest.mark.parametrize(
+        "scope",
+        [
+            pytest.param("unknown", id="unknown"),
+            pytest.param(None, id="null"),
+            pytest.param(["execution"], id="list"),
+            pytest.param({"scope": "execution"}, id="dict"),
+        ],
+    )
+    def test_invalid_scope_returns_forbidden(self, app, scope):
+        validator = MagicMock(spec=JWTValidator)
+        validator.avalidated_claims.return_value = {"sub": SESSION_SUB, "scope": scope}
+        app.state.svcs_registry.register_value(JWTValidator, validator)
+
+        response = TestClient(app).get("/principal", headers={"Authorization": "Bearer invalid-scope-token"})
+
+        assert response.status_code == 403
+        assert response.json()["detail"].startswith("Invalid auth token:")
 
     @pytest.mark.parametrize(
         "bearer_credential",
@@ -270,6 +445,54 @@ class TestJWTBearerLogging:
         assert any(log["event"] == "Failed to validate JWT" for log in logs)
         assert bearer_credential not in repr(logs)
         assert "invalid token" not in response.text
+
+
+class TestTypedTokenDependencies:
+    @pytest.mark.parametrize(
+        ("dependency", "allowed_scopes"),
+        [
+            (security.CurrentTIToken, {"execution", "workload", "callback"}),
+            (security.CurrentDagProcessorSessionToken, {"dag_processor_session"}),
+            (security.CurrentDagProcessorToken, {"dag_processor"}),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("token_type", "scope"),
+        [
+            (TIToken, "execution"),
+            (TIToken, "workload"),
+            (TIToken, "callback"),
+            (DagProcessorSessionToken, "dag_processor_session"),
+            (DagProcessorToken, "dag_processor"),
+            (ExecutionToken, "dag_parse"),
+        ],
+    )
+    def test_dependency_enforces_its_principal_type(self, dependency, allowed_scopes, token_type, scope):
+        app = FastAPI()
+        principal = token_type.model_validate(
+            {
+                "id": SESSION_SUB,
+                "claims": {
+                    "scope": scope,
+                    "exp": TOKEN_EXPIRY,
+                    "dag_bundles": ["granted"],
+                    "job_id": JOB_ID,
+                    "session_id": SESSION_SUB,
+                    "relative_fileloc": "dag.py",
+                },
+            }
+        )
+        app.dependency_overrides[require_auth] = lambda: principal
+
+        @app.get("/protected")
+        def protected(token: ExecutionToken = dependency):
+            return {"id": str(token.id)}
+
+        response = TestClient(app).get("/protected")
+
+        assert response.status_code == (200 if scope in allowed_scopes else 403)
+        if scope in allowed_scopes:
+            assert response.json() == {"id": SESSION_SUB}
 
 
 class TestTiSelfScopeEnforcement:
@@ -357,14 +580,19 @@ class TestGetTeamNameDep:
         bundle.teams.append(Team(name="team_a"))
         session.add(bundle)
         session.commit()
-        claims = TIClaims(
-            scope=scope,
-            dag_bundles=frozenset({"granted"}),
-            job_id=1,
-            session_id=UUID(SESSION_SUB),
-            relative_fileloc="dag.py",
+        token = ExecutionToken.model_validate(
+            {
+                "id": UUID(int=2),
+                "claims": {
+                    "scope": scope,
+                    "dag_bundles": ["granted"],
+                    "job_id": 1,
+                    "exp": TOKEN_EXPIRY,
+                    "session_id": SESSION_SUB,
+                    "relative_fileloc": "dag.py",
+                },
+            }
         )
-        token = TIToken(id=UUID(int=2), claims=claims)
 
         try:
             with conf_vars({("core", "multi_team"): "True"}):
@@ -376,9 +604,9 @@ class TestGetTeamNameDep:
         assert result == "team_a"
 
 
-def _build_client(app: FastAPI, claims: TIClaims) -> TestClient:
+def _build_client(app: FastAPI, claims: ExecutionClaims) -> TestClient:
     async def mock_jwt(request: Request):
-        return TIToken(id=UUID(int=1), claims=claims)
+        return ExecutionToken(id=UUID(int=1), claims=claims)
 
     app.dependency_overrides[_jwt_bearer] = mock_jwt
     return TestClient(app, headers={"Authorization": "Bearer fake"})

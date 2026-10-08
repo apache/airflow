@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import stat
 from unittest import mock
 
 import jwt
@@ -109,3 +110,30 @@ class TestDagProcessorTokenCommand:
         assert first["sub"] == second["sub"]
         assert first["jti"] != second["jti"]
         mock_sleep.assert_called_with(60)
+
+
+class TestWriteTokenFile:
+    def test_replaces_the_file_readable_only_by_its_owner(self, tmp_path):
+        token_file = tmp_path / "token"
+        token_file.write_text("old")
+
+        dag_processor_token_command.write_token_file(token_file, "new")
+
+        assert token_file.read_text() == "new"
+        assert stat.S_IMODE(token_file.stat().st_mode) == 0o600
+        assert [path.name for path in tmp_path.iterdir()] == ["token"]
+
+    @mock.patch(
+        "airflow.cli.commands.dag_processor_token_command.os.replace",
+        autospec=True,
+        side_effect=OSError("disk full"),
+    )
+    def test_failure_keeps_the_previous_token(self, _, tmp_path):
+        token_file = tmp_path / "token"
+        token_file.write_text("old")
+
+        with pytest.raises(OSError, match="disk full"):
+            dag_processor_token_command.write_token_file(token_file, "new")
+
+        assert token_file.read_text() == "old"
+        assert [path.name for path in tmp_path.iterdir()] == ["token"]

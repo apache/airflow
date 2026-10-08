@@ -56,6 +56,7 @@ logger = structlog.get_logger(logger_name=__name__)
 
 __all__ = [
     "create_task_execution_api_app",
+    "create_jwt_generator",
     "lifespan",
     "CorrelationIdMiddleware",
 ]
@@ -77,7 +78,8 @@ def _jwt_validator():
     return validator
 
 
-def _jwt_generator():
+def create_jwt_generator() -> JWTGenerator:
+    """Create a signer using the Execution API's configured key, audience, and lifetime."""
     from airflow.configuration import conf
 
     generator = JWTGenerator(
@@ -99,7 +101,7 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
     # record this here
     app.state.svcs_registry = registry
 
-    registry.register_factory(JWTGenerator, _jwt_generator)
+    registry.register_factory(JWTGenerator, create_jwt_generator)
 
     # InProcessExecutionAPI stubs out JWTValidator: don't re-register in that case.
     if JWTValidator not in registry:

@@ -21,7 +21,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.execution_api.app import _jwt_generator
+from airflow.api_fastapi.execution_api.app import create_jwt_generator
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
@@ -275,7 +275,7 @@ def archived_attempt(client, exec_app, monkeypatch, create_task_instance, sessio
     ti = create_task_instance(state=State.RUNNING)
     session.commit()
     monkeypatch.delitem(exec_app.dependency_overrides, require_auth)
-    client.headers["Authorization"] = f"Bearer {_jwt_generator().generate({'sub': str(ti.id)})}"
+    client.headers["Authorization"] = f"Bearer {create_jwt_generator().generate({'sub': str(ti.id)})}"
     successor = ti.prepare_db_for_next_try(session)
     successor.state = State.UP_FOR_RETRY
     session.commit()

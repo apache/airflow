@@ -20,48 +20,70 @@ from __future__ import annotations
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.typing_compat import Self
 
-TokenScope = Literal[
-    "execution", "workload", "callback", "dag_processor_session", "dag_processor", "dag_parse"
-]
+TaskTokenScope = Literal["execution", "workload", "callback"]
+DagProcessorSessionScope = Literal["dag_processor_session"]
+DagProcessorScope = Literal["dag_processor"]
+DagParseScope = Literal["dag_parse"]
+TokenScope = Literal[TaskTokenScope, DagProcessorSessionScope, DagProcessorScope, DagParseScope]
 
 
-class ExecutionClaims(BaseModel):
+class _JWTClaims(BaseModel):
     """
     Validated JWT claims for an Execution API principal.
 
-    JWTValidator validates exp/iat/nbf/aud before these claims are constructed.
+    JWTValidator checks standard JWT claims before constructing claims for HTTP requests.
     Extra claims are allowed for compatibility with existing task tokens.
     """
 
     model_config = ConfigDict(extra="allow")
 
-    scope: TokenScope = "execution"
-    exp: float | None = None
-    dag_bundles: frozenset[Annotated[str, Field(min_length=1)]] | None = None
-    """Dag bundles a Dag processor token may act for."""
-    job_id: int | None = None
-    """Job a ``dag_processor`` token was issued for when that Job registered."""
-    session_id: UUID | None = None
-    """Processor session that owns a parsing attempt, whose own identity is the token subject."""
-    relative_fileloc: str | None = Field(default=None, min_length=1, max_length=2000)
-    """Bundle-relative file being parsed; an archive is one file under the current processor model."""
 
-    @model_validator(mode="after")
-    def validate_dag_processor_claims(self) -> Self:
-        if self.scope in ("dag_processor_session", "dag_processor", "dag_parse") and not self.dag_bundles:
-            raise ValueError(f"A {self.scope} token must grant at least one Dag bundle")
-        if self.scope in ("dag_processor", "dag_parse") and self.job_id is None:
-            raise ValueError(f"A {self.scope} token must name the Job it was issued for")
-        if self.scope == "dag_parse" and (
-            len(self.dag_bundles or ()) != 1 or self.session_id is None or self.relative_fileloc is None
-        ):
-            raise ValueError("A dag_parse token must name one bundle, its file, and its processor session")
-        return self
+class TIClaims(_JWTClaims):
+    """Claims for task execution, workload exchange, or callback execution."""
+
+    scope: TaskTokenScope = "execution"
+    # Trusted in-process callers construct task identities without a JWT or expiry.
+    exp: float | None = None
+
+
+DagBundleGrant = Annotated[frozenset[Annotated[str, Field(min_length=1)]], Field(min_length=1)]
+
+
+class DagProcessorSessionClaims(_JWTClaims):
+    """Provisioned bundle grants used only to register a Job or renew its credential."""
+
+    scope: DagProcessorSessionScope = "dag_processor_session"
+    exp: float
+    dag_bundles: DagBundleGrant
+
+
+class DagProcessorClaims(_JWTClaims):
+    """Claims for managing one registered Job and exchanging its parsing credentials."""
+
+    scope: DagProcessorScope = "dag_processor"
+    exp: float
+    dag_bundles: DagBundleGrant
+    job_id: int
+
+
+class DagParseClaims(_JWTClaims):
+    """Claims for one file-parsing attempt within a registered Job's bundle."""
+
+    scope: DagParseScope = "dag_parse"
+    exp: float
+    dag_bundles: DagBundleGrant = Field(max_length=1)
+    job_id: int
+    session_id: UUID
+    relative_fileloc: str = Field(min_length=1, max_length=2000)
+
+
+ExecutionClaims = Annotated[
+    TIClaims | DagProcessorSessionClaims | DagProcessorClaims | DagParseClaims, Field(discriminator="scope")
+]
 
 
 class ExecutionToken(BaseModel):
@@ -71,6 +93,19 @@ class ExecutionToken(BaseModel):
     claims: ExecutionClaims
 
 
-# Preserve imports for task-specific consumers while shared endpoints use the general principal.
-TIClaims = ExecutionClaims
-TIToken = ExecutionToken
+class TIToken(ExecutionToken):
+    """Authenticated task, workload, or callback identity."""
+
+    claims: TIClaims
+
+
+class DagProcessorSessionToken(ExecutionToken):
+    """Authenticated provisioned Dag processor session."""
+
+    claims: DagProcessorSessionClaims
+
+
+class DagProcessorToken(ExecutionToken):
+    """Authenticated Dag processor Job."""
+
+    claims: DagProcessorClaims

@@ -343,7 +343,7 @@ def get_xcom(
     key: Annotated[str, Path(min_length=1)],
     session: SessionDep,
     params: Annotated[GetXcomFilterParams, Query()],
-    token=CurrentTIToken,
+    token=CurrentExecutionToken,
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
     owner = session.execute(
