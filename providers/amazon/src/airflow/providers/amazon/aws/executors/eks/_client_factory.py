@@ -28,6 +28,8 @@ import tempfile
 from base64 import b64decode
 from typing import TYPE_CHECKING
 
+from packaging.version import Version
+
 from airflow.providers.amazon.aws.executors.eks.utils import (
     CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
@@ -48,10 +50,13 @@ _USABLE_CLUSTER_STATUSES = ("ACTIVE", "UPDATING")
 
 def _get_eks_kube_client() -> client.CoreV1Api:
     """Build a Kubernetes client for the configured EKS cluster, in memory and without a kubeconfig."""
+    import kubernetes
     from kubernetes import client
 
     configuration = client.Configuration()
-    _configure_eks_auth(configuration)
+    # kubernetes 36 moved the bearer token from the "authorization" api_key to "BearerToken".
+    token_key = "BearerToken" if Version(kubernetes.__version__).major >= 36 else "authorization"
+    _configure_eks_auth(configuration, token_key)
     return client.CoreV1Api(client.ApiClient(configuration=configuration))
 
 
@@ -60,11 +65,14 @@ def _get_eks_async_kube_client() -> async_client.CoreV1Api:
     from kubernetes_asyncio import client as async_client
 
     configuration = async_client.Configuration()
-    _configure_eks_auth(configuration)
+    # kubernetes_asyncio has always used "BearerToken".
+    _configure_eks_auth(configuration, "BearerToken")
     return async_client.CoreV1Api(async_client.ApiClient(configuration=configuration))
 
 
-def _configure_eks_auth(configuration: client.Configuration | async_client.Configuration) -> None:
+def _configure_eks_auth(
+    configuration: client.Configuration | async_client.Configuration, token_key: str
+) -> None:
     cluster_name = conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.CLUSTER_NAME, fallback=None)
     if not cluster_name:
         raise ValueError(f"[{CONFIG_GROUP_NAME}] cluster_name is required to build an EKS client")
@@ -96,25 +104,16 @@ def _configure_eks_auth(configuration: client.Configuration | async_client.Confi
 
     configuration.host = cluster["endpoint"]
     configuration.ssl_ca_cert = _write_cluster_ca_file(cluster["certificateAuthority"]["data"])
-    # Key the bearer auth under both identifiers. kubernetes-client >= 36 looks the token up under
-    # "BearerToken" and only aliases the api_key (not api_key_prefix) back to the legacy
-    # "authorization" slot (see kubernetes-client/python#2595); older clients use "authorization".
-    # Setting the prefix only under "authorization" makes the newer client emit the raw token with
-    # no "Bearer " prefix, which the API server rejects with 401, so set both slots.
-    for identifier in ("BearerToken", "authorization"):
-        configuration.api_key_prefix[identifier] = "Bearer"
+    configuration.api_key_prefix[token_key] = "Bearer"
 
-    # The EKS token is a presigned STS URL valid for ~15 minutes, but the scheduler holds
-    # one client for its whole lifetime. refresh_api_key_hook runs on every authenticated
-    # request (Configuration.get_api_key_with_prefix), and minting is a local SigV4 signing
-    # with no network round-trip, so re-minting per request keeps the token fresh at
-    # negligible cost. Botocore refreshes the session's own credentials when they rotate.
+    # An EKS token expires after ~15 minutes, but the scheduler and its pod watcher each keep one
+    # client for as long as they run. The client calls this hook in-process before every API
+    # request, and minting a token is local SigV4 signing with no network call, so re-minting
+    # each time is cheap. Worker pods do not use this client, so they need no token.
     def refresh_api_key(config: client.Configuration | async_client.Configuration) -> None:
-        token = fetch_access_token_for_cluster(
+        config.api_key[token_key] = fetch_access_token_for_cluster(
             cluster_name, sts_url, region_name=session.region_name, session=session
         )
-        config.api_key["BearerToken"] = token
-        config.api_key["authorization"] = token
 
     configuration.refresh_api_key_hook = refresh_api_key
     refresh_api_key(configuration)

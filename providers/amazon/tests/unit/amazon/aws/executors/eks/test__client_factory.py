@@ -69,18 +69,21 @@ class TestGetEksKubeClient:
         configuration = core_v1.api_client.configuration
         assert configuration.host == CLUSTER_ENDPOINT
         assert Path(configuration.ssl_ca_cert).read_bytes() == CA_PEM
-        assert configuration.get_api_key_with_prefix("authorization") == "Bearer k8s-aws-v1.token-1"
+        assert configuration.auth_settings()["BearerToken"]["value"] == "Bearer k8s-aws-v1.token-1"
         mock_aws["eks_hook"].conn.describe_cluster.assert_called_once_with(name=CLUSTER_NAME)
         os.unlink(configuration.ssl_ca_cert)
 
+    @pytest.mark.parametrize(
+        ("kubernetes_version", "token_key"),
+        [("35.0.0", "authorization"), ("36.0.1", "BearerToken")],
+    )
     @conf_vars({("aws_eks_executor", "cluster_name"): CLUSTER_NAME})
-    def test_bearer_prefix_resolves_through_kubernetes_client_36_auth_settings(self, mock_aws):
-        configuration = _get_eks_kube_client().api_client.configuration
+    def test_token_key_follows_kubernetes_version(self, mock_aws, kubernetes_version, token_key):
+        with mock.patch("kubernetes.__version__", kubernetes_version):
+            configuration = _get_eks_kube_client().api_client.configuration
 
-        # kubernetes-client >= 36's auth_settings() resolves the token under "BearerToken" with an
-        # "authorization" alias; only setting api_key_prefix["authorization"] leaves the header
-        # as the raw token with no "Bearer " prefix, which the API server rejects.
-        assert configuration.auth_settings()["BearerToken"]["value"] == "Bearer k8s-aws-v1.token-1"
+        assert configuration.api_key == {token_key: "k8s-aws-v1.token-1"}
+        assert configuration.api_key_prefix == {token_key: "Bearer"}
         os.unlink(configuration.ssl_ca_cert)
 
     @conf_vars({("aws_eks_executor", "cluster_name"): CLUSTER_NAME})
@@ -88,7 +91,7 @@ class TestGetEksKubeClient:
         configuration = _get_eks_kube_client().api_client.configuration
 
         mock_aws["fetch_token"].return_value = "k8s-aws-v1.token-2"
-        assert configuration.get_api_key_with_prefix("authorization") == "Bearer k8s-aws-v1.token-2"
+        assert configuration.auth_settings()["BearerToken"]["value"] == "Bearer k8s-aws-v1.token-2"
 
         args = mock_aws["fetch_token"].call_args
         assert args.args[0] == CLUSTER_NAME
