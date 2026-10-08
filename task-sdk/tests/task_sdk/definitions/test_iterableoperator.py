@@ -1786,10 +1786,12 @@ class TestIterableOperator:
 
     @pytest.mark.asyncio
     async def test_run_task_merges_outlet_events_into_shared_context_on_success(self):
-        """A sub-task's outlet asset events must be visible in the IterableOperator's own
-        ``context["outlet_events"]`` once it succeeds, so they get serialized along with the
-        parent task's own outlet events when the whole IterableOperator finishes (see kaxil's
-        comment on outlet-event handling in ``_run_task``)."""
+        """
+        A succeeded item's outlet asset events are merged into the task's ``context["outlet_events"]``.
+
+        The task instance reports its outlet events once, from that accessor, when the whole
+        iteration finishes, so an item's events only reach the server through it.
+        """
         from airflow.sdk.execution_time.executor import AsyncAwareExecutor
 
         with DAG("test_dag") as dag:
@@ -2441,7 +2443,12 @@ class TestCallbacksFollowTheTasksFate:
         return None, list(CALLBACKS)
 
     def test_a_siblings_fail_exception_turns_every_failure_into_a_final_one(self):
-        """Kaxil's case: without the wait the ValueError item announced a retry that never came."""
+        """
+        A failed item's retry callback waits until no sibling rules the retry out.
+
+        A ``ValueError`` item next to an ``AirflowFailException`` item is reported as a failure:
+        the task fails without a retry, so announcing a retry for the first item would be wrong.
+        """
         raised, fired = self._run(
             [
                 {"arg1": "ok"},
