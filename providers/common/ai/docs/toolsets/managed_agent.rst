@@ -263,6 +263,14 @@ failover warning names the members involved and their positions, but not in XCom
 Both counters are tagged by platform rather than agent name to keep cardinality
 bounded.
 
+``platform`` can also show up as the literal string ``"unknown"``: when an
+agent's identity fails to resolve -- a connection lookup failing, or a bug in
+the subclass's own ``agent_ref`` implementation -- a warning is logged and the
+call proceeds anyway rather than failing outright, and it is that fallback --
+not a real platform -- that lands in the tag. An ``"unknown"`` bucket
+therefore means the invocation went out without a confirmed platform; the
+task log's warning at the same timestamp is where to find out why.
+
 Implementing the contract for a new vendor
 ------------------------------------------
 
