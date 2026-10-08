@@ -210,8 +210,6 @@ class TestGetDagRuns(TestPublicDagEndpoint):
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_recent_dag_runs_returns_exactly_n_newest_in_order(self, test_client, session):
         """A Dag with more runs than dag_runs_limit returns exactly the N newest, newest first."""
-        # the setup fixture gives DAG1 five runs with run_after 2021..2025 (run_id_1..run_id_5);
-        # ask for 3 and expect the three newest, in descending run_after order
         response = test_client.get(
             "/dags",
             params={"dag_ids": [DAG1_ID], "dag_runs_limit": 3},
@@ -258,8 +256,6 @@ class TestGetDagRuns(TestPublicDagEndpoint):
 
         assert response.status_code == 200
         dag_runs = response.json()["dags"][0]["latest_dag_runs"]
-        # both ties are newer than the fixture's 2021..2025 runs, so with limit 1 the tie winner
-        # is returned; the newer insert (higher id) must be the deterministic pick
         assert dag_runs[0]["run_id"] == "tie_second_inserted"
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
