@@ -88,6 +88,7 @@ var dagShape = authoringShape{
 		"has_on_success_callback":   "derived from whether a callback is registered",
 		"has_on_failure_callback":   "derived from whether a callback is registered",
 		"params":                    "no Go authoring type yet: a param carries a schema of its own",
+		"param_presets":             "presets name sets of param values, and params have no Go authoring type yet",
 		"default_args":              "no Go authoring type yet: the values are arbitrary and untyped",
 		"access_control":            "no Go authoring type yet, and it is deprecated in Airflow 3",
 		"owner_links":               "no Go authoring type yet: an object of arbitrary link targets",
