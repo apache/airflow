@@ -180,6 +180,31 @@ class TestMCPHookGetConn:
 
         mock_transport_cls.assert_called_once_with(command="uvx", args=["mcp-run-python"], env=None)
 
+    @pytest.mark.parametrize(
+        ("raw_args", "expected_args"),
+        [
+            (None, []),
+            ('["mcp-run-python"]', ["mcp-run-python"]),
+            ('  ["-m", "server"]', ["-m", "server"]),
+        ],
+        ids=["null", "json_array_string", "json_array_string_leading_space"],
+    )
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
+    def test_args_from_connection_form_shapes(
+        self, mock_transport_cls, mock_toolset_cls, raw_args, expected_args
+    ):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "uvx", "args": raw_args}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        mock_transport_cls.assert_called_once_with(command="uvx", args=expected_args, env=None)
+
     def test_http_without_host_raises(self):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(conn_id="test_conn", conn_type="mcp")
@@ -215,7 +240,11 @@ class TestMCPHookGetConn:
             with pytest.raises(AirflowOptionalProviderFeatureException, match="pydantic-ai-slim"):
                 hook.get_conn()
 
-    @pytest.mark.parametrize("bad_args", [{"a": 1}, ["-m", 1], 5], ids=["dict", "non_string_item", "int"])
+    @pytest.mark.parametrize(
+        "bad_args",
+        [{"a": 1}, ["-m", 1], 5, '["-m", 1]', '["-m"', '["-m"] trailing'],
+        ids=["dict", "non_string_item", "int", "json_non_string_item", "malformed_json", "trailing_text"],
+    )
     def test_stdio_invalid_args_raises(self, bad_args):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(
