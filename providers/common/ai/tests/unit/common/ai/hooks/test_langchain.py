@@ -73,7 +73,7 @@ class TestLangChainHookInit:
         assert hook.embed_conn_id == "my_conn"
 
     def test_model_arguments_are_keyword_only(self):
-        """``llm_model`` / ``embed_model`` sit in opposite order across the two hooks."""
+        """The model arguments cannot be passed positionally."""
         with pytest.raises(TypeError, match="positional argument"):
             LangChainHook("llm", "embed", "openai:gpt-4o")
 
