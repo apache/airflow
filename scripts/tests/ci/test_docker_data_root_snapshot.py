@@ -87,15 +87,8 @@ def snapshot(tmp_path):
 
 
 def run_script(env, *args):
-    if args[0] == "create":
-        workflow = yaml.safe_load(WORKFLOW.read_text())
-        steps = workflow["jobs"]["build-ci-images"]["steps"]
-        create_step = next(step for step in steps if step.get("id") == "snapshot-export")
-        command = ["bash", "--noprofile", "--norc", "-e", "-o", "pipefail", "-c", create_step["run"]]
-        env = {**env, "SNAPSHOT_FILE": args[1]}
-    else:
-        command = ["bash", "--noprofile", "--norc", str(SCRIPT), *args]
-    return subprocess.run(
+    command = ["bash", "--noprofile", "--norc", str(SCRIPT), *args]
+    result = subprocess.run(
         command,
         env={**os.environ, **env},
         capture_output=True,
@@ -103,6 +96,10 @@ def run_script(env, *args):
         timeout=15,
         check=False,
     )
+    if args[0] == "restore":
+        assert not Path(args[1]).exists()
+        assert not Path(f"{args[1]}.meta").exists()
+    return result
 
 
 def read_commands(env):
@@ -122,6 +119,7 @@ def test_restore_unpacks_snapshot_into_stopped_daemon(fake_tools, snapshot):
     run = commands.index(["docker", "run", "--rm", "--entrypoint", "/bin/bash", "abc123", "-c", "true"])
     assert stop < remove < extract < start < run
     assert not snapshot.exists()
+    assert not Path(f"{snapshot}.meta").exists()
 
 
 @pytest.mark.parametrize(

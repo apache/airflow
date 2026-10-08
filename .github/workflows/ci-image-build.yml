@@ -403,7 +403,6 @@ jobs:
         run: df -H
 
       # Snapshot only after cache publication: pruning removes the mount-cache image.
-      # Keep creation in trusted workflow commands; the configurable checkout is untrusted.
       - name: "Snapshot CI image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         id: snapshot-export
         continue-on-error: true
@@ -415,42 +414,7 @@ jobs:
             inputs.platform == 'linux/amd64' && 'linux_amd64' || 'linux_arm64'
             }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst
         run: |
-          daemon_stopped=false
-          function restart_docker_on_exit() {
-            local result=$?
-            trap - EXIT
-            if [[ "${daemon_stopped}" == true ]]; then
-              sudo systemctl start docker
-            fi
-            exit "${result}"
-          }
-          trap restart_docker_on_exit EXIT
-          daemon="$(docker info --format \
-            '{{.ServerVersion}} {{.Driver}} {{.Architecture}} {{.DockerRootDir}}')"
-          read -r _ driver _ root <<< "${daemon}"
-          if [[ "${driver}" != overlay2 || "${root}" != /var/lib/docker ]]; then
-            echo "::warning::Unsupported Docker image store; skipping snapshot creation: ${daemon}"
-            exit 3
-          fi
-          image_id="$(docker images --quiet --filter 'label=org.apache.airflow.image=airflow-ci' | sort -u)"
-          if [[ -z "${image_id}" || "${image_id}" == *$'\n'* ]]; then
-            echo "Expected exactly one CI image in the daemon, found: '${image_id}'" >&2
-            exit 1
-          fi
-          docker ps --all --quiet | xargs --no-run-if-empty docker rm --force >/dev/null
-          docker images --quiet | sort -u | {
-            grep --invert-match --fixed-strings --line-regexp "${image_id}" || true
-          } | xargs --no-run-if-empty docker rmi --force >/dev/null
-          docker builder prune --all --force >/dev/null
-          printf '%s %s %s\n' "${daemon}" "${image_id}" "$(git rev-parse HEAD)" \
-            > "${SNAPSHOT_FILE}.meta"
-          daemon_stopped=true
-          sudo systemctl stop docker.socket docker
-          sudo tar --directory /var/lib/docker --xattrs --acls --numeric-owner \
-            --create --file - image overlay2 \
-            | zstd -3 -T0 --quiet --force -o "${SNAPSHOT_FILE}"
-          sudo systemctl start docker
-          daemon_stopped=false
+          ./scripts/ci/docker_data_root_snapshot.sh create "${SNAPSHOT_FILE}"
         shell: bash
         if: >
           github.event_name == 'pull_request' &&

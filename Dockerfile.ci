@@ -1710,22 +1710,6 @@ fi
 exec /bin/bash "${@}"
 EOF
 
-# Extract manifests separately so COPY below depends on their contents, not all source files.
-FROM ${BASE_IMAGE} as dependency-manifests
-WORKDIR /source
-SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
-RUN --mount=type=bind,target=/source \
-    manifest_list="$(mktemp)" && \
-    trap 'rm -f "${manifest_list}"' EXIT && \
-    find . -name pyproject.toml -type f -print0 > "${manifest_list}" && \
-    mkdir -p /dependency-manifests && \
-    while IFS= read -r -d '' manifest; do \
-        relative_path="${manifest#./}"; \
-        mkdir -p "/dependency-manifests/$(dirname "${relative_path}")" || exit 1; \
-        cp "${manifest}" "/dependency-manifests/${relative_path}" || exit 1; \
-    done < "${manifest_list}" && \
-    if [ -f uv.lock ]; then cp uv.lock /dependency-manifests/ || exit 1; fi
-
 FROM ${BASE_IMAGE} as main
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
@@ -1958,24 +1942,13 @@ RUN bash /scripts/docker/install_packaging_tools.sh
 
 COPY --from=scripts install_airflow_when_building_images.sh /scripts/docker/
 
-COPY --from=dependency-manifests /dependency-manifests/ ${AIRFLOW_SOURCES}/
-ARG UPGRADE_RANDOM_INDICATOR_STRING=""
-# Only preinstall locked third-party dependencies. The full sync after COPY still installs
-# workspace packages from the current checkout and retains its existing resolution fallback.
-RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \
-    if [[ -z "${UPGRADE_RANDOM_INDICATOR_STRING}" ]]; then \
-        uv sync --all-packages --frozen --group ci-image --no-install-workspace \
-            --no-binary-package lxml --no-binary-package xmlsec \
-            --no-python-downloads --no-managed-python || \
-            echo "Dependency preinstallation failed; deferring to the full source installation"; \
-    fi
-
 # We can copy everything here. The Context is filtered by dockerignore. This makes sure we are not
 # copying over stuff that is accidentally generated or that we do not need (such as egg-info)
 # if you want to add something that is missing and you expect to see it in the image you can
 # add it with ! in .dockerignore next to the airflow, test etc. directories there
 COPY . ${AIRFLOW_SOURCES}/
 
+ARG UPGRADE_RANDOM_INDICATOR_STRING=""
 ARG VERSION_SUFFIX=""
 
 ENV UPGRADE_RANDOM_INDICATOR_STRING=${UPGRADE_RANDOM_INDICATOR_STRING} \
