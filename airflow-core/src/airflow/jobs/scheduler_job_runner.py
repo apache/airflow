@@ -320,6 +320,22 @@ def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Sub
     )
 
 
+def _build_pending_partitioned_apdr_filters() -> tuple[ColumnElement[bool], ...]:
+    """
+    Build the predicates selecting the pending APDRs the scheduler can act on.
+
+    Callers join ``DagModel`` on ``target_dag_id``. The cap backlog count must use the same
+    predicates as the per-tick fetch: counting rows the fetch can never select produces a
+    false cap warning.
+    """
+    return (
+        AssetPartitionDagRun.created_dag_run_id.is_(None),
+        DagModel.is_paused.is_(False),
+        DagModel.is_draining.is_(False),
+        DagModel.is_stale.is_(False),
+    )
+
+
 class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
@@ -380,8 +396,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
         # Edge-triggers the "partition Dag run cap reached" audit Log row: True once that row
-        # has been committed for the current backlog episode, reset to False once the backlog
-        # drains below the cap.
+        # has been committed for the current backlog episode. Reset only when a fetch is empty
+        # or an unlocked count shows the backlog at or below the cap: under `skip_locked` a
+        # short fetch can just mean other schedulers hold the rest.
         # Process-local: each scheduler in an HA deployment writes at most one audit row per
         # episode; cross-process de-duplication would need a per-tick DB read, defeating the
         # point of edge-triggering.
@@ -2394,12 +2411,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             with_row_locks(
                 select(AssetPartitionDagRun)
                 .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
-                .where(
-                    AssetPartitionDagRun.created_dag_run_id.is_(None),
-                    DagModel.is_paused.is_(False),
-                    DagModel.is_draining.is_(False),
-                    DagModel.is_stale.is_(False),
-                )
+                .where(*_build_pending_partitioned_apdr_filters())
                 .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
                 .limit(self._max_partition_dag_runs_per_loop),
                 of=AssetPartitionDagRun,
@@ -2415,9 +2427,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return set()
 
         sorted_dag_ids: list[str] = []
-        if len(pending_apdrs) >= self._max_partition_dag_runs_per_loop:
+        if (
+            len(pending_apdrs) >= self._max_partition_dag_runs_per_loop
+            or self._partition_cap_backlog_reported
+        ):
             # A full fetch alone can't tell us whether that's the entire backlog or just
-            # this tick's slice of a larger one, so we only pay for this query then.
+            # this tick's slice of a larger one, and a short fetch can't either while other
+            # schedulers hold row locks, so we only pay for this query on a full fetch or
+            # while an episode is being tracked.
             # Per-Dag counts across the *whole* backlog, not just this tick's oldest-cap
             # slice (`pending_apdrs`) — a Dag whose partitions haven't reached the front of
             # the FIFO queue yet would otherwise be missing from the log/audit row until its
@@ -2428,10 +2445,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     select(AssetPartitionDagRun.target_dag_id, func.count())
                     .select_from(AssetPartitionDagRun)
                     .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
-                    .where(
-                        AssetPartitionDagRun.created_dag_run_id.is_(None),
-                        DagModel.is_stale.is_(False),
-                    )
+                    .where(*_build_pending_partitioned_apdr_filters())
                     .group_by(AssetPartitionDagRun.target_dag_id)
                 )
             }
@@ -2440,9 +2454,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # insertion order mirroring DB row order across backends (SQLite in tests vs
             # Postgres/MySQL in production) isn't a contract worth trusting — sort explicitly.
             sorted_dag_ids = sorted(backlogs_per_dag, key=lambda dag_id: (-backlogs_per_dag[dag_id], dag_id))
+            if backlog_total <= self._max_partition_dag_runs_per_loop:
+                self._partition_cap_backlog_reported = False
         else:
             backlog_total = len(pending_apdrs)
-            self._partition_cap_backlog_reported = False
 
         if backlog_total > self._max_partition_dag_runs_per_loop:
             displayed_dag_ids = sorted_dag_ids[:MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED]
@@ -2459,8 +2474,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             # Edge-trigger the audit row: a persistent backlog re-hits this branch every tick,
             # and writing a `Log` row that often would flood the audit table. Write it once per
-            # backlog episode; `_partition_cap_backlog_reported` is cleared below once the
-            # backlog drains.
+            # backlog episode; `_partition_cap_backlog_reported` is cleared above, only when
+            # the fetch is empty or the count shows the backlog at or below the cap.
             if not self._partition_cap_backlog_reported:
                 # A separate, independently-committed session is required here: the caller
                 # (`_create_dagruns_for_dags`) runs under `@retry_db_transaction`, which rolls
@@ -2495,8 +2510,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.warning("Failed to write the partition Dag run cap audit Log row", exc_info=True)
                 else:
                     self._partition_cap_backlog_reported = True
-        else:
-            self._partition_cap_backlog_reported = False
 
         # Pre-fetch all required serialized Dags in one query. The same map
         # serves the stale-version cleanup below and the downstream rollup
