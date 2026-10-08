@@ -188,18 +188,23 @@ def compute_bundle_version(files: Sequence[dict[str, Any]]) -> str:
     Only the identity fields (path, sha256, size, executable) participate, so the
     version stays stable if file entries ever gain extra metadata.
     """
-    payload = {
-        "schema_version": MANIFEST_SCHEMA_VERSION,
-        "files": [
-            {
-                "path": file_info["path"],
-                "sha256": file_info["sha256"],
-                "size": file_info["size"],
-                "executable": file_info["executable"],
-            }
-            for file_info in files
-        ],
-    }
+    try:
+        payload = {
+            "schema_version": MANIFEST_SCHEMA_VERSION,
+            "files": [
+                {
+                    "path": file_info["path"],
+                    "sha256": file_info["sha256"],
+                    "size": file_info["size"],
+                    "executable": file_info["executable"],
+                }
+                for file_info in files
+            ],
+        }
+    except (KeyError, TypeError) as e:
+        raise BundleManifestError(
+            "Bundle manifest file entries must each contain path, sha256, size and executable"
+        ) from e
     return f"{SHA256_VERSION_PREFIX}{hashlib.sha256(_serialize_manifest_payload(payload)).hexdigest()}"
 
 
@@ -432,14 +437,131 @@ def build_bundle_version_manifest(
     )
 
 
+def _validate_manifest_file_entry(file_info: Any) -> str:
+    if not isinstance(file_info, dict):
+        raise BundleManifestError("Bundle manifest file entries must be objects")
+    relative_path = file_info.get("path")
+    if not isinstance(relative_path, str):
+        raise BundleManifestError("Bundle manifest file entry does not contain a path")
+    validate_bundle_relative_path(relative_path)
+    if relative_path == MANIFEST_FILE_NAME:
+        raise BundleManifestError(f"Bundle manifest must not list {MANIFEST_FILE_NAME!r} as a bundle file")
+
+    digest = file_info.get("sha256")
+    if not isinstance(digest, str) or not is_sha256_hex(digest):
+        raise BundleManifestError(f"Bundle manifest entry {relative_path!r} does not contain a valid sha256")
+    size = file_info.get("size")
+    # bool is an int subclass and True == 1, so it would slip through the checks below.
+    if not isinstance(size, int) or isinstance(size, bool) or size < 0:
+        raise BundleManifestError(f"Bundle manifest entry {relative_path!r} does not contain a valid size")
+    if not isinstance(file_info.get("executable"), bool):
+        raise BundleManifestError(
+            f"Bundle manifest entry {relative_path!r} does not contain a valid executable flag"
+        )
+    version_id = file_info.get("version_id")
+    if version_id is not None and (not isinstance(version_id, str) or not version_id):
+        raise BundleManifestError(
+            f"Bundle manifest entry {relative_path!r} does not contain a valid version id"
+        )
+    return relative_path
+
+
+def validate_bundle_version_manifest_structure(
+    manifest: Any,
+    *,
+    expected_version: str | None,
+    expected_bundle_name: str | None = None,
+    expected_backend_type: str | None = None,
+) -> None:
+    """
+    Check that a manifest is well formed and that its version commits to its file entries.
+
+    Re-deriving the version from the entries binds the two together, but that is only as
+    strong as the version it is compared with: a publisher who edits the entries can
+    recompute the version as well, so a manifest checked against nothing but itself is
+    merely self-consistent. Pass ``expected_version`` from somewhere the publisher does not
+    control -- an operator's pin, or a version Airflow has already recorded -- to make this
+    an integrity check. It is required so that passing ``None`` is a deliberate statement
+    that no such version is available.
+    """
+    if not isinstance(manifest, dict):
+        raise BundleManifestError("Bundle manifest must be an object")
+
+    schema_version = manifest.get("schema_version")
+    if schema_version != MANIFEST_SCHEMA_VERSION:
+        raise BundleManifestError(f"Bundle manifest has unsupported schema_version {schema_version!r}")
+
+    bundle_name = manifest.get("bundle_name")
+    if not isinstance(bundle_name, str) or not bundle_name:
+        raise BundleManifestError("Bundle manifest does not contain a bundle name")
+    if expected_bundle_name is not None and bundle_name != expected_bundle_name:
+        raise BundleManifestError(
+            f"Bundle manifest is for bundle {bundle_name!r}, expected {expected_bundle_name!r}"
+        )
+
+    version = manifest.get("version")
+    if not isinstance(version, str):
+        raise BundleManifestError("Bundle manifest does not contain a version")
+    validate_bundle_version(version, source="manifest version")
+    if expected_version is not None and version != expected_version:
+        raise BundleManifestError(
+            f"Bundle manifest contains version {version!r}, expected {expected_version!r}"
+        )
+
+    backend = manifest.get("backend")
+    if not isinstance(backend, dict) or not isinstance(backend.get("type"), str):
+        raise BundleManifestError("Bundle manifest does not contain a backend type")
+    if expected_backend_type is not None and backend["type"] != expected_backend_type:
+        # Worded to match the manifest bundle's existing "not for a local backend" checks.
+        raise BundleManifestError(
+            f"Bundle manifest is not for a {expected_backend_type} backend: got {backend['type']!r}"
+        )
+
+    files = manifest.get("files")
+    if not isinstance(files, list):
+        raise BundleManifestError("Bundle manifest files must be a list")
+
+    seen_paths: set[str] = set()
+    paths: list[str] = []
+    total_size = 0
+    for file_info in files:
+        relative_path = _validate_manifest_file_entry(file_info)
+        if relative_path in seen_paths:
+            raise BundleManifestError(f"Bundle manifest contains duplicate path {relative_path!r}")
+        seen_paths.add(relative_path)
+        paths.append(relative_path)
+        total_size += file_info["size"]
+    # The version hashes entries in order, so without a fixed order the same files could
+    # be published under several versions.
+    if paths != sorted(paths):
+        raise BundleManifestError("Bundle manifest file entries are not sorted by path")
+
+    if manifest.get("file_count") != len(files):
+        raise BundleManifestError(
+            f"Bundle manifest file_count {manifest.get('file_count')!r} does not match its "
+            f"{len(files)} file entries"
+        )
+    if manifest.get("total_size") != total_size:
+        raise BundleManifestError(
+            f"Bundle manifest total_size {manifest.get('total_size')!r} does not match its "
+            f"entries, which total {total_size}"
+        )
+
+    computed_version = compute_bundle_version(files)
+    if version != computed_version:
+        raise BundleManifestError(
+            f"Bundle manifest version {version!r} does not match its contents, "
+            f"which hash to {computed_version!r}"
+        )
+
+
 def verify_bundle_version_manifest(manifest: dict[str, Any], expected_sha256: str) -> None:
     """
     Check that a manifest serializes to ``expected_sha256``.
 
-    This proves only that the manifest is the document the digest was taken from. It does
-    not check the manifest against its own contents; a caller that did not choose
-    ``expected_sha256`` itself must additionally confirm that ``manifest["version"]``
-    equals ``compute_bundle_version(manifest["files"])``.
+    This proves only that the manifest is the document the digest was taken from, which
+    says nothing about the contents when the digest came from the same publisher. Pair it
+    with ``validate_bundle_version_manifest_structure``, which carries its own caveat.
     """
     actual_sha256 = hashlib.sha256(serialize_bundle_version_manifest(manifest)).hexdigest()
     expected_sha256 = expected_sha256.removeprefix("sha256:")

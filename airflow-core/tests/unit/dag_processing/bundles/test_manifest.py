@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import stat
@@ -40,6 +41,7 @@ from airflow.dag_processing.bundles.manifest import (
     serialize_bundle_version_manifest,
     validate_bundle_relative_path,
     validate_bundle_version,
+    validate_bundle_version_manifest_structure,
     verify_bundle_version_manifest,
 )
 
@@ -746,3 +748,134 @@ def test_manifest_rejects_bad_file_version_ids_before_reading_the_tree(tmp_path,
         )
 
     assert hashed == []
+
+
+def _published_manifest(tmp_path, **kwargs):
+    source = tmp_path / "source"
+    _write_file(source, "dags/example.py", "print('dag')")
+    _write_file(source, "dags/nested/other.py", "print('other')")
+    return _build_manifest(bundle_name="manifest-local", root=source, backend_type="local", **kwargs)
+
+
+def test_structure_validation_accepts_a_freshly_built_manifest(tmp_path):
+    manifest = _published_manifest(tmp_path)
+
+    validate_bundle_version_manifest_structure(
+        manifest,
+        expected_bundle_name="manifest-local",
+        expected_backend_type="local",
+        expected_version=manifest["version"],
+    )
+
+
+def test_structure_validation_accepts_entries_carrying_a_version_id(tmp_path):
+    source = tmp_path / "source"
+    _write_file(source, "dags/example.py", "print('dag')")
+    manifest = _build_manifest(
+        bundle_name="manifest-s3",
+        root=source,
+        backend_type="s3",
+        file_version_ids={"dags/example.py": "objver-1"},
+    )
+
+    validate_bundle_version_manifest_structure(manifest, expected_version=None, expected_backend_type="s3")
+
+
+def test_structure_validation_is_an_integrity_check_only_against_a_trusted_version(tmp_path):
+    manifest = _published_manifest(tmp_path)
+    trusted_version = manifest["version"]
+
+    edited = copy.deepcopy(manifest)
+    edited["files"][0]["sha256"] = "f" * 64
+    verify_bundle_version_manifest(
+        edited, hashlib.sha256(serialize_bundle_version_manifest(edited)).hexdigest()
+    )
+    with pytest.raises(BundleManifestError, match="does not match its contents"):
+        validate_bundle_version_manifest_structure(edited, expected_version=None)
+
+    forged = copy.deepcopy(edited)
+    forged["version"] = compute_bundle_version(forged["files"])
+    validate_bundle_version_manifest_structure(forged, expected_version=None)
+    with pytest.raises(BundleManifestError, match="expected 'sha256-"):
+        validate_bundle_version_manifest_structure(forged, expected_version=trusted_version)
+
+
+def test_structure_validation_rejects_entries_out_of_path_order(tmp_path):
+    manifest = _published_manifest(tmp_path)
+    manifest["files"].reverse()
+    manifest["version"] = compute_bundle_version(manifest["files"])
+
+    with pytest.raises(BundleManifestError, match="not sorted by path"):
+        validate_bundle_version_manifest_structure(manifest, expected_version=None)
+
+
+def test_structure_validation_requires_an_explicit_expected_version(tmp_path):
+    manifest = _published_manifest(tmp_path)
+
+    with pytest.raises(TypeError, match="expected_version"):
+        validate_bundle_version_manifest_structure(manifest)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "expected_message"),
+    [
+        (lambda m: m.update({"schema_version": 2}), "unsupported schema_version"),
+        (lambda m: m.update({"bundle_name": None}), "does not contain a bundle name"),
+        (lambda m: m.update({"version": None}), "does not contain a version"),
+        (lambda m: m.update({"version": "sha256-nope"}), "valid sha256 version"),
+        (lambda m: m.update({"backend": "local"}), "does not contain a backend type"),
+        (lambda m: m.update({"files": {}}), "files must be a list"),
+        (lambda m: m.update({"file_count": 99}), "file_count"),
+        (lambda m: m.update({"total_size": 99}), "total_size"),
+        (lambda m: m["files"].append(dict(m["files"][0])), "duplicate path"),
+        (lambda m: m["files"].__setitem__(0, "not-an-object"), "entries must be objects"),
+        (lambda m: m["files"][0].update({"path": 1}), "does not contain a path"),
+        (lambda m: m["files"][0].update({"path": "../evil.py"}), "unsafe relative path"),
+        (lambda m: m["files"][0].update({"path": MANIFEST_FILE_NAME}), "must not list"),
+        (lambda m: m["files"][0].update({"sha256": "nope"}), "valid sha256"),
+        (lambda m: m["files"][0].update({"size": -1}), "valid size"),
+        (lambda m: m["files"][0].update({"size": True}), "valid size"),
+        (lambda m: m["files"][0].update({"executable": "yes"}), "valid executable flag"),
+        (lambda m: m["files"][0].update({"version_id": ""}), "valid version id"),
+    ],
+)
+def test_structure_validation_rejects_malformed_manifests(tmp_path, mutate, expected_message):
+    manifest = _published_manifest(tmp_path)
+    mutate(manifest)
+
+    with pytest.raises(BundleManifestError, match=expected_message):
+        validate_bundle_version_manifest_structure(manifest, expected_version=None)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "expected_message"),
+    [
+        ({"expected_bundle_name": "other"}, "expected 'other'"),
+        ({"expected_backend_type": "s3"}, "not for a s3 backend: got 'local'"),
+        ({"expected_version": "sha256-" + "a" * 64}, "expected 'sha256-"),
+    ],
+)
+def test_structure_validation_rejects_a_manifest_for_something_else(tmp_path, kwargs, expected_message):
+    manifest = _published_manifest(tmp_path)
+
+    with pytest.raises(BundleManifestError, match=expected_message):
+        validate_bundle_version_manifest_structure(manifest, **{"expected_version": None, **kwargs})
+
+
+def test_structure_validation_rejects_a_manifest_that_is_not_an_object():
+    with pytest.raises(BundleManifestError, match="must be an object"):
+        validate_bundle_version_manifest_structure(["not", "a", "manifest"], expected_version=None)
+
+
+@pytest.mark.parametrize(
+    "files",
+    [
+        [{"path": "a.py", "sha256": "0" * 64, "size": 1}],
+        [{"sha256": "0" * 64, "size": 1, "executable": False}],
+        ["not-an-object"],
+        [None],
+    ],
+)
+def test_bundle_version_rejects_incomplete_file_entries(files):
+    with pytest.raises(BundleManifestError, match="must each contain path, sha256, size and executable"):
+        compute_bundle_version(files)
