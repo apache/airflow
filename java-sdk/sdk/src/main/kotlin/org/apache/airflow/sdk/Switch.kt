@@ -103,11 +103,17 @@ class SwitchRef private constructor(
      *
      * Marks a registered task as a switch. Public so a generated wiring view
      * can call it; user code reaches a switch through [DagDef.Switch].
+     *
+     * A wiring view gets the same task back each time it names it, so a second
+     * call reuses the switch rather than declaring it again. [DagDef.Switch] and
+     * [TaskGroupRef.Switch] never reach that path, since registering a task
+     * rejects a duplicate ID first.
      */
     @JvmStatic
     fun of(ref: TaskRef<*>): SwitchRef {
-      require(ref.def.decider == null) {
-        "Task '${ref.def.id}' already decides what to skip; declare it once"
+      ref.def.decider?.let { existing ->
+        require(existing is SwitchDef) { "Task '${ref.def.id}' already decides what to skip as a condition" }
+        return SwitchRef(ref, existing)
       }
       val definition = ref.def.definition
       require(SwitchTask::class.java.isAssignableFrom(definition)) {

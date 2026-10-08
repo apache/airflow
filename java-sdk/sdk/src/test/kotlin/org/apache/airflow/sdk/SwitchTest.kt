@@ -174,4 +174,34 @@ internal class SwitchTest {
     assertEquals("handle_long", decision.value)
     assertEquals(listOf("handle_short"), decision.skipped)
   }
+
+  @Test
+  @DisplayName("Should reuse the switch when a task already declared as one is declared again")
+  fun shouldReuseSwitchDeclaredTwice() {
+    val (dag, switch, cases) = dagWithCases()
+    val again = SwitchRef.of(TaskRef<Unit>(dag.tasks.getValue("pickPath")))
+
+    switch.Case(cases.first)
+    again.Case(cases.second)
+
+    assertEquals(
+      listOf("handle_long", "handle_short"),
+      dag.tasks
+        .getValue("pickPath")
+        .decider!!
+        .cases
+        .map { it.id },
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject declaring a condition as a switch")
+  fun shouldRejectSwitchOverACondition() {
+    val dag = DagDef("d")
+    val condition = dag.If(HasRows::class.java)
+
+    val error = assertThrows(IllegalArgumentException::class.java) { SwitchRef.of(TaskRef<Unit>(condition.nodes().single())) }
+
+    assertEquals("Task 'hasRows' already decides what to skip as a condition", error.message)
+  }
 }

@@ -2301,6 +2301,44 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("let a wiring view name a switch's cases in more than one statement")
+  fun switchNamedAcrossStatements() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Task;
+
+        @Builder.Dag(id = "etl")
+        public class TestExample {
+          @Builder.Switch(id = "pick_path")
+          public Class<? extends Task> pickPath() {
+            return TestExampleBuilder.HandleLong.class;
+          }
+
+          @Builder.Task
+          public void handleLong() {}
+
+          @Builder.Task
+          public void handleShort() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              pickPath().Case(handleLong());
+              pickPath().Case(handleShort());
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+  }
+
+  @Test
   @DisplayName("generate a switch that names its case by the class generated for it")
   fun generateSwitchTask() {
     val compilation =
