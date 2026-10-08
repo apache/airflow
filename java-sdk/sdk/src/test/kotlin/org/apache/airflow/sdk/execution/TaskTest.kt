@@ -198,6 +198,10 @@ class TaskTest {
       listOf("skipmixin_key" to mapOf("skipped" to listOf("report_empty")), "return_value" to true),
       transport.xComs,
     )
+    Assertions.assertEquals(
+      listOf("xcom:skipmixin_key", "skip:[report_empty]", "xcom:return_value"),
+      transport.events,
+    )
   }
 
   @Test
@@ -210,6 +214,7 @@ class TaskTest {
 
     Assertions.assertEquals(listOf("load"), transport.skipped)
     Assertions.assertEquals(false, transport.xComs.last().second)
+    Assertions.assertEquals(listOf("xcom:skipmixin_key", "skip:[load]", "xcom:return_value"), transport.events)
   }
 
   @Test
@@ -222,6 +227,7 @@ class TaskTest {
 
     Assertions.assertEquals(emptyList<String>(), transport.skipped)
     Assertions.assertEquals(listOf("return_value" to true), transport.xComs)
+    Assertions.assertEquals(listOf("xcom:return_value"), transport.events)
   }
 
   @Test
@@ -354,10 +360,11 @@ class TaskTest {
     }
   }
 
-  /** Records what a deciding task pushed and asked to skip, in order. */
+  /** Records what a deciding task pushed and asked to skip, and the order of the two. */
   private class RecordingTransport : org.apache.airflow.sdk.execution.Client {
     val xComs = mutableListOf<Pair<String, Any>>()
     val skipped = mutableListOf<String>()
+    val events = mutableListOf<String>()
 
     override fun setXCom(
       key: String,
@@ -368,10 +375,12 @@ class TaskTest {
       mapIndex: Int,
     ) {
       xComs += key to value
+      events += "xcom:$key"
     }
 
     override fun skipDownstreamTasks(taskIds: List<String>) {
       skipped += taskIds
+      events += "skip:$taskIds"
     }
 
     override fun getConnection(id: String) = throw UnsupportedOperationException("not used in test")

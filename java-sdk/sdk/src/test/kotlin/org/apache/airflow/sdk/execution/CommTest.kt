@@ -509,6 +509,33 @@ class CommsTest {
   }
 
   @Test
+  @DisplayName("skipDownstreamTasks sends the task IDs to skip and accepts the supervisor's empty response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun skipDownstreamTasksSendsTaskIds() {
+    val (body, failure) =
+      roundTrip(::emptyResponseFrame) { it.impl.skipDownstreamTasks(listOf("report_empty", "audit")) }
+
+    Assertions.assertNull(failure, "skipDownstreamTasks should return normally on an empty response, got $failure")
+    Assertions.assertEquals("SkipDownstreamTasks", body["type"])
+    Assertions.assertEquals(listOf("report_empty", "audit"), body["tasks"])
+  }
+
+  @Test
+  @DisplayName("skipDownstreamTasks sends nothing when there is nothing to skip")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun skipDownstreamTasksSendsNothingForEmptyList() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    CoordinatorClient(comm).skipDownstreamTasks(emptyList())
+
+    runBlocking { fromClient.flushAndClose() }
+    Assertions.assertTrue(fromClient.isClosedForRead, "no frame should have been written")
+    comm.close()
+  }
+
+  @Test
   @DisplayName("Should fail a pending call when the coordinator socket closes")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun failsPendingCallWhenSocketCloses() {
