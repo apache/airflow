@@ -271,7 +271,7 @@ class BaseExecutor(LoggingMixin):
                 rejected = try_adopt(self, tis, *args, **kwargs)
                 rejected_ids = {ti.id for ti in rejected}
                 for task_id, key in keys:
-                    state, _ = self.event_buffer.get(key, (None, None))
+                    state = self.event_buffer.get(key, (None,))[0]
                     if task_id not in rejected_ids and state not in State.finished:
                         self.running.add(key)
                 return rejected

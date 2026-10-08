@@ -438,7 +438,7 @@ class TestLocalExecutor:
 
         assert len(executor.event_buffer) == result_count
         assert set(executor.event_buffer) == {executor.get_task_key(workload.ti) for workload in submitted}
-        assert all(state == State.SUCCESS for state, _ in executor.event_buffer.values())
+        assert all(event[0] == State.SUCCESS for event in executor.event_buffer.values())
         assert not executor.running
         assert not executor._worker_tasks
         assert executor._unread_messages.value == 0

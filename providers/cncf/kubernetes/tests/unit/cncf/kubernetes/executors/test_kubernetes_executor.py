@@ -97,6 +97,11 @@ else:
     LOGICAL_DATE_KEY = "execution_date"
 
 
+def _event(state, info=None):
+    """Event buffer value shape depends on Airflow core (3.4+ adds workload_run_id)."""
+    return (state, info, None) if AIRFLOW_V_3_4_PLUS else (state, info)
+
+
 class TestAirflowKubernetesScheduler:
     @staticmethod
     def _gen_random_string(seed, str_len):
@@ -1770,7 +1775,7 @@ class TestKubernetesExecutor:
         )
         executor.success(key)
         assert key not in executor.running
-        assert executor.get_event_buffer() == {key: (TaskInstanceState.SUCCESS, None)}
+        assert executor.get_event_buffer() == {key: _event(TaskInstanceState.SUCCESS)}
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
     def test_queue_workload_queues_execute_task(self):
@@ -4292,8 +4297,8 @@ class TestKubernetesExecutorUuid:
         ]
         assert executor.running == {TaskInstanceUuid(uuid_workload.ti.id), TaskInstanceUuid(second.ti.id)}
         assert executor.get_event_buffer() == {
-            TaskInstanceUuid(uuid_workload.ti.id): (State.QUEUED, "5"),
-            TaskInstanceUuid(second.ti.id): (State.QUEUED, "5"),
+            TaskInstanceUuid(uuid_workload.ti.id): _event(State.QUEUED, "5"),
+            TaskInstanceUuid(second.ti.id): _event(State.QUEUED, "5"),
         }
 
     @pytest.mark.parametrize("state", [State.FAILED, None, ADOPTED])
@@ -4761,7 +4766,7 @@ class TestKubernetesExecutorUuid:
             assert executor.event_buffer == {}
         else:
             expected_state = State.SUCCESS if pod_state is None else pod_state
-            assert executor.event_buffer == {TaskInstanceUuid(uuid_workload.ti.id): (expected_state, None)}
+            assert executor.event_buffer == {TaskInstanceUuid(uuid_workload.ti.id): _event(expected_state)}
         assert (TaskInstanceUuid(uuid_workload.ti.id) in executor.running) == (pod_state == State.RUNNING)
         if pod_state is not None:
             session.scalar.assert_not_called()
@@ -4978,7 +4983,7 @@ class TestKubernetesExecutorUuid:
             executor.cleanup_stuck_queued_tasks([uuid_workload.ti])
 
         assert executor.running == {successor}
-        assert executor.event_buffer == {key: (State.FAILED, None)}
+        assert executor.event_buffer == {key: _event(State.FAILED)}
 
     @pytest.mark.parametrize("native", [False, True])
     def test_executor_start_passes_selected_identity_mode_to_scheduler(self, mocker, monkeypatch, native):

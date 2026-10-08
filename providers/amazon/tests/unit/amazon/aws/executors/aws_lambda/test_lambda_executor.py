@@ -49,6 +49,12 @@ if hasattr(BaseExecutor, "get_task_key"):
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
+
+def _event(state, info=None):
+    """Event buffer value shape depends on Airflow core (3.4+ adds workload_run_id)."""
+    return (state, info, None) if AIRFLOW_V_3_4_PLUS else (state, info)
+
+
 DEFAULT_QUEUE_URL = "queue-url"
 DEFAULT_DLQ_URL = "dlq-url"
 DEFAULT_FUNCTION_NAME = "function-name"
@@ -1324,10 +1330,7 @@ class TestTaskIdentity:
         }
         mock_executor.process_queue(DEFAULT_QUEUE_URL)
         assert mock_executor.get_event_buffer() == {
-            keys[0]: (
-                TaskInstanceState.SUCCESS if success else TaskInstanceState.FAILED,
-                None,
-            )
+            keys[0]: _event(TaskInstanceState.SUCCESS if success else TaskInstanceState.FAILED)
         }
         assert mock_executor.running == {keys[1]}
 
@@ -1376,7 +1379,7 @@ class TestTaskIdentity:
             ]
         }
         mock_executor.process_queue(DEFAULT_QUEUE_URL)
-        assert mock_executor.get_event_buffer() == {original_id: (TaskInstanceState.SUCCESS, None)}
+        assert mock_executor.get_event_buffer() == {original_id: _event(TaskInstanceState.SUCCESS)}
         assert not mock_executor.running_workloads
 
     def test_legacy_adoption_preserves_coordinate_key(

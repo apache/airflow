@@ -1157,7 +1157,9 @@ class TestUUIDTaskIdentity(_WorkloadFactory):
                 str(sibling.ti.id): TaskInstanceState.QUEUED,
             }
             executor._purge_jobs(session)
-        assert executor.get_event_buffer(dag_ids={target.ti.dag_id}) == {target_key: (terminal_state, None)}
+        assert executor.get_event_buffer(dag_ids={target.ti.dag_id}) == {
+            target_key: self._event(terminal_state)
+        }
         assert executor.running == {sibling_key}
 
     def test_adoption_and_revocation_match_uuid(self):
@@ -1201,7 +1203,7 @@ class TestUUIDTaskIdentity(_WorkloadFactory):
             session.flush()
             adopter._purge_jobs(session)
         assert adopter.get_event_buffer() == {
-            adopter.get_task_key(first.ti): (TaskInstanceState.SUCCESS, None)
+            adopter.get_task_key(first.ti): self._event(TaskInstanceState.SUCCESS)
         }
         assert adopter.running == {adopter.get_task_key(second.ti)}
 
@@ -1291,7 +1293,7 @@ class TestUUIDTaskIdentity(_WorkloadFactory):
         assert executor._update_orphaned_jobs(session)
         assert job.state == state
         executor._purge_jobs(session)
-        assert executor.get_event_buffer(dag_ids={ti.dag_id}) == {key: (state, None)}
+        assert executor.get_event_buffer(dag_ids={ti.dag_id}) == {key: self._event(state)}
         assert executor.running == ({key} if state == TaskInstanceState.RUNNING else set())
 
     @pytest.mark.parametrize("legacy_job", [False, True])

@@ -297,7 +297,7 @@ def test_legacy_executor_dispatch_and_completion_keep_submitted_identity(
     getattr(executor, "success" if terminal_state == TaskInstanceState.SUCCESS else "fail")(submitted_key)
 
     assert executor._drain_events_with_task_ids() == (
-        {TaskInstanceUuid(submitted_id): (terminal_state, None)},
+        {TaskInstanceUuid(submitted_id): (terminal_state, None, None)},
         {TaskInstanceUuid(submitted_id): submitted_key},
     )
     assert not executor.running
@@ -411,7 +411,9 @@ def test_task_workloads_with_matching_coordinates_keep_distinct_attempts(next_tr
     executor.running.update((TaskInstanceUuid(first.ti.id), TaskInstanceUuid(second.ti.id)))
     executor.success(TaskInstanceUuid(first.ti.id))
     assert executor.running == {TaskInstanceUuid(second.ti.id)}
-    assert executor.get_event_buffer() == {TaskInstanceUuid(first.ti.id): (TaskInstanceState.SUCCESS, None, None)}
+    assert executor.get_event_buffer() == {
+        TaskInstanceUuid(first.ti.id): (TaskInstanceState.SUCCESS, None, None)
+    }
     executor.executor_queues[WorkloadType.EXECUTE_TASK].clear()
     assert not executor.has_task(first.ti)
     assert executor.has_task(second.ti)

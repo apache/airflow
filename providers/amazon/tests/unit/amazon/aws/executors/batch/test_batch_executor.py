@@ -64,6 +64,13 @@ if hasattr(BaseExecutor, "get_task_key"):
         from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
+
+
+def _event(state, info=None):
+    """Event buffer value shape depends on Airflow core (3.4+ adds workload_run_id)."""
+    return (state, info, None) if AIRFLOW_V_3_4_PLUS else (state, info)
+
+
 ARN1 = "arn1"
 
 MOCK_JOB_ID = "batch-job-id"
@@ -1416,10 +1423,7 @@ class TestTaskIdentity:
         }
         mock_executor.sync_running_jobs()
         assert mock_executor.get_event_buffer() == {
-            keys[0]: (
-                TaskInstanceState.SUCCESS if success else TaskInstanceState.FAILED,
-                None,
-            )
+            keys[0]: _event(TaskInstanceState.SUCCESS if success else TaskInstanceState.FAILED)
         }
         assert mock_executor.running == {keys[1]}
 
