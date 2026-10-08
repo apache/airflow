@@ -409,6 +409,16 @@ class MockClearingStateStoreOperator(BaseOperator):
         context["task_state_store"].clear()
 
 
+def wait_until(condition, timeout: float = 5.0) -> bool:
+    """Poll ``condition`` until it holds; on_kill() kills in a thread of its own."""
+    deadline = time.monotonic() + timeout
+    while not condition():
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(0.01)
+    return True
+
+
 def create_mapped_operator(
     dag: DAG,
     expand_input: ExpandInput,
@@ -1990,7 +2000,7 @@ class TestIterableOperator:
 
         iterable_op.on_kill()
 
-        assert active_operator.killed is True
+        assert wait_until(lambda: active_operator.killed)
 
     def test_on_kill_reaches_sub_operators_that_compare_equal_and_kills_each_once(self):
         """
@@ -2013,6 +2023,8 @@ class TestIterableOperator:
         iterable_op.on_kill()
         iterable_op.on_kill()
 
+        assert wait_until(lambda: len(kills) == 2)
+        time.sleep(0.05)  # a second kill would arrive here
         assert sorted(kills) == ["first", "second"]
 
     def test_on_kill_reaches_every_sub_operator_when_one_raises_a_base_exception(self):
@@ -2032,7 +2044,35 @@ class TestIterableOperator:
 
         iterable_op.on_kill()
 
-        assert second.killed is True
+        assert wait_until(lambda: second.killed)
+
+    def test_on_kill_with_the_loop_paused_kills_off_the_main_thread(self):
+        """
+        Between two ``run_until_complete`` calls the loop is paused and a parked ``asend`` may hold
+        the comms lock: a sub-operator's sync SDK call in ``on_kill`` on the main thread would wait
+        for it forever, since only the paused loop can release it. The kill runs in a thread.
+        """
+        seen: dict[str, bool] = {}
+        done = threading.Event()
+        main = threading.get_ident()
+
+        class Op(MockOnKillOperator):
+            def on_kill(self):
+                seen["on_main"] = threading.get_ident() == main
+                done.set()
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{}]), task_id="on_kill_paused", operator_class=Op
+            )
+        op = Op(task_id="active")
+        iterable_op._state.register(op)
+
+        iterable_op.on_kill()  # no loop running on this thread, as when the loop is paused
+
+        assert done.wait(5)
+        assert seen == {"on_main": False}
+        assert iterable_op._state.stop_requested()
 
     def test_on_kill_inside_a_running_loop_kills_off_the_loop_thread(self):
         """

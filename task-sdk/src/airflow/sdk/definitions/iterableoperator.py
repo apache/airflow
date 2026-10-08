@@ -670,18 +670,16 @@ class IterableOperator(BaseOperator):
         active_operators = self._state.take_in_flight()
         if not active_operators:
             return
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            self._kill(active_operators)
-        else:
-            # Called by the runner's SIGTERM handler on the main thread while the event loop runs
-            # there. A sub-operator's on_kill may make a synchronous SDK call, which waits for the
-            # comms lock in another thread but raises DeadlockImminentError on the loop thread, so
-            # the kills run in a thread of their own; the loop goes on serving the sub-tasks.
-            threading.Thread(
-                target=self._kill, args=(active_operators,), name="iterable-operator-on-kill", daemon=True
-            ).start()
+        # Always in a thread of its own. The runner's SIGTERM handler calls this on the main thread,
+        # where the event loop either runs, and a synchronous SDK call in a sub-operator's on_kill
+        # would raise DeadlockImminentError, or is paused between two run_until_complete calls
+        # while a result is handed to the consumer, and the same call would wait for a lock a
+        # parked asend holds, which only the paused loop can release. In its own thread the call
+        # waits its turn in both cases, and the loop goes on serving the sub-tasks. _run_tasks
+        # kills what is in flight through _kill directly, from a thread the loop drives.
+        threading.Thread(
+            target=self._kill, args=(active_operators,), name="iterable-operator-on-kill", daemon=True
+        ).start()
 
     def _kill(self, operators: list[BaseOperator]) -> None:
         # One sub-operator's on_kill must not keep the kill from the others: DeadlockImminentError
@@ -843,11 +841,14 @@ class IterableOperator(BaseOperator):
                             # stops the task) is followed by the executor cancelling the coroutines, which
                             # would leave nothing registered for on_kill(); kill what is in flight first,
                             # off the loop thread, so that a sub-operator's synchronous SDK call in on_kill
-                            # waits for the sub-tasks' calls in flight instead of raising.
+                            # waits for the sub-tasks' calls in flight instead of raising. Awaited here,
+                            # unlike on_kill()'s own thread: the loop keeps running meanwhile.
+                            self._state.request_stop()
+                            in_flight = self._state.take_in_flight()
                             try:
-                                loop.run_until_complete(asyncio.to_thread(self.on_kill))
+                                loop.run_until_complete(asyncio.to_thread(self._kill, in_flight))
                             except RuntimeError:
-                                self.on_kill()
+                                self._kill(in_flight)
                             raise
 
                 if self._state.stop_requested():
