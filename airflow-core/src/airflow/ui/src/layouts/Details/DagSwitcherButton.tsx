@@ -36,7 +36,7 @@ type Props = {
 export const DagSwitcherButton = ({ children, dagId, shape }: Props) => {
   const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
-  const { dags, isLoading } = useDagSearchOptions();
+  const dags = useDagSearchOptions();
 
   useShortcut({
     ...SHORTCUTS.search.searchDags,
@@ -50,7 +50,7 @@ export const DagSwitcherButton = ({ children, dagId, shape }: Props) => {
       label={translate("switchDag")}
       onOpenChange={setOpen}
       open={open}
-      search={<SearchDags dags={dags} isLoading={isLoading} onClose={() => setOpen(false)} />}
+      search={<SearchDags dags={dags} onClose={() => setOpen(false)} />}
       shape={shape}
       testId="switch-dag"
       to={`/dags/${dagId}`}

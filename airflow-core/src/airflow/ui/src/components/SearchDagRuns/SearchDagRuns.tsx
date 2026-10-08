@@ -55,12 +55,10 @@ const buildTaskPath = (groupId: string | undefined, taskId: string | undefined) 
 
 export const SearchDagRuns = ({
   dagId,
-  isLoading,
   onClose,
   runs,
 }: {
   readonly dagId: string;
-  readonly isLoading: boolean;
   readonly onClose: () => void;
   /** Already loaded by the breadcrumb level, so opening the panel shows them straight away. */
   readonly runs: Array<DagRunSearchOption>;
@@ -114,7 +112,6 @@ export const SearchDagRuns = ({
     <SearchSelect
       defaultOptions={runs}
       formatOptionLabel={formatOptionLabel}
-      isLoading={isLoading}
       loadOptions={searchDagRunsDebounced}
       onChange={onSelect}
       placeholder={translate("search.dagRuns")}

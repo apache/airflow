@@ -38,19 +38,19 @@ export const buildDagRunOption = (dagRun: DAGRunResponse): DagRunSearchOption =>
  *
  * It belongs to the breadcrumb level rather than to the panel the level opens: a query that only
  * starts when the panel is opened has nothing to show until it answers, which is the spinner this
- * avoids. Living a level up, it is already loaded by the time the panel opens, and the page's
- * auto-refresh keeps it that way.
+ * avoids entirely. Living a level up, it is already loaded by the time the panel opens, and the
+ * page's auto-refresh keeps it that way.
  */
 export const useDagRunSearchOptions = (dagId: string) => {
   // Unlike the grid, this list has to notice runs that do not exist yet, so it keeps polling once
   // they have all finished — `checkPendingRuns` only scales the interval back, it does not stop.
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
 
-  const { data, isLoading } = useDagRunServiceGetDagRuns(
+  const { data } = useDagRunServiceGetDagRuns(
     { dagId, limit: DAG_RUN_SEARCH_LIMIT, orderBy: NEWEST_FIRST },
     undefined,
     { refetchInterval },
   );
 
-  return { isLoading, runs: data === undefined ? NO_OPTIONS : data.dag_runs.map(buildDagRunOption) };
+  return data === undefined ? NO_OPTIONS : data.dag_runs.map(buildDagRunOption);
 };

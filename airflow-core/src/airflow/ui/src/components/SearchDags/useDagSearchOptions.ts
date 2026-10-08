@@ -37,10 +37,10 @@ export const buildDagOption = (dag: DAGWithLatestDagRunsResponse): DagSearchOpti
  *
  * It belongs to the breadcrumb level rather than to the panel the level opens: a query that only
  * starts when the panel is opened has nothing to show until it answers, which is the spinner this
- * avoids.
+ * avoids entirely.
  */
 export const useDagSearchOptions = () => {
-  const { data, isLoading } = useDagServiceGetDagsUi({ dagRunsLimit: 1, limit: DAG_SEARCH_LIMIT });
+  const { data } = useDagServiceGetDagsUi({ dagRunsLimit: 1, limit: DAG_SEARCH_LIMIT });
 
-  return { dags: data === undefined ? NO_OPTIONS : data.dags.map(buildDagOption), isLoading };
+  return data === undefined ? NO_OPTIONS : data.dags.map(buildDagOption);
 };

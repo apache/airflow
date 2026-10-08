@@ -37,17 +37,14 @@ const { searched } = vi.hoisted<{ searched: { current: Array<DagRunSearchOption>
 vi.mock("chakra-react-select", () => ({
   AsyncSelect: ({
     defaultOptions,
-    isLoading,
     loadOptions,
     onChange,
   }: {
     readonly defaultOptions: Array<DagRunSearchOption> | true;
-    readonly isLoading: boolean | undefined;
     readonly loadOptions: (input: string, callback: (options: Array<DagRunSearchOption>) => void) => void;
     readonly onChange: (option: DagRunSearchOption) => void;
   }) => (
     <>
-      {isLoading === true ? <span>Loading</span> : undefined}
       {(Array.isArray(defaultOptions) ? defaultOptions : []).map((option) => (
         <button key={option.value} onClick={() => onChange(option)} type="button">
           {`${option.label} (${option.state})`}
@@ -80,7 +77,6 @@ const renderSearch = (initialEntry: string, route: string) =>
             element={
               <SearchDagRuns
                 dagId="my_dag"
-                isLoading={false}
                 onClose={onClose}
                 runs={[{ label: "run_2", state: "failed", value: "run_2" }]}
               />

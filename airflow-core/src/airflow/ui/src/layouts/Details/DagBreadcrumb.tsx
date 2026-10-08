@@ -97,7 +97,7 @@ const BreadcrumbItem = ({
 };
 
 export const DagBreadcrumb = () => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation(["common", "dag"]);
   const { dagId = "", groupId, mapIndex = "-1", runId, taskId } = useParams();
   const { pathname } = useLocation();
   const refetchInterval = useAutoRefresh({ dagId });
@@ -159,7 +159,7 @@ export const DagBreadcrumb = () => {
       caption: translate("dagRun_one"),
       key: "allRuns",
       to: `/dags/${dagId}/runs`,
-      value: translate("allRuns", { ns: "dag" }),
+      value: translate("dag:allRuns"),
     });
   } else {
     crumbs.push({

@@ -42,6 +42,9 @@ const SearchControl = <Option,>({ children, ...props }: ControlProps<Option, fal
   </chakraComponents.Control>
 );
 
+/** `DropdownIndicator` accepts `null` to opt out; `LoadingIndicator` only accepts a component. */
+const NoIndicator = () => null;
+
 type Props<Option> = {
   /**
    * The options to list before anything is typed. Always an array, never `true`: `true` makes
@@ -51,7 +54,6 @@ type Props<Option> = {
    */
   readonly defaultOptions: Array<Option>;
   readonly formatOptionLabel: (option: Option) => ReactNode;
-  readonly isLoading?: boolean;
   readonly loadOptions: (
     inputValue: string,
     callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void,
@@ -67,7 +69,6 @@ type Props<Option> = {
 export const SearchSelect = <Option,>({
   defaultOptions,
   formatOptionLabel,
-  isLoading,
   loadOptions,
   onChange,
   placeholder,
@@ -91,11 +92,13 @@ export const SearchSelect = <Option,>({
       <AsyncSelect<Option>
         backspaceRemovesValue={true}
         chakraStyles={chakraStyles}
-        components={{ Control: SearchControl, DropdownIndicator: null }}
+        // No loading affordance anywhere: the listed options are in hand before the panel opens,
+        // and a search replaces them once it answers rather than blanking them first.
+        components={{ Control: SearchControl, DropdownIndicator: null, LoadingIndicator: NoIndicator }}
         defaultOptions={defaultOptions}
         filterOption={undefined}
         formatOptionLabel={formatOptionLabel}
-        isLoading={isLoading}
+        loadingMessage={() => null}
         loadOptions={loadOptions}
         menuIsOpen
         onChange={onChange}

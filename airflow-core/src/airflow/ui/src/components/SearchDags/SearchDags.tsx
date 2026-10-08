@@ -45,12 +45,10 @@ const formatOptionLabel = (option: DagSearchOption) => (
 
 export const SearchDags = ({
   dags,
-  isLoading,
   onClose,
 }: {
   /** Already loaded by the breadcrumb level, so opening the panel shows them straight away. */
   readonly dags: Array<DagSearchOption>;
-  readonly isLoading: boolean;
   readonly onClose: () => void;
 }) => {
   const { t: translate } = useTranslation("dags");
@@ -100,7 +98,6 @@ export const SearchDags = ({
     <SearchSelect
       defaultOptions={dags}
       formatOptionLabel={formatOptionLabel}
-      isLoading={isLoading}
       loadOptions={searchDagDebounced}
       onChange={onSelect}
       placeholder={translate("search.dags")}

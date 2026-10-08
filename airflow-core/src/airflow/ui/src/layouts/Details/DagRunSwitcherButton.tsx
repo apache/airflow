@@ -37,16 +37,14 @@ type Props = {
 export const DagRunSwitcherButton = ({ children, dagId, shape, to }: Props) => {
   const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
-  const { isLoading, runs } = useDagRunSearchOptions(dagId);
+  const runs = useDagRunSearchOptions(dagId);
 
   return (
     <CrumbSwitcher
       label={translate("switchDagRun")}
       onOpenChange={setOpen}
       open={open}
-      search={
-        <SearchDagRuns dagId={dagId} isLoading={isLoading} onClose={() => setOpen(false)} runs={runs} />
-      }
+      search={<SearchDagRuns dagId={dagId} onClose={() => setOpen(false)} runs={runs} />}
       shape={shape}
       testId="switch-dag-run"
       to={to}
