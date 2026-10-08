@@ -33,14 +33,14 @@ The cleanup command operates only on **task state store** rows in the ``Metastor
 A task state store row is eligible for deletion when its ``expires_at`` timestamp is in the past. ``expires_at`` is computed on the worker at write time:
 
 * Keys written with an explicit ``retention=timedelta(...)`` expire after that duration from the time of the write.
-* Keys written with ``retention=None`` (the default) pick up an expiry based on ``[state_store] default_retention_days``. If that value is ``> 0``, the key expires that many days after the write.
+* Keys written with ``retention=None`` (the default) pick up an expiry based on :ref:`[state_store] default_retention_days <config:state_store__default_retention_days>`. If that value is ``> 0``, the key expires that many days after the write.
 * Keys written with ``retention=NEVER_EXPIRE`` have ``expires_at = NULL`` and a flag that marks them as permanent. They are **never** deleted by this command regardless of configuration.
 
 If ``[state_store] default_retention_days = 0``, keys written without an explicit retention have ``expires_at = NULL`` (no expiry) and are also skipped. Only keys with a non-null, past ``expires_at`` are removed.
 
 .. note::
 
-   Custom backends (``[state_store] backend`` set to anything other than the default) are **explicitly skipped**. The cleanup command prints a message and exits cleanly without deleting anything. If your custom backend needs its own retention logic, implement it in ``BaseStoreBackend.cleanup()`` and call it from your own maintenance process.
+   Custom backends (:ref:`[state_store] backend <config:state_store__backend>` set to anything other than the default) are **explicitly skipped**. The cleanup command prints a message and exits cleanly without deleting anything. If your custom backend needs its own retention logic, implement it in ``BaseStoreBackend.cleanup()`` and call it from your own maintenance process.
 
 
 Running cleanup
@@ -50,7 +50,7 @@ The command is::
 
     airflow state-store clean
 
-It reads ``[state_store] default_retention_days`` and ``[state_store] state_cleanup_batch_size`` from the ``airflow.cfg`` file, then deletes all eligible rows.
+It reads :ref:`[state_store] default_retention_days <config:state_store__default_retention_days>` and :ref:`[state_store] state_cleanup_batch_size <config:state_store__state_cleanup_batch_size>` from the ``airflow.cfg`` file, then deletes all eligible rows.
 
 **Dry run**
 

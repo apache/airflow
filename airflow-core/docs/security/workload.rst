@@ -86,7 +86,7 @@ Worker process memory protection (Linux)
 
 On Linux, the supervisor process calls ``prctl(PR_SET_DUMPABLE, 0)`` at the start of
 ``supervise_task()`` before forking the task process. A bare-forked child inherits the flag;
-a child started through ``exec`` (macOS, or ``[core] execute_tasks_new_python_interpreter``)
+a child started through ``exec`` (macOS, or :ref:`[core] execute_tasks_new_python_interpreter <config:core__execute_tasks_new_python_interpreter>`)
 restores it in its bootstrap, before importing Airflow, because ``execve`` resets it; for the remaining
 interpreter-start window, ``kernel.yama.ptrace_scope >= 1`` covers ``/proc/<pid>/mem`` and ``ptrace``
 attach. Marking processes as non-dumpable prevents same-UID sibling processes from reading
@@ -118,7 +118,7 @@ variables, and XComs that are not scoped to individual tasks.
 No team-level isolation in Execution API (experimental multi-team feature)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-The experimental multi-team feature (``[core] multi_team``) provides UI-level and REST
+The experimental multi-team feature (:ref:`[core] multi_team <config:core__multi_team>`) provides UI-level and REST
 API-level RBAC isolation between teams, but **does not yet guarantee task-level isolation**.
 At the Execution API level, there is no enforcement of team-based access boundaries.
 A task from one team can access the same connections, variables, and XComs as a task from

@@ -244,7 +244,7 @@ located.
 There is no separate Node.js worker to run: the Airflow worker launches the bundle with ``node`` once per
 task instance.
 
-A Dag processor with this ``[sdk]`` configuration also parses the ``*.min.mjs`` bundles of every Dag bundle,
+A Dag processor with this :ref:`[sdk] <config:sdk>` configuration also parses the ``*.min.mjs`` bundles of every Dag bundle,
 and needs Node.js to do so (see :ref:`typescript-sdk/native-parsing`).
 The ``ts-task-handlers`` Dag bundle only holds the bundles that the Python stub Dag's tasks run,
 so keep the Dag processor from parsing it by listing ``*`` in its ``.airflowignore``:
@@ -255,15 +255,15 @@ so keep the Dag processor from parsing it by listing ``*`` in its ``.airflowigno
 
 .. note::
 
-  The ``[sdk]`` config, the packed ``*.min.mjs`` bundles and Node.js must be present wherever tasks execute
+  The :ref:`[sdk] <config:sdk>` config, the packed ``*.min.mjs`` bundles and Node.js must be present wherever tasks execute
   and on the Dag processor. With ``CeleryExecutor``, tasks execute on the Celery workers; with
   ``LocalExecutor``, they run inside the scheduler process. The Dag processor checks the stub tasks of each
   Python Dag against the task handlers the packed bundles register, so it runs them too.
   It also runs them to parse the bundles of every Dag bundle, see :ref:`typescript-sdk/native-parsing`.
   The API server does not need any of it.
-  Register the Dag bundle in ``[dag_processor] dag_bundle_config_list`` on every
+  Register the Dag bundle in :ref:`[dag_processor] dag_bundle_config_list <config:dag_processor__dag_bundle_config_list>` on every
   component, like your other Dag bundles: the worker and the Dag processor resolve
-  ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read it is rejected if the
+  ``task_handler_bundle_name`` through it, and wherever the :ref:`[sdk] <config:sdk>` config is read it is rejected if the
   name is missing there.
 
 .. _typescript-sdk/native-dag:
@@ -665,8 +665,8 @@ The Dag processor runs ``node`` on the bundle to list its Dags, so it needs Node
     queue_to_coordinator = {"typescript": "ts"}
 
 Once a ``NodeCoordinator`` is configured, the Dag processor parses the packed bundles of every Dag bundle,
-so it needs this ``[sdk]`` configuration and Node.js. With one ``NodeCoordinator``, it parses them all. With several,
-map each Dag bundle that holds native TypeScript Dags to one of them in ``[sdk] dag_bundle_to_coordinator``.
+so it needs this :ref:`[sdk] <config:sdk>` configuration and Node.js. With one ``NodeCoordinator``, it parses them all. With several,
+map each Dag bundle that holds native TypeScript Dags to one of them in :ref:`[sdk] dag_bundle_to_coordinator <config:sdk__dag_bundle_to_coordinator>`.
 Each packed bundle of a Dag bundle that has no entry, or whose entry names no ``NodeCoordinator``,
 fails to parse with an import error:
 
@@ -721,7 +721,7 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Name of the Dag bundle searched recursively for an integrity-verified ``*.min.mjs`` bundle that
        declares the requested Dag. It is used only by mixed-language Dags, to locate the task handlers for
        the ``@task.stub`` tasks of a Python Dag; Dags defined natively in a language SDK do not use it. It
-       must be registered in ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]``
+       must be registered in :ref:`[dag_processor] dag_bundle_config_list <config:dag_processor__dag_bundle_config_list>`. It is checked when the :ref:`[sdk] <config:sdk>`
        configuration is loaded, so a typo fails there rather than on the first task.
    * - ``node_executable``
      - ``"node"``

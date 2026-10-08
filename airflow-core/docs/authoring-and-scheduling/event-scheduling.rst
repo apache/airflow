@@ -394,7 +394,7 @@ set.
 
 **Per-event ack timeout**: if a subscriber has not finished processing an
 event within the ack timeout (default 5 minutes, configurable via the
-``[triggerer] shared_stream_ack_timeout`` config option) — it is still on
+:ref:`[triggerer] shared_stream_ack_timeout <config:triggerer__shared_stream_ack_timeout>` config option) — it is still on
 the event, or some of its derived trigger events were never confirmed
 persisted — the manager force-fails that subscriber's trigger. Other
 subscribers are not affected; once they resolve, the producer advances
@@ -415,7 +415,7 @@ to re-subscribe creates a fresh group and polling starts immediately.
 Triggers that re-subscribe later join as late subscribers (outside the
 snapshot of any already-broadcast event), so they may miss events
 committed in the window between the first subscription and their own.
-Set ``[triggerer] shared_stream_cohort_grace_period`` to a positive
+Set :ref:`[triggerer] shared_stream_cohort_grace_period <config:triggerer__shared_stream_cohort_grace_period>` to a positive
 number of seconds (e.g. ``2.0``) to delay the start of polling after a
 new group is created, giving concurrent re-subscriptions time to join
 before any event is broadcast. This is a best-effort window — it reduces
@@ -472,7 +472,7 @@ rather than unbounded memory growth.
 
 If subscribers repeatedly overflow, there are two ways to address this:
 
-* Raise ``[triggerer] shared_stream_subscriber_queue_size`` to give the
+* Raise :ref:`[triggerer] shared_stream_subscriber_queue_size <config:triggerer__shared_stream_subscriber_queue_size>` to give the
   filter more slack before the overflow threshold is reached.
 * Redesign :meth:`~airflow.triggers.base.BaseEventTrigger.shared_stream_key` so fewer
   sibling triggers share a single group — a narrower group reduces the rate at which any

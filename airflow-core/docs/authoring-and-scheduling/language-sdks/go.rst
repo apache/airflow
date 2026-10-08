@@ -211,13 +211,13 @@ There is no separate Go worker to run: the Airflow worker forks the bundle binar
 
 .. note::
 
-  The ``[sdk]`` config and the packed bundle files must be present wherever tasks execute and on the Dag
+  The :ref:`[sdk] <config:sdk>` config and the packed bundle files must be present wherever tasks execute and on the Dag
   processor. With ``CeleryExecutor``, tasks execute on the Celery workers; with ``LocalExecutor``, they run
   inside the scheduler process. The Dag processor checks the stub tasks of each Python Dag against the task
   handlers the packed bundles register, so it runs them too and needs bundles built for its operating
   system and CPU architecture. The API server does not need any of it. Register the Dag bundle in
-  ``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker
-  and the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config
+  :ref:`[dag_processor] dag_bundle_config_list <config:dag_processor__dag_bundle_config_list>` on every component, like your other Dag bundles: the worker
+  and the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the :ref:`[sdk] <config:sdk>` config
   is read it is rejected if the name is missing there.
 
 Writing tasks
@@ -622,7 +622,7 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Name of the Dag bundle scanned recursively for executable bundles. It is used only by
        mixed-language Dags, to locate the task handlers for the ``@task.stub`` tasks of a Python Dag;
        Dags defined natively in a language SDK do not use it. It must be registered in
-       ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]`` configuration is
+       :ref:`[dag_processor] dag_bundle_config_list <config:dag_processor__dag_bundle_config_list>`. It is checked when the :ref:`[sdk] <config:sdk>` configuration is
        loaded, so a typo fails there rather than on the first task.
    * - ``task_startup_timeout``
      - ``10.0``

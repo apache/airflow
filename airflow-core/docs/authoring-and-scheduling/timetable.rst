@@ -331,15 +331,15 @@ Airflow has two sets of timetables for cron and delta schedules:
 * DeltaTriggerTimetable_ and DeltaDataIntervalTimetable_ both accept a timedelta or relativedelta.
 
 In Airflow 3, a bare cron string such as ``@daily`` in ``schedule=`` resolves to
-CronTriggerTimetable_ by default (``[scheduler] create_cron_data_intervals`` is
+CronTriggerTimetable_ by default (:ref:`[scheduler] create_cron_data_intervals <config:scheduler__create_cron_data_intervals>` is
 ``False``). A bare ``timedelta`` resolves to DeltaTriggerTimetable_ by default
-(``[scheduler] create_delta_data_intervals`` is also ``False``). Pass an explicit
+(:ref:`[scheduler] create_delta_data_intervals <config:scheduler__create_delta_data_intervals>` is also ``False``). Pass an explicit
 data-interval timetable class, or set ``create_cron_data_intervals`` to ``True``,
 to get contiguous windows instead.
 
 .. note::
 
-    ``[scheduler] create_delta_data_intervals`` is intended to control timedelta
+    :ref:`[scheduler] create_delta_data_intervals <config:scheduler__create_delta_data_intervals>` is intended to control timedelta
     schedules independently, but is not currently consulted. Those schedules
     follow ``create_cron_data_intervals`` as well, so setting only
     ``create_delta_data_intervals=True`` still yields DeltaTriggerTimetable_.
@@ -374,7 +374,7 @@ kinds.
 ~~~~~~~~~~~~~~~~~~
 
 By default, ``catchup`` is ``False`` (Airflow config
-``[scheduler] catchup_by_default``). Missed scheduled run times between
+:ref:`[scheduler] catchup_by_default <config:scheduler__catchup_by_default>`). Missed scheduled run times between
 ``start_date`` and "now" are not backfilled when a Dag is activated or
 re-enabled. The timetable instead selects the most recently applicable
 scheduled run time:
@@ -458,7 +458,7 @@ reverse direction (data interval -> trigger) does not skip a run.
 
 This transition can happen without editing a Dag, in two ways:
 
-- Flipping ``[scheduler] create_cron_data_intervals`` changes how every Dag
+- Flipping :ref:`[scheduler] create_cron_data_intervals <config:scheduler__create_cron_data_intervals>` changes how every Dag
   with a bare cron string in ``schedule=`` resolves its timetable.
 - Crossing a version boundary where the default differs. Airflow 3 defaults
   to ``False``; Airflow 2.x defaults to ``True``.

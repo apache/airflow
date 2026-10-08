@@ -184,7 +184,7 @@ Whether that matters depends on what happened to the job:
 * Clearing a *failed* task never runs ``on_kill`` at all, so an external job that outlived the
   worker is still running.
 * A deferred task has no worker process to run ``on_kill`` on. Instead, the Triggerer cancels the
-  orphaned trigger and runs the trigger's ``on_kill``, bounded by ``[triggerer] on_kill_timeout``.
+  orphaned trigger and runs the trigger's ``on_kill``, bounded by :ref:`[triggerer] on_kill_timeout <config:triggerer__on_kill_timeout>`.
   Most triggers cancel the external job there too.
   ``GlueJobCompleteTrigger`` and ``LivyTrigger`` don't implement ``on_kill``, but neither writes a
   job id to the state store when deferred either, so ``keep_task_state`` will not help for them. For
@@ -197,7 +197,7 @@ In the cases where the job is left running (the second bullet or a failed task),
 ``keep_task_state`` so the next attempt reconnects to the job already in flight instead of paying
 for a second one.
 
-Note that ``[state_store] clear_on_success`` is a separate control: it discards a task's entries as
+Note that :ref:`[state_store] clear_on_success <config:state_store__clear_on_success>` is a separate control: it discards a task's entries as
 soon as it reaches ``SUCCESS``, so nothing is left for a later clear to find either way (see
 :doc:`/administration-and-deployment/task-and-asset-state-store`).
 
