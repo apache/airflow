@@ -42,7 +42,7 @@ import time_machine
 from sqlalchemy import delete, func, inspect, select, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 
 from airflow import settings
 from airflow._shared.module_loading import qualname
@@ -185,8 +185,6 @@ from unit.listeners import dag_listener
 from unit.models import TEST_DAGS_FOLDER
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
-
     from tests_common.pytest_plugin import DagMaker
 
 pytestmark = pytest.mark.db_test
@@ -14260,6 +14258,14 @@ def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
         assert asset_event.source_run_id == "test"
 
 
+# ``StructlogCapture.__contains__`` matches a plain string against the full event text, so a
+# truncated message would make every ``not in caplog`` assertion vacuously true.
+PARTITION_CAP_REACHED_EVENT = (
+    "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
+    "will be evaluated over subsequent scheduler ticks"
+)
+
+
 def _make_n_satisfied_apdrs(
     *,
     consumer_dag_id: str,
@@ -14298,16 +14304,17 @@ def _make_n_consumer_dags_each_with_one_pending_apdr(
     n: int,
     session: Session,
     dag_maker: DagMaker,
-) -> None:
+) -> list[AssetPartitionDagRun]:
     """
     Build *n* distinct consumer Dags named ``cap-consumer-{name_prefix}-{i:02d}``, each with
-    exactly one pending, satisfied APDR.
+    exactly one pending, satisfied APDR, and return those APDRs in creation order.
 
     Used (instead of :func:`_make_n_satisfied_apdrs`, which numbers its producer dag_id starting
     at 1 on every call) when a test needs many distinct consumer Dags in one go: a single shared
     producer dag_id counter, namespaced by ``name_prefix``, avoids the producer dag_id collisions
     that calling :func:`_make_n_satisfied_apdrs` once per consumer Dag would cause.
     """
+    apdrs = []
     for i in range(1, n + 1):
         asset = Asset(name=f"asset-{name_prefix}-{i:02d}")
         with dag_maker(
@@ -14317,13 +14324,24 @@ def _make_n_consumer_dags_each_with_one_pending_apdr(
         ):
             EmptyOperator(task_id="hi")
         session.commit()
-        _produce_and_register_asset_event(
-            dag_id=f"asset-event-producer-{name_prefix}-{i:02d}",
-            asset=asset,
-            partition_key=f"k{i:02d}",
-            session=session,
-            dag_maker=dag_maker,
+        apdrs.append(
+            _produce_and_register_asset_event(
+                dag_id=f"asset-event-producer-{name_prefix}-{i:02d}",
+                asset=asset,
+                partition_key=f"k{i:02d}",
+                session=session,
+                dag_maker=dag_maker,
+            )
         )
+    return apdrs
+
+
+def _count_audit_log(session: Session) -> int:
+    return session.scalar(select(func.count()).where(Log.event == "partition Dag run cap reached")) or 0
+
+
+def _get_cap_reached_levels(caplog) -> list[str]:
+    return [e["log_level"] for e in caplog if e.get("event") == PARTITION_CAP_REACHED_EVENT]
 
 
 @pytest.mark.need_serialized_dag
@@ -14438,8 +14456,7 @@ def test_partition_cap_reporting(
     audit_rows = session.scalars(select(Log).where(Log.event == "partition Dag run cap reached")).all()
     if expect_cap_hit:
         assert {
-            "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
-            "will be evaluated over subsequent scheduler ticks",
+            "event": PARTITION_CAP_REACHED_EVENT,
             "cap": cap,
             "backlog_total": 3,
             "dag_ids": [dag_id],
@@ -14449,7 +14466,7 @@ def test_partition_cap_reporting(
         assert extra is not None
         assert f"Affected dag_ids (highest pending count first): {dag_id}." in extra
     else:
-        assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
+        assert PARTITION_CAP_REACHED_EVENT not in caplog
         assert audit_rows == []
 
 
@@ -14492,7 +14509,7 @@ def test_partition_cap_reporting_excludes_already_fired_decoy(dag_maker: DagMake
     runner._max_partition_dag_runs_per_loop = cap
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
-    assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
+    assert PARTITION_CAP_REACHED_EVENT not in caplog
     audit_rows = session.scalars(select(Log).where(Log.event == "partition Dag run cap reached")).all()
     assert audit_rows == []
 
@@ -14553,7 +14570,7 @@ def test_partition_cap_reporting_excludes_inactive_dag_decoy(
     runner._max_partition_dag_runs_per_loop = cap
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
-    assert "Reached the per-tick cap on pending partitioned Dag runs" not in caplog
+    assert PARTITION_CAP_REACHED_EVENT not in caplog
     audit_rows = session.scalars(select(Log).where(Log.event == "partition Dag run cap reached")).all()
     assert audit_rows == []
 
@@ -14569,29 +14586,10 @@ def test_partition_cap_reporting_lists_all_affected_dag_ids(dag_maker: DagMaker,
     tick's oldest six) spans only six distinct dag_ids, but the seventh Dag's APDR is still part
     of the backlog `count()` sees — its dag_id must appear in both the log event and the audit
     row too, even though its Dag run won't be created until the next tick.
-
-    Built inline rather than via :func:`_make_n_satisfied_apdrs` because that helper's producer
-    dag_id numbering restarts at 1 on every call, colliding across these seven consumer Dags.
     """
-    apdrs = []
-    for i in range(1, 8):
-        asset = Asset(name=f"asset-cap-many-{i}")
-        with dag_maker(
-            dag_id=f"cap-consumer-many-{i}",
-            schedule=PartitionedAssetTimetable(assets=asset, default_partition_mapper=IdentityMapper()),
-            session=session,
-        ):
-            EmptyOperator(task_id="hi")
-        session.commit()
-        apdrs.append(
-            _produce_and_register_asset_event(
-                dag_id=f"asset-event-producer-many-{i}",
-                asset=asset,
-                partition_key=f"k{i}",
-                session=session,
-                dag_maker=dag_maker,
-            )
-        )
+    apdrs = _make_n_consumer_dags_each_with_one_pending_apdr(
+        name_prefix="many", n=7, session=session, dag_maker=dag_maker
+    )
     base = timezone.utcnow()
     for i, apdr in enumerate(apdrs):
         apdr.created_at = base + timedelta(seconds=i)
@@ -14607,10 +14605,9 @@ def test_partition_cap_reporting_lists_all_affected_dag_ids(dag_maker: DagMaker,
     # APDR each), so the tie-break is dag_id ascending — a deterministic, reproducible order,
     # not just membership. All seven Dags are expected, including the seventh whose APDR is
     # deferred past this tick's cap.
-    expected_dag_ids = sorted(f"cap-consumer-many-{i}" for i in range(1, 8))
+    expected_dag_ids = sorted(f"cap-consumer-many-{i:02d}" for i in range(1, 8))
     assert {
-        "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
-        "will be evaluated over subsequent scheduler ticks",
+        "event": PARTITION_CAP_REACHED_EVENT,
         "cap": 6,
         "backlog_total": 7,
         "dag_ids": expected_dag_ids,
@@ -14644,9 +14641,9 @@ def test_partition_cap_reporting_truncates_dag_id_list_beyond_max(
         name_prefix="trunc-low", n=20, session=session, dag_maker=dag_maker
     )
 
-    high_asset = Asset(name="asset-cap-trunc-high")
+    high_asset = Asset(name="asset-cap-trunc-zz-high")
     with dag_maker(
-        dag_id="cap-consumer-trunc-high",
+        dag_id="cap-consumer-trunc-zz-high",
         schedule=PartitionedAssetTimetable(assets=high_asset, default_partition_mapper=IdentityMapper()),
         session=session,
     ):
@@ -14654,7 +14651,7 @@ def test_partition_cap_reporting_truncates_dag_id_list_beyond_max(
     session.commit()
     for key in ["high-1", "high-2", "high-3"]:
         _produce_and_register_asset_event(
-            dag_id=f"asset-event-producer-trunc-high-{key}",
+            dag_id=f"asset-event-producer-trunc-zz-high-{key}",
             asset=high_asset,
             partition_key=key,
             session=session,
@@ -14667,10 +14664,11 @@ def test_partition_cap_reporting_truncates_dag_id_list_beyond_max(
     runner._max_partition_dag_runs_per_loop = 5
     runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
-    expected_dag_ids = ["cap-consumer-trunc-high"] + [f"cap-consumer-trunc-low-{i:02d}" for i in range(1, 20)]
+    expected_dag_ids = ["cap-consumer-trunc-zz-high"] + [
+        f"cap-consumer-trunc-low-{i:02d}" for i in range(1, 20)
+    ]
     assert {
-        "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
-        "will be evaluated over subsequent scheduler ticks",
+        "event": PARTITION_CAP_REACHED_EVENT,
         "cap": 5,
         "backlog_total": 23,
         "dag_ids": expected_dag_ids,
@@ -14710,8 +14708,7 @@ def test_partition_cap_reporting_at_exactly_max_dag_ids_no_truncation(
 
     expected_dag_ids = sorted(f"cap-consumer-atmax-{i:02d}" for i in range(1, 21))
     assert {
-        "event": "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
-        "will be evaluated over subsequent scheduler ticks",
+        "event": PARTITION_CAP_REACHED_EVENT,
         "cap": 5,
         "backlog_total": 20,
         "dag_ids": expected_dag_ids,
@@ -14756,27 +14753,18 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(
     runner._max_partition_dag_runs_per_loop = 2
     caplog.set_level("DEBUG", logger="airflow.jobs.scheduler_job_runner.SchedulerJobRunner")
 
-    def _count_audit_log() -> int:
-        return session.scalar(select(func.count()).where(Log.event == "partition Dag run cap reached")) or 0
-
-    def _cap_reached_levels() -> list[str]:
-        return [
-            e["log_level"]
-            for e in caplog
-            if e.get("event") == "Reached the per-tick cap on pending partitioned Dag runs; the remaining "
-            "backlog will be evaluated over subsequent scheduler ticks"
-        ]
-
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 1: 5 pending, cap 2
-    assert _cap_reached_levels() == ["warning"]
+    assert _get_cap_reached_levels(caplog) == ["warning"]
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 2: 3 pending, still over cap
-    assert _count_audit_log() == 1, "backlog persisted across two ticks; audit row must only be written once"
-    assert _cap_reached_levels() == ["warning", "debug"]
+    assert _count_audit_log(session) == 1, (
+        "backlog persisted across two ticks; audit row must only be written once"
+    )
+    assert _get_cap_reached_levels(caplog) == ["warning", "debug"]
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 3: 1 pending, drains below cap
-    assert _count_audit_log() == 1, "draining below the cap must not write another audit row"
-    assert _cap_reached_levels() == ["warning", "debug"]
+    assert _count_audit_log(session) == 1, "draining below the cap must not write another audit row"
+    assert _get_cap_reached_levels(caplog) == ["warning", "debug"]
 
     # A fresh backlog episode for the same consumer: three more satisfied APDRs push
     # pending count back above the cap.
@@ -14796,8 +14784,10 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(
     session.commit()
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 4: new episode, 3 pending
-    assert _count_audit_log() == 2, "a fresh backlog episode after draining should write a second audit row"
-    assert _cap_reached_levels() == ["warning", "debug", "warning"]
+    assert _count_audit_log(session) == 2, (
+        "a fresh backlog episode after draining should write a second audit row"
+    )
+    assert _get_cap_reached_levels(caplog) == ["warning", "debug", "warning"]
 
 
 @pytest.mark.need_serialized_dag
@@ -14831,20 +14821,9 @@ def test_partition_cap_short_fetch_under_row_lock_keeps_episode(
     runner._max_partition_dag_runs_per_loop = 2
     caplog.set_level("DEBUG", logger="airflow.jobs.scheduler_job_runner.SchedulerJobRunner")
 
-    def _count_audit_log() -> int:
-        return session.scalar(select(func.count()).where(Log.event == "partition Dag run cap reached")) or 0
-
-    def _cap_reached_levels() -> list[str]:
-        return [
-            e["log_level"]
-            for e in caplog
-            if e.get("event") == "Reached the per-tick cap on pending partitioned Dag runs; the remaining "
-            "backlog will be evaluated over subsequent scheduler ticks"
-        ]
-
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 1: 5 pending, cap 2
-    assert _cap_reached_levels() == ["warning"]
-    assert _count_audit_log() == 1
+    assert _get_cap_reached_levels(caplog) == ["warning"]
+    assert _count_audit_log(session) == 1
     assert runner._partition_cap_backlog_reported is True
 
     # SQLite ignores row locks, so emulate another scheduler holding the rest of the backlog.
@@ -14860,8 +14839,8 @@ def test_partition_cap_short_fetch_under_row_lock_keeps_episode(
     assert sum(apdr.created_dag_run_id is not None for apdr in apdrs) == 3, (
         "the short fetch must have processed exactly one APDR on tick 2"
     )
-    assert _cap_reached_levels() == ["warning", "debug"]
-    assert _count_audit_log() == 1
+    assert _get_cap_reached_levels(caplog) == ["warning", "debug"]
+    assert _count_audit_log(session) == 1
     assert runner._partition_cap_backlog_reported is True
 
 
@@ -14900,20 +14879,9 @@ def test_partition_cap_backlog_reset_on_full_drain_to_empty(dag_maker: DagMaker,
     runner._max_partition_dag_runs_per_loop = 2
     caplog.set_level("DEBUG", logger="airflow.jobs.scheduler_job_runner.SchedulerJobRunner")
 
-    def _count_audit_log() -> int:
-        return session.scalar(select(func.count()).where(Log.event == "partition Dag run cap reached")) or 0
-
-    def _cap_reached_levels() -> list[str]:
-        return [
-            e["log_level"]
-            for e in caplog
-            if e.get("event") == "Reached the per-tick cap on pending partitioned Dag runs; the remaining "
-            "backlog will be evaluated over subsequent scheduler ticks"
-        ]
-
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 1: 3 pending, cap 2 -> over cap
-    assert _cap_reached_levels() == ["warning"]
-    assert _count_audit_log() == 1
+    assert _get_cap_reached_levels(caplog) == ["warning"]
+    assert _count_audit_log(session) == 1
     assert runner._partition_cap_backlog_reported is True
 
     session.refresh(apdrs[0])
@@ -14931,7 +14899,7 @@ def test_partition_cap_backlog_reset_on_full_drain_to_empty(dag_maker: DagMaker,
 
     result = runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 2: 0 pending
     assert result == set()
-    assert _count_audit_log() == 1, "the zero-pending tick itself must not write another audit row"
+    assert _count_audit_log(session) == 1, "the zero-pending tick itself must not write another audit row"
     assert runner._partition_cap_backlog_reported is False, (
         "the backlog-reported flag must reset even on the zero-pending early-return path"
     )
@@ -14954,10 +14922,12 @@ def test_partition_cap_backlog_reset_on_full_drain_to_empty(dag_maker: DagMaker,
     session.commit()
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 3: new episode, 3 pending
-    assert _cap_reached_levels() == ["warning", "warning"], (
+    assert _get_cap_reached_levels(caplog) == ["warning", "warning"], (
         "a new episode after a full drain-to-zero must warn, not silently log at debug"
     )
-    assert _count_audit_log() == 2, "a new episode after a full drain-to-zero must write a second audit row"
+    assert _count_audit_log(session) == 2, (
+        "a new episode after a full drain-to-zero must write a second audit row"
+    )
 
 
 @pytest.mark.need_serialized_dag
@@ -15019,7 +14989,7 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(
     `False` so the next tick retries the write, and the cap-reached log stays at `warning`
     instead of being downgraded.
     """
-    _make_n_satisfied_apdrs(
+    apdrs = _make_n_satisfied_apdrs(
         consumer_dag_id="cap-consumer-audit-failure",
         asset=Asset(name="asset-cap-audit-failure"),
         partition_keys=["k1", "k2", "k3"],
@@ -15035,6 +15005,7 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(
     runner._max_partition_dag_runs_per_loop = 1
 
     failing_session_cm = MagicMock()
+    failing_session_cm.__enter__.return_value = MagicMock(spec=Session)
     failing_session_cm.__enter__.return_value.add.side_effect = audit_write_error
     failing_session_cm.__exit__.return_value = False
 
@@ -15047,13 +15018,12 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(
     audit_rows = session.scalars(select(Log).where(Log.event == "partition Dag run cap reached")).all()
     assert audit_rows == []
 
-    cap_reached_levels = [
-        e["log_level"]
-        for e in caplog
-        if e.get("event") == "Reached the per-tick cap on pending partitioned Dag runs; the remaining "
-        "backlog will be evaluated over subsequent scheduler ticks"
-    ]
-    assert cap_reached_levels == ["warning", "warning"]
+    assert _get_cap_reached_levels(caplog) == ["warning", "warning"]
+
+    # The swallowed audit failure must not abort the tick's real work: with cap=1, each of the
+    # two ticks still creates one Dag run.
+    session.expire_all()
+    assert sum(apdr.created_dag_run_id is not None for apdr in apdrs) == 2
 
 
 def _set_asset_active(*, name: str, uri: str, session: Session, active: bool) -> None:
