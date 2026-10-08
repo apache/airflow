@@ -75,12 +75,10 @@ request. Minting a token is a local signing operation with no network call, so
 refreshing that often costs very little.
 
 Before it accepts any tasks, the executor checks that the cluster is ``ACTIVE`` or
-``UPDATING``. An ``UPDATING`` cluster still serves the Kubernetes API, because EKS
-replaces API server instances one at a time during an update (see `Update existing
-cluster to new Kubernetes version
+``UPDATING``, since EKS keeps the Kubernetes API available during an update (see `Update
+existing cluster to new Kubernetes version
 <https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html>`__). Unless
-``check_health_on_startup`` is turned off (see the :ref:`[aws_eks_executor]
-<config:aws_eks_executor>` configuration reference), the executor also checks that it
+:ref:`check_health_on_startup <eks_config_options>` is turned off, it also checks that it
 is allowed to list pods in its namespace. It refuses to start if either check fails.
 
 .. _eks_config_options:
