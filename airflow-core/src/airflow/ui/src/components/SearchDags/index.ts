@@ -18,3 +18,4 @@
  */
 
 export { SearchDags } from "./SearchDags";
+export { useDagSearchOptions } from "./useDagSearchOptions";

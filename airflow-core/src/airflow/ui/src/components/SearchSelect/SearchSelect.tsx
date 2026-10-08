@@ -43,7 +43,15 @@ const SearchControl = <Option,>({ children, ...props }: ControlProps<Option, fal
 );
 
 type Props<Option> = {
+  /**
+   * The options to list before anything is typed. Always an array, never `true`: `true` makes
+   * react-select call `loadOptions` from a mount effect and start out `isLoading`, so every open
+   * of a panel that unmounts on close is a spinner over an empty list. A fresh array replaces what
+   * is listed, which is how a live query keeps an open panel current.
+   */
+  readonly defaultOptions: Array<Option>;
   readonly formatOptionLabel: (option: Option) => ReactNode;
+  readonly isLoading?: boolean;
   readonly loadOptions: (
     inputValue: string,
     callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void,
@@ -57,7 +65,9 @@ type Props<Option> = {
  * since the panel exists only to show them.
  */
 export const SearchSelect = <Option,>({
+  defaultOptions,
   formatOptionLabel,
+  isLoading,
   loadOptions,
   onChange,
   placeholder,
@@ -82,9 +92,10 @@ export const SearchSelect = <Option,>({
         backspaceRemovesValue={true}
         chakraStyles={chakraStyles}
         components={{ Control: SearchControl, DropdownIndicator: null }}
-        defaultOptions
+        defaultOptions={defaultOptions}
         filterOption={undefined}
         formatOptionLabel={formatOptionLabel}
+        isLoading={isLoading}
         loadOptions={loadOptions}
         menuIsOpen
         onChange={onChange}

@@ -21,7 +21,7 @@ import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CrumbSwitcher, type CrumbShape } from "src/components/Breadcrumb";
-import { SearchDags } from "src/components/SearchDags";
+import { SearchDags, useDagSearchOptions } from "src/components/SearchDags";
 
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
@@ -36,6 +36,7 @@ type Props = {
 export const DagSwitcherButton = ({ children, dagId, shape }: Props) => {
   const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
+  const { dags, isLoading } = useDagSearchOptions();
 
   useShortcut({
     ...SHORTCUTS.search.searchDags,
@@ -49,7 +50,7 @@ export const DagSwitcherButton = ({ children, dagId, shape }: Props) => {
       label={translate("switchDag")}
       onOpenChange={setOpen}
       open={open}
-      search={<SearchDags onClose={() => setOpen(false)} />}
+      search={<SearchDags dags={dags} isLoading={isLoading} onClose={() => setOpen(false)} />}
       shape={shape}
       testId="switch-dag"
       to={`/dags/${dagId}`}

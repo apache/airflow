@@ -21,7 +21,7 @@ import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CrumbSwitcher, type CrumbShape } from "src/components/Breadcrumb";
-import { SearchDagRuns } from "src/components/SearchDagRuns";
+import { SearchDagRuns, useDagRunSearchOptions } from "src/components/SearchDagRuns";
 
 type Props = {
   readonly children: ReactNode;
@@ -37,13 +37,16 @@ type Props = {
 export const DagRunSwitcherButton = ({ children, dagId, shape, to }: Props) => {
   const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
+  const { isLoading, runs } = useDagRunSearchOptions(dagId);
 
   return (
     <CrumbSwitcher
       label={translate("switchDagRun")}
       onOpenChange={setOpen}
       open={open}
-      search={<SearchDagRuns dagId={dagId} onClose={() => setOpen(false)} />}
+      search={
+        <SearchDagRuns dagId={dagId} isLoading={isLoading} onClose={() => setOpen(false)} runs={runs} />
+      }
       shape={shape}
       testId="switch-dag-run"
       to={to}

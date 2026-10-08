@@ -25,10 +25,7 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
-import type {
-  DAGWithLatestDagRunsCollectionResponse,
-  DAGWithLatestDagRunsResponse,
-} from "openapi/requests/types.gen";
+import type { DAGWithLatestDagRunsCollectionResponse } from "openapi/requests/types.gen";
 
 import { SearchSelect } from "src/components/SearchSelect";
 import { StateBadge } from "src/components/StateBadge";
@@ -37,6 +34,8 @@ import { TabEntity } from "src/constants/tab";
 import type { DagSearchOption } from "src/utils/option";
 import { getTabPath } from "src/utils/tab";
 
+import { DAG_SEARCH_LIMIT, buildDagOption } from "./useDagSearchOptions";
+
 const formatOptionLabel = (option: DagSearchOption) => (
   <Flex alignItems="center" gap={2} minW={0}>
     <StateBadge flexShrink={0} state={option.state} />
@@ -44,12 +43,20 @@ const formatOptionLabel = (option: DagSearchOption) => (
   </Flex>
 );
 
-export const SearchDags = ({ onClose }: { readonly onClose: () => void }) => {
+export const SearchDags = ({
+  dags,
+  isLoading,
+  onClose,
+}: {
+  /** Already loaded by the breadcrumb level, so opening the panel shows them straight away. */
+  readonly dags: Array<DagSearchOption>;
+  readonly isLoading: boolean;
+  readonly onClose: () => void;
+}) => {
   const { t: translate } = useTranslation("dags");
   const queryClient = useQueryClient();
   const matches = useMatches();
   const navigate = useNavigate();
-  const SEARCH_LIMIT = 10;
 
   const onSelect = (selected: SingleValue<DagSearchOption>) => {
     if (selected) {
@@ -71,14 +78,9 @@ export const SearchDags = ({ onClose }: { readonly onClose: () => void }) => {
           DagService.getDagsUi({
             dagDisplayNamePrefixPattern: inputValue,
             dagRunsLimit: 1,
-            limit: SEARCH_LIMIT,
-          }).then((data: DAGWithLatestDagRunsCollectionResponse) => {
-            const options = data.dags.map((dag: DAGWithLatestDagRunsResponse) => ({
-              isBackfillable: dag.is_backfillable,
-              label: dag.dag_display_name || dag.dag_id,
-              state: dag.latest_dag_runs[0]?.state ?? null,
-              value: dag.dag_id,
-            }));
+            limit: DAG_SEARCH_LIMIT,
+          }).then((found: DAGWithLatestDagRunsCollectionResponse) => {
+            const options = found.dags.map(buildDagOption);
 
             callback(options);
 
@@ -96,7 +98,9 @@ export const SearchDags = ({ onClose }: { readonly onClose: () => void }) => {
 
   return (
     <SearchSelect
+      defaultOptions={dags}
       formatOptionLabel={formatOptionLabel}
+      isLoading={isLoading}
       loadOptions={searchDagDebounced}
       onChange={onSelect}
       placeholder={translate("search.dags")}

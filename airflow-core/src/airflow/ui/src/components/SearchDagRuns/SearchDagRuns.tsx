@@ -25,15 +25,14 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { UseDagRunServiceGetDagRunsKeyFn } from "openapi/queries";
 import { DagRunService } from "openapi/requests/services.gen";
-import type { DAGRunCollectionResponse, DAGRunResponse } from "openapi/requests/types.gen";
+import type { DAGRunCollectionResponse } from "openapi/requests/types.gen";
 
 import { SearchSelect } from "src/components/SearchSelect";
 import { StateBadge } from "src/components/StateBadge";
 
 import type { DagRunSearchOption } from "src/utils/option";
 
-const SEARCH_LIMIT = 10;
-const NEWEST_FIRST = ["-run_after"];
+import { DAG_RUN_SEARCH_LIMIT, NEWEST_FIRST, buildDagRunOption } from "./useDagRunSearchOptions";
 
 const formatOptionLabel = (option: DagRunSearchOption) => (
   <Flex alignItems="center" gap={2} minW={0}>
@@ -56,10 +55,15 @@ const buildTaskPath = (groupId: string | undefined, taskId: string | undefined) 
 
 export const SearchDagRuns = ({
   dagId,
+  isLoading,
   onClose,
+  runs,
 }: {
   readonly dagId: string;
+  readonly isLoading: boolean;
   readonly onClose: () => void;
+  /** Already loaded by the breadcrumb level, so opening the panel shows them straight away. */
+  readonly runs: Array<DagRunSearchOption>;
 }) => {
   const { t: translate } = useTranslation("dags");
   const queryClient = useQueryClient();
@@ -84,15 +88,11 @@ export const SearchDagRuns = ({
         queryFn: () =>
           DagRunService.getDagRuns({
             dagId,
-            limit: SEARCH_LIMIT,
+            limit: DAG_RUN_SEARCH_LIMIT,
             orderBy: NEWEST_FIRST,
             runIdPattern: inputValue,
-          }).then((data: DAGRunCollectionResponse) => {
-            const options = data.dag_runs.map((dagRun: DAGRunResponse) => ({
-              label: dagRun.dag_run_id,
-              state: dagRun.state,
-              value: dagRun.dag_run_id,
-            }));
+          }).then((matches: DAGRunCollectionResponse) => {
+            const options = matches.dag_runs.map(buildDagRunOption);
 
             callback(options);
 
@@ -100,7 +100,7 @@ export const SearchDagRuns = ({
           }),
         queryKey: UseDagRunServiceGetDagRunsKeyFn({
           dagId,
-          limit: SEARCH_LIMIT,
+          limit: DAG_RUN_SEARCH_LIMIT,
           orderBy: NEWEST_FIRST,
           runIdPattern: inputValue,
         }),
@@ -112,7 +112,9 @@ export const SearchDagRuns = ({
 
   return (
     <SearchSelect
+      defaultOptions={runs}
       formatOptionLabel={formatOptionLabel}
+      isLoading={isLoading}
       loadOptions={searchDagRunsDebounced}
       onChange={onSelect}
       placeholder={translate("search.dagRuns")}

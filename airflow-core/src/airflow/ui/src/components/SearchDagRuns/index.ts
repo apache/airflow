@@ -18,3 +18,4 @@
  */
 
 export { SearchDagRuns } from "./SearchDagRuns";
+export { useDagRunSearchOptions } from "./useDagRunSearchOptions";

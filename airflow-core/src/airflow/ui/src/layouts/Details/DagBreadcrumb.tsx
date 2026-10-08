@@ -152,8 +152,16 @@ export const DagBreadcrumb = () => {
     },
   ];
 
-  // Add dag run breadcrumb
-  if (runId !== undefined) {
+  // The run level is always present, even with no run in the URL: it is where runs are switched,
+  // so standing on "all runs" is what lets any page of the Dag jump straight to one.
+  if (runId === undefined) {
+    crumbs.push({
+      caption: translate("dagRun_one"),
+      key: "allRuns",
+      to: `/dags/${dagId}/runs`,
+      value: translate("allRuns", { ns: "dag" }),
+    });
+  } else {
     crumbs.push({
       caption: translate("dagRun_one"),
       hasState: true,
@@ -166,15 +174,6 @@ export const DagBreadcrumb = () => {
 
   // Add group breadcrumb
   if (groupId !== undefined) {
-    if (runId === undefined) {
-      crumbs.push({
-        caption: translate("dagRun_one"),
-        key: "allRuns",
-        to: `/dags/${dagId}/runs`,
-        value: translate("allRuns", { ns: "dag" }),
-      });
-    }
-
     crumbs.push({
       caption: translate("taskGroup_one"),
       key: "group",
@@ -204,12 +203,6 @@ export const DagBreadcrumb = () => {
   }
 
   if (runId === undefined && taskId !== undefined) {
-    crumbs.push({
-      caption: translate("dagRun_one"),
-      key: "allRuns",
-      to: `/dags/${dagId}/runs`,
-      value: translate("allRuns", { ns: "dag" }),
-    });
     crumbs.push({
       caption: translate("task_one"),
       key: "task",

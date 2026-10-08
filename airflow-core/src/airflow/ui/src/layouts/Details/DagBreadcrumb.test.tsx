@@ -23,6 +23,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter, Route, Routes, useLocation, useMatches } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DagRunService, DagService } from "openapi/requests/services.gen";
+
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -116,6 +118,37 @@ describe("DagBreadcrumb", () => {
     await waitFor(() =>
       expect(screen.getByTestId("location-pathname")).toHaveTextContent(`/dags/${DAG_ID}_success`),
     );
+  });
+
+  it("keeps a run level on a Dag page with no run, so a run can be picked from anywhere", async () => {
+    render(<DagBreadcrumb />, { wrapper: createWrapper(`/dags/${DAG_ID}`, "/dags/:dagId") });
+
+    expect(await screen.findByRole("link", { name: /allRuns/u })).toHaveAttribute(
+      "href",
+      `/dags/${DAG_ID}/runs`,
+    );
+    expect(screen.getByTestId("switch-dag-run")).toBeInTheDocument();
+  });
+
+  it("loads what both dropdowns list before either one is opened", async () => {
+    const getDagsUi = vi.spyOn(DagService, "getDagsUi").mockResolvedValue({ dags: [], total_entries: 0 });
+    const getDagRuns = vi
+      .spyOn(DagRunService, "getDagRuns")
+      .mockResolvedValue({ dag_runs: [], total_entries: 0 });
+
+    render(<DagBreadcrumb />, { wrapper: createWrapper(`/dags/${DAG_ID}`, "/dags/:dagId") });
+
+    await waitFor(() => expect(getDagsUi).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(getDagRuns).toHaveBeenCalledWith(
+        expect.objectContaining({ dagId: DAG_ID, limit: 10, orderBy: ["-run_after"] }),
+      ),
+    );
+
+    // Neither panel was ever opened: what they list is loaded by the breadcrumb level itself, so
+    // opening one is not a round trip and never starts out empty.
+    expect(screen.queryByTestId("switch-dag-popover")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("switch-dag-run-popover")).not.toBeInTheDocument();
   });
 
   it("switches Dag run from the chevron dropdown, keeping the task in view", async () => {
