@@ -88,6 +88,24 @@ Preserve all `{{variable}}` placeholders exactly. Attach Korean particles outsid
 "description": "{{개수}}개 {{리소스이름}}이(가) 성공적으로 삭제되었습니다. 키: {{키들}}"
 ```
 
+### Particles after `Dag`
+
+`Dag` stays in Latin letters, so the particle after it depends on how readers pronounce it. The Korean Airflow user group settled on "대그" ([vote](https://discourse.airflow-kr.org/t/dag-vs-9-23/629)), so use the vowel-final particles `가`, `는`, `를`, `와`, and `로`. Paired forms such as `을(를)` are only for placeholders, whose value is not known in advance.
+
+**Correct**
+
+```json
+"description": "Dag가 곧 재구문 분석될 예정입니다.",
+"selectDescription": "이 Dag를 특정 날짜 범위에 대해 실행합니다."
+```
+
+**Incorrect** (consonant-final reading or a paired form)
+
+```json
+"description": "Dag이(가) 곧 재구문 분석될 예정입니다.",
+"selectDescription": "이 Dag을 특정 날짜 범위에 대해 실행합니다."
+```
+
 ## Tone and UI Voice
 
 - Use neutral, slightly formal tone.
