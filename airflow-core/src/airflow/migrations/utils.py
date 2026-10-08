@@ -31,6 +31,25 @@ def disable_sqlite_fkeys(op):
         yield op
 
 
+# Unlike disable_sqlite_fkeys, a failed SQLite upgrade rolls back atomically and foreign_keys is always restored.
+@contextmanager
+def sqlite_rebuilds(op):
+    if op.get_bind().dialect.name != "sqlite":
+        yield
+        return
+    if op.get_context().as_sql:
+        raise RuntimeError("SQLite offline SQL cannot render this migration's table rebuilds")
+    enabled = op.get_bind().exec_driver_sql("PRAGMA foreign_keys").scalar()
+    with op.get_context().autocommit_block():
+        op.execute("PRAGMA foreign_keys=OFF")
+    try:
+        with op.get_bind().begin_nested():
+            yield
+    finally:
+        with op.get_context().autocommit_block():
+            op.execute(f"PRAGMA foreign_keys={int(enabled)}")
+
+
 def mysql_drop_foreignkey_if_exists(constraint_name, table_name, op):
     """Older Mysql versions do not support DROP FOREIGN KEY IF EXISTS."""
     op.execute(f"""

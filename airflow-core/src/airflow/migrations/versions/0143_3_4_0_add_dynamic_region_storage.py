@@ -31,7 +31,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.migrations.utils import raise_if_rows_exist
+from airflow.migrations.utils import raise_if_rows_exist, sqlite_rebuilds
 from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import CompactUUID, UtcDateTime, compact_uuid_default
 
@@ -79,15 +79,9 @@ def _replace_unique(table_name, constraint_name, columns):
             """
         op.execute(dedent(sql))
     else:
-        with op.get_context().autocommit_block():
-            foreign_keys = op.get_bind().exec_driver_sql("PRAGMA foreign_keys").scalar_one()
-            op.execute("PRAGMA foreign_keys=OFF")
-            try:
-                with op.batch_alter_table(table_name) as batch_op:
-                    batch_op.drop_constraint(constraint_name, type_="unique")
-                    batch_op.create_unique_constraint(constraint_name, columns)
-            finally:
-                op.execute(f"PRAGMA foreign_keys={foreign_keys}")
+        with op.batch_alter_table(table_name) as batch_op:
+            batch_op.drop_constraint(constraint_name, type_="unique")
+            batch_op.create_unique_constraint(constraint_name, columns)
 
 
 def _build_collision_query(table_name, columns, where):
@@ -153,63 +147,65 @@ def _configure_index_builds():
 
 def upgrade():
     _configure_index_builds()
-    op.create_table(
-        "dynamic_region",
-        sa.Column("id", CompactUUID(), nullable=False),
-        sa.Column("dag_id", StringID(), nullable=False),
-        sa.Column("run_id", StringID(), nullable=False),
-        sa.Column("node_id", StringID(), nullable=False),
-        sa.Column("parent_region_id", CompactUUID(), nullable=True),
-        sa.Column("parent_region_index", sa.Integer(), nullable=True),
-        sa.Column("forked_from_region_id", CompactUUID(), nullable=True),
-        sa.Column("resumes_from_index", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("created_at", UtcDateTime(), nullable=False),
-        sa.PrimaryKeyConstraint("id", name="dynamic_region_pkey"),
-        sa.ForeignKeyConstraint(
-            ["dag_id", "run_id"],
-            ["dag_run.dag_id", "dag_run.run_id"],
-            name="dynamic_region_dag_run_fkey",
-            ondelete="CASCADE",
-        ),
-        sa.ForeignKeyConstraint(
-            ["parent_region_id"],
-            ["dynamic_region.id"],
-            name="dynamic_region_parent_region_id_fkey",
-            ondelete="CASCADE",
-        ),
-        # Fork lineage is unbounded; a cascading self-FK would exceed MySQL's cascade depth limit.
-        sa.UniqueConstraint("forked_from_region_id", name="dynamic_region_forked_from_region_id_uq"),
-        sa.CheckConstraint(
-            "(parent_region_id IS NULL AND parent_region_index IS NULL) OR "
-            "(parent_region_id IS NOT NULL AND parent_region_index IS NOT NULL)",
-            name="parent_coordinates_paired",
-        ),
-        sa.CheckConstraint("resumes_from_index >= 0", name="resumes_from_index_nonnegative"),
-    )
-    op.create_index(
-        "idx_dynamic_region_slot",
-        "dynamic_region",
-        ["dag_id", "run_id", "node_id", "parent_region_id", "parent_region_index"],
-    )
-    op.create_index("idx_dynamic_region_parent_region_id", "dynamic_region", ["parent_region_id"])
-    for table_name in ("task_instance", "task_state_store"):
-        op.add_column(
-            table_name,
-            sa.Column(
-                "region_id", CompactUUID(), nullable=False, server_default=compact_uuid_default(_SENTINEL)
+    with sqlite_rebuilds(op):
+        op.create_table(
+            "dynamic_region",
+            sa.Column("id", CompactUUID(), nullable=False),
+            sa.Column("dag_id", StringID(), nullable=False),
+            sa.Column("run_id", StringID(), nullable=False),
+            sa.Column("node_id", StringID(), nullable=False),
+            sa.Column("parent_region_id", CompactUUID(), nullable=True),
+            sa.Column("parent_region_index", sa.Integer(), nullable=True),
+            sa.Column("forked_from_region_id", CompactUUID(), nullable=True),
+            sa.Column("resumes_from_index", sa.Integer(), nullable=False, server_default="0"),
+            sa.Column("created_at", UtcDateTime(), nullable=False),
+            sa.PrimaryKeyConstraint("id", name="dynamic_region_pkey"),
+            sa.ForeignKeyConstraint(
+                ["dag_id", "run_id"],
+                ["dag_run.dag_id", "dag_run.run_id"],
+                name="dynamic_region_dag_run_fkey",
+                ondelete="CASCADE",
             ),
+            sa.ForeignKeyConstraint(
+                ["parent_region_id"],
+                ["dynamic_region.id"],
+                name="dynamic_region_parent_region_id_fkey",
+                ondelete="CASCADE",
+            ),
+            # Fork lineage is unbounded; a cascading self-FK would exceed MySQL's cascade depth limit.
+            sa.UniqueConstraint("forked_from_region_id", name="dynamic_region_forked_from_region_id_uq"),
+            sa.CheckConstraint(
+                "(parent_region_id IS NULL AND parent_region_index IS NULL) OR "
+                "(parent_region_id IS NOT NULL AND parent_region_index IS NOT NULL)",
+                name="parent_coordinates_paired",
+            ),
+            sa.CheckConstraint("resumes_from_index >= 0", name="resumes_from_index_nonnegative"),
         )
-    for table_name, constraint_name, columns, _ in _KEYS:
-        new_columns = list(columns)
-        new_columns.insert(new_columns.index("map_index"), "region_id")
-        _replace_unique(table_name, constraint_name, new_columns)
+        op.create_index(
+            "idx_dynamic_region_slot",
+            "dynamic_region",
+            ["dag_id", "run_id", "node_id", "parent_region_id", "parent_region_index"],
+        )
+        op.create_index("idx_dynamic_region_parent_region_id", "dynamic_region", ["parent_region_id"])
+        for table_name in ("task_instance", "task_state_store"):
+            op.add_column(
+                table_name,
+                sa.Column(
+                    "region_id", CompactUUID(), nullable=False, server_default=compact_uuid_default(_SENTINEL)
+                ),
+            )
+        for table_name, constraint_name, columns, _ in _KEYS:
+            new_columns = list(columns)
+            new_columns.insert(new_columns.index("map_index"), "region_id")
+            _replace_unique(table_name, constraint_name, new_columns)
 
 
 def downgrade():
     _configure_index_builds()
     _assert_downgrade_is_lossless()
-    for table_name, constraint_name, columns, _ in _KEYS:
-        _replace_unique(table_name, constraint_name, list(columns))
-    for table_name in ("task_instance", "task_state_store"):
-        op.drop_column(table_name, "region_id")
-    op.drop_table("dynamic_region")
+    with sqlite_rebuilds(op):
+        for table_name, constraint_name, columns, _ in _KEYS:
+            _replace_unique(table_name, constraint_name, list(columns))
+        for table_name in ("task_instance", "task_state_store"):
+            op.drop_column(table_name, "region_id")
+        op.drop_table("dynamic_region")

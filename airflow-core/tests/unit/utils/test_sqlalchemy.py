@@ -25,9 +25,10 @@ from uuid import UUID
 
 import pytest
 from kubernetes.client import Configuration, models as k8s
-from sqlalchemy import text
+from sqlalchemy import Column, MetaData, Table, text
 from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.exc import StatementError
+from sqlalchemy.schema import CreateTable
 
 from airflow import settings
 from airflow.sdk import DAG
@@ -484,10 +485,21 @@ class TestCompactUUID:
     @pytest.mark.parametrize(
         ("dialect", "expected"),
         [
-            pytest.param(mysql.dialect(), "UNHEX('0190a1b2c3d47e5f8a9b0c1d2e3f4a5b')", id="mysql"),
+            pytest.param(mysql.dialect(), "(UNHEX('0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'))", id="mysql"),
             pytest.param(sqlite.dialect(), "'0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'", id="sqlite"),
             pytest.param(postgresql.dialect(), "'0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'", id="postgresql"),
         ],
     )
     def test_server_default_per_dialect(self, dialect, expected):
         assert str(compact_uuid_default(self.value).compile(dialect=dialect)) == expected
+
+    def test_mysql_column_default_is_parenthesized_without_a_server_version(self):
+        table = Table(
+            "t",
+            MetaData(),
+            Column(
+                "region_id", CompactUUID(), nullable=False, server_default=compact_uuid_default(self.value)
+            ),
+        )
+        ddl = str(CreateTable(table).compile(dialect=mysql.dialect()))
+        assert "DEFAULT (UNHEX('0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'))" in ddl

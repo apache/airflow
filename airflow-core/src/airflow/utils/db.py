@@ -1760,6 +1760,9 @@ def _normalize_mysql_server_default(default: Any) -> str | None:
         return None
 
     normalized = str(default).strip().strip("'\"").lower()
+    # MySQL reflects expression defaults with escaped quotes and a charset introducer,
+    # e.g. unhex(_utf8mb4\'00ff\') for a model default of UNHEX('00ff').
+    normalized = re.sub(r"\b_[a-z0-9]+(?=')", "", normalized.replace("\\'", "'"))
     while normalized.startswith("(") and normalized.endswith(")"):
         normalized = normalized[1:-1].strip()
     normalized = normalized.replace(" ", "")

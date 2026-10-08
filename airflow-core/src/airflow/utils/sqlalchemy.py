@@ -341,7 +341,9 @@ def _compact_uuid_default(element, compiler, **kw):
 @compiles(compact_uuid_default, "mysql")
 @compiles(compact_uuid_default, "mariadb")
 def _compact_uuid_default_mysql(element, compiler, **kw):
-    return f"UNHEX({compiler.render_literal_value(element.value.hex, String())})"
+    # SQLAlchemy only parenthesizes expression defaults when it knows the server version, which offline SQL
+    # generation (--show-sql-only) does not; MySQL rejects an unparenthesized expression default.
+    return f"(UNHEX({compiler.render_literal_value(element.value.hex, String())}))"
 
 
 class ExtendedJSON(TypeDecorator):
