@@ -20,9 +20,11 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.utils.log.callback_log_reader import read_callback_log, validate_log_path_component
+from airflow.utils.log.path_log_reader import read_logs_at_paths, validate_log_path_component
 
 from tests_common.test_utils.config import conf_vars
+
+PATHS = ["first/dag1/run1/cb1", "second/dag1/run1/cb1"]
 
 
 class TestValidateLogPathComponent:
@@ -36,23 +38,23 @@ class TestValidateLogPathComponent:
             validate_log_path_component(component)
 
 
-class TestReadCallbackLog:
+class TestReadLogsAtPaths:
     @pytest.fixture(autouse=True)
     def log_folder(self, tmp_path):
         with conf_vars({("logging", "base_log_folder"): str(tmp_path / "logs")}):
             yield tmp_path / "logs"
 
     def test_no_logs_found_yields_message(self):
-        assert [m.event for m in read_callback_log("dag1", "run1", "cb1")] == ["No callback logs found."]
+        assert [m.event for m in read_logs_at_paths(PATHS)] == ["No logs found."]
 
     @pytest.mark.parametrize(
         ("prefixes", "expected"),
         [
-            (["executor_callbacks"], "executor_callbacks line"),
-            (["triggerer_callbacks"], "triggerer_callbacks line"),
-            (["executor_callbacks", "triggerer_callbacks"], "executor_callbacks line"),
+            (["first"], "first line"),
+            (["second"], "second line"),
+            (["first", "second"], "first line"),
         ],
-        ids=["executor", "triggerer", "executor_preferred"],
+        ids=["first", "second", "first_preferred"],
     )
     def test_reads_local_logs(self, log_folder, prefixes, expected):
         for prefix in prefixes:
@@ -60,31 +62,27 @@ class TestReadCallbackLog:
             log_dir.mkdir(parents=True)
             (log_dir / "cb1").write_text(f"{prefix} line\n")
 
-        events = [m.event for m in read_callback_log("dag1", "run1", "cb1")]
+        events = [m.event for m in read_logs_at_paths(PATHS)]
 
         assert [event for event in events if event.endswith(" line")] == [expected]
 
     def test_symlink_escaping_log_folder_is_skipped(self, log_folder, tmp_path):
         secret = tmp_path / "secret"
         secret.write_text("secret data\n")
-        log_dir = log_folder / "executor_callbacks" / "dag1" / "run1"
+        log_dir = log_folder / "first" / "dag1" / "run1"
         log_dir.mkdir(parents=True)
         (log_dir / "cb1").symlink_to(secret)
 
-        assert [m.event for m in read_callback_log("dag1", "run1", "cb1")] == ["No callback logs found."]
+        assert [m.event for m in read_logs_at_paths(PATHS)] == ["No logs found."]
 
     def test_remote_logs_used_when_available(self):
         def one_stream():
             yield '{"event": "remote line"}\n'
 
         with patch(
-            "airflow.utils.log.callback_log_reader._read_callback_remote_logs",
+            "airflow.utils.log.path_log_reader._read_remote_logs",
             return_value=(["s3://bucket/log"], [one_stream()]),
         ):
-            msgs = list(read_callback_log("dag1", "run1", "cb1"))
+            msgs = list(read_logs_at_paths(PATHS))
 
         assert any(m.event == "remote line" for m in msgs)
-
-    def test_path_traversal_components_rejected(self):
-        with pytest.raises(ValueError, match="Invalid log path component"):
-            list(read_callback_log("../etc", "run1", "cb1"))

@@ -59,7 +59,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.utils.log.callback_log_reader import read_callback_log, validate_log_path_component
+from airflow.utils.log.path_log_reader import read_logs_at_paths, validate_log_path_component
 
 deadlines_router = AirflowRouter(prefix="/dags/{dag_id}", tags=["Deadlines"])
 
@@ -273,7 +273,12 @@ def get_callback_logs(
             f"Callback `{callback_id}` with a deadline for DagRun `{dag_run_id}` of Dag `{dag_id}` was not found",
         )
 
-    log_stream = read_callback_log(dag_id=dag_id, run_id=dag_run_id, callback_id=str(callback_id))
+    # Executor callbacks log to ``executor_callbacks/...`` (see ``ExecuteCallback.make()``) and
+    # triggerer callbacks to ``triggerer_callbacks/...`` (see ``TriggerLoggingFactory``).
+    callback_path = f"{dag_id}/{dag_run_id}/{callback_id}"
+    log_stream = read_logs_at_paths(
+        [f"executor_callbacks/{callback_path}", f"triggerer_callbacks/{callback_path}"]
+    )
 
     if accept == Mimetype.NDJSON:
         return StreamingResponse(
