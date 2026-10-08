@@ -67,7 +67,7 @@ you run with:
 - Build or refresh the CI image before a campaign so the first reproducer
   does not pay the build cost inside its timeout:
   `breeze ci-image build --python <python>`.
-- Python versions: `3.10` (default), `3.11`, `3.12`, `3.13`, `3.14` —
+- Python versions: `3.11` (default), `3.12`, `3.13`, `3.14` —
   `ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS` in
   `dev/breeze/src/airflow_breeze/global_constants.py`; `requires-python`
   in `airflow-core/pyproject.toml`. Use the default unless the issue names

@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-oracle``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -84,7 +84,7 @@ Optional dependencies
 ===============  ============================================================================================================================================================================================================================================
 Extra            Dependencies
 ===============  ============================================================================================================================================================================================================================================
-``numpy``        ``numpy>=1.22.4; python_version<'3.11'``, ``numpy>=1.23.2; python_version=='3.11'``, ``numpy>=1.26.0; python_version=='3.12'``, ``numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'``, ``numpy>=2.4.3; python_version>='3.14'``
+``numpy``        ``numpy>=1.23.2; python_version=='3.11'``, ``numpy>=1.26.0; python_version=='3.12'``, ``numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'``, ``numpy>=2.4.3; python_version>='3.14'``
 ``openlineage``  ``apache-airflow-providers-openlineage``
 ===============  ============================================================================================================================================================================================================================================
 

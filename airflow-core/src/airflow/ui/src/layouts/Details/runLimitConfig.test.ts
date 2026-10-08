@@ -16,25 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
-import { MdOutlineStorage, MdSyncAlt } from "react-icons/md";
-import { Outlet } from "react-router-dom";
+import { describe, expect, it } from "vitest";
 
-import { NavTabs } from "src/layouts/Details/NavTabs";
+import { getEffectiveLimit } from "./runLimitConfig";
 
-/** Sub-nav tabs shared by the task-store and xcom routes. */
-export const StorageLayout = () => {
-  const { t: translate } = useTranslation("dag");
+describe("getEffectiveLimit", () => {
+  it.each([
+    { expected: 5, limit: 50, width: 300 },
+    { expected: 25, limit: 50, width: 1200 },
+    { expected: 50, limit: 50, width: 1800 },
+    { expected: 5, limit: 5, width: 1800 },
+  ])("caps $limit at $expected for a $width px wide gantt", ({ expected, limit, width }) => {
+    expect(getEffectiveLimit(limit, width, true)).toBe(expected);
+  });
 
-  return (
-    <>
-      <NavTabs
-        tabs={[
-          { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
-          { icon: <MdOutlineStorage />, label: translate("tabs.taskStateStore"), value: "task-state-store" },
-        ]}
-      />
-      <Outlet />
-    </>
-  );
-};
+  it("leaves the limit alone when responsive options are off", () => {
+    expect(getEffectiveLimit(50, 300, false)).toBe(50);
+  });
+});

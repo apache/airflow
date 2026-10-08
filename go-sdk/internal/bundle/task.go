@@ -31,8 +31,8 @@ import (
 )
 
 // Task is one registered task that the coordinator runtime can execute. Bundle
-// authors do not implement this directly. airflow.TaskHandler, airflow.DagRef.Task
-// and airflow.DagRef.If wrap a plain Go function into a Task.
+// authors do not implement this directly. airflow.TaskHandler, airflow.DagRef.Task,
+// airflow.DagRef.If and airflow.DagRef.Switch wrap a plain Go function into a Task.
 type Task interface {
 	Execute(ctx context.Context, logger *slog.Logger, args []binding.Arg) error
 }
@@ -57,12 +57,26 @@ type EnumerableBundle interface {
 	ListTaskHandlers() []TaskHandlerInfo
 }
 
+// SerializedDag is one Dag from airflow.Dag, serialized for the Dag processor. Data is nil when
+// Err is set.
+type SerializedDag struct {
+	DagID string
+	Data  map[string]any
+	Err   error
+}
+
+// DagSerializer serializes the Dags from airflow.Dag that a bundle registered, in registration
+// order.
+type DagSerializer interface {
+	SerializeDags(fileloc, relativeFileloc string) []SerializedDag
+}
+
 type taskFunction struct {
 	fn       reflect.Value
 	fullName string
 	plan     *binding.Plan
-	// findSkipped is nil unless the task comes from NewPositionalBranchFunction.
-	findSkipped func(result any) []string
+	// decide is nil unless the task comes from NewPositionalBranchFunction.
+	decide DecideFunc
 }
 
 var _ Task = (*taskFunction)(nil)
@@ -76,19 +90,26 @@ func NewPositionalTaskFunction(fn any) (Task, error) {
 	return newTaskFunction(fn, binding.AnalyzePositional, nil)
 }
 
+// DecideFunc takes the result of the function of a task from NewPositionalBranchFunction. It
+// returns value, which the task pushes as its return_value XCom, and the task_ids of the tasks to
+// skip. When value is a nil pointer, the task does not push the return_value XCom. A non-nil error
+// fails the task.
+type DecideFunc func(result any) (value any, skipped []string, err error)
+
 // NewPositionalBranchFunction is like NewPositionalTaskFunction, but the Task also skips tasks
 // that are downstream of it. fn must return a result and an error. Before fn runs, Execute checks
 // that the runtime can skip tasks. When fn returns a nil error, Execute passes the result to
-// findSkipped. If findSkipped returns task_ids, Execute records them in the skipmixin_key XCom of
-// the task and skips those tasks.
-func NewPositionalBranchFunction(fn any, findSkipped func(result any) []string) (Task, error) {
-	return newTaskFunction(fn, binding.AnalyzePositional, findSkipped)
+// decide and pushes the value that decide returns. If decide also returns task_ids, Execute
+// records them in the skipmixin_key XCom of the task and skips those tasks. When fn or decide
+// returns an error, the task fails without pushing an XCom.
+func NewPositionalBranchFunction(fn any, decide DecideFunc) (Task, error) {
+	return newTaskFunction(fn, binding.AnalyzePositional, decide)
 }
 
 func newTaskFunction(
 	fn any,
 	analyze func(fnType reflect.Type, fnName string) (*binding.Plan, error),
-	findSkipped func(result any) []string,
+	decide DecideFunc,
 ) (Task, error) {
 	// The kind comes first: Value.Pointer panics on an int, and Value.Type on an untyped nil.
 	v := reflect.ValueOf(fn)
@@ -96,9 +117,9 @@ func newTaskFunction(
 		return nil, fmt.Errorf("expected a func as input but was %s", v.Kind())
 	}
 	f := &taskFunction{
-		fn:          v,
-		fullName:    runtime.FuncForPC(v.Pointer()).Name(),
-		findSkipped: findSkipped,
+		fn:       v,
+		fullName: runtime.FuncForPC(v.Pointer()).Name(),
+		decide:   decide,
 	}
 	if err := f.validateFn(v.Type(), analyze); err != nil {
 		return nil, err
@@ -117,7 +138,7 @@ func (f *taskFunction) Execute(
 		return err
 	}
 	var branch *branchRun
-	if f.findSkipped != nil {
+	if f.decide != nil {
 		if branch, err = startBranch(ctx); err != nil {
 			return err
 		}
@@ -157,18 +178,26 @@ func (f *taskFunction) call(
 			)
 		}
 	}
+	if branch != nil {
+		// The task pushes the value that decide returns, and decide runs only on a result that fn
+		// returned without an error. So the task pushes no XCom when fn or decide fails.
+		if err != nil {
+			return err
+		}
+		value, skipped, err := f.decide(retValues[0].Interface())
+		if err != nil {
+			return err
+		}
+		rv := reflect.ValueOf(value)
+		if rv.Kind() != reflect.Ptr || !rv.IsNil() {
+			f.sendXcom(ctx, value, sdkClient, logger)
+		}
+		return branch.skipDownstream(ctx, sdkClient, skipped, logger)
+	}
 	// If there are two results, convert the first only if it's not a nil pointer
 	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
 		res := retValues[0].Interface()
 		f.sendXcom(ctx, res, sdkClient, logger)
-	}
-	if err == nil && branch != nil {
-		return branch.skipDownstream(
-			ctx,
-			sdkClient,
-			f.findSkipped(retValues[0].Interface()),
-			logger,
-		)
 	}
 	return err
 }

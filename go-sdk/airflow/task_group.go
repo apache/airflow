@@ -136,6 +136,17 @@ func (g *TaskGroupRef) If(fn any, opts ...TaskOption) *IfRef {
 	return g.groupDag(method).addIf(method, g, fn, opts)
 }
 
+// Switch adds a switch to the Dag of g, inside g, and returns it. It is [DagRef.Switch] for a
+// switch of the group, and the group_id of g prefixes the task_id of the decider task as
+// [TaskGroupRef.Task] describes. [SwitchRef.Case] takes any task of the Dag, inside the group or
+// not.
+//
+// Switch panics for the reasons that DagRef.Switch and TaskGroupRef.Task list.
+func (g *TaskGroupRef) Switch(fn any, opts ...TaskOption) *SwitchRef {
+	const method = "airflow.TaskGroupRef.Switch"
+	return g.groupDag(method).addSwitch(method, g, fn, opts)
+}
+
 func (*TaskGroupRef) node() {}
 
 // Before makes the group an upstream of every node, which is Python's
@@ -171,10 +182,10 @@ func (*TaskGroupRef) node() {}
 // edges are declared: load << empty << extract adds no edge, and an empty group with no task
 // before it falls back to the last tasks of the group that holds it, or of the whole Dag.
 //
-// A [Label] on an edge to or from a group labels that edge, and none of the edges between tasks
-// that it stands for. Depending on which end is the receiver and which groups hold the ends,
-// Python labels those edges as well, as extract >> Label("rows") >> transform does when no group
-// holds extract, or replaces the receiver with a group that holds it.
+// A [Label] on an edge to or from a group labels that edge. On an edge from a task that no group
+// holds to a group with tasks, it also labels the edges to the first tasks of the group, as Python's
+// extract >> Label("rows") >> transform does. When a group holds the task at either end, Python
+// may replace that task with its group instead.
 //
 // Before panics for the reasons that TaskRef.Before lists. It also panics if:
 //   - g or a node is a *TaskGroupRef that DagRef.TaskGroup or TaskGroupRef.TaskGroup did not
@@ -336,6 +347,10 @@ func (d *DagRef) describeIDLocked(id string) string {
 // the tasks of its ends, which [DagRef.expandGroupEdgesLocked] works out at registration.
 type groupEdge struct {
 	upstream, downstream nodeEndpoint
+	// upstreamTasks holds the tasks that the upstream end stood for when registration expanded
+	// the edge. When both ends are groups, a serialized Dag lists these tasks as upstream tasks of
+	// the downstream group, where Python lists the last tasks of the upstream group.
+	upstreamTasks []*TaskRef
 }
 
 // addGroupEdgeLocked records one edge of d that has a task group at one end or both. The caller
@@ -355,7 +370,9 @@ func (d *DagRef) addGroupEdgeLocked(upstream, downstream nodeEndpoint, label str
 }
 
 // expandGroupEdgesLocked records the edges between tasks that the group edges of d stand for, and
-// returns the keys of the edges it added. The caller holds d.mu.
+// returns the keys of the edges it added. It also sets upstreamTasks on every group edge. A
+// registration that fails leaves those values behind, and the next registration replaces all of
+// them. The caller holds d.mu.
 //
 // It expands the group edges in the order they were first declared, each from the Dag as it stands
 // by then: every task, every edge between two tasks, and the edges that the group edges before it
@@ -365,20 +382,28 @@ func (d *DagRef) addGroupEdgeLocked(upstream, downstream nodeEndpoint, label str
 func (d *DagRef) expandGroupEdgesLocked() []expandedEdge {
 	expansion := newGroupExpansion(d.groupEdges)
 	var added []expandedEdge
-	for _, edge := range d.groupEdges {
+	for i, edge := range d.groupEdges {
 		from := edgeKey{upstream: edge.upstream.id(), downstream: edge.downstream.id()}
 		upstreams := expansion.tasksAt(edge.upstream, false)
 		downstreams := expansion.tasksAt(edge.downstream, true)
+		d.groupEdges[i].upstreamTasks = upstreams
+		// Python's extract >> Label("rows") >> transform also labels the edge from extract to each
+		// first task of transform when no group holds extract.
+		var label string
+		if edge.upstream.task != nil && edge.upstream.task.group == nil &&
+			edge.downstream.group != nil &&
+			len(expansion.ends(edge.downstream.group, true)) > 0 {
+			label = d.groupEdgeLabels[from]
+		}
 		for _, upstream := range upstreams {
 			for _, downstream := range downstreams {
 				key := edgeKey{upstream: upstream.taskID, downstream: downstream.taskID}
 				if _, exists := d.edgeLabels[key]; exists {
 					continue
 				}
-				// The label of a group edge stays on the group edge, as TaskGroupRef.Before says.
 				// Stepping over a group that holds no task can lead back to the task it started
 				// from, as extract >> empty >> extract does, and the cycle check reports that.
-				d.addEdgeLocked(upstream, downstream, "")
+				d.addEdgeLocked(upstream, downstream, label)
 				added = append(added, expandedEdge{key: key, from: from})
 			}
 		}
@@ -492,6 +517,7 @@ func (e *groupExpansion) tasksBeyond(
 	if first {
 		next = e.downstreams[group]
 	}
+	before := len(*found)
 	for _, node := range next {
 		if node.group == nil {
 			*found = append(*found, node.task)
@@ -503,6 +529,16 @@ func (e *groupExpansion) tasksBeyond(
 		}
 		e.tasksBeyond(node.group, first, seen, found)
 	}
+	if len(*found) > before || first || group.parent == nil {
+		return
+	}
+	// An edge out of an empty nested group leaves from the group that holds it, as Python's
+	// find_leaves steps up to the parent group. An edge into an empty group has no such step.
+	if ends := e.ends(group.parent, false); len(ends) > 0 {
+		*found = append(*found, ends...)
+		return
+	}
+	e.tasksBeyond(group.parent, first, seen, found)
 }
 
 // ends returns the first tasks of group when first is true, and its last tasks otherwise, as the

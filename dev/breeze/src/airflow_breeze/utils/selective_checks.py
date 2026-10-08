@@ -23,6 +23,7 @@ import json
 import os
 import re
 import sys
+import tomllib
 from collections import defaultdict
 from enum import Enum, auto
 from functools import cached_property
@@ -1823,11 +1824,6 @@ class SelectiveChecks:
                 f"Could not get pyproject.toml from {self._commit_ref}^[/]"
             )
             return False
-        try:
-            import tomllib
-        except ImportError:
-            import tomli as tomllib  # type: ignore[no-redef]
-
         self._new_toml = tomllib.loads(new_result.stdout)
         self._old_toml = tomllib.loads(old_result.stdout)
         return True
@@ -2265,11 +2261,6 @@ class SelectiveChecks:
         )
         if not pyproject_files or not self._github_event == GithubEvents.PULL_REQUEST:
             return False
-
-        try:
-            import tomllib
-        except ImportError:
-            import tomli as tomllib  # type: ignore[no-redef]
 
         violations = []
         for pyproject_file in pyproject_files:

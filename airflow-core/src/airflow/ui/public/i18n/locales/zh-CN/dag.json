@@ -217,7 +217,6 @@
     "renderedTemplates": "渲染后的模板",
     "requiredActions": "待响应的任务实例",
     "runs": "执行记录",
-    "storage": "存储",
     "taskInstances": "任务实例",
     "taskStateStore": "任务存储",
     "tasks": "任务",

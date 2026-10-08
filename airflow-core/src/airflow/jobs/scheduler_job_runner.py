@@ -3156,11 +3156,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
-            if dag_run.state in State.finished_dr_states and dag_run.run_type in (
-                DagRunType.SCHEDULED,
-                DagRunType.MANUAL,
-                DagRunType.ASSET_TRIGGERED,
-            ):
+            if dag_run.state in State.finished_dr_states and dag_run.run_type != DagRunType.BACKFILL_JOB:
                 self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
 
             callback_to_execute: DagCallbackRequest | None = None
@@ -3224,11 +3220,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
 
-        if dag_run.state in State.finished_dr_states and dag_run.run_type in (
-            DagRunType.SCHEDULED,
-            DagRunType.MANUAL,
-            DagRunType.ASSET_TRIGGERED,
-        ):
+        if dag_run.state in State.finished_dr_states and dag_run.run_type != DagRunType.BACKFILL_JOB:
             self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
 
         # This will do one query per dag run. We "could" build up a complex
@@ -3660,12 +3652,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     reset_tis_message = []
                     for ti in to_reset:
                         reset_tis_message.append(repr(ti))
-                        ti.prepare_db_for_next_try(session=session)
-
-                        ti.state = None
-                        ti.queued_by_job_id = None
-                        ti.external_executor_id = None
-                        ti.clear_next_method_args()
+                        successor = ti.prepare_db_for_next_try(session=session)
+                        successor.state = None
+                        successor.queued_by_job_id = None
+                        successor.external_executor_id = None
+                        successor.clear_next_method_args()
 
                     for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
