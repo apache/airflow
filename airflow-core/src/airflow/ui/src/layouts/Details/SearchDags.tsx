@@ -25,7 +25,10 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
-import type { DAGWithLatestDagRunsCollectionResponse } from "openapi/requests/types.gen";
+import type {
+  DAGWithLatestDagRunsCollectionResponse,
+  DAGWithLatestDagRunsResponse,
+} from "openapi/requests/types.gen";
 
 import { SearchSelect } from "src/components/SearchSelect";
 import { StateBadge } from "src/components/StateBadge";
@@ -34,7 +37,14 @@ import { TabEntity } from "src/constants/tab";
 import type { DagSearchOption } from "src/utils/option";
 import { getTabPath } from "src/utils/tab";
 
-import { DAG_SEARCH_LIMIT, buildDagOption } from "./useDagSearchOptions";
+export const DAG_SEARCH_LIMIT = 10;
+
+export const buildDagOption = (dag: DAGWithLatestDagRunsResponse): DagSearchOption => ({
+  isBackfillable: dag.is_backfillable,
+  label: dag.dag_display_name || dag.dag_id,
+  state: dag.latest_dag_runs[0]?.state ?? null,
+  value: dag.dag_id,
+});
 
 const formatOptionLabel = (option: DagSearchOption) => (
   <Flex alignItems="center" gap={2} minW={0}>

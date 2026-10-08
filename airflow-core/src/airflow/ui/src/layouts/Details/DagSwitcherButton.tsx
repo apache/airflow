@@ -20,11 +20,17 @@ import { type ReactNode, useState } from "react";
 
 import { useTranslation } from "react-i18next";
 
+import { useDagServiceGetDagsUi } from "openapi/queries";
+
 import { CrumbSwitcher, type CrumbShape } from "src/components/Breadcrumb";
-import { SearchDags, useDagSearchOptions } from "src/components/SearchDags";
 
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
+import type { DagSearchOption } from "src/utils/option";
+
+import { DAG_SEARCH_LIMIT, SearchDags, buildDagOption } from "./SearchDags";
+
+const NO_DAGS: Array<DagSearchOption> = [];
 
 type Props = {
   readonly children: ReactNode;
@@ -32,11 +38,17 @@ type Props = {
   readonly shape: CrumbShape;
 };
 
-/** The Dag level of the breadcrumb, with the Dag search behind its chevron. */
+/**
+ * The Dag level of the breadcrumb, with the Dag search behind its chevron.
+ *
+ * The Dags the panel lists are loaded here rather than inside it: a query that only starts when
+ * the panel opens has nothing to show until it answers.
+ */
 export const DagSwitcherButton = ({ children, dagId, shape }: Props) => {
   const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
-  const dags = useDagSearchOptions();
+  const { data } = useDagServiceGetDagsUi({ dagRunsLimit: 1, limit: DAG_SEARCH_LIMIT });
+  const dags = data === undefined ? NO_DAGS : data.dags.map(buildDagOption);
 
   useShortcut({
     ...SHORTCUTS.search.searchDags,

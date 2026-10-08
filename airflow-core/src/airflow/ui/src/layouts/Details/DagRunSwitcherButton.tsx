@@ -20,8 +20,16 @@ import { type ReactNode, useState } from "react";
 
 import { useTranslation } from "react-i18next";
 
+import { useDagRunServiceGetDagRuns } from "openapi/queries";
+
 import { CrumbSwitcher, type CrumbShape } from "src/components/Breadcrumb";
-import { SearchDagRuns, useDagRunSearchOptions } from "src/components/SearchDagRuns";
+
+import { useAutoRefresh } from "src/utils";
+import type { DagRunSearchOption } from "src/utils/option";
+
+import { DAG_RUN_SEARCH_LIMIT, NEWEST_FIRST, SearchDagRuns, buildDagRunOption } from "./SearchDagRuns";
+
+const NO_RUNS: Array<DagRunSearchOption> = [];
 
 type Props = {
   readonly children: ReactNode;
@@ -33,11 +41,23 @@ type Props = {
 /**
  * The Dag run level of the breadcrumb, with a search over the Dag's runs behind its chevron. It
  * stands in for both a named run and the "all runs" level, so `to` comes from the crumb itself.
+ *
+ * The runs the panel lists are loaded here rather than inside it: a query that only starts when
+ * the panel opens has nothing to show until it answers. Here it is already loaded by the time
+ * anyone opens the panel, and the page's auto-refresh keeps it that way. Unlike the grid, this
+ * list has to notice runs that do not exist yet, so `checkPendingRuns` scales the interval back
+ * once they have all finished rather than stopping.
  */
 export const DagRunSwitcherButton = ({ children, dagId, shape, to }: Props) => {
   const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
-  const runs = useDagRunSearchOptions(dagId);
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
+  const { data } = useDagRunServiceGetDagRuns(
+    { dagId, limit: DAG_RUN_SEARCH_LIMIT, orderBy: NEWEST_FIRST },
+    undefined,
+    { refetchInterval },
+  );
+  const runs = data === undefined ? NO_RUNS : data.dag_runs.map(buildDagRunOption);
 
   return (
     <CrumbSwitcher
