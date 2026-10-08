@@ -1568,9 +1568,9 @@ class TestWatchedSubprocess:
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
         client = mocker.Mock()
         client.task_instances.heartbeat.side_effect = ServerResponseError.from_response(
-            httpx.Response(
+            httpx2.Response(
                 409,
-                request=httpx.Request("PUT", "http://server/heartbeat"),
+                request=httpx2.Request("PUT", "http://server/heartbeat"),
                 json={"detail": {"reason": "not_running", "current_state": "failed"}},
             )
         )
