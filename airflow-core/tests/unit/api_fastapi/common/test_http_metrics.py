@@ -32,6 +32,17 @@ from airflow.api_fastapi.common.http_metrics import (
 )
 
 
+def _make_execution_app() -> FastAPI:
+    """Stand in for the execution API, which the real app mounts as a sub-app."""
+    app = FastAPI()
+
+    @app.get("/task-instances/{task_instance_id}/run")
+    async def run_task_instance(task_instance_id: str):
+        return PlainTextResponse("ok")
+
+    return app
+
+
 def _make_app() -> FastAPI:
     """Build a FastAPI app so route resolution behaves as it does in the real API server."""
     app = FastAPI()
@@ -64,6 +75,7 @@ def _make_app() -> FastAPI:
     async def health():
         return PlainTextResponse("healthy")
 
+    app.mount("/execution", _make_execution_app())
     app.add_middleware(HttpMetricsMiddleware)
     return app
 
@@ -143,6 +155,11 @@ def test_request_duration_is_emitted_in_milliseconds():
             id="route-template-with-parameters",
         ),
         pytest.param("/ui/items/42", "/ui/items/{item_id}", id="ui"),
+        pytest.param(
+            "/execution/task-instances/abc/run",
+            "/execution/task-instances/{task_instance_id}/run",
+            id="execution-route-tag-keeps-the-mount-prefix",
+        ),
     ],
 )
 def test_api_requests_emit_metrics(request_path, route_tag):

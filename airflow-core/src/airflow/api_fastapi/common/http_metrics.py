@@ -30,7 +30,9 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(logger_name="http.metrics")
 
-_API_METRICS_PATH_PREFIXES = ("/api/v2", "/ui")
+# `/execution` is the Task SDK execution API, mounted as a sub-app. The middleware runs on the
+# outer app, so a request to it passes through here like any other.
+_API_METRICS_PATH_PREFIXES = ("/api/v2", "/ui", "/execution")
 # Only methods registered on API routes get their own tag value. A method mismatch is rejected
 # before authentication, so any other value would let anonymous clients mint metric series.
 _SERVED_HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE"})
@@ -54,7 +56,10 @@ def _get_route_template(scope: Scope) -> str:
     # Requests matching no route (404s, redirects) share one bucket so tag cardinality stays bounded.
     route_path = getattr(scope.get("route"), "path", None)
     if isinstance(route_path, str) and route_path:
-        return route_path
+        # A mounted sub-app declares its routes relative to the mount point, which Starlette keeps
+        # in root_path. Without it, `/execution/task-instances/{id}` would be tagged
+        # `/task-instances/{id}` and collide with core routes sharing that template.
+        return f"{scope.get('root_path', '')}{route_path}"
     return "unmatched"
 
 

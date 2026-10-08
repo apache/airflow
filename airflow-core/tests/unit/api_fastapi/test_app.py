@@ -26,11 +26,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
+from starlette.middleware.gzip import GZipMiddleware
 
 import airflow.api_fastapi.app as app_module
 import airflow.plugins_manager as plugins_manager
 from airflow import settings
 from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
+from airflow.api_fastapi.common.http_metrics import HttpMetricsMiddleware
 from airflow.utils.session import create_session_async
 
 from tests_common.test_utils.config import conf_vars
@@ -187,6 +189,27 @@ def test_access_log_middleware_installed_outermost_for_every_apps_selection(apps
 
     assert installed.count(HttpAccessLogMiddleware) == 1
     assert installed[0] is HttpAccessLogMiddleware
+
+
+@pytest.mark.parametrize("apps", ["all", "core", "execution"])
+@conf_vars({("metrics", "statsd_on"): "True"})
+def test_api_metrics_middleware_installed_for_every_apps_selection(apps):
+    """The execution API is mounted as a sub-app and `--apps execution` never reaches
+    ``init_middlewares``, so installing this middleware there would leave the surface every
+    running task depends on unmetered. It must also wrap GZipMiddleware so the recorded
+    duration includes compression time (see #60165)."""
+    installed = [m.cls for m in app_module.create_app(apps=apps).user_middleware]
+
+    assert installed.count(HttpMetricsMiddleware) == 1
+    if GZipMiddleware in installed:
+        assert installed.index(HttpMetricsMiddleware) < installed.index(GZipMiddleware)
+
+
+@pytest.mark.parametrize("apps", ["all", "core", "execution"])
+def test_api_metrics_middleware_skipped_without_a_metrics_backend(apps):
+    installed = [m.cls for m in app_module.create_app(apps=apps).user_middleware]
+
+    assert HttpMetricsMiddleware not in installed
 
 
 def test_catch_all_route_last():
