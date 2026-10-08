@@ -16,20 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type ColumnDef, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import "@testing-library/jest-dom";
+import { type ColumnDef, useTable } from "@tanstack/react-table";
+import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ChakraWrapper } from "src/utils/ChakraWrapper.tsx";
 
 import { TableList } from "./TableList.tsx";
+import { dataTableFeatures, type DataTableFeatures } from "./features.ts";
 
-const columns: Array<ColumnDef<{ name: string }>> = [{ accessorKey: "name", header: "Name" }];
+const columns: Array<ColumnDef<DataTableFeatures, { name: string }>> = [
+  { accessorKey: "name", header: "Name" },
+];
 const data = [{ name: "John Doe" }];
 
 const Harness = ({ enableMultiSort }: { readonly enableMultiSort: boolean }) => {
-  const table = useReactTable({ columns, data, enableMultiSort, getCoreRowModel: getCoreRowModel() });
+  const table = useTable({ columns, data, enableMultiSort, features: dataTableFeatures });
 
   return <TableList table={table} />;
 };

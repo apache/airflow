@@ -366,8 +366,12 @@ class PermittedTIFilter(PermittedDagFilter):
 class PermittedXComFilter(PermittedDagFilter):
     """A parameter that filters the permitted XComs for the user."""
 
+    def __init__(self, value: set[str] | None = None, *, entity=XComModel):
+        super().__init__(value)
+        self.entity = entity
+
     def to_orm(self, select: Select) -> Select:
-        return select.where(XComModel.dag_id.in_(self.value or set()))
+        return select.where(self.entity.dag_id.in_(self.value or set()))
 
 
 class PermittedTagFilter(PermittedDagFilter):

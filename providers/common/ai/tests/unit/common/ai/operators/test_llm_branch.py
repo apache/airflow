@@ -211,7 +211,7 @@ class TestLLMBranchOperator:
         """The option order the model sees is sorted, not whatever order downstream_task_ids iterates in.
 
         ``downstream_task_ids`` is a set, so its iteration order depends on string hashing and
-        differs between worker processes. Option order is part of the question for a classifier
+        differs between worker processes. Option order is part of the question for a decision
         model, so it has to be the same on every worker. A reverse-sorted list stands in for an
         unlucky set order; without ``sorted()`` the enum comes out reversed and this fails.
         """

@@ -49,16 +49,11 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = (
     "3.13"  # "highest complete" python version (where all providers are included)
 )
-
-
-# Maps each supported Python version to the minimum Airflow version that supports it.
-# Used to filter Airflow versions incompatible with a given Python runtime.
-PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "v3.10.18"}
 
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
@@ -524,10 +519,16 @@ SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYCACHE_PREFIX_IN_CONTAINER = "/root/.cache/airflow-pycache"
 
 PRODUCTION_IMAGE = False
-# All python versions include all past python versions available in previous branches
-# Even if we remove them from the main version. This is needed to make sure we can cherry-pick
-# changes from main to the previous branch.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+# Python versions that CI on main builds images for and tests with.
+#
+# When main drops a Python version, the version goes through two phases here:
+# 1. While we still cherry-pick changes from main to a release branch that supports that version
+#    (e.g. v3-3-test), keep it in this list even though main no longer supports it. Changes made
+#    on main are then still tested on that version before they are cherry-picked.
+# 2. Once we stop cherry-picking to the last release branch that supports it (that branch then only
+#    gets fixes applied directly), remove it from this list. Release branches keep their own copy
+#    of this list, so their CI and image builds are not affected.
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
 ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
@@ -870,31 +871,31 @@ DEFAULT_EXTRAS = [
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
-        "python-version": "3.10",
+        "python-version": "3.11",
         "airflow-version": "2.11.1",
         "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica modal opensearch",
         "run-unit-tests": "true",
     },
     {
-        "python-version": "3.10",
+        "python-version": "3.11",
         "airflow-version": "3.0.6",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
     {
-        "python-version": "3.10",
+        "python-version": "3.11",
         "airflow-version": "3.1.8",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
     {
-        "python-version": "3.10",
+        "python-version": "3.11",
         "airflow-version": "3.2.2",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
     {
-        "python-version": "3.10",
+        "python-version": "3.11",
         "airflow-version": "3.3.2",
         "remove-providers": "",
         "run-unit-tests": "true",

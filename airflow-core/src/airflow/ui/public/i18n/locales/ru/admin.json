@@ -39,7 +39,6 @@
       "connectionIdRequired": "ID соединения обязателен",
       "connectionIdRequirement": "ID соединения не может состоять только из пробелов",
       "connectionTypeRequired": "Тип соединения обязателен",
-      "extraFields": "Дополнительные поля",
       "extraFieldsJson": "Дополнительные поля JSON",
       "helperText": "Отсутствует тип соединения? Убедитесь, что вы установили соответствующий пакет Airflow Providers.",
       "helperTextForRedactedFields": "Скрытые поля ('***') останутся без изменений, если их не редактировать.",

@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"github.com/apache/airflow/go-sdk/internal/bundlefooter"
 )
@@ -29,7 +30,7 @@ func newInspectCmd() *cobra.Command {
 	var showSource bool
 	cmd := &cobra.Command{
 		Use:   "inspect <bundle>",
-		Short: "Print the manifest (and optionally source) embedded in a bundle",
+		Short: "Print the manifest (and optionally source files) embedded in a bundle",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			source, manifest, err := bundlefooter.Read(args[0])
@@ -38,10 +39,16 @@ func newInspectCmd() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			if showSource {
-				fmt.Fprintln(out, "# --- source ---")
-				out.Write(source)
-				if len(source) > 0 && source[len(source)-1] != '\n' {
-					fmt.Fprintln(out)
+				files, err := embeddedSources(source, manifest)
+				if err != nil {
+					return err
+				}
+				for _, f := range files {
+					fmt.Fprintf(out, "# --- source: %s ---\n", f.path)
+					out.Write(f.data)
+					if len(f.data) > 0 && f.data[len(f.data)-1] != '\n' {
+						fmt.Fprintln(out)
+					}
 				}
 				fmt.Fprintln(out, "# --- manifest ---")
 			}
@@ -52,6 +59,46 @@ func newInspectCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&showSource, "source", false, "also print the embedded source file")
+	cmd.Flags().BoolVar(&showSource, "source", false, "also print each embedded source file")
 	return cmd
+}
+
+type embeddedSource struct {
+	path string
+	data []byte
+}
+
+// embeddedSources cuts the source region into the files the manifest's sources index lists.
+func embeddedSources(region, manifest []byte) ([]embeddedSource, error) {
+	var index struct {
+		Sources []struct {
+			Path   string `yaml:"path"`
+			Offset int    `yaml:"offset"`
+			Length int    `yaml:"length"`
+		} `yaml:"sources"`
+	}
+	if err := yaml.Unmarshal(manifest, &index); err != nil {
+		return nil, fmt.Errorf("decoding manifest: %w", err)
+	}
+	if len(index.Sources) == 0 && len(region) > 0 {
+		return nil, fmt.Errorf(
+			"the manifest lists no sources for the %d-byte source region; "+
+				"repack the bundle with this airflow-go-pack",
+			len(region),
+		)
+	}
+	files := make([]embeddedSource, 0, len(index.Sources))
+	for _, src := range index.Sources {
+		if src.Offset < 0 || src.Length < 0 || src.Offset > len(region)-src.Length {
+			return nil, fmt.Errorf(
+				"manifest source %q (offset %d, length %d) does not fit the %d-byte source region",
+				src.Path, src.Offset, src.Length, len(region),
+			)
+		}
+		files = append(
+			files,
+			embeddedSource{path: src.Path, data: region[src.Offset : src.Offset+src.Length]},
+		)
+	}
+	return files, nil
 }

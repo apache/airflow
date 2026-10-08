@@ -412,3 +412,71 @@ func TestRegisterableRejectsForeignTypes(t *testing.T) {
 	assert.Contains(t, string(out), "foreignItem does not implement airflow.Registerable")
 	assert.Contains(t, string(out), "unexported method registerable")
 }
+
+func TestSerializeDagsKeepsTheOtherDagsWhenADagCannotBeSerialized(t *testing.T) {
+	b := Bundle()
+	etl := Dag("etl")
+	etl.Task(noop)
+	b.Register(etl)
+	// A Dag that skipped Register stands in for one the serializer fails on.
+	broken := Dag("broken")
+	b.dags.dags["broken"] = broken
+	b.dags.order = append(b.dags.order, broken)
+	reports := Dag("reports")
+	reports.Task(noop)
+	b.Register(reports)
+
+	serialized := b.dags.serialize("/bundles/go/etl", "etl")
+
+	require.Len(t, serialized, 3)
+	assert.Equal(t, bundle.SerializedDag{
+		DagID: "etl",
+		Data:  etl.serialize("/bundles/go/etl", "etl"),
+	}, serialized[0])
+	assert.Equal(t, "broken", serialized[1].DagID)
+	assert.Nil(t, serialized[1].Data)
+	assert.ErrorContains(t, serialized[1].Err, `Dag "broken" is not registered`)
+	assert.Equal(t, bundle.SerializedDag{
+		DagID: "reports",
+		Data:  reports.serialize("/bundles/go/etl", "etl"),
+	}, serialized[2])
+}
+
+func TestSerializeDagsLeavesOutADagThatRegisterRejected(t *testing.T) {
+	b := Bundle()
+	cyclic := Dag("cyclic")
+	extracted := orderedTask(t, cyclic, "extract")
+	loaded := orderedTask(t, cyclic, "load")
+	extracted.Before(loaded)
+	loaded.Before(extracted)
+	require.Panics(t, func() { b.Register(cyclic) })
+
+	assert.Empty(t, b.dags.serialize("/bundles/go/etl", "etl"))
+}
+
+func TestServeLooksUpTheTasksOfDagsAndTaskHandlers(t *testing.T) {
+	dag := Dag("native_etl")
+	dag.Task(ping, TaskSpec{TaskID: "extract"})
+	dag.Task(
+		TriggerDagRun(TriggerDagRunSpec{DagID: "downstream_etl"}),
+		TaskSpec{TaskID: "trigger"},
+	)
+	b := Bundle()
+	b.Register(dag, TaskHandler("py_etl", "load", noop))
+	source := coordinatorSource{&b.taskHandlers, &b.dags}
+
+	for _, id := range [][2]string{{"native_etl", "extract"}, {"py_etl", "load"}} {
+		task, ok := source.LookupTask(id[0], id[1])
+		assert.True(t, ok, "%s.%s", id[0], id[1])
+		assert.NotNil(t, task)
+	}
+	for _, id := range [][2]string{
+		{"native_etl", "trigger"},
+		{"native_etl", "load"},
+		{"py_etl", "extract"},
+		{"unknown", "extract"},
+	} {
+		_, ok := source.LookupTask(id[0], id[1])
+		assert.False(t, ok, "%s.%s", id[0], id[1])
+	}
+}

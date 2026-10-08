@@ -19,8 +19,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
-from sqlalchemy import Index, Integer, String, Text, event
+from sqlalchemy import Index, Integer, String, Text, Uuid, event
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
@@ -51,6 +52,8 @@ class Log(Base):
     owner_display_name: Mapped[str | None] = mapped_column(String(500), nullable=True)
     extra: Mapped[str | None] = mapped_column(Text, nullable=True)
     try_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # The attempt that wrote the event. Not a foreign key, so the event outlives its attempt.
+    task_instance_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
     # Team this event belongs to, recorded when the row is written: either passed in by a caller
     # acting on a team-scoped resource that owns no Dag (a triggerer started with ``--team-name``,
     # a team-scoped pool, the ``teams`` commands), or resolved from ``dag_id`` on insert. Stamped
@@ -71,7 +74,7 @@ class Log(Base):
         "TaskInstance",
         viewonly=True,
         foreign_keys=[dag_id, task_id, run_id, map_index],
-        primaryjoin="and_(Log.dag_id == TaskInstance.dag_id, Log.task_id == TaskInstance.task_id, Log.run_id == TaskInstance.run_id, Log.map_index == TaskInstance.map_index)",
+        primaryjoin="and_(Log.dag_id == TaskInstance.dag_id, Log.task_id == TaskInstance.task_id, Log.run_id == TaskInstance.run_id, Log.map_index == TaskInstance.map_index, TaskInstance.working_set.is_(True))",
         lazy="raise",
     )
 
@@ -106,6 +109,7 @@ class Log(Base):
                 self.logical_date = logical_date
             self.try_number = task_instance.try_number
             self.map_index = task_instance.map_index
+            self.task_instance_id = getattr(task_instance, "id", None)
             if task := getattr(task_instance, "task", None):
                 task_owner = task.owner
 
@@ -121,6 +125,8 @@ class Log(Base):
             self.map_index = kwargs["map_index"]
         if "try_number" in kwargs:
             self.try_number = kwargs["try_number"]
+        if "task_instance_id" in kwargs:
+            self.task_instance_id = kwargs["task_instance_id"]
         if "team_name" in kwargs:
             self.team_name = kwargs["team_name"]
 

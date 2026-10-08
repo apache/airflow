@@ -66,10 +66,7 @@ export const CalendarCell = ({
     ? Object.entries(cellData.counts)
         .filter(
           ([key, value]) =>
-            key !== "total" &&
-            key !== "backfill" &&
-            value > 0 &&
-            (viewMode === "failed" ? key === "failed" : true),
+            key !== "total" && key !== "backfill" && value > 0 && (viewMode !== "failed" || key === "failed"),
         )
         .map(([key]) => key)
     : [];
