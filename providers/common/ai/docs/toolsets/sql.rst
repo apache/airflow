@@ -70,9 +70,16 @@ The read-only check inspects statement types, not what a function does. By defau
 ``SELECT nextval('seq')``, ``SELECT pg_terminate_backend(pid)`` or
 ``SELECT dblink_exec(...)`` pass validation and run with the connection's
 privileges. Setting ``allowed_tables`` turns on the function check: every function
-sqlglot cannot type is rejected unless it is listed in ``allowed_functions``. Either
-way, point the connection at a least-privilege role, and where the database supports
-it a read-only transaction or session, rather than relying on validation alone.
+sqlglot cannot type is rejected unless it is listed in ``allowed_functions``. The
+check rejects only functions sqlglot cannot type; typed syntax such as T-SQL
+``NEXT VALUE FOR seq`` or Snowflake ``seq.nextval`` still passes, so
+``allowed_tables`` is not a guarantee against side-effecting functions. Either way,
+point the connection at a least-privilege role and, where the database supports it,
+a read-only default for that role or session (for example
+``ALTER ROLE <role> SET default_transaction_read_only = on`` on PostgreSQL). The
+toolset opens its own connection per call, so you cannot set a transaction from the
+Dag, and a read-only setting is defense in depth: it does not stop every
+side-effecting function.
 
 .. _sql-toolset-restricted:
 
