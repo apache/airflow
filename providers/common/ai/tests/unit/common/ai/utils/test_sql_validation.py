@@ -20,6 +20,9 @@ import pytest
 from sqlglot import exp
 
 from airflow.providers.common.ai.utils.sql_validation import (
+    _DATA_MODIFYING_NODES,
+    DEFAULT_ALLOWED_TYPES,
+    READ_ONLY_METADATA_TYPES,
     SQLSafetyError,
     collect_table_references,
     parse_sql,
@@ -614,3 +617,113 @@ class TestCollectTableReferences:
         scan = collect_table_references(parse_sql(sql, dialect=dialect))
         assert scan.tables == []
         assert scan.unverifiable_sources
+
+
+# sqlglot has no upper bound in pyproject.toml, so an upstream rename, split or removal of an
+# ``exp`` class would otherwise make the read-only check silently stop recognising a write.
+# The tests below turn that drift into a CI failure; if one fails after a sqlglot bump, review
+# ``_DATA_MODIFYING_NODES`` / ``DEFAULT_ALLOWED_TYPES`` in ``utils/sql_validation.py``.
+_DIALECTS = ["postgres", "mysql", "snowflake", "bigquery", "sqlite"]
+
+_WRITE_STATEMENTS = {
+    "insert": "INSERT INTO t (a) VALUES (1)",
+    "update": "UPDATE t SET a = 1",
+    "delete": "DELETE FROM t",
+    "merge": "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET a = 1",
+    "drop": "DROP TABLE t",
+    "truncate": "TRUNCATE TABLE t",
+    "create": "CREATE TABLE t (id INT)",
+    "create_as_select": "CREATE TABLE t AS SELECT 1",
+    "alter": "ALTER TABLE t ADD COLUMN c INT",
+    "copy": "COPY t FROM '/tmp/x'",
+    "grant": "GRANT SELECT ON t TO u",
+    "cte_delete": "WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d",
+    "cte_insert": "WITH d AS (INSERT INTO t VALUES (1) RETURNING *) SELECT * FROM d",
+    "select_into": "SELECT * INTO n FROM t",
+}
+
+_READ_STATEMENTS = {
+    "select": "SELECT a FROM t",
+    "cte_select": "WITH c AS (SELECT 1 AS a) SELECT * FROM c",
+    "union_all": "SELECT 1 UNION ALL SELECT 2",
+}
+
+
+class TestSqlglotDriftTripwires:
+    """Fail loudly if a sqlglot upgrade silently changes what the read-only check recognises."""
+
+    @pytest.mark.parametrize(
+        "node_type",
+        [*DEFAULT_ALLOWED_TYPES, *READ_ONLY_METADATA_TYPES, *_DATA_MODIFYING_NODES],
+        ids=lambda t: t.__name__,
+    )
+    def test_referenced_node_is_still_a_public_expression_class(self, node_type):
+        assert isinstance(node_type, type)
+        assert issubclass(node_type, exp.Expression), (
+            f"{node_type!r} is no longer an exp.Expression subclass; review utils/sql_validation.py"
+        )
+        assert getattr(exp, node_type.__name__, None) is node_type, (
+            f"exp.{node_type.__name__} no longer resolves to the class sql_validation.py references; "
+            "review utils/sql_validation.py"
+        )
+
+    def test_allowed_types_never_overlap_data_modifying_nodes(self):
+        """A write type slipping into the allow-list would bypass the statement-type check."""
+        for allowed in DEFAULT_ALLOWED_TYPES:
+            for denied in _DATA_MODIFYING_NODES:
+                assert not issubclass(allowed, denied), f"{allowed.__name__} is a kind of {denied.__name__}"
+                assert not issubclass(denied, allowed), f"{denied.__name__} is a kind of {allowed.__name__}"
+
+    @pytest.mark.parametrize(
+        ("sql", "node_type"),
+        [
+            (_WRITE_STATEMENTS["insert"], exp.Insert),
+            (_WRITE_STATEMENTS["update"], exp.Update),
+            (_WRITE_STATEMENTS["delete"], exp.Delete),
+            (_WRITE_STATEMENTS["merge"], exp.Merge),
+            (_WRITE_STATEMENTS["drop"], exp.Drop),
+            (_WRITE_STATEMENTS["truncate"], exp.TruncateTable),
+            (_WRITE_STATEMENTS["create"], exp.Create),
+            (_WRITE_STATEMENTS["alter"], exp.Alter),
+            (_WRITE_STATEMENTS["select_into"], exp.Into),
+        ],
+        ids=["insert", "update", "delete", "merge", "drop", "truncate", "create", "alter", "select_into"],
+    )
+    def test_write_statement_parses_to_a_denied_node(self, sql, node_type):
+        """sqlglot must keep producing the node class the deny-list names for each write."""
+        parsed = parse_sql(sql, dialect="postgres")
+        found = [n for stmt in parsed for n in stmt.walk() if isinstance(n, node_type)]
+        assert found, f"{sql!r} no longer parses to {node_type.__name__}; review _DATA_MODIFYING_NODES"
+        assert issubclass(node_type, _DATA_MODIFYING_NODES)
+
+    @pytest.mark.parametrize("sql", list(_READ_STATEMENTS.values()), ids=list(_READ_STATEMENTS))
+    def test_read_statement_parses_to_an_allowed_node(self, sql):
+        assert isinstance(parse_sql(sql, dialect="postgres")[0], DEFAULT_ALLOWED_TYPES)
+
+    @pytest.mark.parametrize("dialect", _DIALECTS)
+    @pytest.mark.parametrize("sql", list(_WRITE_STATEMENTS.values()), ids=list(_WRITE_STATEMENTS))
+    def test_write_and_ddl_statements_rejected_in_every_dialect(self, sql, dialect):
+        with pytest.raises(SQLSafetyError):
+            validate_sql(sql, dialect=dialect)
+
+    @pytest.mark.parametrize("dialect", _DIALECTS)
+    @pytest.mark.parametrize("sql", list(_READ_STATEMENTS.values()), ids=list(_READ_STATEMENTS))
+    def test_read_statements_accepted_in_every_dialect(self, sql, dialect):
+        assert validate_sql(sql, dialect=dialect)
+
+    @pytest.mark.parametrize("name", ["nextval", "pg_terminate_backend", "dblink_exec"])
+    def test_side_effect_function_is_anonymous_and_rejected(self, name):
+        """These have side effects but no exp.Table node; they are only caught as exp.Anonymous."""
+        sql = f"SELECT {name}('x')"
+        parsed = parse_sql(sql, dialect="postgres")
+        assert any(fn.name.casefold() == name for fn in parsed[0].find_all(exp.Anonymous)), (
+            f"{name}() is no longer parsed as exp.Anonymous; the allowed_functions guard would miss it"
+        )
+        scan = collect_table_references(parsed)
+        assert scan.unverifiable_sources
+        assert name in scan.unverifiable_sources[0]
+
+    def test_allowed_functions_is_the_only_way_through(self):
+        """Control: the same call passes once explicitly allow-listed, so the rejection is real."""
+        parsed = parse_sql("SELECT nextval('s')", dialect="postgres")
+        assert collect_table_references(parsed, frozenset({"nextval"})).unverifiable_sources == []
