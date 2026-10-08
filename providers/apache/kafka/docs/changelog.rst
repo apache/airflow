@@ -44,6 +44,7 @@ Doc-only
 ~~~~~~~~
 
 * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Document how to use the Kafka message queue trigger (#73588)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

@@ -45,6 +45,8 @@ Doc-only
 ~~~~~~~~
 
 * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Document optional dependencies for the Vertica provider (#69478)``
+* ``Align Vertica dependency documentation with its package metadata (#68991)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

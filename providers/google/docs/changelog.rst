@@ -51,6 +51,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Retry Data Fusion polling after transient 404 responses (#74237)``
 * ``Keep polling in the BigQuery check triggers while a job is running (#74305)``
 * ``Look up task logs by task try UUID (#74204)``
 * ``Apply impersonation_chain to deferred BigQuery existence checks (#71648)``

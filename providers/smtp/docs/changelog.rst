@@ -30,6 +30,11 @@ Changelog
 3.1.1
 .....
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Reconnect SMTP connections after leaving a hook context manager (#74416)``
+
 Misc
 ~~~~
 

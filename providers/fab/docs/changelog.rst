@@ -32,6 +32,7 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Update eslint to 10.12.0 and moment-timezone to 0.6.5 (#74418)``
 * ``Drop support for Python 3.10 (#74157)``
 * ``Bump stylelint to 17.16.0 (#74252)``
 * ``Bump prettier to 3.9.9 (#73857)``

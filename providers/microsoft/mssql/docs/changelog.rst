@@ -39,6 +39,7 @@ Doc-only
 ~~~~~~~~
 
 * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Clarify the SQL dialect operations documentation (#73145)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

@@ -40,6 +40,7 @@ Doc-only
 ~~~~~~~~
 
 * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Align Discord dependency documentation with its package metadata (#68991)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -48,6 +49,9 @@ Doc-only
    * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
    * ``[main] Upgrade important CI environment (#73308)``
    * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Update changelog wording (#71161)``
+   * ``Use common.compat.sdk for timezone imports in Discord provider tests (#70492)``
+   * ``Update the aiohttp test dependency (#67978)``
 
 3.12.3
 ......

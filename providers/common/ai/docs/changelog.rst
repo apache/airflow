@@ -117,6 +117,7 @@ Misc
 Doc-only
 ~~~~~~~~
 
+* ``Explain unknown platform labels in managed-agent metrics (#72786)``
 * ``Add toolset overview and MCP tool filtering example to 'common.ai' docs (#74378)``
 * ``Link registry modules to the guide section that documents them (#71477)``
 * ``Add restricted-agent examples to common.ai toolset guides (#74379)``

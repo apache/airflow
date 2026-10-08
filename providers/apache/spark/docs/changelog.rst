@@ -45,6 +45,7 @@ Doc-only
 ~~~~~~~~
 
 * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Document durable Spark execution across cluster managers (#72325)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
