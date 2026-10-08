@@ -35,7 +35,7 @@ from operator import attrgetter
 from random import randint
 from textwrap import dedent
 from time import sleep
-from typing import TYPE_CHECKING, Any, BinaryIO, get_args, get_type_hints
+from typing import TYPE_CHECKING, Any, get_args, get_type_hints
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import UUID
@@ -274,7 +274,7 @@ class TestSupervisor:
             with expectation:
                 supervise_task(**kw)
 
-    def test_supervise_task_logs_config_hint_on_connection_error(self, mocker):
+    def test_supervise_task_logs_config_hint_on_connection_error(self, mocker, tmp_path):
         """Test that a connection failure reaching the Execution API is surfaced in the task
         log, naming the responsible config, and still propagates."""
         ti = TaskInstance(
@@ -293,14 +293,7 @@ class TestSupervisor:
             "airflow.sdk.execution_time.supervisor.get_coordinator_manager", autospec=True
         ).return_value.for_queue.return_value = coordinator
 
-        task_logger = mocker.Mock(spec=FilteringBoundLogger)
-        mocker.patch(
-            "airflow.sdk.execution_time.supervisor._configure_logging",
-            autospec=True,
-            return_value=(task_logger, mocker.Mock(spec=BinaryIO)),
-        )
-
-        with pytest.raises(httpx.ConnectError):
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}), pytest.raises(httpx.ConnectError):
             supervise_task(
                 ti=ti,
                 dag_rel_path="c.py",
@@ -311,11 +304,11 @@ class TestSupervisor:
                 log_path="attempt=1.log",
             )
 
-        task_logger.error.assert_called_once()
-        message, kwargs = task_logger.error.call_args.args[0], task_logger.error.call_args.kwargs
-        assert "execution_api_server_url" in message
-        assert "base_url" in message
-        assert kwargs["server"] == server
+        entries = [json.loads(line) for line in (tmp_path / "attempt=1.log").read_text().splitlines()]
+        assert [(e["level"], e["event"]) for e in entries] == [("info", "::endgroup::"), ("error", mock.ANY)]
+        assert "execution_api_server_url" in entries[1]["event"]
+        assert "base_url" in entries[1]["event"]
+        assert entries[1]["server"] == server
 
 
 def _response_error(status: int, detail: dict[str, Any]) -> ServerResponseError:
