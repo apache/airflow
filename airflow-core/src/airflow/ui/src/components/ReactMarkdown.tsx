@@ -195,7 +195,44 @@ const createMarkdownComponents = (style: SyntaxTheme): Components => ({
   ul: UlComponent,
 });
 
-const ReactMarkdown = ({ children, components: componentOverrides, ...restProps }: Options) => {
+type MdastNode = {
+  children?: Array<MdastNode>;
+  type: string;
+  value?: string;
+};
+
+const splitTextNodesOnLineBreaks = (node: MdastNode) => {
+  if (!Array.isArray(node.children)) {
+    return;
+  }
+  node.children = node.children.flatMap((child) =>
+    child.type === "text" && typeof child.value === "string" && /\r?\n/u.test(child.value)
+      ? child.value
+          .split(/\r?\n/u)
+          .flatMap((part, index) =>
+            index === 0
+              ? [{ type: "text", value: part }]
+              : [{ type: "break" }, { type: "text", value: part }],
+          )
+      : [child],
+  );
+  node.children.forEach(splitTextNodesOnLineBreaks);
+};
+
+/**
+ * Remark plugin that turns single line breaks inside a paragraph into explicit `break` nodes
+ * (rendered as `<br />`). Markdown treats a single `\n` as a soft break that collapses to a
+ * space when rendered, which loses intentional line breaks in plain-text content such as
+ * HITL operator bodies (#74018).
+ */
+export const remarkSoftBreaks = () => splitTextNodesOnLineBreaks;
+
+const ReactMarkdown = ({
+  children,
+  components: componentOverrides,
+  remarkPlugins,
+  ...restProps
+}: Options) => {
   const { colorMode } = useColorMode();
   const style = colorMode === "dark" ? oneDark : oneLight;
   const components = createMarkdownComponents(style);
@@ -205,7 +242,7 @@ const ReactMarkdown = ({ children, components: componentOverrides, ...restProps 
       <ReactMD
         components={{ ...components, ...componentOverrides }}
         {...restProps}
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, ...(remarkPlugins ?? [])]}
         skipHtml
       >
         {children}

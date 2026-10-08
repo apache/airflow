@@ -26,7 +26,7 @@ import { Accordion } from "src/system-components";
 import type { ParamsSpec, ParamSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
-import ReactMarkdown from "../ReactMarkdown";
+import ReactMarkdown, { remarkSoftBreaks } from "../ReactMarkdown";
 import { Row } from "./Row";
 import { isRequired } from "./isParamRequired";
 
@@ -161,7 +161,7 @@ export const FlexibleForm = ({
               ) : undefined}
               <Stack separator={<StackSeparator py={2} />}>
                 {Boolean(flexFormDescription) ? (
-                  <ReactMarkdown>{flexFormDescription}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkSoftBreaks]}>{flexFormDescription}</ReactMarkdown>
                 ) : undefined}
                 {Object.entries(params)
                   .filter(
@@ -182,7 +182,9 @@ export const FlexibleForm = ({
         hasError={Boolean(sectionError.get(flexibleFormDefaultSection))}
         title={flexibleFormDefaultSection}
       >
-        {Boolean(flexFormDescription) ? <ReactMarkdown>{flexFormDescription}</ReactMarkdown> : undefined}
+        {Boolean(flexFormDescription) ? (
+          <ReactMarkdown remarkPlugins={[remarkSoftBreaks]}>{flexFormDescription}</ReactMarkdown>
+        ) : undefined}
       </FlatSection>
     ) : undefined;
   }
@@ -225,7 +227,7 @@ export const FlexibleForm = ({
                 ) : undefined}
                 <Stack separator={<StackSeparator py={2} />}>
                   {Boolean(flexFormDescription) ? (
-                    <ReactMarkdown>{flexFormDescription}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkSoftBreaks]}>{flexFormDescription}</ReactMarkdown>
                   ) : undefined}
                   {Object.entries(params)
                     .filter(
@@ -259,7 +261,9 @@ export const FlexibleForm = ({
       <Accordion.ItemContent pt={0}>
         <Accordion.ItemBody>
           <Stack separator={<StackSeparator py={2} />}>
-            {Boolean(flexFormDescription) ? <ReactMarkdown>{flexFormDescription}</ReactMarkdown> : undefined}
+            {Boolean(flexFormDescription) ? (
+              <ReactMarkdown remarkPlugins={[remarkSoftBreaks]}>{flexFormDescription}</ReactMarkdown>
+            ) : undefined}
           </Stack>
         </Accordion.ItemBody>
       </Accordion.ItemContent>
