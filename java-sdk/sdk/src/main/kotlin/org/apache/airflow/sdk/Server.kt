@@ -91,12 +91,47 @@ class ApiError(
  * The process exits when the coordinator closes the connection (normally after
  * one task-instance execution).
  */
-class Server private constructor(
-  private val comm: InetSocketAddress?,
-  private val logs: InetSocketAddress?,
-  private val describeSources: File?,
-) {
-  constructor(comm: InetSocketAddress, logs: InetSocketAddress) : this(comm, logs, null)
+sealed class Server {
+  /**
+   * Blocking entry point: connects to the coordinator and serves task-execution
+   * requests from the given [bundle].
+   *
+   * This is a convenience wrapper around [serveAsync] for use from a plain
+   * `main` method. Prefer [serveAsync] when calling from an existing coroutine.
+   * The call returns when the coordinator closes the connection (normally after
+   * one task-instance execution).
+   *
+   * A [Server] created from `--describe-sources` writes that file and returns
+   * without connecting anywhere.
+   *
+   * @param bundle Bundle containing all Dags this process can execute.
+   *
+   * @see [serveAsync]
+   */
+  fun serve(bundle: Bundle) {
+    runBlocking { launch { serveAsync(bundle) } }
+  }
+
+  /**
+   * Suspending entry point: connects to the coordinator and serves
+   * task-execution requests from the given [bundle].
+   *
+   * Opens both the task-execution channel (`--comm`) and the log-forwarding
+   * channel (`--logs`) concurrently, then processes incoming requests until the
+   * coordinator closes the connection (normally after one task-instance
+   * execution). The coroutine returns once both channels have been closed.
+   *
+   * A [Server] created from `--describe-sources` writes that file and returns
+   * without connecting anywhere.
+   *
+   * Use this variant when calling from an existing coroutine scope; use the
+   * blocking [serve] from a plain `main` method.
+   *
+   * @param bundle Bundle containing all Dags this process can execute.
+   *
+   * @see [serve]
+   */
+  abstract suspend fun serveAsync(bundle: Bundle)
 
   companion object {
     /**
@@ -119,69 +154,44 @@ class Server private constructor(
     @JvmStatic
     fun create(args: Array<String>): Server {
       val args = ArgParser(args).parseInto(::Args)
-      args.describeSources?.let { return Server(args.comm, args.logs, it) }
-      return Server(
+      args.describeSources?.let { return SourceDescriber(it) }
+      return CoordinatorServer(
         args.comm ?: throw MissingValueException("--comm"),
         args.logs ?: throw MissingValueException("--logs"),
-        null,
       )
     }
   }
+}
 
-  private val logger = Logger(Server::class)
-
-  /**
-   * Blocking entry point: connects to the coordinator and serves task-execution
-   * requests from the given [bundle].
-   *
-   * This is a convenience wrapper around [serveAsync] for use from a plain
-   * `main` method. Prefer [serveAsync] when calling from an existing coroutine.
-   * The call returns when the coordinator closes the connection (normally after
-   * one task-instance execution).
-   *
-   * A [Server] built from `--describe-sources` writes that file and returns
-   * without connecting anywhere.
-   *
-   * @param bundle Bundle containing all Dags this process can execute.
-   *
-   * @see [serveAsync]
-   */
-  fun serve(bundle: Bundle) {
-    runBlocking { launch { serveAsync(bundle) } }
+/** Writes each Java-declared Dag's declaring class to [target] instead of serving. */
+internal class SourceDescriber(
+  private val target: File,
+) : Server() {
+  override suspend fun serveAsync(bundle: Bundle) {
+    bundle.finalizeRegistration()
+    val sources = linkedMapOf<String, String>()
+    bundle.dags.values.forEach { dag -> dag.declaringClass?.let { sources[dag.id] = it.name } }
+    target.absoluteFile.parentFile?.mkdirs()
+    ObjectMapper().writeValue(target, sources)
   }
+}
 
-  /**
-   * Suspending entry point: connects to the coordinator and serves
-   * task-execution requests from the given [bundle].
-   *
-   * Opens both the task-execution channel (`--comm`) and the log-forwarding
-   * channel (`--logs`) concurrently, then processes incoming requests until the
-   * coordinator closes the connection (normally after one task-instance
-   * execution). The coroutine returns once both channels have been closed.
-   *
-   * A [Server] built from `--describe-sources` writes that file and returns
-   * without connecting anywhere.
-   *
-   * Use this variant when calling from an existing coroutine scope; use the
-   * blocking [serve] from a plain `main` method.
-   *
-   * @param bundle Bundle containing all Dags this process can execute.
-   *
-   * @see [serve]
-   */
-  suspend fun serveAsync(bundle: Bundle) =
+/** Serves task-execution requests over the coordinator's [comm] and [logs] sockets. */
+class CoordinatorServer(
+  private val comm: InetSocketAddress,
+  private val logs: InetSocketAddress,
+) : Server() {
+  private val logger = Logger(CoordinatorServer::class)
+
+  override suspend fun serveAsync(bundle: Bundle) {
     coroutineScope {
       bundle.finalizeRegistration()
-      if (describeSources != null) {
-        writeSources(bundle, describeSources)
-        return@coroutineScope
-      }
       val deferral = CompletableDeferred<Unit>()
 
       launch {
         try {
           SelectorManager(Dispatchers.IO).use { selector ->
-            aSocket(selector).tcp().connect(comm!!).use { socket ->
+            aSocket(selector).tcp().connect(comm).use { socket ->
               logger.debug("Connected comm", mapOf("addr" to comm))
               CoordinatorComm(
                 socket.openReadChannel(),
@@ -197,7 +207,7 @@ class Server private constructor(
       }
       launch {
         SelectorManager(Dispatchers.IO).use { selector ->
-          aSocket(selector).tcp().connect(logs!!).use { socket ->
+          aSocket(selector).tcp().connect(logs).use { socket ->
             logger.debug("Connected logs", mapOf("addr" to logs))
             LogSender.configure(socket.openWriteChannel(autoFlush = true))
             deferral.await()
@@ -205,15 +215,6 @@ class Server private constructor(
         }
       }
     }
-
-  private fun writeSources(
-    bundle: Bundle,
-    target: File,
-  ) {
-    val sources = linkedMapOf<String, String>()
-    bundle.dags.values.forEach { dag -> dag.declaringClass?.let { sources[dag.id] = it.name } }
-    target.absoluteFile.parentFile?.mkdirs()
-    ObjectMapper().writeValue(target, sources)
   }
 
   internal suspend fun dispatchTask(
