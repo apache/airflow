@@ -620,8 +620,8 @@ prek hook regenerate it.
 | state: `success` | MUST | ✓ | 3.3 |  |
 | state: `failed` | MUST | ✓ | 3.3 |  |
 | state: `up_for_retry` | MUST | ✓ | 3.3 | RetryTask |
-| state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
-| state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
+| state: `skipped` | SHOULD | ✓ | 3.4 | a TriggerDagRun task that skips an existing run |
+| state: `deferred` | MAY | ✓ | 3.4 | a TriggerDagRun task that waits with deferrable |
 | state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
 | state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
 | state: `removed` | MAY | ✓ | 3.3 |  |

@@ -102,6 +102,19 @@ internal object TaskRunner {
     val taskDef =
       bundle.taskDef(request.ti.dagId, request.ti.taskId)
         ?: return TaskResult.of(TaskState.State.REMOVED)
+    taskDef.trigger?.let { trigger ->
+      return try {
+        TriggerRunner.run(trigger, request, client)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Throwable) {
+        logger.error(
+          "Error triggering Dag run",
+          mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()),
+        )
+        TaskResult.failure(request.tiContext.shouldRetry)
+      }
+    }
     val definition = taskDef.definition
     val instance =
       try {

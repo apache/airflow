@@ -305,7 +305,7 @@ dags:
           trigger_dag_id: conformance_minimal
           trigger_run_id: "triggered_{{ run_id }}"
           conf: {rows: 2, ratio: 0.5, nested: {tags: [a, b]}}
-          logical_date: "{{ ds }}"
+          logical_date: !datetime 2026-09-30T00:00:00+00:00
           wait_for_completion: true
           skip_when_already_exists: true
       - task_id: trigger_default
