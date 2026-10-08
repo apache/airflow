@@ -43,7 +43,8 @@ def _make_execution_app() -> FastAPI:
     return app
 
 
-def _make_app() -> FastAPI:
+@pytest.fixture(scope="module")
+def test_app() -> FastAPI:
     """Build a FastAPI app so route resolution behaves as it does in the real API server."""
     app = FastAPI()
 
@@ -80,7 +81,12 @@ def _make_app() -> FastAPI:
     return app
 
 
-def test_metric_emission_failure_is_logged():
+@pytest.fixture
+def test_client(test_app) -> TestClient:
+    return TestClient(test_app, raise_server_exceptions=False)
+
+
+def test_metric_emission_failure_is_logged(test_client):
     with (
         mock.patch(
             "airflow.api_fastapi.common.http_metrics._emit_api_metrics",
@@ -88,8 +94,7 @@ def test_metric_emission_failure_is_logged():
         ),
         structlog.testing.capture_logs() as logs,
     ):
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        response = client.get("/api/v2/items/42")
+        response = test_client.get("/api/v2/items/42")
 
     assert response.status_code == 200
     assert [record["event"] for record in logs] == ["failed to emit API metrics"]
@@ -162,13 +167,12 @@ def test_request_duration_is_emitted_in_milliseconds():
         ),
     ],
 )
-def test_api_requests_emit_metrics(request_path, route_tag):
+def test_api_requests_emit_metrics(request_path, route_tag, test_client):
     with (
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
     ):
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        response = client.get(request_path)
+        response = test_client.get(request_path)
 
     assert response.status_code == 200
     expected_tags = {
@@ -187,26 +191,26 @@ def test_api_requests_emit_metrics(request_path, route_tag):
         pytest.param("/api/v20/items/42", 404, id="similar-prefix"),
     ],
 )
-def test_paths_outside_api_metrics_surfaces_do_not_emit_metrics(request_path, expected_status_code):
+def test_paths_outside_api_metrics_surfaces_do_not_emit_metrics(
+    request_path, expected_status_code, test_client
+):
     with (
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
     ):
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        response = client.get(request_path)
+        response = test_client.get(request_path)
 
     assert response.status_code == expected_status_code
     mock_incr.assert_not_called()
     mock_timing.assert_not_called()
 
 
-def test_health_path_emits_metrics():
+def test_health_path_emits_metrics(test_client):
     with (
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
     ):
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        response = client.get("/api/v2/monitor/health")
+        response = test_client.get("/api/v2/monitor/health")
 
     assert response.status_code == 200
     expected_tags = {
@@ -218,13 +222,12 @@ def test_health_path_emits_metrics():
     mock_timing.assert_called_once_with("http_request_duration_milliseconds", mock.ANY, tags=expected_tags)
 
 
-def test_failed_api_requests_emit_metrics_with_server_error_status():
+def test_failed_api_requests_emit_metrics_with_server_error_status(test_client):
     with (
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
     ):
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        response = client.get("/api/v2/fail")
+        response = test_client.get("/api/v2/fail")
 
     assert response.status_code == 500
     expected_tags = {
@@ -265,26 +268,24 @@ def test_failed_api_requests_emit_metrics_with_server_error_status():
         ),
     ],
 )
-def test_method_tag_is_bounded_to_served_methods(method, expected_status_code, expected_tags):
+def test_method_tag_is_bounded_to_served_methods(method, expected_status_code, expected_tags, test_client):
     with (
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
     ):
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        response = client.request(method, "/api/v2/items/42")
+        response = test_client.request(method, "/api/v2/items/42")
 
     assert response.status_code == expected_status_code
     mock_incr.assert_called_once_with("http_requests_total", tags=expected_tags)
     mock_timing.assert_called_once_with("http_request_duration_milliseconds", mock.ANY, tags=expected_tags)
 
 
-def test_unmatched_api_requests_use_unmatched_route_tag():
+def test_unmatched_api_requests_use_unmatched_route_tag(test_client):
     with (
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
     ):
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        response = client.get("/api/v2/missing")
+        response = test_client.get("/api/v2/missing")
 
     assert response.status_code == 404
     expected_tags = {
