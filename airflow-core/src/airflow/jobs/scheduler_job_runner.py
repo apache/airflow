@@ -759,8 +759,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Number of tasks that cannot be scheduled because of no open slot in pool
         num_starving_tasks_total = 0
 
-        # dag and task ids that can't be queued because of concurrency limits
-        starved_dags: set[str] = set()
+        # Dag runs and tasks that can't be queued because of concurrency limits
+        starved_dag_runs: set[tuple[str, str]] = set()
         starved_tasks: set[tuple[str, str]] = set()
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]] = set()
 
@@ -769,13 +769,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         for loop_count in itertools.count(start=1):
             num_starved_pools = len(starved_pools)
-            num_starved_dags = len(starved_dags)
+            num_starved_dag_runs = len(starved_dag_runs)
             num_starved_tasks = len(starved_tasks)
             num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
 
             query = self._build_schedulable_tis_query(
                 starved_pools,
-                starved_dags,
+                starved_dag_runs,
                 starved_tasks,
                 starved_tasks_task_dagrun_concurrency,
                 max_tis,
@@ -905,20 +905,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 current_active_tasks_per_dag_run = concurrency_map.dag_run_active_tasks_map[dag_run_key]
                 dag_max_active_tasks = task_instance.dag_model.max_active_tasks
                 self.log.info(
-                    "DAG %s has %s/%s running and queued tasks",
+                    "Dag run %s of Dag %s has %s/%s running and queued tasks",
+                    task_instance.run_id,
                     dag_id,
                     current_active_tasks_per_dag_run,
                     dag_max_active_tasks,
                 )
                 if current_active_tasks_per_dag_run >= dag_max_active_tasks:
                     self.log.info(
-                        "Not executing %s since the number of tasks running or queued "
-                        "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
+                        "Not executing %s since its Dag run has reached "
+                        "the Dag's max_active_tasks limit of %s",
                         task_instance,
-                        dag_id,
                         dag_max_active_tasks,
                     )
-                    starved_dags.add(dag_id)
+                    starved_dag_runs.add(dag_run_key)
                     continue
 
                 # Many DAGs do not define task concurrency limits, so avoid
@@ -977,7 +977,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Check this to avoid accidental infinite loops
             found_new_filters = (
                 len(starved_pools) > num_starved_pools
-                or len(starved_dags) > num_starved_dags
+                or len(starved_dag_runs) > num_starved_dag_runs
                 or len(starved_tasks) > num_starved_tasks
                 or len(starved_tasks_task_dagrun_concurrency) > num_starved_tasks_task_dagrun_concurrency
             )
@@ -1024,7 +1024,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _build_schedulable_tis_query(
         self,
         starved_pools: set[str],
-        starved_dags: set[str],
+        starved_dag_runs: set[tuple[str, str]],
         starved_tasks: set[tuple[str, str]],
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]],
         max_tis: int,
@@ -1034,7 +1034,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Build a query that fetches SCHEDULED TIs eligible for execution this cycle.
 
-        Applies current starvation exclusions so that saturated pools, DAGs, or tasks
+        Applies current starvation exclusions so that saturated pools, Dag runs, or tasks
         don't re-appear in the candidate set.  Row-number windowing enforces
         ``max_active_tasks`` per DagRun.  The returned query is ready to be wrapped
         with ``with_row_locks`` and executed by the caller; no session is required here.
@@ -1068,13 +1068,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         # Starvation filters should be applied before computing the row_num based on the
-        # max_active_tasks limit. That way, starved dags and tasks that shouldn't run,
+        # max_active_tasks limit. That way, starved Dag runs and tasks that shouldn't run,
         # won't occupy a slot.
         if starved_pools:
             query = query.where(TI.pool.not_in(starved_pools))
 
-        if starved_dags:
-            query = query.where(TI.dag_id.not_in(starved_dags))
+        if starved_dag_runs:
+            query = query.where(tuple_(TI.dag_id, TI.run_id).not_in(starved_dag_runs))
 
         if starved_tasks:
             query = query.where(tuple_(TI.dag_id, TI.task_id).not_in(starved_tasks))
