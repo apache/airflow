@@ -264,7 +264,7 @@ private fun triggerDagRun(node: JsonNode): TriggerDagRun {
   node.fields().forEach { (key, value) ->
     when (key) {
       "trigger_dag_id" -> Unit
-      "logical_date", "run_after" -> trigger.config(key, OffsetDateTime.parse(value.asText()))
+      "logical_date", "run_after" -> trigger.config(key, triggerDateTime(value.asText()))
       "conf" -> trigger.config(key, toJsonValue(value) as Map<*, *>)
       "wait_for_completion", "skip_when_already_exists", "reset_dag_run", "fail_when_dag_is_paused", "deferrable" ->
         trigger.config(key, value.asBoolean())
@@ -275,6 +275,12 @@ private fun triggerDagRun(node: JsonNode): TriggerDagRun {
   }
   return trigger
 }
+
+/**
+ * A trigger task's `logical_date` or `run_after` from the fixture. The fixture spells one the way
+ * Python spells a datetime, with a space, so the separator is normalised before parsing.
+ */
+private fun triggerDateTime(text: String): OffsetDateTime = OffsetDateTime.parse(text.replaceFirst(" ", "T"))
 
 /** The handle of a task declared as a decider, whose type argument no caller reads. */
 @Suppress("UNCHECKED_CAST")
