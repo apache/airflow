@@ -107,7 +107,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Require Python 3.11 in all distributions (#74157)``
+* ``Drop support for Python 3.10 (#74157)``
 * ``Remove Python 3.10 compatibility shims (#74153)``
 * ``Remove 'code_mode' from 'AgentOperator' in favor of the 'CodeMode' capability (#74312)``
 * ``Make 'execute_tool' the public method 'AirflowToolset' subclasses implement (#73938)``
@@ -136,11 +136,11 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
    * ``Apply ruff Python 3.11 fixes to providers (#74155)``
    * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
    * ``Add AIP-85 to the AIP progress tracker registry (#74304)``
    * ``Fix flaky AgentOperator durable usage budget tests (#73996)``
-   * ``[main] Upgrade important CI environment (#73629)``
 
 0.10.0
 ......

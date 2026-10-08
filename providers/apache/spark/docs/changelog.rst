@@ -39,7 +39,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Require Python 3.11 in all distributions (#74157)``
+* ``Drop support for Python 3.10 (#74157)``
 
 Doc-only
 ~~~~~~~~

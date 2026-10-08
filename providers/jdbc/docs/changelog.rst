@@ -32,7 +32,7 @@ Changelog
 Misc
 ~~~~
 
-* ``Require Python 3.11 in all distributions (#74157)``
+* ``Drop support for Python 3.10 (#74157)``
 * ``Exclude SQLAlchemy 2.1.0 (#73865)``
 
 .. Below changes are excluded from the changelog. Move them to

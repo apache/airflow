@@ -37,11 +37,11 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Require Python 3.11 in all distributions (#74157)``
-* ``[main] Upgrade important CI environment (#73629)``
+* ``Drop support for Python 3.10 (#74157)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
 
 6.3.0
 .....

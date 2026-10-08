@@ -62,7 +62,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Require Python 3.11 in all distributions (#74157)``
+* ``Drop support for Python 3.10 (#74157)``
 * ``Bump '@tanstack/react-query' to 5.104.0, 'react-router-dom' to 7.18.4, '@types/node' to 26.6.3, '@typescript-eslint/eslint-plugin', '@typescript-eslint/parser', and '@typescript-eslint/utils' to 8.70.1, 'eslint' to 10.11.0, 'eslint-plugin-perfectionist' to 5.12.1, 'prettier' to 3.9.9, 'typescript-eslint' to 8.70.1, 'vite' to 8.3.1, and 'vite-plugin-dts' to 5.1.1 (#74107)``
 * ``Unify executor workload queues (#63491)``
 * ``Bump the Edge UI packages: react and react-dom to 19.3.0, the @typescript-eslint packages to 8.70.0, eslint to 10.10.0, @types/node to 26.5.1, @types/react and @types/react-dom to 19.3.0, eslint-plugin-react-refresh to 0.5.7 and happy-dom to 20.14.5 (#73342)``
@@ -78,10 +78,10 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
    * ``Apply ruff Python 3.11 fixes to providers (#74155)``
    * ``Make Edge executor adoption test immune to executor_loader reloads (#74122)``
    * ``Prepare ad-hoc providers release 2026-10-02 (#74097)``
-   * ``[main] Upgrade important CI environment (#73629)``
    * ``Prepare providers release 2026-09-22 (#73506)``
    * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
    * ``[main] Upgrade important CI environment (#73308)``
