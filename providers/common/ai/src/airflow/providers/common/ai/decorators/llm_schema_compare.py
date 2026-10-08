@@ -99,7 +99,6 @@ class _LLMSchemaCompareDecoratedOperator(DecoratedOperator, LLMSchemaCompareOper
             feature_enabled=self.require_approval,
         )
 
-        self.render_template_fields(context)
         return LLMSchemaCompareOperator.execute(self, context)
 
 

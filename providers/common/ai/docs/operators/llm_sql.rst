@@ -126,6 +126,10 @@ and safety validation:
     :start-after: [START howto_decorator_llm_sql]
     :end-before: [END howto_decorator_llm_sql]
 
+The text the function returns is sent to the model as-is. It is not rendered as a
+Jinja template, so braces such as ``{{ ... }}`` or ``{% ... %}`` in it reach the model
+unchanged. Build the prompt from the task context inside the function instead.
+
 The callable may also return a non-empty ``Sequence[UserContent]`` for
 multimodal inputs -- see
 :ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>`.
