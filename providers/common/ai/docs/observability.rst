@@ -84,10 +84,12 @@ How it works
   Airflow 2 has no task-instance id, so there the key is
   ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
   identity keys without ``airflow.task_instance.id``.
-* **Model name.** The model that actually answered is exposed on XCom under a
-  namespaced key (``MODEL_NAME_XCOM_KEY`` in ``utils/logging.py``), separate from
-  ``run_id`` / ``usage`` above, so a downstream task or the UI can read which model
-  responded without parsing the decision record or a span. Only ``AgentOperator`` /
+* **Model name.** The model that actually answered is exposed on XCom under the
+  namespaced key ``__AIRFLOW__COMMON_AI_MODEL_NAME__``, separate from ``run_id`` /
+  ``usage`` above, so a downstream task, a Jinja template, or a REST client can read which
+  model responded without parsing the decision record or a span
+  (``ti.xcom_pull(task_ids="my_agent", key="__AIRFLOW__COMMON_AI_MODEL_NAME__")``).
+  Only ``AgentOperator`` /
   ``@task.agent`` and ``LLMOperator`` / ``@task.llm`` push it today; like ``run_id`` and
   ``usage``, with ``enable_hitl_review`` it is the initial run's model, not a
   human-feedback regeneration's, since ``regenerate_with_feedback`` doesn't re-push it.
