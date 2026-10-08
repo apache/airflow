@@ -25,7 +25,7 @@ import kotlin.Throws
  * A task that chooses one of several tasks to run; every other one is skipped.
  *
  * Register one with [DagDef.Switch], then list what it can choose with
- * [SwitchRef.Case]. The choice is the task's own class, so javac checks it:
+ * [SwitchRef.Case]. The choice is the class of the task to run:
  *
  * ```java
  * public class PickPath implements SwitchTask {
@@ -41,8 +41,13 @@ import kotlin.Throws
  * The SDK runs [choose] and pushes the chosen task's ID as this task's return
  * value, so [execute] is never called.
  *
+ * Only a [Task] class compiles as a choice. javac cannot tell whether it is a
+ * case of this switch, so a Task class that is not one compiles and fails when
+ * the task runs: the task instance is marked failed, and nothing is pushed or
+ * skipped.
+ *
  * Because a switch names a case by its class, two tasks that run the same
- * class cannot both be cases of it; registering the Dag reports that.
+ * class cannot both be cases of it; the second [SwitchRef.Case] call throws.
  *
  * @see DagDef.Switch
  */
@@ -122,8 +127,8 @@ class SwitchRef private constructor(
    *
    * @param task Task of the same Dag.
    * @return This switch, for chaining.
-   * @throws IllegalArgumentException if the task belongs to another Dag or is
-   *    already a case of this switch.
+   * @throws IllegalArgumentException if the task belongs to another Dag, is
+   *    already a case of this switch, or runs the same class as one.
    */
   @Suppress("ktlint:standard:function-naming")
   fun Case(task: TaskRef<*>): SwitchRef {
