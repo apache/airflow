@@ -552,8 +552,11 @@ class SQLToolset(AirflowToolset):
             statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
         elif require_parse or self._allowed_canonical is not None:
             # Writes are allowed, so only parse: the allow-list, when set, still
-            # governs which tables a write may touch.
-            statements = _parse_sql(sql, dialect=dialect)
+            # governs which tables a write may touch. Without one, ``query`` sends the
+            # string to the hook unparsed, multi-statement included, so don't reject it here.
+            statements = _parse_sql(
+                sql, dialect=dialect, allow_multiple_statements=self._allowed_canonical is None
+            )
         if statements is not None:
             self._enforce_allowed_tables(statements)
 

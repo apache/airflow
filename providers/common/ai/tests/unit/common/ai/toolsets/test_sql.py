@@ -584,6 +584,24 @@ class TestSQLToolsetCheckQuery:
         )
         assert json.loads(result)["valid"] is expected_valid
 
+    @pytest.mark.parametrize(
+        ("toolset_kwargs", "expected_valid"),
+        [({}, True), ({"allowed_tables": ["users"]}, False)],
+    )
+    def test_multiple_statements_follow_query_when_writes_allowed(self, toolset_kwargs, expected_valid):
+        ts = SQLToolset("pg_default", allow_writes=True, **toolset_kwargs)
+        ts._hook = _make_mock_db_hook()
+
+        result = asyncio.run(
+            ts.call_tool(
+                "check_query",
+                {"sql": "INSERT INTO users VALUES (1, 'a'); DELETE FROM users"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        assert json.loads(result)["valid"] is expected_valid
+
     def test_valid_select(self):
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
