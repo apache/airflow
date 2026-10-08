@@ -89,7 +89,7 @@ public class InterfaceExample {
 
     transform.after(extract);
     // With no task id given, the condition takes one from its class: "hasRows".
-    dag.If(HasRows.class).after(transform).then(load).orElse(loadEmpty);
+    dag.If(HasRows.class).after(transform).Then(load).Else(loadEmpty);
     return dag;
   }
 }

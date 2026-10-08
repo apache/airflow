@@ -170,7 +170,7 @@ class DagDef(
    * task's other settings:
    *
    * ```java
-   * dag.If(HasRows.class).config("retries", 2).then(load).orElse(reportEmpty);
+   * dag.If(HasRows.class).config("retries", 2).Then(load).Else(reportEmpty);
    * ```
    *
    * @param definition Class that implements [ConditionTask]. Must have a

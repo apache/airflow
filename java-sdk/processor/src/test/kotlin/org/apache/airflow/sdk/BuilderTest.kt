@@ -2184,7 +2184,7 @@ class BuilderTest {
           @Builder.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
-              hasRows().then(load());
+              hasRows().Then(load());
             }
           }
         }
@@ -2289,8 +2289,8 @@ class BuilderTest {
           static class Wiring implements TestExampleDeps {
             void depends() {
               extract().before(hasRows());
-              hasRows().then(load());
-              hasRows().orElse(reportEmpty());
+              hasRows().Then(load());
+              hasRows().Else(reportEmpty());
             }
           }
         }

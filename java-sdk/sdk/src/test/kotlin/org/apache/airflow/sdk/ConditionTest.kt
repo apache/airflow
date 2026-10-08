@@ -51,7 +51,7 @@ internal class ConditionTest {
   @DisplayName("Should take the condition's task ID from its class when none is given")
   fun shouldDeriveTaskIdFromClass() {
     val (dag, condition, sides) = dagWithSides()
-    condition.then(sides.first)
+    condition.Then(sides.first)
 
     assertEquals("hasRows", condition.id)
     assertTrue("hasRows" in dag.tasks)
@@ -62,7 +62,7 @@ internal class ConditionTest {
   fun shouldRunEachSideAfterTheCondition() {
     val (dag, condition, sides) = dagWithSides()
     val (load, reportEmpty) = sides
-    condition.then(load).orElse(reportEmpty)
+    condition.Then(load).Else(reportEmpty)
 
     val decider = dag.tasks.getValue("hasRows")
     assertEquals(setOf(decider), load.def.upstreams)
@@ -73,7 +73,7 @@ internal class ConditionTest {
   @DisplayName("Should mark only a deciding task as able to skip what runs after it")
   fun shouldMarkDeciderAsSkipping() {
     val (dag, condition, sides) = dagWithSides()
-    condition.then(sides.first)
+    condition.Then(sides.first)
 
     val tasks = serializeDag(dag, "", ".")["tasks"] as List<*>
 
@@ -87,20 +87,20 @@ internal class ConditionTest {
   @DisplayName("Should reject naming the same side twice")
   fun shouldRejectNamingASideTwice() {
     val (_, condition, sides) = dagWithSides()
-    condition.then(sides.first)
+    condition.Then(sides.first)
 
-    val error = assertThrows(IllegalArgumentException::class.java) { condition.then(sides.second) }
+    val error = assertThrows(IllegalArgumentException::class.java) { condition.Then(sides.second) }
 
-    assertEquals("Condition 'hasRows' already runs 'load' on its then side; name each side once", error.message)
+    assertEquals("Condition 'hasRows' already runs 'load' on its Then side; name each side once", error.message)
   }
 
   @Test
   @DisplayName("Should reject a condition whose sides are the same task")
   fun shouldRejectIdenticalSides() {
     val (_, condition, sides) = dagWithSides()
-    condition.then(sides.first)
+    condition.Then(sides.first)
 
-    val error = assertThrows(IllegalArgumentException::class.java) { condition.orElse(sides.first) }
+    val error = assertThrows(IllegalArgumentException::class.java) { condition.Else(sides.first) }
 
     assertEquals(
       "Condition 'hasRows' already runs 'load' on its other side, so the condition would decide nothing",
@@ -114,7 +114,7 @@ internal class ConditionTest {
     val (_, condition, _) = dagWithSides()
     val other = DagDef("other").task<Unit>("load", NoopTask::class.java)
 
-    val error = assertThrows(IllegalArgumentException::class.java) { condition.then(other) }
+    val error = assertThrows(IllegalArgumentException::class.java) { condition.Then(other) }
 
     assertEquals(
       "Condition 'hasRows' of Dag 'd' cannot run task 'load' of Dag 'other'; name a task of the same Dag",
@@ -130,7 +130,7 @@ internal class ConditionTest {
     val error = assertThrows(IllegalArgumentException::class.java) { Bundle().register(dag) }
 
     assertEquals(
-      "Condition 'hasRows' names no task to run when it holds; call then(...), in Dag 'd'",
+      "Condition 'hasRows' names no task to run when it holds; call Then(...), in Dag 'd'",
       error.message,
     )
   }
@@ -171,12 +171,12 @@ internal class ConditionTest {
     val (_, condition, sides) = dagWithSides()
     val again = ConditionRef.of(TaskRef(condition.nodes().single()))
 
-    condition.then(sides.first)
-    again.orElse(sides.second)
+    condition.Then(sides.first)
+    again.Else(sides.second)
 
-    val error = assertThrows(IllegalArgumentException::class.java) { again.then(sides.second) }
+    val error = assertThrows(IllegalArgumentException::class.java) { again.Then(sides.second) }
     assertEquals(
-      "Condition 'hasRows' already runs 'load' on its then side; name each side once",
+      "Condition 'hasRows' already runs 'load' on its Then side; name each side once",
       error.message,
     )
   }
@@ -185,10 +185,10 @@ internal class ConditionTest {
   @DisplayName("Should reject naming a side after the Dag was registered")
   fun shouldRejectNamingASideAfterRegistration() {
     val (dag, condition, sides) = dagWithSides()
-    condition.then(sides.first)
+    condition.Then(sides.first)
     Bundle().register(dag)
 
-    val error = assertThrows(IllegalArgumentException::class.java) { condition.orElse(sides.second) }
+    val error = assertThrows(IllegalArgumentException::class.java) { condition.Else(sides.second) }
 
     assertEquals(
       "Condition 'hasRows' of Dag 'd' is already registered; name every case before the Dag is " +
@@ -204,7 +204,7 @@ internal class ConditionTest {
     val checks = dag.taskGroup("checks")
     val load = checks.task<Unit>("load", NoopTask::class.java)
     val condition = checks.If("has_rows", HasRows::class.java)
-    condition.then(load)
+    condition.Then(load)
 
     assertEquals("checks.has_rows", condition.id)
     assertEquals(listOf("checks.load", "checks.has_rows"), dag.tasks.keys.toList())

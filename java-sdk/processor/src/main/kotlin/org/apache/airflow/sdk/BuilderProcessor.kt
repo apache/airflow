@@ -717,7 +717,7 @@ class BuilderProcessor : AbstractProcessor() {
     val boolean = returns.kind == TypeKind.BOOLEAN || with(processingEnv) { isType(returns, BOXED_BOOLEAN_TYPE) }
     require(boolean) {
       "@Builder.If method '${method.simpleName}' returns $returns, but a condition returns boolean: " +
-        "true runs the task named by then, false the one named by orElse"
+        "true runs the task named by Then, false the one named by Else"
     }
   }
 

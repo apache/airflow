@@ -118,8 +118,8 @@ private fun buildDag(case: JsonNode): DagDef {
   }
 
   conditions.forEach { (condition, branch) ->
-    condition.then(tasks.getValue(branch.path("then").asText()))
-    branch.path("else").takeIf { !it.isMissingNode }?.let { condition.orElse(tasks.getValue(it.asText())) }
+    condition.Then(tasks.getValue(branch.path("then").asText()))
+    branch.path("else").takeIf { !it.isMissingNode }?.let { condition.Else(tasks.getValue(it.asText())) }
   }
 
   case.path("order_edges").forEach { edge ->

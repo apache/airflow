@@ -24,8 +24,8 @@ import kotlin.Throws
 /**
  * A task whose boolean decides which of two tasks runs; the other is skipped.
  *
- * Register one with [DagDef.If], then name the sides with [ConditionRef.then]
- * and [ConditionRef.orElse]:
+ * Register one with [DagDef.If], then name the sides with [ConditionRef.Then]
+ * and [ConditionRef.Else]:
  *
  * ```java
  * public class HasRows implements ConditionTask {
@@ -50,8 +50,8 @@ interface ConditionTask : Task {
    *
    * @param context Runtime context for the current execution workload.
    * @param client Client for Airflow API calls scoped to this execution.
-   * @return True to run the [ConditionRef.then] side, false the
-   *    [ConditionRef.orElse] side.
+   * @return True to run the [ConditionRef.Then] side, false the
+   *    [ConditionRef.Else] side.
    * @throws Exception on failure; the task instance is marked failed.
    */
   @Throws(Exception::class)
@@ -74,7 +74,7 @@ interface ConditionTask : Task {
  * A condition registered with a Dag: name the task each outcome runs.
  *
  * ```java
- * dag.If(HasRows.class).then(load).orElse(reportEmpty);
+ * dag.If(HasRows.class).Then(load).Else(reportEmpty);
  * ```
  *
  * A named task runs after the condition, so naming it records that edge, as
@@ -118,22 +118,24 @@ class ConditionRef private constructor(
    *
    * @param task Task of the same Dag, which the condition skips when it does
    *    not hold.
-   * @return This condition, so [orElse] can follow.
+   * @return This condition, so [Else] can follow.
    * @throws IllegalArgumentException if the task belongs to another Dag, or
    *    this side is already named.
    */
-  fun then(task: TaskRef<*>): ConditionRef = name("then", task) { sides.whenTrue = it }
+  @Suppress("ktlint:standard:function-naming")
+  fun Then(task: TaskRef<*>): ConditionRef = name("Then", task) { sides.whenTrue = it }
 
   /**
    * Names the task that runs when the condition does not hold. A condition
-   * needs no `orElse`; without one, nothing is skipped when it holds.
+   * needs no `Else`; without one, nothing is skipped when it holds.
    *
    * @param task Task of the same Dag, which the condition skips when it holds.
    * @return This condition, for chaining.
    * @throws IllegalArgumentException if the task belongs to another Dag, is
-   *    the `then` task, or this side is already named.
+   *    the `Then` task, or this side is already named.
    */
-  fun orElse(task: TaskRef<*>): ConditionRef = name("orElse", task) { sides.whenFalse = it }
+  @Suppress("ktlint:standard:function-naming")
+  fun Else(task: TaskRef<*>): ConditionRef = name("Else", task) { sides.whenFalse = it }
 
   /**
    * Sets one task-level configuration value on the deciding task.
@@ -188,7 +190,7 @@ internal class ConditionDef : DeciderDef {
 
   override fun describe(decider: TaskDef): String? =
     if (whenTrue == null) {
-      "Condition '${decider.id}' names no task to run when it holds; call then(...)"
+      "Condition '${decider.id}' names no task to run when it holds; call Then(...)"
     } else {
       null
     }
@@ -209,7 +211,7 @@ internal class ConditionDef : DeciderDef {
     task: TaskDef,
   ) {
     requireUnregistered(decider, "Condition")
-    val named = if (side == "then") whenTrue else whenFalse
+    val named = if (side == "Then") whenTrue else whenFalse
     require(named == null) {
       "Condition '${decider.id}' already runs '${named!!.id}' on its $side side; name each side once"
     }

@@ -243,8 +243,8 @@ class TaskTest {
     val dag = DagDef("test_dag")
     val load = dag.task<Unit>("load", SuccessTask::class.java)
     val reportEmpty = dag.task<Unit>("report_empty", SuccessTask::class.java)
-    val condition = dag.If("gate", TestCondition::class.java).then(load)
-    if (withElse) condition.orElse(reportEmpty)
+    val condition = dag.If("gate", TestCondition::class.java).Then(load)
+    if (withElse) condition.Else(reportEmpty)
     return Bundle(listOf(dag))
   }
 

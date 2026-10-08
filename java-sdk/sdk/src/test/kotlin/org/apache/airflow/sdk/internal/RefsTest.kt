@@ -219,8 +219,8 @@ internal class RefsTest {
     val dag = DagDef("d")
     Refs.record(dag, listOf("has_rows", "load", "report_empty"), emptyList()) {
       fun hasRows() = ConditionRef.of(Refs.node<Boolean>("", TaskDef("has_rows", NoopCondition::class.java)))
-      hasRows().then(Refs.node<Unit>("", TaskDef("load", NoopRefTask::class.java)))
-      hasRows().orElse(Refs.node<Unit>("", TaskDef("report_empty", NoopRefTask::class.java)))
+      hasRows().Then(Refs.node<Unit>("", TaskDef("load", NoopRefTask::class.java)))
+      hasRows().Else(Refs.node<Unit>("", TaskDef("report_empty", NoopRefTask::class.java)))
     }
 
     assertEquals(

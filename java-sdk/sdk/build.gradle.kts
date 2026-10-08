@@ -594,7 +594,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   *
             |   * @Builder.Deps
             |   * static class Wiring implements EtlDeps {
-            |   *   void depends() { hasRows(extract()).then(load()).orElse(reportEmpty()); }
+            |   *   void depends() { hasRows(extract()).Then(load()).Else(reportEmpty()); }
             |   * }
             |   * ```
             |   *

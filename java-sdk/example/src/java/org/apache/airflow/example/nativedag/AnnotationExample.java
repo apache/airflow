@@ -83,7 +83,7 @@ public class AnnotationExample {
     void depends() {
       var extracted = extract();
       var transformed = transform(extracted, lit(1.5));
-      hasRows(transformed).then(load(transformed)).orElse(loadEmpty());
+      hasRows(transformed).Then(load(transformed)).Else(loadEmpty());
       // Ordering-only edge: the checks group runs after extract, with no data
       // flowing.
       extracted.before(checks());
