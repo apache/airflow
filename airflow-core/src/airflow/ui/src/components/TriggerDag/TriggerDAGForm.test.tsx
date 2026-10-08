@@ -287,7 +287,6 @@ describe("TriggerDAGForm", () => {
   it("does not offer a preset drop-down when the Dag declares no presets", async () => {
     const { container } = render(
       <TriggerDAGForm
-        dagDisplayName="Params Trigger UI"
         dagId="example_params_trigger_ui"
         error={undefined}
         hasSchedule={false}
@@ -314,7 +313,6 @@ describe("TriggerDAGForm", () => {
 
     const { container } = render(
       <TriggerDAGForm
-        dagDisplayName="Params Trigger UI"
         dagId="example_params_trigger_ui"
         error={undefined}
         hasSchedule={false}
