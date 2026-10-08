@@ -56,8 +56,8 @@ The AWS credentials the executor uses must be allowed to call ``eks:DescribeClus
 on the cluster, and the IAM principal behind those credentials must be granted
 access inside the cluster itself. On modern clusters this means an EKS access entry;
 on older clusters it means an entry in the ``aws-auth`` config map. Without that
-in-cluster grant the scheduler can read the cluster description but every Kubernetes
-API call is rejected.
+in-cluster grant every Kubernetes API call is rejected, and the startup check described
+below stops the scheduler with an error that points at the access entry.
 
 How authentication works
 ------------------------
@@ -72,12 +72,19 @@ STS URL that stays valid for roughly fifteen minutes, while the scheduler holds 
 single client for as long as it runs. To keep the token current, the executor
 registers a refresh hook that the Kubernetes client calls on every authenticated
 request. Minting a token is a local signing operation with no network call, so
-refreshing that often costs very little. Rotation of the underlying AWS credentials
-is handled by botocore in the usual way.
+refreshing that often costs very little. The AWS credentials themselves come from the
+:ref:`AWS connection <howto/connection:aws>`, and botocore refreshes temporary ones,
+such as an assumed role, as described in the `boto3 credentials guide
+<https://docs.aws.amazon.com/boto3/latest/guide/credentials.html>`__.
 
-Before it accepts any tasks, the executor checks that the cluster is ``ACTIVE`` (or
-``UPDATING``) and, unless ``check_health_on_startup`` is turned off, that it is allowed
-to list pods in its namespace. It refuses to start if either check fails.
+Before it accepts any tasks, the executor checks that the cluster is ``ACTIVE`` or
+``UPDATING``. An ``UPDATING`` cluster still serves the Kubernetes API, because EKS
+replaces API server instances one at a time during an update (see `Update existing
+cluster to new Kubernetes version
+<https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html>`__). Unless
+``check_health_on_startup`` is turned off (see the :ref:`[aws_eks_executor]
+<config:aws_eks_executor>` configuration reference), the executor also checks that it
+is allowed to list pods in its namespace. It refuses to start if either check fails.
 
 .. _eks_config_options:
 
@@ -88,8 +95,7 @@ The executor reads its own settings from an ``aws_eks_executor`` section in
 ``airflow.cfg``. You can also set any of them with an environment variable using the
 ``AIRFLOW__AWS_EKS_EXECUTOR__<OPTION_NAME>`` form, for example
 ``AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME=airflow-eks-cluster``. For more information on
-how to set these options, see `Setting Configuration Options
-<https://airflow.apache.org/docs/apache-airflow/stable/howto/set-config.html>`__.
+how to set these options, see :doc:`apache-airflow:howto/set-config`.
 
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -208,8 +214,9 @@ in-cluster access grant for your IAM principal is the first thing to check.
 Multi-team deployments
 ----------------------
 
-The executor cannot be used as a team executor yet, because its settings are read from
-the un-prefixed ``[aws_eks_executor]`` section and every team would share one cluster.
+The executor does not support :doc:`multi-team <apache-airflow:core-concepts/multi-team>`
+mode, so it cannot be configured as a team executor. Its Kubernetes client is built from
+the global ``[aws_eks_executor]`` section, so every team would share one cluster.
 
 Fault tolerance
 ---------------
