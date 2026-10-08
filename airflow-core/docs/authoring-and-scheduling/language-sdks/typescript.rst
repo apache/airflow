@@ -25,8 +25,8 @@ TypeScript SDK
 The TypeScript SDK lets you write Airflow Dags and tasks in TypeScript, or plain JavaScript, and run them on
 Node.js. There are two ways to use it:
 
-* **Declare the whole Dag in TypeScript.** The schedule, the tasks, their options and the dependencies between
-  them are all written in TypeScript, with no Python file involved. See :ref:`typescript-sdk/native-dag`.
+* **Dag definition.** The schedule, the tasks, their options and the dependencies between them are all written
+  in TypeScript, with no Python file involved. See :ref:`typescript-sdk/dag-definition`.
 * **Implement mixed-language tasks.** A Python Dag declares the tasks with ``@task.stub`` and wires them
   together, and TypeScript supplies what each task does. See :ref:`typescript-sdk/mixed`.
 
@@ -111,7 +111,7 @@ Then send the ``typescript`` queue to the Node.js coordinator in ``airflow.cfg``
 Airflow reads the bundle like any other Dag file: ``ts_hello`` shows up in the UI, runs on its schedule,
 and ``report`` receives the value ``extract`` returned.
 
-.. _typescript-sdk/native-dag:
+.. _typescript-sdk/dag-definition:
 
 Declaring a Dag in TypeScript
 -----------------------------
@@ -606,8 +606,8 @@ Deploying
 
 Where the bundle goes depends on what it contains.
 
-Dags declared in TypeScript
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Dag definition
+~~~~~~~~~~~~~~
 
 Put the bundle in a Dag bundle, such as the default ``dags-folder`` bundle. The Dag processor runs each
 ``*.min.mjs`` bundle it finds with ``node`` to read its Dags, as it reads any other Dag file, so the Dag processor

@@ -25,8 +25,8 @@ Non-Python Task SDKs
 Airflow Dags and tasks can be written in languages other than Python. A language SDK is used in one of two
 ways:
 
-* **Native Dags.** The whole Dag, with its schedule, tasks and dependencies, is declared in the SDK's language.
-  See :ref:`language-sdks/native-dags`.
+* **Dag definition.** The whole Dag, with its schedule, tasks and dependencies, is defined in the SDK's language.
+  See :ref:`language-sdks/dag-definition`.
 * **Mixed-language tasks.** A Python Dag declares the tasks and their dependencies, and the SDK implements some
   of those tasks. See :ref:`language-sdks/mixed-language-tasks`.
 
@@ -40,7 +40,7 @@ messages between it and Airflow. See :ref:`language-sdks/coordinator-config`.
    * - Language
      - Coordinator class
      - Min. runtime
-     - Native Dags
+     - Dag definition
      - Guide
    * - JVM languages (e.g. Java)
      - :class:`task-sdk:airflow.sdk.coordinators.java.JavaCoordinator`
@@ -65,13 +65,13 @@ messages between it and Airflow. See :ref:`language-sdks/coordinator-config`.
    go
    typescript
 
-.. _language-sdks/native-dags:
+.. _language-sdks/dag-definition:
 
-Native Dags
------------
+Dag definition
+--------------
 
-A native Dag is declared entirely in the SDK's language: its schedule, its tasks, their options and the
-dependencies between them. No Python file is involved.
+The whole Dag is declared in the SDK's language: its schedule, its tasks, their options and the dependencies
+between them. No Python file is involved.
 
 The SDK builds the Dag into an artifact, and the artifact goes into a Dag bundle like any other Dag file. The
 Dag processor runs the artifact with the language's runtime to read its Dags, so the Dag processor needs that
@@ -81,7 +81,7 @@ from the same Dag bundle.
 
 The **Code** view in the Airflow UI shows the source the SDK embeds in the artifact.
 
-For TypeScript, see :ref:`typescript-sdk/native-dag`.
+For TypeScript, see :ref:`typescript-sdk/dag-definition`.
 
 .. _language-sdks/mixed-language-tasks:
 

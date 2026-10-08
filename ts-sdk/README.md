@@ -25,7 +25,7 @@ Write Apache Airflow Dags and tasks in TypeScript.
 
 There are two ways to use it:
 
-- **Declare a whole Dag in TypeScript**: its schedule, tasks, options and dependencies, with no Python file.
+- **Dag definition**: declare the whole Dag in TypeScript, with its schedule, tasks, options and dependencies.
 - **Implement mixed-language tasks**: TypeScript bodies for the stub tasks of a Python Dag.
 
 Both use the same task API, and one bundle can serve both.
