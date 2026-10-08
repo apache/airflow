@@ -23,10 +23,6 @@ test.describe("Dag Bundles Page", () => {
     await dagBundlesPage.navigate();
   });
 
-  test("verify dag bundles page heading", async ({ dagBundlesPage }) => {
-    await expect(dagBundlesPage.heading).toBeVisible();
-  });
-
   test("Verify Dag Bundles page is accessible via Browse menu", async ({ dagBundlesPage }) => {
     await dagBundlesPage.navigateFromBrowseMenu();
 
@@ -35,37 +31,24 @@ test.describe("Dag Bundles Page", () => {
     expect(await dagBundlesPage.getRowCount()).toBeGreaterThan(0);
   });
 
-  test("Verify the dag bundles list displays", async ({ dagBundlesPage }) => {
-    await expect(dagBundlesPage.table).toBeVisible();
-  });
-
-  test("Verify the configured bundle is listed with a name and an active state", async ({
-    dagBundlesPage,
-  }) => {
+  test("Verify the configured bundle row describes its state", async ({ dagBundlesPage }) => {
+    await expect.soft(dagBundlesPage.heading).toBeVisible();
+    await expect.soft(dagBundlesPage.table).toBeVisible();
     expect(await dagBundlesPage.getRowCount()).toBeGreaterThan(0);
 
-    await expect(dagBundlesPage.nameCellAt(0)).not.toBeEmpty();
+    await expect.soft(dagBundlesPage.nameCellAt(0)).not.toBeEmpty();
     // Spelled out both ways rather than left blank when healthy, so the cell is never empty.
-    await expect(dagBundlesPage.activeCellAt(0)).toHaveText(/^(active|inactive)$/i);
-  });
-
-  test("Verify the version cell says what it knows", async ({ dagBundlesPage }) => {
+    await expect.soft(dagBundlesPage.activeCellAt(0)).toHaveText(/^(active|inactive)$/i);
     // The default `dags-folder` bundle does not support versioning, so this asserts the fallback
     // wording rather than a SHA. A versioning bundle would render the short hexsha instead, and
     // "Not refreshed yet" covers one that has never completed a refresh.
-    await expect(dagBundlesPage.versionCellAt(0)).toHaveText(
-      /^([\da-f]{7}|not versioned|not refreshed yet)$/i,
-    );
-  });
-
-  test("Verify the last refreshed cell is populated", async ({ dagBundlesPage }) => {
+    await expect
+      .soft(dagBundlesPage.versionCellAt(0))
+      .toHaveText(/^([\da-f]{7}|not versioned|not refreshed yet)$/i);
     // Either a relative time or the "Never" fallback, but never blank.
-    await expect(dagBundlesPage.lastRefreshedCellAt(0)).not.toBeEmpty();
-  });
-
-  test("Verify the import errors cell is populated", async ({ dagBundlesPage }) => {
+    await expect.soft(dagBundlesPage.lastRefreshedCellAt(0)).not.toBeEmpty();
     // A number when the caller may read import errors, "-" when they may not. Admin runs these,
     // so a count is expected -- but never a blank cell either way.
-    await expect(dagBundlesPage.importErrorsCellAt(0)).toHaveText(/^(\d+|-)$/);
+    await expect.soft(dagBundlesPage.importErrorsCellAt(0)).toHaveText(/^(\d+|-)$/);
   });
 });

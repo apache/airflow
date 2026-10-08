@@ -16,24 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Runtime coordinator for non-Python DAG file processing and task execution.
+Runtime coordinators for non-Python Dag file processing and task execution.
 
-Provides :class:`BaseCoordinator`, the base class for
-SDK-specific coordinators that bridge subprocess I/O between the
-Airflow supervisor and an external-SDK runtime (Java, Go, Rust, etc.),
-and :class:`CoordinatorManager`, the registry that loads coordinator
+Provides :class:`BaseCoordinator`, the base class for SDK-specific coordinators
+that run an external-SDK runtime (Java, Go, TypeScript, etc.) for the Airflow
+supervisor, and :class:`CoordinatorManager`, the registry that loads coordinator
 instances from the ``[sdk] coordinators`` configuration.
 
-The coordinator's :meth:`~BaseCoordinator.run_task_execution` handles the full
-lifecycle:
-
-1. Creates TCP servers for comm and logs channels, and a socketpair for stderr.
-2. Calls :meth:`~BaseCoordinator.task_execution_cmd` (provided by the subclass)
-   to obtain the subprocess command.
-3. Spawns the subprocess and accepts TCP connections from it.
-4. Runs a selector-based bridge that transparently forwards bytes
-   between fd 0 (supervisor) and the subprocess comm socket, and
-   re-emits the subprocess's log and stderr output through structlog.
+A coordinator executes a task through :meth:`~BaseCoordinator.execute_task`.
+:meth:`CoordinatorManager.get_dag_parsing_coordinator_key` picks the coordinator
+that parses the native Dag files of a Dag bundle.
 """
 
 from __future__ import annotations
@@ -51,13 +43,14 @@ import structlog
 from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.configuration import conf
+from airflow.sdk.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Mapping
     from os import PathLike
+    from typing import Self
 
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance
@@ -65,11 +58,27 @@ if TYPE_CHECKING:
 __all__ = [
     "BaseCoordinator",
     "CoordinatorManager",
+    "TaskLaunchError",
     "get_coordinator_manager",
     "reset_coordinator_manager",
 ]
 
 log = structlog.get_logger(__name__)
+
+
+class TaskLaunchError(Exception):
+    """
+    A coordinator cannot launch the runtime of a task.
+
+    A coordinator raises this from :meth:`BaseCoordinator.execute_task` before it starts the runtime.
+    The supervisor then fails the task instance and writes the message to the task log. A *retryable*
+    error leaves the task to retry while it has retries left. One that is not, such as a routing
+    mistake that retrying cannot fix, fails the task at once.
+    """
+
+    def __init__(self, message: str, *, retryable: bool = True) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 class BaseCoordinator:
@@ -105,6 +114,9 @@ class BaseCoordinator:
         Start task execution.
 
         This should execute the task and return a result.
+
+        :raises TaskLaunchError: when the runtime cannot be launched. Raise it before the runtime
+            starts, so the supervisor can fail the task instance with the message in its task log.
         """
         raise NotImplementedError
 
@@ -223,14 +235,19 @@ class CoordinatorManager:
 
     The ``classpath`` is resolved via
     :func:`~airflow.sdk._shared.module_loading.import_string` and constructed
-    with ``kwargs`` on first use. A coordinator entry that is never looked up
-    incurs no startup cost.
+    with ``kwargs`` on first use. A coordinator is built only when a task routed
+    to its queue, or a Dag file it parses, needs it.
 
     The ``[sdk] queue_to_coordinator`` config maps queue names to a key in the
     object, which lets users reuse existing queue assignments to route tasks to
     a specific coordinator instance (for example, a ``"legacy-java"`` queue
     routed to a JDK 11 coordinator, and a ``"modern-java"`` queue routed to a
     JDK 17 coordinator).
+
+    The ``[sdk] dag_bundle_to_coordinator`` config maps a Dag bundle name to one
+    key in the object. It picks the coordinator that parses the bundle's native
+    Dag files when several coordinators of that class are configured, and tasks
+    never read it.
 
     A coordinator entry may also carry an optional ``extra`` mapping: metadata
     that other components read as needed. It is kept separate from ``kwargs`` and
@@ -251,6 +268,8 @@ class CoordinatorManager:
     _queue_to_coordinator: Mapping[str, str]
 
     _created_coordinators: dict[str, BaseCoordinator] = attrs.field(init=False, factory=dict)
+    _coordinator_classes: dict[str, type | None] = attrs.field(init=False, factory=dict)
+    _dag_bundle_to_coordinator: dict[str, str] | None = attrs.field(init=False, default=None)
 
     @classmethod
     def from_config(cls) -> Self:
@@ -279,12 +298,9 @@ class CoordinatorManager:
                 )
         return cls(coordinator_specs=coordinator_specs, queue_to_coordinator=queue_to_coordinator)
 
-    def _find_queue(self, key: str) -> BaseCoordinator:
-        with contextlib.suppress(KeyError):
-            return self._created_coordinators[key]
-        spec = self._coordinator_specs[key]
-        coordinator = self._created_coordinators[key] = import_string(spec.classpath)(**spec.kwargs)
-        return coordinator
+    def has_coordinators(self) -> bool:
+        """Return whether ``[sdk] coordinators`` configures any coordinator."""
+        return bool(self._coordinator_specs)
 
     def for_queue(self, queue: str) -> BaseCoordinator:
         """
@@ -297,16 +313,124 @@ class CoordinatorManager:
         except KeyError:
             log.debug("Queue not configured to a coordinator; defaulting to Python", queue=queue)
             return _build_python_coordinator()
-        try:
-            coordinator = self._find_queue(key)
-        except KeyError:
+        if key not in self._coordinator_specs:
             raise InvalidCoordinatorError(f"Queue {queue!r} configured to nonexistent coordinator")
+        coordinator = self.get_coordinator(key)
+        log.debug("Coordinator found for queue", coordinator=coordinator, queue=queue)
+        return coordinator
+
+    def get_coordinator(self, key: str) -> BaseCoordinator:
+        """
+        Return the coordinator configured under *key* in ``[sdk] coordinators``, building it on first use.
+
+        :raises InvalidCoordinatorError: when *key* is not configured, or its class cannot be imported or
+            called with its kwargs. Other errors from building the coordinator propagate.
+        """
+        with contextlib.suppress(KeyError):
+            return self._created_coordinators[key]
+        try:
+            spec = self._coordinator_specs[key]
+        except KeyError:
+            raise InvalidCoordinatorError(f"No coordinator {key!r} in [sdk] coordinators")
+        try:
+            coordinator = import_string(spec.classpath)(**spec.kwargs)
         except ImportError:
             raise InvalidCoordinatorError(f"Cannot import coordinator {key!r}")
         except TypeError:
             raise InvalidCoordinatorError(f"Cannot instantiate coordinator {key!r}")
-        log.debug("Coordinator found for queue", coordinator=coordinator, queue=queue)
+        self._created_coordinators[key] = coordinator
         return coordinator
+
+    def _get_coordinator_class(self, key: str) -> type | None:
+        """
+        Return the class of the coordinator under *key* without building it.
+
+        ``None`` means no class can be found: *key* is not configured, its classpath cannot be
+        imported or fails while importing, or it is not a class. The reason is logged once.
+        """
+        with contextlib.suppress(KeyError):
+            return self._coordinator_classes[key]
+        coordinator_class: type | None = None
+        if (spec := self._coordinator_specs.get(key)) is None:
+            log.error("No coordinator in [sdk] coordinators", coordinator=key)
+        else:
+            try:
+                resolved = import_string(spec.classpath)
+            except Exception:
+                log.exception("Cannot import coordinator", coordinator=key, classpath=spec.classpath)
+            else:
+                if isinstance(resolved, type):
+                    coordinator_class = resolved
+                else:
+                    log.error(
+                        "Coordinator classpath is not a class", coordinator=key, classpath=spec.classpath
+                    )
+        self._coordinator_classes[key] = coordinator_class
+        return coordinator_class
+
+    def get_coordinator_keys_for_class(self, coordinator_classpath: str) -> list[str]:
+        """
+        Return, in config order, the keys of the coordinators of the class at *coordinator_classpath*.
+
+        A coordinator is of the class when its class is that class or a subclass of it. Nothing is built.
+        A configured coordinator whose class cannot be loaded is logged and skipped.
+
+        :raises ImportError: when *coordinator_classpath* cannot be imported.
+            It comes from code, not from config, so this is a bug rather than a config error.
+        """
+        target = import_string(coordinator_classpath)
+        return [
+            key
+            for key in self._coordinator_specs
+            if (coordinator_class := self._get_coordinator_class(key)) is not None
+            and issubclass(coordinator_class, target)
+        ]
+
+    def _get_dag_bundle_to_coordinator(self) -> dict[str, str]:
+        if self._dag_bundle_to_coordinator is None:
+            try:
+                mapping = conf.getjson("sdk", "dag_bundle_to_coordinator", fallback={})
+            except AirflowConfigException as e:
+                raise InvalidCoordinatorError(str(e)) from e
+            if not isinstance(mapping, dict) or not all(isinstance(key, str) for key in mapping.values()):
+                raise InvalidCoordinatorError(
+                    "[sdk] dag_bundle_to_coordinator must be a JSON object that maps Dag bundle names "
+                    "to coordinator keys"
+                )
+            self._dag_bundle_to_coordinator = mapping
+        return self._dag_bundle_to_coordinator
+
+    def get_dag_parsing_coordinator_key(self, coordinator_classpath: str, bundle_name: str) -> str:
+        """
+        Return the key of the coordinator that parses the Dag files of its class in *bundle_name*.
+
+        With one coordinator of the class at *coordinator_classpath*, that one parses them in every
+        Dag bundle. With several, ``[sdk] dag_bundle_to_coordinator`` must map *bundle_name* to one of
+        them.
+
+        :raises InvalidCoordinatorError: when no single coordinator of the class can parse the bundle.
+        """
+        keys = self.get_coordinator_keys_for_class(coordinator_classpath)
+        if len(keys) == 1:
+            return keys[0]
+        kind = coordinator_classpath.rsplit(".", 1)[-1]
+        if not keys:
+            raise InvalidCoordinatorError(f"[sdk] coordinators has no {kind}")
+        mapped = self._get_dag_bundle_to_coordinator().get(bundle_name)
+        if mapped in keys:
+            return mapped
+        if mapped is None:
+            fix = "Map the bundle to one of them in [sdk] dag_bundle_to_coordinator."
+        elif self._get_coordinator_class(mapped) is None:
+            fix = f"[sdk] dag_bundle_to_coordinator maps it to {mapped!r}, which cannot be loaded."
+        else:
+            fix = (
+                f"[sdk] dag_bundle_to_coordinator maps it to {mapped!r}, a coordinator of another class. "
+                f"Move these files to another Dag bundle, or keep one {kind}."
+            )
+        raise InvalidCoordinatorError(
+            f"Dag bundle {bundle_name!r} has {len(keys)} {kind} coordinators ({', '.join(keys)}). {fix}"
+        )
 
     def extra_for_queue(self, queue: str) -> dict[str, Any] | None:
         """
@@ -330,5 +454,13 @@ def get_coordinator_manager() -> CoordinatorManager:
 
 
 def reset_coordinator_manager() -> None:
-    """Clear the cached :class:`CoordinatorManager` (test helper)."""
-    get_coordinator_manager.cache_clear()
+    """
+    Clear the cached :class:`CoordinatorManager` (test helper).
+
+    The Dag importers a registry holds depend on the configured coordinators, so the cached
+    registries are cleared too.
+    """
+    # circular: importers.base imports this module at load time
+    from airflow.sdk.importers.base import reset_importer_registry
+
+    reset_importer_registry()

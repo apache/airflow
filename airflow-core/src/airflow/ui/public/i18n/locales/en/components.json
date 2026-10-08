@@ -52,7 +52,6 @@
   },
   "close": "Close",
   "configForm": {
-    "advancedOptions": "Advanced Options",
     "configJson": "Configuration JSON",
     "invalidJson": "Invalid JSON format: {{errorMessage}}"
   },
@@ -166,6 +165,7 @@
     "dataInterval": "Data Interval",
     "dataIntervalAuto": "Inferred from Logical Date and Timetable",
     "dataIntervalManual": "Specify Manually",
+    "editConfigAndTrigger": "Edit config and trigger",
     "intervalEnd": "End",
     "intervalStart": "Start",
     "loading": "Loading Dag information...",
@@ -185,7 +185,8 @@
         "title": "Dag Run Triggered"
       }
     },
-    "triggerAgainWithConfig": "Trigger again with this config"
+    "triggerAgainWithConfig": "Trigger again with this config",
+    "triggerOptions": "Trigger options"
   },
   "trimText": {
     "details": "Details",

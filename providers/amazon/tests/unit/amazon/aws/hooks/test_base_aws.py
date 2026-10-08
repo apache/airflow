@@ -21,7 +21,7 @@ import json
 import os
 from base64 import b64encode
 from contextlib import nullcontext
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, mock_open
@@ -321,7 +321,7 @@ class TestSessionFactory:
                     "access_key": "mock-AccessKeyId",
                     "secret_key": "mock-SecretAccessKey",
                     "token": "mock-SessionToken",
-                    "expiry_time": datetime.now(timezone.utc).isoformat(),
+                    "expiry_time": datetime.now(UTC).isoformat(),
                 }
 
             mock_refresh.side_effect = side_effect
@@ -839,7 +839,7 @@ class TestAwsBaseHook:
         expire_on_calls = []
 
         def mock_refresh_credentials():
-            expiry_datetime = datetime.now(timezone.utc)
+            expiry_datetime = datetime.now(UTC)
             expire_on_call = expire_on_calls.pop()
             if expire_on_call:
                 expiry_datetime -= timedelta(minutes=1000)

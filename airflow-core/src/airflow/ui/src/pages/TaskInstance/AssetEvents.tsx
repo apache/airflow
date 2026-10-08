@@ -102,7 +102,7 @@ export const AssetEvents = () => {
     },
     undefined,
     {
-      refetchInterval: () => (isStatePending(taskInstance?.state) ? refetchInterval : false),
+      refetchInterval: () => isStatePending(taskInstance?.state) && refetchInterval,
     },
   );
 

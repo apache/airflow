@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_branch:
 
-Branch on an answer: ``LLMBranchOperator``
-==========================================
+Branch on an answer: ``LLMBranchOperator`` and ``@task.llm_branch``
+===================================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
 for LLM-driven branching, where the LLM decides which downstream task(s) to
@@ -84,8 +84,7 @@ it, so the model can only answer with one of the task IDs.
 
 Descriptions explain the choices; they do not make the model more certain,
 and a text model's structured output carries no confidence to read. With a
-classifier model such as TypeSafe's, the descriptions become the criteria of
-its choice question, which is the text it weighs each option by.
+decision model, the descriptions become the criteria of its choice question, which is the text it weighs each option by.
 
 A pick is relative: the model chooses the best fit among the downstream tasks
 offered, not whether any of them fits. If "none of these" or "not enough to
@@ -176,8 +175,7 @@ Reviewing Uncertain Picks
     Experimental: this can change or be removed in a minor release of this provider.
     See :ref:`howto/stability`.
 
-A classifier model such as TypeSafe's returns a confidence with every pick,
-a number from 0 to 1 that summarizes how concentrated its probability
+A decision model returns a confidence with every pick, a number from 0 to 1 that summarizes how concentrated its probability
 distribution was: near 1 when one branch stood out, low when two or more
 were close. It is not the probability that the pick is right. It is the
 model saying how clear-cut the question was, and it is the signal you gate on.
@@ -229,9 +227,9 @@ review it opens is the same one ``require_approval`` opens: ``approval_timeout``
 ``on_approval_timeout``, ``allow_modifications``, ``approval_notifiers`` and
 ``approval_assigned_users`` all apply to it.
 
-TypeSafe's models need the provider's ``typesafe`` extra and a ``pydanticai``
-connection whose Model is ``typesafe:jev-1.13.0`` (or the ``model_id`` on the
-operator, as in the example). :doc:`../classifier_models` covers the setup.
+The example reads a ``pydanticai`` connection, ``decision_default``, whose Model is a decision
+model: ``typesafe:jev-1.13.0`` for TypeSafe's Jev, or ``system-one:<model>`` for a server
+answering the System One API. :doc:`../decision_models` covers the setup for each.
 
 The decision record
 ^^^^^^^^^^^^^^^^^^^
@@ -293,7 +291,7 @@ At execution time, the operator:
 3. Passes that type as ``output_type`` to ``pydantic-ai``, constraining the LLM
    to valid task IDs only.
 4. Reads the model's confidence for the pick from ``provider_details`` (a
-   classifier model reports one; a text model does not), pushes the
+   decision model reports one; a text model does not), pushes the
    ``decision`` XCom, and if the ``decision_policy`` or ``require_approval`` says
    so, pauses for human review (or fails, with ``on_uncertain="fail"``).
 5. Converts the LLM's structured output to task ID string(s) and calls

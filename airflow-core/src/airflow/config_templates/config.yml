@@ -312,7 +312,9 @@ core:
     killed_task_cleanup_time:
       description: |
         When a task is killed forcefully, this is the amount of time in seconds that
-        it has to cleanup after it is sent a SIGTERM, before it is SIGKILLED
+        it has to cleanup after it is sent a SIGTERM, before it is SIGKILLED.
+        The task supervisor also waits this long after ``execution_timeout`` elapses before
+        it sends SIGTERM to a task process that has not stopped on its own.
       version_added: ~
       type: integer
       example: ~
@@ -2248,6 +2250,20 @@ sdk:
       version_added: 3.3.0
       type: string
       example: '{"legacy-java": "jdk-11", "modern-java": "jdk-17"}'
+      default: ~
+    dag_bundle_to_coordinator:
+      description: |
+        JSON object mapping a Dag bundle name to one key of ``[sdk] coordinators``. It picks the coordinator
+        that parses the bundle's native Dag files when several coordinators of that runtime are configured.
+
+        With one coordinator of a runtime, that coordinator parses the runtime's native Dag files in every
+        Dag bundle, and this option is not read. With several, a bundle that holds such files must map to
+        one of them, otherwise each file fails to parse with an import error. A bundle maps to one
+        coordinator, so it can hold native Dag files of only one runtime that has several coordinators.
+        Tasks do not read this option; ``queue_to_coordinator`` routes them.
+      version_added: 3.4.0
+      type: string
+      example: '{"dags-folder": "java-native"}'
       default: ~
 api_auth:
   description: Settings relating to authentication on the Airflow APIs

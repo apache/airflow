@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import type { DryRunBackfillResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 
 const pageSize = 10;
 
@@ -35,7 +36,7 @@ type PartitionPreviewTableProps = {
   readonly backfills: Array<PartitionRow>;
 };
 
-const getColumns = (translate: TFunction): Array<ColumnDef<PartitionRow>> => [
+const getColumns = (translate: TFunction): Array<ColumnDef<DataTableFeatures, PartitionRow>> => [
   {
     accessorKey: "partition_key",
     cell: ({ row }) =>

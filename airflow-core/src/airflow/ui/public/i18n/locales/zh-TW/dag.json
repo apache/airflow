@@ -6,6 +6,7 @@
     "title": "相依性 (Dependencies) 阻礙任務排程"
   },
   "calendar": {
+    "backfill": "回填",
     "daily": "每日",
     "hourly": "每小時",
     "legend": {
@@ -100,7 +101,11 @@
       "placeholder": "搜尋日誌..."
     },
     "settings": "日誌設定",
+    "tryNotStarted": "此次嘗試尚未開始。",
+    "viewFailedTry": "檢視第 {{tryNumber}} 次失敗嘗試的日誌",
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
+    "viewPreviousTry": "檢視前一次（第 {{tryNumber}} 次）嘗試的日誌",
+    "waitingToRetry": "第 {{tryNumber}} 次嘗試正在等待重試。",
     "warning": "WARNING"
   },
   "notFound": {
@@ -216,10 +221,10 @@
     "renderedTemplates": "渲染後的範本",
     "requiredActions": "待回應的任務實例",
     "runs": "執行紀錄",
-    "storage": "儲存空間",
     "taskInstances": "任務實例",
     "taskStateStore": "任務儲存區",
     "tasks": "任務",
+    "versions": "版本",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -247,5 +252,67 @@
       "never": "永不"
     },
     "title": "任務儲存區"
+  },
+  "versions": {
+    "aboutThisComparison": "關於此比較",
+    "base": "比較起點",
+    "categories": {
+      "asset": "資源",
+      "authorization": "授權",
+      "callback": "回呼",
+      "deadline": "截止期限",
+      "dependency": "相依性",
+      "metadata": "中繼資料",
+      "param": "參數",
+      "provenance": "來源",
+      "schedule": "排程",
+      "task": "任務",
+      "unknown": "未知"
+    },
+    "codeAccess": "檢視值需要有 Dag 程式碼的存取權限",
+    "columns": {
+      "after": "變更後",
+      "before": "變更前",
+      "category": "類別",
+      "impact": "影響",
+      "occurrences": "出現次數",
+      "operation": "操作",
+      "path": "路徑"
+    },
+    "heading": "版本 {{base}} → 版本 {{target}}",
+    "impacts": {
+      "authorization": "授權",
+      "execution": "執行",
+      "metadata": "中繼資料",
+      "provenance": "來源",
+      "unknown": "未知"
+    },
+    "maxChanges": "變更數上限",
+    "maxChangesDefault": "預設",
+    "noChanges": "這些版本的狀態相同。",
+    "observedState": "目前儲存狀態",
+    "observedStateBoundary": "比較的是目前儲存的狀態，而非建立當時的證據。歷史版本無法比較原始碼；請使用「程式碼」分頁比較原始碼。",
+    "operations": {
+      "added": "新增",
+      "changed": "變更",
+      "removed": "移除"
+    },
+    "record_one": "記錄",
+    "record_other": "記錄",
+    "selectPrompt": "選擇兩個版本以查看它們之間的差異。",
+    "summary_one": "1 項變更 · 序列化 Schema {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count}} 項變更 · 序列化 Schema {{baseSchema}} → {{targetSchema}}",
+    "target": "比較對象",
+    "truncated": {
+      "description": "為維持在上限內，未顯示的路徑上的變更已被捨棄，因此此數量僅為下限。",
+      "title": "部分變更未回傳"
+    },
+    "unavailable": {
+      "description": "無法比較這些版本。原因：",
+      "title": "無法比較",
+      "withoutReason": "無法比較這些版本。"
+    },
+    "valuesHidden": "值已隱藏",
+    "valuesShown": "值已顯示"
   }
 }

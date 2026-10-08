@@ -973,6 +973,7 @@ export type DAGDetailsResponse = {
     is_favorite?: boolean;
     active_runs_count?: number;
     team_name?: string | null;
+    latest_dag_version: DagVersionResponse | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -988,10 +989,6 @@ export type DAGDetailsResponse = {
      * @deprecated
      */
     readonly concurrency: number;
-    /**
-     * Return the latest DagVersion.
-     */
-    readonly latest_dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -1853,14 +1850,17 @@ export type PatchTaskInstanceBody = {
 };
 
 /**
- * Serializer for the optional Dag/task scoping criteria of a UI plugin.
+ * Serializer for the optional scoping criteria of a UI plugin.
+ *
+ * An open map of dotted field path to the values that path may take -- not a closed set of
+ * criteria. ``{"state": ["failed"], "dag.tags.name": ["ml"]}`` scopes to failed entities of
+ * ml-tagged Dags. An unqualified path is rooted at the entity the ``destination`` is about;
+ * a path may instead name a related record (``dag``, ``dag_run``, ``task``, ``task_instance``)
+ * as its first segment. Matching is equality against the listed values, OR within a path and
+ * AND across paths, and is evaluated client-side.
  */
 export type PluginAppliesToResponse = {
-    dag_tags?: Array<(string)> | null;
-    dag_ids?: Array<(string)> | null;
-    task_ids?: Array<(string)> | null;
-    operators?: Array<(string)> | null;
-    operator_names?: Array<(string)> | null;
+    [key: string]: Array<(string)>;
 };
 
 /**
@@ -2684,6 +2684,21 @@ export type ConnectionHookMetaData = {
 };
 
 /**
+ * Task-instance state counts for a Dag's recent runs.
+ *
+ * The counts cover every running Dag run, or the latest run when none is running;
+ * ``run_ids`` lists those runs. ``state_counts`` only carries states present in them;
+ * task instances without a state yet are keyed as ``no_status``.
+ */
+export type DAGRecentTaskInstanceStateCountsResponse = {
+    dag_id: string;
+    run_ids: Array<(string)>;
+    state_counts: {
+        [key: string]: (number);
+    };
+};
+
+/**
  * DAG Run serializer for responses.
  */
 export type DAGRunLightResponse = {
@@ -2773,6 +2788,13 @@ export type DAGWithLatestDagRunsResponse = {
      * Return file token.
      */
     readonly file_token: string;
+};
+
+/**
+ * Collection of per-Dag recent task-instance state counts for the Dag list page.
+ */
+export type DAGsRecentTaskInstanceStateCountsCollectionResponse = {
+    dags: Array<DAGRecentTaskInstanceStateCountsResponse>;
 };
 
 /**
@@ -3041,6 +3063,7 @@ export type NextRunAssetEventResponse = {
 export type NextRunAssetsResponse = {
     asset_expression?: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     events: Array<NextRunAssetEventResponse>;
+    scheduling_asset_count?: number;
     pending_partition_count?: number | null;
 };
 
@@ -3514,6 +3537,10 @@ export type ListBackfillsUiData = {
     createdAtLt?: string | null;
     createdAtLte?: string | null;
     dagId?: string | null;
+    durationGt?: number | null;
+    durationGte?: number | null;
+    durationLt?: number | null;
+    durationLte?: number | null;
     fromDateGt?: string | null;
     fromDateGte?: string | null;
     fromDateLt?: string | null;
@@ -4121,6 +4148,12 @@ export type GetDagRunStateCountsUiData = {
 };
 
 export type GetDagRunStateCountsUiResponse = DAGsRunStateCountsCollectionResponse;
+
+export type GetRecentTaskInstanceStateCountsUiData = {
+    dagRunIds: Array<(number)>;
+};
+
+export type GetRecentTaskInstanceStateCountsUiResponse = DAGsRecentTaskInstanceStateCountsCollectionResponse;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -5000,6 +5033,7 @@ export type GetTasksResponse = TaskCollectionResponse;
 export type GetTaskData = {
     dagId: string;
     taskId: unknown;
+    versionNumber?: number | null;
 };
 
 export type GetTaskResponse = TaskResponse;
@@ -7217,6 +7251,21 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/dags/recent_task_instance_state_counts': {
+        get: {
+            req: GetRecentTaskInstanceStateCountsUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DAGsRecentTaskInstanceStateCountsCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/eventLogs/{event_log_id}': {
         get: {
             req: GetEventLogData;
@@ -8548,6 +8597,10 @@ export type $OpenApiTs = {
                  */
                 204: void;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -9405,6 +9458,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
