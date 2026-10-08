@@ -118,7 +118,7 @@ public class InterfaceExample {
     var trigger =
         dag.task(
             "trigger_downstream",
-            new TriggerDagRun("java_native_annotation_example").config("wait_for_completion", false));
+            new TriggerDagRun("java_native_target_example").config("wait_for_completion", false));
 
     transform.after(extract);
     // With no task id given, a decider takes one from its class: "hasRows" and

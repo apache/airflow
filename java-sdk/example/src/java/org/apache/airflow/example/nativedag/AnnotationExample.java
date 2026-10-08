@@ -89,7 +89,7 @@ public class AnnotationExample {
   // built, not when the task runs, so it takes no arguments.
   @Builder.Task(id = "trigger_downstream")
   public TriggerDagRun triggerDownstream() {
-    return new TriggerDagRun("java_native_interface_example").config("note", "from the annotation example");
+    return new TriggerDagRun("java_native_target_example").config("note", "from the annotation example");
   }
 
   // A task group: everything it declares is prefixed with its id, so this is
