@@ -37,7 +37,6 @@
   },
   "close": "ปิด",
   "configForm": {
-    "advancedOptions": "ตัวเลือกขั้นสูง",
     "configJson": "การตั้งค่า JSON",
     "invalidJson": "รูปแบบ JSON ไม่ถูกต้อง: {{errorMessage}}"
   },
