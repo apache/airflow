@@ -10,6 +10,36 @@
       "eventType": "Τύπος Συμβάντος"
     }
   },
+  "dagBundles": {
+    "active": "Ενεργό",
+    "columns": {
+      "active": "Ενεργό",
+      "importErrors": "Σφάλματα Εισαγωγής",
+      "lastRefreshed": "Τελευταία Ανανέωση",
+      "name": "Όνομα",
+      "version": "Έκδοση"
+    },
+    "detail": {
+      "status": "Κατάσταση"
+    },
+    "files": {
+      "columns": {
+        "file": "Αρχείο",
+        "lastParsed": "Τελευταία Ανάλυση",
+        "parseDuration": "Διάρκεια Ανάλυσης"
+      },
+      "file_one": "Αρχείο",
+      "file_other": "Αρχεία",
+      "importErrorGone": "Αυτό το σφάλμα εισαγωγής πλέον δεν καταγράφεται. Πιθανότατα διορθώθηκε από μια επανανάλυση.",
+      "neverParsed": "Ποτέ",
+      "showImportError_one": "Προβολή σφάλματος",
+      "showImportError_other": "Προβολή {{count}} σφαλμάτων"
+    },
+    "inactive": "Ανενεργό",
+    "neverRefreshed": "Ποτέ",
+    "notRefreshedYet": "Δεν έχει ανανεωθεί ακόμη",
+    "notVersioned": "Χωρίς εκδόσεις"
+  },
   "deadlines": {
     "columns": {
       "alertName": "Όνομα Ειδοποίησης",
@@ -56,6 +86,8 @@
       "successTitle": "Το XCom Ενημερώθηκε",
       "title": "Επεξεργασία XCom"
     },
+    "entry_one": "XCom Εγγραφή",
+    "entry_other": "XCom Εγγραφές",
     "key": "Κλειδί",
     "title": "XCom",
     "value": "Τιμή"

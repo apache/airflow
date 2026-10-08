@@ -9,7 +9,9 @@
   "config": {
     "columns": {
       "section": "Ενότητα"
-    }
+    },
+    "config_one": "Ρύθμιση",
+    "config_other": "Ρυθμίσεις"
   },
   "connections": {
     "add": "Προσθήκη Σύνδεσης",
@@ -32,6 +34,7 @@
     "form": {
       "connectionIdRequired": "Το ID Σύνδεσης είναι υποχρεωτικό",
       "connectionIdRequirement": "Το ID Σύνδεσης δεν μπορεί να περιέχει μόνο κενά",
+      "connectionTypeFields": "Πεδία {{connectionType}}",
       "connectionTypeRequired": "Ο Τύπος Σύνδεσης είναι υποχρεωτικός",
       "extraFieldsJson": "Επιπλέον Πεδία JSON",
       "helperText": "Λείπει ο Τύπος Σύνδεσης; Βεβαιωθείτε ότι έχετε εγκαταστήσει το ανάλογο πακέτο Airflow Παρόχων.",
@@ -94,7 +97,9 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_one": "Διεργασία",
+    "job_other": "Διεργασίες"
   },
   "plugins": {
     "columns": {
@@ -102,6 +107,8 @@
     },
     "importError_one": "Σφάλμα Εισαγωγής Πρόσθετου",
     "importError_other": "Σφάλματα Εισαγωγής Πρόσθετων",
+    "plugin_one": "Πρόσθετο",
+    "plugin_other": "Πρόσθετα",
     "searchPlaceholder": "Αναζήτηση κατά αρχείο"
   },
   "pools": {
@@ -135,7 +142,9 @@
     "columns": {
       "packageName": "Όνομα Πακέτου",
       "version": "Έκδοση"
-    }
+    },
+    "provider_one": "Πάροχος",
+    "provider_other": "Πάροχοι"
   },
   "variables": {
     "add": "Προσθήκη Μεταβλητής",
