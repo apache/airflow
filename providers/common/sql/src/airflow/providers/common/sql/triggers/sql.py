@@ -56,11 +56,12 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
     def __init__(
         self,
+        *,
         sql: str | Iterable[str],
         conn_id: str,
-        autocommit: bool,
-        split_statements: bool,
-        return_last: bool,
+        autocommit: bool = False,
+        split_statements: bool = False,
+        return_last: bool = True,
         parameters: Iterable[Any] | Mapping[str, Any] | None = None,
         fetch_results: bool = False,
         read_only: bool = False,
