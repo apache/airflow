@@ -28,7 +28,8 @@ import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import type { DagSearchOption } from "src/utils/option";
 
-import { DAG_SEARCH_LIMIT, SearchDags, buildDagOption } from "./SearchDags";
+import { SearchDags } from "./SearchDags";
+import { SEARCH_LIMIT, buildDagOption } from "./searchOptions";
 
 const NO_DAGS: Array<DagSearchOption> = [];
 
@@ -47,7 +48,7 @@ type Props = {
 export const DagSwitcherButton = ({ children, dagId, shape }: Props) => {
   const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
-  const { data } = useDagServiceGetDagsUi({ dagRunsLimit: 1, limit: DAG_SEARCH_LIMIT });
+  const { data } = useDagServiceGetDagsUi({ dagRunsLimit: 1, limit: SEARCH_LIMIT });
   const dags = data === undefined ? NO_DAGS : data.dags.map(buildDagOption);
 
   useShortcut({

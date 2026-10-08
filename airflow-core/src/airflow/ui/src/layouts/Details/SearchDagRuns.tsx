@@ -25,21 +25,14 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { UseDagRunServiceGetDagRunsKeyFn } from "openapi/queries";
 import { DagRunService } from "openapi/requests/services.gen";
-import type { DAGRunCollectionResponse, DAGRunResponse } from "openapi/requests/types.gen";
+import type { DAGRunCollectionResponse } from "openapi/requests/types.gen";
 
 import { SearchSelect } from "src/components/SearchSelect";
 import { StateBadge } from "src/components/StateBadge";
 
 import type { DagRunSearchOption } from "src/utils/option";
 
-export const DAG_RUN_SEARCH_LIMIT = 10;
-export const NEWEST_FIRST = ["-run_after"];
-
-export const buildDagRunOption = (dagRun: DAGRunResponse): DagRunSearchOption => ({
-  label: dagRun.dag_run_id,
-  state: dagRun.state,
-  value: dagRun.dag_run_id,
-});
+import { NEWEST_FIRST, SEARCH_LIMIT, buildDagRunOption } from "./searchOptions";
 
 const formatOptionLabel = (option: DagRunSearchOption) => (
   <Flex alignItems="center" gap={2} minW={0}>
@@ -93,7 +86,7 @@ export const SearchDagRuns = ({
         queryFn: () =>
           DagRunService.getDagRuns({
             dagId,
-            limit: DAG_RUN_SEARCH_LIMIT,
+            limit: SEARCH_LIMIT,
             orderBy: NEWEST_FIRST,
             runIdPattern: inputValue,
           }).then((matches: DAGRunCollectionResponse) => {
@@ -105,7 +98,7 @@ export const SearchDagRuns = ({
           }),
         queryKey: UseDagRunServiceGetDagRunsKeyFn({
           dagId,
-          limit: DAG_RUN_SEARCH_LIMIT,
+          limit: SEARCH_LIMIT,
           orderBy: NEWEST_FIRST,
           runIdPattern: inputValue,
         }),

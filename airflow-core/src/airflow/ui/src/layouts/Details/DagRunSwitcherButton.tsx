@@ -27,7 +27,8 @@ import { CrumbSwitcher, type CrumbShape } from "src/components/Breadcrumb";
 import { useAutoRefresh } from "src/utils";
 import type { DagRunSearchOption } from "src/utils/option";
 
-import { DAG_RUN_SEARCH_LIMIT, NEWEST_FIRST, SearchDagRuns, buildDagRunOption } from "./SearchDagRuns";
+import { SearchDagRuns } from "./SearchDagRuns";
+import { NEWEST_FIRST, SEARCH_LIMIT, buildDagRunOption } from "./searchOptions";
 
 const NO_RUNS: Array<DagRunSearchOption> = [];
 
@@ -53,7 +54,7 @@ export const DagRunSwitcherButton = ({ children, dagId, shape, to }: Props) => {
   const [open, setOpen] = useState(false);
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
   const { data } = useDagRunServiceGetDagRuns(
-    { dagId, limit: DAG_RUN_SEARCH_LIMIT, orderBy: NEWEST_FIRST },
+    { dagId, limit: SEARCH_LIMIT, orderBy: NEWEST_FIRST },
     undefined,
     { refetchInterval },
   );
