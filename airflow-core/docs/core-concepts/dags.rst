@@ -678,7 +678,8 @@ intended: a TaskGroup that holds a setup and its teardown must also hold the tas
 
 These Dags still parse and run, but features that act on a TaskGroup as a whole need an unambiguous order
 between groups. Parsing them emits a ``TaskGroupCycleDeprecationWarning`` and a Dag warning in the UI that
-name the TaskGroups and tasks involved.
+name the TaskGroups and tasks involved. The warning lists at most five members of each cycle and at most ten
+cycles, with a count of the ones left out.
 
 To remove the cycle, move tasks between TaskGroups, or out of them, so that each group depends on the others
 in one direction only. In the second example, move ``bridge`` into ``group``, or move ``b`` out of it. In the

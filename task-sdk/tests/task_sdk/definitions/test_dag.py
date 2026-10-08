@@ -973,6 +973,26 @@ def _make_setup_teardown_dag(*, work_in_group: bool):
     return dag
 
 
+def _make_setup_teardown_around_many_tasks_dag():
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("cluster"):
+            create = DoNothingOperator(task_id="create")
+            delete = DoNothingOperator(task_id="delete")
+        work = [DoNothingOperator(task_id=f"work_{i}") for i in range(100)]
+        create >> work >> delete.as_teardown(setups=create)
+    return dag
+
+
+def _make_many_bridged_groups_dag(count: int):
+    with DAG("dag", schedule=None) as dag:
+        for i in range(count):
+            with TaskGroup(f"group_{i}"):
+                a = DoNothingOperator(task_id="a")
+                b = DoNothingOperator(task_id="b")
+            a >> DoNothingOperator(task_id=f"bridge_{i}") >> b
+    return dag
+
+
 def _make_group_with_bridge_inside_dag():
     with DAG("dag", schedule=None) as dag:
         with TaskGroup("group"):
@@ -1176,6 +1196,38 @@ class TestCycleTester:
         assert str(record[0].message).startswith(
             f"Dag 'dag': {expected_cycles} depend on each other in a cycle. "
         )
+
+    @pytest.mark.parametrize(
+        ("make_dag", "expected_start"),
+        [
+            pytest.param(
+                _make_setup_teardown_around_many_tasks_dag,
+                "Dag 'dag': cluster, work_0, work_1, work_2, work_3 and 96 more depend on each other in a "
+                "cycle. ",
+                id="cycle-members",
+            ),
+            pytest.param(
+                lambda: _make_many_bridged_groups_dag(11),
+                f"Dag 'dag': {'; '.join(f'group_{i} and bridge_{i}' for i in range(10))} depend on each "
+                "other in a cycle (1 more cycle not listed). ",
+                id="one-unlisted-cycle",
+            ),
+            pytest.param(
+                lambda: _make_many_bridged_groups_dag(12),
+                f"Dag 'dag': {'; '.join(f'group_{i} and bridge_{i}' for i in range(10))} depend on each "
+                "other in a cycle (2 more cycles not listed). ",
+                id="unlisted-cycles",
+            ),
+        ],
+    )
+    def test_task_group_cycle_warning_caps_listed_ids(self, make_dag, expected_start):
+        dag = make_dag()
+
+        with pytest.warns(TaskGroupCycleDeprecationWarning) as record:
+            dag.check_cycle()
+
+        assert len(record) == 1
+        assert str(record[0].message).startswith(expected_start)
 
     @pytest.mark.parametrize(
         "make_dag",
