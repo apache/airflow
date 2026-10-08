@@ -880,6 +880,7 @@ class DagRun(Base, LoggingMixin):
                 <= coalesce(
                     Backfill.max_active_runs,
                     DagModel.max_active_runs,
+                    airflow_conf.getint("core", "max_active_runs_per_dag"),
                 )
                 - coalesce(available_dagruns_rn.c.num_running, 0),
                 # don't set paused dag runs as running
