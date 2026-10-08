@@ -1158,16 +1158,19 @@ class IndexedTaskRunner(LoggingMixin):
         """
         Enter the parent's context as this indexed task sees it.
 
-        Yields a copy of the parent's context with this task's own task instance, its indexed view
-        of the task state store and its own outlet events, remembered on the runner and made the
-        current context for the duration of the block. The parent's context is left untouched:
-        ``context_update_for_unmapped`` sets ``ti.task`` on whatever ``ti`` it finds, which must be
-        this task's, not the parent's.
+        Yields a copy of the parent's context with this task's own task instance and operator, its
+        indexed view of the task state store and its own outlet events, remembered on the runner and
+        made the current context for the duration of the block. The same keys
+        ``context_update_for_unmapped`` sets for a mapped task instance are swapped here, ``task``
+        included, so user code reads the item's unmapped operator under ``context["task"]``, not the
+        IterableOperator. The parent's context is left untouched: ``context_update_for_unmapped``
+        sets ``ti.task`` on whatever ``ti`` it finds, which must be this task's, not the parent's.
         """
         indexed_context: Context = {
             **clone_context(context),
             "ti": self.task_instance,
             "task_instance": self.task_instance,
+            "task": self.task_instance.task,
             "task_state_store": self.task_instance.task_state_store,
             "outlet_events": self.outlet_events,
         }

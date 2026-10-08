@@ -2837,6 +2837,7 @@ class TestIndexedTaskRunner:
         parent = {
             "ti": parent_ti,
             "task_instance": parent_ti,
+            "task": parent_ti.task,
             "task_state_store": parent_ti.task_state_store,
             "outlet_events": mock.MagicMock(name="parent_events"),
             "inlet_events": mock.MagicMock(name="inlet_events"),
@@ -2849,6 +2850,7 @@ class TestIndexedTaskRunner:
             assert get_current_context() is indexed_context
             assert indexed_context["ti"] is ti
             assert indexed_context["task_instance"] is ti
+            assert indexed_context["task"] is ti.task
             assert indexed_context["task_state_store"] is ti.task_state_store
             assert indexed_context["outlet_events"] is runner.outlet_events
             assert indexed_context["params"] == {"p": 1}
@@ -2857,6 +2859,7 @@ class TestIndexedTaskRunner:
 
         assert runner._context is indexed_context  # remembered for the state-change callbacks
         assert parent["ti"] is parent_ti
+        assert parent["task"] is parent_ti.task
         assert parent["outlet_events"] is not runner.outlet_events
 
     def test_outlet_events_can_be_handed_in(self, make_indexed_ti):

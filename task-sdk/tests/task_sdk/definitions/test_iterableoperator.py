@@ -977,6 +977,40 @@ class TestIterableOperator:
                 assert context["ti"].task is parent_ti_task
                 assert context["task"] is iterable_op
 
+    def test_an_item_sees_its_own_operator_as_the_contexts_task(self):
+        """
+        ``context["task"]`` inside an item, and in its callbacks, is the item's unmapped operator.
+
+        ``.expand()`` gives each mapped task instance its own operator under ``context["task"]``
+        (``context_update_for_unmapped`` sets it next to ``ti.task``); the item's view of the context
+        must swap that key as well, not only ``ti``, or user code reads the IterableOperator there.
+        """
+        seen: list[tuple[str, object, object]] = []
+
+        class MockContextTaskOperator(BaseOperator):
+            def execute(self, context):
+                seen.append(("execute", context["task"], context["ti"].task))
+
+        def on_success(context):
+            seen.append(("on_success_callback", context["task"], context["ti"].task))
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{}, {}])
+            mapped_op = MockContextTaskOperator.partial(
+                task_id="context_task", dag=dag, on_success_callback=on_success
+            )._expand(expand_input, strict=True, register_with_dag=False)
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            with mock_context(task=iterable_op) as context:
+                iterable_op.execute(context=context)
+
+        assert len(seen) == 4
+        for where, task, ti_task in seen:
+            assert task is ti_task, where
+            assert isinstance(task, MockContextTaskOperator), where
+            assert task is not iterable_op, where
+        assert context["task"] is iterable_op
+
     def test_execute_resolves_and_reads_the_expand_input_on_the_running_loop(self):
         """
         Regression test for the frozen IterableOperator: sub-task inputs were pulled from the main
