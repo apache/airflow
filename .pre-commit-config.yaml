@@ -430,6 +430,25 @@ repos:
           ^go-sdk/schema/dag-schema\.json$|
           ^scripts/ci/lang_sdk_serialization/.*$|
           ^scripts/ci/prek/check_go_sdk_serialization_conformance\.py$
+      - id: check-java-sdk-serialization-conformance
+        name: Check the Java SDK serializes Dags the way Airflow does
+        description: "Serialize the shared test Dags with the Java SDK and with Airflow, and compare the two"
+        entry: ./java-sdk/scripts/ci/prek/check_serialization_conformance.py
+        language: system
+        pass_filenames: false
+        require_serial: true
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^java-sdk/scripts/ci/prek/check_serialization_conformance\.py$|
+          ^java-sdk/sdk/schema/dag-schema\.json$|
+          ^java-sdk/sdk/build\.gradle\.kts$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(Bundle|DagDef|Deps|Arg|TaskGroupRef)\.kt$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/execution/Serde\.kt$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/internal/(Refs|Fields)\.kt$|
+          ^java-sdk/sdk/src/test/kotlin/org/apache/airflow/sdk/conformance/.*$|
+          ^scripts/ci/lang_sdk_serialization/.*$
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         entry: ./scripts/ci/prek/check_go_version_in_sync.py

@@ -136,6 +136,7 @@ class BuilderTest {
 
          import java.lang.Integer;
          import java.lang.Void;
+         import java.util.List;
          import org.apache.airflow.sdk.Arg;
          import org.apache.airflow.sdk.Deps;
          import org.apache.airflow.sdk.TaskDef;
@@ -159,7 +160,7 @@ class BuilderTest {
            }
 
            default TaskRef<Void> t3(Arg<? extends Integer> value) {
-             return Refs.call("", new TaskDef("t3", TestExampleBuilder.T3.class), value);
+             return Refs.call("", new TaskDef("t3", TestExampleBuilder.T3.class), List.of("value"), value);
            }
          }
         """,
@@ -381,7 +382,7 @@ class BuilderTest {
 
            default TaskRef<Void> t(Arg<? extends String> text, Arg<?> anything,
                Arg<? extends List<String>> items, Arg<? extends Long> boxed) {
-             return Refs.call("", new TaskDef("t", TestExampleBuilder.T.class), text, anything, items, boxed);
+             return Refs.call("", new TaskDef("t", TestExampleBuilder.T.class), List.of("text", "anything", "items", "boxed"), text, anything, items, boxed);
            }
          }
         """,

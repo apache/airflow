@@ -75,7 +75,7 @@ class TaskArgs private constructor(
       client: Client,
       declared: Int,
     ): TaskArgs {
-      ArgValues.wiredInputs(context, client)?.let { wired ->
+      ArgValues.wiredInputs(context)?.let { wired ->
         // Positional binding is strict in both directions: a parameter has no
         // name to fall back on, so a count that does not match cannot be
         // resolved and the run fails here rather than mid-task.

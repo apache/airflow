@@ -675,7 +675,9 @@ generated view, with a no-argument ``depends()`` method:
 
 Every ``@Builder.Task`` method must be called in the wiring class; a task the wiring missed fails at
 Dag-parse time.  ``lit(...)`` wires an inline constant where no upstream feeds a parameter.  A bare
-``double`` cannot be an ``Arg``, so a constant is wrapped.  A view method that takes no arguments
+``double`` cannot be an ``Arg``, so a constant is wrapped.  Airflow records what each task is called
+with, and that record travels as JSON, so a constant has to be a string, number, boolean, list or
+map.  A view method that takes no arguments
 returns the same handle every time, so it names one node wherever it appears; one that takes
 arguments is called once, and the wiring fails if it is called again with arguments, so hold its
 handle in a local and reuse that.
@@ -690,9 +692,9 @@ class that supplies only task bodies, for a Dag a Python file declares, carries
 
 .. note::
 
-   Runtime argument bindings win over Java-declared wiring.  When the supervisor delivers bindings
-   for a run (see :ref:`java-sdk/arg-binding`), the binding at a parameter's position is what the
-   task receives.  Wired inputs are the fallback, which is what a native Java Dag always uses.
+   A native Java Dag binds its task arguments from its own wiring, and the ``_arg_bindings`` it
+   serializes are what Airflow records and shows.  Runtime bindings (see :ref:`java-sdk/arg-binding`)
+   are what a ``@Builder.TaskHandler`` class reads, for a task whose Dag a Python file declares.
 
 Task groups
 ~~~~~~~~~~~
@@ -771,6 +773,9 @@ Durations and date-times are ISO-8601 strings in annotations (``retryDelay = "PT
 ``startDate = "2026-01-01T00:00:00Z"``, validated at compile time) and ``java.time.Duration`` /
 ``java.time.OffsetDateTime`` values in ``config`` calls.  An unknown key or a mismatched value type
 fails the build for an annotation, and the ``config`` call itself for an object.
+
+A Dag with a cron ``schedule`` runs in the time zone of its ``startDate``.  With no ``startDate`` it
+is scheduled in UTC, so set ``startDate`` to pin the zone.
 
 .. _java-sdk/task-state-store:
 

@@ -316,6 +316,9 @@ class TaskDef(
 
   internal val configValues = linkedMapOf<String, Any>()
   internal val inputs = mutableListOf<Arg<*>>()
+
+  /** Name of the task parameter each of [inputs] feeds, in the same order. */
+  internal val inputNames = mutableListOf<String>()
   internal val upstreams = linkedSetOf<TaskDef>()
   internal var owner: DagDef? = null
 
