@@ -310,11 +310,11 @@ class TestGlueJobOperator:
         glue.hook.conn = mock.MagicMock()
         glue.hook.conn.get_job_runs.return_value = {"JobRuns": [], "NextToken": "next-page"}
 
-        with mock.patch.object(glue.log, "info") as mock_log_info:
+        with mock.patch.object(glue.log, "warning") as mock_log_warning:
             assert glue._find_job_run_id_by_task_uuid("missing-task-uuid") is None
 
         assert glue.hook.conn.get_job_runs.call_count == GlueJobOperator.TASK_UUID_SCAN_MAX_PAGES
-        mock_log_info.assert_called_once_with(
+        mock_log_warning.assert_called_once_with(
             "Stopped scanning Glue job runs for task UUID after %s pages without a match",
             GlueJobOperator.TASK_UUID_SCAN_MAX_PAGES,
         )
