@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
@@ -236,13 +237,24 @@ class MCPHook(BaseHook):
                 raise ValueError(
                     f"Connection {self.mcp_conn_id!r} requires 'command' in extra for stdio transport."
                 )
-            args = extra.get("args", [])
-            if isinstance(args, str):
-                args = [args]
+            args = extra.get("args")
+            if args is None:
+                args = []
+            elif isinstance(args, str):
+                if args.strip().startswith("["):
+                    try:
+                        args = json.loads(args)
+                    except ValueError as e:
+                        raise ValueError(
+                            f"'args' in extra for connection {self.mcp_conn_id!r} looks like a JSON array "
+                            f"but is not valid JSON: {args!r}."
+                        ) from e
+                else:
+                    args = [args]
             if not isinstance(args, list) or not all(isinstance(arg, str) for arg in args):
                 raise ValueError(
-                    f"'args' in extra for connection {self.mcp_conn_id!r} must be a string or a "
-                    f"list of strings, got {args!r}."
+                    f"'args' in extra for connection {self.mcp_conn_id!r} must be a string, a JSON "
+                    f"array of strings or a list of strings, got {args!r}."
                 )
             timeout = extra.get("timeout", 10)
             # ``None`` and ``0`` are both valid "no timeout" values, but fastmcp replaces
