@@ -79,7 +79,7 @@ def _configure_eks_auth(configuration: client.Configuration | async_client.Confi
     cluster = eks_hook.conn.describe_cluster(name=cluster_name)["cluster"]
     if cluster["status"] not in _USABLE_CLUSTER_STATUSES:
         raise ValueError(
-            f"EKS cluster {cluster_name} is {cluster['status']}; the executor needs it to be ACTIVE"
+            f"EKS cluster {cluster_name} is {cluster['status']}; the executor needs it to be ACTIVE or UPDATING"
         )
     session = eks_hook.get_session()
 

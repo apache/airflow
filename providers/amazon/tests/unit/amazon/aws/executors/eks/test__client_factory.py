@@ -109,12 +109,21 @@ class TestGetEksKubeClient:
         mock_aws["eks_hook_cls"].assert_called_once_with(aws_conn_id="aws_eks", region_name="eu-west-1")
         os.unlink(configuration.ssl_ca_cert)
 
+    @conf_vars({("aws_eks_executor", "cluster_name"): CLUSTER_NAME})
+    def test_updating_cluster_is_accepted(self, mock_aws):
+        mock_aws["eks_hook"].conn.describe_cluster.return_value["cluster"]["status"] = "UPDATING"
+
+        configuration = _get_eks_kube_client().api_client.configuration
+
+        assert configuration.host == CLUSTER_ENDPOINT
+        os.unlink(configuration.ssl_ca_cert)
+
     @pytest.mark.parametrize("status", ["CREATING", "DELETING", "FAILED"])
     @conf_vars({("aws_eks_executor", "cluster_name"): CLUSTER_NAME})
     def test_unusable_cluster_status_raises(self, mock_aws, status):
         mock_aws["eks_hook"].conn.describe_cluster.return_value["cluster"]["status"] = status
 
-        with pytest.raises(ValueError, match=f"{CLUSTER_NAME} is {status}"):
+        with pytest.raises(ValueError, match=f"{CLUSTER_NAME} is {status}; .* ACTIVE or UPDATING"):
             _get_eks_kube_client()
 
 
