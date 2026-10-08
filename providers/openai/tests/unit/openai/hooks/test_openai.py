@@ -23,7 +23,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, mock_open, patch
 
 import pytest
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types import (
     Batch,
@@ -1131,7 +1131,7 @@ async def test_aget_conn_invalid_auth_type():
     ],
 )
 async def test_acreate_embeddings(input_text, response_items, expected):
-    client = MagicMock()
+    client = MagicMock(spec=AsyncOpenAI)
     client.embeddings.create = AsyncMock(
         return_value=CreateEmbeddingResponse(
             data=[
