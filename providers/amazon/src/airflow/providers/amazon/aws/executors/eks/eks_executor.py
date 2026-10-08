@@ -28,17 +28,11 @@ from airflow.providers.amazon.aws.executors.eks.utils import (
 )
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, conf
 
-MIN_CNCF_KUBERNETES_VERSION = "10.24.0"
-_CNCF_KUBERNETES_REQUIRED = (
-    f"AwsEksExecutor requires apache-airflow-providers-cncf-kubernetes>={MIN_CNCF_KUBERNETES_VERSION}. "
-    "Install it with: pip install 'apache-airflow-providers-amazon[cncf.kubernetes]' "
-    f"'apache-airflow-providers-cncf-kubernetes>={MIN_CNCF_KUBERNETES_VERSION}'"
-)
+_CNCF_KUBERNETES_REQUIRED = "AwsEksExecutor requires apache-airflow-providers-cncf-kubernetes>=10.24.0"
 
 try:
     from kubernetes.client.rest import ApiException
 
-    from airflow.providers.cncf.kubernetes import __version__ as cncf_kubernetes_version
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
     from airflow.providers.cncf.kubernetes.get_provider_info import (
         get_provider_info as get_cncf_kubernetes_provider_info,
@@ -46,14 +40,11 @@ try:
 except ImportError as e:
     raise AirflowOptionalProviderFeatureException(_CNCF_KUBERNETES_REQUIRED) from e
 
-# Checks for the client_factory option rather than the version number, because an unreleased
-# source tree still reports the previous cncf.kubernetes release.
+# Check for the option, not the version, since unreleased trees report the previous version.
 if "client_factory" not in (
     get_cncf_kubernetes_provider_info().get("config", {}).get("kubernetes_executor", {}).get("options", {})
 ):
-    raise AirflowOptionalProviderFeatureException(
-        f"{_CNCF_KUBERNETES_REQUIRED}. The installed version is {cncf_kubernetes_version}."
-    )
+    raise AirflowOptionalProviderFeatureException(_CNCF_KUBERNETES_REQUIRED)
 
 # Import paths, because cncf.kubernetes re-resolves the factories in each process (see _client_factory).
 _FACTORY_MODULE = "airflow.providers.amazon.aws.executors.eks._client_factory"

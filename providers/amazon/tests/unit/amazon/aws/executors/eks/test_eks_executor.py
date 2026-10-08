@@ -28,7 +28,6 @@ from airflow.providers.amazon.aws.executors.eks import AwsEksExecutor, _client_f
 from airflow.providers.amazon.aws.executors.eks.eks_executor import (
     _ASYNC_CLIENT_FACTORY_PATH,
     _CLIENT_FACTORY_PATH,
-    MIN_CNCF_KUBERNETES_VERSION,
 )
 from airflow.providers.amazon.get_provider_info import get_provider_info
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
@@ -148,7 +147,7 @@ class TestCncfKubernetesRequirement:
             sys.modules, "airflow.providers.cncf.kubernetes.executors.kubernetes_executor", None
         )
 
-        with pytest.raises(AirflowOptionalProviderFeatureException, match=MIN_CNCF_KUBERNETES_VERSION):
+        with pytest.raises(AirflowOptionalProviderFeatureException, match=">=10.24.0"):
             importlib.import_module(EKS_EXECUTOR_MODULE)
 
     @pytest.mark.parametrize(
@@ -167,7 +166,7 @@ class TestCncfKubernetesRequirement:
         ):
             with pytest.raises(
                 AirflowOptionalProviderFeatureException,
-                match=rf">={MIN_CNCF_KUBERNETES_VERSION}.*The installed version is",
+                match=">=10.24.0",
             ):
                 importlib.import_module(EKS_EXECUTOR_MODULE)
 
