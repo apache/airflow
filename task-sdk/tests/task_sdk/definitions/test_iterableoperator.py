@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import timedelta
@@ -1975,6 +1976,57 @@ class TestIterableOperator:
 
         assert sorted(kills) == ["first", "second"]
 
+    def test_on_kill_reaches_every_sub_operator_when_one_raises_a_base_exception(self):
+        """A sub-operator's on_kill may raise DeadlockImminentError, a BaseException; the rest are still killed."""
+
+        class RaisingOnKill(MockOnKillOperator):
+            def on_kill(self):
+                raise DeadlockImminentError("sync SDK call on the loop thread")
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{}]), task_id="on_kill_raises", operator_class=MockOnKillOperator
+            )
+        first, second = RaisingOnKill(task_id="first"), MockOnKillOperator(task_id="second")
+        iterable_op._active_sub_operators[id(first)] = first
+        iterable_op._active_sub_operators[id(second)] = second
+
+        iterable_op.on_kill()
+
+        assert second.killed is True
+
+    def test_on_kill_inside_a_running_loop_kills_off_the_loop_thread(self):
+        """
+        The runner's SIGTERM handler calls on_kill on the main thread, usually while the loop runs
+        there; the sub-operators' on_kill may make a sync SDK call, which must not run on the loop.
+        """
+        seen: dict[str, bool] = {}
+        done = threading.Event()
+        main = threading.get_ident()
+
+        class Op(MockOnKillOperator):
+            def on_kill(self):
+                seen["on_running_loop"] = asyncio._get_running_loop() is not None
+                seen["on_main"] = threading.get_ident() == main
+                done.set()
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{}]), task_id="on_kill_in_loop", operator_class=Op
+            )
+        op = Op(task_id="active")
+        iterable_op._active_sub_operators[id(op)] = op
+
+        async def kill_from_the_loop():
+            iterable_op.on_kill()
+            await asyncio.wait_for(asyncio.to_thread(done.wait, 5), 6)
+
+        with event_loop() as loop:
+            loop.run_until_complete(kill_from_the_loop())
+
+        assert done.is_set()
+        assert seen == {"on_running_loop": False, "on_main": False}
+
     def test_on_kill_is_noop_when_no_sub_operators_are_active(self):
         """on_kill() must not raise when called with no in-flight sub-tasks (e.g. the
         IterableOperator is killed before any sub-task has started, or after all finished)."""
@@ -2239,6 +2291,110 @@ class TestIterableOperatorContextIsolation:
         assert len(warning_list) == 1
         assert "sync" in str(warning_list[0].message).lower()
         assert "caps the whole iteration" in str(warning_list[0].message)
+
+
+class MockCallbackSyncOperator(BaseOperator):
+    """Sync twin of MockCallbackAsyncOperator: defers for ``arg1="defer"``, sleeps otherwise."""
+
+    template_fields = ("arg1",)
+
+    def __init__(self, arg1=None, **kwargs):
+        kwargs["on_success_callback"] = lambda context: FIRED_CALLBACKS.append(("success", self.arg1))
+        kwargs["on_failure_callback"] = lambda context: FIRED_CALLBACKS.append(("failure", self.arg1))
+        kwargs["on_retry_callback"] = lambda context: FIRED_CALLBACKS.append(("retry", self.arg1))
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+
+    def execute(self, context):
+        if self.arg1 == "defer":
+            raise TaskDeferred(trigger=None, method_name="execute_complete")  # type: ignore[arg-type]
+        time.sleep(0.5)
+        return self.arg1
+
+
+class TestItemThreads:
+    """
+    Which thread an item's code and callbacks run on.
+
+    A sync item runs in a worker thread, enter and exit included, so a sync SDK call from its
+    ``execute`` or its callbacks waits for the comms lock; on the loop thread the same call raises
+    ``DeadlockImminentError`` while a sibling's async SDK call is in flight. An async item runs on
+    the loop and must stay async-safe.
+    """
+
+    @staticmethod
+    def _run(operator_class, is_async):
+        seen: list[tuple[str, bool, bool]] = []
+        main = threading.get_ident()
+
+        def note(where):
+            seen.append((where, threading.get_ident() != main, asyncio._get_running_loop() is not None))
+
+        if is_async:
+
+            class Op(operator_class):
+                def __init__(self, **kwargs):
+                    kwargs["on_success_callback"] = lambda context: note("on_success_callback")
+                    kwargs["on_execute_callback"] = lambda context: note("on_execute_callback")
+                    super().__init__(**kwargs)
+
+                async def aexecute(self, context):
+                    note("aexecute")
+
+        else:
+
+            class Op(operator_class):
+                def __init__(self, **kwargs):
+                    kwargs["on_success_callback"] = lambda context: note("on_success_callback")
+                    kwargs["on_execute_callback"] = lambda context: note("on_execute_callback")
+                    super().__init__(**kwargs)
+
+                def execute(self, context):
+                    note("execute")
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{}, {}])
+            mapped_op = Op.partial(task_id="threads", dag=dag, task_concurrency=2)._expand(
+                expand_input, strict=True, register_with_dag=False
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+            with mock_context(task=iterable_op) as context:
+                iterable_op.execute(context=context)
+        assert len(seen) == 6
+        return seen
+
+    def test_a_sync_items_code_and_callbacks_run_in_its_worker_thread(self):
+        for where, off_main, on_running_loop in self._run(BaseOperator, is_async=False):
+            assert off_main, where
+            assert not on_running_loop, where
+
+    def test_an_async_items_code_and_callbacks_run_on_the_loop_thread(self):
+        for where, off_main, on_running_loop in self._run(BaseAsyncOperator, is_async=True):
+            assert not off_main, where
+            assert on_running_loop, where
+
+    def test_a_sync_item_cancelled_by_a_sibling_reports_nothing_when_its_thread_finishes(self):
+        """
+        The coroutine waiting for a sync item is cancelled while its thread goes on; the item gets
+        no checkpoint, so its exit must fire no callback: the next attempt runs it and reports then.
+        """
+        FIRED_CALLBACKS.clear()
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": "defer"}, {"arg1": "sleeper"}]),
+                task_id="cancelled_sync_sibling",
+                retries=3,
+                task_concurrency=2,
+                operator_class=MockCallbackSyncOperator,
+            )
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = 1
+                context["ti"].max_tries = 3
+                with pytest.raises(AirflowFailException, match="attempted to defer"):
+                    iterable_op.execute(context=context)
+
+        assert [fired for fired in FIRED_CALLBACKS if fired[1] == "sleeper"] == []
 
 
 KILLED_ON_TIMEOUT: list = []

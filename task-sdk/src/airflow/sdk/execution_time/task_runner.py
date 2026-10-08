@@ -1132,6 +1132,21 @@ class IndexedTaskRunner(LoggingMixin):
         #: The exception this indexed task failed with, noted by __exit__ and reported by
         #: :meth:`report_failure` once the whole task's fate is known.
         self.failure: BaseException | None = None
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        """
+        Note that the coroutine waiting for this sync indexed task was cancelled.
+
+        Its thread may go on, but the task gets no checkpoint from here on, so its exit records
+        no state and fires no callback; the next attempt runs it again and reports it then.
+        """
+        self._cancelled = True
+
+    @property
+    def cancelled(self) -> bool:
+        """Whether :meth:`cancel` was called: the indexed task's exit then reports nothing."""
+        return self._cancelled
 
     @property
     def dag_id(self) -> str:
@@ -1234,6 +1249,8 @@ class IndexedTaskRunner(LoggingMixin):
     def __exit__(self, exc_type, exc_value, traceback):
         elapsed = time.monotonic() - self._start_time if self._start_time else 0.0
 
+        if self._cancelled:
+            return None
         if exc_value:
             # Cancelled because the task is stopping, for a reason another iteration raised: this
             # iteration neither failed nor will be retried on its own account, so it gets no state

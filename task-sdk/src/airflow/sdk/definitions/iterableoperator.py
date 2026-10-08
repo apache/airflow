@@ -401,10 +401,12 @@ class IterableOperator(BaseOperator):
         **Callbacks run per item, and a failed item's wait for the task's fate.**
 
         ``on_success_callback`` and ``on_skipped_callback`` run as soon as an item succeeds or
-        skips. A failed item's ``on_failure_callback`` or ``on_retry_callback`` runs once every
-        item has run, and says what happens to the task: retried or failed for good (see
-        :meth:`_report_failed_items`). A failure no item owns, such as an error resolving the
-        input, fires no callback: the iterated task has none of its own.
+        skips, where the item ran: in its worker thread for a sync operator, on the event loop
+        for an async one. A failed item's ``on_failure_callback`` or ``on_retry_callback`` runs
+        once every item has run, on the thread that ran the iteration, and says what happens to
+        the task: retried or failed for good (see :meth:`_report_failed_items`). A failure no item
+        owns, such as an error resolving the input, fires no callback: the iterated task has none
+        of its own.
 
     .. note::
         **Pools count the task instance, not its iterations.**
@@ -426,7 +428,10 @@ class IterableOperator(BaseOperator):
         call that is concurrently holding the communication lock, which is detected and raised
         eagerly as a non-retryable failure rather than silently deadlocking. Use the async-safe
         equivalents inside async operators: :meth:`~airflow.sdk.bases.hook.BaseHook.aget_connection`/
-        ``aget_hook``, ``ti.axcom_pull`` and ``Variable.aget``/``aset``.
+        ``aget_hook``, ``ti.axcom_pull`` and ``Variable.aget``/``aset``. Sync sub-tasks are not
+        concerned: they run in worker threads, their ``execute``, hooks and callbacks included,
+        where a synchronous SDK call waits for the lock; so does ``on_kill`` of the sub-operators,
+        which :meth:`on_kill` runs off the loop thread.
 
     .. warning::
         **``execution_timeout`` caps the whole iteration; per-sub-task enforcement is async-only.**
@@ -593,10 +598,28 @@ class IterableOperator(BaseOperator):
                 op for key, op in self._active_sub_operators.items() if key not in self._killed_sub_operators
             ]
             self._killed_sub_operators.update(map(id, active_operators))
-        for operator in active_operators:
+        if not active_operators:
+            return
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            self._kill(active_operators)
+        else:
+            # Called by the runner's SIGTERM handler on the main thread while the event loop runs
+            # there. A sub-operator's on_kill may make a synchronous SDK call, which waits for the
+            # comms lock in another thread but raises DeadlockImminentError on the loop thread, so
+            # the kills run in a thread of their own; the loop goes on serving the sub-tasks.
+            threading.Thread(
+                target=self._kill, args=(active_operators,), name="iterable-operator-on-kill", daemon=True
+            ).start()
+
+    def _kill(self, operators: list[BaseOperator]) -> None:
+        # One sub-operator's on_kill must not keep the kill from the others: DeadlockImminentError
+        # is a BaseException, so it is caught here as a plain error is.
+        for operator in operators:
             try:
                 operator.on_kill()
-            except Exception:
+            except BaseException:
                 self.log.exception("Error calling on_kill() for sub-task operator %s", operator.task_id)
 
     @property
@@ -722,13 +745,15 @@ class IterableOperator(BaseOperator):
                                 if isinstance(raised, DeadlockImminentError):
                                     raise AirflowFailException(
                                         f"Sub-task {task.task_id}[{task.index}] made a synchronous SDK call "
-                                        "(e.g. Variable.get, BaseHook.get_connection/get_hook, ti.xcom_pull, or a "
-                                        "sync callback) from an async sub-task. Synchronous SDK calls are not safe "
-                                        "inside an async operator's aexecute(): they can collide with another "
-                                        "concurrently running sub-task's async SDK call and deadlock the event "
-                                        "loop, so this is detected and raised eagerly instead. Use the async-safe "
-                                        "equivalents (e.g. Variable.aget/aset, Hook.aget_connection/aget_hook, ti.axcom_pull) inside "
-                                        "async operators."
+                                        "(e.g. Variable.get, BaseHook.get_connection/get_hook, ti.xcom_pull) on "
+                                        "the event loop thread while another sub-task's async SDK call was in "
+                                        "flight, which would deadlock the loop, so it is detected and raised "
+                                        "eagerly instead. Inside IterableOperator only async sub-tasks run on "
+                                        "that thread: an async operator's aexecute(), its pre_execute/"
+                                        "post_execute and its callbacks. Use the async-safe equivalents there "
+                                        "(e.g. Variable.aget/aset, Hook.aget_connection/aget_hook, "
+                                        "ti.axcom_pull); sync sub-tasks and their callbacks run in worker "
+                                        "threads, where the same calls wait their turn."
                                     ) from raised
                                 if not isinstance(raised, Exception):
                                     raise AirflowFailException(
@@ -746,8 +771,13 @@ class IterableOperator(BaseOperator):
                         except BaseException:
                             # Whatever ends the loop early (the parent's execution_timeout, a failure that
                             # stops the task) is followed by the executor cancelling the coroutines, which
-                            # would leave nothing registered for on_kill(); kill what is in flight first.
-                            self.on_kill()
+                            # would leave nothing registered for on_kill(); kill what is in flight first,
+                            # off the loop thread, so that a sub-operator's synchronous SDK call in on_kill
+                            # waits for the sub-tasks' calls in flight instead of raising.
+                            try:
+                                loop.run_until_complete(asyncio.to_thread(self.on_kill))
+                            except RuntimeError:
+                                self.on_kill()
                             raise
 
                 if exceptions:
@@ -934,11 +964,19 @@ class IterableOperator(BaseOperator):
             active_operators_lock=self._active_sub_operators_lock,
         )
         try:
-            with indexed_task_runner:
-                if task.is_async:
+            if task.is_async:
+                with indexed_task_runner:
                     result = await indexed_task_runner.arun(context)
-                else:
-                    result = await executor.run_sync(indexed_task_runner.run, context)
+            else:
+                # Entered and exited in the worker thread with execute, so the success and skip
+                # callbacks fired from the exit run there too: a synchronous SDK call made from them
+                # waits for the comms lock, where on the loop thread it would raise.
+
+                def run_item():
+                    with indexed_task_runner:
+                        return indexed_task_runner.run(context)
+
+                result = await executor.run_sync(run_item)
 
             indexed_task_state = IndexedTaskState(
                 status=TaskInstanceState.SUCCESS,
@@ -961,12 +999,16 @@ class IterableOperator(BaseOperator):
             if task.pushed_xcoms:
                 indexed_task_state.xcoms = dict(task.pushed_xcoms)
             await task.aset_state(indexed_task_state)
-        except (asyncio.CancelledError, AirflowTaskTimeout):
+        except (asyncio.CancelledError, AirflowTaskTimeout) as stopped:
             # Not this sub-task's outcome: it is being stopped from outside, by the executor
             # cancelling it or by the parent's execution_timeout, whose signal handler raises on the
             # main thread in whichever sub-task happens to run there. Both go on unchanged, so a
             # cancellation stays one and the timeout reaches the runner, which retries the task. The
             # sub-task the timeout struck is reported with the others (a cancelled one has nothing).
+            if isinstance(stopped, asyncio.CancelledError):
+                # A sync sub-task's thread may still be running: it gets no checkpoint from here on,
+                # so its exit must report nothing either (see IndexedTaskRunner.cancel).
+                indexed_task_runner.cancel()
             if indexed_task_runner.failure is not None:
                 self._failed_runners.append(indexed_task_runner)
             raise
