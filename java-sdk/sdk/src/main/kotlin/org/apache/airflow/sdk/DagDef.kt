@@ -23,6 +23,7 @@ import org.apache.airflow.sdk.internal.DagSource
 import org.apache.airflow.sdk.internal.GROUP_ID
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.checkConfigValue
+import org.apache.airflow.sdk.internal.deriveTaskId
 import org.apache.airflow.sdk.internal.validateTaskInput
 import kotlin.Throws
 
@@ -57,6 +58,13 @@ class DagDef(
 
   /** Edges with a task group at either end, in the order drawn. */
   internal val groupEdges = linkedSetOf<Pair<Endpoint, Endpoint>>()
+
+  /**
+   * Whether a [Bundle] has taken this Dag. A decider checked when the Dag was
+   * registered cannot be changed afterwards, because nothing would check the
+   * change.
+   */
+  internal var registered: Boolean = false
 
   /** Outermost class that declared this Dag, or `null` if it could not be told. */
   internal var declaringClass: Class<*>? = DagSource.capture()
@@ -151,6 +159,47 @@ class DagDef(
     task.owner = this
     return this
   }
+
+  /**
+   * Declares a task whose boolean picks one of two tasks; the other is
+   * skipped.
+   *
+   * The task's ID is the class's simple name with its first character
+   * lowercased, so `HasRows.class` becomes `hasRows`. Use
+   * [If(id, definition)][If] to set it, and [ConditionRef.config] for the
+   * task's other settings:
+   *
+   * ```java
+   * dag.If(HasRows.class).config("retries", 2).then(load).orElse(reportEmpty);
+   * ```
+   *
+   * @param definition Class that implements [ConditionTask]. Must have a
+   *    public no-arg constructor.
+   * @return The condition, to name each side on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun If(definition: Class<out ConditionTask>): ConditionRef = If(deriveTaskId(definition), definition)
+
+  /**
+   * Declares a task whose boolean picks one of two tasks, under the task ID
+   * [id].
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param definition Class that implements [ConditionTask]. Must have a
+   *    public no-arg constructor.
+   * @return The condition, to name each side on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   *
+   * @see If
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun If(
+    id: String,
+    definition: Class<out ConditionTask>,
+  ): ConditionRef = ConditionRef.of(task(id, definition))
 
   /**
    * Declares a task group of this Dag.
@@ -325,6 +374,9 @@ class TaskDef(
   internal val inputNames = mutableListOf<String>()
   internal val upstreams = linkedSetOf<TaskDef>()
   internal var owner: DagDef? = null
+
+  /** What this task decides to run, for a condition or a branch; null otherwise. */
+  internal var decider: DeciderDef? = null
 
   /**
    * Sets one task-level configuration value.

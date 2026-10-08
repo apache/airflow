@@ -19,6 +19,8 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.deriveTaskId
+
 /**
  * A group of tasks in a Dag, shown in the Airflow UI as one node that expands:
  * Python's `TaskGroup`.
@@ -73,6 +75,36 @@ class TaskGroupRef internal constructor(
     adopt(def)
     return TaskRef(def)
   }
+
+  /**
+   * Declares a condition in this group, as [DagDef.If] does for the Dag.
+   *
+   * @param definition Class that implements [ConditionTask]. Must have a
+   *    public no-arg constructor.
+   * @return The condition, to name each side on.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun If(definition: Class<out ConditionTask>): ConditionRef = If(deriveTaskId(definition), definition)
+
+  /**
+   * Declares a condition in this group under the task ID `<group ID>.<id>`.
+   *
+   * @param id Task ID within this group.
+   * @param definition Class that implements [ConditionTask]. Must have a
+   *    public no-arg constructor.
+   * @return The condition, to name each side on.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   *
+   * @see If
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun If(
+    id: String,
+    definition: Class<out ConditionTask>,
+  ): ConditionRef = ConditionRef.of(task(id, definition))
 
   /**
    * Nests a task group inside this one.

@@ -46,6 +46,7 @@ private class FakeTransport(
   val stored: TaskStateStoreResult? = null,
 ) : org.apache.airflow.sdk.execution.Client {
   val calls = mutableListOf<StateStoreCall>()
+  val skipped = mutableListOf<String>()
 
   override fun getConnection(id: String): ConnectionResult = connection
 
@@ -103,6 +104,10 @@ private class FakeTransport(
 
   override fun clearTaskStateStore(tiId: UUID) {
     calls.add(StateStoreCall("clear", tiId))
+  }
+
+  override fun skipDownstreamTasks(taskIds: List<String>) {
+    skipped += taskIds
   }
 }
 

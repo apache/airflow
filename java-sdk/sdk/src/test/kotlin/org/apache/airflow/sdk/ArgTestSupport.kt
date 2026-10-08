@@ -90,6 +90,8 @@ internal class FakeXComTransport(
   ) = throw NotImplementedError()
 
   override fun clearTaskStateStore(tiId: UUID) = throw NotImplementedError()
+
+  override fun skipDownstreamTasks(taskIds: List<String>) = throw NotImplementedError()
 }
 
 internal fun startupDetails(argBindings: List<Map<String, Any?>>?): StartupDetails =

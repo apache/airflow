@@ -55,6 +55,22 @@ public class InterfaceExample {
     }
   }
 
+  public static class LoadEmpty implements Task {
+    @Override
+    public void execute(Context context, Client client) {
+      log.log(INFO, "Nothing to load");
+    }
+  }
+
+  // A condition: its boolean picks one of the two loads, and the other is
+  // skipped.
+  public static class HasRows implements ConditionTask {
+    @Override
+    public boolean decide(Context context, Client client) {
+      return ((Number) client.getXCom("transform")).longValue() > 0;
+    }
+  }
+
   public static DagDef build() {
     var dag =
         new DagDef("java_native_interface_example")
@@ -69,8 +85,11 @@ public class InterfaceExample {
             .config("doc_md", "Extracts a value and pushes it as an XCom.");
     var transform = dag.task("transform", Transform.class);
     var load = dag.task("load", Load.class);
+    var loadEmpty = dag.task("load_empty", LoadEmpty.class);
 
-    transform.after(extract).before(load);
+    transform.after(extract);
+    // With no task id given, the condition takes one from its class: "hasRows".
+    dag.If(HasRows.class).after(transform).then(load).orElse(loadEmpty);
     return dag;
   }
 }

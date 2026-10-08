@@ -33,6 +33,7 @@ import org.apache.airflow.sdk.execution.comm.OKResponse
 import org.apache.airflow.sdk.execution.comm.PutVariable
 import org.apache.airflow.sdk.execution.comm.SetTaskStateStore
 import org.apache.airflow.sdk.execution.comm.SetXCom
+import org.apache.airflow.sdk.execution.comm.SkipDownstreamTasks
 import org.apache.airflow.sdk.execution.comm.TaskStateStoreResult
 import org.apache.airflow.sdk.execution.comm.VariableResult
 import org.apache.airflow.sdk.execution.comm.XComResult
@@ -102,6 +103,13 @@ interface Client {
   )
 
   fun clearTaskStateStore(tiId: UUID)
+
+  /**
+   * Marks [taskIds] of the running Dag run skipped, as a decider's untaken
+   * branches are. Airflow leaves a task instance that is already running,
+   * succeeded or failed alone.
+   */
+  fun skipDownstreamTasks(taskIds: List<String>)
 }
 
 /**
@@ -230,5 +238,11 @@ class CoordinatorClient(
 
   override fun clearTaskStateStore(tiId: UUID) {
     runBlocking { exec.communicate<OKResponse>(ClearTaskStateStore().also { it.tiId = tiId }) }
+  }
+
+  override fun skipDownstreamTasks(taskIds: List<String>) {
+    if (taskIds.isEmpty()) return
+    val message = SkipDownstreamTasks().also { it.tasks = ArrayList<Any>(taskIds) }
+    runBlocking { exec.communicate<Unit>(message) }
   }
 }
