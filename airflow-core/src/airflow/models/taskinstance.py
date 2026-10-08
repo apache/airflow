@@ -2581,6 +2581,20 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             else:
                 dr = unmapped_ti.dag_run
                 state = unmapped_ti.state
+                if unmapped_ti.try_number > 0:
+                    # Archived attempts only exist once the placeholder has been retried. They would have
+                    # no current attempt left once it moves to index 0 or is deleted.
+                    session.execute(
+                        delete(TaskInstance)
+                        .where(
+                            TaskInstance.dag_id == task.dag_id,
+                            TaskInstance.task_id == task.task_id,
+                            TaskInstance.run_id == run_id,
+                            TaskInstance.map_index == -1,
+                            TaskInstance.working_set.is_(None),
+                        )
+                        .execution_options(synchronize_session=False, include_all_attempts=True)
+                    )
                 zero_index_ti_exists = exists_query(
                     TaskInstance.working_set.is_(True),
                     TaskInstance.dag_id == task.dag_id,

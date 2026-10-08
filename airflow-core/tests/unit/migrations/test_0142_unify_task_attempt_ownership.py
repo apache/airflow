@@ -721,6 +721,13 @@ def drop_unique_constraint(connection, name):
         connection.exec_driver_sql("PRAGMA foreign_keys=ON")
 
 
+def assert_upgraded_schema_untouched(connection):
+    tables = sa.inspect(connection).get_table_names()
+    assert {"xcom_v1", "legacy_task_data_owner"} <= set(tables)
+    assert "task_instance_history" not in tables
+    assert "hitl_detail_history" not in tables
+
+
 @pytest.mark.parametrize("legacy_store", ["xcom", "rendered_task_instance_fields"])
 def test_downgrade_rejects_owner_that_changed_coordinates(populated_predecessor, legacy_store):
     connection, config = populated_predecessor
@@ -734,6 +741,7 @@ def test_downgrade_rejects_owner_that_changed_coordinates(populated_predecessor,
     connection.commit()
     with pytest.raises(RuntimeError, match="legacy owners changed coordinates"):
         command.downgrade(config, PREDECESSOR)
+    assert_upgraded_schema_untouched(connection)
 
 
 def test_downgrade_deletes_stale_owner_of_an_attempt_retried_after_promotion(populated_predecessor):
@@ -788,6 +796,7 @@ def test_downgrade_rejects_attempts_sharing_coordinates(populated_predecessor, d
     connection.commit()
     with pytest.raises(RuntimeError, match="multiple attempts sharing coordinates"):
         command.downgrade(config, PREDECESSOR)
+    assert_upgraded_schema_untouched(connection)
 
 
 def test_downgrade_rejects_archived_attempts_without_a_current_attempt(populated_predecessor):
@@ -802,6 +811,30 @@ def test_downgrade_rejects_archived_attempts_without_a_current_attempt(populated
     connection.commit()
     with pytest.raises(RuntimeError, match="1 archived attempts"):
         command.downgrade(config, PREDECESSOR)
+    assert_upgraded_schema_untouched(connection)
+
+
+def test_downgrade_keeps_only_the_latest_attempt_of_a_task_first_run_after_upgrade(populated_predecessor):
+    connection, config = populated_predecessor
+    command.upgrade(config, REVISION)
+    coordinates = COORDINATES | {"task_id": "neighbour"}
+    first_id = insert_attempt(connection, **coordinates, working_set=None, archived_reason="retry")
+    second_id = insert_attempt(connection, **coordinates, try_number=2)
+    for attempt_id, value in ((first_id, "first"), (second_id, "second")):
+        insert_xcom_v2(connection, attempt_id, "return_value", value)
+        insert_rtif_v2(connection, attempt_id, {"f": value})
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    assert {key: row.value for key, row in read_legacy_xcom(connection).items() if key[2] == "neighbour"} == {
+        ("ownership", "manual", "neighbour", -1, "return_value"): "second"
+    }
+    assert {
+        key: row.rendered_fields
+        for key, row in read_legacy_rendered_fields(connection).items()
+        if key[2] == "neighbour"
+    } == {("ownership", "manual", "neighbour", -1): {"f": "second"}}
 
 
 def test_downgrade_replaces_legacy_xcom_key_by_key(populated_predecessor):

@@ -3796,9 +3796,8 @@ class TestMappedTaskInstanceReceiveValue:
         show_task = dag_maker.serialized_dag.get_task("show")
         # Pins the query count so a regression back to per-index session.merge() -- which
         # would issue a merge-load + reload SELECT per index -- fails this test, not just
-        # a slower one. Measured at 7 for this fixture; margin allows for minor backend
-        # differences while staying far below what a per-index merge() would cost.
-        with assert_queries_count(7, margin=2):
+        # a slower one. Measured at 9 for this fixture.
+        with assert_queries_count(9):
             mapped_tis, max_map_index = expand_mapped_task_instances(
                 show_task, dag_run.run_id, session=session
             )
