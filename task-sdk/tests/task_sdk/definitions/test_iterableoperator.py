@@ -62,6 +62,7 @@ from airflow.sdk.exceptions import (
     DagRunTriggerException,
     DownstreamTasksSkipped,
     TaskDeferred,
+    UnmappableXComTypePushed,
 )
 from airflow.sdk.execution_time.comms import DeadlockImminentError
 from airflow.sdk.execution_time.context import InletEventsAccessors, OutletEventAccessors
@@ -1059,6 +1060,32 @@ class TestIterableOperator:
                 materialized = sorted(iterable_op.execute(context=context))
 
         assert materialized == [(1, None, None), (2, None, None)]
+
+    def test_execute_refuses_an_unmappable_upstream_value(self):
+        """
+        An upstream returning a JSON string fails the task instead of being iterated as one item.
+
+        ``.expand()`` gets this from the upstream's push (``UnmappableXComTypePushed`` in
+        ``_push_xcom_if_needed``), which only fires for a ``MappedOperator`` dependant, so the
+        iterated path checks the resolved value itself.
+        """
+        executed: list = []
+
+        class RecordingOperator(MockOperator):
+            def execute(self, context):
+                executed.append(self.arg1)
+                return super().execute(context)
+
+        with DAG("test_dag") as dag:
+            expand_input = DictOfListsExpandInput({"arg1": make_xcom_arg('{"a": 1}')})
+            iterable_op = create_iterable_operator(
+                dag, expand_input, task_id="exec_unmappable", operator_class=RecordingOperator
+            )
+            with mock_context(task=iterable_op) as context:
+                with pytest.raises(UnmappableXComTypePushed, match="str"):
+                    iterable_op.execute(context=context)
+
+        assert executed == []
 
     def test_execute_renders_template_fields_off_the_loop_thread(self):
         """

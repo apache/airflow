@@ -74,6 +74,16 @@ class Source:
         """Build a source from an expand argument: pull it if it is an XComArg, then make it a sequence."""
         if isinstance(argument, XComArg):
             argument = await argument.aresolve(context)
+            # What .expand() refuses when the upstream pushes (_push_xcom_if_needed raises for a
+            # mapped dependant) is refused here: an IterableOperator is not a MappedOperator, so
+            # iter_mapped_dependants never finds it and that check does not fire for it.
+            from airflow.sdk.definitions.mappedoperator import is_mappable_value
+            from airflow.sdk.exceptions import UnmappableXComTypePushed, XComForMappingNotPushed
+
+            if argument is None:
+                raise XComForMappingNotPushed()
+            if not is_mappable_value(argument):
+                raise UnmappableXComTypePushed(argument)
         if isinstance(argument, Mapping):
             return cls(list(argument.items()))
         if isinstance(argument, (str, bytes)) or not isinstance(argument, Iterable):

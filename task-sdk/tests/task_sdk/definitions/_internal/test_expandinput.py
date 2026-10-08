@@ -33,6 +33,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     Source,
     index_for_each_field,
 )
+from airflow.sdk.exceptions import UnmappableXComTypePushed, XComForMappingNotPushed
 
 
 class AsyncOnlyValues(Sequence):
@@ -239,6 +240,25 @@ class TestSource:
         xcom_arg.aresolve = aresolve
         source = await Source.from_argument(xcom_arg, {})
         assert await source.aget(0) == ("x", 1)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("value", ["hello", b"bytes", 1, 2.5, object()])
+    async def test_an_unmappable_upstream_value_is_rejected(self, value):
+        """
+        What ``.expand()`` refuses at push time is refused here at read time.
+
+        An upstream with a mapped dependant raises ``UnmappableXComTypePushed`` from
+        ``_push_xcom_if_needed``, but an IterableOperator is no ``MappedOperator`` and is not found
+        by ``iter_mapped_dependants``, so that check never fires for it; without this one a string
+        from upstream would be iterated as a single item.
+        """
+        with pytest.raises(UnmappableXComTypePushed, match=type(value).__name__):
+            await Source.from_argument(make_xcom_arg(value), {})
+
+    @pytest.mark.asyncio
+    async def test_an_upstream_that_pushed_nothing_is_rejected(self):
+        with pytest.raises(XComForMappingNotPushed):
+            await Source.from_argument(make_xcom_arg(None), {})
 
     @pytest.mark.asyncio
     async def test_async_accessors_are_preferred(self, monkeypatch):
