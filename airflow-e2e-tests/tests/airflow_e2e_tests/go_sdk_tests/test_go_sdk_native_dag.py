@@ -203,9 +203,18 @@ def test_the_trigger_started_the_report_run(parsed_dags: AirflowClient):
     # Dags are paused at creation here, so the run the trigger starts would stay queued.
     client.un_pause_dag(_REPORT_DAG_ID)
     resp = client.trigger_dag(_TRIGGER_DAG_ID, json={"logical_date": datetime.now(UTC).isoformat()})
-    state = client.wait_for_dag_run(dag_id=_TRIGGER_DAG_ID, run_id=resp["dag_run_id"], timeout=300)
+    trigger_run_id = resp["dag_run_id"]
+    state = client.wait_for_dag_run(dag_id=_TRIGGER_DAG_ID, run_id=trigger_run_id, timeout=_GO_TASK_TIMEOUT)
     assert state == "success"
 
-    runs = client.list_dag_runs(_REPORT_DAG_ID)["dag_runs"]
-    triggered = [run for run in runs if run["run_type"] == "operator_triggered"]
-    assert [run["conf"] for run in triggered] == [{"triggered_by": _TRIGGER_DAG_ID}]
+    report_run_id = client.get_xcom_value(
+        dag_id=_TRIGGER_DAG_ID, task_id="trigger_report", run_id=trigger_run_id, key="trigger_run_id"
+    )["value"]
+    report_state = client.wait_for_dag_run(
+        dag_id=_REPORT_DAG_ID, run_id=report_run_id, timeout=_GO_TASK_TIMEOUT
+    )
+    assert report_state == "success"
+
+    report_run = client.get_dag_run(dag_id=_REPORT_DAG_ID, run_id=report_run_id)
+    assert report_run["run_type"] == "operator_triggered"
+    assert report_run["conf"] == {"triggered_by": _TRIGGER_DAG_ID}
