@@ -1,9 +1,30 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from __future__ import annotations
+
 import logging
-import pytest
 from unittest import mock
+
+import pytest
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
+
 
 class TestBigqueryGetData:
     def test_yields_successive_batches(self, caplog):
@@ -22,35 +43,50 @@ class TestBigqueryGetData:
         mock_row_2.values.return_value = {"col1": "B"}
 
         # Return two batches of 1, then an empty list to terminate
-        mock_hook.list_rows.side_effect = [
-            [mock_row_1],
-            [mock_row_2],
-            []
-        ]
+        mock_hook.list_rows.side_effect = [[mock_row_1], [mock_row_2], []]
 
         logger = logging.getLogger(__name__)
 
-        results = list(bigquery_get_data(
-            logger=logger,
-            dataset_id="my_dataset",
-            table_id="my_table",
-            big_query_hook=mock_hook,
-            batch_size=1,
-            selected_fields=["col1"]
-        ))
+        results = list(
+            bigquery_get_data(
+                logger=logger,
+                dataset_id="my_dataset",
+                table_id="my_table",
+                big_query_hook=mock_hook,
+                batch_size=1,
+                selected_fields=["col1"],
+            )
+        )
 
-        assert results == [
-            [{"col1": "A"}],
-            [{"col1": "B"}]
-        ]
+        assert results == [[{"col1": "A"}], [{"col1": "B"}]]
 
         # Verify list_rows was called 3 times and start_index advanced correctly
         assert mock_hook.list_rows.call_count == 3
-        mock_hook.list_rows.assert_has_calls([
-            mock.call(dataset_id="my_dataset", table_id="my_table", max_results=1, selected_fields=["col1"], start_index=0),
-            mock.call(dataset_id="my_dataset", table_id="my_table", max_results=1, selected_fields=["col1"], start_index=1),
-            mock.call(dataset_id="my_dataset", table_id="my_table", max_results=1, selected_fields=["col1"], start_index=2),
-        ])
+        mock_hook.list_rows.assert_has_calls(
+            [
+                mock.call(
+                    dataset_id="my_dataset",
+                    table_id="my_table",
+                    max_results=1,
+                    selected_fields=["col1"],
+                    start_index=0,
+                ),
+                mock.call(
+                    dataset_id="my_dataset",
+                    table_id="my_table",
+                    max_results=1,
+                    selected_fields=["col1"],
+                    start_index=1,
+                ),
+                mock.call(
+                    dataset_id="my_dataset",
+                    table_id="my_table",
+                    max_results=1,
+                    selected_fields=["col1"],
+                    start_index=2,
+                ),
+            ]
+        )
 
         # Verify logging assertions via structured caplog checks
         assert "Job Finished" in caplog.text
@@ -61,18 +97,22 @@ class TestBigqueryGetData:
 
         # A real RowIterator doesn't have a __len__ method. We simulate this by having len() raise TypeError
         mock_iterator = mock.MagicMock()
-        type(mock_iterator).__len__ = mock.PropertyMock(side_effect=TypeError("object of type 'RowIterator' has no len()"))
+        type(mock_iterator).__len__ = mock.PropertyMock(
+            side_effect=TypeError("object of type 'RowIterator' has no len()")
+        )
         mock_hook.list_rows.return_value = mock_iterator
 
         logger = logging.getLogger(__name__)
 
         with pytest.raises(TypeError):
             # Using list() consumes the generator and triggers the len(rows) check which will raise
-            list(bigquery_get_data(
-                logger=logger,
-                dataset_id="my_dataset",
-                table_id="my_table",
-                big_query_hook=mock_hook,
-                batch_size=1,
-                selected_fields=["col1"]
-            ))
+            list(
+                bigquery_get_data(
+                    logger=logger,
+                    dataset_id="my_dataset",
+                    table_id="my_table",
+                    big_query_hook=mock_hook,
+                    batch_size=1,
+                    selected_fields=["col1"],
+                )
+            )
