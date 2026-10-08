@@ -1790,6 +1790,11 @@ class DagSerialization(BaseSerialization):
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
             serialized_dag["params"] = cls._serialize_params_dict(dag.params)
+            # Preset values are plain JSON already (the SDK validates them against the param
+            # schemas), so store them verbatim rather than with the nested type encoding the
+            # generic field loop would apply.
+            if dag.param_presets:
+                serialized_dag["param_presets"] = dag.param_presets
 
             # has_on_*_callback are only stored if the value is True, as the default is False
             for field in _DAG_CALLBACK_FIELDS:
