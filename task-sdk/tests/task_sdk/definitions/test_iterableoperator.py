@@ -2544,6 +2544,61 @@ class TestCallbacksFollowTheTasksFate:
 
         assert fired == [("failure", "a"), ("failure", "b")]
 
+    def test_the_retry_policy_is_evaluated_once_per_failed_item(self):
+        """
+        Choosing the exception for the runner costs one evaluation per failed item, and no more.
+
+        The callbacks reuse the decision taken for the exception handed over instead of evaluating
+        the policy again: a policy that calls a model (common.ai's ``LLMRetryPolicy``) pays per call
+        and may answer differently each time.
+        """
+        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryDecision
+
+        class CountingPolicy(ExceptionRetryPolicy):
+            calls: list = []
+
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                self.calls.append(exception)
+                return RetryDecision.retry()
+
+        _, fired = self._run(
+            [
+                {"arg1": "a", "raise_exception": ValueError("a")},
+                {"arg1": "b", "raise_exception": KeyError("b")},
+                {"arg1": "c", "raise_exception": OSError("c")},
+            ],
+            retry_policy=CountingPolicy(rules=[]),
+        )
+
+        assert len(CountingPolicy.calls) == 3
+        assert fired == [("retry", "a"), ("retry", "b"), ("retry", "c")]
+
+    def test_the_callbacks_follow_the_decision_taken_for_the_exception_handed_over(self):
+        """
+        A policy that answers differently per call cannot make the callbacks disagree with the task.
+
+        The second item's exception wins with FAIL and is handed to the runner; evaluating the policy
+        once more for the callbacks would get RETRY and announce a retry the runner does not take.
+        """
+        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryDecision
+
+        class AlternatingPolicy(ExceptionRetryPolicy):
+            answers = iter([RetryDecision.retry(), RetryDecision.fail("no"), RetryDecision.retry()])
+
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                return next(self.answers)
+
+        raised, fired = self._run(
+            [
+                {"arg1": "a", "raise_exception": ValueError("a")},
+                {"arg1": "b", "raise_exception": KeyError("b")},
+            ],
+            retry_policy=AlternatingPolicy(rules=[]),
+        )
+
+        assert isinstance(raised, KeyError)
+        assert fired == [("failure", "a"), ("failure", "b")]
+
     def test_a_retry_policy_that_fails_the_task_makes_every_failure_final(self):
         from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
 

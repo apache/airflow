@@ -38,7 +38,7 @@ from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_lo
 from airflow.sdk.bases.skipmixin import SkipMixin
 from airflow.sdk.bases.xcom import XComIterable
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey
-from airflow.sdk.definitions.retry_policy import RetryAction
+from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.exceptions import (
     AirflowFailException,
@@ -570,6 +570,9 @@ class IterableOperator(BaseOperator):
         self._failed_runners: list[IndexedTaskRunner] = []
         # Per-run state of execute: the input resolved for this task instance.
         self._resolved: Resolved | None = None
+        # The retry policy's decision for the exception handed to the runner, kept so the failed
+        # items' callbacks follow it instead of evaluating the policy once more (see _task_will_retry).
+        self._decision_for_the_runner: tuple[BaseException, RetryDecision] | None = None
 
     def __deepcopy__(self, memo: dict[int, Any]) -> IterableOperator:
         # A copy (deepcopy, dag.partial_subset) is another task with no sub-tasks in flight: it gets
@@ -659,6 +662,7 @@ class IterableOperator(BaseOperator):
         do_xcom_push = True
 
         self._failed_runners = []
+        self._decision_for_the_runner = None
         try:
             self.log.info("Running tasks with %d workers", self.max_workers)
 
@@ -781,22 +785,28 @@ class IterableOperator(BaseOperator):
 
         No retry for the fail-fast exceptions nor for what is not an ``Exception`` (other than the
         parent's timeout), none when the retry policy decides FAIL, and otherwise a retry while the
-        parent has attempts left (``IndexedTaskInstance.is_eligible_to_retry``).
+        parent has attempts left (``IndexedTaskInstance.is_eligible_to_retry``). The policy's
+        decision is the one ``_failure_for_the_runner`` took for ``raised`` when it chose it, so
+        the policy is not evaluated again for the callbacks: a policy that calls a model may answer
+        differently each time, and the callbacks must say what the exception handed over says.
         """
         if isinstance(raised, FAIL_WITHOUT_RETRY) or not isinstance(raised, (Exception, AirflowTaskTimeout)):
             return False
         if not self._failed_runners[0].task_instance.is_eligible_to_retry:
             return False
         if (policy := self.retry_policy) is not None:
-            ti = context["ti"]
-            from_server = getattr(ti, "_ti_context_from_server", None)
-            max_tries = from_server.max_tries if from_server else ti.max_tries
-            try:
-                decision = policy.evaluate(
-                    exception=raised, try_number=ti.try_number, max_tries=max_tries, context=context
-                )
-            except Exception:
-                return True
+            if (kept := self._decision_for_the_runner) is not None and kept[0] is raised:
+                decision = kept[1]
+            else:
+                ti = context["ti"]
+                from_server = getattr(ti, "_ti_context_from_server", None)
+                max_tries = from_server.max_tries if from_server else ti.max_tries
+                try:
+                    decision = policy.evaluate(
+                        exception=raised, try_number=ti.try_number, max_tries=max_tries, context=context
+                    )
+                except Exception:
+                    return True
             if decision.action == RetryAction.FAIL:
                 return False
         return True
@@ -810,7 +820,9 @@ class IterableOperator(BaseOperator):
         an item's own exception is handed over whenever one decides: the first fail-fast one, the
         only one, or the one whose policy decision weighs most. With several failures the others
         stay attached as its cause, so every traceback reaches the log. Several failures no policy
-        decides between are raised as a group, which the task's own retries then apply to.
+        decides between are raised as a group, which the task's own retries then apply to. The
+        policy is evaluated once per failure, and the decision for the chosen one is kept for the
+        callbacks (see ``_task_will_retry``).
         """
         group = BaseExceptionGroup("Multiple sub-task failures", exceptions)
         chosen: BaseException | None = next(
@@ -823,18 +835,24 @@ class IterableOperator(BaseOperator):
             from_server = getattr(ti, "_ti_context_from_server", None)
             max_tries = from_server.max_tries if from_server else ti.max_tries
             weights = []
+            decisions: list[RetryDecision | None] = []
             for exc in exceptions:
                 try:
                     decision = policy.evaluate(
                         exception=exc, try_number=ti.try_number, max_tries=max_tries, context=context
                     )
                     weights.append(_DECISION_WEIGHT.get(decision.action, 0))
+                    decisions.append(decision)
                 except Exception:
                     # As the runner does: a policy that fails to evaluate leaves the default.
                     self.log.exception("Retry policy evaluation failed for a sub-task failure")
                     weights.append(0)
+                    decisions.append(None)
             if max(weights) > 0:
-                chosen = exceptions[weights.index(max(weights))]
+                index = weights.index(max(weights))
+                chosen = exceptions[index]
+                if (kept := decisions[index]) is not None:
+                    self._decision_for_the_runner = (chosen, kept)
         if chosen is None:
             return group
         if len(exceptions) > 1:
