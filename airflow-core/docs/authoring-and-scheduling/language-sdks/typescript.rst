@@ -27,8 +27,8 @@ Node.js. There are two ways to use it:
 
 * **Dag definition.** The schedule, the tasks, their options and the dependencies between them are all written
   in TypeScript, with no Python file involved. See :ref:`typescript-sdk/dag-definition`.
-* **Implement mixed-language tasks.** A Python Dag declares the tasks with ``@task.stub`` and wires them
-  together, and TypeScript supplies what each task does. See :ref:`typescript-sdk/mixed`.
+* **Python Dag with stub TaskHandler.** A Python Dag declares the tasks with ``@task.stub`` and wires them
+  together, and a TypeScript ``TaskHandler`` implements each one. See :ref:`typescript-sdk/stub-tasks`.
 
 Both use the same task API and the same build tool, and one bundle can serve both.
 
@@ -346,10 +346,10 @@ A complete example
 ``ts-sdk/example/src/native.ts`` uses all of the above in one Dag: a task group, a fan-in, a condition, a
 multi-way branch, order-only dependencies and a triggered Dag run.
 
-.. _typescript-sdk/mixed:
+.. _typescript-sdk/stub-tasks:
 
-Implementing mixed-language tasks
----------------------------------
+Implementing stub tasks of a Python Dag
+---------------------------------------
 
 Here a Python Dag declares the tasks and their dependencies, and TypeScript implements some of them. Use it
 when the Dag needs something a TypeScript Dag cannot express yet (see :ref:`typescript-sdk/limitations`), or to
@@ -629,8 +629,8 @@ A bundle that fails its integrity check, or whose Dags cannot be read or have a 
 error, and the other Dags keep working. Do not declare the same ``dag_id`` in a Python file of that Dag bundle
 too: the two overwrite each other on every parse.
 
-Mixed-language tasks
-~~~~~~~~~~~~~~~~~~~~
+Python Dag with stub TaskHandler
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 By default, the coordinator loads the bundle that implements a stub task from the stub task's own Dag bundle,
 at the version its Dag run was created with, so the bundle goes next to the Python Dag that declares the stub.
@@ -693,7 +693,7 @@ The ``kwargs`` of a ``coordinators`` entry are passed to
      - Seconds to wait for a task's bundle to start. Increase it if your bundle starts slowly, for example on
        constrained hardware.
 
-``task_handler_bundle_name`` only concerns mixed-language tasks: a Dag declared in TypeScript always runs from
+``task_handler_bundle_name`` only concerns stub tasks: a Dag declared in TypeScript always runs from
 the Dag bundle it was read from.
 
 ``queue_to_coordinator`` maps a queue to a coordinator entry, so every task on that queue runs on Node.js.

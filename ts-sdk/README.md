@@ -26,7 +26,7 @@ Write Apache Airflow Dags and tasks in TypeScript.
 There are two ways to use it:
 
 - **Dag definition**: declare the whole Dag in TypeScript, with its schedule, tasks, options and dependencies.
-- **Implement mixed-language tasks**: TypeScript bodies for the stub tasks of a Python Dag.
+- **Python Dag with stub TaskHandler**: a TypeScript `TaskHandler` implements each stub task of a Python Dag.
 
 Both use the same task API, and one bundle can serve both.
 
@@ -65,7 +65,7 @@ A Dag also has order-only dependencies (`before` and `after`), task groups, bran
 [guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
 for all of them.
 
-## Implementing mixed-language tasks
+## Implementing stub tasks of a Python Dag
 
 The Python Dag declares the tasks and their dependencies:
 

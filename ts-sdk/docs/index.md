@@ -19,8 +19,8 @@
 
 # Apache Airflow TypeScript SDK
 
-Write Apache Airflow Dags and tasks in TypeScript. Declare a whole Dag in TypeScript, or implement
-mixed-language tasks: TypeScript bodies for the stub tasks of a Python Dag.
+Write Apache Airflow Dags and tasks in TypeScript. Declare a whole Dag in TypeScript, or implement the stub
+tasks of a Python Dag with `TaskHandler`.
 
 > **Note**
 > This package is **0.1.0-beta1**: the API may change, it requires **Node 22+**, and
@@ -53,7 +53,7 @@ load({ rows: extract() });
 await new Bundle(dag).serve();
 ```
 
-For a mixed-language task, bind a function to the stub task's `dag_id` and `task_id` with `TaskHandler`:
+To implement a stub task of a Python Dag, bind a function to its `dag_id` and `task_id` with `TaskHandler`:
 
 ```ts
 import { Bundle, getClient, getContext, TaskHandler } from "apache-airflow-ts-sdk";

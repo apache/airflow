@@ -27,8 +27,8 @@ ways:
 
 * **Dag definition.** The whole Dag, with its schedule, tasks and dependencies, is defined in the SDK's language.
   See :ref:`language-sdks/dag-definition`.
-* **Mixed-language tasks.** A Python Dag declares the tasks and their dependencies, and the SDK implements some
-  of those tasks. See :ref:`language-sdks/mixed-language-tasks`.
+* **Python Dag with stub TaskHandler.** A Python Dag declares the tasks and their dependencies, and a
+  TaskHandler in the SDK's language implements each stub task. See :ref:`language-sdks/stub-taskhandler`.
 
 Either way, a task runs on a *coordinator*, which starts the language's runtime for the task and relays
 messages between it and Airflow. See :ref:`language-sdks/coordinator-config`.
@@ -83,10 +83,10 @@ The **Code** view in the Airflow UI shows the source the SDK embeds in the artif
 
 For TypeScript, see :ref:`typescript-sdk/dag-definition`.
 
-.. _language-sdks/mixed-language-tasks:
+.. _language-sdks/stub-taskhandler:
 
-Mixed-language tasks
---------------------
+Python Dag with stub TaskHandler
+--------------------------------
 
 A Python Dag declares a task that another language implements as a *stub task*. The scheduler sees a normal
 task: it takes part in dependencies, retries, pools and every other task-level feature like any other
