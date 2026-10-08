@@ -80,6 +80,7 @@ def get_provider_info():
                     "airflow.providers.snowflake.hooks.snowflake",
                     "airflow.providers.snowflake.hooks.snowflake_sql_api",
                     "airflow.providers.snowflake.hooks.snowflake_cortex_agent",
+                    "airflow.providers.snowflake.hooks.cortex_model",
                 ],
             }
         ],
@@ -112,7 +113,7 @@ def get_provider_info():
                     "hidden-fields": ["port", "host"],
                     "relabeling": {},
                     "placeholders": {
-                        "extra": '{\n  "authenticator": "snowflake oauth",\n  "private_key_file": "private key",\n  "session_parameters": "session parameters",\n  "client_request_mfa_token": "client request mfa token",\n  "client_store_temporary_credential": "client store temporary credential",\n  "grant_type": "refresh_token client_credentials",\n  "token_endpoint": "token endpoint",\n  "refresh_token": "refresh token",\n  "scope": "scope",\n  "proxy_host": "proxy.example.com",\n  "proxy_port": "8080",\n  "proxy_user": "proxy_username",\n  "proxy_password": "proxy_password"\n}\n',
+                        "extra": '{\n  "authenticator": "snowflake oauth / WORKLOAD_IDENTITY",\n  "private_key_file": "private key",\n  "session_parameters": "session parameters",\n  "client_request_mfa_token": "client request mfa token",\n  "client_store_temporary_credential": "client store temporary credential (externalbrowser mode)",\n  "grant_type": "refresh_token client_credentials",\n  "token_endpoint": "token endpoint",\n  "refresh_token": "refresh token",\n  "scope": "scope",\n  "proxy_host": "proxy.example.com",\n  "proxy_port": "8080",\n  "proxy_user": "proxy_username",\n  "proxy_password": "proxy_password"\n}\n',
                         "schema": "snowflake schema",
                         "login": "snowflake username",
                         "password": "snowflake password",
@@ -123,6 +124,7 @@ def get_provider_info():
                         "role": "snowflake role",
                         "private_key_file": "Path of snowflake private key (PEM Format)",
                         "private_key_content": "Content to snowflake private key (PEM format)",
+                        "workload_identity_provider": "AWS, AZURE, GCP or OIDC",
                         "insecure_mode": "insecure mode",
                         "proxy_host": "Proxy server hostname",
                         "proxy_port": "Proxy server port",
@@ -161,12 +163,45 @@ def get_provider_info():
                         "schema": {"type": ["string", "null"], "format": "password"},
                     },
                 },
-            }
+            },
+            {
+                "hook-class-name": "airflow.providers.snowflake.hooks.cortex_model.PydanticAISnowflakeHook",
+                "hook-name": "Pydantic AI (Snowflake Cortex)",
+                "connection-type": "pydanticai_snowflake",
+                "external-services": ["Snowflake Cortex"],
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login", "host", "password"],
+                    "relabeling": {},
+                    "placeholders": {
+                        "extra": '{"model": "snowflake:claude-4-sonnet", "snowflake_conn_id": "snowflake_default"}'
+                    },
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "Cortex model identifier (e.g. snowflake:claude-4-sonnet)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
+                    "snowflake_conn_id": {
+                        "label": "Snowflake Connection ID",
+                        "description": "Connection ID of an existing Snowflake connection to source credentials from.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
         ],
         "triggers": [
             {
                 "integration-name": "Snowflake",
-                "python-modules": ["airflow.providers.snowflake.triggers.snowflake_trigger"],
+                "python-modules": [
+                    "airflow.providers.snowflake.triggers.snowflake_trigger",
+                    "airflow.providers.snowflake.triggers.snowpark_containers",
+                ],
             }
         ],
         "config": {

@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Button, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+
+import { Alert, Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Modal } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
+
 import { useMarkTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
@@ -47,10 +50,12 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const [markTaskInstanceDefaultOptions] = useMarkTaskInstanceDefaultOptions();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(markTaskInstanceDefaultOptions);
 
-  const past = selectedOptions.includes("past");
-  const future = selectedOptions.includes("future");
-  const upstream = selectedOptions.includes("upstream");
-  const downstream = selectedOptions.includes("downstream");
+  // Skipping is limited to this task instance, so the options affecting other task instances are ignored.
+  const isSkipped = state === "skipped";
+  const past = !isSkipped && selectedOptions.includes("past");
+  const future = !isSkipped && selectedOptions.includes("future");
+  const upstream = !isSkipped && selectedOptions.includes("upstream");
+  const downstream = !isSkipped && selectedOptions.includes("downstream");
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
 
@@ -141,31 +146,39 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
     >
       <Flex justifyContent="center">
         <SegmentedControl
-          defaultValues={markTaskInstanceDefaultOptions}
+          defaultValues={isSkipped ? [] : markTaskInstanceDefaultOptions}
+          key={isSkipped ? "skipped" : "default"}
           multiple
           onChange={setSelectedOptions}
           options={[
             {
-              disabled: taskInstance.logical_date === null,
+              disabled: isSkipped || taskInstance.logical_date === null,
               label: translate("dags:runAndTaskActions.options.past"),
               value: "past",
             },
             {
-              disabled: taskInstance.logical_date === null,
+              disabled: isSkipped || taskInstance.logical_date === null,
               label: translate("dags:runAndTaskActions.options.future"),
               value: "future",
             },
             {
+              disabled: isSkipped,
               label: translate("dags:runAndTaskActions.options.upstream"),
               value: "upstream",
             },
             {
+              disabled: isSkipped,
               label: translate("dags:runAndTaskActions.options.downstream"),
               value: "downstream",
             },
           ]}
         />
       </Flex>
+      {isSkipped ? (
+        <Alert mb={3} status="info">
+          {translate("dags:runAndTaskActions.markAs.skippedInfo")}
+        </Alert>
+      ) : undefined}
       <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
     </Modal>
   );

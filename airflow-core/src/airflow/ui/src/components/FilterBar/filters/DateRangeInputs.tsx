@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ChangeEvent, Dispatch, SetStateAction } from "react";
+
 import { HStack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
-import type { ChangeEvent, Dispatch, SetStateAction } from "react";
 import { MdAccessTime } from "react-icons/md";
 
 import { useTimezone } from "src/context/timezone";
@@ -38,6 +39,7 @@ type DateRangeInputsProps = {
     inputType: "date" | "time",
   ) => (event: ChangeEvent<HTMLInputElement>) => void;
   readonly onChange: (value: DateRangeValue) => void;
+  readonly onCommit?: () => void;
   readonly setEditingState: Dispatch<SetStateAction<DateRangeEditingState>>;
   readonly startDateValue: dayjs.Dayjs | undefined;
   readonly translate: TFunction;
@@ -50,6 +52,7 @@ export const DateRangeInputs = ({
   getFieldError,
   handleInputChange,
   onChange,
+  onCommit,
   setEditingState,
   startDateValue,
   translate,
@@ -65,11 +68,8 @@ export const DateRangeInputs = ({
     if (getFieldError("range") && (fieldName === "start" || fieldName === "end")) {
       return "danger.solid";
     }
-    if (editingState.selectionTarget === fieldName) {
-      return "brand.focusRing";
-    }
 
-    return "border";
+    return editingState.selectionTarget === fieldName ? "brand.focusRing" : "border";
   };
 
   const clearField = (field: "end" | "start") => {
@@ -96,7 +96,7 @@ export const DateRangeInputs = ({
         ...prev,
         inputs: {
           ...prev.inputs,
-          [field]: dateValue.format(DATE_INPUT_FORMAT),
+          [field]: dateValue.tz(selectedTimezone).format(DATE_INPUT_FORMAT),
         },
       }));
     }
@@ -136,6 +136,7 @@ export const DateRangeInputs = ({
           inputValue={editingState.inputs.start}
           label={translate("common:table.from")}
           onClear={() => clearField("start")}
+          onCommit={onCommit}
           onDateBlur={handleDateBlur("start")}
           onFocus={handleFocus("start")}
           placeholder={DATE_INPUT_FORMAT}
@@ -150,6 +151,7 @@ export const DateRangeInputs = ({
           inputValue={editingState.inputs.end}
           label={translate("common:table.to")}
           onClear={() => clearField("end")}
+          onCommit={onCommit}
           onDateBlur={handleDateBlur("end")}
           onFocus={handleFocus("end")}
           placeholder={DATE_INPUT_FORMAT}
@@ -166,6 +168,7 @@ export const DateRangeInputs = ({
           inputValue={editingState.inputs.startTime}
           label={translate("common:filters.startTime")}
           onClear={clearTime("start")}
+          onCommit={onCommit}
           placeholder={TIME_INPUT_FORMAT}
         />
 
@@ -178,6 +181,7 @@ export const DateRangeInputs = ({
           inputValue={editingState.inputs.endTime}
           label={translate("common:filters.endTime")}
           onClear={clearTime("end")}
+          onCommit={onCommit}
           placeholder={TIME_INPUT_FORMAT}
         />
       </HStack>

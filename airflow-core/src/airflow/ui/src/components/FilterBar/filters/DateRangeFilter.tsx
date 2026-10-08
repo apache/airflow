@@ -20,7 +20,8 @@ import { Box, HStack, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdCalendarToday, MdClose } from "react-icons/md";
 
-import { Popover } from "src/components/ui";
+import { Popover } from "src/system-components";
+
 import { useDateRangeFilter } from "src/hooks/useDateRangeFilter";
 
 import { FilterPill } from "../FilterPill";
@@ -39,6 +40,7 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
   const {
+    commitEditingState,
     editingState,
     endDateValue,
     formatDisplayValue,
@@ -66,8 +68,10 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
           lazyMount
           // The popover owns dismissal, so the pill never sees a blur. Deferring lets a range
           // picked in the same tick commit first, so the pill collapses instead of being dropped.
+          // Typed input is only kept local while editing, so commit it on dismissal too.
           onOpenChange={({ open }) => {
             if (!open) {
+              commitEditingState();
               setTimeout(onRequestClose, 0);
             }
           }}
@@ -77,12 +81,12 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
           <Popover.Trigger asChild>
             <Box
               alignItems="center"
-              bg={hasValue ? "blue.muted" : "gray.muted"}
+              bg={hasValue ? "brand.emphasized" : "gray.muted"}
               border="0.5px solid"
               borderColor="border"
               borderRadius="full"
               color="colorPalette.fg"
-              colorPalette={hasValue ? "blue" : "gray"}
+              colorPalette={hasValue ? "brand" : "gray"}
               cursor="pointer"
               display="flex"
               h="9"
@@ -93,7 +97,7 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
             >
               <HStack
                 alignItems="center"
-                bg={hasValue ? "blue.muted" : "gray.muted"}
+                bg={hasValue ? "brand.emphasized" : "gray.muted"}
                 borderLeftRadius="full"
                 fontSize="sm"
                 fontWeight="medium"
@@ -150,6 +154,7 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
                 getFieldError={getFieldError}
                 handleInputChange={handleInputChange}
                 onChange={onChange}
+                onCommit={commitEditingState}
                 setEditingState={setEditingState}
                 startDateValue={startDateValue}
                 translate={translate}

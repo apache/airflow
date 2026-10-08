@@ -16,11 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
+
+import "@testing-library/jest-dom/vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { StateBadge } from "src/components/StateBadge";
 
 import { BaseWrapper } from "src/utils/Wrapper";
 
@@ -103,6 +106,29 @@ describe("FilterBar boolean filters", () => {
 
     expect(screen.queryByTestId("needs_review-pill")).not.toBeInTheDocument();
     await waitFor(() => expect(onFiltersChange).toHaveBeenCalledWith({}));
+  });
+});
+
+describe("FilterBar select filters", () => {
+  it("keeps a selected rich option label fully visible", () => {
+    const selectConfig: FilterConfig = {
+      key: "state",
+      label: "State",
+      options: [{ label: <StateBadge state="failed">Failed</StateBadge>, value: "failed" }],
+      type: "select",
+    };
+
+    render(
+      <FilterBar configs={[selectConfig]} initialValues={{ state: "failed" }} onFiltersChange={vi.fn()} />,
+      { wrapper },
+    );
+
+    fireEvent.click(screen.getByTestId("state-pill"));
+
+    const valueText = within(screen.getByTestId("state-filter")).getByTestId("state-badge").parentElement;
+
+    expect(valueText).not.toBeNull();
+    expect(globalThis.getComputedStyle(valueText as HTMLElement).overflow).toBe("visible");
   });
 });
 
@@ -197,6 +223,24 @@ describe("FilterBar abandoned filters", () => {
   });
 });
 
+describe("FilterBar text filter input testid", () => {
+  it("exposes the actively-editing pill's input via a stable, unique testid", async () => {
+    render(<FilterBar configs={[textConfig]} onFiltersChange={vi.fn()} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-dag_id"));
+
+    // Regression guard for #72433: e2e tests locate this input via `filter-pill-input`
+    // rather than `page.locator("div").filter({ hasText })`, which matched any ancestor
+    // whose descendant text contained the filter label and broke once the filter bar's
+    // DOM was restructured. `getByTestId` throws if more than one match is found, so this
+    // also proves the testid stays unique while a pill is being edited.
+    const input = screen.getByTestId("filter-pill-input");
+
+    expect(input).toBe(screen.getByRole("textbox"));
+  });
+});
+
 describe("FilterBar keyboard handling", () => {
   it("leaves Enter to editors that use it to commit a value", async () => {
     render(<FilterBar configs={[multiSelectConfig]} onFiltersChange={vi.fn()} />, { wrapper });
@@ -212,5 +256,26 @@ describe("FilterBar keyboard handling", () => {
     // The pill must survive: react-select commits on Enter, and the filter used to be torn
     // down before that value landed.
     await waitFor(() => expect(document.querySelector('input[id^="react-select"]')).not.toBeNull());
+  });
+});
+
+describe("FilterBar URL synchronization", () => {
+  const configs = [{ key: "dag_id", label: "Dag ID", type: "text" as const }];
+
+  it("updates an existing filter when its external value changes", async () => {
+    const { rerender } = render(
+      <FilterBar configs={configs} initialValues={{ dag_id: "dag_a" }} onFiltersChange={vi.fn()} />,
+      { wrapper },
+    );
+
+    expect(screen.getByTestId("dag_id-pill")).toHaveTextContent("Dag ID: dag_a");
+
+    rerender(<FilterBar configs={configs} initialValues={{ dag_id: "dag_b" }} onFiltersChange={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByTestId("dag_id-pill")).toHaveTextContent("Dag ID: dag_b"));
+
+    rerender(<FilterBar configs={configs} initialValues={{}} onFiltersChange={vi.fn()} />);
+
+    await waitFor(() => expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument());
   });
 });

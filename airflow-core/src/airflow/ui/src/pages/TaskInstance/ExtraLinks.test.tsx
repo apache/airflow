@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { useParams } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import * as queries from "openapi/queries";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { ExtraLinks } from "./ExtraLinks";

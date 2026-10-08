@@ -9,7 +9,9 @@
   "config": {
     "columns": {
       "section": "섹션"
-    }
+    },
+    "config_one": "설정",
+    "config_other": "설정"
   },
   "connections": {
     "add": "커넥션 추가",
@@ -33,7 +35,6 @@
       "connectionIdRequired": "커넥션 ID는 필수 항목입니다",
       "connectionIdRequirement": "커넥션 ID는 공백만으로 구성될 수 없습니다",
       "connectionTypeRequired": "커넥션 유형은 필수 항목입니다",
-      "extraFields": "추가 필드",
       "extraFieldsJson": "추가 필드 JSON",
       "helperText": "커넥션 유형이 보이지 않나요? 해당 Airflow Provider 패키지가 설치되어 있는지 확인하세요.",
       "helperTextForRedactedFields": "('***')로 마스킹된 필드는 수정하지 않으면 그대로 유지됩니다.",
@@ -95,7 +96,9 @@
       "dagProcessorJob": "Dag 프로세서 잡",
       "schedulerJob": "스케줄러 잡",
       "triggererJob": "트리거러 잡"
-    }
+    },
+    "job_one": "잡",
+    "job_other": "잡"
   },
   "plugins": {
     "columns": {
@@ -103,6 +106,8 @@
     },
     "importError_one": "플러그인 가져오기 오류",
     "importError_other": "플러그인 가져오기 오류들",
+    "plugin_one": "플러그인",
+    "plugin_other": "플러그인",
     "searchPlaceholder": "파일로 검색"
   },
   "pools": {
@@ -136,7 +141,9 @@
     "columns": {
       "packageName": "패키지 이름",
       "version": "버전"
-    }
+    },
+    "provider_one": "제공자",
+    "provider_other": "제공자"
   },
   "variables": {
     "add": "변수 추가",

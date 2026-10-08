@@ -221,7 +221,25 @@ Purge history from metadata database
 
 The ``db clean`` command works by deleting from each table the records older than the provided ``--clean-before-timestamp``.
 
-You can optionally provide a list of tables to perform deletes on. If no list of tables is supplied, all tables will be included.
+You can use the ``--dry-run`` option to print the tables that would be cleaned, the configuration used for each, and the row counts, without deleting anything.
+
+You can optionally provide a list of tables to perform deletes on with ``--tables``. If no list of tables is supplied, all tables will be included.
+
+.. note::
+
+  ``--tables`` sets where cleanup starts, not the full list of tables it touches. Each table has a
+  configured list of dependent tables, and those are cleaned first, so that their rows are archived
+  too. Asking for ``--tables trigger`` therefore also cleans ``task_instance``,
+  ``xcom_v1`` and ``xcom_v2``, all of which the ``--dry-run`` output lists.
+
+  ``--tables xcom`` selects both XCom stores. ``--tables task_instance_history`` selects only
+  older tries from ``task_instance``. Selecting ``xcom_v2`` also removes legacy values
+  shadowed by the selected v2 rows, so those values cannot reappear after cleanup.
+
+  That list is maintained per table rather than derived from the schema, so it does not cover every
+  foreign key. A table left off it can still lose rows to a cascading delete when its parent is
+  cleaned, and those rows are neither listed in the dry run nor archived. See
+  `Beware cascading deletes`_ below.
 
 .. note::
 
@@ -229,13 +247,21 @@ You can optionally provide a list of tables to perform deletes on. If no list of
   affects Dags waiting on a multi-asset condition, where a pending event can be purged before the condition
   is met, meaning the Dag will not be triggered by it.
 
-You can filter cleanup to specific DAGs using ``--dag-ids`` (comma-separated list), or exclude specific DAGs using ``--exclude-dag-ids`` (comma-separated list). These options allow you to target or avoid cleanup for particular DAGs.
+You can filter cleanup to specific DAGs using ``--dag-ids`` (comma-separated list), or exclude specific DAGs using ``--exclude-dag-ids`` (comma-separated list).
 
-You can use the ``--dry-run`` option to print the row counts in the primary tables to be cleaned.
+.. warning::
 
-By default, ``db clean`` will archive purged rows in tables of the form ``_airflow_deleted__<table>__<timestamp>``.  If you don't want the data preserved in this way, you may supply argument ``--skip-archive``.
+  Both options only reach tables whose cleanup configuration declares a DAG column. Every other table is
+  cleaned whatever you pass, so ``--exclude-dag-ids`` does not preserve everything connected to the DAGs
+  you name -- ``trigger``, ``callback`` and ``import_error`` declare none, for instance, so the filters
+  never narrow them.
 
-When you encounter an error without using ``--skip-archive``,  ``_airflow_deleted__<table>__<timestamp>`` would still exist in the DB. You can use  ``db drop-archived`` command to manually drop these tables.
+  The ``--dry-run`` output shows a ``dag_id_column`` for each table it would clean. Where that column is
+  ``None``, the DAG filters do not apply to that table.
+
+By default, ``db clean`` will archive purged rows in tables of the form ``_airflow_deleted__<table>__<timestamp>``. Cascading attempt data may use a unique suffix instead of a timestamp. If you don't want the data preserved in this way, you may supply argument ``--skip-archive``.
+
+When you encounter an error without using ``--skip-archive``, an archive table may remain in the DB. You can use ``db drop-archived`` to remove it. ``db export-archived`` and ``db drop-archived`` also accept the pre-upgrade names ``xcom`` and ``task_instance_history`` to find older archives.
 
 Detecting cleanup failures
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

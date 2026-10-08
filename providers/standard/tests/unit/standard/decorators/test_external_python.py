@@ -34,10 +34,7 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
 
-try:
-    from airflow.utils import timezone  # type: ignore[attr-defined]
-except AttributeError:
-    from airflow.sdk import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -213,7 +210,7 @@ class TestExternalPythonDecorator:
             return None
 
         with dag_maker(serialized=True):
-            v = f(datetime.datetime.now(tz=datetime.timezone.utc))
+            v = f(datetime.datetime.now(tz=datetime.UTC))
 
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instances()[0]

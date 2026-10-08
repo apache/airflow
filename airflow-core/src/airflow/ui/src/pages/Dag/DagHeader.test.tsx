@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { setupServer, type SetupServer } from "msw/node";
 import { afterEach, describe, it, expect, beforeAll, afterAll } from "vitest";
 
 import type { DAGDetailsResponse } from "openapi/requests/types.gen";
+
 import { handlers } from "src/mocks/handlers";
 import { MOCK_DAG } from "src/mocks/handlers/dag";
 import { Wrapper } from "src/utils/Wrapper";
@@ -32,7 +33,7 @@ let server: SetupServer;
 
 beforeAll(() => {
   server = setupServer(...handlers);
-  server.listen({ onUnhandledRequest: "bypass" });
+  server.listen({ onUnhandledFrame: "bypass" });
 });
 
 afterEach(() => server.resetHandlers());

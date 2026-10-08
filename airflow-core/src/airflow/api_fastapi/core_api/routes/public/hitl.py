@@ -43,7 +43,9 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIStateFilter,
     RangeFilter,
     SortParam,
+    _DagIdTeamsFilter,
     datetime_range_filter_factory,
+    teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.hitl import (
@@ -61,12 +63,11 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.models.base import Base
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
+from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.trigger import handle_event_submit
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import TaskInstanceState
@@ -87,34 +88,22 @@ def _get_task_instance_with_hitl_detail(
     session: SessionDep,
     map_index: int,
     try_number: int | None = None,
-) -> TI | TIH:
-    def _query(orm_object: Base) -> TI | TIH | None:
-        options = [joinedload(orm_object.hitl_detail)]
-        if orm_object is TI:
-            options.append(joinedload(TI.rendered_task_instance_fields))
-        query = (
-            select(orm_object)
-            .where(
-                orm_object.dag_id == dag_id,
-                orm_object.run_id == dag_run_id,
-                orm_object.task_id == task_id,
-                orm_object.map_index == map_index,
-            )
-            .options(*options)
+) -> TI:
+    query = (
+        select(TI)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id == task_id,
+            TI.map_index == map_index,
         )
+        .options(joinedload(TI.hitl_detail), joinedload(TI.rendered_task_instance_fields))
+    )
+    if try_number is not None:
+        query = query.where(TI.try_number == try_number).execution_options(include_all_attempts=True)
+    ti = session.scalar(query)
 
-        if try_number is not None:
-            query = query.where(orm_object.try_number == try_number)
-
-        ti_or_tih = session.scalar(query)
-        return ti_or_tih
-
-    if try_number is None:
-        ti_or_tih = _query(TI)
-    else:
-        ti_or_tih = _query(TIH) or _query(TI)
-
-    if ti_or_tih is None:
+    if ti is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
@@ -123,13 +112,14 @@ def _get_task_instance_with_hitl_detail(
             ),
         )
 
-    if not ti_or_tih.hitl_detail:
+    if not ti.hitl_detail:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Human-in-the-loop detail does not exist for Task Instance with id {ti_or_tih.id}",
+            detail=f"Human-in-the-loop detail does not exist for Task Instance with id {ti.id}",
         )
 
-    return ti_or_tih
+    load_legacy_rendered_fields([ti], session=session)
+    return ti
 
 
 @task_instances_hitl_router.patch(
@@ -169,20 +159,25 @@ def update_hitl_detail(
     # Execution API park transition, so a human response racing the worker's park cannot deadlock.
     # Locking the TI also serializes respond-vs-clear (the clear path locks the TI, not the HITL row).
     locked_ti = (
-        session.get(TI, task_instance.id, with_for_update={"of": TI})
+        session.get(TI, task_instance.id, with_for_update={"of": TI}, populate_existing=True)
         if isinstance(task_instance, TI)
         else None
     )
+    if locked_ti is None or locked_ti.working_set is not True:
+        raise HTTPException(status.HTTP_409_CONFLICT, "The Task Instance is no longer current")
     # Lock the hitl_detail row (FOR UPDATE OF hitl_detail). of= scopes the lock to hitl_detail, which
     # eager-joins task_instance (lazy="joined"); a bare with_for_update() would emit FOR UPDATE against
-    # the nullable side of that outer join, which Postgres rejects. The joinedloaded relationship object
-    # reused below is the same identity-mapped row, now locked for this transaction.
-    session.execute(
+    # the nullable side of that outer join, which Postgres rejects. populate_existing re-reads the
+    # joinedloaded row under the lock, so assignees and options are validated against the request committed
+    # by a concurrent upsert from the re-run, not the snapshot taken before locking.
+    hitl_detail_model = session.scalar(
         select(HITLDetailModel)
         .where(HITLDetailModel.ti_id == task_instance.id)
         .with_for_update(of=HITLDetailModel)
+        .execution_options(populate_existing=True)
     )
-    hitl_detail_model = task_instance.hitl_detail
+    if hitl_detail_model is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Human-in-the-loop detail does not exist")
     if hitl_detail_model.response_received:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -223,10 +218,10 @@ def update_hitl_detail(
             "Multiple options chosen but this Human-in-the-loop task accepts only a single option.",
         )
 
-    hitl_detail_model.responded_by = hitl_user
+    hitl_detail_model.responded_by = dict(hitl_user)
     hitl_detail_model.responded_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
-    hitl_detail_model.params_input = update_hitl_detail_payload.params_input
+    hitl_detail_model.params_input = dict(update_hitl_detail_payload.params_input)
     session.add(hitl_detail_model)
 
     # Event-driven resume: if the task is parked waiting for this input, transition it directly,
@@ -344,6 +339,7 @@ def get_hitl_details(
     task_id_prefix_pattern: QueryHITLDetailTaskIdPrefixPatternSearch,
     map_index: QueryHITLDetailMapIndexFilter,
     ti_state: QueryTIStateFilter,
+    teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(TI.dag_id))],
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
     responded_by_user_id: QueryHITLDetailRespondedUserIdFilter,
@@ -383,6 +379,7 @@ def get_hitl_details(
             task_id_prefix_pattern,
             map_index,
             ti_state,
+            teams,
             # hitl detail related filter
             response_received,
             responded_by_user_id,
@@ -397,7 +394,8 @@ def get_hitl_details(
         session=session,
     )
 
-    hitl_details = session.scalars(hitl_detail_select)
+    hitl_details = session.scalars(hitl_detail_select).all()
+    load_legacy_rendered_fields([detail.task_instance for detail in hitl_details], session=session)
 
     return HITLDetailCollection(
         hitl_details=hitl_details,

@@ -20,6 +20,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import type { FilterValue, DateRangeValue } from "src/components/FilterBar";
+
 import { useFilterConfigs } from "src/constants/filterConfigs";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
@@ -59,13 +60,13 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.ASSET_EVENT_DATE_RANGE
   | SearchParamsKeys.BODY_SEARCH
   | SearchParamsKeys.BUNDLE_VERSION
+  | SearchParamsKeys.COMPLETED_AT_RANGE
   | SearchParamsKeys.CONF_CONTAINS
   | SearchParamsKeys.CONSUMING_ASSET_PATTERN
   | SearchParamsKeys.CREATED_AT_RANGE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
   | SearchParamsKeys.DAG_ID_PATTERN
-  | SearchParamsKeys.DAG_RUN_STATE
   | SearchParamsKeys.DAG_VERSION
   | SearchParamsKeys.DEADLINE_TIME_RANGE
   | SearchParamsKeys.DURATION_GTE
@@ -75,15 +76,18 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.EXECUTOR_CLASS
   | SearchParamsKeys.FAVORITE
+  | SearchParamsKeys.FROM_RANGE
   | SearchParamsKeys.GROUP_PATTERN
+  | SearchParamsKeys.HAS_EVENTS
   | SearchParamsKeys.HOSTNAME
   | SearchParamsKeys.JOB_STATE
   | SearchParamsKeys.JOB_TYPE
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE
-  | SearchParamsKeys.LAST_DAG_RUN_STATE
   | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
+  | SearchParamsKeys.MAX_ACTIVE_RUNS_GTE
+  | SearchParamsKeys.MAX_ACTIVE_RUNS_LTE
   | SearchParamsKeys.MISSED
   | SearchParamsKeys.NAME_PATTERN
   | SearchParamsKeys.NEEDS_REVIEW
@@ -94,12 +98,15 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN
   | SearchParamsKeys.RENDERED_MAP_INDEX
+  | SearchParamsKeys.REPROCESS_BEHAVIOR
   | SearchParamsKeys.RESPONDED_BY_USER_NAME
   | SearchParamsKeys.RESPONSE_RECEIVED
   | SearchParamsKeys.RUN_AFTER_RANGE
   | SearchParamsKeys.RUN_ID
   | SearchParamsKeys.RUN_ID_PATTERN
+  | SearchParamsKeys.RUN_STATE
   | SearchParamsKeys.RUN_TYPE
+  | SearchParamsKeys.SCHEDULING_STATE
   | SearchParamsKeys.START_DATE_RANGE
   | SearchParamsKeys.STATE
   | SearchParamsKeys.SUBJECT_SEARCH
@@ -109,6 +116,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.TASK_STATE
   | SearchParamsKeys.TEAMS
   | SearchParamsKeys.TIMETABLE_TYPE
+  | SearchParamsKeys.TO_RANGE
   | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;
@@ -124,7 +132,13 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
   const initialValues: Record<string, FilterValue> = {};
 
   filterConfigs.forEach((config) => {
-    if (config.type === "daterange") {
+    if (config.fromSearchParams) {
+      const value = config.fromSearchParams(searchParams);
+
+      if (value !== undefined) {
+        initialValues[config.key] = value;
+      }
+    } else if (config.type === "daterange") {
       // Handle daterange filters using startKey and endKey
       const startDate =
         config.startKey !== undefined && config.startKey !== ""
@@ -179,7 +193,15 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
 
         newParams.delete(config.key);
 
-        if (config.type === "daterange") {
+        if (config.toSearchParams) {
+          Object.entries(config.toSearchParams(value)).forEach(([paramKey, paramValue]) => {
+            if (paramValue === undefined || paramValue === "") {
+              newParams.delete(paramKey);
+            } else {
+              newParams.set(paramKey, paramValue);
+            }
+          });
+        } else if (config.type === "daterange") {
           handleDateRangeChange(newParams, value as DateRangeValue | null, config);
         } else if (config.type === "multiselect") {
           const values = Array.isArray(value) ? value.filter((entry) => entry !== "") : [];

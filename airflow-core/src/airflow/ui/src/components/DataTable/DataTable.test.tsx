@@ -18,16 +18,17 @@
  */
 import { Text } from "@chakra-ui/react";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ChakraWrapper } from "src/utils/ChakraWrapper.tsx";
 
 import { DataTable } from "./DataTable.tsx";
+import type { DataTableFeatures } from "./features.ts";
 import type { CardDef } from "./types.ts";
 
-const columns: Array<ColumnDef<{ name: string }>> = [
+const columns: Array<ColumnDef<DataTableFeatures, { name: string }>> = [
   {
     accessorKey: "name",
     cell: (info) => info.getValue(),
@@ -36,7 +37,7 @@ const columns: Array<ColumnDef<{ name: string }>> = [
 ];
 
 // The columns menu is only shown by default once a table has many columns
-const wideColumns: Array<ColumnDef<{ name: string }>> = [
+const wideColumns: Array<ColumnDef<DataTableFeatures, { name: string }>> = [
   ...columns,
   ...["Second", "Third", "Fourth", "Fifth", "Sixth"].map((header) => ({
     cell: () => header,
@@ -289,12 +290,12 @@ describe("DataTable", () => {
     expect(screen.getByRole("heading")).toHaveTextContent("50,000+ task");
   });
 
-  it("does not render row count heading during the initial load", () => {
+  it("keeps the row count heading during the initial load", () => {
     render(<DataTable columns={columns} data={[]} isLoading modelName="task" total={0} />, {
       wrapper: ChakraWrapper,
     });
 
-    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getByRole("heading")).toHaveTextContent(/^task_other$/u);
   });
 
   it("does not render row count heading when hideRowCountHeading is set", () => {
@@ -469,7 +470,7 @@ describe("DataTable", () => {
   });
 
   // Each slot needs its own entry in the header row condition, or its content vanishes whenever
-  // nothing else occupies the row — including while loading, when the row count is suppressed.
+  // nothing else occupies the row — as it does on tables that hide the row count heading.
   const actionSlots = [
     ["filterActions", { filterActions: <button type="button">slot content</button> }],
     ["presentationActions", { presentationActions: <button type="button">slot content</button> }],
@@ -481,14 +482,6 @@ describe("DataTable", () => {
       <DataTable columns={columns} data={[]} hideRowCountHeading modelName="task" total={0} {...slot} />,
       { wrapper: ChakraWrapper },
     );
-
-    expect(screen.getByText("slot content")).toBeInTheDocument();
-  });
-
-  it.each(actionSlots)("keeps %s visible while loading", (_name, slot) => {
-    render(<DataTable columns={columns} data={[]} isLoading modelName="task" {...slot} />, {
-      wrapper: ChakraWrapper,
-    });
 
     expect(screen.queryByRole("heading")).toBeNull();
     expect(screen.getByText("slot content")).toBeInTheDocument();

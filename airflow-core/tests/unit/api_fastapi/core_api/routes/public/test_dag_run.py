@@ -24,7 +24,6 @@ from unittest import mock
 
 import pytest
 import time_machine
-from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
 
 from airflow import plugins_manager
@@ -35,7 +34,7 @@ from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.exceptions import ParamValidationError
-from airflow.models import DagModel, DagRun, Log
+from airflow.models import DagModel, DagRun, DagTag, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.taskinstance import TaskInstance
@@ -43,12 +42,11 @@ from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, Param, result, task
-from airflow.settings import _configure_async_session
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
@@ -64,6 +62,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 from tests_common.test_utils.taskinstance import run_task_instance
+from tests_common.test_utils.team import attach_dag_to_team
 from unit.listeners.class_listener import ClassBasedListener
 
 if TYPE_CHECKING:
@@ -334,32 +333,16 @@ def get_dag_run_dict(run: DagRun):
     }
 
 
-def _attach_dag_to_team(session, dag_id: str, *, bundle_name: str, team_name: str) -> str:
-    """
-    Associate a Dag with a team via a team-scoped bundle for multi-team tests.
-
-    Returns the Dag's original bundle name so the caller can restore it during cleanup
-    (``DagModel.bundle_name`` is a foreign key with no ``ON DELETE`` action).
-    """
-    original_bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == dag_id))
-    bundle = DagBundleModel(name=bundle_name)
-    bundle.teams.append(Team(name=team_name))
-    session.add(bundle)
-    session.flush()
-    session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
+def _attach_tags_to_dag(session, dag_id: str, tag_names: list[str]) -> None:
+    """Assign Dag tags for tag-filter tests."""
+    for tag_name in tag_names:
+        session.add(DagTag(dag_id=dag_id, name=tag_name))
     session.commit()
-    return original_bundle_name
 
 
-def _detach_dag_from_team(
-    session, dag_id: str, *, bundle_name: str, team_name: str, original_bundle_name: str
-) -> None:
-    """Undo :func:`_attach_dag_to_team`, restoring the Dag's original bundle."""
-    session.execute(
-        update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=original_bundle_name)
-    )
-    session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
-    session.execute(delete(Team).where(Team.name == team_name))
+def _detach_tags_from_dag(session, dag_id: str) -> None:
+    """Undo :func:`_attach_tags_to_dag`."""
+    session.execute(delete(DagTag).where(DagTag.dag_id == dag_id))
     session.commit()
 
 
@@ -416,21 +399,10 @@ class TestGetDagRun:
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_run_includes_team_name(self, test_client, session):
-        original_bundle_name = _attach_dag_to_team(
-            session, DAG1_ID, bundle_name="team-bundle-run", team_name="team-run"
-        )
-        try:
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-run", team_name="team-run"):
             response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
             assert response.status_code == 200
             assert response.json()["team_name"] == "team-run"
-        finally:
-            _detach_dag_from_team(
-                session,
-                DAG1_ID,
-                bundle_name="team-bundle-run",
-                team_name="team-run",
-                original_bundle_name=original_bundle_name,
-            )
 
     def test_get_dag_run_not_found(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
@@ -489,31 +461,17 @@ class TestGetDagRuns:
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs_includes_team_name(self, test_client, session):
-        original_bundle_name = _attach_dag_to_team(
-            session, DAG1_ID, bundle_name="team-bundle-runs", team_name="team-runs"
-        )
-        try:
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-runs", team_name="team-runs"):
             response = test_client.get(f"/dags/{DAG1_ID}/dagRuns")
             assert response.status_code == 200
             body = response.json()
             assert body["dag_runs"]
             assert all(run["team_name"] == "team-runs" for run in body["dag_runs"])
-        finally:
-            _detach_dag_from_team(
-                session,
-                DAG1_ID,
-                bundle_name="team-bundle-runs",
-                team_name="team-runs",
-                original_bundle_name=original_bundle_name,
-            )
 
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs_filtered_by_team(self, test_client, session):
-        original_bundle_name = _attach_dag_to_team(
-            session, DAG1_ID, bundle_name="team-bundle-filter", team_name="team-filter"
-        )
-        try:
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-filter", team_name="team-filter"):
             response = test_client.get("/dags/~/dagRuns", params={"teams": ["team-filter"]})
             assert response.status_code == 200
             body = response.json()
@@ -524,14 +482,45 @@ class TestGetDagRuns:
             response = test_client.get("/dags/~/dagRuns", params={"teams": ["nonexistent-team"]})
             assert response.status_code == 200
             assert response.json()["total_entries"] == 0
+
+    def test_get_dag_runs_filtered_by_tag(self, test_client, session):
+        _attach_tags_to_dag(session, DAG1_ID, ["tag-filter-only"])
+        try:
+            response = test_client.get("/dags/~/dagRuns", params={"tags": ["tag-filter-only"]})
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] == 2
+            assert {run["dag_id"] for run in body["dag_runs"]} == {DAG1_ID}
+
+            # A tag with no Dags returns nothing.
+            response = test_client.get("/dags/~/dagRuns", params={"tags": ["nonexistent-tag"]})
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
         finally:
-            _detach_dag_from_team(
-                session,
-                DAG1_ID,
-                bundle_name="team-bundle-filter",
-                team_name="team-filter",
-                original_bundle_name=original_bundle_name,
+            _detach_tags_from_dag(session, DAG1_ID)
+
+    def test_get_dag_runs_filtered_by_tags_match_mode(self, test_client, session):
+        _attach_tags_to_dag(session, DAG1_ID, ["tag-filter-a"])
+        _attach_tags_to_dag(session, DAG2_ID, ["tag-filter-a", "tag-filter-b"])
+        try:
+            response = test_client.get(
+                "/dags/~/dagRuns",
+                params={"tags": ["tag-filter-a", "tag-filter-b"], "tags_match_mode": "any"},
             )
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 4
+
+            response = test_client.get(
+                "/dags/~/dagRuns",
+                params={"tags": ["tag-filter-a", "tag-filter-b"], "tags_match_mode": "all"},
+            )
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] == 2
+            assert {run["dag_id"] for run in body["dag_runs"]} == {DAG2_ID}
+        finally:
+            _detach_tags_from_dag(session, DAG1_ID)
+            _detach_tags_from_dag(session, DAG2_ID)
 
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")
@@ -2278,6 +2267,7 @@ class TestClearDagRun:
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
+        assert len(body["task_instances"]) == 2
 
         for ti in body["task_instances"]:
             # Fields that require dag_run → dag_model join (previously missing)
@@ -2574,24 +2564,17 @@ class TestBulkClearDagRuns:
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.post(
-                "/dags/~/clearDagRuns",
-                json={
-                    "dry_run": False,
-                    "dag_runs": [
-                        {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
-                        {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
-                    ],
-                },
-            )
+        response = test_client.post(
+            "/dags/~/clearDagRuns",
+            json={
+                "dry_run": False,
+                "dag_runs": [
+                    {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                    {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                ],
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 403
         # The batched auth check rejects the whole request, so the authorized Dag's run is not cleared either.
@@ -3814,6 +3797,79 @@ class TestTriggerDagRun:
         assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error", "message"]
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("drain_dag", "expected_state"),
+        [
+            pytest.param(True, DagSchedulingState.DRAINING, id="drain"),
+            pytest.param(False, DagSchedulingState.PAUSED, id="leave-paused"),
+        ],
+    )
+    def test_trigger_paused_dag_with_drain_dag(self, test_client, session, drain_dag, expected_state):
+        session.execute(update(DagModel).where(DagModel.dag_id == DAG1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": None, "drain_dag": drain_dag}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["state"] == "queued"
+        session.expire_all()
+        assert session.get(DagModel, DAG1_ID).scheduling_state == expected_state
+
+    def test_trigger_rejects_null_drain_dag(self, test_client):
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": None, "drain_dag": None}
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("drain_dag", "expected_status"),
+        [pytest.param(True, 403, id="drain"), pytest.param(False, 200, id="no-drain")],
+    )
+    def test_drain_dag_requires_dag_edit_access(
+        self, test_client, session, deny_dag_edit_access, drain_dag, expected_status
+    ):
+        session.execute(update(DagModel).where(DagModel.dag_id == DAG1_ID).values(is_paused=True))
+        session.commit()
+        count_dag_runs = select(func.count()).select_from(DagRun).where(DagRun.dag_id == DAG1_ID)
+        dag_runs_before = session.scalar(count_dag_runs)
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": None, "drain_dag": drain_dag}
+        )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.get(DagModel, DAG1_ID).scheduling_state == DagSchedulingState.PAUSED
+        if drain_dag:
+            assert response.json()["detail"] == f"Draining requires permission to edit Dag: {DAG1_ID}"
+            assert session.scalar(count_dag_runs) == dag_runs_before
+            assert (
+                mock.call(mock.ANY, method="PUT", details=DagDetails(id=DAG1_ID), user=mock.ANY)
+                in deny_dag_edit_access.call_args_list
+            )
+
+    def test_trigger_with_drain_dag_leaves_dag_paused_when_run_is_rejected(self, test_client, session):
+        session.execute(update(DagModel).where(DagModel.dag_id == DAG1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={
+                "dag_run_id": DAG1_RUN1_ID,
+                "logical_date": timezone.utcnow().isoformat(),
+                "drain_dag": True,
+            },
+        )
+
+        assert response.status_code == 409
+        session.expire_all()
+        assert session.get(DagModel, DAG1_ID).scheduling_state == DagSchedulingState.PAUSED
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_null_logical_date(self, test_client):
         response = test_client.post(
             f"/dags/{DAG1_ID}/dagRuns",
@@ -4423,16 +4479,6 @@ class TestResolveRunOnLatestVersion:
 
 
 class TestWaitDagRun:
-    # The way we init async engine does not work well with FastAPI app init.
-    # Creating the engine implicitly creates an event loop, which Airflow does
-    # once for the entire process; creating the FastAPI app also does, but our
-    # test setup does it once for each test. I don't know how to properly fix
-    # this without rewriting how Airflow does db; re-configuring the db for each
-    # test at least makes the tests run correctly.
-    @pytest.fixture(autouse=True)
-    def reconfigure_async_db_engine(self):
-        _configure_async_session()
-
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
             f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
@@ -4922,28 +4968,21 @@ class TestBulkDagRuns:
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.patch(
-                self.WILDCARD_ENDPOINT,
-                json={
-                    "actions": [
-                        {
-                            "action": "delete",
-                            "entities": [
-                                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
-                                {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
-                            ],
-                        }
-                    ]
-                },
-            )
+        response = test_client.patch(
+            self.WILDCARD_ENDPOINT,
+            json={
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                            {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                        ],
+                    }
+                ]
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 403
         session.expire_all()

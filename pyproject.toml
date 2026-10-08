@@ -17,13 +17,12 @@
 
 [build-system]
 requires = [
-    "hatchling==1.32.0",
+    "hatchling==1.32.4",
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
     "tomlkit==0.15.1",
-    "trove-classifiers==2026.6.1.19",
+    "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
 
@@ -33,7 +32,7 @@ description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -48,7 +47,6 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -113,6 +111,12 @@ apache-airflow = "airflow.__main__:main"
 ]
 "anthropic" = [
     "apache-airflow-providers-anthropic>=0.1.0"
+]
+"apache.arrow" = [
+    "apache-airflow-providers-apache-arrow>=0.1.0"
+]
+"apache.beam" = [
+    "apache-airflow-providers-apache-beam>=5.8.1"
 ]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
@@ -219,6 +223,9 @@ apache-airflow = "airflow.__main__:main"
 "docker" = [
     "apache-airflow-providers-docker>=3.14.1"
 ]
+"duckdb" = [
+    "apache-airflow-providers-duckdb>=0.2.0"
+]
 "edge3" = [
     "apache-airflow-providers-edge3>=1.0.0"
 ]
@@ -255,6 +262,12 @@ apache-airflow = "airflow.__main__:main"
 "http" = [
     "apache-airflow-providers-http>=4.13.2"
 ]
+"ibm.db2" = [
+    "apache-airflow-providers-ibm-db2>=0.1.0; platform_machine !=\"aarch64\""
+]
+"ibm.mq" = [
+    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\""
+]
 "imap" = [
     "apache-airflow-providers-imap>=3.8.0"
 ]
@@ -284,6 +297,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "microsoft.winrm" = [
     "apache-airflow-providers-microsoft-winrm>=3.6.1"
+]
+"modal" = [
+    "apache-airflow-providers-modal>=0.1.0"
 ]
 "mongo" = [
     "apache-airflow-providers-mongo>=4.2.2"
@@ -406,13 +422,15 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
-    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
+    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,fab-oauth,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-akeyless>=0.1.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-anthropic>=0.1.0",
+    "apache-airflow-providers-apache-arrow>=0.1.0",
+    "apache-airflow-providers-apache-beam>=5.8.1",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -448,6 +466,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
+    "apache-airflow-providers-duckdb>=0.2.0",
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
@@ -460,6 +479,8 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
+    "apache-airflow-providers-ibm-db2>=0.1.0; platform_machine !=\"aarch64\"",
+    "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\"",
     "apache-airflow-providers-imap>=3.8.0",
     "apache-airflow-providers-influxdb>=2.8.0",
     "apache-airflow-providers-informatica>=0.1.1",
@@ -470,6 +491,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-microsoft-mssql>=3.9.2",
     "apache-airflow-providers-microsoft-psrp>=3.0.0",
     "apache-airflow-providers-microsoft-winrm>=3.6.1",
+    "apache-airflow-providers-modal>=0.1.0",
     "apache-airflow-providers-mongo>=4.2.2",
     "apache-airflow-providers-mysql>=5.7.2",
     "apache-airflow-providers-neo4j>=3.8.0",
@@ -533,13 +555,14 @@ apache-airflow = "airflow.__main__:main"
     # tracked at https://github.com/apache/airflow/issues/70084
     "cloudpickle>=2.2.1,<3.1.2",
 ]
+"fab-oauth" = [
+    "apache-airflow-providers-fab[oauth]",
+]
 "github-enterprise" = [
-    "apache-airflow-providers-fab>=2.2.0",
-    "authlib>=1.0.0",
+    "apache-airflow-providers-fab[oauth]",
 ]
 "google-auth" = [
-    "apache-airflow-providers-fab>=2.2.0",
-    "authlib>=1.0.0",
+    "apache-airflow-providers-fab[oauth]",
 ]
 "ldap" = [
     "python-ldap>=3.4.4",
@@ -562,7 +585,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.12.5",
+    "uv>=0.12.18",
 ]
 
 [project.urls]
@@ -674,6 +697,7 @@ extend-select = [
     "B012", # Checks for `break`, `continue`, and `return` statements in `finally` blocks
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "B023", # Function definition does not bind loop variable (late binding of closure over loop var)
     "B028", # No explicit stacklevel keyword argument found
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
     "RET505", # Unnecessary {branch} after return statement
@@ -720,6 +744,11 @@ ignore = [
     # in flight silently drops the traceback, while leaving `.exception()` where none is
     # only prints a bare `NoneType: None`. Review already caught one bad guess in 13.
     "LOG004", # `.exception()` outside an exception handler; 13 sites
+    # Both became reportable once the baseline moved to Python 3.11. Neither is a mechanical
+    # change: StrEnum alters what ``str()`` and ``format()`` return for serialized enum values,
+    # and ``asyncio.timeout`` means dropping the public ``timeout`` parameter from async APIs.
+    "UP042", # Class inherits from both `str` and `enum.Enum`; 98 sites
+    "ASYNC109", # Async function with a `timeout` parameter; 49 sites
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -910,8 +939,7 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 
 # Note: we have to specify these all here (not in sub pyproject.toml files), else we'd have to duplicate these
 # all rules in each project https://github.com/astral-sh/ruff/issues/18723
-# Add this once providers are sorted
-# "airflow.utils.timezone".msg = "Use airflow.sdk.timezone (or airflow._shared.timezones.timezone from within airflow-core)"
+"airflow.utils.timezone".msg = "Use airflow.sdk.timezone (or airflow._shared.timezones.timezone from within airflow-core)"
 # "airflow_shared".msg = "Use airflow._shared or airflow.sdk._shared instead"
 
 # Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
@@ -1106,6 +1134,10 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/anthropic/src",
     "$MYPY_CONFIG_FILE_DIR/providers/anthropic/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/arrow/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/arrow/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/beam/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/beam/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/drill/src",
@@ -1178,6 +1210,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/discord/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/src",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/duckdb/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/duckdb/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/edge3/src",
     "$MYPY_CONFIG_FILE_DIR/providers/edge3/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/elasticsearch/src",
@@ -1226,6 +1260,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/psrp/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/winrm/src",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/winrm/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/modal/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/modal/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/mongo/src",
     "$MYPY_CONFIG_FILE_DIR/providers/mongo/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/mysql/src",
@@ -1424,6 +1460,24 @@ ci-image = [
 # floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
 required-version = ">=0.11.8"
 no-build-isolation-package = ["sphinx-redoc"]
+# pydantic-ai-slim[openai]>=2.33 declares openai>=3 (>=3.8 from 2.39), while
+# llama-index-llms-openai (<=0.8.1) and litellm (<=1.102.0, pulled in by the Google provider's
+# google-cloud-aiplatform[evaluation]) still cap openai below 3. Without this override the
+# workspace lock cannot move pydantic-ai-slim past 2.31, which is incompatible with anthropic
+# 1.x, so the Anthropic path could not run in the CI image at all. Holding openai on 2.x is the
+# pairing constraints-main already ships and the one `pip check` in the image build accepts
+# (pip ignores extra-gated requirements, but not llama-index's unconditional cap). pydantic-ai's
+# OpenAI model works against openai 2.x at runtime; the declared floor tracks the SDK's httpx2
+# move. Published wheels are unaffected: overrides only shape uv.lock and the CI image. Drop this
+# once run-llama/llama_index#22939 and BerriAI/litellm#40317 land and google-cloud-aiplatform
+# lifts its litellm cap (<1.86 below Python 3.14) far enough to reach the fixed litellm.
+override-dependencies = ["openai>=2.47.0,<3"]
+# The override replaces every package's openai requirement, not only pydantic-ai-slim's, so the
+# resolver no longer rejects a release that needs openai>=3 unconditionally, and only `pip check`
+# in the image build catches it. Cap each such package here at its last openai 2.x release, which
+# is what the resolver would pick without the override. azure-ai-projects 2.5.0 moved to
+# openai>=3.0.0; the Azure provider needs >=2.2.0.
+constraint-dependencies = ["azure-ai-projects<2.5"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
 
@@ -1448,6 +1502,8 @@ apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-anthropic = false
+apache-airflow-providers-apache-arrow = false
+apache-airflow-providers-apache-beam = false
 apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
@@ -1484,6 +1540,7 @@ apache-airflow-providers-dbt-cloud = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-discord = false
 apache-airflow-providers-docker = false
+apache-airflow-providers-duckdb = false
 apache-airflow-providers-edge3 = false
 apache-airflow-providers-elasticsearch = false
 apache-airflow-providers-exasol = false
@@ -1508,6 +1565,7 @@ apache-airflow-providers-microsoft-azure = false
 apache-airflow-providers-microsoft-mssql = false
 apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers-modal = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-neo4j = false
@@ -1581,6 +1639,44 @@ pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # past that release so 1.164.0 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-08-12.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
+# Temporary: typesafe-sdk>=0.6.0 (required by the apache-airflow-providers-common-ai[typesafe]
+# extra) first shipped on 2026-09-18, inside the "4 days" exclude-newer window. This pins the
+# per-package cutoff just past that release so it resolves while any later release stays
+# quarantined.
+# Remove once the rolling window advances past 2026-09-18.
+typesafe-sdk = "2026-09-19T00:00:00Z"
+
+[tool.airflow.dependency-floors]
+# Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
+# see dev/breeze/doc/adr/0018-raise-dependency-floors-automatically.md.
+# A floor is never raised to a release uploaded more recently than this.
+min-age = "180 days"
+packages = [
+    "boto3",
+    "botocore",
+    "google-cloud-*",
+    "google-api-python-client",
+    "azure-*",
+]
+# Members of a group always get the same floor.
+groups = [
+    ["boto3", "botocore"],
+]
+
+# Never bumped. Packages capped or excluded anywhere (<, <=, !=, ==, ~=) are skipped automatically;
+# list here the ones that must stay put for another reason, or whose cap should not be the only record.
+[tool.airflow.dependency-floors.exclude]
+sagemaker-studio = "Do not change without approval from AWS (providers/amazon/pyproject.toml)"
+pandas = "DataFrame XComs need pandas<3 (#70791)"
+pymysql = "Capped below 1.2 in PyPI constraints generation (#67491)"
+fastapi = "Repeated breakage on new releases (#59681, #59710, #59856, #61579, #68578)"
+deltalake = "Missing ARM wheels on new releases (#59977, #60098, #60376)"
+gunicorn = "API server startup deadlocks above 25.1 (#62524)"
+qdrant-client = "Capped (#62193)"
+airbyte-api = "1.x breaks provider tests (#69081)"
+mysql-connector-python = "Releases without wheels for >=3.12 (#60889, #66026)"
+anthropic = "Provider SDK migration is version-sensitive (#72072, #72094)"
+azure-ai-projects = "2.5+ needs openai>=3, broke main (#73621, #73627)"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1607,6 +1703,8 @@ apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-anthropic = false
+apache-airflow-providers-apache-arrow = false
+apache-airflow-providers-apache-beam = false
 apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
@@ -1643,6 +1741,7 @@ apache-airflow-providers-dbt-cloud = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-discord = false
 apache-airflow-providers-docker = false
+apache-airflow-providers-duckdb = false
 apache-airflow-providers-edge3 = false
 apache-airflow-providers-elasticsearch = false
 apache-airflow-providers-exasol = false
@@ -1667,6 +1766,7 @@ apache-airflow-providers-microsoft-azure = false
 apache-airflow-providers-microsoft-mssql = false
 apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers-modal = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-neo4j = false
@@ -1732,6 +1832,8 @@ apache-airflow-task-sdk-integration-tests = false
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # Temporary: see the google-cloud-aiplatform note in `[tool.uv.exclude-newer-package]`.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
+# Temporary: see the typesafe-sdk note in `[tool.uv.exclude-newer-package]`.
+typesafe-sdk = "2026-09-19T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1773,6 +1875,8 @@ apache-airflow-providers-akeyless = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
 apache-airflow-providers-anthropic = { workspace = true }
+apache-airflow-providers-apache-arrow = { workspace = true }
+apache-airflow-providers-apache-beam = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
 apache-airflow-providers-apache-druid = { workspace = true }
@@ -1809,6 +1913,7 @@ apache-airflow-providers-dbt-cloud = { workspace = true }
 apache-airflow-providers-dingding = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
 apache-airflow-providers-docker = { workspace = true }
+apache-airflow-providers-duckdb = { workspace = true }
 apache-airflow-providers-edge3 = { workspace = true }
 apache-airflow-providers-elasticsearch = { workspace = true }
 apache-airflow-providers-exasol = { workspace = true }
@@ -1833,6 +1938,7 @@ apache-airflow-providers-microsoft-azure = { workspace = true }
 apache-airflow-providers-microsoft-mssql = { workspace = true }
 apache-airflow-providers-microsoft-psrp = { workspace = true }
 apache-airflow-providers-microsoft-winrm = { workspace = true }
+apache-airflow-providers-modal = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-mysql = { workspace = true }
 apache-airflow-providers-neo4j = { workspace = true }
@@ -1915,6 +2021,8 @@ members = [
     "providers/alibaba",
     "providers/amazon",
     "providers/anthropic",
+    "providers/apache/arrow",
+    "providers/apache/beam",
     "providers/apache/cassandra",
     "providers/apache/drill",
     "providers/apache/druid",
@@ -1951,6 +2059,7 @@ members = [
     "providers/dingding",
     "providers/discord",
     "providers/docker",
+    "providers/duckdb",
     "providers/edge3",
     "providers/elasticsearch",
     "providers/exasol",
@@ -1975,6 +2084,7 @@ members = [
     "providers/microsoft/mssql",
     "providers/microsoft/psrp",
     "providers/microsoft/winrm",
+    "providers/modal",
     "providers/mongo",
     "providers/mysql",
     "providers/neo4j",

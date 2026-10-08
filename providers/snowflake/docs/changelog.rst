@@ -27,6 +27,64 @@
 Changelog
 ---------
 
+6.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add SnowflakeNotebookOperator for executing Snowflake Notebooks (#63470)``
+* ``Add Cortex Agent management methods to SnowflakeCortexAgentHook (#70101)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate Snowflake account and region before building the SQL API URL (#72174)``
+* ``Fix Snowflake SQL API OAuth for client_credentials and azure_conn_id (#73162)``
+
+Misc
+~~~~
+
+* ``Log when a Snowpark container job returns no logs (#73011)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+
+6.17.0
+......
+
+.. warning::
+  ``SnowparkContainerJobOperator`` now applies a default ``timeout`` of 24 hours where it
+  previously polled indefinitely, so a task running longer than a day now fails. Increase
+  ``timeout`` to allow more time.
+
+Features
+~~~~~~~~
+
+* ``Add external access integrations to SnowparkContainerJobOperator (#72602)``
+* ``Add deferrable mode to SnowparkContainerJobOperator (#70103)``
+* ``Cancel Snowflake queries when a user kills the deferred task (#69635)``
+
+Misc
+~~~~
+
+* ``Remove redundant _set_context in SnowflakeSqlApiTrigger (#71659)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove the TaskFlow recommendation from the Snowflake documentation (#72090)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix collection error and timeout assertion in Snowpark container tests (#72709)``
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
 6.16.1
 ......
 

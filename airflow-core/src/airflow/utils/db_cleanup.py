@@ -30,9 +30,10 @@ import os
 from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
+from uuid import uuid4
 
-from sqlalchemy import and_, column, func, inspect, literal, select, table, text
+from sqlalchemy import and_, column, func, inspect, literal, literal_column, or_, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
@@ -42,14 +43,17 @@ from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.models.callback import TERMINAL_STATES
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import CallbackState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-    from sqlalchemy import Select
+    from sqlalchemy import Select, Table
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
 
     from airflow.models import Base
@@ -57,6 +61,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
+# Alias _build_query gives the table being cleaned; a correlated extra_filter refers to it by name.
+_BASE_TABLE_ALIAS = "base"
 # Archived tables created by DB migrations
 ARCHIVED_TABLES_FROM_DB_MIGRATIONS = [
     "_xcom_archive"  # Table created by the AF 2 -> 3.0.0 migration when the XComs had pickled values
@@ -78,6 +84,28 @@ def _format_table_name(schema: str | None, table: str) -> str:
     return table
 
 
+@dataclasses.dataclass(frozen=True)
+class _IndirectDagScope:
+    """
+    Describe how to scope a table to a Dag when it carries no ``dag_id`` of its own.
+
+    ``--dag-ids`` / ``--exclude-dag-ids`` normally filter on a column of the table being
+    cleaned. A table that reaches its Dag only through a foreign key needs the filter
+    expressed as a subquery against the referenced table instead.
+
+    :param fk_column: the foreign key on the table being cleaned; must be listed in
+        ``extra_columns`` so it is present on the constructed table
+    :param referenced_table: the table ``fk_column`` points at
+    :param referenced_pk_column: the primary key of ``referenced_table`` that ``fk_column`` matches
+    :param referenced_dag_id_column: the Dag id column on ``referenced_table``
+    """
+
+    fk_column: str
+    referenced_table: str
+    referenced_pk_column: str = "id"
+    referenced_dag_id_column: str = "dag_id"
+
+
 @dataclasses.dataclass
 class _TableConfig:
     """
@@ -93,6 +121,9 @@ class _TableConfig:
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
     :param dependent_tables: list of tables which have FK relationship with this table
     :param extra_filters: SQLAlchemy expressions ANDed with the recency filter; referenced columns must be in ``extra_columns``.
+    :param dag_id_scope: how to apply ``--dag-ids`` / ``--exclude-dag-ids`` to a table that has no
+        Dag id column of its own and reaches its Dag through a foreign key. Mutually exclusive with
+        ``dag_id_column_name``.
     :param skip_if_referenced: list of ``(referencing_table, fk_column)`` pairs whose FK points at this
         table's ``referenced_pk_column``. A row that is still referenced by any of these is excluded from
         deletion. This avoids issuing deletes that would violate an ``ON DELETE RESTRICT`` foreign key
@@ -105,6 +136,7 @@ class _TableConfig:
     recency_column_name: str
     extra_columns: list[str] | None = None
     dag_id_column_name: str | None = None
+    dag_id_scope: _IndirectDagScope | None = None
     keep_last: bool = False
     keep_last_filters: Any | None = None
     keep_last_group_by: Any | None = None
@@ -141,6 +173,20 @@ class _TableConfig:
                 schema=self.schema_name,
             )
 
+        if self.dag_id_scope is not None:
+            if self.dag_id_column_name is not None:
+                raise ValueError(
+                    f"_TableConfig for table {self.table_name!r} sets both dag_id_column_name and "
+                    f"dag_id_scope; a table is scoped to a Dag either by its own column or through a "
+                    f"foreign key, not both."
+                )
+            if self.dag_id_scope.fk_column not in self.orm_model.c.keys():
+                raise ValueError(
+                    f"_TableConfig for table {self.table_name!r} sets dag_id_scope but its "
+                    f"fk_column {self.dag_id_scope.fk_column!r} is not one of its columns; "
+                    f"add {self.dag_id_scope.fk_column!r} to extra_columns."
+                )
+
         # skip_if_referenced filters on referenced_pk_column, which must be a column of orm_model
         # (added via extra_columns). Fail fast with a clear message instead of a cryptic KeyError
         # raised later when _build_query evaluates base_table.c[referenced_pk_column].
@@ -159,7 +205,12 @@ class _TableConfig:
         return {
             "table": self.table_name,
             "recency_column": str(self.recency_column),
-            "dag_id_column": str(self.dag_id_column),
+            "dag_id_column": (
+                f"{self.dag_id_scope.fk_column} -> "
+                f"{self.dag_id_scope.referenced_table}.{self.dag_id_scope.referenced_dag_id_column}"
+                if self.dag_id_scope is not None
+                else str(self.dag_id_column)
+            ),
             "keep_last": self.keep_last,
             "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
             "keep_last_group_by": str(self.keep_last_group_by),
@@ -184,28 +235,76 @@ config_list: list[_TableConfig] = [
         keep_last_group_by=["dag_id"],
         dependent_tables=["task_instance", "task_state_store", "deadline"],
     ),
-    _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    # asset_event has never had a dag_id; the producing Dag is source_dag_id, and it is NULL for
+    # events that no task produced (an API-created event, or a watcher).
+    _TableConfig(
+        table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="source_dag_id"
+    ),
+    # Carries no foreign key, so rows are left behind when the partition Dag run they describe
+    # is cascade-deleted with its dag_run. Only such orphans may be purged: rows whose partition
+    # Dag run still exists are the evidence the scheduler evaluates to decide when that pending
+    # run fires, so age alone must not delete them.
+    _TableConfig(
+        table_name="partitioned_asset_key_log",
+        recency_column_name="created_at",
+        extra_columns=["asset_partition_dag_run_id"],
+        extra_filters=[
+            column("asset_partition_dag_run_id").not_in(
+                select(column("id")).select_from(table("asset_partition_dag_run"))
+            )
+        ],
+    ),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm", dag_id_column_name="dag_id"),
-    _TableConfig(table_name="sla_miss", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(
         table_name="task_instance",
         recency_column_name="start_date",
-        dependent_tables=["task_instance_history", "xcom"],
+        dependent_tables=["xcom_v1", "xcom_v2", "task_reschedule"],
         dag_id_column_name="dag_id",
-    ),
-    _TableConfig(
-        table_name="task_instance_history", recency_column_name="start_date", dag_id_column_name="dag_id"
     ),
     _TableConfig(
         table_name="task_state_store",
         recency_column_name="expires_at",
         dag_id_column_name="dag_id",
     ),
-    _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
-    _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    # task_reschedule.dag_id was dropped in 3.0.0; a reschedule now reaches its Dag through its
+    # task instance. ti_id is NOT NULL, so no row is unattributed.
+    _TableConfig(
+        table_name="task_reschedule",
+        recency_column_name="start_date",
+        extra_columns=["ti_id"],
+        dag_id_scope=_IndirectDagScope(fk_column="ti_id", referenced_table="task_instance"),
+    ),
+    _TableConfig(table_name="xcom_v1", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="xcom_v2",
+        recency_column_name="timestamp",
+        extra_columns=["task_instance_id"],
+        dag_id_scope=_IndirectDagScope(fk_column="task_instance_id", referenced_table="task_instance"),
+    ),
     _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
-    _TableConfig(table_name="callback_request", recency_column_name="created_at"),
+    _TableConfig(
+        table_name="callback",
+        recency_column_name="created_at",
+        extra_columns=["id", "state"],
+        # Callback deletion cascades to deadlines, so preserve active or unknown states and
+        # SCHEDULED callbacks still referenced by a deadline. Stateless Dag-processor
+        # callbacks are eligible even while pending, once older than the cleanup cutoff.
+        extra_filters=[
+            or_(
+                column("state").in_(sorted(TERMINAL_STATES)),
+                column("state").is_(None),
+                and_(
+                    column("state") == CallbackState.SCHEDULED,
+                    ~select(literal(1))
+                    .select_from(table("deadline", column("callback_id")))
+                    .where(column("callback_id") == literal_column(f"{_BASE_TABLE_ALIAS}.id"))
+                    .exists(),
+                ),
+            )
+        ],
+        dependent_tables=["deadline"],
+    ),
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
     _TableConfig(
@@ -227,7 +326,16 @@ config_list: list[_TableConfig] = [
         # and are cleaned. dag_run.created_dag_version_id is ON DELETE SET NULL, so it does not block.
         skip_if_referenced=[("task_instance", "dag_version_id")],
     ),
-    _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
+    # deadline.dag_id was dropped in 3.1.0; a deadline now reaches its Dag through its dag run.
+    # The scope has to follow, because this table is cleaned as a dependent of dag_run precisely so
+    # its rows are archived before the ON DELETE CASCADE removes them -- leaving it unscoped would
+    # purge deadlines for Dags whose runs --dag-ids / --exclude-dag-ids is preserving.
+    _TableConfig(
+        table_name="deadline",
+        recency_column_name="deadline_time",
+        extra_columns=["dagrun_id"],
+        dag_id_scope=_IndirectDagScope(fk_column="dagrun_id", referenced_table="dag_run"),
+    ),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
     _TableConfig(
         table_name="connection_test_request",
@@ -248,6 +356,12 @@ if (
     config_list.append(_TableConfig(table_name="session", recency_column_name="expiry"))
 
 config_dict: dict[str, _TableConfig] = {x.table_name: x for x in sorted(config_list)}
+_LEGACY_TABLE_ALIASES = {"xcom": ("xcom_v1", "xcom_v2")}
+_HISTORY_CONFIG = dataclasses.replace(
+    config_dict["task_instance"],
+    dependent_tables=None,
+    extra_filters=[literal_column(f"{_BASE_TABLE_ALIAS}.working_set").is_(None)],
+)
 
 
 def _check_for_rows(*, session: Session, query: Select, print_rows: bool = False) -> int:
@@ -279,8 +393,90 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
         raise AirflowException(f"Export format {export_format} is not supported.")
 
 
+_ATTEMPT_UUID_CHILDREN = {
+    "legacy_task_data_owner": "task_instance_id",
+    "xcom_v2": "task_instance_id",
+    "rtif_v2": "task_instance_id",
+    "task_instance_note": "ti_id",
+    "task_reschedule": "ti_id",
+    "hitl_detail": "ti_id",
+}
+_ATTEMPT_ARCHIVE_TABLES = {*_ATTEMPT_UUID_CHILDREN, "xcom_v1", "rtif_v1", "task_instance"}
+
+
+def _archive_cascading_attempt_data(
+    *, source, parent_archive, archives: dict[str, Table], archive_suffix: str, session: Session
+) -> None:
+    """Archive owned rows under parent locks before their FK cascades run."""
+    names = [_format_table_name(source.schema, name) for name in _ATTEMPT_ARCHIVE_TABLES]
+    metadata = reflect_tables(names, session)
+    tables = {
+        name: metadata.tables[_format_table_name(source.schema, name)] for name in _ATTEMPT_ARCHIVE_TABLES
+    }
+    ti = tables["task_instance"]
+    if source.name == "task_instance":
+        producer_ids = select(ti.c.id).where(ti.c.id.in_(select(parent_archive.c.id)))
+    else:
+        producer_ids = select(ti.c.id).where(
+            tuple_(ti.c.dag_id, ti.c.run_id).in_(select(parent_archive.c.dag_id, parent_archive.c.run_id))
+        )
+    selections = {
+        name: select(tables[name]).where(tables[name].c[fk].in_(producer_ids))
+        for name, fk in _ATTEMPT_UUID_CHILDREN.items()
+    }
+    owner = tables["legacy_task_data_owner"]
+    coordinates = ("dag_id", "task_id", "run_id", "map_index")
+    for name in ("xcom_v1", "rtif_v1"):
+        child = tables[name]
+        selections[name] = select(child).where(
+            tuple_(*(child.c[c] for c in coordinates)).in_(
+                select(*(owner.c[c] for c in coordinates)).where(owner.c.task_instance_id.in_(producer_ids))
+            )
+        )
+    if source.name == "dag_run":
+        selections["task_instance"] = select(ti).where(ti.c.id.in_(producer_ids))
+
+    if not archives:
+        archive_names = {}
+        for name in selections:
+            archive_name = _format_table_name(
+                source.schema, f"{ARCHIVE_TABLE_PREFIX}{name}__{archive_suffix}"
+            )
+            if session.get_bind().dialect.name == "mysql":
+                original_name = _format_table_name(source.schema, name)
+                session.execute(text(f"CREATE TABLE {archive_name} LIKE {original_name}"))
+            else:
+                session.execute(CreateTableAs(archive_name, select(tables[name]).where(literal(False))))
+            archive_names[name] = archive_name
+        # MySQL DDL commits implicitly. Create every archive before taking row locks.
+        session.commit()
+        archive_metadata = reflect_tables(list(archive_names.values()), session)
+        archives.update(
+            {name: archive_metadata.tables[archive_name] for name, archive_name in archive_names.items()}
+        )
+    parent_ids = select(parent_archive.c.id)
+    lock_queries = [select(source.c.id).where(source.c.id.in_(parent_ids))]
+    if source.name == "dag_run":
+        lock_queries.append(producer_ids)
+    for query in lock_queries:
+        for _ in session.execute(query.with_for_update().execution_options(yield_per=1000)):
+            pass
+    for name, query in selections.items():
+        for _ in session.execute(query.with_for_update().execution_options(yield_per=1000)):
+            pass
+        archive = archives[name]
+        session.execute(archive.insert().from_select(list(archive.c), query))
+
+
 def _do_delete(
-    *, query: Select, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
+    *,
+    query: Select,
+    orm_model: Base,
+    skip_archive: bool,
+    session: Session,
+    batch_size: int | None,
+    skip_if_referenced: list[tuple[str, str]] | None = None,
+    referenced_pk_column: str = "id",
 ) -> None:
     import itertools
     import re
@@ -289,6 +485,8 @@ def _do_delete(
     dialect_name = bind.dialect.name
     batch_counter = itertools.count(1)
     source_table_name = _format_table_name(orm_model.schema, orm_model.name)
+    attempt_archives: dict[str, Table] = {}
+    attempt_archive_suffix = uuid4().hex[:16]
 
     while True:
         limited_query = query.limit(batch_size) if batch_size else query
@@ -340,6 +538,14 @@ def _do_delete(
             source_table = metadata.tables[source_table_name]
             target_table = metadata.tables[target_table_name]
             logger.debug("rows moved; purging from %s", source_table.name)
+            if not skip_archive and source_table.name in {"task_instance", "dag_run"}:
+                _archive_cascading_attempt_data(
+                    source=source_table,
+                    parent_archive=target_table,
+                    archives=attempt_archives,
+                    archive_suffix=attempt_archive_suffix,
+                    session=session,
+                )
             if dialect_name == "sqlite":
                 pk_cols = source_table.primary_key.columns
                 delete = source_table.delete().where(
@@ -351,9 +557,48 @@ def _do_delete(
                 delete = source_table.delete().where(
                     and_(*[col == target_table.c[col.name] for col in source_table.primary_key.columns])
                 )
+            # Re-apply skip_if_referenced on the DELETE to guard against a race where a new
+            # referencing row is created after the archive INSERT committed but before the DELETE
+            # runs. Without this the DELETE would violate the ON DELETE RESTRICT FK and fail.
+            if skip_if_referenced:
+                pk_col = source_table.c[referenced_pk_column]
+                for referencing_table_name, fk_column in skip_if_referenced:
+                    referencing = table(referencing_table_name, column(fk_column))
+                    delete = delete.where(
+                        ~select(literal(1))
+                        .select_from(referencing)
+                        .where(referencing.c[fk_column] == pk_col)
+                        .correlate(source_table)
+                        .exists()
+                    )
             logger.debug("delete statement:\n%s", delete.compile())
-            session.execute(delete)
+            deleted = cast("CursorResult", session.execute(delete)).rowcount
             session.commit()
+
+            # A guarded DELETE (skip_if_referenced) may delete fewer rows than the SELECT
+            # found. The SELECT includes the same NOT EXISTS guard, so the skipped row is
+            # excluded on the next pass too and the loop drains naturally. With --batch-size
+            # set, later batches still clean rows unaffected by the race.
+            #
+            # Compare against the archive rather than testing ``deleted == 0``: the archive
+            # holds exactly the rows this pass found, so any shortfall is a skipped row. A
+            # partial skip is the likely case and is also the harmful one, because the
+            # archive has already committed a copy of a row that is still live.
+            if skip_if_referenced:
+                archived = session.scalars(select(func.count()).select_from(target_table)).one()
+                if deleted < archived:
+                    logger.warning(
+                        "%s of %s rows from %s are still referenced by another table and were "
+                        "not deleted; they remain live in %s and will be retried on the next "
+                        "cleanup run.%s",
+                        archived - deleted,
+                        archived,
+                        source_table_name,
+                        source_table_name,
+                        ""
+                        if skip_archive
+                        else f" {target_table_name} already holds an archived copy of them.",
+                    )
 
         except BaseException:
             error_raised = True
@@ -438,6 +683,7 @@ def _build_query(
     clean_before_timestamp: DateTime,
     session: Session,
     dag_id_column=None,
+    dag_id_scope: _IndirectDagScope | None = None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
     extra_filters: list[Any] | None = None,
@@ -445,7 +691,7 @@ def _build_query(
     referenced_pk_column: str = "id",
     **kwargs,
 ) -> Select:
-    base_table_alias = "base"
+    base_table_alias = _BASE_TABLE_ALIAS
     base_table = aliased(orm_model, name=base_table_alias)
     query = select(text(f"{base_table_alias}.*")).select_from(base_table)
     base_table_recency_col = base_table.c[recency_column.name]
@@ -476,7 +722,30 @@ def _build_query(
         if dag_ids:
             conditions.append(base_table_dag_id_col.in_(dag_ids))
         if exclude_dag_ids:
-            conditions.append(base_table_dag_id_col.not_in(exclude_dag_ids))
+            # A NULL dag id belongs to no Dag, so it is not one of the excluded Dags' rows and stays
+            # eligible. NOT IN alone would yield NULL for it and silently retain it forever -- which
+            # is every `job` row, since core never sets Job.dag_id.
+            conditions.append(
+                or_(base_table_dag_id_col.is_(None), base_table_dag_id_col.not_in(exclude_dag_ids))
+            )
+    elif (dag_ids or exclude_dag_ids) and dag_id_scope is not None:
+        fk_col = base_table.c[dag_id_scope.fk_column]
+        referenced = table(
+            dag_id_scope.referenced_table,
+            column(dag_id_scope.referenced_pk_column),
+            column(dag_id_scope.referenced_dag_id_column),
+        )
+
+        def _rows_for(target_dag_ids: list[str]):
+            return select(referenced.c[dag_id_scope.referenced_pk_column]).where(
+                referenced.c[dag_id_scope.referenced_dag_id_column].in_(target_dag_ids)
+            )
+
+        if dag_ids:
+            conditions.append(fk_col.in_(_rows_for(dag_ids)))
+        if exclude_dag_ids:
+            # NULL-safe for the same reason as the direct-column branch above.
+            conditions.append(or_(fk_col.is_(None), fk_col.not_in(_rows_for(exclude_dag_ids))))
 
     if keep_last:
         max_date_col_name = "max_date_per_group"
@@ -508,6 +777,7 @@ def _cleanup_table(
     keep_last_group_by,
     clean_before_timestamp: DateTime,
     dag_id_column=None,
+    dag_id_scope: _IndirectDagScope | None = None,
     dag_ids=None,
     exclude_dag_ids=None,
     dry_run: bool = True,
@@ -527,6 +797,7 @@ def _cleanup_table(
         orm_model=orm_model,
         recency_column=recency_column,
         dag_id_column=dag_id_column,
+        dag_id_scope=dag_id_scope,
         dag_ids=dag_ids,
         exclude_dag_ids=exclude_dag_ids,
         keep_last=keep_last,
@@ -543,15 +814,56 @@ def _cleanup_table(
     num_rows = _check_for_rows(session=session, query=query, print_rows=False)
 
     if num_rows and not dry_run:
+        if orm_model.name == "xcom_v2":
+            legacy_query = _shadowed_legacy_xcom_query(query)
+            _do_delete(
+                query=legacy_query,
+                orm_model=config_dict["xcom_v1"].orm_model,
+                skip_archive=skip_archive,
+                session=session,
+                batch_size=batch_size,
+            )
         _do_delete(
             query=query,
             orm_model=orm_model,
             skip_archive=skip_archive,
             session=session,
             batch_size=batch_size,
+            skip_if_referenced=skip_if_referenced,
+            referenced_pk_column=referenced_pk_column,
         )
 
     session.commit()
+
+
+def _shadowed_legacy_xcom_query(v2_query: Select) -> Select:
+    legacy = aliased(config_dict["xcom_v1"].orm_model, name=_BASE_TABLE_ALIAS)
+    owner = table(
+        "legacy_task_data_owner",
+        column("dag_id"),
+        column("task_id"),
+        column("run_id"),
+        column("map_index"),
+        column("task_instance_id"),
+    )
+    selected_v2 = v2_query.subquery("selected_v2")
+    coordinates = ("dag_id", "task_id", "run_id", "map_index")
+    shadowed = (
+        select(literal(1))
+        .select_from(
+            owner.join(
+                selected_v2,
+                owner.c.task_instance_id == literal_column("selected_v2.task_instance_id"),
+            )
+        )
+        .where(
+            *(literal_column(f"{_BASE_TABLE_ALIAS}.{name}") == owner.c[name] for name in coordinates),
+            literal_column(f"{_BASE_TABLE_ALIAS}.key") == literal_column("selected_v2.key"),
+        )
+        .correlate(legacy)
+        .exists()
+    )
+    return select(text(f"{_BASE_TABLE_ALIAS}.*")).select_from(legacy).where(shadowed)
 
 
 def _confirm_delete(
@@ -629,8 +941,11 @@ def _suppress_with_logging(table: str, session: Session) -> Generator[SimpleName
 
 def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str], dict[str, _TableConfig]]:
     desired_table_names = set(table_names or config_dict)
+    desired_table_names = {
+        expanded for name in desired_table_names for expanded in _LEGACY_TABLE_ALIASES.get(name, (name,))
+    }
 
-    outliers = desired_table_names - set(config_dict.keys())
+    outliers = desired_table_names - (config_dict.keys() | {"task_instance_history"})
     if outliers:
         logger.warning(
             "The following table(s) are not valid choices and will be skipped: %s",
@@ -645,7 +960,7 @@ def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str],
         if table in visited:
             return
         visited.add(table)
-        config = config_dict[table]
+        config = _HISTORY_CONFIG if table == "task_instance_history" else config_dict[table]
         for dep in config.dependent_tables or []:
             collect_deps(dep)
         effective_table_names.append(table)
@@ -653,7 +968,9 @@ def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str],
     for table_name in desired_table_names:
         collect_deps(table_name)
 
-    effective_config_dict = {n: config_dict[n] for n in effective_table_names}
+    effective_config_dict = {
+        n: _HISTORY_CONFIG if n == "task_instance_history" else config_dict[n] for n in effective_table_names
+    }
 
     if not effective_config_dict:
         raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
@@ -665,6 +982,19 @@ def _get_archived_table_names(table_names: list[str] | None, session: Session) -
     inspector = inspect(session.bind)
     _, effective_config_dict = _effective_table_names(table_names=table_names)
     schemas = {config.schema_name for config in effective_config_dict.values()}
+    archive_sources = {
+        config.bare_table_name
+        for name, config in effective_config_dict.items()
+        if name != "task_instance_history"
+    }
+    if "xcom_v2" in archive_sources:
+        archive_sources.add("xcom_v1")
+    if "xcom_v1" in archive_sources or "xcom_v2" in archive_sources:
+        archive_sources.add("xcom")
+    if "task_instance_history" in effective_config_dict or "task_instance" in archive_sources:
+        archive_sources.add("task_instance_history")
+    if archive_sources & {"task_instance", "dag_run"}:
+        archive_sources.update(_ATTEMPT_ARCHIVE_TABLES)
 
     archived_table_names: list[str] = []
     for schema in schemas:
@@ -679,7 +1009,7 @@ def _get_archived_table_names(table_names: list[str] | None, session: Session) -
             _format_table_name(schema, name)
             for name in db_table_names
             if (
-                any(f"__{config.bare_table_name}__" in name for config in effective_config_dict.values())
+                any(f"__{source}__" in name for source in archive_sources)
                 or (schema is None and name in ARCHIVED_TABLES_FROM_DB_MIGRATIONS)
             )
         )
@@ -752,7 +1082,8 @@ def run_cleanup(
     }
     failed_tables: list[str] = []
     for table_name, table_config in effective_config_dict.items():
-        if table_name in existing_tables:
+        physical_name = _format_table_name(table_config.schema_name, table_config.bare_table_name)
+        if physical_name in existing_tables:
             with _suppress_with_logging(table_name, session) as ctx:
                 _cleanup_table(
                     clean_before_timestamp=clean_before_timestamp,

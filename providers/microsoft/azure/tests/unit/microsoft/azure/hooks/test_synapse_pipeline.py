@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+import json
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 from azure.synapse.artifacts import ArtifactsClient
@@ -246,6 +247,46 @@ class TestAzureSynapsePipelineAsyncHook:
             endpoint=AZURE_SYNAPSE_WORKSPACE_DEV_ENDPOINT,
             credential=mock_credential.return_value,
         )
+
+    @pytest.mark.asyncio
+    @patch(f"{MODULE}.AsyncArtifactsClient")
+    @patch(f"{MODULE}.AsyncClientSecretCredential")
+    async def test_get_async_conn_does_not_touch_extra_dejson(self, mock_credential, mock_client):
+        conn = MagicMock()
+        conn.login = "clientId"
+        conn.password = "clientSecret"
+        conn.extra = json.dumps({"tenantId": "tenantId"})
+        type(conn).extra_dejson = PropertyMock(
+            side_effect=RuntimeError("You cannot use AsyncToSync in the same thread as an async event loop")
+        )
+        hook = AzureSynapsePipelineAsyncHook(
+            azure_synapse_conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+            azure_synapse_workspace_dev_endpoint=AZURE_SYNAPSE_WORKSPACE_DEV_ENDPOINT,
+        )
+        with patch(f"{MODULE}.get_async_connection", new=AsyncMock(return_value=conn)):
+            result = await hook.get_async_conn()
+        assert result is mock_client.return_value
+        mock_credential.assert_called_with(
+            client_id="clientId",
+            client_secret="clientSecret",
+            tenant_id="tenantId",
+        )
+
+    @pytest.mark.asyncio
+    @patch(f"{MODULE}.AsyncArtifactsClient")
+    @patch(f"{MODULE}.AsyncClientSecretCredential")
+    async def test_get_async_conn_uses_get_async_connection(self, mock_credential, mock_client):
+        conn = MagicMock()
+        conn.login = "clientId"
+        conn.password = "clientSecret"
+        conn.extra = json.dumps({"tenantId": "tenantId"})
+        hook = AzureSynapsePipelineAsyncHook(
+            azure_synapse_conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+            azure_synapse_workspace_dev_endpoint=AZURE_SYNAPSE_WORKSPACE_DEV_ENDPOINT,
+        )
+        with patch(f"{MODULE}.get_async_connection", new=AsyncMock(return_value=conn)) as mock_get:
+            await hook.get_async_conn()
+        mock_get.assert_awaited_once_with(DEFAULT_CONNECTION_CLIENT_SECRET)
 
     @pytest.mark.asyncio
     @patch(f"{MODULE}.AsyncArtifactsClient")

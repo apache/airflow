@@ -17,6 +17,7 @@
  * under the License.
  */
 import { FilterBar } from "src/components/FilterBar";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
@@ -51,6 +52,7 @@ export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
 
   if (dagId === undefined) {
     searchParamKeys.unshift(SearchParamsKeys.DAG_ID_PATTERN);
+    searchParamKeys.push(SearchParamsKeys.TAGS);
   }
 
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -83,7 +84,9 @@ class TestNextRunAssets:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        with assert_queries_count(4):
+        # 4 queries for the endpoint, 1 to resolve the assets the caller may read and
+        # 1 for the caller-independent scheduling asset count.
+        with assert_queries_count(6):
             response = test_client.get("/next_run_assets/upstream")
 
         assert response.status_code == 200
@@ -96,6 +99,7 @@ class TestNextRunAssets:
                             "name": "asset1",
                             "group": "asset",
                             "id": mock.ANY,
+                            "hidden": False,
                         }
                     }
                 ]
@@ -115,8 +119,156 @@ class TestNextRunAssets:
                     "asset_inactive": False,
                 }
             ],
+            "scheduling_asset_count": 1,
             "pending_partition_count": None,
         }
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_asset_expression_hides_assets_the_caller_may_not_read(
+        self, mock_get_authorized_assets, test_client, dag_maker, session
+    ):
+        with dag_maker(
+            dag_id="hidden_upstream",
+            schedule=[
+                Asset(uri="s3://bucket/visible", name="visible_asset"),
+                Asset(uri="s3://bucket/hidden", name="hidden_asset"),
+            ],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        visible_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "visible_asset"))
+        mock_get_authorized_assets.return_value = {visible_id}
+
+        response = test_client.get("/next_run_assets/hidden_upstream")
+
+        assert response.status_code == 200
+        assert response.json()["asset_expression"] == {
+            "all": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/visible",
+                        "name": "visible_asset",
+                        "group": "asset",
+                        "id": visible_id,
+                        "hidden": False,
+                    }
+                },
+                {"asset": {"uri": None, "name": None, "group": "asset", "id": None, "hidden": True}},
+            ]
+        }
+        redacted = json.dumps(response.json()["asset_expression"])
+        assert "hidden_asset" not in redacted
+        assert "s3://bucket/hidden" not in redacted
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_should_return_only_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, test_client, dag_maker, session
+    ):
+        with dag_maker(
+            dag_id="hidden_upstream",
+            schedule=[
+                Asset(uri="s3://bucket/visible", name="visible_asset"),
+                Asset(uri="s3://bucket/hidden", name="hidden_asset"),
+            ],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        visible_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "visible_asset"))
+        mock_get_authorized_assets.return_value = {visible_id}
+
+        response = test_client.get("/next_run_assets/hidden_upstream")
+
+        assert response.status_code == 200
+        assert [event["name"] for event in response.json()["events"]] == ["visible_asset"]
+        assert response.json()["scheduling_asset_count"] == 2
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_scheduling_asset_count_is_unaffected_when_no_asset_is_readable(
+        self, mock_get_authorized_assets, test_client, dag_maker
+    ):
+        with dag_maker(
+            dag_id="all_hidden_upstream",
+            schedule=[
+                Asset(uri="s3://bucket/hidden1", name="hidden_asset1"),
+                Asset(uri="s3://bucket/hidden2", name="hidden_asset2"),
+            ],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        mock_get_authorized_assets.return_value = set()
+
+        response = test_client.get("/next_run_assets/all_hidden_upstream")
+
+        assert response.status_code == 200
+        assert response.json()["events"] == []
+        assert response.json()["scheduling_asset_count"] == 2
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_partitioned_dag_should_hide_keys_of_assets_the_caller_may_not_read(
+        self, mock_get_authorized_assets, test_client, dag_maker, session
+    ):
+        visible = Asset(uri="s3://bucket/part_visible", name="part_visible")
+        hidden = Asset(uri="s3://bucket/part_hidden", name="part_hidden")
+        with dag_maker(
+            dag_id="part_hidden_dag",
+            schedule=PartitionedAssetTimetable(assets=visible & hidden),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dr = dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        asset_models = {
+            am.name: am
+            for am in session.scalars(
+                select(AssetModel).where(AssetModel.name.in_(["part_visible", "part_hidden"]))
+            )
+        }
+        pdr = AssetPartitionDagRun(
+            target_dag_id="part_hidden_dag", partition_key="2024-01-01", created_dag_run_id=None
+        )
+        session.add(pdr)
+        session.flush()
+        for am in asset_models.values():
+            event = AssetEvent(asset_id=am.id, timestamp=(dr.logical_date or pendulum.now()).add(minutes=5))
+            session.add(event)
+            session.flush()
+            session.add(
+                PartitionedAssetKeyLog(
+                    asset_id=am.id,
+                    asset_event_id=event.id,
+                    asset_partition_dag_run_id=pdr.id,
+                    source_partition_key="2024-01-01",
+                    target_dag_id="part_hidden_dag",
+                    target_partition_key="2024-01-01",
+                )
+            )
+        session.commit()
+        mock_get_authorized_assets.return_value = {asset_models["part_visible"].id}
+
+        response = test_client.get("/next_run_assets/part_hidden_dag")
+
+        assert response.status_code == 200
+        events = response.json()["events"]
+        assert [event["name"] for event in events] == ["part_visible"]
+        assert events[0]["received_keys"] == ["2024-01-01"]
+        assert events[0]["required_keys"] == ["2024-01-01"]
+        assert response.json()["scheduling_asset_count"] == 2
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/next_run_assets/upstream")
@@ -170,6 +322,7 @@ class TestNextRunAssets:
                             "name": "A",
                             "group": "asset",
                             "id": mock.ANY,
+                            "hidden": False,
                         }
                     },
                     {
@@ -178,6 +331,7 @@ class TestNextRunAssets:
                             "name": "B",
                             "group": "asset",
                             "id": mock.ANY,
+                            "hidden": False,
                         }
                     },
                 ]
@@ -211,6 +365,7 @@ class TestNextRunAssets:
                     "asset_inactive": False,
                 },
             ],
+            "scheduling_asset_count": 2,
             "pending_partition_count": None,
         }
 
@@ -531,6 +686,27 @@ class TestGetAssetsUi:
         assert body["total_entries"] == 1
         assert body["assets"][0]["name"] == "ui_asset"
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
+    def test_should_return_only_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, test_client, session
+    ):
+        assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(3)]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(asset) for asset in assets)
+        session.commit()
+        mock_get_authorized_assets.return_value = {assets[1].id}
+
+        response = test_client.get("/assets")
+
+        mock_get_authorized_assets.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+        assert [asset["name"] for asset in body["assets"]] == ["asset1"]
+        # The count must be scoped too, so the existence of hidden assets does not leak.
+        assert body["total_entries"] == 1
+
     def test_sort_by_last_asset_event_timestamp(self, test_client, session):
         older = AssetModel(name="older", uri="s3://bucket/older", group="asset")
         newer = AssetModel(name="newer", uri="s3://bucket/newer", group="asset")
@@ -568,6 +744,50 @@ class TestGetAssetsUi:
         response = test_client.get("/assets")
         assert response.status_code == 200
         assert [a["name"] for a in response.json()["assets"]] == ["newer", "older"]
+
+    def test_last_asset_event_uses_latest_timestamp_not_highest_id(self, test_client, session):
+        asset = AssetModel(name="out_of_order", uri="s3://bucket/out_of_order", group="asset")
+        session.add(asset)
+        session.add(AssetActive.for_asset(asset))
+        session.flush()
+
+        base = pendulum.datetime(2024, 1, 1)
+        latest_event = AssetEvent(asset_id=asset.id, timestamp=base.add(days=1))
+        highest_id_event = AssetEvent(asset_id=asset.id, timestamp=base)
+        session.add_all([latest_event, highest_id_event])
+        session.flush()
+        latest_event_id = latest_event.id
+        highest_id_event_id = highest_id_event.id
+        session.commit()
+
+        assert highest_id_event_id > latest_event_id
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        last_asset_event = response.json()["assets"][0]["last_asset_event"]
+        assert last_asset_event["id"] == latest_event_id
+        assert last_asset_event["timestamp"] == "2024-01-02T00:00:00Z"
+
+    def test_last_asset_event_breaks_timestamp_tie_by_highest_id(self, test_client, session):
+        asset = AssetModel(name="tied_timestamp", uri="s3://bucket/tied_timestamp", group="asset")
+        session.add(asset)
+        session.add(AssetActive.for_asset(asset))
+        session.flush()
+
+        tied_timestamp = pendulum.datetime(2024, 1, 1)
+        lower_id_event = AssetEvent(asset_id=asset.id, timestamp=tied_timestamp)
+        higher_id_event = AssetEvent(asset_id=asset.id, timestamp=tied_timestamp)
+        session.add_all([lower_id_event, higher_id_event])
+        session.flush()
+        higher_id_event_id = higher_id_event.id
+        session.commit()
+
+        assert higher_id_event_id > lower_id_event.id
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        last_asset_event = response.json()["assets"][0]["last_asset_event"]
+        assert last_asset_event["id"] == higher_id_event_id
 
     def test_sort_by_group(self, test_client, session):
         billing = AssetModel(name="billing_asset", uri="s3://bucket/billing_sort", group="billing")
@@ -628,6 +848,29 @@ class TestGetAssetsUi:
         )
         assert response.status_code == 200
         assert [a["name"] for a in response.json()["assets"]] == ["newer"]
+
+    @pytest.mark.parametrize(
+        ("has_events", "expected_names"),
+        [
+            pytest.param(None, ["evented", "never"], id="unset"),
+            pytest.param(True, ["evented"], id="has-events"),
+            pytest.param(False, ["never"], id="no-events"),
+        ],
+    )
+    def test_filter_by_has_events(self, test_client, session, has_events, expected_names):
+        evented = AssetModel(name="evented", uri="s3://bucket/evented", group="asset")
+        never = AssetModel(name="never", uri="s3://bucket/never", group="asset")
+        session.add_all([evented, never])
+        session.add_all([AssetActive.for_asset(evented), AssetActive.for_asset(never)])
+        session.flush()
+        session.add(AssetEvent(asset_id=evented.id, timestamp=pendulum.datetime(2024, 1, 1)))
+        session.commit()
+
+        params = {} if has_events is None else {"has_events": has_events}
+        response = test_client.get("/assets", params=params)
+
+        assert response.status_code == 200
+        assert sorted(asset["name"] for asset in response.json()["assets"]) == expected_names
 
     def test_aliases_present_for_asset_via_alias(self, test_client, session):
         """
@@ -784,7 +1027,8 @@ class TestGetAssetsUi:
             assets[i].aliases.append(AssetAliasModel(name=f"alias{i}", group=""))
         session.commit()
 
-        with assert_queries_count(8):
+        # One of these queries resolves the caller's readable assets so the list can be scoped to them.
+        with assert_queries_count(9):
             assert test_client.get("/assets").status_code == 200
 
     @conf_vars({("core", "multi_team"): "True"})
@@ -812,7 +1056,7 @@ class TestGetAssetsUi:
             session.add(TaskOutletAssetReference(dag_id=f"producing_dag{i}", task_id="task", asset=asset))
         session.commit()
 
-        with assert_queries_count(12):
+        with assert_queries_count(13):
             response = test_client.get("/assets")
 
         assert response.status_code == 200

@@ -23,19 +23,24 @@ import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
+import { Accordion, Modal } from "src/system-components";
+
 import { ActionErrors } from "src/components/ActionErrors";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Accordion, Modal } from "src/components/ui";
+
 import { useBulkDeleteDagRuns } from "src/queries/useBulkDeleteDagRuns";
+import { formatNumber } from "src/utils";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
   readonly selectedDagRuns: Array<DAGRunResponse>;
 };
 
-const getColumns = (translate: TFunction): Array<ColumnDef<DAGRunResponse>> => [
+const getColumns = (translate: TFunction): Array<ColumnDef<DataTableFeatures, DAGRunResponse>> => [
   {
     accessorKey: "dag_run_id",
     cell: ({ row: { original } }) => <Text>{original.dag_run_id}</Text>,
@@ -59,7 +64,7 @@ const getColumns = (translate: TFunction): Array<ColumnDef<DAGRunResponse>> => [
 ];
 
 const BulkDeleteDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
-  const { t: translate } = useTranslation(["common", "dags"]);
+  const { i18n, t: translate } = useTranslation(["common", "dags"]);
   const { onClose, onOpen, open } = useDisclosure();
   const { bulkAction, data, error, isPending } = useBulkDeleteDagRuns({
     deselectKeys,
@@ -132,7 +137,7 @@ const BulkDeleteDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
                     <Text fontSize="sm" fontWeight="semibold">
                       {translate("dagId")}: {dagId}{" "}
                       <Text as="span" color="fg.subtle" fontWeight="normal">
-                        ({dagRuns.length})
+                        ({formatNumber(dagRuns.length, i18n.language)})
                       </Text>
                     </Text>
                   </Accordion.ItemTrigger>

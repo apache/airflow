@@ -16,19 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useBackfillServiceGetBackfill, useBackfillServiceListBackfillDagRuns } from "openapi/queries";
 import type { BackfillDagRunResponse } from "openapi/requests/types.gen";
+
+import { Modal, RouterLink } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Modal, RouterLink } from "src/components/ui";
+
 import { useConfig } from "src/queries/useConfig";
 import { useAutoRefresh } from "src/utils";
 
@@ -59,7 +64,7 @@ const isPendingDagRun = ({ dag_run_state: state, exception_reason: reason }: Bac
 const getColumns = (
   isPartitioned: boolean,
   translate: (key: string) => string,
-): Array<ColumnDef<BackfillDagRunResponse>> => [
+): Array<ColumnDef<DataTableFeatures, BackfillDagRunResponse>> => [
   {
     accessorKey: isPartitioned ? "partition_key" : "logical_date",
     cell: ({ row }) => {
@@ -89,11 +94,11 @@ const getColumns = (
     cell: ({ row }) => {
       const state = row.original.dag_run_state;
 
-      if (state === null || state === undefined) {
-        return <Text color="fg.muted">—</Text>;
-      }
-
-      return <StateBadge state={state}>{translate(`states.${state}`)}</StateBadge>;
+      return state === null || state === undefined ? (
+        <Text color="fg.muted">—</Text>
+      ) : (
+        <StateBadge state={state}>{translate(`states.${state}`)}</StateBadge>
+      );
     },
     enableSorting: false,
     header: translate("dagRunState"),
@@ -103,11 +108,11 @@ const getColumns = (
     cell: ({ row }) => {
       const reason = row.original.exception_reason;
 
-      if (reason === null || reason === "") {
-        return <Text color="fg.muted">—</Text>;
-      }
-
-      return <Text>{translateExceptionReason(reason, translate)}</Text>;
+      return reason === null || reason === "" ? (
+        <Text color="fg.muted">—</Text>
+      ) : (
+        <Text>{translateExceptionReason(reason, translate)}</Text>
+      );
     },
     enableSorting: false,
     header: translate("components:backfill.notCreatedReason"),
@@ -138,7 +143,7 @@ const getColumns = (
 ];
 
 export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: BackfillDagRunsModalProps) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation(["common", "components"]);
   const pageSize = (useConfig("fallback_page_limit") as number | undefined) ?? 100;
   const [pageIndex, setPageIndex] = useState(0);
   const tableState = {
@@ -156,7 +161,7 @@ export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: Backf
     isLoading: isBackfillLoading,
   } = useBackfillServiceGetBackfill({ backfillId: backfillId ?? 0 }, undefined, {
     enabled: open && backfillId !== undefined,
-    refetchInterval: (query) => (query.state.data?.completed_at === null ? refetchInterval : false),
+    refetchInterval: (query) => query.state.data?.completed_at === null && refetchInterval,
   });
   const shouldPoll = backfill?.completed_at === null;
 

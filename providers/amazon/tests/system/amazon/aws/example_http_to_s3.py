@@ -27,7 +27,7 @@ except ImportError:
     # Fallback for older Airflow versions
     from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
 
-from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
+from tests_common.test_utils.api_client_helpers import create_airflow_connection
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -66,15 +66,9 @@ exit 0
 
 @task
 def create_connection(conn_id_name: str):
-    make_authenticated_rest_api_request(
-        path="/api/v2/connections",
-        method="POST",
-        body={
-            "connection_id": conn_id_name,
-            "conn_type": "http",
-            "host": "localhost",
-            "port": 8083,
-        },
+    create_airflow_connection(
+        connection_id=conn_id_name,
+        connection_conf={"conn_type": "http", "host": "localhost", "port": 8083},
     )
 
 

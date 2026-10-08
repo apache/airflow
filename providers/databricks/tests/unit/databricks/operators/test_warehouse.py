@@ -16,16 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from unittest import mock
 
 import pytest
+import time_machine
+from tenacity import stop_after_attempt, wait_incrementing
 
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.databricks.exceptions import DatabricksWarehouseError
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, WarehouseState
 from airflow.providers.databricks.operators.warehouse import (
     DatabricksStartWarehouseOperator,
     DatabricksStopWarehouseOperator,
 )
+from airflow.providers.databricks.triggers.databricks import DatabricksWarehouseStateTrigger
 
 TASK_ID = "warehouse-lifecycle"
 WAREHOUSE_ID = "wh-1"
@@ -404,3 +409,250 @@ class TestDatabricksWarehouseOperatorBase:
             retry_args=retry_args,
             caller="DatabricksStartWarehouseOperator",
         )
+
+
+INVALID_RETRY_ARGS_PATTERN = (
+    "does not support non-serializable retry_args/databricks_retry_args when deferrable=True"
+)
+UNSUPPORTED_RETRY_ARGS = [
+    pytest.param({"wait": wait_incrementing(start=1, increment=1, max=3)}, id="wait_incrementing"),
+    pytest.param({"stop": stop_after_attempt(3)}, id="stop_after_attempt"),
+]
+
+
+class TestDatabricksWarehouseOperatorDeferrable:
+    @pytest.mark.parametrize(
+        ("operator_class", "initial_state", "transition_method", "target_state"),
+        [
+            (DatabricksStartWarehouseOperator, "STOPPED", "start_warehouse", "RUNNING"),
+            (DatabricksStopWarehouseOperator, "RUNNING", "stop_warehouse", "STOPPED"),
+        ],
+    )
+    @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
+    @mock.patch.object(DatabricksStopWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
+    @time_machine.travel("2026-08-19 12:00:00", tick=False)
+    def test_execute_defers_until_target_state(
+        self,
+        mock_stop_hook_property,
+        mock_start_hook_property,
+        operator_class,
+        initial_state,
+        transition_method,
+        target_state,
+    ):
+        hook = mock.MagicMock(spec=DatabricksHook)
+        mock_start_hook_property.return_value = hook
+        mock_stop_hook_property.return_value = hook
+        hook.get_warehouse_state.return_value = WarehouseState(initial_state)
+        operator = operator_class(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, deferrable=True)
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(None)
+
+        getattr(hook, transition_method).assert_called_once_with(WAREHOUSE_ID)
+        assert isinstance(exc.value.trigger, DatabricksWarehouseStateTrigger)
+        assert exc.value.method_name == "execute_complete"
+        assert exc.value.trigger.warehouse_id == WAREHOUSE_ID
+        assert exc.value.trigger.target_state == target_state
+        assert exc.value.trigger.end_time == pytest.approx(time.time() + 3600)
+        assert exc.value.trigger.caller == operator_class.__name__
+
+    @pytest.mark.parametrize(
+        "first_polled_state",
+        ["STARTING", "STOPPED"],
+        ids=["transitioning", "stale-stopped"],
+    )
+    @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
+    def test_start_defers_after_stale_or_starting_precheck(self, mock_hook_property, first_polled_state):
+        hook = mock.MagicMock(spec=DatabricksHook)
+        mock_hook_property.return_value = hook
+        hook.get_warehouse_state.return_value = WarehouseState(first_polled_state)
+        operator = DatabricksStartWarehouseOperator(
+            task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, deferrable=True
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(None)
+
+        if first_polled_state == "STARTING":
+            hook.start_warehouse.assert_not_called()
+        else:
+            hook.start_warehouse.assert_called_once_with(WAREHOUSE_ID)
+        assert exc.value.trigger.target_state == "RUNNING"
+
+    @pytest.mark.parametrize(
+        ("operator_class", "target_state"),
+        [
+            (DatabricksStartWarehouseOperator, WarehouseState("RUNNING")),
+            (DatabricksStopWarehouseOperator, WarehouseState("STOPPED")),
+        ],
+    )
+    @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
+    @mock.patch.object(DatabricksStopWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
+    def test_already_at_target_does_not_defer(
+        self, mock_stop_hook_property, mock_start_hook_property, operator_class, target_state
+    ):
+        hook = mock.MagicMock(spec=DatabricksHook)
+        mock_start_hook_property.return_value = hook
+        mock_stop_hook_property.return_value = hook
+        hook.get_warehouse_state.return_value = target_state
+        operator = operator_class(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, deferrable=True)
+
+        operator.execute(None)
+
+        hook.start_warehouse.assert_not_called()
+        hook.stop_warehouse.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("operator_class", "initial_state", "transition_method"),
+        [
+            (DatabricksStartWarehouseOperator, "STOPPED", "start_warehouse"),
+            (DatabricksStopWarehouseOperator, "RUNNING", "stop_warehouse"),
+        ],
+    )
+    @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
+    @mock.patch.object(DatabricksStopWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
+    def test_wait_for_termination_false_does_not_defer(
+        self,
+        mock_stop_hook_property,
+        mock_start_hook_property,
+        operator_class,
+        initial_state,
+        transition_method,
+    ):
+        hook = mock.MagicMock(spec=DatabricksHook)
+        mock_start_hook_property.return_value = hook
+        mock_stop_hook_property.return_value = hook
+        hook.get_warehouse_state.return_value = WarehouseState(initial_state)
+        operator = operator_class(
+            task_id=TASK_ID,
+            warehouse_id=WAREHOUSE_ID,
+            deferrable=True,
+            wait_for_termination=False,
+        )
+
+        operator.execute(None)
+
+        getattr(hook, transition_method).assert_called_once_with(WAREHOUSE_ID)
+
+    @pytest.mark.parametrize(
+        ("operator_class", "initial_state", "target_state", "transition_method"),
+        [
+            (DatabricksStartWarehouseOperator, "STARTING", "RUNNING", "start_warehouse"),
+            (DatabricksStopWarehouseOperator, "STOPPING", "STOPPED", "stop_warehouse"),
+        ],
+    )
+    @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
+    @mock.patch.object(DatabricksStopWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
+    def test_in_progress_transition_defers_without_duplicate_request(
+        self,
+        mock_stop_hook_property,
+        mock_start_hook_property,
+        operator_class,
+        initial_state,
+        target_state,
+        transition_method,
+    ):
+        hook = mock.MagicMock(spec=DatabricksHook)
+        mock_start_hook_property.return_value = hook
+        mock_stop_hook_property.return_value = hook
+        hook.get_warehouse_state.return_value = WarehouseState(initial_state)
+        operator = operator_class(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, deferrable=True)
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(None)
+
+        getattr(hook, transition_method).assert_not_called()
+        assert exc.value.trigger.target_state == target_state
+
+    @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
+    def test_start_while_stopping_defers_after_start_request(self, mock_hook_property):
+        hook = mock.MagicMock(spec=DatabricksHook)
+        mock_hook_property.return_value = hook
+        hook.get_warehouse_state.return_value = WarehouseState("STOPPING")
+        operator = DatabricksStartWarehouseOperator(
+            task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, deferrable=True
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(None)
+
+        hook.start_warehouse.assert_called_once_with(WAREHOUSE_ID)
+        assert exc.value.trigger.target_state == "RUNNING"
+
+    @pytest.mark.parametrize("retry_args", UNSUPPORTED_RETRY_ARGS)
+    @pytest.mark.parametrize(
+        "operator_class",
+        [DatabricksStartWarehouseOperator, DatabricksStopWarehouseOperator],
+    )
+    def test_deferrable_rejects_non_serializable_retry_args(self, operator_class, retry_args):
+        with pytest.raises(ValueError, match=INVALID_RETRY_ARGS_PATTERN):
+            operator_class(
+                task_id=TASK_ID,
+                warehouse_id=WAREHOUSE_ID,
+                deferrable=True,
+                databricks_retry_args=retry_args,
+            )
+
+    def test_execute_complete_success(self):
+        operator = DatabricksStartWarehouseOperator(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID)
+        event = {
+            "status": "success",
+            "warehouse_id": WAREHOUSE_ID,
+            "target_state": "RUNNING",
+            "last_state": "RUNNING",
+            "state": WarehouseState("RUNNING").to_json(),
+        }
+
+        assert operator.execute_complete(None, event) is None
+
+    def test_execute_complete_deleted_raises(self):
+        operator = DatabricksStartWarehouseOperator(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID)
+        event = {
+            "status": "deleted",
+            "warehouse_id": WAREHOUSE_ID,
+            "target_state": "RUNNING",
+            "last_state": "DELETING",
+            "state": WarehouseState("DELETING").to_json(),
+        }
+
+        with pytest.raises(
+            DatabricksWarehouseError,
+            match="entered DELETING while waiting for RUNNING",
+        ):
+            operator.execute_complete(None, event)
+
+    def test_execute_complete_timeout_raises(self):
+        operator = DatabricksStopWarehouseOperator(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, timeout=12)
+        event = {
+            "status": "timeout",
+            "warehouse_id": WAREHOUSE_ID,
+            "target_state": "STOPPED",
+            "last_state": "STOPPING",
+        }
+
+        with pytest.raises(
+            DatabricksWarehouseError,
+            match="did not reach STOPPED within 12s; last state: STOPPING",
+        ):
+            operator.execute_complete(None, event)
+
+    def test_execute_complete_missing_event_raises(self):
+        operator = DatabricksStartWarehouseOperator(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID)
+
+        with pytest.raises(DatabricksWarehouseError, match="completed without an event"):
+            operator.execute_complete(None, None)
+
+    def test_execute_complete_unexpected_status_raises(self):
+        operator = DatabricksStartWarehouseOperator(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID)
+
+        with pytest.raises(DatabricksWarehouseError, match="unexpected status 'boom'"):
+            operator.execute_complete(
+                None,
+                {
+                    "status": "boom",
+                    "warehouse_id": WAREHOUSE_ID,
+                    "target_state": "RUNNING",
+                    "last_state": "STARTING",
+                },
+            )

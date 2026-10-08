@@ -17,5 +17,5 @@
  * under the License.
  */
 
-export { default as ClearRunButton } from "./Run";
-export { default as ClearTaskInstanceButton } from "./TaskInstance";
+export { ClearRunButton } from "./Run/ClearRunButton";
+export { ClearTaskInstanceButton } from "./TaskInstance/ClearTaskInstanceButton";

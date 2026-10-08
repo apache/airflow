@@ -21,6 +21,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ExternalViewResponse, PluginAppliesToResponse } from "openapi/requests/types.gen";
+
 import { usePluginAppliesToContext } from "src/hooks/usePluginAppliesToContext";
 
 import { usePluginTabs } from "./usePluginTabs";
@@ -66,8 +67,8 @@ describe("usePluginTabs", () => {
   });
 
   it.each([
-    ["a matching applies_to", { dag_tags: ["ml"] }, 1],
-    ["a non-matching applies_to", { dag_ids: ["etl_orders"] }, 0],
+    ["a matching applies_to", { "dag.tags.name": ["ml"] }, 1],
+    ["a non-matching applies_to", { "dag.dag_id": ["etl_orders"] }, 0],
   ])("includes the right tabs for %s", (_label, appliesTo: PluginAppliesToResponse, expected) => {
     setPlugins([makeView({ applies_to: appliesTo })]);
 
@@ -95,7 +96,7 @@ describe("usePluginTabs", () => {
 
   it("withholds a scoped tab until its context resolves, avoiding a flicker", () => {
     mockUseContext.mockReturnValue({ dag: undefined, isLoading: true });
-    setPlugins([makeView({ applies_to: { dag_tags: ["ml"] } }), makeView({ url_route: "always" })]);
+    setPlugins([makeView({ applies_to: { "dag.tags.name": ["ml"] } }), makeView({ url_route: "always" })]);
 
     const { result } = renderHook(() => usePluginTabs("dag_run"));
 
@@ -107,10 +108,10 @@ describe("usePluginTabs", () => {
     ["no view is scoped", [{}], false],
     [
       "a view for another destination is scoped",
-      [{ applies_to: { dag_ids: ["x"] }, destination: "task" as const }],
+      [{ applies_to: { "dag.dag_id": ["x"] }, destination: "task" as const }],
       false,
     ],
-    ["a view for this destination is scoped", [{ applies_to: { dag_ids: ["x"] } }], true],
+    ["a view for this destination is scoped", [{ applies_to: { "dag.dag_id": ["x"] } }], true],
   ])("resolves the context only when %s", (_label, views: Array<Partial<ExternalViewResponse>>, enabled) => {
     setPlugins(views.map(makeView));
 

@@ -18,7 +18,11 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
+import os
+import sys
+import textwrap
 import warnings
 from collections.abc import Generator
 from datetime import timedelta
@@ -27,10 +31,12 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import delete, func, inspect as sa_inspect, select
+from sqlalchemy import delete, event, func, inspect as sa_inspect, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
+from airflow import plugins_manager
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone as tz
 from airflow.configuration import conf
 from airflow.dag_processing.collection import (
@@ -39,8 +45,12 @@ from airflow.dag_processing.collection import (
     _get_latest_runs_stmt,
     _get_latest_runs_stmt_partitioned,
     _update_dag_tags,
+    _update_import_errors,
     update_dag_parsing_results_in_db,
 )
+from airflow.example_dags.plugins.business_day_window import BusinessDayWindow
+from airflow.example_dags.plugins.custom_partition_mapper import PrefixStripMapper
+from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import SerializationError
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import (
@@ -51,32 +61,50 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagTag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import RollupMapper
-from airflow.partition_mappers.temporal import StartOfDayMapper
+from airflow.partition_mappers.chain import ChainMapper
+from airflow.partition_mappers.identity import IdentityMapper
+from airflow.partition_mappers.temporal import StartOfDayMapper, StartOfMonthMapper
 from airflow.partition_mappers.window import DayWindow
+from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetWatcher
-from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+from airflow.sdk import (
+    DAG,
+    Asset,
+    AssetAlias,
+    AssetAll,
+    AssetAndTimeSchedule,
+    AssetWatcher,
+)
+from airflow.sdk.definitions.deadline import AsyncCallback, BaseDeadlineReference, DeadlineAlert
+from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule, PartitionedAssetTimetable
+from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.simple import PartitionedAtRuntime
+from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_import_errors,
     clear_db_serialized_dags,
+    clear_db_teams,
     clear_db_triggers,
 )
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from unit.plugins.priority_weight_strategy import StaticTestPriorityWeightStrategy
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -774,6 +802,7 @@ class TestUpdateDagParsingResults:
                     bundle_version=None,
                     version_data=None,
                     min_update_interval=mock.ANY,
+                    dag_source_code=None,
                     session=mock_session,
                     _prefetched=mock.ANY,
                 ),
@@ -884,6 +913,55 @@ class TestUpdateDagParsingResults:
 
         assert warning is None
 
+    @pytest.mark.usefixtures("clean_db")
+    def test_stale_importer_warnings_are_replaced(self, testing_dag_bundle, session):
+        session.add(DagModel(dag_id="imported_dag", bundle_name="testing", fileloc="/dags/imported.py"))
+        session.flush()
+        session.add_all(
+            [
+                DagWarning(dag_id="imported_dag", warning_type="test:stale", message="Stale"),
+                DagWarning(
+                    dag_id="imported_dag", warning_type=DagWarningType.ASSET_CONFLICT, message="Conflict"
+                ),
+            ]
+        )
+        session.flush()
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(DAG(dag_id="imported_dag"))],
+            import_errors={},
+            parse_duration=None,
+            warnings={DagWarning("imported_dag", "test:current", "Current")},
+            session=session,
+        )
+
+        warning_types = session.scalars(
+            select(DagWarning.warning_type).where(DagWarning.dag_id == "imported_dag")
+        ).all()
+        assert sorted(warning_types) == [DagWarningType.ASSET_CONFLICT.value, "test:current"]
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_dag_source_codes_are_written_to_dag_code(self, testing_dag_bundle, session):
+        dag = DAG(dag_id="yaml_dag")
+        dag.fileloc = "/dags/yaml_dag.yaml"
+        dag.relative_fileloc = "yaml_dag.yaml"
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+            dag_source_codes={dag.dag_id: DagSourceCode(source_code="dag_id: yaml_dag\n", language="yaml")},
+        )
+
+        dag_code = DagCode.get_latest_dagcode("yaml_dag", session=session)
+        assert (dag_code.source_code, dag_code.language) == ("dag_id: yaml_dag\n", "yaml")
+
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""
 
@@ -893,6 +971,31 @@ class TestUpdateDagParsingResults:
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.last_parse_duration == parse_duration
+
+    def test_timetable_asset_gated_written_to_db_on_sync(self, testing_dag_bundle, session):
+        asset = Asset("test")
+        gated_dag = DAG(
+            dag_id="asset_gated",
+            schedule=AssetAndTimeSchedule(
+                timetable=CronTriggerTimetable("@daily", timezone="UTC"),
+                assets=asset,
+            ),
+            catchup=False,
+        )
+        regular_dag = DAG(dag_id="regular", schedule=None)
+
+        update_dag_parsing_results_in_db(
+            "testing",
+            None,
+            [LazyDeserializedDAG.from_dag(gated_dag), LazyDeserializedDAG.from_dag(regular_dag)],
+            {},
+            None,
+            set(),
+            session,
+        )
+
+        assert session.get(DagModel, gated_dag.dag_id).timetable_asset_gated is True
+        assert session.get(DagModel, regular_dag.dag_id).timetable_asset_gated is False
 
     @patch.object(ParseImportError, "full_file_path")
     @patch.object(SerializedDagModel, "write_dag")
@@ -1468,6 +1571,103 @@ class TestUpdateDagParsingResults:
 
 
 @pytest.mark.db_test
+class TestUpdateImportErrors:
+    """Tests for the ``_update_import_errors`` helper."""
+
+    @pytest.fixture(autouse=True)
+    def clean_import_errors(self):
+        clear_db_import_errors()
+        yield
+        clear_db_import_errors()
+
+    @pytest.fixture
+    def import_error_statements(self, session):
+        """
+        Collect every SQL statement issued against the ``import_error`` table.
+
+        Matching on the bare table name would also catch statements naming ``dag.has_import_errors``,
+        so match the positions where the table itself can appear.
+        """
+        statements: list[str] = []
+
+        def _capture(conn, cursor, statement, parameters, context, executemany):
+            lowered = statement.lower()
+            if any(f"{keyword} import_error" in lowered for keyword in ("from", "into", "update")):
+                statements.append(statement)
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", _capture)
+        yield statements
+        event.remove(bind, "before_cursor_execute", _capture)
+
+    @staticmethod
+    def _selects(statements: list[str]) -> list[str]:
+        return [stmt for stmt in statements if stmt.lower().lstrip().startswith("select")]
+
+    def test_no_lookup_when_there_are_no_import_errors(self, session, import_error_statements):
+        session.add(ParseImportError(filename="broken.py", bundle_name="testing", stacktrace="boom"))
+        session.flush()
+        import_error_statements.clear()
+
+        # files_parsed is empty so no DELETE runs either: on backends without DELETE...RETURNING
+        # its synchronize_session fallback would emit a SELECT of its own and muddy the assertion.
+        _update_import_errors(
+            files_parsed=set(),
+            import_errors={},
+            session=session,
+        )
+
+        assert self._selects(import_error_statements) == []
+
+    @patch.object(ParseImportError, "full_file_path", return_value="broken.py")
+    def test_existing_error_lookup_is_bounded(self, _mock_full_path, session, import_error_statements):
+        session.add_all(
+            [
+                ParseImportError(filename="broken.py", bundle_name="testing", stacktrace="old"),
+                ParseImportError(filename="untouched.py", bundle_name="other", stacktrace="unrelated"),
+            ]
+        )
+        session.flush()
+        import_error_statements.clear()
+
+        _update_import_errors(
+            files_parsed={("testing", "broken.py")},
+            import_errors={("testing", "broken.py"): "new"},
+            session=session,
+        )
+
+        selects = self._selects(import_error_statements)
+        assert selects, "expected the existing-error lookup to run"
+        assert all("where" in stmt.lower() for stmt in selects), (
+            f"import_error must never be scanned unfiltered, got: {selects}"
+        )
+
+        rows = sorted(
+            (err.bundle_name, err.filename, err.stacktrace)
+            for err in session.scalars(select(ParseImportError))
+        )
+        assert rows == [
+            ("other", "untouched.py", "unrelated"),
+            ("testing", "broken.py", "new"),
+        ]
+
+    @patch.object(ParseImportError, "full_file_path", return_value="broken.py")
+    def test_new_errors_keep_their_own_bundle_name(self, _mock_full_path, session):
+        _update_import_errors(
+            files_parsed=set(),
+            import_errors={
+                ("bundle_a", "a.py"): "error a",
+                ("bundle_b", "b.py"): "error b",
+            },
+            session=session,
+        )
+        session.flush()
+
+        rows = {(err.bundle_name, err.filename) for err in session.scalars(select(ParseImportError))}
+        assert rows == {("bundle_a", "a.py"), ("bundle_b", "b.py")}
+
+
+@pytest.mark.db_test
 class TestUpdateDagTags:
     @pytest.fixture(autouse=True)
     def setup_teardown(self, session):
@@ -1582,3 +1782,328 @@ class TestPartitionMapperInfoSync:
         dag_model = session.get(DagModel, "non_partitioned_dag")
         assert dag_model.partition_mapper_info == []
         assert dag_model.has_rollup_mappers is False
+
+
+class TeamDeadlineReference(BaseDeadlineReference):
+    """A deadline reference a team-scoped plugin ships; Airflow has no example one to reuse."""
+
+    def _evaluate_with(self, *, session, **kwargs):
+        raise NotImplementedError
+
+
+async def _deadline_callback():
+    raise NotImplementedError
+
+
+def _nested_chain_mapper(depth):
+    mapper = PrefixStripMapper("eu")
+    for _ in range(depth):
+        mapper = ChainMapper(mapper, IdentityMapper())
+    return mapper
+
+
+def _dag_kwargs_using(case):
+    """Return the Dag keyword arguments that make it use the plugin class, as a Dag author would."""
+    if case == "timetable":
+        return {"schedule": AfterWorkdayTimetable()}
+    if case == "timetable-in-asset-or-time":
+        return {"schedule": AssetOrTimeSchedule(timetable=AfterWorkdayTimetable(), assets=[Asset("a")])}
+    if case == "default-partition-mapper":
+        return {
+            "schedule": PartitionedAssetTimetable(
+                assets=Asset("a"), default_partition_mapper=PrefixStripMapper("eu")
+            )
+        }
+    if case == "partition-mapper-deep-in-chain":
+        return {
+            "schedule": PartitionedAssetTimetable(
+                assets=Asset("a"), partition_mapper_config={Asset("a"): _nested_chain_mapper(6)}
+            )
+        }
+    if case == "window-in-rollup-mapper":
+        return {
+            "schedule": PartitionedAssetTimetable(
+                assets=Asset("a"),
+                partition_mapper_config={
+                    Asset("a"): RollupMapper(window=BusinessDayWindow(), upstream_mapper=StartOfMonthMapper())
+                },
+            )
+        }
+    if case == "deadline-reference":
+        return {
+            "deadline": DeadlineAlert(
+                reference=TeamDeadlineReference(),
+                interval=timedelta(hours=1),
+                callback=AsyncCallback(_deadline_callback),
+            )
+        }
+    raise ValueError(case)
+
+
+# Each case: the registry the plugin fills, the class it registers, and how the Dag uses it.
+SCHEDULING_CLASS_USES = [
+    pytest.param("timetables", AfterWorkdayTimetable, "timetable", id="timetable"),
+    pytest.param(
+        "timetables", AfterWorkdayTimetable, "timetable-in-asset-or-time", id="timetable-in-asset-or-time"
+    ),
+    pytest.param(
+        "partition_mappers", PrefixStripMapper, "default-partition-mapper", id="default-partition-mapper"
+    ),
+    pytest.param(
+        "partition_mappers",
+        PrefixStripMapper,
+        "partition-mapper-deep-in-chain",
+        id="partition-mapper-deep-in-chain",
+    ),
+    pytest.param("windows", BusinessDayWindow, "window-in-rollup-mapper", id="window-in-rollup-mapper"),
+    pytest.param("deadline_references", TeamDeadlineReference, "deadline-reference", id="deadline-reference"),
+]
+
+
+@pytest.mark.db_test
+class TestRejectOtherTeamsPluginClasses:
+    """A team-scoped plugin's scheduling classes may only be stored for that team's Dags."""
+
+    @pytest.fixture(autouse=True)
+    def _clean(self):
+        yield
+        clear_db_serialized_dags()
+        clear_db_dags()
+        clear_db_import_errors()
+        clear_db_dag_bundles()
+        clear_db_teams()
+
+    @pytest.fixture
+    def bundle(self, testing_team, session):
+        """Return a factory creating the "team_bundle" bundle, owned by the given team or none."""
+
+        def create(owned_by_team: bool) -> str:
+            bundle = DagBundleModel(name="team_bundle")
+            if owned_by_team:
+                bundle.teams.append(testing_team)
+            session.add(bundle)
+            session.flush()
+            return bundle.name
+
+        return create
+
+    @staticmethod
+    def _plugin(team_name, registry, scheduling_class, name="scheduling_plugin"):
+        plugin = AirflowPlugin()
+        plugin.name = name
+        plugin.team_name = team_name
+        setattr(plugin, registry, [scheduling_class])
+        return plugin
+
+    @staticmethod
+    def _serialized(dag_id="team_dag", **dag_kwargs):
+        with DAG(dag_id, **{"schedule": None, **dag_kwargs}) as dag:
+            EmptyOperator(task_id="t")
+        dag.relative_fileloc = f"{dag_id}.py"
+        return LazyDeserializedDAG.from_dag(dag)
+
+    @staticmethod
+    def _store(bundle_name, dags, session, warnings=frozenset()):
+        import_errors: dict[tuple[str, str], str] = {}
+        update_dag_parsing_results_in_db(
+            bundle_name=bundle_name,
+            bundle_version=None,
+            dags=dags,
+            import_errors=import_errors,
+            parse_duration=None,
+            warnings=set(warnings),
+            session=session,
+        )
+        stored = set(session.scalars(select(SerializedDagModel.dag_id)))
+        errors = {
+            (e.bundle_name, e.filename): e.stacktrace for e in session.scalars(select(ParseImportError))
+        }
+        return stored, errors
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.parametrize(("registry", "scheduling_class", "usage"), SCHEDULING_CLASS_USES)
+    @pytest.mark.parametrize(
+        ("plugin_team", "dag_owned_by_team", "allowed"),
+        [
+            pytest.param("testing", True, True, id="owning-team"),
+            pytest.param("other_team", True, False, id="other-team"),
+            pytest.param("testing", False, False, id="teamless"),
+        ],
+    )
+    def test_team_class_is_only_stored_for_its_team(
+        self, bundle, session, plugin_team, dag_owned_by_team, allowed, registry, scheduling_class, usage
+    ):
+        bundle_name = bundle(dag_owned_by_team)
+        with mock_plugin_manager(plugins=[self._plugin(plugin_team, registry, scheduling_class)]):
+            dag = self._serialized(**_dag_kwargs_using(usage))
+            stored, errors = self._store(bundle_name, [dag], session)
+
+        if allowed:
+            assert stored == {"team_dag"}
+            assert errors == {}
+        else:
+            assert stored == set()
+            assert list(errors) == [(bundle_name, "team_dag.py")]
+            assert f"belonging to {plugin_team}" in errors[(bundle_name, "team_dag.py")]
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.parametrize(
+        "weight_rule",
+        [StaticTestPriorityWeightStrategy(), qualname(StaticTestPriorityWeightStrategy)],
+        ids=["instance", "dotted-path"],
+    )
+    def test_weight_rule_is_checked_in_both_spellings(self, bundle, session, weight_rule):
+        bundle_name = bundle(True)
+        plugin = self._plugin("other_team", "priority_weight_strategies", StaticTestPriorityWeightStrategy)
+        with mock_plugin_manager(plugins=[plugin]):
+            with DAG("team_dag", schedule=None) as dag:
+                EmptyOperator(task_id="t", weight_rule=weight_rule)
+            dag.relative_fileloc = "team_dag.py"
+            stored, errors = self._store(bundle_name, [LazyDeserializedDAG.from_dag(dag)], session)
+
+        assert stored == set()
+        assert "belonging to other_team" in errors[(bundle_name, "team_dag.py")]
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_only_the_offending_dag_is_dropped(self, bundle, session):
+        bundle_name = bundle(True)
+        with mock_plugin_manager(plugins=[self._plugin("other_team", "timetables", AfterWorkdayTimetable)]):
+            dags = [
+                self._serialized("rejected", schedule=AfterWorkdayTimetable()),
+                self._serialized("accepted"),
+            ]
+            stored, errors = self._store(bundle_name, dags, session)
+
+        assert stored == {"accepted"}
+        assert list(errors) == [(bundle_name, "rejected.py")]
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_warning_for_a_rejected_new_dag_is_dropped(self, bundle, session):
+        """
+        The stability check warns about every Dag in a file, including one being rejected.
+
+        A new Dag has no ``dag`` row to hang that warning on, so storing it would break the
+        foreign key and fail the whole write.
+        """
+        bundle_name = bundle(True)
+        warnings = {
+            DagWarning("rejected", DagWarningType.RUNTIME_VARYING_VALUE.value, "datetime.now() in args"),
+            DagWarning("accepted", DagWarningType.RUNTIME_VARYING_VALUE.value, "datetime.now() in args"),
+        }
+        with mock_plugin_manager(plugins=[self._plugin("other_team", "timetables", AfterWorkdayTimetable)]):
+            dags = [
+                self._serialized("rejected", schedule=AfterWorkdayTimetable()),
+                self._serialized("accepted"),
+            ]
+            stored, errors = self._store(bundle_name, dags, session, warnings=warnings)
+
+        assert stored == {"accepted"}
+        assert list(errors) == [(bundle_name, "rejected.py")]
+        assert set(session.scalars(select(DagWarning.dag_id))) == {"accepted"}
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_error_is_a_plain_message(self, bundle, session):
+        """The UI shows this as-is, so it must read as an explanation, not a traceback."""
+        bundle_name = bundle(True)
+        with mock_plugin_manager(plugins=[self._plugin("other_team", "timetables", AfterWorkdayTimetable)]):
+            stored, errors = self._store(
+                bundle_name, [self._serialized(schedule=AfterWorkdayTimetable())], session
+            )
+
+        assert errors[(bundle_name, "team_dag.py")] == (
+            f"Dag 'team_dag' uses {qualname(AfterWorkdayTimetable)}, which is provided by a plugin "
+            "belonging to other_team. This Dag belongs to team 'testing', so it cannot use it. "
+            "Move the Dag into a bundle owned by other_team, or have the plugin provide the class "
+            "globally instead of for a single team."
+        )
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_class_also_registered_globally_is_available_to_every_dag(self, bundle, session):
+        bundle_name = bundle(True)
+        plugins = [
+            self._plugin(team, "timetables", AfterWorkdayTimetable, name=f"plugin_{i}")
+            for i, team in enumerate(["other_team", None])
+        ]
+        with mock_plugin_manager(plugins=plugins):
+            stored, errors = self._store(
+                bundle_name, [self._serialized(schedule=AfterWorkdayTimetable())], session
+            )
+
+        assert stored == {"team_dag"}
+        assert errors == {}
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_airflow_class_listed_by_a_team_plugin_stays_available(self, bundle, session):
+        """
+        Every team's cron Dags keep working even if one team's plugin lists the cron timetable.
+
+        The timetable is explicit: a cron string can serialize to a different class, depending on
+        ``create_cron_data_intervals``, which would leave the plugin's class out of the Dag.
+        """
+        bundle_name = bundle(True)
+        with mock_plugin_manager(plugins=[self._plugin("other_team", "timetables", CronTriggerTimetable)]):
+            stored, errors = self._store(
+                bundle_name,
+                [self._serialized(schedule=CronTriggerTimetable("0 0 * * *", timezone="UTC"))],
+                session,
+            )
+
+        assert stored == {"team_dag"}
+        assert errors == {}
+
+    def test_nothing_is_rejected_when_multi_team_is_off(self, bundle, session):
+        bundle_name = bundle(True)
+        with mock_plugin_manager(plugins=[self._plugin("other_team", "timetables", AfterWorkdayTimetable)]):
+            stored, errors = self._store(
+                bundle_name, [self._serialized(schedule=AfterWorkdayTimetable())], session
+            )
+
+        assert stored == {"team_dag"}
+        assert errors == {}
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_class_reloaded_by_the_plugin_loader_is_still_recognised(
+        self, bundle, session, tmp_path, monkeypatch, request
+    ):
+        """
+        A Dag importing from a plugin file holds a different class from the one registered.
+
+        The plugin loader executes the file again under its own module entry, so the two
+        classes share a qualname but not an identity.
+        """
+        (tmp_path / "workday.py").write_text(
+            textwrap.dedent(
+                """\
+                from airflow.plugins_manager import AirflowPlugin
+                from airflow.timetables.simple import NullTimetable
+
+
+                class WorkdayTimetable(NullTimetable):
+                    pass
+
+
+                class WorkdayPlugin(AirflowPlugin):
+                    name = "workday"
+                    team_name = "other_team"
+                    timetables = [WorkdayTimetable]
+                """
+            )
+        )
+        monkeypatch.syspath_prepend(os.fspath(tmp_path))
+        # Both the import below and the plugin loader put a "workday" module in sys.modules, and
+        # monkeypatch would restore the loader's at teardown, so remove it outright instead.
+        sys.modules.pop("workday", None)
+        request.addfinalizer(lambda: sys.modules.pop("workday", None))
+        dag_side_class = importlib.import_module("workday").WorkdayTimetable
+        plugins, import_errors = plugins_manager._load_plugins_from_plugin_directory(
+            plugins_folder=os.fspath(tmp_path)
+        )
+        assert not import_errors
+        assert plugins[0].timetables[0] is not dag_side_class
+
+        bundle_name = bundle(True)
+        with mock_plugin_manager(plugins=plugins):
+            stored, errors = self._store(bundle_name, [self._serialized(schedule=dag_side_class())], session)
+
+        assert stored == set()
+        assert "belonging to other_team" in errors[(bundle_name, "team_dag.py")]

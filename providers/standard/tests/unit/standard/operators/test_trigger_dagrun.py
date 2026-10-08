@@ -40,17 +40,13 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
-    AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
 )
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.common.compat.sdk import DagRunTriggerException
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -288,7 +284,7 @@ class TestDagRunOperator:
         dag_maker.sync_dagbag_to_db()
         parse_and_sync_to_db(self.f_name)
         dr = dag_maker.create_dagrun()
-        with pytest.raises(ValueError, match="conf parameter should be JSON Serializable"):
+        with pytest.raises(ValueError, match="conf parameter should be JSON Serializable: "):
             dag_maker.run_ti(task.task_id, dr)
 
     def test_trigger_dagrun_with_no_failed_state(self, dag_maker):
@@ -466,7 +462,7 @@ class TestDagRunOperator:
                 conf="{'foo': 'bar', 'key': 123}",
             )
 
-            with pytest.raises(ValueError, match="conf parameter should be JSON Serializable"):
+            with pytest.raises(ValueError, match="conf parameter should be JSON Serializable: "):
                 task.execute(context={})
 
     @pytest.mark.parametrize("original_conf", (None, {}, {"foo": "bar"}))

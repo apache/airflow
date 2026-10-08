@@ -16,16 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Box, Flex, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useVariableServiceGetVariables } from "openapi/queries";
 import type { VariableResponse } from "openapi/requests/types.gen";
+
+import { Tooltip, ActionBar } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -37,12 +42,12 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { SearchBar } from "src/components/SearchBar";
-import { Tooltip } from "src/components/ui";
-import { ActionBar } from "src/components/ui/ActionBar";
+import { TeamName } from "src/components/TeamName";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
-import { useDocumentTitle } from "src/utils";
+import { formatNumber, useDocumentTitle } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 
 import DeleteVariablesButton from "./DeleteVariablesButton";
@@ -61,8 +66,10 @@ const getColumns = ({
   multiTeam,
   open,
   translate,
-}: { hasSelection: boolean } & ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
-  const columns: Array<ColumnDef<VariableResponse>> = [
+}: { hasSelection: boolean } & ColumnProps & GetColumnsParams): Array<
+  ColumnDef<DataTableFeatures, VariableResponse>
+> => {
+  const columns: Array<ColumnDef<DataTableFeatures, VariableResponse>> = [
     {
       accessorKey: "select",
       cell: ({ row }) => <SelectionRowCheckbox rowKey={row.original.key} />,
@@ -112,6 +119,9 @@ const getColumns = ({
       ? [
           {
             accessorKey: "team_name",
+            cell: ({ row: { original } }: { row: { original: VariableResponse } }) => (
+              <TeamName teamName={original.team_name} />
+            ),
             header: translate("columns.team"),
           },
         ]
@@ -136,7 +146,7 @@ const getColumns = ({
 };
 
 export const Variables = () => {
-  const { t: translate } = useTranslation("admin");
+  const { i18n, t: translate } = useTranslation("admin");
 
   useDocumentTitle(translate("common:admin.Variables"));
 
@@ -239,7 +249,7 @@ export const Variables = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("deleteActions.selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip content={translate("variables.delete.tooltip")}>

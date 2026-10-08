@@ -21,8 +21,12 @@ import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 import type { AssetEventCollectionResponse, AssetEventResponse } from "openapi/requests/types.gen";
+
+import { Select } from "src/system-components";
+
 import { StateBadge } from "src/components/StateBadge";
-import { Select } from "src/components/ui";
+
+import { formatNumber } from "src/utils";
 
 import { DataTable } from "../DataTable";
 import type { CardDef, TableState } from "../DataTable/types";
@@ -58,7 +62,7 @@ export const AssetEvents = ({
   titleKey,
   ...rest
 }: AssetEventProps & BoxProps) => {
-  const { t: translate } = useTranslation(["dashboard", "common", "dag"]);
+  const { i18n, t: translate } = useTranslation(["dashboard", "common", "dag"]);
   const assetSortOptions = createListCollection({
     items: [
       { label: translate("sortBy.newestFirst"), value: "-timestamp" },
@@ -78,7 +82,7 @@ export const AssetEvents = ({
           <HStack>
             <StateBadge colorPalette="brand" fontSize="md" variant="solid">
               <FiDatabase />
-              {data?.total_entries ?? " "}
+              {data?.total_entries === undefined ? " " : formatNumber(data.total_entries, i18n.language)}
             </StateBadge>
             <Heading marginEnd="auto" size="md">
               {translate(titleKey ?? "common:assetEvent", { count: data?.total_entries ?? 0 })}

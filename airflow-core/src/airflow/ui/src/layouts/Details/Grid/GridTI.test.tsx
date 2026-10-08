@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { TimezoneProvider } from "src/context/timezone";
 import { BaseWrapper } from "src/utils/Wrapper";
 

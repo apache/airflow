@@ -51,12 +51,54 @@ from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
+from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.state.metastore import _get_db_backend
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(__name__)
+
+
+def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str) -> None:
+    """
+    Discard the task state store entries of each task instance.
+
+    A failure is logged and re-raised so the request fails and the session rolls back, rather than
+    reporting success while some entries survive undiscarded.
+
+    This only drops the metadata DB reference row via ``_get_db_backend()``; it does not go through
+    ``get_state_backend()``. A custom ``[workers] state_store_backend`` payload is left orphaned
+    with no reclaim path other than its own lifecycle/TTL policy, and a custom ``[state_store]
+    backend`` is not touched at all: the worker still reads and writes there, so a clear reports
+    success while the actual state survives and a later attempt can resume from it. Closing this
+    gap needs a server-side path to the configured state backend and is tracked for a future
+    change; today, this discard is only exact for the default metastore backend.
+
+    :param event: what prompted the discard, used as the log event name.
+    """
+    backend = _get_db_backend()
+    for ti in tis:
+        scope = TaskScope(
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.map_index if ti.map_index is not None else -1,
+        )
+        try:
+            backend.clear(scope=scope, session=session)
+        except Exception:
+            log.warning(
+                "Failed to discard task state",
+                discard_event=event,
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                task_id=ti.task_id,
+                map_index=ti.map_index,
+                exc_info=True,
+            )
+            raise
+    log.info(event, task_instance_count=len(tis))
 
 
 def _clear_task_state_store_on_success(tis: Sequence[TI], session: Session) -> None:
@@ -134,7 +176,7 @@ def _reload_tis_with_rendered_fields(tis: list[TI], session: Session) -> list[TI
     """
     if not tis:
         return tis
-    return list(
+    reloaded = list(
         session.scalars(
             select(TI)
             .options(joinedload(TI.rendered_task_instance_fields))
@@ -142,6 +184,8 @@ def _reload_tis_with_rendered_fields(tis: list[TI], session: Session) -> list[TI
             .execution_options(populate_existing=True)
         ).all()
     )
+    load_legacy_rendered_fields(reloaded, session=session)
+    return reloaded
 
 
 def _patch_ti_validate_request(
@@ -180,6 +224,16 @@ def _patch_ti_validate_request(
     return dag, list(tis), data
 
 
+def _get_task_group_task_ids(dag_id: str, task_group_id: str, dag: SerializedDAG) -> list[str]:
+    """Return the ids of every task in a task group, resolved from the dag structure."""
+    task_group = dag.task_group_dict.get(task_group_id)
+    if not task_group:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Task group '{task_group_id}' not found in DAG '{dag_id}'"
+        )
+    return [task.task_id for task in task_group.iter_tasks()]
+
+
 def _get_task_group_task_instances(
     dag_id: str,
     dag_run_id: str,
@@ -188,13 +242,7 @@ def _get_task_group_task_instances(
     session: Session,
 ) -> list[TI]:
     """Get all task instances in a task group for a specific DAG run."""
-    task_group = dag.task_group_dict.get(task_group_id)
-    if not task_group:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"Task group '{task_group_id}' not found in DAG '{dag_id}'"
-        )
-
-    task_ids = [task.task_id for task in task_group.iter_tasks()]
+    task_ids = _get_task_group_task_ids(dag_id, task_group_id, dag)
 
     query = (
         select(TI)
@@ -611,7 +659,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         try:
             # Handle deletion of specific (dag_id, dag_run_id, task_id, map_index) tuples
             if delete_specific_map_index_task_keys:
-                task_instances_map, matched_task_keys, not_found_task_keys = self._categorize_task_instances(
+                _, matched_task_keys, not_found_task_keys = self._categorize_task_instances(
                     delete_specific_map_index_task_keys
                 )
                 not_found_task_ids = [
@@ -627,7 +675,13 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
                 for task_key in matched_task_keys:
                     dag_id, run_id, task_id, map_index = task_key
-                    self.session.delete(task_instances_map[task_key])
+                    TI.delete_attempts(
+                        dag_id=dag_id,
+                        run_id=run_id,
+                        task_id=task_id,
+                        map_index=map_index,
+                        session=self.session,
+                    )
                     results.success.append(f"{dag_id}.{run_id}.{task_id}[{map_index}]")
 
             # Handle deletion of all map indexes for certain (dag_id, dag_run_id, task_id) tuples
@@ -662,8 +716,11 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                             detail=f"No task instances found for dag_id: {dag_id}, run_id: {run_id}, task_id: {task_id}",
                         )
 
+                    if all_task_instances:
+                        TI.delete_attempts(
+                            dag_id=dag_id, run_id=run_id, task_id=task_id, session=self.session
+                        )
                     for ti in all_task_instances:
-                        self.session.delete(ti)
                         results.success.append(f"{dag_id}.{run_id}.{task_id}[{ti.map_index}]")
 
         except HTTPException as e:

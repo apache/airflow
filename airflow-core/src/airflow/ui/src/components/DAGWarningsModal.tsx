@@ -21,10 +21,15 @@ import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 
 import type { DAGWarningResponse } from "openapi/requests/types.gen";
-import { Modal } from "src/components/ui";
+
+import { Modal } from "src/system-components";
 
 import { ErrorAlert } from "./ErrorAlert";
 import { WarningAlert } from "./WarningAlert";
+
+/** The modal lists the page error as one more item next to the warnings, so the button count does too. */
+export const countDagWarnings = (warningsTotal: number | undefined, error: unknown): number =>
+  (warningsTotal ?? 0) + Number(Boolean(error));
 
 type ImportDAGErrorModalProps = {
   readonly error?: unknown;

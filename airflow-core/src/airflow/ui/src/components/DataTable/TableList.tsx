@@ -16,31 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Icon, Table } from "@chakra-ui/react";
-import { flexRender, type Table as TanStackTable } from "@tanstack/react-table";
 import type { ReactNode } from "react";
+
+import { Button, Icon, Table, Text } from "@chakra-ui/react";
+import { flexRender, type RowData, type Table as TanStackTable } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { TiArrowSortedDown, TiArrowSortedUp, TiArrowUnsorted } from "react-icons/ti";
 
-type TableListProps<TData> = {
+import { Tooltip } from "src/system-components";
+
+import type { DataTableFeatures } from "./features";
+
+type TableListProps<TData extends RowData> = {
   readonly noRowsMessage?: ReactNode;
-  readonly table: TanStackTable<TData>;
+  readonly table: TanStackTable<DataTableFeatures, TData>;
 };
 
-export const TableList = <TData,>({ noRowsMessage, table }: TableListProps<TData>) => {
+export const TableList = <TData extends RowData>({ noRowsMessage, table }: TableListProps<TData>) => {
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
   const { t: translate } = useTranslation("components");
   const { rows } = table.getRowModel();
+  const isMultiSorted = table.store.state.sorting.length > 1;
 
   return (
     <Table.Root data-testid="table-list" size="sm" striped>
       <Table.Header bg="chakra-body-bg" position="sticky" top={0} zIndex={1}>
         {table.getHeaderGroups().map((headerGroup) => (
           <Table.Row key={headerGroup.id}>
-            {headerGroup.headers.map(({ colSpan, column, getContext, id, isPlaceholder }) => {
+            {headerGroup.headers.map((header) => {
+              // v9 header methods live on the prototype, so `getContext` can't be destructured.
+              const { colSpan, column, id, isPlaceholder } = header;
               const sort = column.getIsSorted();
               const canSort = column.getCanSort();
-              const text = flexRender(column.columnDef.header, getContext());
+              const text = flexRender(column.columnDef.header, header.getContext());
               let rightIcon;
 
               if (canSort) {
@@ -61,21 +69,31 @@ export const TableList = <TData,>({ noRowsMessage, table }: TableListProps<TData
                 return (
                   <Table.ColumnHeader colSpan={colSpan} key={id} paddingBlock={1} whiteSpace="nowrap">
                     {isPlaceholder ? undefined : (
-                      <Button
-                        _focus={{ color: "brand.500" }}
-                        _hover={{ color: "brand.500" }}
-                        aria-label={translate("sort")}
-                        border={0}
-                        color={sort === false ? undefined : "brand.500"}
-                        disabled={!canSort}
-                        gap={1}
-                        onClick={column.getToggleSortingHandler()}
-                        p={0}
-                        variant="plain"
+                      <Tooltip
+                        content={translate("sortMultiColumnHint")}
+                        disabled={!column.getCanMultiSort()}
                       >
-                        {text}
-                        {rightIcon}
-                      </Button>
+                        <Button
+                          _focus={{ color: "brand.500" }}
+                          _hover={{ color: "brand.500" }}
+                          aria-label={translate("sort")}
+                          border={0}
+                          color={sort === false ? undefined : "brand.500"}
+                          disabled={!canSort}
+                          gap={1}
+                          onClick={column.getToggleSortingHandler()}
+                          p={0}
+                          variant="plain"
+                        >
+                          {text}
+                          {rightIcon}
+                          {isMultiSorted && sort !== false ? (
+                            <Text as="span" data-testid={`sort-index-${column.id}`} fontSize="xs">
+                              {column.getSortIndex() + 1}
+                            </Text>
+                          ) : undefined}
+                        </Button>
+                      </Tooltip>
                     )}
                   </Table.ColumnHeader>
                 );

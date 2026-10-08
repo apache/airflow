@@ -33,6 +33,9 @@ labelPRBasedOnFilePath:
   provider:anthropic:
     - providers/anthropic/**
 
+  provider:apache-arrow:
+    - providers/apache/arrow/**
+
   provider:apache-beam:
     - providers/apache/beam/**
 
@@ -146,6 +149,9 @@ labelPRBasedOnFilePath:
   provider:docker:
     - providers/docker/**
 
+  provider:duckdb:
+    - providers/duckdb/**
+
   provider:edge:
     - providers/edge3/**
 
@@ -214,6 +220,9 @@ labelPRBasedOnFilePath:
 
   provider:microsoft-winrm:
     - providers/microsoft/winrm/**
+
+  provider:modal:
+    - providers/modal/**
 
   provider:mongo:
     - providers/mongo/**
@@ -364,23 +373,26 @@ labelPRBasedOnFilePath:
     - .rat-excludes
     - .readthedocs.yml
 
+  # Paused while v3-4-test is fast-forwarded to main for the 3.4.0 betas - nothing is
+  # cherry-picked yet. Uncomment when the 3.4.0 RCs start (see "Beta releases" in
+  # dev/README_RELEASE_AIRFLOW.md).
   # This should be copy of the "area:dev-tools" above minus contributing docs and some files that should
   # only make sense in main - it should be updated when we switch maintenance branch.
-  # Scoped to PRs targeting `main` only — a PR opened directly against v3-3-test
-  # does not need a backport-to-v3-3-test label.
-  backport-to-v3-3-test:
-    paths:
-      - scripts/**/*
-      - dev/**/*
-      - .github/**/*
-      - Dockerfile.ci
-      - yamllint-config.yml
-      - .dockerignore
-      - .hadolint.yaml
-      - .pre-commit-config.yaml
-      - .rat-excludes
-    targetBranchFilter:
-      - ^main$
+  # Scoped to PRs targeting `main` only — a PR opened directly against v3-4-test
+  # does not need a backport-to-v3-4-test label.
+  # backport-to-v3-4-test:
+  #   paths:
+  #     - scripts/**/*
+  #     - dev/**/*
+  #     - .github/**/*
+  #     - Dockerfile.ci
+  #     - yamllint-config.yml
+  #     - .dockerignore
+  #     - .hadolint.yaml
+  #     - .pre-commit-config.yaml
+  #     - .rat-excludes
+  #   targetBranchFilter:
+  #     - ^main$
 
   # Apply to PRs touching airflow-ctl code so the release manager notices when a
   # fix should land on the airflow-ctl/v0-1-test maintenance branch.

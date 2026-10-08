@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -47,7 +47,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from common_prek_utils import console, get_remote_for_main
+from common_prek_utils import console, get_remote_for_main, git_env_without_repo_overrides
 
 SUPERVISOR_SCHEMAS_PREFIX = "task-sdk/src/airflow/sdk/execution_time/schema/"
 VERSIONS_PREFIX = SUPERVISOR_SCHEMAS_PREFIX + "versions/"
@@ -57,7 +57,7 @@ CORE_PROCESSOR_PATH = "airflow-core/src/airflow/dag_processing/processor.py"
 DUMP_SCRIPT = Path(__file__).parent / "dump_supervisor_schemas.py"
 
 
-# TODO: We should consolidte the common logic with check_execution_api_versions.py into common_prek_utils
+# TODO: We should consolidate the common logic with check_execution_api_versions.py into common_prek_utils
 def get_target_branch() -> str:
     """Branch to compare against. GITHUB_BASE_REF for PRs, DEFAULT_BRANCH in CI, else main."""
     return os.environ.get("GITHUB_BASE_REF") or os.environ.get("DEFAULT_BRANCH") or "main"
@@ -123,7 +123,13 @@ def dump_snapshot_from_main() -> str:
     ref = f"{remote}/{target_branch}"
     worktree_path = Path(tempfile.mkdtemp()) / "airflow-main"
     subprocess.run(["git", "fetch", remote, target_branch], capture_output=True, check=False)
-    subprocess.run(["git", "worktree", "add", str(worktree_path), ref], capture_output=True, check=True)
+    git_env = git_env_without_repo_overrides()
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), ref],
+        capture_output=True,
+        check=True,
+        env=git_env,
+    )
     try:
         return dump_snapshot(worktree_path)
     finally:
@@ -131,6 +137,7 @@ def dump_snapshot_from_main() -> str:
             ["git", "worktree", "remove", "--force", str(worktree_path)],
             capture_output=True,
             check=False,
+            env=git_env,
         )
 
 

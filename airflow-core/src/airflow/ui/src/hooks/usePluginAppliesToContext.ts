@@ -19,10 +19,12 @@
 import { useParams } from "react-router-dom";
 
 import {
+  useDagRunServiceGetDagRun,
   useDagServiceGetDag,
   useTaskInstanceServiceGetMappedTaskInstance,
   useTaskServiceGetTask,
 } from "openapi/queries";
+
 import type { AppliesToContext } from "src/utils/pluginAppliesTo";
 
 /**
@@ -45,6 +47,12 @@ export const usePluginAppliesToContext = (enabled: boolean): AppliesToContext =>
     enabled: enabled && Boolean(dagId),
   });
 
+  const { data: dagRun, isLoading: isDagRunLoading } = useDagRunServiceGetDagRun(
+    { dagId, dagRunId: runId },
+    undefined,
+    { enabled: enabled && Boolean(dagId) && Boolean(runId) },
+  );
+
   const { data: task, isLoading: isTaskLoading } = useTaskServiceGetTask({ dagId, taskId }, undefined, {
     enabled: enabled && Boolean(dagId) && Boolean(taskId) && groupId === undefined,
   });
@@ -66,10 +74,11 @@ export const usePluginAppliesToContext = (enabled: boolean): AppliesToContext =>
 
   return {
     dag,
+    dagRun,
     // `isLoading` (not `isPending`) is deliberate: a disabled query reports
     // `isPending` forever, which would withhold scoped views indefinitely on
-    // destinations that legitimately have no task or task instance.
-    isLoading: isDagLoading || isTaskLoading || isTaskInstanceLoading,
+    // destinations that legitimately have no run, task or task instance.
+    isLoading: isDagLoading || isDagRunLoading || isTaskLoading || isTaskInstanceLoading,
     task,
     taskInstance,
   };

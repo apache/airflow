@@ -18,7 +18,7 @@
  */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
-const successDag = {
+export const successDag = {
   dag_display_name: "tutorial_taskflow_api_success",
   dag_id: "tutorial_taskflow_api_success",
   file_token:
@@ -26,6 +26,7 @@ const successDag = {
   fileloc: "/airflow/dags/tutorial_taskflow_api.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: true,
   is_paused: false,
   is_stale: false,
@@ -52,7 +53,7 @@ const successDag = {
   timetable_type: "NullTimetable",
 };
 
-const failedDag = {
+export const failedDag = {
   dag_display_name: "tutorial_taskflow_api_failed",
   dag_id: "tutorial_taskflow_api_failed",
   file_token:
@@ -60,6 +61,7 @@ const failedDag = {
   fileloc: "/airflow/dags/tutorial_taskflow_api_failed.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: false,
   is_paused: false,
   is_stale: false,
@@ -86,7 +88,7 @@ const failedDag = {
   timetable_type: "CronTriggerTimetable",
 };
 
-const pausedDag = {
+export const pausedDag = {
   dag_display_name: "paused_dag",
   dag_id: "paused_dag",
   file_token:
@@ -94,6 +96,7 @@ const pausedDag = {
   fileloc: "/airflow/dags/paused_dag.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_favorite: false,
   is_paused: true,
   is_stale: false,
@@ -119,11 +122,8 @@ const filterDags = ({ paused, timetableTypes }: { paused: string | null; timetab
   if (paused === "true") {
     return allDags.filter((dag) => dag.is_paused);
   }
-  if (paused === "false") {
-    return allDags.filter((dag) => !dag.is_paused);
-  }
 
-  return allDags;
+  return paused === "false" ? allDags.filter((dag) => !dag.is_paused) : allDags;
 };
 
 export const handlers: Array<HttpHandler> = [
@@ -142,6 +142,7 @@ export const handlers: Array<HttpHandler> = [
   http.get("/ui/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");
+    const anyDagRunState = url.searchParams.get("dag_run_state");
     const orderBy = url.searchParams.get("order_by");
     const paused = url.searchParams.get("paused");
     const timetableTypes = url.searchParams.getAll("timetable_type");
@@ -155,6 +156,15 @@ export const handlers: Array<HttpHandler> = [
       return HttpResponse.json({
         dags: [failedDag],
         total_entries: 1,
+      });
+    }
+
+    // Any-run matching: pretend every Dag has a failed run somewhere in its history, so
+    // widening the pill's lookback from the latest run visibly changes the result set.
+    if (anyDagRunState === "failed") {
+      return HttpResponse.json({
+        dags: [failedDag, successDag],
+        total_entries: 2,
       });
     }
 

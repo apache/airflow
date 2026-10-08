@@ -16,14 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+
+import "@testing-library/jest-dom/vitest";
+import { render, screen } from "@testing-library/react";
 import type * as ReactI18Next from "react-i18next";
 import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { TaskInstances } from "./TaskInstances";
@@ -82,14 +85,18 @@ vi.mock("src/components/DataTable", () => ({
     }>;
     readonly data: ReadonlyArray<TaskInstanceResponse>;
   }) => {
-    const renderedMapIndexColumn = columns.find((column) => column.accessorKey === "rendered_map_index");
+    const renderedColumns = columns.filter(
+      (column) => column.accessorKey === "rendered_map_index" || column.accessorKey === "dag_run_id",
+    );
 
     return (
       <table>
         <tbody>
           {data.map((taskInstance) => (
             <tr key={`${taskInstance.task_id}-${taskInstance.map_index}`}>
-              <td>{renderedMapIndexColumn?.cell?.({ row: { original: taskInstance } })}</td>
+              {renderedColumns.map((column) => (
+                <td key={column.accessorKey}>{column.cell?.({ row: { original: taskInstance } })}</td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -165,5 +172,19 @@ describe("TaskInstances", () => {
     render(<TaskInstances />, { wrapper: Wrapper });
 
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("links task instances to their Dag run from the Dag run ID column", () => {
+    mockParams = {};
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
+      getTaskInstancesResponse([mappedTaskInstance]),
+    );
+
+    render(<TaskInstances />, { wrapper: Wrapper });
+
+    expect(screen.getByRole("link", { name: "manual__2026-06-07T00:00:00+00:00" })).toHaveAttribute(
+      "href",
+      "/dags/example_dag/runs/manual__2026-06-07T00:00:00+00:00",
+    );
   });
 });

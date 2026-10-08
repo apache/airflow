@@ -16,12 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, HStack, Text, Link } from "@chakra-ui/react";
+import { useState } from "react";
+
+import { Skeleton, Button, HStack, Text, Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+import { FiAlertCircle } from "react-icons/fi";
 
 import { useXcomServiceGetXcomEntry } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
+
+import { ClipboardIconButton, ClipboardRoot } from "src/system-components";
+
+import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
+import { ErrorModal } from "src/components/ErrorModal";
 import RenderedJsonField from "src/components/RenderedJsonField";
-import { ClipboardIconButton, ClipboardRoot } from "src/components/ui";
+
 import { urlRegex } from "src/constants/urlRegex";
 
 type XComEntryProps = {
@@ -63,8 +72,43 @@ const renderTextWithLinks = (text: string) => {
   );
 };
 
+const XComError = ({ error }: { readonly error: unknown }) => {
+  const { t: translate } = useTranslation("common");
+  const [errorOpen, setErrorOpen] = useState(false);
+  const { status } = error as Partial<ExpandedApiError>;
+  const errorTitle = translate("error.title");
+
+  return (
+    <>
+      <Button
+        aria-haspopup="dialog"
+        aria-label={status === undefined ? errorTitle : `${errorTitle} ${String(status)}`}
+        color="fg.error"
+        data-testid="xcom-entry-error"
+        fontSize="sm"
+        gap={1}
+        onClick={() => setErrorOpen(true)}
+        px={0}
+        size="xs"
+        variant="plain"
+      >
+        <FiAlertCircle aria-hidden="true" />
+        {status ?? errorTitle}
+      </Button>
+      <ErrorModal
+        icon={<FiAlertCircle />}
+        onClose={() => setErrorOpen(false)}
+        open={errorOpen}
+        title={errorTitle}
+      >
+        <ErrorAlert error={error} />
+      </ErrorModal>
+    </>
+  );
+};
+
 export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKey }: XComEntryProps) => {
-  const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
+  const { data, error, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
     dagId,
     dagRunId: runId,
     deserialize: true,
@@ -73,6 +117,11 @@ export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKe
     taskId,
     xcomKey,
   });
+
+  if (Boolean(error)) {
+    return <XComError error={error} />;
+  }
+
   // When deserialize=true, the API returns a stringified representation
   // so we don't need to JSON.stringify it again
   const xcomValue = data?.value;

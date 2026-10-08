@@ -18,6 +18,7 @@
  */
 import { useDagServiceGetDagRunStateCountsUi } from "openapi/queries";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const useDagRunStateCounts = ({
@@ -40,7 +41,6 @@ export const useDagRunStateCounts = ({
   return useDagServiceGetDagRunStateCountsUi({ dagIds: sortedDagIds }, undefined, {
     enabled: sortedDagIds.length > 0,
     placeholderData: (prev) => prev,
-    refetchInterval:
-      refetchInterval === false ? false : hasPendingRun ? refetchInterval : refetchInterval * 10,
+    refetchInterval: refetchInterval !== false && (hasPendingRun ? refetchInterval : refetchInterval * 10),
   });
 };

@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, type BoxProps, Button, Icon, type IconProps, Link, type ButtonProps } from "@chakra-ui/react";
 import type { ReactNode, ForwardRefExoticComponent, RefAttributes } from "react";
+
+import { Box, type BoxProps, Button, Icon, type IconProps, Link, type ButtonProps } from "@chakra-ui/react";
 import type { IconType } from "react-icons";
 import { Link as RouterLink, matchPath, useLocation } from "react-router-dom";
 
@@ -114,12 +115,12 @@ export const NavButton = ({
 
   if (isExternal) {
     return (
-      <Link asChild href={to} rel="noopener noreferrer" target="_blank">
-        <Button {...commonButtonProps}>
+      <Button {...commonButtonProps} asChild>
+        <a href={to} rel="noopener noreferrer" target="_blank">
           {pluginIcon ?? <Icon as={icon} boxSize={5} />}
           <Box {...commonLabelProps}>{title}</Box>
-        </Button>
-      </Link>
+        </a>
+      </Button>
     );
   }
 

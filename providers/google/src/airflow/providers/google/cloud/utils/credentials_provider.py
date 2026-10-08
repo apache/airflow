@@ -405,14 +405,11 @@ class _CredentialProvider(LoggingMixin):
         scopes = list(self.scopes) if self.scopes else None
         credentials, project_id = google.auth.load_credentials_from_dict(info=info, scopes=scopes)
         if not project_id:
-            raise AirflowException(
-                "Project ID could not be determined from default credentials. "
-                "Please provide `key_secret_project_id` parameter."
-            )
+            project_id = ""
         return credentials, project_id
 
     def _get_credentials_using_adc(self) -> tuple[Credentials, str]:
-        self._log_info(
+        self._log_debug(
             "Getting connection using `google.auth.default()` since no explicit credentials are provided."
         )
         scopes = list(self.scopes) if self.scopes else None

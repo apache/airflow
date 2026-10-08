@@ -24,29 +24,35 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useEventLogServiceGetEventLogs } from "openapi/queries";
 import type { EventLogResponse } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import RenderedJsonField from "src/components/RenderedJsonField";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle } from "src/utils";
 
 import { EventsFilters } from "./EventsFilters";
 
 type EventsColumn = {
   dagId?: string;
+  multiTeam: boolean;
   open?: boolean;
   runId?: string;
   taskId?: string;
 };
 
 const eventsColumn = (
-  { dagId, open, runId, taskId }: EventsColumn,
+  { dagId, multiTeam, open, runId, taskId }: EventsColumn,
   translate: (key: string) => string,
-): Array<ColumnDef<EventLogResponse>> => [
+): Array<ColumnDef<DataTableFeatures, EventLogResponse>> => [
   {
     accessorKey: "when",
     cell: ({ row: { original } }) => <Time datetime={original.when} />,
@@ -73,6 +79,21 @@ const eventsColumn = (
       skeletonWidth: 10,
     },
   },
+  ...(multiTeam
+    ? [
+        {
+          accessorKey: "team_name",
+          cell: ({ row: { original } }: { row: { original: EventLogResponse } }) => (
+            <TeamName teamName={original.team_name} />
+          ),
+          enableSorting: false,
+          header: translate("common:dagDetails.team"),
+          meta: {
+            skeletonWidth: 10,
+          },
+        },
+      ]
+    : []),
   {
     accessorKey: "extra",
     cell: ({ row: { original } }) => {
@@ -156,6 +177,7 @@ const {
   MAP_INDEX: MAP_INDEX_PARAM,
   RUN_ID: RUN_ID_PARAM,
   TASK_ID: TASK_ID_PARAM,
+  TEAMS: TEAMS_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
   USER: USER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -163,6 +185,7 @@ const {
 export const Events = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const { dagId, runId, taskId } = useParams();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   // Only the standalone audit-log page owns the tab title; nested tabs inherit their parent page's title.
   useDocumentTitle(dagId === undefined ? translate("common:browse.auditLog") : undefined);
@@ -182,6 +205,7 @@ export const Events = () => {
   const taskIdFilter = searchParams.get(TASK_ID_PARAM);
   const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
   const userFilter = searchParams.get(USER_PARAM);
+  const teams = searchParams.getAll(TEAMS_PARAM);
 
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-when"];
   // Convert string filters to appropriate types for API
@@ -240,13 +264,14 @@ export const Events = () => {
       ...runIdArg,
       taskId: taskId ?? undefined,
       ...taskIdArg,
+      teams: teams.length > 0 ? teams : undefined,
       tryNumber: tryNumberNumber,
     },
     undefined,
   );
 
   const eventLogs = data?.event_logs ?? [];
-  const columns = eventsColumn({ dagId, open, runId, taskId }, translate);
+  const columns = eventsColumn({ dagId, multiTeam: multiTeamEnabled, open, runId, taskId }, translate);
 
   return (
     <>

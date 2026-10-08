@@ -23,11 +23,13 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 from airflow.api_fastapi.core_api.routes.ui import dashboard
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -245,6 +247,24 @@ def make_multiple_dags(dag_maker, session):
 
 
 class TestHistoricalMetricsDataEndpoint:
+    @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
+    def test_archived_task_instance_is_excluded_from_state_counts(self, test_client, session):
+        ti = session.scalar(select(TaskInstance).where(TaskInstance.state == TaskInstanceState.SUCCESS))
+        successor = ti.prepare_db_for_next_try(session)
+        successor.state = TaskInstanceState.RUNNING
+        session.commit()
+
+        response = test_client.get(
+            "/dashboard/historical_metrics_data",
+            params={"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"},
+        )
+
+        assert response.status_code == 200
+        states = response.json()["task_instance_states"]
+        assert states["success"] == 1
+        assert states["running"] == 1
+        assert response.json()["task_instance_counts_are_lower_bounds"] is False
+
     @pytest.mark.parametrize(
         ("params", "expected"),
         [
@@ -415,6 +435,17 @@ class TestDagStatsEndpoint:
             "running_dag_count": 0,
             "queued_dag_count": 1,
         }
+
+    @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
+    def test_active_dag_count_excludes_draining_dag(self, test_client, session):
+        dag_model = session.get(DagModel, "test_dag_id")
+        dag_model.is_draining = True
+        session.commit()
+
+        response = test_client.get("/dashboard/dag_stats")
+
+        assert response.status_code == 200
+        assert response.json()["active_dag_count"] == 0
 
     @pytest.mark.usefixtures("freeze_time_for_dagruns")
     def test_should_response_200_no_dag_runs(self, test_client):

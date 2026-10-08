@@ -23,13 +23,16 @@ import { useTranslation } from "react-i18next";
 
 import { useProviderServiceGetProviders } from "openapi/queries";
 import type { ProviderResponse } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { urlRegex } from "src/constants/urlRegex";
 import { useDocumentTitle } from "src/utils";
 
-const createColumns = (translate: TFunction): Array<ColumnDef<ProviderResponse>> => [
+const createColumns = (translate: TFunction): Array<ColumnDef<DataTableFeatures, ProviderResponse>> => [
   {
     accessorKey: "package_name",
     cell: ({ row: { original } }) => (

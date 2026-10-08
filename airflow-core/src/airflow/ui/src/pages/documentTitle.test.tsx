@@ -48,6 +48,7 @@ describe("document title", () => {
     ["/providers", "admin.Providers"],
     ["/plugins", "admin.Plugins"],
     ["/configs", "admin.Config"],
+    ["/dag_bundles", "browse.dagBundles"],
     ["/deadlines", "browse.deadlines"],
     ["/jobs", "browse.jobs"],
     ["/xcoms", "browse.xcoms"],

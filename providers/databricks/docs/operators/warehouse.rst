@@ -30,10 +30,17 @@ Both operators require the warehouse ID and use the :ref:`Databricks connection
 
 By default, each operator waits for the requested state: ``RUNNING`` when starting and ``STOPPED``
 when stopping. Use ``polling_period_seconds`` to control the polling interval, ``timeout`` to limit
-the wait, or ``wait_for_termination=False`` to return after requesting the transition. Repeated task
-attempts are safe: an already running warehouse is not started again, and an already stopped warehouse
-is not stopped again. If a start is requested while a warehouse is stopping, any transition rejection
-from Databricks is propagated to the task.
+the wait, or ``wait_for_termination=False`` to return after requesting the transition. Set
+``deferrable=True`` (or enable ``[operators] default_deferrable``) to wait on the triggerer instead
+of holding a worker slot. In deferrable mode the operator records an absolute ``end_time`` from
+``timeout`` when it defers, so a triggerer restart does not reset the wait. ``wait_for_termination=False``
+still returns immediately and does not defer. Clearing a deferred warehouse wait does not start or
+stop the warehouse: Databricks has no cancel API for these transitions, and a cancelled start must
+not stop a warehouse the Dag still needs.
+
+Repeated task attempts are safe: an already running warehouse is not started again, and an already
+stopped warehouse is not stopped again. If a start is requested while a warehouse is stopping, any
+transition rejection from Databricks is propagated to the task.
 
 Start a SQL warehouse
 ---------------------

@@ -89,7 +89,8 @@ The following integrations are available.
 +---------------+-------------------------------------------------------+
 | qdrant        | Integration required for Qdrant tests.                |
 +---------------+-------------------------------------------------------+
-| redis         | Integration required for Redis tests.                 |
+| redis         | * Integration required for Redis tests.               |
+|               | * Integration required for Redis cluster mode tests.  |
 +---------------+-------------------------------------------------------+
 | statsd        | Integration required for Statsd hooks.                |
 +---------------+-------------------------------------------------------+

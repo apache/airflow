@@ -16,39 +16,48 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Button, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { AssetAliasResponse, AssetWatcherResponse } from "openapi/requests/types.gen";
+
+import { Popover } from "src/system-components";
+
 import Time from "src/components/Time";
-import { Popover } from "src/components/ui";
+
+import { formatNumber } from "src/utils";
 
 type ListPopoverProps = {
   readonly items: Array<{ key: string; label: ReactNode }>;
   readonly noun: string;
 };
 
-const ListPopover = ({ items, noun }: ListPopoverProps) => (
-  // eslint-disable-next-line jsx-a11y/no-autofocus
-  <Popover.Root autoFocus={false} lazyMount unmountOnExit>
-    <Popover.Trigger asChild disabled={items.length === 0}>
-      <Button variant="outline">
-        {items.length} {noun}
-      </Button>
-    </Popover.Trigger>
-    <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
-      <Popover.Arrow />
-      <Popover.Body>
-        {items.map(({ key, label }) => (
-          <Text key={key} py={2}>
-            {label}
-          </Text>
-        ))}
-      </Popover.Body>
-    </Popover.Content>
-  </Popover.Root>
-);
+const ListPopover = ({ items, noun }: ListPopoverProps) => {
+  const { i18n } = useTranslation();
+
+  return (
+    // eslint-disable-next-line jsx-a11y/no-autofocus
+    <Popover.Root autoFocus={false} lazyMount unmountOnExit>
+      <Popover.Trigger asChild disabled={items.length === 0}>
+        <Button variant="outline">
+          {formatNumber(items.length, i18n.language)} {noun}
+        </Button>
+      </Popover.Trigger>
+      <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
+        <Popover.Arrow />
+        <Popover.Body>
+          {items.map(({ key, label }) => (
+            <Text key={key} py={2}>
+              {label}
+            </Text>
+          ))}
+        </Popover.Body>
+      </Popover.Content>
+    </Popover.Root>
+  );
+};
 
 export const AliasesPopover = ({ aliases }: { readonly aliases: Array<AssetAliasResponse> }) => {
   const { t: translate } = useTranslation("assets");

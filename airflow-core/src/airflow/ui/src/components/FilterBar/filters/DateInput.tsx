@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ChangeEvent, KeyboardEvent } from "react";
+
 import { Box, Input, Text } from "@chakra-ui/react";
-import type { ChangeEvent } from "react";
 import { MdClose } from "react-icons/md";
 
-import { IconButton } from "src/components/ui";
+import { IconButton } from "src/system-components";
+
 import type { ValidationError } from "src/hooks/useDateRangeFilter";
 
 type DateInputProps = {
@@ -36,6 +38,7 @@ type DateInputProps = {
   readonly inputValue: string;
   readonly label: string;
   readonly onClear: () => void;
+  readonly onCommit?: () => void;
   readonly onDateBlur?: () => void;
   readonly onFocus?: () => void;
   readonly placeholder: string;
@@ -51,11 +54,17 @@ export const DateInput = ({
   inputValue,
   label,
   onClear,
+  onCommit,
   onDateBlur,
   onFocus,
   placeholder,
 }: DateInputProps) => {
   const fieldName = inputType === "date" ? field : (`${field}Time` as const);
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      onCommit?.();
+    }
+  };
 
   return (
     <Box flex="1">
@@ -72,6 +81,7 @@ export const DateInput = ({
           onBlur={onDateBlur}
           onChange={handleInputChange(field, inputType)}
           onFocus={onFocus}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           value={inputValue}
           w="full"

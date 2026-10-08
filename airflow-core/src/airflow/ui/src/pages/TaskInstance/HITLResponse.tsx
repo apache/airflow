@@ -23,8 +23,11 @@ import {
   useTaskInstanceServiceGetHitlDetailTryDetail,
   useTaskInstanceServiceGetMappedTaskInstance,
 } from "openapi/queries";
+
+import { ProgressBar } from "src/system-components";
+
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { ProgressBar } from "src/components/ui";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -49,7 +52,7 @@ export const HITLResponse = () => {
     undefined,
     {
       enabled: !isNaN(parsedMapIndex),
-      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
     },
   );
 

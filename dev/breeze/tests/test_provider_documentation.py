@@ -19,6 +19,7 @@ from __future__ import annotations
 import random
 import string
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -28,17 +29,27 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     VERSION_MINOR_INDEX,
     VERSION_PATCHLEVEL_INDEX,
     Change,
+    PrepareReleaseDocsChangesOnlyException,
+    PrepareReleaseDocsNoChangesException,
     TypeOfChange,
     _convert_git_changes_to_table,
     _find_insertion_index_for_version,
+    _generate_new_changelog,
     _get_change_from_line,
     _get_changes_classified,
     _get_git_log_command,
     classification_result,
     classify_change_deterministically,
+    drop_provider_to_doc_only,
+    format_message_for_classification,
     get_most_impactful_change,
     get_version_tag,
+    update_release_notes,
 )
+from airflow_breeze.utils.confirm import Answer
+from airflow_breeze.utils.packages import HTTPS_REMOTE, ProviderPackageDetails
+
+PROVIDER_DOCUMENTATION = "airflow_breeze.prepare_providers.provider_documentation"
 
 CHANGELOG_CONTENT = """
 Changelog
@@ -88,6 +99,53 @@ def test_find_insertion_index_insert_new_changelog():
     index, append = _find_insertion_index_for_version(CHANGELOG_CONTENT.splitlines(), "5.0.1")
     assert not append
     assert index == 3
+
+
+def test_generate_new_changelog_recognises_grouped_pr_references(tmp_path):
+    changelog_path = tmp_path / "changelog.rst"
+    changelog_path.write_text(
+        """
+Changelog
+---------
+
+5.0.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add X (#1001, #1002)``
+* ``Add Y (#1003)``
+* ``Add Z (continuation of #1005) (#1006)``
+
+4.7.0
+.....
+
+* ``Old (#900)``
+"""
+    )
+    provider_details = mock.MagicMock(
+        spec=ProviderPackageDetails, versions=["5.0.0"], changelog_path=changelog_path
+    )
+    changes = [
+        Change("hash", "short", "2024-01-01", "5.0.0", f"Fix (#{pr})", f"Fix (#{pr})", pr)
+        for pr in ("1001", "1002", "1003", "1004", "1005")
+    ]
+
+    _generate_new_changelog(
+        package_id="asana",
+        provider_details=provider_details,
+        changes=[changes],
+        context={},
+        with_breaking_changes=False,
+        maybe_with_new_features=False,
+    )
+
+    new_changelog = changelog_path.read_text()
+    assert "* ``Fix (#1004)``" in new_changelog
+    assert "* ``Fix (#1005)``" in new_changelog
+    for pr in ("1001", "1002", "1003"):
+        assert new_changelog.count(f"#{pr}") == 1
 
 
 @pytest.mark.parametrize(
@@ -405,6 +463,15 @@ def test_get_most_impactful_change(changes, expected):
     assert get_most_impactful_change(changes) == expected
 
 
+def test_format_message_for_classification_links_every_reference_to_its_own_number():
+    message = "Fix td_format rendering of negative durations (#72694) (#72774)"
+    assert format_message_for_classification(message) == (
+        "Fix td_format rendering of negative durations "
+        "(https://github.com/apache/airflow/pull/72694) "
+        "(https://github.com/apache/airflow/pull/72774)"
+    )
+
+
 @pytest.mark.parametrize(
     ("provider_id", "changed_files", "expected"),
     [
@@ -563,3 +630,113 @@ def test_classify_change_deterministically(files_class, subject, expected):
         classification, reason = classify_change_deterministically("amazon", _make_change(subject))
     assert classification == expected
     assert reason, "a non-empty reason must always be returned"
+
+
+@mock.patch(f"{PROVIDER_DOCUMENTATION}.get_provider_details")
+@mock.patch(f"{PROVIDER_DOCUMENTATION}.classify_provider_pr_files", return_value="documentation")
+@mock.patch(f"{PROVIDER_DOCUMENTATION}.user_confirm", return_value=Answer.YES)
+@mock.patch(f"{PROVIDER_DOCUMENTATION}._get_all_changes_for_package")
+def test_doc_only_marker_written_when_classification_overrides_user_answer(
+    mock_get_all_changes, _mock_user_confirm, _mock_classify, mock_get_provider_details, tmp_path
+):
+    """Every change classifying as documentation makes the provider doc-only, whatever the release
+    manager answered."""
+    (tmp_path / "docs").mkdir()
+    marker_file = tmp_path / "docs" / ".latest-doc-only-change.txt"
+    change = _make_change("Fix a typo in the amazon docs")
+    mock_get_all_changes.return_value = (False, [[change]], "")
+    provider_details = mock.MagicMock(spec=ProviderPackageDetails)
+    provider_details.provider_id = "amazon"
+    provider_details.root_provider_path = tmp_path
+    mock_get_provider_details.return_value = provider_details
+
+    with pytest.raises(PrepareReleaseDocsChangesOnlyException):
+        update_release_notes(
+            provider_id="amazon",
+            reapply_templates_only=False,
+            base_branch="main",
+            regenerate_missing_docs=False,
+            non_interactive=False,
+            only_min_version_update=False,
+        )
+
+    assert marker_file.read_text().strip() == change.full_hash
+
+
+def _make_doc_only_change(full_hash: str = "a" * 40) -> Change:
+    return Change(
+        full_hash=full_hash,
+        short_hash=full_hash[:7],
+        date="2026-06-08",
+        version="1.0.0",
+        message="Fix a typo",
+        message_without_backticks="Fix a typo",
+        pr="123",
+    )
+
+
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.run_command")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation._get_all_changes_for_package")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.clear_cache_for_provider_metadata")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.get_provider_yaml")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.get_provider_details")
+def test_drop_provider_to_doc_only_restores_the_release_state_and_records_the_marker(
+    mock_details, mock_yaml, mock_clear_cache, mock_changes, mock_run, tmp_path
+):
+    """Correcting the changelog is not enough - the prepared bump would still be released."""
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    changelog = docs / "changelog.rst"
+    changelog.write_text("changelog")
+    provider_yaml = tmp_path / "provider.yaml"
+    provider_yaml.write_text("versions: [1.0.0]")
+    mock_details.return_value = mock.MagicMock(root_provider_path=tmp_path)
+    mock_yaml.return_value = provider_yaml
+    mock_changes.return_value = (True, [[_make_doc_only_change()]], "table")
+
+    with pytest.raises(PrepareReleaseDocsChangesOnlyException):
+        drop_provider_to_doc_only("amazon", base_branch="main")
+
+    restored = mock_run.call_args.args[0]
+    assert restored[:4] == ["git", "checkout", f"{HTTPS_REMOTE}/main", "--"]
+    assert str(provider_yaml) in restored
+    assert str(changelog) in restored
+    assert (docs / ".latest-doc-only-change.txt").read_text() == "a" * 40 + "\n"
+
+
+@pytest.mark.parametrize(
+    ("marked_for_release", "expected_reason"),
+    [
+        pytest.param(True, "has never been released", id="never-released"),
+        pytest.param(False, "No changes found", id="nothing-since-last-release"),
+    ],
+)
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.run_command")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation._get_all_changes_for_package")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.clear_cache_for_provider_metadata")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.get_provider_yaml")
+@mock.patch("airflow_breeze.prepare_providers.provider_documentation.get_provider_details")
+def test_drop_provider_to_doc_only_writes_no_marker_when_there_is_nothing_to_mark(
+    mock_details,
+    mock_yaml,
+    mock_clear_cache,
+    mock_changes,
+    mock_run,
+    tmp_path,
+    capsys,
+    marked_for_release,
+    expected_reason,
+):
+    """An empty marker would silence the provider's next release entirely, and a provider without a
+    release has nothing for the marker to point at."""
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    mock_details.return_value = mock.MagicMock(root_provider_path=tmp_path)
+    mock_yaml.return_value = tmp_path / "provider.yaml"
+    mock_changes.return_value = (marked_for_release, [], "")
+
+    with pytest.raises(PrepareReleaseDocsNoChangesException):
+        drop_provider_to_doc_only("amazon", base_branch="main")
+
+    assert not (docs / ".latest-doc-only-change.txt").exists()
+    assert expected_reason in capsys.readouterr().out

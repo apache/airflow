@@ -42,6 +42,39 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+def _to_query_params(parameters: Iterable | Mapping[str, Any] | None) -> dict | None:
+    """
+    Adapt DB-API parameters to what pyexasol accepts.
+
+    pyexasol substitutes named placeholders only, so ``query_params`` has to be a
+    mapping (or ``None``). Positional sequences never reached the driver intact,
+    so reject them with an actionable message instead of a driver-internal error.
+    """
+    if parameters is None:
+        return None
+    if isinstance(parameters, Mapping):
+        return dict(parameters)
+    raise TypeError(
+        f"Exasol supports named query parameters only, got {type(parameters).__name__}. "
+        "Pass a mapping such as {'name': value} and reference it as {name} in the statement."
+    )
+
+
+def _to_single_statement(sql: str | list[str]) -> str:
+    """
+    Return the single statement ``ExaConnection.execute`` accepts.
+
+    :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` allows a list of
+    statements, but ``execute`` runs exactly one, so a list never worked here.
+    """
+    if isinstance(sql, str):
+        return sql
+    raise TypeError(
+        f"Exasol executes a single statement here, got a list of {len(sql)}. "
+        "Use ExasolHook.run() to execute several statements."
+    )
+
+
 class ExasolHook(DbApiHook):
     """
     Interact with Exasol.
@@ -68,20 +101,19 @@ class ExasolHook(DbApiHook):
         self._sqlalchemy_scheme = sqlalchemy_scheme
 
     def get_conn(self) -> ExaConnection:
-        conn = self.get_connection(self.get_conn_id())
+        airflow_conn = self.get_connection(self.get_conn_id())
         conn_args = {
-            "dsn": f"{conn.host}:{conn.port}",
-            "user": conn.login,
-            "password": conn.password,
-            "schema": self.schema or conn.schema,
+            "dsn": f"{airflow_conn.host}:{airflow_conn.port}",
+            "user": airflow_conn.login,
+            "password": airflow_conn.password,
+            "schema": self.schema or airflow_conn.schema,
         }
-        # check for parameters in conn.extra
-        for arg_name, arg_val in conn.extra_dejson.items():
+        # check for parameters in airflow_conn.extra
+        for arg_name, arg_val in airflow_conn.extra_dejson.items():
             if arg_name in ["compression", "encryption", "json_lib", "client_name"]:
                 conn_args[arg_name] = arg_val
 
-        conn = pyexasol.connect(**conn_args)
-        return conn
+        return pyexasol.connect(**conn_args)
 
     @property
     def sqlalchemy_scheme(self) -> str:
@@ -145,7 +177,7 @@ class ExasolHook(DbApiHook):
         ``pyexasol.ExaConnection.export_to_pandas``.
         """
         with closing(self.get_conn()) as conn:
-            df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
+            df = conn.export_to_pandas(sql, query_params=_to_query_params(parameters), **kwargs)
             return df
 
     @deprecated(
@@ -188,7 +220,10 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        with (
+            closing(self.get_conn()) as conn,
+            closing(conn.execute(_to_single_statement(sql), _to_query_params(parameters))) as cur,
+        ):
             send_sql_hook_lineage(
                 context=self,
                 sql=sql,
@@ -205,7 +240,10 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        with (
+            closing(self.get_conn()) as conn,
+            closing(conn.execute(_to_single_statement(sql), _to_query_params(parameters))) as cur,
+        ):
             send_sql_hook_lineage(
                 context=self,
                 sql=sql,
@@ -334,7 +372,7 @@ class ExasolHook(DbApiHook):
             results = []
             for sql_statement in sql_list:
                 self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                with closing(conn.execute(sql_statement, parameters)) as exa_statement:
+                with closing(conn.execute(sql_statement, _to_query_params(parameters))) as exa_statement:
                     if handler is not None:
                         result = self._make_common_data_structure(handler(exa_statement))
 

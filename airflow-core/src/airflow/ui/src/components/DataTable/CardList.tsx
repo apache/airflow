@@ -16,20 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, SimpleGrid, Skeleton, Text } from "@chakra-ui/react";
-import { flexRender, type Row } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
+import { Box, SimpleGrid, Skeleton, Text } from "@chakra-ui/react";
+import { flexRender, type Row, type RowData } from "@tanstack/react-table";
+
+import type { DataTableFeatures } from "./features";
 import type { CardDef } from "./types";
 
-type CardListProps<TData> = {
+type CardListProps<TData extends RowData> = {
   readonly cardDef: CardDef<TData>;
   readonly isLoading?: boolean;
   readonly noRowsMessage?: ReactNode;
-  readonly rows: Array<Row<TData>>;
+  readonly rows: Array<Row<DataTableFeatures, TData>>;
 };
 
-export const CardList = <TData,>({ cardDef, isLoading, noRowsMessage, rows }: CardListProps<TData>) =>
+export const CardList = <TData extends RowData>({
+  cardDef,
+  isLoading,
+  noRowsMessage,
+  rows,
+}: CardListProps<TData>) =>
   rows.length === 0 ? (
     <Text as="div" data-testid="card-no-rows" pl={4} pt={1}>
       {noRowsMessage}

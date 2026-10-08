@@ -142,9 +142,9 @@ which is running the Airflow scheduler process (and thus, the |executorName|
 executor.) Apache Airflow images with specific python versions can be
 downloaded from the Dockerhub registry, and filtering tags by the
 `python
-version <https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.10>`__.
-For example, the tag ``latest-python3.10`` specifies that the image will
-have python 3.10 installed.
+version <https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.11>`__.
+For example, the tag ``latest-python3.11`` specifies that the image will
+have python 3.11 installed.
 
 .. END BASE_IMAGE
 
@@ -312,6 +312,21 @@ You will be prompted to enter the password if the connection is successful.
 .. END DATABASE_CONNECTION
 
 
+.. BEGIN SQL_ALCHEMY_CONN
+
+.. code-block:: bash
+
+   postgresql+psycopg2://<username>:<password>@<endpoint>/<database_name>
+
+.. note::
+   ``psycopg2`` works on every Airflow version these executors support. From Airflow 3.2.0 you may use
+   ``postgresql+psycopg://`` instead, provided ``psycopg`` (v3) is installed. Airflow before 3.2.0 does not
+   guarantee SQLAlchemy 2.0 (2.11 and 3.0.x pin ``<2.0``), and SQLAlchemy 1.4 has no
+   ``postgresql+psycopg`` dialect — Airflow fails to start with ``sqlalchemy.exc.NoSuchModuleError``.
+
+.. END SQL_ALCHEMY_CONN
+
+
 .. BEGIN ECR_STEPS
 
 Create an ECR Repository
@@ -348,3 +363,16 @@ The Airflow DB needs to be initialized before it can be used and a user needs to
    airflow users create --username admin --password admin --firstname <your first name> --lastname <your last name> --email <your email> --role Admin
 
 .. END INIT_DB
+
+.. BEGIN TASK_INSTANCE_IDENTITY
+
+Task-instance identity
+----------------------
+
+On Airflow versions with UUID executor-key support, ECS, Batch and Lambda retain the submitted
+attempt's UUID through dispatch, adoption and completion. On older supported Airflow versions
+they retain coordinate keys. This does not raise the provider's minimum Airflow version.
+Existing remote work is adopted using its persisted external identifier; Lambda also
+accepts the older serialized coordinate transport when it matches the adopted attempt.
+
+.. END TASK_INSTANCE_IDENTITY

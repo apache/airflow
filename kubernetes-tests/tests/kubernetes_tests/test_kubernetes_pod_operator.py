@@ -40,8 +40,8 @@ from airflow.models.dagrun import DagRun
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
+from airflow.sdk import timezone
 from airflow.sdk.definitions.context import Context
-from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
 from kubernetes_tests.test_base import BaseK8STest, StringContainingId
@@ -1038,7 +1038,7 @@ class TestKubernetesPodOperatorSystem:
                     },
                     {
                         "command": ["sh", "-c", 'trap "exit 0" INT; while true; do sleep 1; done;'],
-                        "image": "alpine:3.24.1",
+                        "image": "alpine:3.24.2",
                         "name": "airflow-xcom-sidecar",
                         "resources": {
                             "requests": {"cpu": "1m", "memory": "10Mi"},
@@ -1113,7 +1113,7 @@ class TestKubernetesPodOperatorSystem:
         # Name is now in template fields, and it's final value requires context
         # so we need to execute for name validation
         context = create_context(k)
-        with pytest.raises(AirflowException):
+        with pytest.raises((ValueError, AirflowException), match="has to be"):
             k.execute(context)
 
     def test_on_kill(self):

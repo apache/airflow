@@ -19,10 +19,10 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BeforeValidator, ConfigDict, Field, field_validator, model_validator
+from pydantic import BeforeValidator, ConfigDict, Field, RootModel, field_validator, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.plugins_manager import AirflowPluginSource
+from airflow.plugins_manager import AirflowPluginSource, BaseDestinationLiteral
 
 
 def coerce_to_string(data: Any) -> Any:
@@ -69,19 +69,19 @@ class AppBuilderMenuItemResponse(BaseModel):
     category: str | None = None
 
 
-BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"]
+class PluginAppliesToResponse(RootModel[dict[str, list[str]]]):
+    """
+    Serializer for the optional scoping criteria of a UI plugin.
 
+    An open map of dotted field path to the values that path may take -- not a closed set of
+    criteria. ``{"state": ["failed"], "dag.tags.name": ["ml"]}`` scopes to failed entities of
+    ml-tagged Dags. An unqualified path is rooted at the entity the ``destination`` is about;
+    a path may instead name a related record (``dag``, ``dag_run``, ``task``, ``task_instance``)
+    as its first segment. Matching is equality against the listed values, OR within a path and
+    AND across paths, and is evaluated client-side.
+    """
 
-class PluginAppliesToResponse(BaseModel):
-    """Serializer for the optional Dag/task scoping criteria of a UI plugin."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    dag_tags: list[str] | None = None
-    dag_ids: list[str] | None = None
-    task_ids: list[str] | None = None
-    operators: list[str] | None = None
-    operator_names: list[str] | None = None
+    root: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class BaseUIResponse(BaseModel):
@@ -95,11 +95,11 @@ class BaseUIResponse(BaseModel):
     url_route: str | None = None
     category: str | None = None
     nav_top_level: bool | None = False
-    # Optional visibility scoping, evaluated client-side. Criteria are OR-ed within a
-    # key and AND-ed across keys, but only across keys the current destination can
-    # actually evaluate (a `task_ids` criterion cannot be judged on a Dag-level page,
-    # so it is skipped there rather than failing the match). Omitting `applies_to`
-    # shows the item everywhere. Display gating only, not an authorization boundary.
+    # Optional visibility scoping, evaluated client-side. Values are OR-ed within a path and
+    # AND-ed across paths, but only across paths whose root record the current destination
+    # actually has (a `task_instance.*` path cannot be judged on a Dag-level page, so it is
+    # skipped there rather than failing the match). Omitting `applies_to` shows the item
+    # everywhere. Display gating only, not an authorization boundary.
     applies_to: PluginAppliesToResponse | None = None
 
 

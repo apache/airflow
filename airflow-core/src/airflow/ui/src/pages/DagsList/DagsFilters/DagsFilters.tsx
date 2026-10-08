@@ -17,6 +17,7 @@
  * under the License.
  */
 import { FilterBar } from "src/components/FilterBar";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
@@ -30,8 +31,8 @@ export const DagsFilters = () => {
 
   const searchParamKeys: Array<FilterableSearchParamsKeys> = [
     SearchParamsKeys.PAUSED,
-    SearchParamsKeys.LAST_DAG_RUN_STATE,
-    SearchParamsKeys.DAG_RUN_STATE,
+    SearchParamsKeys.SCHEDULING_STATE,
+    SearchParamsKeys.RUN_STATE,
     SearchParamsKeys.NEEDS_REVIEW,
     SearchParamsKeys.TAGS,
     SearchParamsKeys.OWNERS,
