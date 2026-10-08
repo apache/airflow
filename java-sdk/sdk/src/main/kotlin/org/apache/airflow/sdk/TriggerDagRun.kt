@@ -134,6 +134,21 @@ class TriggerDagRun(
     return this
   }
 
+  /** A copy that later calls on this builder cannot change, down to the maps and lists inside `conf`. */
+  internal fun snapshot(): TriggerDagRun {
+    val copy = TriggerDagRun(dagId)
+    settings.forEach { (key, value) -> copy.settings[key] = deepCopy(value)!! }
+    return copy
+  }
+
+  private fun deepCopy(value: Any?): Any? =
+    when (value) {
+      is Map<*, *> -> value.entries.associateTo(linkedMapOf<Any?, Any?>()) { it.key to deepCopy(it.value) }
+      is Iterable<*> -> value.map { deepCopy(it) }
+      is Array<*> -> value.map { deepCopy(it) }
+      else -> value
+    }
+
   private fun check(
     key: String,
     setting: Setting,

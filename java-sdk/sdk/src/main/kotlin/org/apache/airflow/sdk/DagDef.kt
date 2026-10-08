@@ -437,10 +437,11 @@ class TaskDef(
    * wiring view calls.
    *
    * @param id Task identifier, unique within a [DagDef].
-   * @param trigger What to trigger, and how.
+   * @param trigger What to trigger, and how; settings made on it later do not
+   *    reach this task.
    */
   constructor(id: String, trigger: TriggerDagRun) : this(id, TriggerDagRunPlaceholder::class.java) {
-    this.trigger = trigger
+    this.trigger = trigger.snapshot()
   }
 
   init {

@@ -187,4 +187,35 @@ internal class TriggerDagRunTest {
     assertEquals("downstream.trigger", ref.def.id)
     assertEquals(listOf("downstream.trigger"), dag.tasks.keys.toList())
   }
+
+  @Test
+  @DisplayName("Should not let a setting made after registration reach the registered task")
+  fun shouldSnapshotTriggerOnRegistration() {
+    val dag = DagDef("d")
+    val nested = mutableMapOf<String, Any>("n" to 1)
+    val list = mutableListOf<Any>("a")
+    val trigger = TriggerDagRun("other").config("conf", mapOf("nested" to nested, "list" to list))
+    val ref = dag.task("trigger", trigger)
+
+    trigger.config("note", "late")
+    nested["n"] = 2
+    list += "b"
+
+    val registered = ref.def.trigger!!.settings
+    assertFalse("note" in registered)
+    assertEquals(mapOf("nested" to mapOf("n" to 1), "list" to listOf("a")), registered["conf"])
+  }
+
+  @Test
+  @DisplayName("Should keep two tasks registered from one builder apart")
+  fun shouldKeepTasksFromOneBuilderApart() {
+    val dag = DagDef("d")
+    val trigger = TriggerDagRun("other").config("note", "first")
+    val first = dag.task("first", trigger)
+    trigger.config("note", "second")
+    val second = dag.task("second", trigger)
+
+    assertEquals("first", first.def.trigger!!.settings["note"])
+    assertEquals("second", second.def.trigger!!.settings["note"])
+  }
 }
