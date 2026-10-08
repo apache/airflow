@@ -243,19 +243,27 @@ class TestMCPHookGetConn:
             with pytest.raises(ValueError, match="'timeout' in extra"):
                 hook.get_conn()
 
+    @pytest.mark.parametrize(
+        ("timeout", "expected_init_timeout"),
+        [(2.5, 2.5), (0, 0), (0.0, 0.0), (None, 0)],
+        ids=["float", "zero", "zero_float", "null_maps_to_zero"],
+    )
     @patch(_MCP_TOOLSET, autospec=True)
     @patch(_STDIO_TRANSPORT, autospec=True)
-    def test_stdio_float_zero_and_null_timeout_accepted(self, mock_transport_cls, mock_toolset_cls):
-        for timeout in (2.5, 0, 0.0, None):
-            hook = MCPHook(mcp_conn_id="test_conn")
-            conn = Connection(
-                conn_id="test_conn",
-                conn_type="mcp",
-                extra=json.dumps({"transport": "stdio", "command": "uvx", "args": [], "timeout": timeout}),
-            )
-            with patch.object(hook, "get_connection", return_value=conn):
-                hook.get_conn()
-            mock_toolset_cls.assert_called_with(mock_transport_cls.return_value, init_timeout=timeout)
+    def test_stdio_float_zero_and_null_timeout_accepted(
+        self, mock_transport_cls, mock_toolset_cls, timeout, expected_init_timeout
+    ):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "uvx", "args": [], "timeout": timeout}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+        mock_toolset_cls.assert_called_once_with(
+            mock_transport_cls.return_value, init_timeout=expected_init_timeout
+        )
 
     def test_unknown_transport_raises(self):
         hook = MCPHook(mcp_conn_id="test_conn")

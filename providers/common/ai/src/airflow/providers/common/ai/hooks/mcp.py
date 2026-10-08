@@ -245,8 +245,9 @@ class MCPHook(BaseHook):
                     f"list of strings, got {args!r}."
                 )
             timeout = extra.get("timeout", 10)
-            # ``None`` and ``0`` are kept valid: fastmcp's ``normalize_timeout_to_seconds``
-            # treats both as "no init timeout".
+            # ``None`` and ``0`` are both valid "no timeout" values, but fastmcp replaces
+            # ``init_timeout=None`` with its global ``client_init_timeout`` setting, so ``None``
+            # is mapped to ``0`` to keep ``FASTMCP_CLIENT_INIT_TIMEOUT`` from re-enabling a timeout.
             if timeout is not None and (
                 isinstance(timeout, bool)
                 or not isinstance(timeout, (int, float))
@@ -258,7 +259,7 @@ class MCPHook(BaseHook):
                 )
             toolset = MCPToolset(
                 StdioTransport(command=command, args=args, env=self._stdio_env(extra)),
-                init_timeout=timeout,
+                init_timeout=0 if timeout is None else timeout,
             )
         else:
             raise ValueError(
