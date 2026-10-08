@@ -215,7 +215,8 @@ Parameters
   review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
   ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the result JSON
-  before approving.  Default ``False``.
+  before approving.  An edit that is not a valid result fails the task with
+  ``ReviewedOutputValidationError``.  Default ``False``.
 - ``approval_notifiers``: Notifier, or list of notifiers, called once the review
   is open.  Default ``None``.
 - ``approval_assigned_users``: Users allowed to answer the review.  ``None``
