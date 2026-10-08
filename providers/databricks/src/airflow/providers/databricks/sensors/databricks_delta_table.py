@@ -22,14 +22,24 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
-from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
+from airflow.providers.common.compat.sdk import (
+    AirflowFailException,
+    AirflowSensorTimeout,
+    BaseSensorOperator,
+    conf,
+)
+from airflow.providers.databricks.exceptions import DatabricksDeltaTableConfigurationError
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
-from airflow.providers.databricks.triggers.databricks_delta_table import DatabricksDeltaTableVersionTrigger
+from airflow.providers.databricks.triggers.databricks_delta_table import (
+    DatabricksDeltaTableVersionTrigger,
+    DeltaVersionInfo,
+    scan_delta_history_version,
+)
 from airflow.providers.databricks.utils.query_tags import build_query_tags
 
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import Context
     from airflow.providers.databricks.assets.databricks import UnityTableIdentity
 
@@ -44,7 +54,12 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
 
     If ``baseline_version`` is not specified and ``target_version`` is None, the sensor
     captures the current version on its first poke as the baseline and waits for a newer
-    commit on subsequent evaluations.
+    commit on subsequent evaluations. Note that automatic baseline enrollment requires
+    ``mode="poke"`` or ``deferrable=True``; running with ``mode="reschedule"`` requires an
+    explicit ``baseline_version`` or ``target_version``.
+
+    Maintenance operations (such as ``OPTIMIZE``, ``VACUUM START``, and ``VACUUM END``)
+    do not modify table data and are automatically ignored during change detection.
 
     :param table_name: Name of the Delta table (e.g. ``catalog.schema.table``, ``schema.table``, or ``table``).
     :param unity_table: Optional static :class:`~airflow.providers.databricks.assets.databricks.UnityTableIdentity`.
@@ -99,7 +114,7 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
         outlets: list | None = None,
         **kwargs,
     ) -> None:
-        if not table_name and not unity_table:
+        if table_name is None and unity_table is None:
             raise ValueError("One of 'table_name' or 'unity_table' must be provided.")
 
         self.unity_table = unity_table
@@ -109,10 +124,20 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
         hook_params = kwargs.pop("hook_params", {})
         super().__init__(outlets=outlets, **kwargs)
 
+        if self.mode == "reschedule" and baseline_version is None and target_version is None:
+            raise DatabricksDeltaTableConfigurationError(
+                "DatabricksDeltaTableVersionSensor does not support mode='reschedule' when neither "
+                "'baseline_version' nor 'target_version' is specified. Automatic baseline enrollment "
+                "is lost across reschedules. Provide an explicit baseline_version or target_version, "
+                "or use mode='poke' (or deferrable=True)."
+            )
+
         self.table_name = table_name
         self.baseline_version = baseline_version
-        self._baseline_version = baseline_version
+        self._baseline_version: int | None = None
+        self._baseline_initialized: bool = False
         self.target_version = target_version
+        self._target_version: int | None = None
         self.allow_recreation = allow_recreation
         self.databricks_conn_id = databricks_conn_id
         self._sql_warehouse_name = sql_warehouse_name
@@ -128,6 +153,31 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
         self.include_airflow_query_tags = include_airflow_query_tags
         self.deferrable = deferrable
         self.caller = "DatabricksDeltaTableVersionSensor"
+
+    def _ensure_baseline_initialized(self) -> None:
+        """Initialize runtime baseline and target versions from templated fields if not yet initialized."""
+        if not self._baseline_initialized:
+            if self.baseline_version is not None:
+                try:
+                    self._baseline_version = int(self.baseline_version)
+                except (ValueError, TypeError) as e:
+                    raise ValueError(
+                        f"Invalid baseline_version {self.baseline_version!r}: must be an integer."
+                    ) from e
+            else:
+                self._baseline_version = None
+
+            if self.target_version is not None:
+                try:
+                    self._target_version = int(self.target_version)
+                except (ValueError, TypeError) as e:
+                    raise ValueError(
+                        f"Invalid target_version {self.target_version!r}: must be an integer."
+                    ) from e
+            else:
+                self._target_version = None
+
+            self._baseline_initialized = True
 
     @cached_property
     def hook(self) -> DatabricksSqlHook:
@@ -186,42 +236,56 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
             raise ValueError("table_name cannot be empty.")
         return self.table_name
 
-    def _get_latest_version(self, table_name: str) -> tuple[int, str | None, str | None]:
-        sql = f"DESCRIBE HISTORY {table_name} LIMIT 1"
+    def _get_latest_version(
+        self,
+        table_name: str,
+        baseline_version: int | None = None,
+        target_version: int | None = None,
+    ) -> DeltaVersionInfo:
+        self._ensure_baseline_initialized()
+        effective_baseline = baseline_version if baseline_version is not None else self._baseline_version
+        effective_target = target_version if target_version is not None else self._target_version
         try:
-            result = self.hook.run(sql, handler=fetch_all_handler)
+            version_info = scan_delta_history_version(
+                self.hook,
+                table_name,
+                baseline_version=effective_baseline,
+                target_version=effective_target,
+            )
         except Exception as e:
-            raise AirflowException(
-                f"Failed to fetch Delta table history for '{table_name}'. "
-                "Ensure the table exists, is a Delta table, and the caller has read permissions: "
-                f"{e}"
-            ) from e
+            if isinstance(e, AirflowFailException):
+                raise
+            if DatabricksDeltaTableVersionTrigger._is_permanent_error(e):
+                raise AirflowFailException(
+                    f"Failed to fetch Delta table history for '{table_name}'. "
+                    "Ensure the table exists, is a Delta table, and the caller has read permissions: "
+                    f"{e}"
+                ) from e
+            raise
 
-        if not result:
-            raise AirflowException(f"Delta table '{table_name}' returned empty history.")
+        if version_info.raw_version is None:
+            raise AirflowFailException(f"Delta table '{table_name}' returned empty or malformed history.")
 
-        row = result[0]
-        version = int(row[0])
-        timestamp = str(row[1]) if len(row) > 1 and row[1] is not None else None
-        operation = str(row[4]) if len(row) > 4 and row[4] is not None else None
-        return version, timestamp, operation
+        return version_info
 
-    def _evaluate_version(self, current_version: int, table_name: str) -> bool:
+    def _evaluate_version(
+        self, current_version: int, table_name: str, raw_version: int | None = None
+    ) -> bool:
         """Evaluate if the current version meets sensor criteria."""
-        if self._baseline_version is None and self.target_version is None:
-            self._baseline_version = current_version
+        if self._baseline_version is None and self._target_version is None:
+            self._baseline_version = raw_version if raw_version is not None else current_version
             self.log.info(
                 "Initialized baseline version to %s for table '%s'; waiting for subsequent commits.",
-                current_version,
+                self._baseline_version,
                 table_name,
             )
             return False
 
-        if self.target_version is not None:
-            if current_version >= self.target_version:
+        if self._target_version is not None:
+            if current_version >= self._target_version:
                 self.log.info(
                     "Target version %s reached for table '%s' (current version: %s).",
-                    self.target_version,
+                    self._target_version,
                     table_name,
                     current_version,
                 )
@@ -237,7 +301,8 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
                     table_name,
                 )
                 return True
-            if current_version < self._baseline_version:
+            effective_raw = raw_version if raw_version is not None else current_version
+            if current_version < self._baseline_version and effective_raw < self._baseline_version:
                 if self.allow_recreation:
                     self.log.info(
                         "Observed table recreation: current version %s is less than baseline %s for table '%s'.",
@@ -246,7 +311,7 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
                         table_name,
                     )
                     return True
-                raise AirflowException(
+                raise AirflowFailException(
                     f"Delta table '{table_name}' was recreated: current version {current_version} "
                     f"is less than baseline version {self._baseline_version}."
                 )
@@ -261,6 +326,7 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
         timestamp: str | None,
         operation: str | None,
     ) -> dict[str, Any]:
+        table_identity: dict[str, JsonValue]
         if self.unity_table:
             table_identity = {
                 "host": self.unity_table.host,
@@ -301,7 +367,7 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
         # It is not a vague "table refreshed" and not a promise that every intermediate
         # commit was delivered. Authors needing pinned reads must VERSION AS OF that observed version.
         if context is not None and "outlet_events" in context:
-            extra = {
+            extra: dict[str, JsonValue] = {
                 "version": current_version,
                 "observed_version": current_version,
                 "table_identity": table_identity,
@@ -314,17 +380,39 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
         return provenance
 
     def poke(self, context: Context) -> bool:
+        self._ensure_baseline_initialized()
         self._validate_workspace_host()
         self.hook.query_tags = build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
         table_name = self._resolve_table_name()
-        current_version, timestamp, operation = self._get_latest_version(table_name)
+        version_info = self._get_latest_version(table_name)
+        raw_version = version_info.raw_version
+        current_version = version_info.effective_version
+        timestamp = version_info.timestamp
+        operation = version_info.operation
 
-        if self._evaluate_version(current_version, table_name):
+        if self._baseline_version is None and self._target_version is None:
+            self._baseline_version = raw_version
+            self.log.info(
+                "Initialized baseline version to %s for table '%s'; waiting for subsequent commits.",
+                raw_version,
+                table_name,
+            )
+            return False
+
+        if current_version is None:
+            self.log.info(
+                "No relevant data-changing commit found in recent history for table '%s'.",
+                table_name,
+            )
+            return False
+
+        if self._evaluate_version(current_version, table_name, raw_version=raw_version):
             self._push_provenance(context, current_version, table_name, timestamp, operation)
             return True
         return False
 
     def execute(self, context: Context) -> Any:
+        self._ensure_baseline_initialized()
         self._validate_workspace_host()
         table_name = self._resolve_table_name()
         if not self.deferrable:
@@ -333,13 +421,13 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
         query_tags = build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
 
         # If baseline is not provided and target_version is not set, capture baseline synchronously first
-        if self._baseline_version is None and self.target_version is None:
+        if self._baseline_version is None and self._target_version is None:
             self.hook.query_tags = query_tags
-            current_version, _, _ = self._get_latest_version(table_name)
-            self._baseline_version = current_version
+            version_info = self._get_latest_version(table_name)
+            self._baseline_version = version_info.raw_version
             self.log.info(
                 "Initialized baseline version to %s for table '%s' before deferring.",
-                current_version,
+                self._baseline_version,
                 table_name,
             )
 
@@ -349,7 +437,7 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
                 table_name=table_name,
                 databricks_conn_id=self.databricks_conn_id,
                 baseline_version=self._baseline_version,
-                target_version=self.target_version,
+                target_version=self._target_version,
                 allow_recreation=self.allow_recreation,
                 sql_warehouse_name=self._sql_warehouse_name,
                 http_path=self._http_path,
@@ -368,8 +456,9 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
+        self._ensure_baseline_initialized()
         if not event:
-            raise AirflowException("Trigger did not return an event.")
+            raise AirflowFailException("Trigger did not return an event.")
         if event.get("status") == "success":
             table_name = event.get("table_name") or self._resolve_table_name()
             version = event["version"]
@@ -384,4 +473,8 @@ class DatabricksDeltaTableVersionSensor(BaseSensorOperator):
             )
             self.log.info("Successfully detected Delta table '%s' version: %s.", table_name, version)
             return version
-        raise AirflowException(event.get("message", "Sensor deferred execution failed."))
+        if event.get("status") == "timeout":
+            raise AirflowSensorTimeout(
+                event.get("message", "Sensor timed out waiting for Delta table version.")
+            )
+        raise AirflowFailException(event.get("message", "Sensor deferred execution failed."))
