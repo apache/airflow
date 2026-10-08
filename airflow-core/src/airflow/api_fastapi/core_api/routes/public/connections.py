@@ -140,7 +140,7 @@ def _supplies_own_credentials(test_body: ConnectionBody) -> bool:
 
 
 @connections_router.delete(
-    "/{connection_id}",
+    "/{connection_id:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_connection(method="DELETE")), Depends(action_logging())],
@@ -198,7 +198,7 @@ def get_connection_test(
 
 
 @connections_router.get(
-    "/{connection_id}",
+    "/{connection_id:path}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_connection(method="GET"))],
 )
@@ -287,6 +287,9 @@ def bulk_connections(
     return BulkConnectionService(session=session, request=request).handle_request()
 
 
+# Unlike GET and DELETE, this route keeps the default path converter: ``ConnectionBody``
+# requires ``connection_id`` to match ``^[\w.-]+$``, so a slashed id cannot round-trip
+# through the request body anyway. Accepting it in the URL would only turn a 404 into a 422.
 @connections_router.patch(
     "/{connection_id}",
     responses=create_openapi_http_exception_doc(

@@ -344,11 +344,11 @@ Stable API Permissions
      - POST
      - Connections.can_create
      - Op
-   * - ``/api/v2/connections/{connection_id}``
+   * - ``/api/v2/connections/{connection_id:path}``
      - DELETE
      - Connections.can_delete
      - Op
-   * - ``/api/v2/connections/{connection_id}``
+   * - ``/api/v2/connections/{connection_id:path}``
      - GET
      - Connections.can_read
      - Op
