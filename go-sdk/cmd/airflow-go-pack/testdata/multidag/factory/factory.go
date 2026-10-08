@@ -15,11 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package bundle defines what the coordinator runtime needs from a bundle: the
-// tasks it looks up and runs, the Dag and task ids and the Dag source files it
-// lists in the manifest, and the serialized Dags it sends to the Dag processor.
-//
-// Package airflow builds the tasks from both the task handlers and the Dags a
-// bundle registers, the ids from its task handlers, and the source files and
-// serialized Dags from its Dags.
-package bundle
+// Package factory builds Dags for several dag_ids from one file.
+package factory
+
+import "github.com/apache/airflow/go-sdk/airflow"
+
+func run(airflow.Context) error { return nil }
+
+func New(dagID string) *airflow.DagRef {
+	dag := airflow.Dag(dagID)
+	dag.Task(run)
+	return dag
+}

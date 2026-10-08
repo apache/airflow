@@ -15,11 +15,22 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package bundle defines what the coordinator runtime needs from a bundle: the
-// tasks it looks up and runs, the Dag and task ids and the Dag source files it
-// lists in the manifest, and the serialized Dags it sends to the Dag processor.
-//
-// Package airflow builds the tasks from both the task handlers and the Dags a
-// bundle registers, the ids from its task handlers, and the source files and
-// serialized Dags from its Dags.
-package bundle
+// Command handlersonly is a bundle fixture for the packer tests. It registers task handlers and
+// no Dag from airflow.Dag.
+package main
+
+import (
+	"log"
+
+	"github.com/apache/airflow/go-sdk/airflow"
+)
+
+func extract(airflow.Context) error { return nil }
+
+func main() {
+	bundle := airflow.Bundle()
+	bundle.Register(airflow.TaskHandler("py_etl", "extract", extract))
+	if err := bundle.Serve(); err != nil {
+		log.Fatal(err)
+	}
+}

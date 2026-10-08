@@ -15,11 +15,35 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package bundle defines what the coordinator runtime needs from a bundle: the
-// tasks it looks up and runs, the Dag and task ids and the Dag source files it
-// lists in the manifest, and the serialized Dags it sends to the Dag processor.
-//
-// Package airflow builds the tasks from both the task handlers and the Dags a
-// bundle registers, the ids from its task handlers, and the source files and
-// serialized Dags from its Dags.
-package bundle
+// Command multidag is a bundle fixture for the packer tests. It declares Dags in its own file,
+// in an imported package, and through a factory in a third package.
+package main
+
+import (
+	"log"
+
+	"github.com/apache/airflow/go-sdk/airflow"
+	"github.com/apache/airflow/go-sdk/cmd/airflow-go-pack/testdata/multidag/factory"
+	"github.com/apache/airflow/go-sdk/cmd/airflow-go-pack/testdata/multidag/reports"
+)
+
+func extract(airflow.Context) error { return nil }
+
+func main() {
+	bundle := airflow.Bundle()
+
+	orders := airflow.Dag("orders")
+	orders.Task(extract)
+
+	bundle.Register(
+		airflow.TaskHandler("py_etl", "extract", extract),
+		orders,
+		reports.Dag(),
+		factory.New("billing"),
+		factory.New("shipping"),
+	)
+
+	if err := bundle.Serve(); err != nil {
+		log.Fatal(err)
+	}
+}

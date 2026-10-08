@@ -38,7 +38,9 @@ Python tasks are imported and run in-process. Go is compiled, so the model is di
 
 A single binary that bundles one or more Dags' task functions is called a **bundle**. You build one with
 the SDK's packer, `airflow-go-pack`, which compiles your code and appends a metadata footer (the manifest
-of `dag_id`s and `task_id`s, plus the Dag source) to the executable. The result is a **self-contained
+of `dag_id`s and `task_id`s, plus the source files) to the executable. The source files are the
+entrypoint (the file with `func main`) and the file that declares each Dag built with `airflow.Dag`.
+A Dag declared outside your module, such as in a dependency, uses the entrypoint as its source. The result is a **self-contained
 executable bundle**: a single runnable file that *is* the bundle, with no separate manifest or archive to
 ship alongside it.
 
