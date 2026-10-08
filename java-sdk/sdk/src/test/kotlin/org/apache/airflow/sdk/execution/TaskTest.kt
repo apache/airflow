@@ -24,12 +24,9 @@ import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
-import org.apache.airflow.sdk.SwitchRef
 import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
-import org.apache.airflow.sdk.TaskId
-import org.apache.airflow.sdk.TaskIdSwitchTask
 import org.apache.airflow.sdk.execution.comm.BundleInfo
 import org.apache.airflow.sdk.execution.comm.DagRun
 import org.apache.airflow.sdk.execution.comm.RetryTask
@@ -279,21 +276,6 @@ class TaskTest {
     Assertions.assertEquals(emptyList<Pair<String, Any>>(), transport.xComs)
   }
 
-  @Test
-  @DisplayName("Should let a generated switch name its case by task ID")
-  fun shouldChooseByTaskId() {
-    val dag = DagDef("test_dag")
-    val long = dag.task<Unit>("handle_long", HandleLongTask::class.java)
-    val short = dag.task<Unit>("handle_short", HandleShortTask::class.java)
-    SwitchRef.of(dag.task<Unit>("pick", TestTaskIdSwitch::class.java)).Case(long).Case(short)
-    val transport = RecordingTransport()
-
-    runTask(Bundle(listOf(dag)), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
-
-    Assertions.assertEquals(listOf("handle_long"), transport.skipped)
-    Assertions.assertEquals("handle_short", transport.xComs.last().second)
-  }
-
   private fun switchBundle(): Bundle {
     val dag = DagDef("test_dag")
     val long = dag.task<Unit>("handle_long", HandleLongTask::class.java)
@@ -441,14 +423,6 @@ class TaskTest {
     companion object {
       var choice: Class<out Task> = HandleLongTask::class.java
     }
-  }
-
-  /** The shape the annotation processor generates: a switch that names its case by ID. */
-  class TestTaskIdSwitch : TaskIdSwitchTask {
-    override fun choose(
-      context: Context,
-      client: Client,
-    ): TaskId = TaskId.of("handle_short")
   }
 
   /** Records what a deciding task pushed and asked to skip, and the order of the two. */

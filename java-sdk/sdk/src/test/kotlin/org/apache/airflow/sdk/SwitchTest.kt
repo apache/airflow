@@ -165,11 +165,4 @@ internal class SwitchTest {
     assertEquals("reports.pick", switch.id)
     assertEquals(listOf("reports.long", "reports.pick"), dag.tasks.keys.toList())
   }
-
-  @Test
-  @DisplayName("Should carry the task ID of a case rather than its class")
-  fun taskIdNamesOneTask() {
-    assertEquals(TaskId.of("handle_long"), TaskId.of("handle_long"))
-    assertEquals("handle_long", TaskId.of("handle_long").toString())
-  }
 }

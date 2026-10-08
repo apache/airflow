@@ -213,7 +213,7 @@ class Bundle(
 }
 
 /** Task types the SDK runs through a decider, so each needs the sides it chooses between. */
-private val DECIDER_TYPES = listOf(ConditionTask::class.java, SwitchTask::class.java, TaskIdSwitchTask::class.java)
+private val DECIDER_TYPES = listOf(ConditionTask::class.java, SwitchTask::class.java)
 
 // Reject cycles produced by before and after at registration time. This is (non-tailrec-eligible)
 // recursive and could blow up with deep dependency chains. I kept the recursive implementation

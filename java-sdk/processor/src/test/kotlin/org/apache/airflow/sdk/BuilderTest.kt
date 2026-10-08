@@ -2301,7 +2301,7 @@ class BuilderTest {
   }
 
   @Test
-  @DisplayName("generate a switch that names its case with a generated task-id constant")
+  @DisplayName("generate a switch that names its case by the class generated for it")
   fun generateSwitchTask() {
     val compilation =
       compile(
@@ -2309,13 +2309,13 @@ class BuilderTest {
         package org.apache.airflow.example;
 
         import org.apache.airflow.sdk.Builder;
-        import org.apache.airflow.sdk.TaskId;
+        import org.apache.airflow.sdk.Task;
 
         @Builder.Dag(id = "etl")
         public class TestExample {
           @Builder.Switch(id = "pick_path")
-          public TaskId pickPath() {
-            return TestExampleBuilder.TaskIds.HANDLE_LONG;
+          public Class<? extends Task> pickPath() {
+            return TestExampleBuilder.HandleLong.class;
           }
 
           @Builder.Task
@@ -2342,15 +2342,15 @@ class BuilderTest {
         """
          package org.apache.airflow.example;
 
+         import java.lang.Class;
          import java.lang.Exception;
          import java.lang.Override;
          import java.util.List;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.SwitchTask;
          import org.apache.airflow.sdk.Task;
-         import org.apache.airflow.sdk.TaskId;
-         import org.apache.airflow.sdk.TaskIdSwitchTask;
          import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
 
@@ -2360,9 +2360,9 @@ class BuilderTest {
              return Refs.record(dag, List.of("pick_path", "handleLong", "handleShort"), List.of(), new TestExample.Wiring()::depends);
            }
 
-           public static final class PickPath implements TaskIdSwitchTask {
+           public static final class PickPath implements SwitchTask {
              @Override
-             public TaskId choose(Context context, Client client) throws Exception {
+             public Class<? extends Task> choose(Context context, Client client) throws Exception {
                return new TestExample().pickPath();
              }
            }
@@ -2379,17 +2379,6 @@ class BuilderTest {
              public void execute(Context context, Client client) throws Exception {
                new TestExample().handleShort();
              }
-           }
-
-           /**
-            * The task ids of this Dag, for a {@code @Builder.Switch} method to name its case with.
-            */
-           public static final class TaskIds {
-             public static final TaskId PICK_PATH = TaskId.of("pick_path");
-
-             public static final TaskId HANDLE_LONG = TaskId.of("handleLong");
-
-             public static final TaskId HANDLE_SHORT = TaskId.of("handleShort");
            }
          }
         """,
@@ -2426,74 +2415,8 @@ class BuilderTest {
   }
 
   @Test
-  @DisplayName("reject a task method whose generated class would take the TaskIds name")
-  fun rejectTaskNamedTaskIds() {
-    val compilation =
-      compile(
-        """
-        package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        import org.apache.airflow.sdk.TaskId;
-        @Builder.Dag
-        public class TestExample {
-          @Builder.Switch
-          public TaskId pick() {
-            return TestExampleBuilder.TaskIds.TASK_IDS;
-          }
-
-          @Builder.Task
-          public void taskIds() {}
-
-          @Builder.Deps
-          static class Wiring implements TestExampleDeps {
-            void depends() {}
-          }
-        }
-      """,
-      )
-
-    assertThat(compilation).failed()
-    assertThat(compilation).hadErrorContaining(
-      "Task method 'taskIds' generates the class 'TaskIds', which is the holder of this Dag's task ids",
-    )
-  }
-
-  @Test
-  @DisplayName("reject a task id whose generated constant is not a Java name")
-  fun rejectTaskIdWithoutAJavaName() {
-    val compilation =
-      compile(
-        """
-        package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        import org.apache.airflow.sdk.TaskId;
-        @Builder.Dag
-        public class TestExample {
-          @Builder.Switch
-          public TaskId pick() {
-            return null;
-          }
-
-          @Builder.Task(id = "2nd_pass")
-          public void second() {}
-
-          @Builder.Deps
-          static class Wiring implements TestExampleDeps {
-            void depends() {}
-          }
-        }
-      """,
-      )
-
-    assertThat(compilation).failed()
-    assertThat(compilation).hadErrorContaining(
-      "Task '2nd_pass' becomes the constant '2ND_PASS' of the generated TaskIds, which is not a Java name",
-    )
-  }
-
-  @Test
-  @DisplayName("reject a switch that does not return a task id")
-  fun rejectNonTaskIdSwitch() {
+  @DisplayName("reject a switch that does not return the class of a task")
+  fun rejectNonTaskClassSwitch() {
     val compilation =
       compile(
         """
@@ -2516,31 +2439,24 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Switch method 'pickPath' returns java.lang.String, but a switch returns a TaskId",
+      "@Builder.Switch method 'pickPath' returns java.lang.String, but a switch returns the class of the task it chose",
     )
   }
 
   @Test
-  @DisplayName("reject two tasks whose generated task-id constants would collide")
-  fun rejectCollidingTaskIdConstants() {
+  @DisplayName("reject a switch that returns a class that is not a task")
+  fun rejectSwitchReturningNonTaskClass() {
     val compilation =
       compile(
         """
         package org.apache.airflow.example;
         import org.apache.airflow.sdk.Builder;
-        import org.apache.airflow.sdk.TaskId;
         @Builder.Dag
         public class TestExample {
           @Builder.Switch
-          public TaskId pick() {
-            return TestExampleBuilder.TaskIds.HANDLE_LONG;
+          public Class<String> pickPath() {
+            return String.class;
           }
-
-          @Builder.Task
-          public void handleLong() {}
-
-          @Builder.Task(id = "handle_long")
-          public void other() {}
 
           @Builder.Deps
           static class Wiring implements TestExampleDeps {
@@ -2552,7 +2468,7 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "Tasks 'handleLong' and 'handle_long' both become the constant 'HANDLE_LONG' of the generated TaskIds",
+      "@Builder.Switch method 'pickPath' returns java.lang.Class<java.lang.String>, but a switch returns the class of the task it chose",
     )
   }
 

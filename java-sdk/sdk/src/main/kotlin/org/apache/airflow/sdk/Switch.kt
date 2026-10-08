@@ -22,36 +22,6 @@ package org.apache.airflow.sdk
 import kotlin.Throws
 
 /**
- * The Airflow task ID of one task of a Dag.
- *
- * A `@Builder.Switch` method names the task it chose with one of these. The
- * generated `<Dag>Builder.TaskIds` holds a constant per task of the Dag, so
- * the choice is checked where it is written rather than when the task runs.
- *
- * @property value The task ID.
- */
-class TaskId private constructor(
-  val value: String,
-) {
-  companion object {
-    /**
-     * @suppress
-     *
-     * The ID [value] names. Public so a generated `TaskIds` holder can declare
-     * its constants; user code names a task through those constants.
-     */
-    @JvmStatic
-    fun of(value: String): TaskId = TaskId(value)
-  }
-
-  override fun equals(other: Any?): Boolean = other is TaskId && other.value == value
-
-  override fun hashCode(): Int = value.hashCode()
-
-  override fun toString(): String = value
-}
-
-/**
  * A task that chooses one of several tasks to run; every other one is skipped.
  *
  * Register one with [DagDef.Switch], then list what it can choose with
@@ -71,8 +41,8 @@ class TaskId private constructor(
  * The SDK runs [choose] and pushes the chosen task's ID as this task's return
  * value, so [execute] is never called.
  *
- * Because a switch names a case by its class, no two of its cases may be
- * registered from the same class; registering the Dag reports that.
+ * Because a switch names a case by its class, two tasks that run the same
+ * class cannot both be cases of it; registering the Dag reports that.
  *
  * @see DagDef.Switch
  */
@@ -95,29 +65,6 @@ interface SwitchTask : Task {
   ): Class<out Task>
 
   /** Never called: the SDK runs a switch through [choose]. */
-  override fun execute(
-    context: Context,
-    client: Client,
-  ): Unit =
-    throw IllegalStateException(
-      "Switch '${javaClass.name}' runs through choose(), so execute() is never called",
-    )
-}
-
-/**
- * @suppress
- *
- * What a generated `@Builder.Switch` task implements: a switch whose method
- * named the case with a [TaskId]. Public so generated code can implement it;
- * a Dag written against [DagDef.Switch] implements [SwitchTask] instead.
- */
-interface TaskIdSwitchTask : Task {
-  @Throws(Exception::class)
-  fun choose(
-    context: Context,
-    client: Client,
-  ): TaskId
-
   override fun execute(
     context: Context,
     client: Client,
@@ -158,10 +105,7 @@ class SwitchRef private constructor(
         "Task '${ref.def.id}' already decides what to skip; declare it once"
       }
       val definition = ref.def.definition
-      require(
-        SwitchTask::class.java.isAssignableFrom(definition) ||
-          TaskIdSwitchTask::class.java.isAssignableFrom(definition),
-      ) {
+      require(SwitchTask::class.java.isAssignableFrom(definition)) {
         "Task '${ref.def.id}' runs '${definition.name}', which chooses nothing; a switch runs a " +
           "SwitchTask"
       }
@@ -236,16 +180,13 @@ internal class SwitchDef : DeciderDef {
     require(options.none { it === case }) {
       "Switch '${decider.id}' already chooses between '${case.id}' and others; name each case once"
     }
-    // A SwitchTask names its case by class, so two cases sharing one would be
-    // indistinguishable. Checked here rather than at registration so the error
-    // points at the second Case(...) call.
-    if (SwitchTask::class.java.isAssignableFrom(decider.definition)) {
-      options.firstOrNull { it.definition == case.definition }?.let { first ->
-        throw IllegalArgumentException(
-          "Switch '${decider.id}' cannot choose between '${first.id}' and '${case.id}': both run " +
-            "'${case.definition.name}', and a switch names its case by class",
-        )
-      }
+    // A switch names its case by class, so two cases sharing one would be
+    // indistinguishable.
+    options.firstOrNull { it.definition == case.definition }?.let { first ->
+      throw IllegalArgumentException(
+        "Switch '${decider.id}' cannot choose between '${first.id}' and '${case.id}': both run " +
+          "'${case.definition.name}', and a switch names its case by class",
+      )
     }
     options += case
   }
@@ -262,7 +203,6 @@ internal class SwitchDef : DeciderDef {
     val chosen =
       when (instance) {
         is SwitchTask -> byClass(decider, instance.choose(context, client))
-        is TaskIdSwitchTask -> byId(decider, instance.choose(context, client).value)
         else -> throw IllegalStateException(
           "Task '${decider.id}' is a switch, but '${instance.javaClass.name}' is not a SwitchTask",
         )
@@ -277,15 +217,6 @@ internal class SwitchDef : DeciderDef {
     options.firstOrNull { it.definition == definition }
       ?: throw IllegalArgumentException(
         "Switch '${decider.id}' chose ${definition?.name ?: "nothing"}, which is not one of its cases: ${describeCases()}",
-      )
-
-  private fun byId(
-    decider: TaskDef,
-    taskId: String,
-  ): TaskDef =
-    options.firstOrNull { it.id == taskId }
-      ?: throw IllegalArgumentException(
-        "Switch '${decider.id}' chose '$taskId', which is not one of its cases: ${describeCases()}",
       )
 
   private fun describeCases(): String = options.joinToString { "'${it.id}'" }

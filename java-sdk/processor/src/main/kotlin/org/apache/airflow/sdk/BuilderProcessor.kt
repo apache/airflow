@@ -23,7 +23,6 @@ package org.apache.airflow.sdk
 
 import com.squareup.javapoet.ClassName
 import com.squareup.javapoet.CodeBlock
-import com.squareup.javapoet.FieldSpec
 import com.squareup.javapoet.JavaFile
 import com.squareup.javapoet.MethodSpec
 import com.squareup.javapoet.ParameterizedTypeName
@@ -58,8 +57,10 @@ import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
 import javax.lang.model.element.VariableElement
+import javax.lang.model.type.DeclaredType
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
+import javax.lang.model.type.WildcardType
 import javax.tools.Diagnostic
 import java.lang.reflect.Modifier as ReflectModifier
 import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
@@ -278,36 +279,7 @@ class BuilderProcessor : AbstractProcessor() {
     builderClass.addMethod(buildMethod.build())
 
     declarations.forEach { builderClass.addType(buildTask(it)) }
-    // Only a switch needs to name a task in code, so a Dag without one keeps
-    // the generated builder to the classes that run its tasks.
-    if (declarations.any { it.kind == TaskKind.SWITCH }) builderClass.addType(buildTaskIds(declarations))
     return builderClass.build()
-  }
-
-  /**
-   * Generates the `TaskIds` holder a `@Builder.Switch` method names its case
-   * with: one constant per task of the Dag, so a choice that is not a task of
-   * this Dag does not compile.
-   */
-  private fun buildTaskIds(declarations: List<TaskDeclaration>): TypeSpec {
-    val holder =
-      TypeSpec
-        .classBuilder(TASK_IDS)
-        .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-        .addJavadoc(
-          "The task ids of this Dag, for a {@code @Builder.Switch} method to name its case with.\n\n" +
-            "<p>Every task of the Dag has one, so naming a task that is not a case of the switch\n" +
-            "compiles and fails when the switch runs.\n",
-        )
-    declarations.forEach { decl ->
-      holder.addField(
-        FieldSpec
-          .builder(TASK_ID_TYPE, constantName(decl.id), Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-          .initializer($$"$T.of($S)", TASK_ID_TYPE, decl.id)
-          .build(),
-      )
-    }
-    return holder.build()
   }
 
   /**
@@ -599,29 +571,6 @@ class BuilderProcessor : AbstractProcessor() {
         "Dag has both a task and a task group with ID '${group.fullId}'; rename one"
       }
     }
-    if (declarations.any { it.kind == TaskKind.SWITCH }) {
-      val byConstant = mutableMapOf<String, TaskDeclaration>()
-      declarations.forEach { decl ->
-        val constant = constantName(decl.id)
-        require(SourceVersion.isName(constant)) {
-          "Task '${decl.id}' becomes the constant '$constant' of the generated TaskIds, which is not " +
-            "a Java name; give the task an id a switch can name it by, with ${decl.kind.spelling}(id = \"...\")"
-        }
-        byConstant.put(constant, decl)?.let { first ->
-          throw IllegalArgumentException(
-            "Tasks '${first.id}' and '${decl.id}' both become the constant " +
-              "'$constant' of the generated TaskIds; rename one so a switch can tell them apart",
-          )
-        }
-      }
-      declarations.firstOrNull { it.className == TASK_IDS }?.let { decl ->
-        throw IllegalArgumentException(
-          "Task method '${decl.method.simpleName}' generates the class '$TASK_IDS', which is the " +
-            "holder of this Dag's task ids; rename the method and keep its task id with " +
-            "${decl.kind.spelling}(id = \"${decl.id.substringAfterLast('.')}\")",
-        )
-      }
-    }
     val byClassName = mutableMapOf<String, TaskDeclaration>()
     declarations.forEach { decl ->
       byClassName.put(decl.className, decl)?.let { first ->
@@ -776,11 +725,21 @@ class BuilderProcessor : AbstractProcessor() {
             "true runs the task named by Then, false the one named by Else"
         }
       TaskKind.SWITCH ->
-        require(with(processingEnv) { isType(returns, TASK_ID_TYPE) }) {
-          "@Builder.Switch method '${method.simpleName}' returns $returns, but a switch returns a " +
-            "TaskId: name the case it chose with a constant of the generated TaskIds"
+        require(returnsTaskClass(returns)) {
+          "@Builder.Switch method '${method.simpleName}' returns $returns, but a switch returns the " +
+            "class of the task it chose, as Class<? extends Task>"
         }
     }
+  }
+
+  /** Whether [type] is `Class<T>` or `Class<? extends T>` for a [Task] type `T`. */
+  private fun returnsTaskClass(type: TypeMirror): Boolean {
+    val declared = type as? DeclaredType ?: return false
+    if (!(declared.asElement() as TypeElement).qualifiedName.contentEquals("java.lang.Class")) return false
+    val argument = declared.typeArguments.singleOrNull() ?: return false
+    val bound = if (argument is WildcardType) argument.extendsBound else argument
+    return bound != null &&
+      with(processingEnv) { typeUtils.isAssignable(bound, elementUtils.getTypeElement(TASK_TYPE.canonicalName()).asType()) }
   }
 
   /** The `id` the declaring annotation sets, empty when it leaves it out. */
@@ -803,7 +762,7 @@ class BuilderProcessor : AbstractProcessor() {
           when (decl.kind) {
             TaskKind.TASK -> TypeName.VOID
             TaskKind.CONDITION -> TypeName.BOOLEAN
-            TaskKind.SWITCH -> TASK_ID_TYPE
+            TaskKind.SWITCH -> TASK_CLASS_TYPE
           },
         ).addParameter(CONTEXT_TYPE, "context")
         .addParameter(CLIENT_TYPE, "client")
@@ -1045,12 +1004,10 @@ private val TASK_HANDLE_TYPE = ClassName.get(TaskRef::class.java)
 private val TASK_TYPE = ClassName.get(Task::class.java)
 private val CONDITION_TASK_TYPE = ClassName.get(ConditionTask::class.java)
 private val CONDITION_REF_TYPE = ClassName.get(ConditionRef::class.java)
-private val SWITCH_TASK_TYPE = ClassName.get(TaskIdSwitchTask::class.java)
+private val SWITCH_TASK_TYPE = ClassName.get(SwitchTask::class.java)
 private val SWITCH_REF_TYPE = ClassName.get(SwitchRef::class.java)
-private val TASK_ID_TYPE = ClassName.get(TaskId::class.java)
-
-/** Name of the generated holder of a Dag's task ids, which no task class may take. */
-private const val TASK_IDS = "TaskIds"
+private val TASK_CLASS_TYPE =
+  ParameterizedTypeName.get(ClassName.get(Class::class.java), WildcardTypeName.subtypeOf(TASK_TYPE))
 private val BOXED_BOOLEAN_TYPE = ClassName.get("java.lang", "Boolean")
 private val DEPS_TYPE = ClassName.get(Deps::class.java)
 private val GROUP_TYPE = DEPS_TYPE.nestedClass("TaskGroup")
@@ -1108,17 +1065,6 @@ private val RESERVED_GROUP_VIEW_NAMES: Set<String> =
 
 private val DAG_STRUCTURAL_ATTRIBUTES = setOf("id", "to")
 private val TASK_STRUCTURAL_ATTRIBUTES = setOf("id")
-
-/**
- * The `TaskIds` constant for a task id: its words in upper case, joined by
- * underscores, so `handleLong` and `checks.audit` become `HANDLE_LONG` and
- * `CHECKS_AUDIT`.
- */
-private fun constantName(id: String): String =
-  id
-    .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
-    .replace(Regex("[^A-Za-z0-9]+"), "_")
-    .uppercase()
 
 private fun TypeName.boxIfPossible(): TypeName = if (this == TypeName.VOID || isPrimitive) box() else this
 

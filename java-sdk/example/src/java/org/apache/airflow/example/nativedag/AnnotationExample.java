@@ -76,14 +76,13 @@ public class AnnotationExample {
     log.log(INFO, "Short report");
   }
 
-  // A switch: it names the one case that runs, and every other case is
-  // skipped. TaskIds is generated beside the builder, so a case that is not a
-  // task of this Dag does not compile.
+  // A switch: it names the one case that runs by the class generated for it,
+  // and every other case is skipped.
   @Builder.Switch(id = "pick_report")
-  public TaskId pickReport(long transformed) {
+  public Class<? extends Task> pickReport(long transformed) {
     return transformed > 100
-        ? AnnotationExampleBuilder.TaskIds.REPORT_LONG
-        : AnnotationExampleBuilder.TaskIds.REPORT_SHORT;
+        ? AnnotationExampleBuilder.ReportLong.class
+        : AnnotationExampleBuilder.ReportShort.class;
   }
 
   // A task group: everything it declares is prefixed with its id, so this is

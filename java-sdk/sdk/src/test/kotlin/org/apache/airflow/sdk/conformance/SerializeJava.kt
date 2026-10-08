@@ -40,10 +40,9 @@ import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.Deps
 import org.apache.airflow.sdk.SwitchRef
+import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskGroupRef
-import org.apache.airflow.sdk.TaskId
-import org.apache.airflow.sdk.TaskIdSwitchTask
 import org.apache.airflow.sdk.TaskRef
 import org.apache.airflow.sdk.execution.serializeDag
 import org.apache.airflow.sdk.internal.Field
@@ -53,12 +52,107 @@ import java.io.File
 import java.time.Duration
 import java.time.OffsetDateTime
 
-class ConformanceTask : Task {
+// A switch names its cases by class, so each task of a Dag runs a class of its own. The pool has
+// room for the largest Dag in test_dags.yaml and a few more; the serialized task type is not compared.
+class ConformanceTask1 : Task {
   override fun execute(
     context: Context,
     client: Client,
   ) = Unit
 }
+
+class ConformanceTask2 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask3 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask4 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask5 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask6 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask7 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask8 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask9 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask10 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask11 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask12 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+private val taskPool: List<Class<out Task>> =
+  listOf(
+    ConformanceTask1::class.java,
+    ConformanceTask2::class.java,
+    ConformanceTask3::class.java,
+    ConformanceTask4::class.java,
+    ConformanceTask5::class.java,
+    ConformanceTask6::class.java,
+    ConformanceTask7::class.java,
+    ConformanceTask8::class.java,
+    ConformanceTask9::class.java,
+    ConformanceTask10::class.java,
+    ConformanceTask11::class.java,
+    ConformanceTask12::class.java,
+  )
 
 class ConformanceCondition : ConditionTask {
   override fun decide(
@@ -67,13 +161,12 @@ class ConformanceCondition : ConditionTask {
   ) = true
 }
 
-// Names its case by task ID: every conformance task runs the same class, so a
-// branch that named a case by class could not tell two of them apart.
-class ConformanceSwitch : TaskIdSwitchTask {
+// Never run, only serialized, so any task class will do.
+class ConformanceSwitch : SwitchTask {
   override fun choose(
     context: Context,
     client: Client,
-  ) = TaskId.of("")
+  ): Class<out Task> = ConformanceTask1::class.java
 }
 
 fun main(args: Array<String>) {
@@ -102,6 +195,7 @@ private fun buildDag(case: JsonNode): DagDef {
   }
 
   val tasks = linkedMapOf<String, TaskRef<*>>()
+  val unusedTaskClasses = taskPool.iterator()
   // A decider names tasks that may be declared after it, so its cases are wired once every task exists.
   val deciders = mutableListOf<Pair<Deps.Flow, JsonNode>>()
   case.path("tasks").forEach { task ->
@@ -110,7 +204,12 @@ private fun buildDag(case: JsonNode): DagDef {
     val branch = task.path("branch")
     val definition =
       when {
-        branch.isMissingNode -> ConformanceTask::class.java
+        branch.isMissingNode -> {
+          require(unusedTaskClasses.hasNext()) {
+            "Dag '${dag.id}' has more tasks than the ${taskPool.size} classes in taskPool; add a ConformanceTask class"
+          }
+          unusedTaskClasses.next()
+        }
         branch.has("cases") -> ConformanceSwitch::class.java
         else -> ConformanceCondition::class.java
       }
