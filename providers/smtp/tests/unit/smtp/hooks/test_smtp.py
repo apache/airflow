@@ -634,10 +634,8 @@ class TestSmtpHookAsync:
 
     @pytest.mark.parametrize("quit_fails", [False, True])
     async def test_reconnect_after_context_exit(self, mock_get_connection, mocker, quit_fails):
-        clients = [mock.create_autospec(aiosmtplib.SMTP, instance=True) for _ in range(2)]
-        mock_smtp = mocker.patch(
-            "airflow.providers.smtp.hooks.smtp.aiosmtplib.SMTP", autospec=True, side_effect=clients
-        )
+        clients = [self._create_fake_async_smtp(Mock()) for _ in range(2)]
+        mock_smtp = mocker.patch("airflow.providers.smtp.hooks.smtp.aiosmtplib.SMTP", side_effect=clients)
         if quit_fails:
             clients[0].quit.side_effect = OSError("Quit failed")
         hook = SmtpHook()

@@ -26,7 +26,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from airflow.providers.common.compat.sdk import Connection
 from airflow.providers.smtp.notifications.smtp import SmtpNotifier, send_smtp_notification
 
 from tests_common.test_utils.config import conf_vars
@@ -98,15 +97,17 @@ TEMPLATED_TI_SENDER = TemplatedString(f"{TI_TEMPLATE_STRING}_{SENDER_EMAIL_SUFFI
 
 class TestSmtpNotifier:
     @mock.patch("smtplib.SMTP_SSL", autospec=True)
-    def test_repeated_notifications_reconnect(self, mock_smtp_ssl, create_connection_without_db):
-        create_connection_without_db(
-            Connection(
-                conn_id=SMTP_CONN_ID,
-                conn_type="smtp",
-                host="smtp.example.com",
-                port=465,
-                extra=json.dumps({"disable_tls": True}),
-            )
+    def test_repeated_notifications_reconnect(self, mock_smtp_ssl, monkeypatch):
+        monkeypatch.setenv(
+            f"AIRFLOW_CONN_{SMTP_CONN_ID.upper()}",
+            json.dumps(
+                {
+                    "conn_type": "smtp",
+                    "host": "smtp.example.com",
+                    "port": 465,
+                    "extra": {"disable_tls": True},
+                }
+            ),
         )
         clients = [mock.create_autospec(smtplib.SMTP, instance=True) for _ in range(2)]
         mock_smtp_ssl.side_effect = clients
