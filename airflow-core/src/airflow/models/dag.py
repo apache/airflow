@@ -35,7 +35,6 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    JSON,
     String,
     Text,
     and_,
@@ -841,8 +840,10 @@ class DagModel(Base):
                         or_(
                             cls.allowed_run_types.is_(None),
                             # NB: SQLAlchemy persists Python None as JSON null,
-                            # not SQL NULL, for JSON columns.
-                            cls.allowed_run_types == cast("null", JSON),
+                            # not SQL NULL, for JSON columns; compare the JSON
+                            # text form, which renders as 'null' on SQLite,
+                            # Postgres (jsonb::text) and MySQL (CAST AS CHAR).
+                            cast(cls.allowed_run_types, Text) == "null",
                             JsonArrayContains(cls.allowed_run_types, DagRunType.SCHEDULED.value),
                         ),
                     ),
