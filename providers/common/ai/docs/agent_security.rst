@@ -245,7 +245,7 @@ database user with the minimum privileges required.
     HookToolset(
         s3_hook,
         allowed_methods=["list_keys", "read_key"],
-        tool_prefix="s3_",
+        tool_prefix="s3",
     )
 
     # Bad: exposes delete and write operations

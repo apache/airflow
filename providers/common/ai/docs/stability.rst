@@ -77,8 +77,9 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        statement, the model gets the error and can correct it, up to the tool's retry
        limit, after which the task fails.
    * - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`
-     - Exposes exactly the hook methods in ``allowed_methods``, each named after its method
-       with ``tool_prefix`` in front, and raises an error when the toolset is created
+     - Exposes exactly the hook methods in ``allowed_methods``, each named
+       ``<tool_prefix>_<method>`` when ``tool_prefix`` is set, which must be a valid Python
+       identifier, and raises an error when the toolset is created
        if a listed method does not exist on the hook. ``pinned_arguments`` is
        experimental; see below.
    * - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` and
