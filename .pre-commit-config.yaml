@@ -330,17 +330,19 @@ repos:
       - id: sync-ts-sdk-schemas
         name: Sync TypeScript SDK vendored schemas with the distributions that own them
         description: "Copy airflow-core's Dag schema and the Task SDK's supervisor schema when TS SDK's vendored copies drift"
-        entry: ./ts-sdk/scripts/ci/prek/sync_ts_sdk_schemas.py
+        entry: ./scripts/ci/prek/sync_ts_sdk_schemas.py
         language: python
         pass_filenames: false
         # Triggered by the Python sources, not just the vendored copies, so a schema change
         # (e.g. a new supervisor comms message) refreshes the vendored copy and regenerates the
         # types in the same commit, the way sync-go-sdk-schemas already does for the Go SDK.
+        # The script itself is listed so a change to its paths or report logic re-runs it.
         files: >
           (?x)
           ^airflow-core/src/airflow/serialization/schema\.json$|
           ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
-          ^ts-sdk/schema/.*\.json$
+          ^ts-sdk/schema/.*\.json$|
+          ^scripts/ci/prek/sync_ts_sdk_schemas\.py$
       - id: sync-java-sdk-dag-schema
         name: Sync Java SDK Dag serialization schema with airflow-core
         description: "Copy airflow-core's serialization schema when Java SDK's vendored dag-schema.json drifts"

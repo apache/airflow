@@ -1943,9 +1943,11 @@ class SelectiveChecks:
             # depend on that resolution.
             prek_hooks_to_skip.add("regenerate-java-sdk-verification-metadata")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
-            # This hook regenerates ts-sdk/src/generated/supervisor.ts from the wire schema and
-            # diffs it. Schema-only changes deliberately do not trigger it: regenerating the
-            # ts-sdk types is the ts-sdk follow-up PR's job, not the schema author's.
+            # This hook regenerates ts-sdk/src/generated/supervisor.ts from the vendored schema
+            # and diffs it, so it is skipped when no ts-sdk/ files changed. A supervisor-schema
+            # change on the Python side is not deferred to a follow-up PR: sync-ts-sdk-schemas is
+            # triggered by that source, refreshes the vendored copy (a ts-sdk/ file), and fails on
+            # the PR that caused it, which is then what makes this check run.
             prek_hooks_to_skip.add("check-ts-sdk-supervisor-schema")
         if not (
             self._matching_files(

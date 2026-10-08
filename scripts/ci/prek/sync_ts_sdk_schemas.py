@@ -42,7 +42,7 @@ Run it from the repo root, through prek:
 
 or directly:
 
-    ./ts-sdk/scripts/ci/prek/sync_ts_sdk_schemas.py
+    uv run --project scripts python scripts/ci/prek/sync_ts_sdk_schemas.py
 
 Exits 0 when both copies already matched their source, 1 when it refreshed one.
 """
@@ -54,7 +54,7 @@ import shutil
 import sys
 from typing import NamedTuple
 
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 
 class VendoredSchema(NamedTuple):
