@@ -23,10 +23,11 @@ description: |
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1790023613
+source-date-epoch: 1791328846
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.11.0
   - 0.10.0
   - 0.9.0
   - 0.8.0
@@ -551,6 +552,7 @@ toolsets:
       - airflow.providers.common.ai.toolsets.datafusion
       - airflow.providers.common.ai.toolsets.logging
       - airflow.providers.common.ai.toolsets.mcp
+      - airflow.providers.common.ai.toolsets.object_storage
       - airflow.providers.common.ai.toolsets.sandbox
       - airflow.providers.common.ai.toolsets.skills
       - airflow.providers.common.ai.toolsets.langchain_bridge

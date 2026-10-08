@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic_ai.usage import RunUsage
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -83,7 +84,15 @@ def make_mock_run_result():
         mock_result = MagicMock()
         mock_result.output = output
         mock_result.usage = MagicMock(
-            requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0, cost=cost
+            spec=RunUsage,
+            requests=1,
+            tool_calls=0,
+            input_tokens=0,
+            output_tokens=0,
+            total_tokens=0,
+            cache_read_tokens=0,
+            cache_write_tokens=0,
+            cost=cost,
         )
         mock_result.response = MagicMock(model_name="test-model")
         mock_result.all_messages.return_value = []

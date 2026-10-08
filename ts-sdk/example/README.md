@@ -59,14 +59,22 @@ ts-sdk/example/dist/
 
 ## Airflow Configuration
 
-Configure Airflow to route the `typescript` queue to the Node coordinator and
-point it at the example bundle directory:
+Register the example bundle directory as a Dag bundle, and configure Airflow to
+route the `typescript` queue to the Node coordinator that reads it:
 
 ```bash
+export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+  {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}},
+  {
+    "name": "ts-task-handlers",
+    "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+    "kwargs": {"path": "/absolute/path/to/airflow/ts-sdk/example/dist"}
+  }
+]'
 export AIRFLOW__SDK__COORDINATORS='{
   "ts": {
     "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
-    "kwargs": {"bundles_root": ["/absolute/path/to/airflow/ts-sdk/example/dist"]}
+    "kwargs": {"task_handler_bundle_name": "ts-task-handlers"}
   }
 }'
 export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"typescript": "ts"}'

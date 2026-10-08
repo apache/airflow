@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-cohere``
 
-Release: ``1.8.0``
+Release: ``1.8.1``
 
 
 `Cohere <https://docs.cohere.com/docs>`__
@@ -36,7 +36,7 @@ This is a provider package for ``cohere`` provider. All classes for this provide
 are in ``airflow.providers.cohere`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cohere/1.8.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cohere/1.8.1/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-cohere``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -61,4 +61,4 @@ PIP package                                 Version required
 ==========================================  ==================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cohere/1.8.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cohere/1.8.1/changelog.html>`_.

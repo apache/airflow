@@ -24,22 +24,21 @@ import org.apache.airflow.sdk.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Java half of the KubernetesExecutor lang-SDK system test bundle. Registers the
-// Java tasks of the shared "lang_sdk_combined" Dag; the Go tasks of the same
-// dag_id live in ../go_example and the Python stub Dag in ../dags. The
-// coordinator locates this jar by dag_id, so only the Java tasks are registered
-// here.
-@Builder.Dag(id = "lang_sdk_combined")
+// Java half of the KubernetesExecutor lang-SDK system test bundle. Supplies the
+// bodies of the "lang_sdk_combined" Dag's Java stub tasks; the Dag itself is
+// declared by the Python file in ../dags, and the Go tasks of the same dag_id
+// live in ../go_example. The coordinator locates this jar by dag_id, so only the
+// Java tasks are registered here.
 public class CombinedExample {
   private static final Logger logger = LoggerFactory.getLogger(CombinedExample.class);
 
-  @Builder.Task(id = "java_extract")
+  @Builder.TaskHandler(dag = "lang_sdk_combined", task = "java_extract")
   public long extract(Client client) {
     logger.info("java_extract running");
     return new Date().getTime();
   }
 
-  @Builder.Task(id = "java_transform")
+  @Builder.TaskHandler(dag = "lang_sdk_combined", task = "java_transform")
   public void transform(Client client) {
     var variable = client.getVariable("my_variable");
     logger.info("java_transform obtained variable {}", variable);

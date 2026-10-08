@@ -27,7 +27,7 @@ import sys
 import warnings
 from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
 from unittest import mock
@@ -166,7 +166,7 @@ ALL_PYPROJECT_TOML_FILES: list[Path] = []
 
 
 def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
-    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text().splitlines()
+    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text(encoding="utf-8").splitlines()
     in_workspace = False
     for line in pyproject_toml_content:
         trimmed_line = line.strip()
@@ -198,9 +198,12 @@ if not PROVIDER_DEPENDENCIES_JSON_PATH.exists() or not PROVIDER_DEPENDENCIES_JSO
     subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
 else:
     calculated_provider_deps_hash = _calculate_provider_deps_hash()
-    if calculated_provider_deps_hash.strip() != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text().strip():
+    if (
+        calculated_provider_deps_hash.strip()
+        != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text(encoding="utf-8").strip()
+    ):
         subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
-        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_provider_deps_hash)
+        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_provider_deps_hash, encoding="utf-8")
 # End of copied code from breeze
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
@@ -968,7 +971,7 @@ def frozen_sleep(monkeypatch):
 
     def fake_sleep(seconds):
         nonlocal traveller
-        utcnow = datetime.now(tz=timezone.utc)
+        utcnow = datetime.now(tz=UTC)
         if traveller is not None:
             traveller.stop()
         traveller = time_machine.travel(utcnow + timedelta(seconds=seconds))
@@ -1103,6 +1106,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         AIRFLOW_V_3_1_PLUS,
         AIRFLOW_V_3_2_PLUS,
         AIRFLOW_V_3_3_PLUS,
+        AIRFLOW_V_3_4_PLUS,
         NOTSET,
     )
 
@@ -1625,7 +1629,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         )
                         self.session.execute(delete(DagRun).where(DagRun.dag_id.in_(dag_ids)))
                         self.session.execute(delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)))
-                    self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
+                    if not AIRFLOW_V_3_4_PLUS:
+                        self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
                     self.session.execute(delete(DagModel).where(DagModel.dag_id.in_(dag_ids)))
                     self.session.execute(delete(AssetEvent).where(AssetEvent.source_dag_id.in_(dag_ids)))
                     if AIRFLOW_V_3_0_PLUS:
@@ -2142,6 +2147,18 @@ def clear_lru_cache():
 
 
 @pytest.fixture(autouse=True)
+def discard_async_engine_pool():
+    """Pooled async connections stay bound to the loop that opened them, so drop them before a later test's loop can reuse one."""
+    yield
+    if importlib.util.find_spec("airflow") is None:
+        return
+    from airflow import settings
+
+    if (async_engine := getattr(settings, "async_engine", None)) is not None:
+        async_engine.sync_engine.dispose(close=False)
+
+
+@pytest.fixture(autouse=True)
 def reset_team_name_cache():
     """Reset the per-process Dag team-name cache between tests.
 
@@ -2184,6 +2201,32 @@ def clear_current_task_instance_session():
         yield
     finally:
         task_instance_session.__current_task_instance_session = None
+
+
+@pytest.fixture(autouse=True)
+def reset_dag_bundle_config_cache():
+    """Reset the per-process Dag bundle configuration cache between tests.
+
+    The configuration is parsed once per process, so a test that sets a different
+    ``[dag_processor] dag_bundle_config_list`` would otherwise be served the previous
+    test's bundles. ``conf_vars`` clears it too, for tests that switch config midway.
+    """
+    if importlib.util.find_spec("airflow") is None:
+        yield
+        return
+
+    try:
+        from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
+    except ImportError:
+        # compat for airflow versions without the snapshot cache
+        yield
+        return
+
+    _load_bundle_config_snapshot.cache_clear()
+    try:
+        yield
+    finally:
+        _load_bundle_config_snapshot.cache_clear()
 
 
 @pytest.fixture(autouse=True)

@@ -120,11 +120,9 @@ const createParamStore = () =>
           2,
         );
 
-        if (state.conf === newConf && JSON.stringify(state.paramsDict) === JSON.stringify(newParamsDict)) {
-          return {};
-        }
-
-        return { conf: newConf, paramsDict: newParamsDict };
+        return state.conf === newConf && JSON.stringify(state.paramsDict) === JSON.stringify(newParamsDict)
+          ? {}
+          : { conf: newConf, paramsDict: newParamsDict };
       }),
   }));
 

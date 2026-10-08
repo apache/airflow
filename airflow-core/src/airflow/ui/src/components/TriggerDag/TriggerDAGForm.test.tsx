@@ -16,9 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type * as OpenapiQueries from "openapi/queries";
 
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -41,10 +43,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: "en" },
     // eslint-disable-next-line id-length
-    t: (translationKey: string) =>
-      ({
-        "configForm.advancedOptions": "Advanced Options",
-      })[translationKey] ?? translationKey,
+    t: (translationKey: string) => translationKey,
   }),
 }));
 
@@ -54,11 +53,19 @@ vi.mock("src/queries/useDagParams", () => ({
   useDagParams: useDagParamsMock,
 }));
 
+const togglePauseMock = vi.hoisted(() => vi.fn());
+
 vi.mock("src/queries/useTogglePause", () => ({
   useTogglePause: () => ({
-    mutate: vi.fn(),
+    mutate: togglePauseMock,
   }),
 }));
+
+vi.mock("openapi/queries", async (importOriginal) => {
+  const actual = await importOriginal<typeof OpenapiQueries>();
+
+  return { ...actual, useDagRunServiceGetDagRuns: vi.fn(() => ({ data: undefined })) };
+});
 
 vi.mock("../DateTimeInput", () => ({
   DateTimeInput: ({ value = "" }: { readonly value?: string }) => (
@@ -88,6 +95,68 @@ vi.mock("../JsonEditor", () => ({
 describe("TriggerDAGForm", () => {
   beforeEach(() => {
     useDagParamsMock.mockReturnValue(dagParams);
+    togglePauseMock.mockClear();
+  });
+
+  it.each([
+    { action: undefined, drainDag: false, unpauses: true },
+    { action: "pausedDag.drain", drainDag: true, unpauses: false },
+    { action: "pausedDag.keepPaused", drainDag: false, unpauses: false },
+  ])(
+    "submits a paused Dag with drainDag=$drainDag when choosing $action",
+    async ({ action, drainDag, unpauses }) => {
+      const onSubmitTrigger = vi.fn();
+
+      render(
+        <TriggerDAGForm
+          dagId="paused_dag"
+          error={undefined}
+          hasSchedule={false}
+          isPartitioned={false}
+          isPaused
+          isPending={false}
+          onSubmitTrigger={onSubmitTrigger}
+          open
+        />,
+        { wrapper: Wrapper },
+      );
+
+      if (action !== undefined) {
+        fireEvent.click(screen.getByText(action));
+        await waitFor(() => expect(screen.getByRole("radio", { name: action })).toBeChecked());
+      }
+      fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+      await waitFor(() =>
+        expect(onSubmitTrigger).toHaveBeenCalledWith(expect.objectContaining({ drainDag })),
+      );
+      if (unpauses) {
+        expect(togglePauseMock).toHaveBeenCalledWith({
+          dagId: "paused_dag",
+          requestBody: { is_paused: false },
+        });
+      } else {
+        expect(togglePauseMock).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("does not offer the paused Dag choices for an active Dag", () => {
+    render(
+      <TriggerDAGForm
+        dagId="active_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.queryByText("pausedDag.drain")).not.toBeInTheDocument();
   });
 
   it("propagates the selected run's conf to the JSON editor when the Dag has no declared params", async () => {
@@ -95,7 +164,6 @@ describe("TriggerDAGForm", () => {
 
     render(
       <TriggerDAGForm
-        dagDisplayName="No Params Dag"
         dagId="example_no_params"
         error={undefined}
         hasSchedule={false}
@@ -113,8 +181,6 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(screen.getByText("Advanced Options"));
-
     await waitFor(() => {
       const configJson = screen.getByLabelText("Configuration JSON");
 
@@ -126,10 +192,9 @@ describe("TriggerDAGForm", () => {
     });
   });
 
-  it("syncs Advanced Options JSON after Run Parameters edits in prefilled re-trigger mode", async () => {
+  it("syncs the Configuration JSON after Run Parameters edits in prefilled re-trigger mode", async () => {
     const { container } = render(
       <TriggerDAGForm
-        dagDisplayName="Params Trigger UI"
         dagId="example_params_trigger_ui"
         error={undefined}
         hasSchedule={false}
@@ -159,7 +224,6 @@ describe("TriggerDAGForm", () => {
     }
 
     fireEvent.change(messageField, { target: { value: "Updated message" } });
-    fireEvent.click(screen.getByText("Advanced Options"));
 
     await waitFor(() => {
       const configJson = screen.getByLabelText("Configuration JSON");
@@ -175,7 +239,6 @@ describe("TriggerDAGForm", () => {
   it("hides the partition key field for non-partitioned Dags", async () => {
     render(
       <TriggerDAGForm
-        dagDisplayName="Non Partitioned Dag"
         dagId="example_non_partitioned_dag"
         error={undefined}
         hasSchedule={false}
@@ -188,8 +251,6 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(screen.getByText("Advanced Options"));
-
     await waitFor(() => expect(screen.getByText("runId")).toBeInTheDocument());
     expect(screen.queryByText("dagRun.partitionKey")).not.toBeInTheDocument();
   });
@@ -197,7 +258,6 @@ describe("TriggerDAGForm", () => {
   it("shows the partition key field for partitioned Dags", async () => {
     render(
       <TriggerDAGForm
-        dagDisplayName="Partitioned Dag"
         dagId="example_partitioned_dag"
         error={undefined}
         hasSchedule={false}
@@ -209,8 +269,6 @@ describe("TriggerDAGForm", () => {
       />,
       { wrapper: Wrapper },
     );
-
-    fireEvent.click(screen.getByText("Advanced Options"));
 
     await waitFor(() => expect(screen.getByText("dagRun.partitionKey")).toBeInTheDocument());
     expect(screen.getByText("components:triggerDag.partitionKeyHelp")).toBeInTheDocument();

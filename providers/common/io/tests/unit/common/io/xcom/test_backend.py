@@ -28,7 +28,12 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from tests_common.test_utils import db
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, XCOM_RETURN_KEY
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+    XCOM_RETURN_KEY,
+)
 
 pytestmark = [pytest.mark.db_test]
 
@@ -139,7 +144,16 @@ class TestXComObjectStorageBackend:
                 task_id=task_instance.task_id,
                 run_id=task_instance.run_id,
             )
-            if AIRFLOW_V_3_1_PLUS:
+            if AIRFLOW_V_3_4_PLUS:
+                xcom_read = XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                )
+                entity = xcom_read.column_descriptions[0]["entity"]
+                res = session.execute(xcom_read.with_only_columns(entity.value)).first()
+            elif AIRFLOW_V_3_1_PLUS:
                 res = session.execute(
                     XComModel.get_many(
                         key=XCOM_RETURN_KEY,
@@ -190,7 +204,16 @@ class TestXComObjectStorageBackend:
         assert value == {"key": "bigvaluebigvaluebigvalue" * 100}
 
         if AIRFLOW_V_3_0_PLUS:
-            if AIRFLOW_V_3_1_PLUS:
+            if AIRFLOW_V_3_4_PLUS:
+                xcom_read = XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                )
+                entity = xcom_read.column_descriptions[0]["entity"]
+                value = session.execute(xcom_read.with_only_columns(entity.value)).first()
+            elif AIRFLOW_V_3_1_PLUS:
                 value = session.execute(
                     XComModel.get_many(
                         key=XCOM_RETURN_KEY,
@@ -250,7 +273,16 @@ class TestXComObjectStorageBackend:
                 task_id=task_instance.task_id,
                 run_id=task_instance.run_id,
             )
-            if AIRFLOW_V_3_1_PLUS:
+            if AIRFLOW_V_3_4_PLUS:
+                xcom_read = XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                )
+                entity = xcom_read.column_descriptions[0]["entity"]
+                res = session.execute(xcom_read.with_only_columns(entity.value)).first()
+            elif AIRFLOW_V_3_1_PLUS:
                 res = session.execute(
                     XComModel.get_many(
                         key=XCOM_RETURN_KEY,
@@ -313,7 +345,16 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
                 map_index=task_instance.map_index,
             )
-            if AIRFLOW_V_3_1_PLUS:
+            if AIRFLOW_V_3_4_PLUS:
+                xcom_read = XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                )
+                entity = xcom_read.column_descriptions[0]["entity"]
+                value = session.execute(xcom_read.with_only_columns(entity.value)).first()
+            elif AIRFLOW_V_3_1_PLUS:
                 value = session.execute(
                     XComModel.get_many(
                         key=XCOM_RETURN_KEY,
@@ -374,7 +415,16 @@ class TestXComObjectStorageBackend:
                 task_id=task_instance.task_id,
                 run_id=task_instance.run_id,
             )
-            if AIRFLOW_V_3_1_PLUS:
+            if AIRFLOW_V_3_4_PLUS:
+                xcom_read = XComModel.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                )
+                entity = xcom_read.column_descriptions[0]["entity"]
+                res = session.execute(xcom_read.with_only_columns(entity.value)).first()
+            elif AIRFLOW_V_3_1_PLUS:
                 res = session.execute(
                     XComModel.get_many(
                         key=XCOM_RETURN_KEY,

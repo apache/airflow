@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, HStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -26,17 +26,22 @@ import { useJobServiceGetJobs } from "openapi/queries";
 import type { JobResponse, TaskInstanceState } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FilterBar } from "src/components/FilterBar";
 import { StateBadge } from "src/components/StateBadge";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
-const createColumns = (translate: TFunction, multiTeam: boolean): Array<ColumnDef<JobResponse>> => [
+const createColumns = (
+  translate: TFunction,
+  multiTeam: boolean,
+): Array<ColumnDef<DataTableFeatures, JobResponse>> => [
   {
     accessorKey: "id",
     header: translate("jobs.columns.id"),
@@ -49,11 +54,17 @@ const createColumns = (translate: TFunction, multiTeam: boolean): Array<ColumnDe
     ? ([
         {
           accessorKey: "team_names",
-          cell: ({ row: { original } }) => original.team_names?.join(", "),
+          cell: ({ row: { original } }) => (
+            <HStack gap={2} wrap="wrap">
+              {original.team_names?.map((teamName) => (
+                <TeamName key={teamName} teamName={teamName} />
+              ))}
+            </HStack>
+          ),
           enableSorting: false,
           header: translate("common:dagDetails.team"),
         },
-      ] as Array<ColumnDef<JobResponse>>)
+      ] as Array<ColumnDef<DataTableFeatures, JobResponse>>)
     : []),
   {
     accessorKey: "state",

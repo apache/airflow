@@ -27,7 +27,6 @@
         "title": "Backfill создан"
       }
     },
-    "unpause": "Возобновить {{dag_display_name}} при запуске",
     "validation": {
       "datesRequired": "Необходимо указать как дату начала, так и дату окончания.",
       "startBeforeEnd": "Дата начала должна быть меньше или равной дате окончания."
@@ -44,7 +43,6 @@
   },
   "close": "Закрыть",
   "configForm": {
-    "advancedOptions": "Расширенные параметры",
     "configJson": "Конфигурация JSON",
     "invalidJson": "Некорректный формат JSON: {{errorMessage}}"
   },
@@ -166,8 +164,7 @@
         "title": "Запуск Dag-а инициирован"
       }
     },
-    "triggerAgainWithConfig": "Запустить снова с этой конфигурацией",
-    "unpause": "Возобновить {{dagDisplayName}} при запуске"
+    "triggerAgainWithConfig": "Запустить снова с этой конфигурацией"
   },
   "trimText": {
     "details": "Детали",

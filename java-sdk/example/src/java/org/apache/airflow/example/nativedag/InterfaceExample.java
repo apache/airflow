@@ -22,11 +22,11 @@ package org.apache.airflow.example.nativedag;
 
 import static java.lang.System.Logger.Level.INFO;
 
+import java.util.List;
 import org.apache.airflow.sdk.*;
 
-// A Dag defined entirely in Java, interface-style: no Python stub file
-// describes it. dag.task registers a task as it creates it and hands back the
-// handle, and `before`/`after` wire the graph -- Java's spelling of `>>` and `<<`.
+// A Dag defined entirely in Java, interface-style. dag.task registers a task as
+// it creates it and hands back the handle, and `before`/`after` wire the graph.
 public class InterfaceExample {
   private static final System.Logger log = System.getLogger(InterfaceExample.class.getName());
 
@@ -56,9 +56,17 @@ public class InterfaceExample {
   }
 
   public static DagDef build() {
-    var dag = new DagDef("java_native_interface_example");
+    var dag =
+        new DagDef("java_native_interface_example")
+            .config("description", "Pure-Java Dag authored with the interface API")
+            .config("schedule", "@daily")
+            .config("catchup", false)
+            .config("tags", List.of("example", "java-sdk"));
 
-    var extract = dag.task("extract", Extract.class);
+    var extract =
+        dag.task("extract", Extract.class)
+            .config("retries", 2)
+            .config("doc_md", "Extracts a value and pushes it as an XCom.");
     var transform = dag.task("transform", Transform.class);
     var load = dag.task("load", Load.class);
 

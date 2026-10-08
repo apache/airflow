@@ -308,7 +308,7 @@ class TestLangSdkDryRun:
     def test_upload_artifacts_uses_placeholder_for_never_built_jar(self, mock_run, dry_run, tmp_path):
         mock_run.return_value = mock.Mock(stdout="")
 
-        _lang_sdk_upload_artifacts(tmp_path, "3.10", "v1.35.0", None)
+        _lang_sdk_upload_artifacts(tmp_path, "3.11", "v1.35.0", None)
 
         cp_sources = [call.args[0][2] for call in mock_run.call_args_list if call.args[0][1] == "cp"]
         assert str(tmp_path / "java-artifacts" / "app.jar") in cp_sources
@@ -367,7 +367,7 @@ class TestSetupLangSdkTestNativeSelection:
             lambda python: mock.Mock(airflow_image_kubernetes="img"),
         )
 
-        kubernetes_commands._setup_lang_sdk_test(python="3.10", kubernetes_version="v1.35.0")
+        kubernetes_commands._setup_lang_sdk_test(python="3.11", kubernetes_version="v1.35.0")
 
         assert captured == {
             "go": expected_native,

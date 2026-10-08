@@ -202,6 +202,8 @@ TEST_PROGRESS_REGEXP = (
     r"airflow-core/tests/.*|providers/.*/tests/.*|task-sdk/tests/.*|airflow-ctl/tests/.*|.*=====.*"
 )
 PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
+# pytest.ExitCode.NO_TESTS_COLLECTED - spelled out so that breeze does not have to import pytest
+PYTEST_NO_TESTS_COLLECTED_EXIT_CODE = 5
 
 
 def _run_test(
@@ -291,6 +293,14 @@ def _run_test(
             output_outside_the_group=output_outside_the_group,
             env=env,
         )
+        if shell_params.run_db_tests_only and result.returncode == PYTEST_NO_TESTS_COLLECTED_EXIT_CODE:
+            # --run-db-tests-only deselects non-DB tests at collection time, so a test type without DB
+            # tests collects nothing. This must be decided here, per test type: the parallel run turns
+            # any non-zero code into exit code 1, which looks the same as a failing test.
+            get_console(output=output).print(
+                f"[info]No DB tests collected for {shell_params.test_type}. Nothing to run.[/]"
+            )
+            return 0, f"No DB tests collected: {shell_params.test_type}"
         if result.returncode != 0:
             notify_on_unhealthy_backend_container(
                 project_name=compose_project_name, backend=shell_params.backend, output=output
@@ -1455,7 +1465,7 @@ OPENLINEAGE_E2E_COMPAT_PROVIDERS = ["openlineage", "standard", "common.compat", 
 def _build_openlineage_e2e_compat_image(airflow_version: str, python: str) -> str:
     """Build a lightweight image: released ``apache/airflow:<version>`` + current OL providers from main.
 
-    Replicates the provider-compatibility approach (current provider code on an older Airflow core)
+    Replicates the provider-compatibility approach (current provider code on an older Airflow version)
     without a full PROD image build — the released image is pulled and the providers are reinstalled
     from wheels built from main.
     """

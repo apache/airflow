@@ -37,10 +37,10 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 
 from airflow.providers.common.ai.durable.base import TOOL_RESULT_SENTINEL
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.sdk.execution_time.context import NEVER_EXPIRE
 
 if TYPE_CHECKING:
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.execution_time.context import TaskStateStoreAccessor
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 
 class TaskStateStoreDurableStorage:

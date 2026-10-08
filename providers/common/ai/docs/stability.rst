@@ -51,7 +51,7 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
    * - ``@task.agent`` and :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - Runs an agent with the model from ``llm_conn_id`` and the given toolsets, and
        returns its output under the same rules as ``@task.llm``. ``durable``,
-       ``code_mode`` and per-tool approval are experimental; see below.
+       code mode and per-tool approval are experimental; see below.
    * - ``message_history`` on ``AgentOperator``
      - Seeds the run with the given conversation, as a list of messages or its JSON form,
        and publishes the finished conversation under the ``message_history`` XCom key so a
@@ -79,7 +79,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
    * - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`
      - Exposes exactly the hook methods in ``allowed_methods``, each named after its method
        with ``tool_name_prefix`` in front, and raises an error when the toolset is created
-       if a listed method does not exist on the hook.
+       if a listed method does not exist on the hook. ``pinned_arguments`` is
+       experimental; see below.
    * - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` and
        :class:`~airflow.providers.common.ai.hooks.mcp.MCPHook`
      - Exposes the tools of the MCP server configured by ``mcp_conn_id``, each named
@@ -110,7 +111,7 @@ Everything this provider ships that is not in the table above is experimental.
    * - Feature
      - Why it is experimental
    * - :class:`~airflow.providers.common.ai.policies.retry.ClassifierRetryPolicy`
-       (:doc:`classifier_models`)
+       (:doc:`decision_models`)
      - The confidence threshold, the fallback order and the behaviour when the classifier
        is unavailable are still settling.
    * - :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`, and
@@ -130,8 +131,8 @@ Everything this provider ships that is not in the table above is experimental.
        ``on_tool_approval_timeout`` and ``tool_approval_assigned_users``;
        :doc:`tool_approval`)
      - New, and needs Airflow 3.3. How a paused run resumes may change.
-   * - ``code_mode`` (:doc:`code_mode`), the Agent Skills toolset
-       (:doc:`toolsets/skills`) and the ``shields`` extra (used in :doc:`guardrails`)
+   * - Code mode (:doc:`code_mode`), the Agent Skills toolset
+       (:doc:`toolsets/skills`) and the ``shields`` extra (used in :doc:`capabilities`)
      - Thin integrations of packages outside this provider whose APIs are still
        changing: ``pydantic-ai-harness``, ``pydantic-ai-skills`` and
        ``pydantic-ai-shields``.
@@ -166,3 +167,22 @@ Everything this provider ships that is not in the table above is experimental.
        :doc:`operators/llm_sql`)
      - Each adds its own input handling to ``@task.llm``: schema introspection, file
        sampling, or SQL validation. Their options are still settling.
+   * - The framework-neutral tools (:mod:`airflow.providers.common.ai.tools`), including
+       the ``airflow_tools()`` method of the toolsets, the Strands plugin and the ADK
+       toolset (:doc:`frameworks/index`)
+     - Written against Strands 1.56 and ADK 2.9.1. CI does not run the tests of the two
+       adapters, because both frameworks exclude dependency versions that Airflow's
+       development environment uses.
+   * - :class:`~airflow.providers.common.ai.toolsets.object_storage.ObjectStorageToolset`
+       (:doc:`toolsets/object_storage`)
+     - New; its tools and read limits may change after first use.
+   * - ``pinned_arguments`` on
+       :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`
+       (:doc:`toolsets/hook`)
+     - New; how a pinned argument is matched to each method's parameters may change after
+       first use.
+   * - The ``common_ai.tool_calls`` metric and
+       :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
+       (:doc:`observability`)
+     - The tracing helper follows the agent frameworks' own telemetry, which is still
+       changing; the metric's tags may change as more frameworks get adapters.

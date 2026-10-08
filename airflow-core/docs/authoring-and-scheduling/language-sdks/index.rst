@@ -172,9 +172,9 @@ Coordinators are registered in ``airflow.cfg`` (or via environment variables) un
             }
         }
 
-    The ``classpath`` value must be importable by the worker.  The ``kwargs`` are passed directly
-    to the coordinator's constructor.  See the language-specific guide for the accepted kwargs
-    of each coordinator (e.g. :ref:`java-sdk/coordinator-config` for
+    The ``classpath`` value must be importable by the worker and the Dag processor.  The ``kwargs``
+    are passed directly to the coordinator's constructor.  See the language-specific guide for the
+    accepted kwargs of each coordinator (e.g. :ref:`java-sdk/coordinator-config` for
     :class:`~airflow.sdk.coordinators.java.JavaCoordinator`).
 
     ``extra`` is an optional object for any additional information you want to associate with a

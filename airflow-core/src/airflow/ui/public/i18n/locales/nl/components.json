@@ -25,7 +25,6 @@
         "title": "Backfill gegenereerd"
       }
     },
-    "unpause": "Hervat {{dag_display_name}} na een trigger",
     "validation": {
       "datesRequired": "Data interval startdatum en einddatum moeten beide gegeven zijn.",
       "startBeforeEnd": "Data interval startdatum moet eerder of gelijk aan de data interval einddatum zijn."
@@ -42,7 +41,6 @@
   },
   "close": "Sluiten",
   "configForm": {
-    "advancedOptions": "Geavanceerde opties",
     "configJson": "Configuratie JSON",
     "invalidJson": "Ongeldig JSON formaat: {{errorMessage}}"
   },
@@ -150,8 +148,7 @@
         "title": "Dag Run getriggerd"
       }
     },
-    "triggerAgainWithConfig": "Trigger opnieuw met deze configuratie",
-    "unpause": "Hervat {{dagDisplayName}} op trigger"
+    "triggerAgainWithConfig": "Trigger opnieuw met deze configuratie"
   },
   "trimText": {
     "details": "Details",

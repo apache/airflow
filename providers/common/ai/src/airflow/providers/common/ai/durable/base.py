@@ -36,6 +36,16 @@ TOOL_RESULT_SENTINEL = "__durable_cached__"
 DURABLE_KEY_PREFIX = "__commonai_durable__"
 
 
+def build_model_step_key(step: int) -> str:
+    """Build the durable cache key for the model response produced at ``step``."""
+    return f"{DURABLE_KEY_PREFIX}model_step_{step}"
+
+
+def build_tool_step_key(step: int) -> str:
+    """Build the durable cache key for the tool result produced at ``step``."""
+    return f"{DURABLE_KEY_PREFIX}tool_step_{step}"
+
+
 @runtime_checkable
 class DurableStorageProtocol(Protocol):
     """

@@ -40,7 +40,7 @@ import rich
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
-from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.ctl.console_formatting import AirflowConsole, is_data_sequence
 from airflowctl.ctl.utils.yaml import safe_load
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
@@ -494,7 +494,7 @@ class CommandFactory:
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
     group_commands_list: list[CLICommand]
-    output_command_list: list[str]
+    auth_environment_command_list: list[str]
     exclude_operation_names: list[str]
     exclude_method_names: list[str]
     help_texts: dict[str, dict[str, str]]
@@ -511,8 +511,7 @@ class CommandFactory:
         # Excluded Lists are in Class Level for further usage and avoid searching them
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
-        # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = [
+        self.auth_environment_command_list = [
             "list",
             "get",
             "create",
@@ -797,8 +796,11 @@ class CommandFactory:
                             )
                         )
 
-            if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
-                args.extend([ARG_OUTPUT, ARG_AUTH_ENVIRONMENT])
+            args.append(ARG_OUTPUT)
+            # ``-e/--env`` is inert here (nothing reads ``args.env``), so widening it would only let more
+            # commands accept it and silently target production: https://github.com/apache/airflow/issues/70519
+            if any(operation.get("name").startswith(cmd) for cmd in self.auth_environment_command_list):
+                args.append(ARG_AUTH_ENVIRONMENT)
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
@@ -823,7 +825,7 @@ class CommandFactory:
             and "logical_date" in params
             and params["logical_date"] is None
         ):
-            params["logical_date"] = datetime.datetime.now(datetime.timezone.utc)
+            params["logical_date"] = datetime.datetime.now(datetime.UTC)
 
         # Handle ClearTaskInstancesBody: --task-ids arrives as a single string but the API expects
         # a list of task_id or [task_id, map_index]; accept comma-separated ids or a JSON list
@@ -903,7 +905,7 @@ class CommandFactory:
                     return {"operation": api_operation_name, "entity": obj}
                 return obj
 
-            def check_operation_and_collect_list_of_dict(dict_obj: dict) -> list:
+            def check_operation_and_collect_list_of_dict(dict_obj: dict, top_level: bool = False) -> list:
                 """Check if the object is a nested dictionary and collect list of dictionaries."""
 
                 def is_dict_nested(obj: dict) -> bool:
@@ -926,13 +928,17 @@ class CommandFactory:
                 # If dict_obj only have single key return value instead of list
                 # This can happen since we are excluding some keys from user such as total_entries from list operations
                 if len(dict_obj) == 1:
-                    return dict_obj[next(iter(dict_obj.keys()))]
+                    key, value = next(iter(dict_obj.items()))
+                    # Printed rows must be records, so plain values such as Dag tags get one row each.
+                    if top_level and isinstance(value, list) and not is_data_sequence(value):
+                        return [{key: item} for item in value]
+                    return value
                 # If not nested, return the object as a list which the result should be already a dict
                 return [dict_obj]
 
             AirflowConsole().print_as(
                 data=check_operation_and_collect_list_of_dict(
-                    convert_to_dict(method_output, api_operation["name"])
+                    dict_obj=convert_to_dict(method_output, api_operation["name"]), top_level=True
                 ),
                 output=args.output,
             )
@@ -1218,6 +1224,23 @@ TASK_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command("airflowctl.ctl.commands.task_command.failed_deps"),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
+            ARG_MAP_INDEX,
+        ),
+    ),
+    ActionCommand(
+        name="state",
+        help="Get the state of a task instance",
+        description=(
+            "Get the state of a task instance. "
+            "Select the run with either run_id or --logical-date (pass exactly one). "
+            "Prints the state value, or None when the task instance has no state yet."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.state"),
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
