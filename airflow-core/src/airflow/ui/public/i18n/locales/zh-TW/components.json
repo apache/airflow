@@ -136,7 +136,7 @@
     "keepPausedDescription": "新的與未完成的執行會等到 Dag 取消暫停後才進行。",
     "title": "Dag 已暫停",
     "unfinishedRunsWillRun_one": "1 個未完成的 Dag 執行將會開始或繼續。",
-    "unfinishedRunsWillRun_other": "{{count}} 個未完成的 Dag 執行將會開始或繼續。",
+    "unfinishedRunsWillRun_other": "{{count, number}} 個未完成的 Dag 執行將會開始或繼續。",
     "unpause": "取消暫停",
     "unpauseDescription": "Dag 將變為活躍：未完成的執行會繼續，排程也會恢復。已暫停的回填維持暫停。"
   },

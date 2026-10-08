@@ -301,7 +301,7 @@
     "record_other": "記錄",
     "selectPrompt": "選擇兩個版本以查看它們之間的差異。",
     "summary_one": "1 項變更 · 序列化 Schema {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count}} 項變更 · 序列化 Schema {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count, number}} 項變更 · 序列化 Schema {{baseSchema}} → {{targetSchema}}",
     "target": "比較對象",
     "truncated": {
       "description": "為維持在上限內，未顯示的路徑上的變更已被捨棄，因此此數量僅為下限。",

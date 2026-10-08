@@ -41,7 +41,7 @@
       "hostname": "主機",
       "team": "團隊",
       "title_one": "{{title}} — {{status}}（1 個實例）",
-      "title_other": "{{title}} — {{status}}（{{count}} 個實例）",
+      "title_other": "{{title}} — {{status}}（{{count, number}} 個實例）",
       "unknownHostname": "未知主機"
     },
     "lastHeartbeat": "最後心跳",
