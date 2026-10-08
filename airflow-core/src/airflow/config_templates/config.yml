@@ -3317,6 +3317,10 @@ dag_processor:
     refresh_interval:
       description: |
         How often (in seconds) to refresh, or look for new files, in a DAG bundle.
+
+        When this option and ``dag_bundle_config_list`` are left at their defaults, ``airflow standalone``
+        refreshes the Dags folder every ``bundle_refresh_check_interval`` seconds instead, so new Dag
+        files show up within seconds.
       version_added: ~
       type: integer
       example: ~
