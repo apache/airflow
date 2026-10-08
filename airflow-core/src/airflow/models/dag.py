@@ -35,10 +35,12 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     String,
     Text,
     and_,
     case,
+    cast,
     func,
     inspect as sa_inspect,
     or_,
@@ -838,6 +840,9 @@ class DagModel(Base):
                         # scheduled-run creation batch slots; see #74428.
                         or_(
                             cls.allowed_run_types.is_(None),
+                            # NB: SQLAlchemy persists Python None as JSON null,
+                            # not SQL NULL, for JSON columns.
+                            cls.allowed_run_types == cast("null", JSON),
                             JsonArrayContains(cls.allowed_run_types, DagRunType.SCHEDULED.value),
                         ),
                     ),
