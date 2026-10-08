@@ -41,7 +41,6 @@
   },
   "close": "बंद करें",
   "configForm": {
-    "advancedOptions": "उन्नत विकल्प",
     "configJson": "विन्यास JSON",
     "invalidJson": "अमान्य JSON प्रारूप: {{errorMessage}}"
   },

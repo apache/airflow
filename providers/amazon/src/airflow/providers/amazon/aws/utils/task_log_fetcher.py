@@ -22,7 +22,7 @@ import logging
 import re
 import time
 from collections.abc import Generator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from threading import Event, Thread
 from typing import TYPE_CHECKING
 
@@ -109,7 +109,7 @@ class AwsTaskLogFetcher(Thread):
     def _forward_log_events(self, continuation_token: AwsLogsHook.ContinuationToken) -> None:
         prev_timestamp_event = None
         for log_event in self._get_log_events(continuation_token):
-            current_timestamp_event = datetime.fromtimestamp(log_event["timestamp"] / 1000.0, tz=timezone.utc)
+            current_timestamp_event = datetime.fromtimestamp(log_event["timestamp"] / 1000.0, tz=UTC)
             if current_timestamp_event == prev_timestamp_event:
                 # When multiple events have the same timestamp, somehow, only one event is logged
                 # As a consequence, some logs are missed in the log group (in case they have the same
@@ -146,7 +146,7 @@ class AwsTaskLogFetcher(Thread):
 
     @staticmethod
     def event_to_str(event: dict) -> str:
-        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=UTC)
         formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
         message = event["message"]
         return f"[{formatted_event_dt}] {message}"

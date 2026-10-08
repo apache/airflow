@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { act, render, screen } from "@testing-library/react";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";

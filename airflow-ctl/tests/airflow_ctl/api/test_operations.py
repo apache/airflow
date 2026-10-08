@@ -137,7 +137,7 @@ class HelloCollectionResponse(BaseModel):
 
 class TestBaseOperations:
     def test_build_query_params_skips_none_and_serializes_datetime(self):
-        logical_date = datetime.datetime(2025, 1, 1, 12, 30, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2025, 1, 1, 12, 30, tzinfo=datetime.UTC)
 
         assert _build_query_params(
             logical_date=logical_date,
@@ -1484,7 +1484,7 @@ class TestDagRunOperations:
         assert response == self.dag_run_collection_response
 
     def test_list_with_logical_date_filters_and_order(self):
-        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert dict(request.url.params) == {
@@ -1506,8 +1506,8 @@ class TestDagRunOperations:
         assert response == self.dag_run_collection_response
 
     def test_list_with_clear_filters(self):
-        logical_date_start = datetime.datetime(2025, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
-        logical_date_end = datetime.datetime(2025, 1, 2, 23, 59, 59, tzinfo=datetime.timezone.utc)
+        logical_date_start = datetime.datetime(2025, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
+        logical_date_end = datetime.datetime(2025, 1, 2, 23, 59, 59, tzinfo=datetime.UTC)
         partition_day_start = datetime.date(2025, 2, 1)
         partition_day_end = datetime.date(2025, 2, 4)
 
@@ -1877,7 +1877,7 @@ class TestTaskInstancesOperations:
         dag_id="dag_id",
         dag_run_id="dag_run_id",
         map_index=-1,
-        run_after=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+        run_after=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
         state=TaskInstanceState.SUCCESS,
         try_number=1,
         max_tries=0,

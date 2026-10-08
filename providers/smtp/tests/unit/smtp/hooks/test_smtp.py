@@ -22,6 +22,7 @@ import os
 import smtplib
 import ssl
 import tempfile
+from contextlib import nullcontext
 from email.mime.application import MIMEApplication
 from unittest import mock
 from unittest.mock import AsyncMock, Mock, call, patch
@@ -83,6 +84,27 @@ def _create_fake_smtp(mock_smtplib, use_ssl=True):
 
 
 class TestSmtpHook:
+    @pytest.mark.parametrize("close_fails", [False, True])
+    @patch("smtplib.SMTP_SSL", autospec=True)
+    def test_reconnect_after_context_exit(self, mock_smtp_ssl, close_fails):
+        clients = [mock.create_autospec(smtplib.SMTP, instance=True) for _ in range(2)]
+        mock_smtp_ssl.side_effect = clients
+        if close_fails:
+            clients[0].close.side_effect = OSError("Close failed")
+        hook = SmtpHook()
+
+        with pytest.raises(OSError, match="Close failed") if close_fails else nullcontext():
+            with hook:
+                hook.send_email_smtp(to=TO_EMAIL, subject=TEST_SUBJECT, html_content=TEST_BODY)
+
+        with hook:
+            hook.send_email_smtp(to=TO_EMAIL, subject=TEST_SUBJECT, html_content=TEST_BODY)
+
+        assert mock_smtp_ssl.call_count == 2
+        for client in clients:
+            client.sendmail.assert_called_once()
+            client.close.assert_called_once()
+
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
         create_connection_without_db(
@@ -609,6 +631,26 @@ class TestSmtpHook:
 @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Async support was added to BaseNotifier in 3.1.0")
 class TestSmtpHookAsync:
     """Tests for async functionality in SmtpHook."""
+
+    @pytest.mark.parametrize("quit_fails", [False, True])
+    async def test_reconnect_after_context_exit(self, mock_get_connection, mocker, quit_fails):
+        clients = [self._create_fake_async_smtp(Mock()) for _ in range(2)]
+        mock_smtp = mocker.patch("airflow.providers.smtp.hooks.smtp.aiosmtplib.SMTP", side_effect=clients)
+        if quit_fails:
+            clients[0].quit.side_effect = OSError("Quit failed")
+        hook = SmtpHook()
+
+        with pytest.raises(OSError, match="Quit failed") if quit_fails else nullcontext():
+            async with hook:
+                await hook.asend_email_smtp(to=TO_EMAIL, subject=TEST_SUBJECT, html_content=TEST_BODY)
+
+        async with hook:
+            await hook.asend_email_smtp(to=TO_EMAIL, subject=TEST_SUBJECT, html_content=TEST_BODY)
+
+        assert mock_smtp.call_count == 2
+        for client in clients:
+            client.sendmail.assert_awaited_once()
+            client.quit.assert_awaited_once()
 
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):

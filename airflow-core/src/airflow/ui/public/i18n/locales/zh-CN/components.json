@@ -52,7 +52,6 @@
   },
   "close": "关闭",
   "configForm": {
-    "advancedOptions": "高级选项",
     "configJson": "配置 JSON",
     "invalidJson": "无效的 JSON 格式：{{errorMessage}}"
   },

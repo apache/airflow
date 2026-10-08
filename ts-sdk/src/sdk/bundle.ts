@@ -23,6 +23,7 @@ import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import { Dag, finalizeDag, getDagTaskRecords, isDag } from "./dag.js";
 import { getTaskHandlerFunction, isTaskHandler, TaskHandler } from "./task-handler.js";
 import type { TaskFunction } from "./task.js";
+import type { TriggerDagRunTask } from "./trigger-dag-run.js";
 
 // Assigned inside Bundle's static block, as Dag does for its tasks.
 let dagsOf: (bundle: Bundle) => ReadonlyMap<string, Dag>;
@@ -209,6 +210,17 @@ export function validateOwnBundle(value: unknown, accessor: string): asserts val
       ? `The bundle ${accessor} was called on ${DUPLICATE_COPY_HINT}`
       : `${accessor} must be called on a Bundle; build one with new Bundle(...)`,
   );
+}
+
+/** Internal: the `triggerDagRun(...)` task at `taskId` of a Dag this bundle
+ *  declared in TypeScript, which the runtime runs without a handler. */
+export function getBundleTrigger(
+  bundle: Bundle,
+  dagId: string,
+  taskId: string,
+): TriggerDagRunTask | undefined {
+  const dag = dagsOf(bundle).get(dagId);
+  return dag === undefined ? undefined : getDagTaskRecords(dag).get(taskId)?.trigger;
 }
 
 /** Internal: finalize every Dag this bundle declared in TypeScript, so no task

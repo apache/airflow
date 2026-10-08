@@ -396,7 +396,7 @@ class TestRealBundleArgBindingsDowngrade:
         )
         from airflow.sdk.execution_time.comms import StartupDetails
 
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         return StartupDetails(
             ti=TaskInstance(
                 id=uuid.uuid4(),

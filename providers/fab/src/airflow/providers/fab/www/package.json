@@ -47,7 +47,7 @@
     "copy-webpack-plugin": "^14.0.0",
     "css-loader": "7.1.5",
     "css-minimizer-webpack-plugin": "^8.0.0",
-    "eslint": "^10.11.0",
+    "eslint": "^10.12.0",
     "file-loader": "^6.2.0",
     "mini-css-extract-plugin": "^2.10.2",
     "moment": "^2.31.0",
@@ -63,7 +63,7 @@
   },
   "dependencies": {
     "jquery-ui": "^1.14.2",
-    "moment-timezone": "^0.6.4"
+    "moment-timezone": "^0.6.5"
   },
   "packageManager": "pnpm@10.28.1",
   "pnpm": {

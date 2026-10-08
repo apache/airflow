@@ -54,9 +54,14 @@ public class AnnotationExample {
     log.log(INFO, "Loaded {0}", transformed);
   }
 
-  @Builder.Task(id = "audit")
-  public void audit() {
-    log.log(INFO, "Audited the run");
+  // A task group: everything it declares is prefixed with its id, so this is
+  // the task "checks.audit".
+  @Builder.TaskGroup(id = "checks")
+  static class Checks {
+    @Builder.Task(id = "audit")
+    public void audit() {
+      log.log(INFO, "Audited the run");
+    }
   }
 
   // Implements the generated wiring view, so javac type-checks the graph:
@@ -66,8 +71,10 @@ public class AnnotationExample {
     void depends() {
       var extracted = extract();
       load(transform(extracted, lit(1.5)));
-      // Ordering-only edge: audit runs after extract, with no data flowing.
-      extracted.before(audit());
+      // Ordering-only edge: the checks group runs after extract, with no data
+      // flowing.
+      extracted.before(checks());
+      checks().audit();
     }
   }
 }

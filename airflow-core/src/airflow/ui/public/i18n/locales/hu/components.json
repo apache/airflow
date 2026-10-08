@@ -41,7 +41,6 @@
   },
   "close": "Bezárás",
   "configForm": {
-    "advancedOptions": "Speciális beállítások",
     "configJson": "Konfiguráció JSON",
     "invalidJson": "Érvénytelen JSON formátum: {{errorMessage}}"
   },

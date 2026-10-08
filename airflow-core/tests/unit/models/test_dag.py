@@ -66,7 +66,6 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.hitl import HITLDetail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.trigger import handle_event_submit
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1798,11 +1797,9 @@ class TestDag:
             dag_run_state=dag_run_state,
             session=session,
         )
-        session.refresh(upstream_ti)
-        session.refresh(ti)
         session.refresh(ti2)
-        assert upstream_ti.state is None  # cleared
-        assert ti.state is None  # cleared
+        assert dagrun_1.get_task_instance("make_arg_lists", session=session).state is None  # cleared
+        assert dagrun_1.get_task_instance(task_id, map_index=0, session=session).state is None  # cleared
         assert ti2.state == State.SUCCESS  # not cleared
         dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all()
 
@@ -1934,10 +1931,9 @@ class TestDag:
         assert state_during_callback == TaskInstanceState.RUNNING
         assert value == "written"
         with create_session() as session:
-            history = session.scalar(
-                select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
-            )
+            history = session.get(TI, old_id)
             assert history is not None
+            assert history.working_set is None
             assert history.end_date == end_date
             ti = dr.get_task_instance("fail_once", session=session)
             assert ti.id != old_id

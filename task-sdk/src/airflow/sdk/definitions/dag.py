@@ -64,10 +64,10 @@ from airflow.sdk.exceptions import (
 
 if TYPE_CHECKING:
     from re import Pattern
-    from typing import TypeAlias, TypeVar
+    from typing import Self, TypeAlias, TypeVar
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
-    from typing_extensions import Self, TypeIs
+    from typing_extensions import TypeIs
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
     from airflow.sdk.api.datamodels._generated import DagRunType

@@ -65,6 +65,103 @@ rejects by scanning the parsed statement for write operations. When
 table, so its target must be on the list, while ``SHOW`` enumerates objects beyond
 any single table and is rejected outright (see :ref:`allowed-tables-enforcement`).
 
+.. _sql-toolset-restricted:
+
+Restricting the agent
+---------------------
+
+Every limit can be set on one task: the toolset holds most of them, and the
+operator holds the tool-call limit. This agent can query two tables, cannot write, gets
+bounded results, and has a budget for both refused and successful calls:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sql_toolset.py
+    :language: python
+    :start-after: [START howto_toolset_sql_restricted]
+    :end-before: [END howto_toolset_sql_restricted]
+
+A refused query never reaches the database. The model gets the reason back as an
+error it can correct, and the run carries on. Run against a Postgres warehouse that
+also holds a ``secrets`` table, these queries were refused with these messages:
+
+``SELECT token FROM secrets``
+    ``The query tool failed: Query references tables that are not in the allowed
+    tables list: secrets. Use list_tables to see the allowed tables.``
+
+``SELECT pg_read_file('/etc/passwd')``
+    ``The query tool failed: Query uses a data source that cannot be checked against
+    allowed_tables: function(s) the parser cannot verify against allowed_tables
+    (pg_read_file); if these functions are trusted, permit them via
+    allowed_functions. Query the allowed tables directly: use list_tables to see
+    them.``
+
+``DELETE FROM orders``
+    ``The query tool failed: Statement type 'Delete' is not allowed. Allowed types:
+    Select, Union, Intersect, Except, Describe, Show``
+
+Each message ends with the same two lines:
+
+.. code-block:: text
+
+    Use the list_tables and get_schema tools to inspect the database, then fix the query and try again.
+
+    Fix the errors and try again.
+
+This query runs, because the example lists ``json_build_object`` in
+``allowed_functions``:
+
+.. code-block:: sql
+
+    SELECT c.region, json_build_object('revenue', sum(o.amount)) AS revenue
+    FROM orders o JOIN customers c ON c.id = o.customer_id
+    GROUP BY c.region ORDER BY c.region
+
+It returns:
+
+.. code-block:: json
+
+    {"columns":["region","revenue"],"rows":[["AMER",{"revenue":50}],["EMEA",{"revenue":200}]],"row_count":2}
+
+Without ``allowed_functions``, the same query is refused with the same message as
+``pg_read_file``, naming ``json_build_object``.
+
+The two budgets count different calls, and running out of either fails the task.
+``max_retries`` counts refused and failed calls, and a fourth refused ``query`` call
+in a row ends the run with ``UnexpectedModelBehavior``:
+
+.. code-block:: text
+
+    Tool 'query' exceeded max retries count of 3. Consider raising the retry limit, or see the docs on tool retries: https://pydantic.dev/docs/ai/tools-toolsets/tools-advanced/#tool-retries
+
+``tool_calls_limit`` counts successful calls only, and fails the run with
+``UsageLimitExceeded`` before any call that would take the count past 20:
+
+.. code-block:: text
+
+    The next tool call(s) would exceed the tool_calls_limit of 20 (tool_calls=21). Consider raising the limit, or see the docs on usage limits for budget-aware patterns: https://pydantic.dev/docs/ai/core-concepts/agent/#usage-limits
+
+The task's own ``retries`` then decide whether it runs again, and the budgets differ
+there too. ``max_retries`` starts again on each attempt. On Airflow 3.3 and later,
+``usage_limits`` counts across every attempt, so a retry after ``tool_calls_limit``
+ran out fails at its first tool call; see
+:ref:`the usage budget <agent-usage-budget>`. ``UsageLimits`` also keeps
+pydantic-ai's default ``request_limit`` of 50 model requests, which refused calls
+use up too.
+
+``allowed_tables`` works by parsing the SQL, so a query the parser reads differently
+from the database, or a function listed in ``allowed_functions``, can get past it.
+The connection's role is the limit that holds regardless. The example's
+``warehouse_agent_reader`` connection logs in as a role created with:
+
+.. code-block:: sql
+
+    CREATE ROLE warehouse_agent_reader LOGIN PASSWORD '...';
+    GRANT SELECT ON orders, customers TO warehouse_agent_reader;
+
+With that role and no ``allowed_tables``, ``SELECT token FROM secrets`` reaches
+Postgres, which refuses it, and the model gets ``The query tool failed: permission
+denied for table secrets``. :ref:`allowed-tables-enforcement` lists what the parser
+checks and where it stops.
+
 Multi-schema warehouses
 -------------------------
 
@@ -200,7 +297,12 @@ Parameters
   introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
   Default ``False`` -- only SELECT-family and read-only metadata
-  (``DESCRIBE``/``SHOW``) statements are permitted.
+  (``DESCRIBE``/``SHOW``) statements are permitted. To have a person approve a
+  ``query`` call before it runs, wrap the toolset with ``.approval_required()`` and
+  return ``tool_def.name == "query"`` from its function. Reads and writes both go
+  through ``query``, and a task instance can pause for approval once per Dag run, so
+  this fits an agent that runs one query, such as a single write; see
+  :doc:`../tool_approval`.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
   Rows beyond it are not read out of a DBAPI cursor; what the driver has already
   transferred is its own call. See :ref:`bounded-query-results`.
