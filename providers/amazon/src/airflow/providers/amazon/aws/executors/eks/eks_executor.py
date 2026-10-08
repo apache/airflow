@@ -104,7 +104,10 @@ class AwsEksExecutor(KubernetesExecutor):
         except ApiException as e:
             raise RuntimeError(
                 f"EKS Executor health check has failed because: cannot list pods in namespace {namespace} "
-                f"({e.status} {e.reason}). Check the EKS access entry and RBAC for the executor's IAM role."
+                f"({e.status} {e.reason}). The IAM principal behind the AWS connection needs an EKS access "
+                "entry (or aws-auth mapping) on the cluster that allows create, get, list, watch, patch and "
+                f"delete on pods and get on pods/log in namespace {namespace}. See 'Grant access to the "
+                "cluster' in the AwsEksExecutor docs."
             ) from e
         self.log.info("EKS Executor health check has succeeded.")
 

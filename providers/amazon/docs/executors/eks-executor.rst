@@ -72,10 +72,7 @@ STS URL that stays valid for roughly fifteen minutes, while the scheduler holds 
 single client for as long as it runs. To keep the token current, the executor
 registers a refresh hook that the Kubernetes client calls on every authenticated
 request. Minting a token is a local signing operation with no network call, so
-refreshing that often costs very little. The AWS credentials themselves come from the
-:ref:`AWS connection <howto/connection:aws>`, and botocore refreshes temporary ones,
-such as an assumed role, as described in the `boto3 credentials guide
-<https://docs.aws.amazon.com/boto3/latest/guide/credentials.html>`__.
+refreshing that often costs very little.
 
 Before it accepts any tasks, the executor checks that the cluster is ``ACTIVE`` or
 ``UPDATING``. An ``UPDATING`` cluster still serves the Kubernetes API, because EKS
@@ -168,9 +165,10 @@ Grant access to the cluster
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create an EKS access entry for the IAM role or user that the scheduler runs as, and
-associate a policy that allows it to create and watch pods in the namespace you plan
-to use. If you manage cluster access through the ``aws-auth`` config map instead, add
-the principal there and map it to a Kubernetes group with the same permissions.
+associate a policy that allows create, get, list, watch, patch and delete on pods, and
+get on pods/log, in the namespace you plan to use. If you manage cluster access through
+the ``aws-auth`` config map instead, add the principal there and map it to a Kubernetes
+group with the same permissions.
 
 Configure Airflow
 ~~~~~~~~~~~~~~~~~
