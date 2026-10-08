@@ -35,7 +35,7 @@ from operator import attrgetter
 from random import randint
 from textwrap import dedent
 from time import sleep
-from typing import TYPE_CHECKING, Any, get_args, get_type_hints
+from typing import TYPE_CHECKING, Any, BinaryIO, get_args, get_type_hints
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import UUID
@@ -287,16 +287,17 @@ class TestSupervisor:
             queue="default",
         )
         server = "http://nonexistent-api-server:8080/execution/"
-        coordinator = mocker.Mock()
+        coordinator = mocker.Mock(spec=BaseCoordinator)
         coordinator.execute_task.side_effect = httpx.ConnectError("Name or service not known")
         mocker.patch(
-            "airflow.sdk.execution_time.supervisor.get_coordinator_manager"
+            "airflow.sdk.execution_time.supervisor.get_coordinator_manager", autospec=True
         ).return_value.for_queue.return_value = coordinator
 
-        task_logger = mocker.Mock()
+        task_logger = mocker.Mock(spec=FilteringBoundLogger)
         mocker.patch(
             "airflow.sdk.execution_time.supervisor._configure_logging",
-            return_value=(task_logger, mocker.MagicMock()),
+            autospec=True,
+            return_value=(task_logger, mocker.Mock(spec=BinaryIO)),
         )
 
         with pytest.raises(httpx.ConnectError):
