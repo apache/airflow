@@ -27,7 +27,7 @@ import stat
 import tempfile
 import warnings
 from collections.abc import Generator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import unquote
 
@@ -263,7 +263,7 @@ class GitHook(BaseHook):
         TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
         if (
             self.github_app_token_exp is None
-            or self.github_app_token_exp < datetime.now(timezone.utc) + TOKEN_REFRESH_BUFFER
+            or self.github_app_token_exp < datetime.now(UTC) + TOKEN_REFRESH_BUFFER
         ):
             log.info(
                 "GitHub App token is missing or near expiry (expires at: %s). Refreshing token.",

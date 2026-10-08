@@ -34,8 +34,8 @@
     "form": {
       "connectionIdRequired": "連線 ID 是必填的",
       "connectionIdRequirement": "連線 ID 不能只包含空格",
+      "connectionTypeFields": "{{connectionType}} 欄位",
       "connectionTypeRequired": "連線類型是必填的",
-      "extraFields": "額外欄位",
       "extraFieldsJson": "額外欄位 JSON",
       "helperText": "找不到連線類型？請確保您已安裝對應的 Airflow 整合套件。",
       "helperTextForRedactedFields": "已遮蔽的欄位 ('***') 若未修改，將保持不變。",

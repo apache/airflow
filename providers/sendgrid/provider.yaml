@@ -23,7 +23,7 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1780426378
+source-date-epoch: 1791328852
 
 email-backends:
   - airflow.providers.sendgrid.utils.emailer.send_email
@@ -33,6 +33,7 @@ email-backends:
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.2.5
   - 4.2.4
   - 4.2.3
   - 4.2.2

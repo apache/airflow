@@ -34,7 +34,7 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1790023613
+source-date-epoch: 1791328847
 build-system: hatchling
 
 # Note that those versions are maintained by release manager - do not update them manually
@@ -126,7 +126,7 @@ config:
           an edge worker. If the issuer serves other workloads, configure
           ``jwt_issuer`` and a ``jwt_verifier`` to restrict which identities are
           accepted; otherwise any validly signed token from the issuer is accepted.
-        version_added: 4.4.0
+        version_added: 5.0.0
         type: string
         example: https://idp.example.com/oauth2/v1/keys
         default: ~
@@ -138,7 +138,7 @@ config:
           configured to decide which identities may act as edge workers (requests are
           rejected otherwise). Set it to bind tokens to your provider. Ignored when
           ``trusted_jwks_url`` is empty.
-        version_added: 4.4.0
+        version_added: 5.0.0
         type: string
         example: https://idp.example.com
         default: ~
@@ -148,7 +148,7 @@ config:
           set. When set, the token must carry a matching ``aud``. When empty, only
           tokens that carry no ``aud`` claim are accepted (a token that does carry
           an ``aud`` is rejected). Ignored when ``trusted_jwks_url`` is empty.
-        version_added: 4.4.0
+        version_added: 5.0.0
         type: string
         example: api
         default: ~
@@ -157,7 +157,7 @@ config:
           Comma-separated list of JWS signing algorithms accepted for edge worker
           tokens when ``trusted_jwks_url`` is set. Set it to match the algorithm the
           trusted provider signs with. Ignored when ``trusted_jwks_url`` is empty.
-        version_added: 4.4.0
+        version_added: 5.0.0
         type: string
         example: RS256,RS512
         default: RS256
@@ -167,7 +167,7 @@ config:
           claims of edge worker tokens issued by a trusted OIDC provider, to account for
           clock skew between the identity provider and the API server. Ignored when
           ``trusted_jwks_url`` is empty.
-        version_added: 4.4.0
+        version_added: 5.0.0
         type: integer
         example: ~
         default: "30"
@@ -184,7 +184,7 @@ config:
           issuer verification is then skipped. When empty (and ``jwt_issuer`` is set)
           any token that passes signature, issuer and audience verification is
           authorized. Ignored when ``trusted_jwks_url`` is empty.
-        version_added: 4.4.0
+        version_added: 5.0.0
         type: string
         example: my_company.edge_auth.verify_worker_token
         default: ~

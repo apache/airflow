@@ -35,13 +35,17 @@ from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.dagbag import DagBag
+from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
+from airflow.dag_processing.processor import DagFileParsingResult
 from airflow.exceptions import DagRunNotFound
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.sdk import DAG as SdkDAG, BaseOperator
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -50,6 +54,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
+from unit.dag_processing.fake_lang_sdk import fake_coordinator, write_native_file
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -556,6 +561,27 @@ class TestCliTasks:
         output = stdout.getvalue()
         # no indentation before property name
         assert "# property: bash_command" in output.split("\n")
+
+
+@mock.patch.object(LangSDKDagFileProcessorProcess, "run", autospec=True)
+@mock.patch("airflow.utils.cli.DagBundlesManager", autospec=True)
+def test_cli_list_tasks_of_a_native_dag(mock_manager, mock_run, tmp_path):
+    native_file = write_native_file(tmp_path / "dags.native")
+    with SdkDAG("native_dag", schedule=None) as native_dag:
+        BaseOperator(task_id="load")
+        BaseOperator(task_id="extract")
+    mock_run.return_value = DagFileParsingResult(
+        fileloc=os.fspath(native_file), serialized_dags=[LazyDeserializedDAG.from_dag(native_dag)]
+    )
+    bundle = mock.MagicMock(spec=BaseDagBundle, path=tmp_path, version=None)
+    bundle.name = "testing"
+    mock_manager.return_value.get_bundle.return_value = bundle
+    args = cli_parser.get_parser().parse_args(["tasks", "list", "native_dag", "--bundle-name", "testing"])
+
+    with fake_coordinator(), redirect_stdout(io.StringIO()) as stdout:
+        task_command.task_list(args)
+
+    assert stdout.getvalue().splitlines()[-2:] == ["extract", "load"]
 
 
 class TestLogsfromTaskRunCommand:

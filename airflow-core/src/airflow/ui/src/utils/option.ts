@@ -24,6 +24,10 @@ export type Option = {
   readonly value: string;
 };
 
+export type DagRunSearchOption = {
+  readonly state: DagRunState;
+} & Option;
+
 export type DagSearchOption = {
   readonly isBackfillable: boolean;
   readonly state: DagRunState | null;

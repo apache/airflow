@@ -39,7 +39,6 @@
         "title": "Ponowne przetwarzanie uruchomione"
       }
     },
-    "unpause": "Wznów {{dag_display_name}} przy wykonaniu",
     "validation": {
       "datesRequired": "Należy podać zarówno datę początkową, jak i końcową interwału danych.",
       "startBeforeEnd": "Data początkowa interwału danych musi być wcześniejsza lub równa dacie końcowej."
@@ -57,7 +56,6 @@
   },
   "close": "Zamknij",
   "configForm": {
-    "advancedOptions": "Zaawansowane opcje",
     "configJson": "Konfiguracja JSON",
     "invalidJson": "Nieprawidłowy format JSON: {{errorMessage}}"
   },
@@ -195,8 +193,7 @@
         "title": "Uruchomienie Daga"
       }
     },
-    "triggerAgainWithConfig": "Uruchom ponownie z tą konfiguracją",
-    "unpause": "Wznów {{dagDisplayName}} przy wykonaniu"
+    "triggerAgainWithConfig": "Uruchom ponownie z tą konfiguracją"
   },
   "trimText": {
     "details": "Szczegóły",

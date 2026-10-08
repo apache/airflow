@@ -1063,6 +1063,32 @@ class TestGetGridDataEndpoint:
             {"id": "task_b", "label": "task_b"},
         ]
 
+    def test_structure_filter_creating_task_group_cycle(self, dag_maker, test_client, session):
+        """Dropping ``g.guard`` makes ``g.second`` a root of ``g``, so ``g`` and ``bridge`` depend on each other."""
+        with dag_maker(dag_id="filtered_task_group_cycle", serialized=True, session=session):
+            with TaskGroup(group_id="g"):
+                first = EmptyOperator(task_id="first")
+                second = EmptyOperator(task_id="second")
+                guard = EmptyOperator(task_id="guard")
+                guard >> second
+            bridge = EmptyOperator(task_id="bridge")
+            first >> bridge >> second
+        dag_maker.sync_dagbag_to_db()
+
+        response = test_client.get(
+            "/grid/structure/filtered_task_group_cycle?root=g.first&include_downstream=true"
+        )
+
+        assert response.status_code == 200
+        assert response.json() == [
+            {"id": "bridge", "label": "bridge"},
+            {
+                "id": "g",
+                "label": "g",
+                "children": [{"id": "g.first", "label": "first"}, {"id": "g.second", "label": "second"}],
+            },
+        ]
+
     # Tests for root, include_upstream, and include_downstream parameters
     @pytest.mark.parametrize(
         ("params", "expected_task_ids", "description"),
