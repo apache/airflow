@@ -25,18 +25,26 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from airflow._shared.serialization import CLASSNAME, FORBIDDEN_XCOM_KEYS
 from airflow._shared.timezones.timezone import utc, utcnow
+from airflow.api_fastapi.core_api.routes.public import hitl as hitl_routes
+from airflow.models.dag import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TIModel
+from airflow.models.team import Team
 from airflow.sdk.execution_time.hitl import HITLUser
+from airflow.utils.platform import getuser
+from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_teams
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
@@ -56,6 +64,16 @@ TASK_ID = "sample_task_hitl"
 
 DEFAULT_CREATED_AT = datetime(2025, 9, 15, 13, 0, 0, tzinfo=utc)
 ANOTHER_CREATED_AT = datetime(2025, 9, 16, 12, 0, 0, tzinfo=utc)
+
+
+def _attach_dag_to_team(dag_id: str, team_name: str, *, session: Session = NEW_SESSION) -> None:
+    """Move a Dag into a team-scoped bundle, which is how a Dag gains a team."""
+    bundle = DagBundleModel(name=f"team-bundle-{team_name}")
+    bundle.teams.append(Team(name=team_name))
+    session.add(bundle)
+    session.flush()
+    session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle.name))
+    session.commit()
 
 
 @pytest.fixture
@@ -268,10 +286,11 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "task_display_name": "sample_task_hitl",
             "task_id": TASK_ID,
             "team_name": None,
+            "state_reason": None,
             "trigger": None,
             "triggerer_job": None,
             "try_number": 0,
-            "unixname": "root",
+            "unixname": getuser(),
         },
     }
 
@@ -310,6 +329,50 @@ def sample_update_payload() -> dict[str, Any]:
 
 
 class TestUpdateHITLDetailEndpoint:
+    def test_response_rejects_attempt_archived_after_lookup(
+        self,
+        test_client,
+        sample_ti,
+        sample_hitl_detail,
+        sample_ti_url_identifier,
+        sample_update_payload,
+        session,
+        mocker,
+    ):
+        get_task_instance = hitl_routes._get_task_instance_with_hitl_detail
+
+        def archive_after_lookup(*args, **kwargs):
+            task_instance = get_task_instance(*args, **kwargs)
+            with Session(bind=session.get_bind()) as other_session:
+                current = other_session.get(TIModel, task_instance.id)
+                current.prepare_db_for_next_try(other_session)
+                other_session.commit()
+            return task_instance
+
+        mocker.patch.object(
+            hitl_routes,
+            "_get_task_instance_with_hitl_detail",
+            autospec=True,
+            side_effect=archive_after_lookup,
+        )
+
+        response = test_client.patch(f"{sample_ti_url_identifier}/hitlDetails", json=sample_update_payload)
+
+        assert response.status_code == 409
+        with Session(bind=session.get_bind()) as verify_session:
+            assert verify_session.get(TIModel, sample_ti.id).working_set is None
+            assert not verify_session.get(HITLDetail, sample_ti.id).response_received
+            current = verify_session.scalar(
+                select(TIModel).where(
+                    TIModel.dag_id == sample_ti.dag_id,
+                    TIModel.task_id == sample_ti.task_id,
+                    TIModel.run_id == sample_ti.run_id,
+                )
+            )
+            assert current.id != sample_ti.id
+            assert current.state is None
+            assert verify_session.get(HITLDetail, current.id) is None
+
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail")
     @mock.patch(
@@ -408,6 +471,33 @@ class TestUpdateHITLDetailEndpoint:
         )
         assert response.status_code == 400
         assert "Invalid options" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_should_validate_against_row_refreshed_under_lock(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_ti: TaskInstance,
+    ) -> None:
+        original = hitl_routes._get_task_instance_with_hitl_detail
+
+        def load_then_rewrite_options(**kwargs: Any) -> Any:
+            ti = original(**kwargs)
+            kwargs["session"].execute(
+                update(HITLDetail).where(HITLDetail.ti_id == sample_ti.id).values(options=["Retry"]),
+                execution_options={"synchronize_session": False},
+            )
+            return ti
+
+        with mock.patch.object(
+            hitl_routes, "_get_task_instance_with_hitl_detail", side_effect=load_then_rewrite_options
+        ):
+            response = test_client.patch(
+                f"{sample_ti_url_identifier}/hitlDetails",
+                json={"chosen_options": ["Retry"], "params_input": {}},
+            )
+        assert response.status_code == 200
+        assert response.json()["chosen_options"] == ["Retry"]
 
     @pytest.mark.usefixtures("sample_hitl_detail")
     @pytest.mark.parametrize("reserved_key", sorted(FORBIDDEN_XCOM_KEYS))
@@ -685,13 +775,41 @@ class TestGetHITLDetailEndpoint:
 
 
 class TestGetHITLDetailsEndpoint:
+    def test_lists_only_current_task_instance_details(
+        self, test_client, sample_ti, sample_hitl_detail, session
+    ):
+        old_id = sample_ti.id
+        successor = sample_ti.prepare_db_for_next_try(session)
+        session.add(
+            HITLDetail(
+                ti_id=successor.id,
+                options=["Approve", "Reject"],
+                subject="Current subject",
+                body="Current body",
+                defaults=["Approve"],
+                multiple=False,
+                params={},
+                assignees=None,
+            )
+        )
+        session.commit()
+
+        response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
+
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+        assert [detail["task_instance"]["id"] for detail in response.json()["hitl_details"]] == [
+            str(successor.id)
+        ]
+        assert session.get(HITLDetail, sample_hitl_detail.ti_id).ti_id == old_id
+
     @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_200_with_existing_response(
         self,
         test_client: TestClient,
         expected_sample_hitl_detail_dict: dict[str, Any],
     ) -> None:
-        with assert_queries_count(3):
+        with assert_queries_count(5):
             response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
         assert response.status_code == 200
         assert response.json() == {
@@ -767,11 +885,41 @@ class TestGetHITLDetailsEndpoint:
         params: dict[str, Any],
         expected_ti_count: int,
     ) -> None:
-        with assert_queries_count(3):
+        with assert_queries_count(5):
             response = test_client.get("/dags/~/dagRuns/~/hitlDetails", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti_count
         assert len(response.json()["hitl_details"]) == expected_ti_count
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.usefixtures("sample_hitl_details")
+    def test_should_respond_200_filtered_by_team(
+        self,
+        test_client: TestClient,
+        session: Session,
+    ) -> None:
+        _attach_dag_to_team("hitl_dag_0", "team-hitl", session=session)
+        try:
+            response = test_client.get("/dags/~/dagRuns/~/hitlDetails", params={"teams": ["team-hitl"]})
+            assert response.status_code == 200
+            response_data = response.json()
+            assert response_data["total_entries"] == 1
+            assert {detail["task_instance"]["dag_id"] for detail in response_data["hitl_details"]} == {
+                "hitl_dag_0"
+            }
+            assert {detail["task_instance"]["team_name"] for detail in response_data["hitl_details"]} == {
+                "team-hitl"
+            }
+
+            response = test_client.get(
+                "/dags/~/dagRuns/~/hitlDetails", params={"teams": ["team-without-dags"]}
+            )
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
+        finally:
+            clear_db_dags()
+            clear_db_dag_bundles()
+            clear_db_teams()
 
     @pytest.mark.usefixtures("sample_hitl_details")
     def test_should_respond_200_with_existing_response_and_concrete_query(

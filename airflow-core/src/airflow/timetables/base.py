@@ -17,9 +17,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypedDict, runtime_checkable
-
-from typing_extensions import NotRequired
+from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, Protocol, TypedDict, runtime_checkable
 
 from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
@@ -235,6 +233,22 @@ class Timetable(Protocol):
 
     This is *True* for timetables that switch scheduling to use partitions
     instead of the traditional logic based on logical dates and data intervals.
+    """
+
+    asset_triggered: bool = False
+    """Whether this timetable creates runs triggered by asset events.
+
+    This is *True* for timetables that materialize an asset-triggered DagRun as
+    soon as their asset condition is satisfied, independently of a time
+    schedule.
+    """
+
+    asset_gated: bool = False
+    """Whether this timetable's scheduled runs are gated on an asset condition.
+
+    This is *True* for timetables whose time-based runs are only created once
+    their asset condition is satisfied. Manual and backfill runs are unaffected.
+    A timetable that enables this must define a non-null ``asset_condition``.
     """
 
     partitioned_at_runtime: bool = False

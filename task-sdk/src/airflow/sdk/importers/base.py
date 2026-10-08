@@ -30,11 +30,11 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from airflow.sdk._shared.module_loading.file_discovery import find_path_from_directory
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import AirflowConfigException
+from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
-
-    from typing_extensions import Self
+    from typing import Self
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk import DAG
@@ -229,6 +229,8 @@ class AbstractDagImporter(ABC, Generic[DefT]):
     :meth:`.list_dag_definitions` yields definitions of :class:`DagDefinition`
     subtypes, and those same objects are fed back to :meth:`import_definition`,
     so a concrete importer only ever deals with its own definition type.
+
+    .. note:: |experimental|
     """
 
     @abstractmethod
@@ -243,11 +245,13 @@ class AbstractDagImporter(ABC, Generic[DefT]):
         safe_mode: bool = True,
     ) -> Iterator[DefT | DagImportError]:
         """
-        List DAG definitions in a bundle that this importer can handle (identity-only discovery).
+        List Dag definitions in a bundle that this importer can handle.
 
-        A yielded :class:`DagImportError` reports a discovery-time failure (e.g. an unreadable
-        container) for the caller to forward to a :class:`DagImportResult`; it is not a source
-        to import.
+        Apply :meth:`might_contain_dag` to each definition before yielding it; nothing
+        applies it after listing. A definition that cannot be read is yielded as a
+        :class:`DagImportError` rather than raised, so the rest of the bundle is still
+        listed. A yielded :class:`DagImportError` reports a discovery-time failure for the
+        caller to forward to a :class:`DagImportResult`; it is not a source to import.
         """
 
     @abstractmethod
@@ -259,16 +263,22 @@ class AbstractDagImporter(ABC, Generic[DefT]):
         """Import DAGs from a DAG definition."""
 
     @abstractmethod
-    def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
-        """Retrieve the raw source code and its language identifier for the specified DAG definition."""
+    def get_source_code(self, definition: DagDefinition, dag_id: str | None = None) -> DagSourceCode:
+        """
+        Retrieve the raw source code and its language identifier for the specified DAG definition.
+
+        :param dag_id: The DAG whose own source is wanted, when *definition* may hold more than one.
+            An importer that cannot distinguish between the DAGs of one definition ignores it.
+        """
 
     def might_contain_dag(self, definition: DagDefinition, safe_mode: bool) -> bool:
         """
-        Cheap, optional pre-check for whether a discovered definition may contain a DAG.
+        Cheap, optional pre-check for whether a definition may contain a Dag.
 
         The default returns True (keep the definition): an importer that can only tell by
-        attempting the import leaves this as-is. Importers with a cheap content heuristic
-        override it, so obvious non-DAG sources are dropped during discovery.
+        attempting the import leaves this as-is. An importer with a cheap content heuristic
+        overrides it and applies it in :meth:`list_dag_definitions`, so obvious non-Dag
+        sources never get a parse process.
         """
         return True
 
@@ -286,11 +296,14 @@ def get_file_suffix(definition: DagDefinition | str | Path) -> str | None:
 
 
 def find_file_dag_definitions(
-    bundle_path: Path,
+    root: Path,
     supported_extensions: Iterable[str],
 ) -> Iterator[FilesystemDagDefinition]:
     """
-    Discover file DAG definitions in a bundle by *identity* alone.
+    Discover file Dag definitions under ``root`` by *identity* alone.
+
+    ``root`` is normally a bundle directory; it may also be a single file, which scopes
+    discovery to that file (a zip archive is still yielded for its importer to expand).
 
     This walk decides purely from the file's name and path: the suffix,
     ``.airflowignore``, and the Python source/bytecode pairing. It never reads
@@ -298,19 +311,23 @@ def find_file_dag_definitions(
     belongs to :meth:`AbstractDagImporter.import_definition`, so importers whose
     validity can only be determined by attempting the import behave the same way.
     """
-    ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
     supported_exts = _normalize_extensions(supported_extensions)
 
+    def _is_candidate(path: Path) -> bool:
+        return path.is_file() and path.suffix.lower() in supported_exts and "__pycache__" not in path.parts
+
     def _iter_candidates() -> Iterator[Path]:
-        for file_path in find_path_from_directory(bundle_path, ".airflowignore", ignore_file_syntax):
+        if root.is_file():
+            # Scoped to one artefact. ``.airflowignore`` is not re-applied: whoever
+            # narrowed discovery to this path already walked the bundle and honoured it.
+            if _is_candidate(root):
+                yield root
+            return
+        ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
+        for file_path in find_path_from_directory(root, ".airflowignore", ignore_file_syntax):
             path = Path(file_path)
-            if not path.is_file():
-                continue
-            if path.suffix.lower() not in supported_exts:
-                continue
-            if "__pycache__" in path.parts:
-                continue
-            yield path
+            if _is_candidate(path):
+                yield path
 
     candidates = list(_iter_candidates())
 
@@ -339,25 +356,29 @@ class _ImporterSpec:
 def _parse_importer_specs(configs: Any, context: str) -> list[_ImporterSpec]:
     if not isinstance(configs, list):
         raise AirflowConfigException(
-            f"Invalid importer configuration for {context}: expected a list of dictionaries."
+            f"Invalid importer configuration for {context}: expected a list of entries."
         )
     specs: list[_ImporterSpec] = []
     for item in configs:
-        if not isinstance(item, dict):
+        # A bare classpath string is shorthand for {"classpath": ...}; the importer
+        # class then declares its own extensions and takes no kwargs.
+        entry = {"classpath": item} if isinstance(item, str) else item
+        if not isinstance(entry, dict):
             raise AirflowConfigException(
-                f"Invalid importer configuration for {context}: each entry must be a dictionary."
+                f"Invalid importer configuration for {context}: "
+                "each entry must be a dictionary or a classpath string."
             )
-        classpath = item.get("classpath")
+        classpath = entry.get("classpath")
         if not classpath:
             raise AirflowConfigException(
                 f"Missing required 'classpath' in importer configuration for {context}."
             )
-        kwargs = item.get("kwargs", {})
+        kwargs = entry.get("kwargs", {})
         if not isinstance(kwargs, dict):
             raise AirflowConfigException(
                 f"Field 'kwargs' must be a dictionary in importer configuration for {context}."
             )
-        extensions = item.get("extensions")
+        extensions = entry.get("extensions")
         if extensions is not None:
             if not isinstance(extensions, list) or any(not isinstance(ext, str) for ext in extensions):
                 raise AirflowConfigException(
@@ -388,17 +409,29 @@ class DagImporterRegistry:
     _extension_specs: dict[str, _ImporterSpec]
     _ordered_importers: list[AbstractDagImporter[Any]]
 
+    coordinator_importer_error: Exception | None
+    """The error that kept the bundle's coordinator Dag importers from being built, if any."""
+
     def __init__(self, register_defaults: bool = True) -> None:
         self._extension_importers = {}
         self._extension_specs = {}
         self._ordered_importers = []
+        self.coordinator_importer_error = None
         if register_defaults:
             self._register_default_importers()
 
     @classmethod
     def from_config(cls, bundle_name: str | None = None) -> Self:
-        """Create and configure a DagImporterRegistry with 3-tier precedence."""
+        """
+        Create and configure a DagImporterRegistry.
+
+        Importers are registered in this order, a later one taking over an extension from an
+        earlier one: the defaults, the Dag importers of the runtimes that have a configured
+        coordinator, the global ``dag_importer_configs``, then the bundle's own ``importers``.
+        """
         registry = cls(register_defaults=True)
+        if bundle_name:
+            registry._register_coordinator_importers(bundle_name)
 
         global_importers = conf.getjson("dag_processor", "dag_importer_configs", fallback=None)
         if global_importers:
@@ -416,6 +449,35 @@ class DagImporterRegistry:
 
         return registry
 
+    def _register_coordinator_importers(self, bundle_name: str) -> None:
+        """
+        Register the Dag importer of each runtime that has a coordinator in ``[sdk] coordinators``.
+
+        A coordinator configuration that cannot be loaded registers no coordinator importers, so
+        the bundle's other importers keep working. Any other error is kept in
+        :attr:`coordinator_importer_error`, which ``find_claiming_importer`` raises.
+        """
+        # circular: coordinators._dag_importer imports this module at load time
+        from airflow.sdk.coordinators._dag_importer import build_coordinator_dag_importers
+
+        try:
+            manager = get_coordinator_manager()
+        except Exception:
+            log.exception(
+                "Cannot load the [sdk] coordinators configuration; Dag bundle %r gets no coordinator "
+                "Dag importers",
+                bundle_name,
+            )
+            return
+        try:
+            importers = build_coordinator_dag_importers(manager, bundle_name)
+        except Exception as e:
+            log.exception("Cannot build the coordinator Dag importers of Dag bundle %r", bundle_name)
+            self.coordinator_importer_error = e
+            return
+        for importer in importers:
+            self.register(importer)
+
     def register(self, importer: AbstractDagImporter[Any], extensions: list[str] | None = None) -> None:
         """
         Register an importer.
@@ -423,9 +485,6 @@ class DagImporterRegistry:
         Each extension can only have one importer. If an extension is already registered,
         the new importer will override it and a warning will be logged.
         """
-        if importer not in self._ordered_importers:
-            self._ordered_importers.append(importer)
-
         if extensions is None:
             extensions = _get_importer_extensions(importer)
 
@@ -437,6 +496,9 @@ class DagImporterRegistry:
             for ext_lower in normalized_extensions:
                 self._warn_and_evict_extension(ext_lower, type(importer).__name__)
                 self._extension_importers[ext_lower] = importer
+
+        if importer not in self._ordered_importers:
+            self._ordered_importers.append(importer)
 
     def register_specs(self, configs: list[dict[str, Any]], context: str) -> None:
         """Register importer specifications from configuration dictionaries."""
@@ -455,17 +517,8 @@ class DagImporterRegistry:
         if suffix:
             if suffix in self._extension_importers:
                 return self._extension_importers[suffix]
-
             if suffix in self._extension_specs:
-                spec = self._extension_specs[suffix]
-                importer = self._instantiate_spec(spec)
-                for e, s in list(self._extension_specs.items()):
-                    if s is spec:
-                        self._extension_importers[e] = importer
-                        del self._extension_specs[e]
-                if importer not in self._ordered_importers:
-                    self._ordered_importers.append(importer)
-                return importer
+                return self._materialise_spec(self._extension_specs[suffix])
 
         for importer in reversed(self._ordered_importers):
             if importer.can_handle(definition):
@@ -482,6 +535,56 @@ class DagImporterRegistry:
     def supported_extensions(self) -> list[str]:
         """Return all registered file extensions."""
         return sorted(set(self._extension_importers) | set(self._extension_specs))
+
+    def list_dag_definitions(
+        self,
+        bundle: BaseDagBundle,
+        *,
+        safe_mode: bool = True,
+    ) -> Iterator[tuple[AbstractDagImporter[Any], DagDefinition | DagImportError]]:
+        """
+        List Dag definitions in a bundle across all registered importers.
+
+        Each item is paired with the importer that listed it, which is the one to import it
+        with: a composite importer lists definitions no extension lookup would route back to
+        it, such as the members of an archive. A :class:`DagImportError` item is a
+        discovery-time failure rather than a source to import.
+        """
+        self.warm_importers()
+
+        for importer in self._ordered_importers:
+            for item in importer.list_dag_definitions(bundle, safe_mode=safe_mode):
+                # A file whose extension was claimed by a later registration belongs to that
+                # importer; yielding it here as well would import it twice.
+                if (
+                    isinstance(item, FilesystemDagDefinition)
+                    and self._extension_importers.get(item.suffix, importer) is not importer
+                ):
+                    continue
+                yield importer, item
+
+    def warm_importers(self) -> None:
+        """
+        Instantiate every configured importer that has not been instantiated yet.
+
+        The Dag processor calls this before freezing its heap, so forked parse processes
+        share the importers instead of building them.
+        """
+        # A spec registered for several extensions appears once per extension, and
+        # materialising it drops all of them, so take one pending spec at a time.
+        while self._extension_specs:
+            self._materialise_spec(next(iter(self._extension_specs.values())))
+
+    def _materialise_spec(self, spec: _ImporterSpec) -> AbstractDagImporter[Any]:
+        """Instantiate a configured spec and take over every extension it was registered for."""
+        importer = self._instantiate_spec(spec)
+        for ext, registered in list(self._extension_specs.items()):
+            if registered is spec:
+                self._extension_importers[ext] = importer
+                del self._extension_specs[ext]
+        if importer not in self._ordered_importers:
+            self._ordered_importers.append(importer)
+        return importer
 
     @classmethod
     def reset(cls) -> None:
@@ -529,8 +632,12 @@ class DagImporterRegistry:
                 existing_name,
                 new_name,
             )
-            self._extension_importers.pop(ext, None)
+            evicted = self._extension_importers.pop(ext, None)
             self._extension_specs.pop(ext, None)
+            # An importer left with no extension would still list, and duplicate, the new owner's
+            # definitions: a composite's members are not filtered by extension ownership.
+            if evicted in self._ordered_importers and evicted not in self._extension_importers.values():
+                self._ordered_importers.remove(evicted)
 
     @staticmethod
     def _get_bundle_importers_config(bundle_name: str) -> list[dict[str, Any]] | None:
@@ -550,5 +657,10 @@ def get_importer_registry(bundle_name: str | None = None) -> DagImporterRegistry
 
 
 def reset_importer_registry() -> None:
-    """Reset cached importer registries."""
+    """
+    Reset cached importer registries.
+
+    The coordinator manager decides which Dag importers a registry holds, so it is cleared as well.
+    """
     get_importer_registry.cache_clear()
+    get_coordinator_manager.cache_clear()

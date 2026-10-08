@@ -54,7 +54,7 @@ func (m *mockXComClient) PushXCom(
 
 func (m *mockXComClient) GetXCom(
 	ctx context.Context,
-	dagId, runId, taskId string,
+	dagID, runID, taskID string,
 	mapIndex *int,
 	key string,
 	value any,
@@ -85,6 +85,10 @@ func (m *mockXComClient) DeleteVariable(ctx context.Context, key string) error {
 }
 
 func (m *mockXComClient) GetConnection(ctx context.Context, connID string) (sdk.Connection, error) {
+	panic("unimplemented")
+}
+
+func (m *mockXComClient) TaskStateStore() sdk.TaskStateStore {
 	panic("unimplemented")
 }
 

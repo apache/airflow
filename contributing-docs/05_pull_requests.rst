@@ -154,7 +154,7 @@ these guidelines:
     you can push your code to PR and see results of the tests in the CI.
 
 -   You can use any supported python version to run the tests, but the best is to check
-    if it works for the oldest supported version (Python 3.10 currently). In rare cases
+    if it works for the oldest supported version (Python 3.11 currently). In rare cases
     tests might fail with the oldest version when you use features that are available in newer Python
     versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
     useful features from newer versions.
@@ -222,6 +222,13 @@ contains suspicious changes (e.g. attempts to exfiltrate secrets, modify CI pipe
 maliciously, or inject harmful code), **all open PRs by the same author** will be closed
 and labeled ``suspicious changes detected``. A comment is posted on each PR explaining that
 the closure was triggered by suspicious changes found in the flagged PR.
+
+**What happens when a PR is closed because of the open PR limit?**
+
+When the `limit on open PRs <32_open_pull_request_limit.rst>`__ was introduced, maintainers ran a
+one-time closure of the PRs of contributors who had more than 5 open PRs, except PRs where a
+maintainer had already engaged. Those PRs are labeled ``closed because of open PR limit`` and can be
+reopened once you have a free slot.
 
 If a contributor believes any closure described above was applied in error, the appeal channel
 is the PMC private list — see the

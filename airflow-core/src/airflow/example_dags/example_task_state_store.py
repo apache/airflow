@@ -30,7 +30,7 @@ from __future__ import annotations
 import random
 import string
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from airflow.sdk import DAG, task
 from airflow.sdk.execution_time.context import NEVER_EXPIRE
@@ -66,7 +66,7 @@ with DAG(
             job_id = _submit_job()
             # Store with NEVER_EXPIRE so the job ID survives across all retries.
             task_state_store.set("job_id", job_id, retention=NEVER_EXPIRE)
-            task_state_store.set("submitted_at", datetime.now(tz=timezone.utc).isoformat())
+            task_state_store.set("submitted_at", datetime.now(tz=UTC).isoformat())
             print(f"Try {ti.try_number}: submitted job: {job_id}")
 
             # Simulate a crash after submission on the first attempt.

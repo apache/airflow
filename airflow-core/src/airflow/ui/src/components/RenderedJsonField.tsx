@@ -46,11 +46,13 @@ type Props = {
   readonly collapsed?: boolean;
   readonly content: object;
   readonly enableClipboard?: boolean;
+  /** Replaces expanding in place — for a preview whose full value lives on another page. */
+  readonly onExpand?: () => void;
 } & Omit<FlexProps, "content">;
 
 type EditorInstance = Parameters<OnMount>[0];
 
-const RenderedJsonField = ({ collapsed, content, enableClipboard = true, ...rest }: Props) => {
+const RenderedJsonField = ({ collapsed, content, enableClipboard = true, onExpand, ...rest }: Props) => {
   const contentFormatted = JSON.stringify(content, undefined, 2);
   const { t: translate } = useTranslation("common");
   const { beforeMount, theme } = useMonacoTheme();
@@ -120,7 +122,7 @@ const RenderedJsonField = ({ collapsed, content, enableClipboard = true, ...rest
   if (showBadges) {
     return (
       <Flex alignItems="center" flex={1} gap={1} minW={`${MIN_WIDTH}px`} {...rest}>
-        <JsonPreviewBadges entries={previewEntries} onExpand={() => setIsExpanded(true)} />
+        <JsonPreviewBadges entries={previewEntries} onExpand={onExpand ?? (() => setIsExpanded(true))} />
         {clipboardButton}
       </Flex>
     );
