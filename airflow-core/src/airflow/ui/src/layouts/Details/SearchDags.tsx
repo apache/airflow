@@ -16,28 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Field, Flex, Text } from "@chakra-ui/react";
+import { Flex, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { GroupBase, OptionsOrGroups, SingleValue } from "chakra-react-select";
-import { AsyncSelect } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 import { useMatches, useNavigate } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 
 import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
-import type {
-  DAGWithLatestDagRunsCollectionResponse,
-  DAGWithLatestDagRunsResponse,
-} from "openapi/requests/types.gen";
+import type { DAGWithLatestDagRunsCollectionResponse } from "openapi/requests/types.gen";
 
+import { SearchSelect } from "src/components/SearchSelect";
 import { StateBadge } from "src/components/StateBadge";
 
 import { TabEntity } from "src/constants/tab";
 import type { DagSearchOption } from "src/utils/option";
 import { getTabPath } from "src/utils/tab";
 
-import { Control } from "./SearchDagsControl";
+import { SEARCH_LIMIT, buildDagOption } from "./searchOptions";
 
 const formatOptionLabel = (option: DagSearchOption) => (
   <Flex alignItems="center" gap={2} minW={0}>
@@ -46,12 +43,18 @@ const formatOptionLabel = (option: DagSearchOption) => (
   </Flex>
 );
 
-export const SearchDags = ({ onClose }: { readonly onClose: () => void }) => {
-  const { t: translate } = useTranslation("dags");
+export const SearchDags = ({
+  dags,
+  onClose,
+}: {
+  /** Already loaded by the breadcrumb level, so opening the panel shows them straight away. */
+  readonly dags: Array<DagSearchOption>;
+  readonly onClose: () => void;
+}) => {
+  const { t: translate } = useTranslation(["dags", "common"]);
   const queryClient = useQueryClient();
   const matches = useMatches();
   const navigate = useNavigate();
-  const SEARCH_LIMIT = 10;
 
   const onSelect = (selected: SingleValue<DagSearchOption>) => {
     if (selected) {
@@ -74,13 +77,8 @@ export const SearchDags = ({ onClose }: { readonly onClose: () => void }) => {
             dagDisplayNamePrefixPattern: inputValue,
             dagRunsLimit: 1,
             limit: SEARCH_LIMIT,
-          }).then((data: DAGWithLatestDagRunsCollectionResponse) => {
-            const options = data.dags.map((dag: DAGWithLatestDagRunsResponse) => ({
-              isBackfillable: dag.is_backfillable,
-              label: dag.dag_display_name || dag.dag_id,
-              state: dag.latest_dag_runs[0]?.state ?? null,
-              value: dag.dag_id,
-            }));
+          }).then((found: DAGWithLatestDagRunsCollectionResponse) => {
+            const options = found.dags.map(buildDagOption);
 
             callback(options);
 
@@ -97,32 +95,13 @@ export const SearchDags = ({ onClose }: { readonly onClose: () => void }) => {
   );
 
   return (
-    <Field.Root>
-      <AsyncSelect
-        backspaceRemovesValue={true}
-        // The popover is the card. Drop the floating menu's own positioning and chrome so the
-        // results flow inside it directly under the input, instead of reading as a second card.
-        chakraStyles={{
-          menu: () => ({ marginTop: 2, width: "100%" }),
-          menuList: (provided) => ({
-            ...provided,
-            background: "transparent",
-            borderRadius: 0,
-            boxShadow: "none",
-            paddingInline: 0,
-            zIndex: "auto",
-          }),
-        }}
-        components={{ Control, DropdownIndicator: null }}
-        defaultOptions
-        filterOption={undefined}
-        formatOptionLabel={formatOptionLabel}
-        loadOptions={searchDagDebounced}
-        menuIsOpen
-        onChange={onSelect}
-        placeholder={translate("search.dags")}
-        value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
-      />
-    </Field.Root>
+    <SearchSelect
+      defaultOptions={dags}
+      formatOptionLabel={formatOptionLabel}
+      loadingMessage={translate("common:loading")}
+      loadOptions={searchDagDebounced}
+      onChange={onSelect}
+      placeholder={translate("search.dags")}
+    />
   );
 };
