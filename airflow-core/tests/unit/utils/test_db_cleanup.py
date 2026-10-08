@@ -903,6 +903,26 @@ class TestDBCleanup:
                 # "dagrun_id" intentionally omitted from extra_columns
             )
 
+    def test_do_delete_checks_batch_existence_without_counting_rows(self):
+        session = MagicMock(spec=Session)
+        session.get_bind.return_value.dialect.name = "sqlite"
+        session.scalars.return_value.one.return_value = False
+        _, source_table, _, query = _build_do_delete_test_objects()
+
+        _do_delete(
+            query=query,
+            orm_model=source_table,
+            skip_archive=False,
+            session=session,
+            batch_size=100,
+        )
+
+        existence_query = session.scalars.call_args.args[0]
+        compiled_query = str(existence_query.compile()).lower()
+        assert "exists" in compiled_query
+        assert "count(" not in compiled_query
+        session.execute.assert_not_called()
+
     def test_do_delete_rolls_back_before_drop_on_failure(self):
         session = MagicMock(spec=Session)
         session.get_bind.return_value.dialect.name = "mysql"
