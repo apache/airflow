@@ -23,16 +23,12 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 export class DagCodePage extends BasePage {
   public readonly editorContainer: Locator;
   public readonly editorScrollable: Locator;
-  public readonly lineNumbers: Locator;
-  public readonly syntaxTokens: Locator;
   public readonly viewLines: Locator;
 
   public constructor(page: Page) {
     super(page);
     this.editorContainer = page.locator('[role="code"]');
-    this.lineNumbers = page.locator(".monaco-editor .margin-view-overlays .line-numbers");
     this.editorScrollable = page.locator(".monaco-scrollable-element");
-    this.syntaxTokens = page.locator(".monaco-editor .view-line span span");
     this.viewLines = page.locator(".monaco-editor .view-line");
   }
 
@@ -54,27 +50,11 @@ export class DagCodePage extends BasePage {
     await expect.poll(async () => scrollable.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
   }
 
-  public async verifyLineNumbersDisplayed(): Promise<void> {
-    await this.waitForCodeReady();
-
-    await expect(this.lineNumbers.first()).toBeVisible({ timeout: 30_000 });
-    await expect(this.lineNumbers).not.toHaveCount(0);
-    await expect(this.lineNumbers.first()).toHaveText("1");
-  }
-
   public async verifySourceCodeDisplayed(): Promise<void> {
     await this.waitForCodeReady();
 
     await expect(this.viewLines.first()).toBeVisible({ timeout: 30_000 });
     await expect(this.viewLines).not.toHaveCount(0);
-  }
-
-  public async verifySyntaxHighlighting(): Promise<void> {
-    await this.waitForCodeReady();
-
-    await expect(this.syntaxTokens.first()).toBeVisible({ timeout: 30_000 });
-    await expect(this.syntaxTokens).not.toHaveCount(0);
-    await expect(this.syntaxTokens.first()).toHaveAttribute("class", /mtk\d+/);
   }
 
   private async waitForCodeReady(): Promise<void> {
