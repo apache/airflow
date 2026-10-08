@@ -146,23 +146,18 @@ class StructlogCapture:
                 self.PER_LOGGER_LEVELS[logger_name] = level
 
     def __contains__(self, target):
-        import operator
-
         if isinstance(target, str):
 
             def predicate(e):
                 return e["event"] == target
         elif isinstance(target, dict):
             # Partial comparison -- only check keys passed in
-            get = operator.itemgetter(*target.keys())
-            want = tuple(target.values())
 
             def predicate(e):
                 try:
-                    got = get(e)
                     return all(
-                        expected.match(val) if isinstance(expected, re.Pattern) else val == expected
-                        for (val, expected) in zip(got, want)
+                        expected.match(e[key]) if isinstance(expected, re.Pattern) else e[key] == expected
+                        for key, expected in target.items()
                     )
                 except Exception:
                     return False
