@@ -1371,15 +1371,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     continue
 
-                workload = workloads.ExecuteCallback.make(
-                    callback=callback,
-                    dag_run=dag_run,
-                    generator=executor.jwt_generator,
-                )
-
-                executor.queue_workload(workload, session=session)
-                callback.state = CallbackState.QUEUED
-                session.add(callback)
+                # A savepoint so that a callback the executor cannot store (e.g. a DB write rejected at
+                # flush) fails on its own instead of aborting the scheduler loop. Otherwise the rollback
+                # leaves it PENDING and every scheduler restart crashes on it again.
+                try:
+                    with session.begin_nested():
+                        workload = workloads.ExecuteCallback.make(
+                            callback=callback,
+                            dag_run=dag_run,
+                            generator=executor.jwt_generator,
+                        )
+                        executor.queue_workload(workload, session=session)
+                        callback.state = CallbackState.QUEUED
+                        session.add(callback)
+                except Exception as e:
+                    self.log.exception("Failed to queue callback %s to %s", callback.id, executor)
+                    callback.state = CallbackState.FAILED
+                    callback.output = f"Failed to queue callback: {type(e).__name__}"
+                    session.add(callback)
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
