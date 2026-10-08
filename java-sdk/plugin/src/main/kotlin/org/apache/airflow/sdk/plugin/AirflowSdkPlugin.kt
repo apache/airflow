@@ -65,9 +65,6 @@ abstract class AirflowBundleExtension {
   abstract val fatJar: Property<Boolean>
 }
 
-/** The JAR tasks a deployable bundle is assembled from, fat or thin. */
-private val BUNDLE_JAR_TASKS = setOf("jar", "shadowJar")
-
 /**
  * Gradle plugin for building Apache Airflow Java SDK bundles.
  *
@@ -147,13 +144,6 @@ class AirflowSdkPlugin : Plugin<Project> {
             task.manifest.attributes(mapOf("Main-Class" to className))
           }
         }
-        // The sources payload belongs only in the JARs a bundle is assembled from,
-        // so a sources or javadoc JAR does not carry it.
-        if (ext.mainClass.isPresent && task.name in BUNDLE_JAR_TASKS) {
-          task.dependsOn(packTask)
-          task.from(packTask.flatMap { it.sourcesDir })
-          task.manifest.attributes(mapOf(SOURCES_MANIFEST_ATTRIBUTE to SOURCES_JSON_PATH))
-        }
       }
 
       val classFiles =
@@ -199,8 +189,17 @@ class AirflowSdkPlugin : Plugin<Project> {
           }
         }
 
+      fun packSourcesInto(jarTask: String) {
+        if (!ext.mainClass.isPresent) return
+        project.tasks.named(jarTask, Jar::class.java).configure { task ->
+          task.from(packTask.flatMap { it.sourcesDir })
+          task.manifest.attributes(mapOf(SOURCES_MANIFEST_ATTRIBUTE to SOURCES_JSON_PATH))
+        }
+      }
+
       if (ext.fatJar.get()) {
         project.plugins.apply("com.gradleup.shadow")
+        packSourcesInto("shadowJar")
 
         val schemaVersionProvider =
           project.providers.provider {
@@ -242,6 +241,8 @@ class AirflowSdkPlugin : Plugin<Project> {
           task.into(project.layout.buildDirectory.dir("bundle"))
         }
       } else {
+        packSourcesInto("jar")
+
         // bundle copies the thin JAR and all runtime dependency JARs into
         // build/bundle/, mirroring what installDist puts in lib/.
         project.tasks.register("bundle", Copy::class.java) { task ->
