@@ -32,16 +32,12 @@ internal class HandleLong : Task {
   ) = Unit
 }
 
-/** A switch that chooses whatever [choice] holds. */
+/** A switch that always chooses [HandleLong]. */
 class PickPath : SwitchTask {
   override fun choose(
     context: Context,
     client: Client,
-  ): Class<out Task> = choice
-
-  companion object {
-    var choice: Class<out Task> = HandleLong::class.java
-  }
+  ): Class<out Task> = HandleLong::class.java
 }
 
 internal class SwitchTest {
@@ -164,5 +160,18 @@ internal class SwitchTest {
 
     assertEquals("reports.pick", switch.id)
     assertEquals(listOf("reports.long", "reports.pick"), dag.tasks.keys.toList())
+  }
+
+  @Test
+  @DisplayName("Should record the chosen case's task ID and skip the other case")
+  fun shouldRecordChosenTaskIdAndSkipTheOther() {
+    val (dag, switch, cases) = dagWithCases()
+    switch.Case(cases.first).Case(cases.second)
+    val pick = dag.tasks.getValue("pickPath")
+
+    val decision = pick.decider!!.decide(pick, PickPath(), taskContext(), clientWith(null).first)
+
+    assertEquals("handle_long", decision.value)
+    assertEquals(listOf("handle_short"), decision.skipped)
   }
 }
