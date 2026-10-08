@@ -65,8 +65,8 @@ workflow:
 ``` bash
 # GITHUB_REPOSITORY is set automatically in GitHub Actions so we need to override it with flag
 #
-breeze ci-image build --github-repository apache/airflow --python 3.10
-docker tag ghcr.io/apache/airflow/main/ci/python3.10 your-image-name:tag
+breeze ci-image build --github-repository apache/airflow --python 3.11
+docker tag ghcr.io/apache/airflow/main/ci/python3.11 your-image-name:tag
 ```
 
 -----

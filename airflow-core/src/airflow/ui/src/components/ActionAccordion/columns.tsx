@@ -23,6 +23,7 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { Checkbox } from "src/system-components";
 
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import type { MetaColumn } from "src/components/DataTable/types";
 import { StateBadge } from "src/components/StateBadge";
 
@@ -39,7 +40,10 @@ export type RowSelection = {
 };
 
 // Header "select all" checkbox that toggles every task instance in its table at once.
-const renderSelectAllHeader = (selection: RowSelection, table: Table<TaskInstanceResponse>) => {
+const renderSelectAllHeader = (
+  selection: RowSelection,
+  table: Table<DataTableFeatures, TaskInstanceResponse>,
+) => {
   const keys = table.getRowModel().rows.map((row) => taskInstanceKey(row.original));
   const excludedCount = keys.filter((key) => selection.excludedKeys.has(key)).length;
   const allExcluded = keys.length > 0 && excludedCount === keys.length;
@@ -78,7 +82,7 @@ export const getColumns = (
             );
           },
           enableSorting: false,
-          header: ({ table }: { table: Table<TaskInstanceResponse> }) =>
+          header: ({ table }: { table: Table<DataTableFeatures, TaskInstanceResponse> }) =>
             renderSelectAllHeader(selection, table),
           meta: { skeletonWidth: 10 },
         } satisfies MetaColumn<TaskInstanceResponse>,
@@ -87,7 +91,6 @@ export const getColumns = (
   {
     accessorKey: "task_id",
     header: translate("taskId"),
-    size: 200,
   },
   {
     accessorKey: "state",

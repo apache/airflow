@@ -94,6 +94,12 @@ def _log_cache_and_cost(logger: Logger | logging.Logger, usage: RunUsage) -> Non
         logger.info("LLM run cost: $%s (USD, best-effort)", format(usage.cost, "f"))
 
 
+# XCom key the run's resolved model name is published under, so downstream tasks and the UI
+# can read which model actually answered without parsing the decision record. See the "Model
+# name" entry in docs/observability.rst for exactly which operators publish it.
+MODEL_NAME_XCOM_KEY = "__AIRFLOW__COMMON_AI_MODEL_NAME__"
+
+
 def format_usage_for_xcom(usage: RunUsage) -> dict[str, Any]:
     """Build the XCom ``usage`` payload -- shared by the success and failure paths."""
     return {
@@ -102,6 +108,8 @@ def format_usage_for_xcom(usage: RunUsage) -> dict[str, Any]:
         "output_tokens": usage.output_tokens,
         "total_tokens": usage.total_tokens,
         "tool_calls": usage.tool_calls,
+        "cache_read_tokens": usage.cache_read_tokens,
+        "cache_write_tokens": usage.cache_write_tokens,
         # Decimal | None, stringified so XCom serialization stays lossless.
         "cost": str(usage.cost) if usage.cost is not None else None,
     }

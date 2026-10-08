@@ -41,7 +41,7 @@ Five shapes, each a job a data team actually runs:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
@@ -96,7 +96,7 @@ if SQLToolset is not None and modal is not None:
 
     @dag(
         schedule=None,
-        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        start_date=datetime(2024, 1, 1, tzinfo=UTC),
         catchup=False,
         tags=["example", "sandbox"],
     )
@@ -158,7 +158,7 @@ A-1003,Initech,2 Mar 2026,"1,100.00",DE
 # [START howto_sandbox_agent_local]
 @dag(
     schedule=None,
-    start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+    start_date=datetime(2024, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["example", "sandbox"],
 )
@@ -217,7 +217,7 @@ print(f"{len(frame)} rows, {len(frame.columns)} columns")
 
 @dag(
     schedule=None,
-    start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+    start_date=datetime(2024, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["example", "sandbox"],
     params={
@@ -296,7 +296,7 @@ if modal is not None:
 
     @dag(
         schedule=None,
-        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        start_date=datetime(2024, 1, 1, tzinfo=UTC),
         catchup=False,
         tags=["example", "sandbox"],
         params={
@@ -389,7 +389,7 @@ STAGING_URI = "file:///tmp/airflow-sandbox-example/{{ run_id }}/staging.csv"
 
 @dag(
     schedule=None,
-    start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+    start_date=datetime(2024, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["example", "sandbox"],
 )

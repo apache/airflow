@@ -127,6 +127,9 @@ jobs:
   tests-shared-distributions:
     timeout-minutes: 10
     name: Shared ${{ matrix.shared-distribution }} tests
+    env:
+      # Without a pin uv picks the runner's system Python, which can be older than Airflow supports.
+      UV_PYTHON: "${{ inputs.default-python-version }}"
     strategy:
       fail-fast: false
       matrix:
@@ -157,6 +160,9 @@ jobs:
     name: Scripts tests
     runs-on: ${{ fromJSON(inputs.runners) }}
     if: inputs.run-scripts-tests == 'true'
+    env:
+      # Without a pin uv picks the runner's system Python, which can be older than Airflow supports.
+      UV_PYTHON: "${{ inputs.default-python-version }}"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

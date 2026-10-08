@@ -25,7 +25,6 @@
         "title": "बैकफ़िल जेनरेट किया गया"
       }
     },
-    "unpause": "ट्रिगर पर {{dag_display_name}} को अनपॉज़ करें",
     "validation": {
       "datesRequired": "डेटा अंतराल प्रारंभ तिथि और समाप्ति तिथि दोनों प्रदान की जानी चाहिए।",
       "startBeforeEnd": "डेटा अंतराल प्रारंभ तिथि समाप्ति तिथि से कम या उसके बराबर होनी चाहिए।"
@@ -42,7 +41,6 @@
   },
   "close": "बंद करें",
   "configForm": {
-    "advancedOptions": "उन्नत विकल्प",
     "configJson": "विन्यास JSON",
     "invalidJson": "अमान्य JSON प्रारूप: {{errorMessage}}"
   },
@@ -151,8 +149,7 @@
         "title": "डैग रन ट्रिगर किया गया"
       }
     },
-    "triggerAgainWithConfig": "इस कॉन्फ़िग के साथ फिर से ट्रिगर करें",
-    "unpause": "ट्रिगर पर {{dagDisplayName}} को अनपॉज़ करें"
+    "triggerAgainWithConfig": "इस कॉन्फ़िग के साथ फिर से ट्रिगर करें"
   },
   "trimText": {
     "details": "विवरण",

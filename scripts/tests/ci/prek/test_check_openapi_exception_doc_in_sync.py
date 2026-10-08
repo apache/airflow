@@ -32,7 +32,7 @@ class TestCheckFile:
                 def handler():
                     raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
                 """,
-                [("handler", 404, 4)],
+                [("handler", 404, 4, None)],
                 id="no-responses-block-at-all",
             ),
             pytest.param(
@@ -44,7 +44,7 @@ class TestCheckFile:
                 def handler():
                     raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
                 """,
-                [("handler", 404, 7)],
+                [("handler", 404, 7, None)],
                 id="status-missing-from-responses",
             ),
             pytest.param(
@@ -55,7 +55,7 @@ class TestCheckFile:
                         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="bad")
                     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="taken")
                 """,
-                [("handler", 400, 5), ("handler", 409, 6)],
+                [("handler", 400, 5, None), ("handler", 409, 6, None)],
                 id="several-undeclared-statuses-are-all-reported",
             ),
             pytest.param(
@@ -64,7 +64,7 @@ class TestCheckFile:
                 def handler():
                     raise HTTPException(HTTP_404_NOT_FOUND, "nope")
                 """,
-                [("handler", 404, 4)],
+                [("handler", 404, 4, None)],
                 id="bare-status-constant",
             ),
             pytest.param(
@@ -73,7 +73,7 @@ class TestCheckFile:
                 def handler():
                     raise HTTPException(404, "nope")
                 """,
-                [("handler", 404, 4)],
+                [("handler", 404, 4, None)],
                 id="literal-status-code",
             ),
             pytest.param(
@@ -82,7 +82,7 @@ class TestCheckFile:
                 async def handler():
                     raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
                 """,
-                [("handler", 404, 4)],
+                [("handler", 404, 4, None)],
                 id="async-handler",
             ),
             pytest.param(
@@ -93,7 +93,7 @@ class TestCheckFile:
                         raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
                     fail()
                 """,
-                [("handler", 404, 5)],
+                [("handler", 404, 5, None)],
                 id="raise-nested-inside-handler",
             ),
             pytest.param(
@@ -107,7 +107,7 @@ class TestCheckFile:
                 def handler():
                     raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
                 """,
-                [("handler", 404, 9)],
+                [("handler", 404, 9, None)],
                 id="tuple-form-declares-a-different-status",
             ),
             pytest.param(
@@ -120,7 +120,7 @@ class TestCheckFile:
                 def handler():
                     raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
                 """,
-                [("handler", 404, 8)],
+                [("handler", 404, 8, None)],
                 id="router-declares-a-different-status",
             ),
             pytest.param(
@@ -134,13 +134,65 @@ class TestCheckFile:
                 def handler():
                     raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
                 """,
-                [("handler", 404, 9)],
+                [("handler", 404, 9, None)],
                 id="mapping-responses-without-the-status",
             ),
         ],
     )
     def test_violations_detected(self, write_python_file, code: str, expected):
         assert check_file(write_python_file(code)) == expected
+
+    @pytest.mark.parametrize(
+        "code, expected",
+        [
+            pytest.param(
+                """
+                def _find_it(value):
+                    if value is None:
+                        raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
+
+                @router.get("/x")
+                def handler():
+                    return _find_it(None)
+                """,
+                [("handler", 404, 7, "_find_it")],
+                id="status-raised-by-a-same-module-helper",
+            ),
+            pytest.param(
+                """
+                def _inner():
+                    raise HTTPException(status.HTTP_409_CONFLICT, "nope")
+
+                def _outer():
+                    return _inner()
+
+                @router.get("/x")
+                def handler():
+                    return _outer()
+                """,
+                [("handler", 409, 9, "_outer")],
+                id="helper-chain-is-followed-and-credited-to-the-first-hop",
+            ),
+            pytest.param(
+                """
+                def _find_it():
+                    raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
+
+                @router.get(
+                    "/x",
+                    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
+                )
+                def handler():
+                    _find_it()
+                    raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "boom")
+                """,
+                [("handler", 404, 9, "_find_it"), ("handler", 500, 11, None)],
+                id="handler-and-helper-statuses-are-both-reported",
+            ),
+        ],
+    )
+    def test_statuses_raised_through_helpers(self, write_python_file, code: str, expected):
+        assert sorted(check_file(write_python_file(code))) == sorted(expected)
 
     @pytest.mark.parametrize(
         "code",
@@ -216,6 +268,48 @@ class TestCheckFile:
                     raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
                 """,
                 id="cadwyn-versioned-router-declares-the-status",
+            ),
+            pytest.param(
+                """
+                def requires_access(method):
+                    raise HTTPException(status.HTTP_400_BAD_REQUEST, "bad")
+
+                @router.get(
+                    "/x",
+                    dependencies=[Depends(requires_access(method="GET"))],
+                )
+                def handler():
+                    return None
+                """,
+                id="security-dependency-in-the-decorator-is-not-followed",
+            ),
+            pytest.param(
+                """
+                def _helper():
+                    raise HTTPException(status.HTTP_404_NOT_FOUND, "nope")
+
+                @router.get(
+                    "/x",
+                    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+                )
+                def handler():
+                    return _helper()
+                """,
+                id="helper-status-already-declared-on-the-route",
+            ),
+            pytest.param(
+                """
+                def _a():
+                    return _b()
+
+                def _b():
+                    return _a()
+
+                @router.get("/x")
+                def handler():
+                    return _a()
+                """,
+                id="recursive-helpers-terminate",
             ),
             pytest.param(
                 """

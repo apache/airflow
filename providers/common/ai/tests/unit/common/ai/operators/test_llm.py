@@ -35,6 +35,7 @@ from airflow.providers.common.ai.mixins.approval import (
 )
 from airflow.providers.common.ai.operators import llm as llm_module
 from airflow.providers.common.ai.operators.llm import DecisionPolicy, LLMOperator
+from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -403,7 +404,23 @@ class TestLLMOperatorConfidenceGate:
             output = op.execute(context)
 
         assert Summary.model_validate(output).text == "t"
-        assert "the decision record was not pushed to XCom" in caplog.text
+        assert "'decision' was not pushed to XCom" in caplog.text
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_resolved_model_name_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):
+        """The model that actually answered is exposed on its own namespaced XCom key."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = self._result(make_mock_run_result, Summary(text="t"), None)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
+        context = MagicMock(spec=dict)
+
+        op.execute(context)
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes[MODEL_NAME_XCOM_KEY] == "jev-1.13.0"
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="a reviewing decision_policy needs the HITL flow, Airflow >= 3.1"

@@ -43,7 +43,7 @@ from airflow.providers.common.ai.utils.decision import (
     timed_out_record,
     validate_decision_policy,
 )
-from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY, log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.notifier import BaseNotifier
@@ -119,15 +119,14 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         non-numeric string -- fails the task with a ``ValueError`` naming the
         field and the rendered value, instead of silently disabling the
         limit. A ``UsageLimits`` instance passed directly is used as-is and
-        is not templated or validated. ``None`` (default) means no
-        enforcement.
+        is not templated or validated. ``None`` (default) sets no token, cost,
+        or tool-call limits, but pydantic-ai still caps the run at its default
+        ``request_limit`` of ``50`` requests.
 
-        A dict that omits ``request_limit`` still gets pydantic-ai's default of
-        ``50`` requests -- pass ``"request_limit": None`` explicitly for no
-        request cap. This matches building a ``UsageLimits`` directly, but it is
-        easy to miss when moving from ``usage_limits=None`` to a dict that only
-        sets ``cost_limit``. See :ref:`howto/operator:llm` for the full set of
-        caveats.
+        A dict that omits ``request_limit`` gets the same default of ``50``
+        requests -- pass ``"request_limit": None`` explicitly for no request
+        cap. This matches building a ``UsageLimits`` directly. See
+        :ref:`howto/operator:llm` for the full set of caveats.
     :param require_approval: If ``True``, the task defers after generating
         output and waits for a human reviewer to approve or reject via the
         HITL interface.  Default ``False``. Needs Airflow 3.1+.
@@ -158,10 +157,10 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         saying how confident the model has to be for the operator to return its answer by
         itself (``min_confidence``) and what happens otherwise (``on_uncertain``: ``"review"``
         or ``"fail"``). Confidence comes from models that report one per output field, such as
-        a classifier model (TypeSafe's), in ``provider_details``. A structured output is judged
-        by its least confident field among the fields that reported one; a field whose type
-        reports none (a bounded float, where the probability is the answer) is not gated, and
-        the record's ``confidence`` map shows which fields were compared. When no field reports
+        a decision model, in ``provider_details``. A structured output is judged by its least
+        confident field among the fields that reported one; a field whose type reports none (a
+        bounded float, where the probability is the answer) is not gated, and the record's
+        ``confidence`` map shows which fields were compared. When no field reports
         any confidence, as with a text model, the output counts as uncertain, so swapping the
         connection does not silently switch off a control the author set. Independent of
         ``require_approval``, which always asks. ``on_uncertain="review"`` needs Airflow 3.1+,
@@ -308,6 +307,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         output = result.output
 
         model_confidence = ModelConfidence.from_result(result)
+        if model_confidence.model is not None:
+            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_confidence.model)
         # Gated by the least confident of the fields that reported a confidence; a field whose type
         # reports none is not gated. A bare output type is the one field ``response``.
         fields = list(model_confidence.confidence) or ["response"]
@@ -399,8 +400,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
                 self._push_decision(context, timed_out_record(decision))
             raise
 
-    def _push_decision(self, context: Context, record: dict[str, Any]) -> None:
-        """Expose what the model proposed, its confidence, and what the gate decided, on XCom."""
+    def _push_xcom(self, context: Context, key: str, value: Any) -> None:
+        """Push ``value`` under ``key`` on XCom, honoring ``do_xcom_push`` and a missing task instance."""
         if not self.do_xcom_push:
             return
         try:
@@ -410,10 +411,14 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         push = getattr(ti, "xcom_push", None)
         if not callable(push):
             # A hand-built context (a dict, or no task instance at all) has nowhere to push to; the
-            # record is inspection output, so the run goes on without it.
-            self.log.warning("No task instance in the context; the decision record was not pushed to XCom.")
+            # value is inspection output, so the run goes on without it.
+            self.log.warning("No task instance in the context; %r was not pushed to XCom.", key)
             return
-        push(key=DECISION_XCOM_KEY, value=record)
+        push(key=key, value=value)
+
+    def _push_decision(self, context: Context, record: dict[str, Any]) -> None:
+        """Expose what the model proposed, its confidence, and what the gate decided, on XCom."""
+        self._push_xcom(context, DECISION_XCOM_KEY, record)
 
     def _finalize_decision(
         self, context: Context, event: dict[str, Any], decision: dict[str, Any] | None, *, action: Any

@@ -30,6 +30,7 @@ import { RouterLink, ActionBar } from "src/system-components";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -53,7 +54,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
-import { useAutoRefresh, hasDagRunConfig, isStatePending, useDocumentTitle } from "src/utils";
+import { formatNumber, useAutoRefresh, hasDagRunConfig, isStatePending, useDocumentTitle } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
@@ -99,7 +100,12 @@ type ColumnProps = {
   readonly translate: TFunction;
 } & GetColumnsParams;
 
-const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
+const runColumns = ({
+  dagId,
+  multiTeam,
+  open,
+  translate,
+}: ColumnProps): Array<ColumnDef<DataTableFeatures, DAGRunResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,
@@ -141,6 +147,11 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
       </RouterLink>
     ),
     header: translate("dagRun.runAfter"),
+  },
+  {
+    accessorKey: "logical_date",
+    cell: ({ row: { original } }) => <Time datetime={original.logical_date} />,
+    header: translate("logicalDate"),
   },
   {
     accessorKey: "state",
@@ -239,7 +250,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
 ];
 
 export const DagRuns = () => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { dagId } = useParams();
 
   // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
@@ -253,6 +264,7 @@ export const DagRuns = () => {
     columnVisibility: {
       dag_version: false,
       end_date: false,
+      logical_date: false,
       partition_key: false,
     },
   });
@@ -405,7 +417,7 @@ export const DagRuns = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <BulkClearDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
