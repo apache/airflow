@@ -21,6 +21,8 @@ package org.apache.airflow.sdk.internal
 
 import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.ConditionRef
+import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.Deps
@@ -45,6 +47,13 @@ private class NoopRefTask : Task {
     context: Context,
     client: Client,
   ) = Unit
+}
+
+private class NoopCondition : ConditionTask {
+  override fun decide(
+    context: Context,
+    client: Client,
+  ) = true
 }
 
 internal class RefsTest {
@@ -202,5 +211,25 @@ internal class RefsTest {
       }
 
     assertEquals("Dag 'd' has no task group 'staging'", error.message)
+  }
+
+  @Test
+  @DisplayName("Should let a view name a condition's sides in separate statements")
+  fun shouldNameConditionSidesAcrossStatements() {
+    val dag = DagDef("d")
+    Refs.record(dag, listOf("has_rows", "load", "report_empty"), emptyList()) {
+      fun hasRows() = ConditionRef.of(Refs.node<Boolean>("", TaskDef("has_rows", NoopCondition::class.java)))
+      hasRows().then(Refs.node<Unit>("", TaskDef("load", NoopRefTask::class.java)))
+      hasRows().orElse(Refs.node<Unit>("", TaskDef("report_empty", NoopRefTask::class.java)))
+    }
+
+    assertEquals(
+      listOf("load", "report_empty"),
+      dag.tasks
+        .getValue("has_rows")
+        .decider!!
+        .cases
+        .map { it.id },
+    )
   }
 }

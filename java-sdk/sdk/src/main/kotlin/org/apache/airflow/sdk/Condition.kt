@@ -94,15 +94,19 @@ class ConditionRef private constructor(
      *
      * Marks a registered task as a condition. Public so a generated wiring
      * view can call it; user code reaches a condition through [DagDef.If].
+     *
+     * A wiring view gets the same task back each time it names it, so a second
+     * call reuses the condition rather than declaring it again. [DagDef.If] and
+     * [TaskGroupRef.If] never reach that path, since registering a task rejects
+     * a duplicate ID first.
      */
     @JvmStatic
     fun of(ref: TaskRef<Boolean>): ConditionRef {
-      val sides = ConditionDef()
-      require(ref.def.decider == null) {
-        "Task '${ref.def.id}' already decides what to skip; declare it once"
+      ref.def.decider?.let { existing ->
+        require(existing is ConditionDef) { "Task '${ref.def.id}' already decides what to skip as a branch" }
+        return ConditionRef(ref, existing)
       }
-      ref.def.decider = sides
-      return ConditionRef(ref, sides)
+      return ConditionRef(ref, ConditionDef().also { ref.def.decider = it })
     }
   }
 

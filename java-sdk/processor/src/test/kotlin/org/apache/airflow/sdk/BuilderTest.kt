@@ -2260,6 +2260,47 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("let a wiring view name a condition's sides in more than one statement")
+  fun conditionNamedAcrossStatements() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+
+        import org.apache.airflow.sdk.Builder;
+
+        @Builder.Dag(id = "etl")
+        public class TestExample {
+          @Builder.Task
+          public void extract() {}
+
+          @Builder.If(id = "has_rows")
+          public boolean hasRows() {
+            return true;
+          }
+
+          @Builder.Task
+          public void load() {}
+
+          @Builder.Task
+          public void reportEmpty() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              extract().before(hasRows());
+              hasRows().then(load());
+              hasRows().orElse(reportEmpty());
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+  }
+
+  @Test
   @DisplayName("reject a condition that does not return a boolean")
   fun rejectNonBooleanCondition() {
     val compilation =

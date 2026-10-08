@@ -136,16 +136,19 @@ internal class ConditionTest {
   }
 
   @Test
-  @DisplayName("Should reject declaring one task as a condition twice")
-  fun shouldRejectDecidingTwice() {
-    val (_, condition, _) = dagWithSides()
+  @DisplayName("Should reuse the condition when a task already declared as one is declared again")
+  fun shouldReuseConditionDeclaredTwice() {
+    val (_, condition, sides) = dagWithSides()
+    val again = ConditionRef.of(TaskRef(condition.nodes().single()))
 
-    val error =
-      assertThrows(IllegalArgumentException::class.java) {
-        ConditionRef.of(TaskRef(condition.nodes().single()))
-      }
+    condition.then(sides.first)
+    again.orElse(sides.second)
 
-    assertEquals("Task 'hasRows' already decides what to skip; declare it once", error.message)
+    val error = assertThrows(IllegalArgumentException::class.java) { again.then(sides.second) }
+    assertEquals(
+      "Condition 'hasRows' already runs 'load' on its then side; name each side once",
+      error.message,
+    )
   }
 
   @Test
