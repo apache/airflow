@@ -22,7 +22,6 @@ from pathlib import PurePosixPath
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from pydantic import NonNegativeInt
 from sqlalchemy import and_, false, func, literal, select, union_all
 from sqlalchemy.orm import defaultload
 
@@ -154,7 +153,7 @@ def get_dags(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     user: GetUserDep,
-    dag_runs_limit: NonNegativeInt = 10,
+    dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
     """Get Dags with recent DagRun."""
     # Fetch Dags with their latest DagRun and apply filters
