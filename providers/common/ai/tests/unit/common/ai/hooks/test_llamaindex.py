@@ -57,7 +57,7 @@ class TestLlamaIndexHookInit:
         assert hook.llm_model == "gpt-4o"
 
     def test_model_arguments_are_keyword_only(self):
-        """``llm_model`` / ``embed_model`` sit in opposite order across the two hooks."""
+        """The model arguments cannot be passed positionally."""
         with pytest.raises(TypeError, match="positional argument"):
             LlamaIndexHook("llm", "embed", "text-embedding-3-small")
 
