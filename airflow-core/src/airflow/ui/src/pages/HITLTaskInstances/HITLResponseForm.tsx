@@ -125,7 +125,6 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
           isHITL
           key={hitlDetail.subject}
           namespace={namespace}
-          noAccordion
           setError={setErrors}
         />
       </Box>

@@ -33,7 +33,6 @@
       "connectionIdRequired": "Kapcsolat azonosító szükséges",
       "connectionIdRequirement": "Kapcsolat azonosító nem tartalmazhat szóközöket",
       "connectionTypeRequired": "Kapcsolat típus szükséges",
-      "extraFields": "Extra mezők",
       "extraFieldsJson": "Extra mezők JSON",
       "helperText": "Hiányzó kapcsolat típus? Győződjön meg róla, hogy a megfelelő Airflow Providers Package telepítésre került.",
       "helperTextForRedactedFields": "A kitakart mezők ('***') változatlanok maradnak, ha nem módosítja őket.",

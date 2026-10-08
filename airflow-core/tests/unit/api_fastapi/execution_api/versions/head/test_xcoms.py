@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import re
 import urllib.parse
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -27,15 +28,17 @@ from fastapi import FastAPI, HTTPException, Path, Request, status
 from sqlalchemy import delete, select, update
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
-from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
 from airflow.models.dagrun import DagRun
-from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
+from airflow.models.taskinstance import LegacyTaskDataOwner
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, XComModelV1, XComModelV2, xcom_entity
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.serde import deserialize, serialize
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
@@ -48,7 +51,18 @@ def reset_db():
     """Reset XCom entries."""
     with create_session() as session:
         session.execute(delete(DagRun))
-        session.execute(delete(XComModel))
+        session.execute(delete(XComModelV2))
+
+
+@pytest.fixture
+def authenticate_as(exec_app):
+    def bind(ti):
+        async def authenticated_token(request: Request) -> TIToken:
+            return TIToken(id=ti.id, claims=TIClaims(scope="execution"))
+
+        exec_app.dependency_overrides[require_auth] = authenticated_token
+
+    return bind
 
 
 @pytest.fixture
@@ -99,13 +113,10 @@ class TestXComsGetEndpoint:
         # The tests expect serialised strings because v2 serialised and stored in the DB
         ti = create_task_instance()
 
-        x = XComModel(
+        x = XComModelV2(
             key="xcom_1",
             value=db_value,
-            dag_run_id=ti.dag_run.id,
-            run_id=ti.run_id,
-            task_id=ti.task_id,
-            dag_id=ti.dag_id,
+            task_instance_id=ti.id,
         )
         session.add(x)
         session.commit()
@@ -203,14 +214,10 @@ class TestXComsGetEndpoint:
             if db_value is None:  # We don't put None to XCom.
                 continue
             ti = tis[map_index]
-            x = XComModel(
+            x = XComModelV2(
                 key="xcom_1",
                 value=db_value,
-                dag_run_id=ti.dag_run.id,
-                run_id=ti.run_id,
-                task_id=ti.task_id,
-                dag_id=ti.dag_id,
-                map_index=map_index,
+                task_instance_id=ti.id,
             )
             session.add(x)
         session.commit()
@@ -261,14 +268,10 @@ class TestXComsGetEndpoint:
             if db_value is None:  # We don't put None to XCom.
                 continue
             ti = tis[map_index]
-            x = XComModel(
+            x = XComModelV2(
                 key="xcom_1",
                 value=db_value,
-                dag_run_id=ti.dag_run.id,
-                run_id=ti.run_id,
-                task_id=ti.task_id,
-                dag_id=ti.dag_id,
-                map_index=map_index,
+                task_instance_id=ti.id,
             )
             session.add(x)
         session.commit()
@@ -307,21 +310,15 @@ class TestXComsGetEndpoint:
         earlier_ti = earlier_run.get_task_instance("task")
         later_ti = later_run.get_task_instance("task")
 
-        earlier_xcom = XComModel(
+        earlier_xcom = XComModelV2(
             key="test_key",
             value="earlier_value",
-            dag_run_id=earlier_ti.dag_run.id,
-            run_id=earlier_ti.run_id,
-            task_id=earlier_ti.task_id,
-            dag_id=earlier_ti.dag_id,
+            task_instance_id=earlier_ti.id,
         )
-        later_xcom = XComModel(
+        later_xcom = XComModelV2(
             key="test_key",
             value="later_value",
-            dag_run_id=later_ti.dag_run.id,
-            run_id=later_ti.run_id,
-            task_id=later_ti.task_id,
-            dag_id=later_ti.dag_id,
+            task_instance_id=later_ti.id,
         )
         session.add_all([earlier_xcom, later_xcom])
         session.commit()
@@ -348,19 +345,15 @@ class TestXComsGetEndpoint:
         dag_run = dag_maker.create_dagrun(run_id="runid")
         for ti in dag_run.task_instances:
             session.add(
-                XComModel(
+                XComModelV2(
                     key="xcom_1",
                     value=xcom_values[ti.map_index],
-                    dag_run_id=ti.dag_run.id,
-                    run_id=ti.run_id,
-                    task_id=ti.task_id,
-                    dag_id=ti.dag_id,
-                    map_index=ti.map_index,
+                    task_instance_id=ti.id,
                 )
             )
         session.commit()
 
-        with capture_orm_selects("xcom") as statements:
+        with capture_orm_selects("xcom_v2") as statements:
             response = client.get(f"/execution/xcoms/dag/runid/task/xcom_1/item/{offset}")
 
         assert response.status_code == 200
@@ -388,18 +381,15 @@ class TestXComsGetEndpoint:
         ]:
             dag_run = dag_maker.create_dagrun(run_id=run_id, logical_date=timezone.parse(logical_date))
             session.add(
-                XComModel(
+                XComModelV2(
                     key="xcom_1",
                     value=value,
-                    dag_run_id=dag_run.id,
-                    run_id=run_id,
-                    task_id="task",
-                    dag_id="dag",
+                    task_instance_id=dag_run.get_task_instance("task", session=session).id,
                 )
             )
         session.commit()
 
-        with capture_orm_selects("xcom") as statements:
+        with capture_orm_selects("xcom_v2") as statements:
             response = client.get(f"/execution/xcoms/dag/later_run/task/xcom_1{query_string}")
 
         assert response.status_code == 200
@@ -407,6 +397,36 @@ class TestXComsGetEndpoint:
         assert statements, "expected the endpoint to query the xcom table"
         for sql in statements:
             assert re.search(r"\bLIMIT 1\b", sql), f"XCom lookup is not bounded to one row: {sql}"
+
+    @pytest.mark.parametrize(
+        ("version", "expected_status"),
+        [("2025-04-11", 404), ("2026-06-30", 404), ("2026-10-30", 410)],
+    )
+    def test_archived_attempt_read_response_by_version(
+        self, client, exec_app, monkeypatch, create_task_instance, session, version, expected_status
+    ):
+        attempt = create_task_instance(state=TaskInstanceState.RUNNING)
+        attempt.prepare_db_for_next_try(session)
+        session.commit()
+
+        async def authenticated_token():
+            return TIToken(id=attempt.id, claims=TIClaims())
+
+        monkeypatch.delitem(exec_app.dependency_overrides, require_auth)
+        monkeypatch.setitem(exec_app.dependency_overrides, _jwt_bearer, authenticated_token)
+
+        with patch.object(
+            JWTValidator,
+            "avalidated_claims",
+            autospec=True,
+            return_value={"sub": str(attempt.id), "scope": "execution"},
+        ):
+            response = client.get(
+                f"/execution/xcoms/{attempt.dag_id}/{attempt.run_id}/{attempt.task_id}/key",
+                headers={"Airflow-API-Version": version},
+            )
+
+        assert response.status_code == expected_status, response.text
 
 
 class TestXComsSetEndpoint:
@@ -420,7 +440,7 @@ class TestXComsSetEndpoint:
             (None, None),
         ],
     )
-    def test_xcom_set(self, client, create_task_instance, session, value, expected_value):
+    def test_xcom_set(self, client, create_task_instance, authenticate_as, session, value, expected_value):
         """
         Test that XCom value is set correctly. The request body can be either:
         - a JSON string (e.g. '"value"', '{"k":"v"}', '[1]'), which is stored as-is (a string) in the DB
@@ -431,6 +451,7 @@ class TestXComsSetEndpoint:
         """
         ti = create_task_instance()
         session.commit()
+        authenticate_as(ti)
         value = serialize(value)
         response = client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
@@ -440,13 +461,7 @@ class TestXComsSetEndpoint:
         assert response.status_code == 201
         assert response.json() == {"message": "XCom successfully set"}
 
-        xcom = session.scalars(
-            select(XComModel).where(
-                XComModel.task_id == ti.task_id,
-                XComModel.dag_id == ti.dag_id,
-                XComModel.key == "xcom_1",
-            )
-        ).first()
+        xcom = XComModelV2.get_for_attempt(ti.id, "xcom_1", session=session)
         assert xcom.value == expected_value
         assert xcom.mapped_length is None, "Should not be mapped"
 
@@ -471,7 +486,9 @@ class TestXComsSetEndpoint:
             ),
         ],
     )
-    def test_xcom_round_trip(self, client, create_task_instance, session, orig_value, ser_value, deser_value):
+    def test_xcom_round_trip(
+        self, client, create_task_instance, authenticate_as, session, orig_value, ser_value, deser_value
+    ):
         """
         Test that deserialization works when XCom values are stored directly in the DB with API Server.
 
@@ -485,6 +502,7 @@ class TestXComsSetEndpoint:
 
         ti = create_task_instance()
         session.commit()
+        authenticate_as(ti)
 
         # Serialize the value to simulate the client SDK
         value = serialize(orig_value)
@@ -499,14 +517,14 @@ class TestXComsSetEndpoint:
 
         assert response.status_code == 201
 
-        stored_value = session.execute(
-            XComModel.get_many(
-                key="xcom_1",
-                dag_ids=ti.dag_id,
-                task_ids=ti.task_id,
-                run_id=ti.run_id,
-            ).with_only_columns(XComModel.value)
-        ).first()
+        read = XComModel.get_many(
+            key="xcom_1",
+            dag_ids=ti.dag_id,
+            task_ids=ti.task_id,
+            run_id=ti.run_id,
+        )
+        entity = xcom_entity(read)
+        stored_value = session.execute(read.with_only_columns(entity.value)).first()
         deserialized_value = XComModel.deserialize_value(stored_value)
 
         assert deserialized_value == deser_value
@@ -514,9 +532,10 @@ class TestXComsSetEndpoint:
         # Ensure that the deserialized value on the client side is the same as the original value
         assert deserialize(deserialized_value) == orig_value
 
-    def test_xcom_set_mapped(self, client, create_task_instance, session):
+    def test_xcom_set_mapped(self, client, create_task_instance, authenticate_as, session):
         ti = create_task_instance()
         session.commit()
+        authenticate_as(ti)
 
         value = serialize("value1")
 
@@ -529,25 +548,27 @@ class TestXComsSetEndpoint:
         assert response.status_code == 201
         assert response.json() == {"message": "XCom successfully set"}
 
-        xcom = session.scalars(
-            select(XComModel).where(
-                XComModel.task_id == ti.task_id,
-                XComModel.dag_id == ti.dag_id,
-                XComModel.key == XCOM_RETURN_KEY,
-                XComModel.map_index == -1,
-            )
-        ).first()
+        xcom = XComModelV2.get_for_attempt(ti.id, XCOM_RETURN_KEY, session=session)
         assert xcom.value == "value1"
-        assert xcom.dag_id == "dag"
-        assert xcom.run_id == "test"
-        assert xcom.task_id == "op1"
-        assert xcom.map_index == -1
+        read = XComModel.get_many(
+            run_id=ti.run_id, task_ids=ti.task_id, dag_ids=ti.dag_id, key=XCOM_RETURN_KEY
+        )
+        logical = session.scalars(read).one()
+        assert (logical.dag_id, logical.run_id, logical.task_id, logical.map_index) == (
+            ti.dag_id,
+            ti.run_id,
+            ti.task_id,
+            -1,
+        )
         assert xcom.mapped_length == 3
 
-    def test_xcom_set_mapped_rejects_non_return_value_key(self, client, create_task_instance, session):
+    def test_xcom_set_mapped_rejects_non_return_value_key(
+        self, client, create_task_instance, authenticate_as, session
+    ):
         """Only the return value expands a downstream, so a length under any other key is refused."""
         ti = create_task_instance()
         session.commit()
+        authenticate_as(ti)
 
         response = client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
@@ -558,16 +579,7 @@ class TestXComsSetEndpoint:
         assert response.status_code == 400
         assert response.json()["detail"]["reason"] == "invalid_mapped_length_key"
 
-        assert (
-            session.scalars(
-                select(XComModel).where(
-                    XComModel.task_id == ti.task_id,
-                    XComModel.dag_id == ti.dag_id,
-                    XComModel.key == "xcom_1",
-                )
-            ).one_or_none()
-            is None
-        )
+        assert XComModelV2.get_for_attempt(ti.id, "xcom_1", session=session) is None
 
     @pytest.mark.parametrize(
         ("length", "expected_status"),
@@ -577,7 +589,7 @@ class TestXComsSetEndpoint:
         ],
     )
     def test_xcom_set_downstream_of_mapped(
-        self, client, create_task_instance, session, length, expected_status
+        self, client, create_task_instance, authenticate_as, session, length, expected_status
     ):
         """
         Test that XCom value is set correctly. The value is passed as a JSON string in the request body.
@@ -586,6 +598,7 @@ class TestXComsSetEndpoint:
         """
         ti = create_task_instance()
         session.commit()
+        authenticate_as(ti)
 
         response = client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{XCOM_RETURN_KEY}",
@@ -594,13 +607,7 @@ class TestXComsSetEndpoint:
         )
         assert response.status_code == expected_status
 
-        xcom = session.scalars(
-            select(XComModel).where(
-                XComModel.task_id == ti.task_id,
-                XComModel.dag_id == ti.dag_id,
-                XComModel.key == XCOM_RETURN_KEY,
-            )
-        ).one_or_none()
+        xcom = XComModelV2.get_for_attempt(ti.id, XCOM_RETURN_KEY, session=session)
         if expected_status < 400:
             assert xcom.mapped_length == length
         else:
@@ -631,7 +638,9 @@ class TestXComsSetEndpoint:
             ('["value1"]', '["value1"]'),
         ],
     )
-    def test_xcom_roundtrip(self, client, create_task_instance, session, value, expected_value):
+    def test_xcom_roundtrip(
+        self, client, create_task_instance, authenticate_as, session, value, expected_value
+    ):
         """
         Test that XCom value is set and retrieved correctly using API.
 
@@ -644,18 +653,13 @@ class TestXComsSetEndpoint:
 
         value = serialize(value)
         session.commit()
+        authenticate_as(ti)
         client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/test_xcom_roundtrip",
             json=value,
         )
 
-        xcom = session.scalars(
-            select(XComModel).where(
-                XComModel.task_id == ti.task_id,
-                XComModel.dag_id == ti.dag_id,
-                XComModel.key == "test_xcom_roundtrip",
-            )
-        ).first()
+        xcom = XComModelV2.get_for_attempt(ti.id, "test_xcom_roundtrip", session=session)
         assert xcom.value == expected_value
 
         response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/test_xcom_roundtrip")
@@ -663,36 +667,53 @@ class TestXComsSetEndpoint:
         assert response.status_code == 200
         assert XComResponse.model_validate_json(response.read()).value == expected_value
 
-    def test_xcom_dag_result(self, client, create_task_instance, session):
+    def test_xcom_dag_result(self, client, create_task_instance, authenticate_as, session):
         """
         Test that the dag_result flag propagates to XComModel.
         """
         ti = create_task_instance()
+        session.commit()
+        authenticate_as(ti)
         client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/return_value",
             params={"dag_result": True},
             json=123,
         )
 
-        dag_result = session.scalar(
-            select(XComModel.dag_result).where(
-                XComModel.task_id == ti.task_id,
-                XComModel.dag_id == ti.dag_id,
-                XComModel.key == "return_value",
-            )
-        )
+        dag_result = XComModelV2.get_for_attempt(ti.id, "return_value", session=session).dag_result
         assert dag_result is True
 
 
 class TestXComsDeleteEndpoint:
-    def test_xcom_delete_endpoint(self, client, create_task_instance, session):
+    def test_xcom_delete_endpoint(self, client, create_task_instance, authenticate_as, session):
         """Test that XCom value is deleted when Delete API is called."""
         ti = create_task_instance()
         ti.xcom_push(key="xcom_1", value='"value1"', session=session)
+        session.add(
+            LegacyTaskDataOwner(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index,
+                task_instance_id=ti.id,
+            )
+        )
+        session.add(
+            XComModelV1(
+                dag_run_id=ti.dag_run.id,
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index,
+                key="xcom_1",
+                value="legacy",
+            )
+        )
 
         ti1 = create_task_instance(dag_id="my_dag_1", task_id="task_1")
         ti1.xcom_push(key="xcom_1", value='"value2"', session=session)
         session.commit()
+        authenticate_as(ti)
 
         xcoms = session.scalars(select(XComModel).where(XComModel.key == "xcom_1")).all()
         assert xcoms is not None
@@ -703,23 +724,10 @@ class TestXComsDeleteEndpoint:
         assert response.status_code == 200
         assert response.json() == {"message": "XCom with key: xcom_1 successfully deleted."}
 
-        xcom_ti = session.scalars(
-            select(XComModel).where(
-                XComModel.task_id == ti.task_id,
-                XComModel.dag_id == ti.dag_id,
-                XComModel.key == "xcom_1",
-            )
-        ).first()
-        assert xcom_ti is None
-
-        xcom_ti = session.scalars(
-            select(XComModel).where(
-                XComModel.task_id == ti1.task_id,
-                XComModel.dag_id == ti1.dag_id,
-                XComModel.key == "xcom_1",
-            )
-        ).first()
-        assert xcom_ti is not None
+        with create_session(scoped=False) as verify:
+            assert XComModelV2.get_for_attempt(ti.id, "xcom_1", session=verify) is None
+            assert verify.get(XComModelV1, (ti.dag_run.id, ti.task_id, ti.map_index, "xcom_1")) is None
+            assert XComModelV2.get_for_attempt(ti1.id, "xcom_1", session=verify) is not None
 
 
 class TestXComTeamAccess:
@@ -755,15 +763,12 @@ class TestXComTeamAccess:
         return dr, ti
 
     @staticmethod
-    def _insert_xcom(session, dag_run, dag_id, key="k", value="v"):
+    def _insert_xcom(session, dag_run, key="k", value="v"):
         session.add(
-            XComModel(
+            XComModelV2(
                 key=key,
                 value=value,
-                dag_run_id=dag_run.id,
-                run_id=dag_run.run_id,
-                task_id="task",
-                dag_id=dag_id,
+                task_instance_id=dag_run.get_task_instance("task", session=session).id,
             )
         )
         session.commit()
@@ -784,7 +789,7 @@ class TestXComTeamAccess:
         _, requester_ti = self._make_dag(session, dag_maker, f"req_{uuid4().hex}", "team_a")
         target_dag = f"tgt_{uuid4().hex}"
         target_dr, _ = self._make_dag(session, dag_maker, target_dag, "team_b")
-        self._insert_xcom(session, target_dr, target_dag)
+        self._insert_xcom(session, target_dr)
         self._authenticate_as(exec_app, requester_ti.id)
 
         with conf_vars({("core", "multi_team"): "False"}):
@@ -797,7 +802,7 @@ class TestXComTeamAccess:
         """A task may read, write, and delete XCom within its own team."""
         dag_id = f"dag_{uuid4().hex}"
         dag_run, ti = self._make_dag(session, dag_maker, dag_id, "team_a")
-        self._insert_xcom(session, dag_run, dag_id, key="existing", value="v")
+        self._insert_xcom(session, dag_run, key="existing", value="v")
         self._authenticate_as(exec_app, ti.id)
 
         with conf_vars({("core", "multi_team"): "True"}):
@@ -815,7 +820,7 @@ class TestXComTeamAccess:
         _, requester_ti = self._make_dag(session, dag_maker, f"req_{uuid4().hex}", "team_a")
         target_dag = f"tgt_{uuid4().hex}"
         target_dr, _ = self._make_dag(session, dag_maker, target_dag, "team_a")
-        self._insert_xcom(session, target_dr, target_dag)
+        self._insert_xcom(session, target_dr)
         self._authenticate_as(exec_app, requester_ti.id)
 
         with conf_vars({("core", "multi_team"): "True"}):
@@ -844,7 +849,7 @@ class TestXComTeamAccess:
         _, requester_ti = self._make_dag(session, dag_maker, f"req_{uuid4().hex}", "team_a")
         global_dag = f"global_{uuid4().hex}"
         global_dr, _ = self._make_dag(session, dag_maker, global_dag, None)
-        self._insert_xcom(session, global_dr, global_dag, key="k", value="v")
+        self._insert_xcom(session, global_dr, key="k", value="v")
         self._authenticate_as(exec_app, requester_ti.id)
 
         with conf_vars({("core", "multi_team"): "True"}):
@@ -862,7 +867,7 @@ class TestXComTeamAccess:
         self._make_dag(session, dag_maker, team_dag, "team_b")
         global_dag = f"global_{uuid4().hex}"
         global_dr, _ = self._make_dag(session, dag_maker, global_dag, None)
-        self._insert_xcom(session, global_dr, global_dag, key="k", value="v")
+        self._insert_xcom(session, global_dr, key="k", value="v")
 
         with conf_vars({("core", "multi_team"): "True"}):
             forbidden = client.get(self._url(team_dag, key="k"))

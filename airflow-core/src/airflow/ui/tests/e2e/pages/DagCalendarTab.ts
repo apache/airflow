@@ -116,6 +116,9 @@ export class DagCalendarTab extends BasePage {
 
   public async switchToFailedView(): Promise<void> {
     await this.failedToggle.click();
+
+    await expect(this.page).toHaveURL(/calendar-view-mode=failed/u);
+    await expect(this.activeCells.first()).toHaveAttribute("data-view-mode", "failed");
   }
 
   public async switchToHourly(): Promise<void> {
@@ -127,6 +130,8 @@ export class DagCalendarTab extends BasePage {
 
   public async switchToTotalView(): Promise<void> {
     await this.totalToggle.click();
+
+    await expect(this.page).toHaveURL(/calendar-view-mode=total/u);
   }
 
   private async waitForCalendarReady(): Promise<void> {

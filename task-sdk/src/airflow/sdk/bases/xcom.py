@@ -554,7 +554,6 @@ class BaseXCom:
             run_id=run_id,
             map_index=map_index,
         )
-        cls.purge(xcom_result)
         SUPERVISOR_COMMS.send(
             DeleteXCom(
                 key=key,
@@ -564,3 +563,4 @@ class BaseXCom:
                 map_index=map_index,
             ),
         )
+        cls.purge(xcom_result)

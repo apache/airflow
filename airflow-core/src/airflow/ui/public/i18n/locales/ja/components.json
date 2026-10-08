@@ -21,7 +21,6 @@
         "title": "過去分再実行処理を生成しました"
       }
     },
-    "unpause": "{{dag_display_name}} がトリガーされると一時停止を解除します",
     "validation": {
       "datesRequired": "データ範囲の開始日と終了日は必須です",
       "startBeforeEnd": "データ範囲の開始日は終了日以前である必要があります"
@@ -38,7 +37,6 @@
   },
   "close": "閉じる",
   "configForm": {
-    "advancedOptions": "詳細設定",
     "configJson": "JSON の設定",
     "invalidJson": "無効な JSON 形式: {{errorMessage}}"
   },
@@ -127,8 +125,7 @@
         "description": "Dag の実行が正常にトリガーされました。",
         "title": "Dag の実行がトリガーされました"
       }
-    },
-    "unpause": "{{dagDisplayName}} トリガーで停止を解除します"
+    }
   },
   "trimText": {
     "details": "詳細",

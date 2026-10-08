@@ -35,7 +35,6 @@
         "title": "Reompliment generat"
       }
     },
-    "unpause": "Reactivar {{dag_display_name}} a l'executar",
     "validation": {
       "datesRequired": "S'ha de proporcionar tant la data d'inici com la data de finalització.",
       "startBeforeEnd": "La data d'inici de l'interval de dates ha de ser anterior o igual a la data de finalització de l'interval de dates."
@@ -53,7 +52,6 @@
   },
   "close": "Tancar",
   "configForm": {
-    "advancedOptions": "Opcions avançades",
     "configJson": "Configuració JSON",
     "invalidJson": "Format JSON no vàlid: {{errorMessage}}"
   },
@@ -175,8 +173,7 @@
         "title": "Execució del Dag correcta"
       }
     },
-    "triggerAgainWithConfig": "Tornar a executar amb aquesta configuració",
-    "unpause": "Reactivar {{dagDisplayName}} a l'executar"
+    "triggerAgainWithConfig": "Tornar a executar amb aquesta configuració"
   },
   "trimText": {
     "details": "Detalls",

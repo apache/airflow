@@ -1125,6 +1125,13 @@ class SetRenderedMapIndex(BaseModel):
     type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
 
 
+class SetExecutionTimeout(BaseModel):
+    """Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process."""
+
+    timeout_seconds: Annotated[float, Field(gt=0)]
+    type: Literal["SetExecutionTimeout"] = "SetExecutionTimeout"
+
+
 class TriggerDagRun(TriggerDAGRunPayload):
     dag_id: str
     run_id: Annotated[str, Field(title="Dag Run Id")]
@@ -1141,6 +1148,12 @@ class GetDagRunState(BaseModel):
     dag_id: str
     run_id: str
     type: Literal["GetDagRunState"] = "GetDagRunState"
+
+
+class UpdateDagRunNote(BaseModel):
+    ti_id: UUID
+    note: str | None
+    type: Literal["UpdateDagRunNote"] = "UpdateDagRunNote"
 
 
 class GetPreviousDagRun(BaseModel):
@@ -1323,6 +1336,7 @@ ToSupervisor = Annotated[
     | RetryTask
     | SetAssetStateStoreByName
     | SetAssetStateStoreByUri
+    | SetExecutionTimeout
     | SetRenderedFields
     | SetRenderedMapIndex
     | SetTaskStateStore
@@ -1332,6 +1346,7 @@ ToSupervisor = Annotated[
     | ValidateInletsAndOutlets
     | TaskState
     | TriggerDagRun
+    | UpdateDagRunNote
     | DeleteVariable
     | ResendLoggingFD
     | CreateHITLDetailPayload

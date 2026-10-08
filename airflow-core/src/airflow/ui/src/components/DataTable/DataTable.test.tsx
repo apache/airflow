@@ -18,16 +18,17 @@
  */
 import { Text } from "@chakra-ui/react";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ChakraWrapper } from "src/utils/ChakraWrapper.tsx";
 
 import { DataTable } from "./DataTable.tsx";
+import type { DataTableFeatures } from "./features.ts";
 import type { CardDef } from "./types.ts";
 
-const columns: Array<ColumnDef<{ name: string }>> = [
+const columns: Array<ColumnDef<DataTableFeatures, { name: string }>> = [
   {
     accessorKey: "name",
     cell: (info) => info.getValue(),
@@ -36,7 +37,7 @@ const columns: Array<ColumnDef<{ name: string }>> = [
 ];
 
 // The columns menu is only shown by default once a table has many columns
-const wideColumns: Array<ColumnDef<{ name: string }>> = [
+const wideColumns: Array<ColumnDef<DataTableFeatures, { name: string }>> = [
   ...columns,
   ...["Second", "Third", "Fourth", "Fifth", "Sixth"].map((header) => ({
     cell: () => header,
@@ -81,39 +82,6 @@ describe("DataTable", () => {
     expect(screen.getByText("John Doe")).toBeInTheDocument();
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
   });
-
-  it.each([
-    { enableMultiSort: undefined, expected: [{ desc: false, id: "Second" }] },
-    {
-      enableMultiSort: true,
-      expected: [
-        { desc: false, id: "name" },
-        { desc: false, id: "Second" },
-      ],
-    },
-  ])(
-    "shift-click adds a secondary sort only when enableMultiSort=$enableMultiSort",
-    ({ enableMultiSort, expected }) => {
-      const sortOnStateChange = vi.fn();
-
-      render(
-        <DataTable
-          columns={[...columns, { accessorKey: "name", header: "Second", id: "Second" }]}
-          data={data}
-          enableMultiSort={enableMultiSort}
-          initialState={{ pagination, sorting: [{ desc: false, id: "name" }] }}
-          modelName="task"
-          onStateChange={sortOnStateChange}
-          total={2}
-        />,
-        { wrapper: ChakraWrapper },
-      );
-
-      fireEvent.click(screen.getByText("Second", { selector: "button" }), { shiftKey: true });
-
-      expect(sortOnStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ sorting: expected }));
-    },
-  );
 
   it("disables previous page button on first page", () => {
     render(

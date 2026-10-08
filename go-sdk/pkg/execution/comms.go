@@ -121,7 +121,7 @@ func (c *CoordinatorComm) SendRequest(id int64, body any) error {
 //
 // If the response carries an error (either as the third element of a 3-tuple
 // frame or as a body whose "type" is "ErrorResponse") it is returned as an
-// *ApiError. If the dispatcher's read loop has terminated, the underlying read
+// *APIError. If the dispatcher's read loop has terminated, the underlying read
 // error is returned wrapped in ErrDispatcherClosed.
 //
 // On success it returns the response body's raw msgpack bytes; the caller
@@ -248,15 +248,20 @@ func (c *CoordinatorComm) readLoop() {
 	}
 }
 
-// ApiError represents an error returned by the supervisor over the comm socket.
-type ApiError struct {
+// APIError represents an error returned by the supervisor over the comm socket.
+type APIError struct {
 	Err    string
 	Detail any
 }
 
-func (e *ApiError) Error() string {
+func (e *APIError) Error() string {
 	if e.Detail != nil {
 		return fmt.Sprintf("[%s] %v", e.Err, e.Detail)
 	}
 	return e.Err
 }
+
+// Deprecated: Use APIError.
+//
+//lint:ignore ST1003 kept so code that type-asserts *execution.ApiError still compiles
+type ApiError = APIError
