@@ -54,6 +54,18 @@ public class AnnotationExample {
     log.log(INFO, "Loaded {0}", transformed);
   }
 
+  @Builder.Task(id = "load_empty")
+  public void loadEmpty() {
+    log.log(INFO, "Nothing to load");
+  }
+
+  // A condition: its boolean picks one of the two loads, and the other is
+  // skipped.
+  @Builder.If(id = "has_rows")
+  public boolean hasRows(long transformed) {
+    return transformed > 0;
+  }
+
   // A task group: everything it declares is prefixed with its id, so this is
   // the task "checks.audit".
   @Builder.TaskGroup(id = "checks")
@@ -70,7 +82,8 @@ public class AnnotationExample {
   static class Wiring implements AnnotationExampleDeps {
     void depends() {
       var extracted = extract();
-      load(transform(extracted, lit(1.5)));
+      var transformed = transform(extracted, lit(1.5));
+      hasRows(transformed).then(load(transformed)).orElse(loadEmpty());
       // Ordering-only edge: the checks group runs after extract, with no data
       // flowing.
       extracted.before(checks());

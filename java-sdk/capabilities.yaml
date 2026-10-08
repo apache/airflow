@@ -107,7 +107,9 @@ capabilities:
     supported: true
     since: "3.4"
   branching:
-    supported: false
+    supported: true
+    since: "3.4"
+    note: "DagDef.If / @Builder.If"
   dag-test:
     supported: false
   task-group:

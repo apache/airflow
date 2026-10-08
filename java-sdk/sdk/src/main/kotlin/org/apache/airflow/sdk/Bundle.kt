@@ -83,11 +83,21 @@ class Bundle(
             "that is not registered in the same Dag"
         }
       }
+      def.decider?.let { decider ->
+        decider.describe(def)?.let { throw IllegalArgumentException("$it, in Dag '${dag.id}'") }
+        for (case in decider.cases) {
+          require(dag.tasks[case.id] === case) {
+            "Task '$taskId' in Dag '${dag.id}' can run task '${case.id}' " +
+              "that is not registered in the same Dag"
+          }
+        }
+      }
     }
     checkNoCycle(dag)
     require(dags.putIfAbsent(dag.id, dag) == null) {
       "Dags in bundle have duplicate ID: ${dag.id}"
     }
+    dag.registered = true
     return this
   }
 

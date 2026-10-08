@@ -581,6 +581,39 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |  )
             |
             |  /**
+            |   * Marks a task method whose `boolean` picks one of two tasks; the
+            |   * other is skipped.
+            |   *
+            |   * The method is an ordinary task method that returns `boolean`. Its
+            |   * wiring-view method returns a [ConditionRef] rather than a
+            |   * [TaskRef], so each side is named where the Dag is wired:
+            |   *
+            |   * ```java
+            |   * @Builder.If(id = "has_rows")
+            |   * public boolean hasRows(long rows) { return rows > 0; }
+            |   *
+            |   * @Builder.Deps
+            |   * static class Wiring implements EtlDeps {
+            |   *   void depends() { hasRows(extract()).then(load()).orElse(reportEmpty()); }
+            |   * }
+            |   * ```
+            |   *
+            |   * The condition skips only the side not taken, so a task that runs
+            |   * after both sides needs a trigger rule that tolerates one skipped
+            |   * upstream, such as `none_failed_min_one_success`.
+            |   *
+            |   * Configuration attributes are [Task]'s, and apply to the deciding
+            |   * task.
+            |   */
+            |  @Target(AnnotationTarget.FUNCTION)
+            |  @MustBeDocumented
+            |  annotation class If(
+            |    /** Task ID. Empty derives it from the annotated function's name. */
+            |    val id: String = "",
+            |${attrLines(taskFields)}
+            |  )
+            |
+            |  /**
             |   * Marks a method as the Java body of a task the Python Dag file
             |   * declares with `@task.stub`.
             |   *
