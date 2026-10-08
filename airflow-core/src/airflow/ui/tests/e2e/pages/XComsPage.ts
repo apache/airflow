@@ -27,16 +27,12 @@ export class XComsPage extends BasePage {
   }
 
   public readonly addFilterButton: Locator;
-  public readonly collapseAllButton: Locator;
-  public readonly expandAllButton: Locator;
   public readonly tableRows: Locator;
   public readonly xcomsTable: Locator;
 
   public constructor(page: Page) {
     super(page);
     this.addFilterButton = page.getByTestId("add-filter-button");
-    this.collapseAllButton = page.getByTestId("collapse-all-button");
-    this.expandAllButton = page.getByTestId("expand-all-button");
     this.xcomsTable = page.getByTestId("table-list");
     this.tableRows = this.xcomsTable.locator(DATA_ROWS);
   }
@@ -96,17 +92,6 @@ export class XComsPage extends BasePage {
 
       await expect(dagIdLink).toContainText(dagDisplayNamePattern, { ignoreCase: true });
     }
-  }
-
-  public async verifyExpandCollapse(): Promise<void> {
-    await this.navigate();
-
-    await expect(async () => {
-      await this.expandAllButton.first().click({ timeout: 5000 });
-      await expect(this.collapseAllButton.first()).toBeVisible({ timeout: 3000 });
-    }).toPass({ intervals: [2000], timeout: 15_000 });
-
-    await this.collapseAllButton.first().click();
   }
 
   public async verifyKeyPatternFiltering(keyPattern: string): Promise<void> {

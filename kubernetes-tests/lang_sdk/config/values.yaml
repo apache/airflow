@@ -50,6 +50,10 @@ scheduler:
 # Configure it here (dagProcessor.dagBundleConfigList) rather than overriding
 # config.dag_processor.dag_bundle_config_list directly -- the chart renders the config from this and
 # it is the recommended, drift-safe path.
+#
+# go-task-handlers / java-task-handlers are the coordinators' task_handler_bundle_name bundles: the
+# worker pod's init container stages each artifact bucket into these paths (stage_artifacts.py).
+# They exist only in the worker pods, so the dag-processor finds no files in them.
 dagProcessor:
   dagBundleConfigList:
     - name: dags-folder
@@ -60,6 +64,14 @@ dagProcessor:
       kwargs:
         bucket_name: "dags"
         aws_conn_id: "aws_localstack"
+    - name: go-task-handlers
+      classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+      kwargs:
+        path: "/opt/airflow/artifacts/go-artifacts"
+    - name: java-task-handlers
+      classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+      kwargs:
+        path: "/opt/airflow/artifacts/java-artifacts"
 
 config:
   # Route the golang/java queues to their coordinators, each carrying an
@@ -70,5 +82,5 @@ config:
     # Single-line JSON: airflow.cfg is an ini file, so a value with embedded
     # newlines would break the rendered configmap.
     # yamllint disable-line rule:line-length
-    coordinators: '{"go-sdk": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"executables_root": ["/opt/airflow/artifacts/go-artifacts"]}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_golang.yaml"}}, "java-sdk": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"jars_root": ["/opt/airflow/artifacts/java-artifacts"]}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_java.yaml", "worker_container_repository": "lang-sdk-java-worker", "worker_container_tag": "latest"}}}'
+    coordinators: '{"go-sdk": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"task_handler_bundle_name": "go-task-handlers"}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_golang.yaml"}}, "java-sdk": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"task_handler_bundle_name": "java-task-handlers"}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_java.yaml", "worker_container_repository": "lang-sdk-java-worker", "worker_container_tag": "latest"}}}'
     queue_to_coordinator: '{"golang": "go-sdk", "java": "java-sdk"}'

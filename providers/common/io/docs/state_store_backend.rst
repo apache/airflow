@@ -18,7 +18,7 @@
 Object Storage State Store Backend
 ===================================
 
-The default state store backend is :class:`~airflow.state.metastore.MetastoreStateBackend`, which persists
+The default state store backend is :class:`~airflow.state.metastore.MetastoreBackend`, which persists
 task and asset state in the Airflow metadata database via the API Server's Execution API. For larger values,
 you may want to store state on object storage directly from the task instead.
 

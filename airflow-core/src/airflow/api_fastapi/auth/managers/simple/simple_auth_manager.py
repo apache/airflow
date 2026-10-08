@@ -33,6 +33,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import select
 from termcolor import colored
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -41,8 +42,11 @@ from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
+from airflow.models.asset import AssetModel
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
     from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -309,6 +313,32 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             user=user,
         )
 
+    @provide_session
+    def get_authorized_assets(
+        self,
+        *,
+        user: SimpleAuthManagerUser,
+        method: ResourceMethod = "GET",
+        session: Session = NEW_SESSION,
+    ) -> set[int]:
+        """
+        Get the ids of the assets the user has access to.
+
+        Simple auth manager authorizes assets at the role level: ``is_authorized_asset`` ignores the
+        asset details, so one check decides the whole listing. The default per-asset loop would
+        re-evaluate that same decision once per row.
+
+        This relies on ``is_authorized_asset`` not reading ``details``. If it starts to, or a subclass
+        overrides ``filter_authorized_assets``, remove or adjust this override.
+
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the session
+        """
+        if not self.is_authorized_asset(method=method, user=user):
+            return set()
+        return set(session.scalars(select(AssetModel.id)))
+
     def is_authorized_pool(
         self,
         *,
@@ -355,11 +385,12 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self, *, access_view: AccessView, user: SimpleAuthManagerUser, team_name: str | None = None
     ) -> bool:
         # Views covering records that have no per-Dag key to authorize on are admin-only --
-        # import errors for files with no registered Dag, and audit log rows not tied to a
-        # Dag. Every other view stays readable by viewers.
+        # import errors for files with no registered Dag, audit log rows not tied to a Dag, and
+        # reparsing a file with no registered Dag. Every other view stays readable by viewers.
         allow_role = (
             SimpleAuthManagerRole.ADMIN
-            if access_view in (AccessView.IMPORT_ERRORS_ALL, AccessView.AUDIT_LOGS_ALL)
+            if access_view
+            in (AccessView.IMPORT_ERRORS_ALL, AccessView.AUDIT_LOGS_ALL, AccessView.REPARSE_ALL)
             else SimpleAuthManagerRole.VIEWER
         )
         return self._is_authorized(method="GET", allow_role=allow_role, user=user, team_name=team_name)
@@ -385,10 +416,6 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
         if is_simple_auth_manager_all_admins:
             # In all-admin mode, everyone is allowed
-            return True
-
-        # If no assigned_users specified, allow access
-        if not assigned_users:
             return True
 
         # Delegate to parent class for the actual authorization check

@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from json import JSONDecodeError
+
 from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
+from starlette.requests import ClientDisconnect
 
 from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody
 from airflow.api_fastapi.common.headers import HeaderContentTypeJsonOrForm
@@ -29,20 +32,61 @@ async def parse_login_body(
     request: Request,
     content_type: HeaderContentTypeJsonOrForm,
 ) -> LoginBody:
-    try:
-        if content_type == Mimetype.JSON:
+    # ``/token`` takes its body through this dependency rather than declaring one, so FastAPI
+    # parses no body for it and the reads below are the only parse. The route is unauthenticated,
+    # so anything left unhandled here is a 500 that any caller can reach without credentials.
+    if content_type == Mimetype.JSON:
+        try:
             body = await request.json()
-        elif content_type == Mimetype.FORM:
-            form = await request.form()
-            body = {
-                "username": form.get("username"),
-                "password": form.get("password"),
-            }
-        else:
+        except JSONDecodeError as e:
+            # This arm and the next are the chain FastAPI runs around its own ``request.json()``,
+            # so an unreadable body gets the same status here as on ``/token/cli``, where the
+            # body is declared and FastAPI validates it natively.
+            raise RequestValidationError(
+                [{"type": "json_invalid", "loc": ["body", e.pos], "msg": "JSON decode error"}]
+            ) from e
+        except Exception as e:
+            # ``json.loads`` also raises UnicodeDecodeError, a bare ValueError (a number over
+            # ``int_max_str_digits``) and RecursionError. A server-side failure such as
+            # MemoryError is reported as a client error too, which is the trade FastAPI makes
+            # at the same point.
             raise HTTPException(
-                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail="Unsupported Media Type",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="There was an error parsing the body",
+            ) from e
+        if not isinstance(body, dict):
+            # Valid JSON, but a list, scalar or null cannot be splatted into the model below.
+            raise RequestValidationError(
+                [
+                    {
+                        "type": "model_attributes_type",
+                        "loc": ["body"],
+                        "msg": "Input should be a valid dictionary or object to extract fields from",
+                    }
+                ]
             )
+    elif content_type == Mimetype.FORM:
+        try:
+            form = await request.form()
+        except ClientDisconnect as e:
+            # Only the transport failure is translated. Starlette reports its own form-parser
+            # limits as a 400 carrying a specific detail ("Too many fields..."), so those are
+            # left to propagate rather than be flattened into the generic message above.
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="There was an error parsing the body",
+            ) from e
+        body = {
+            "username": form.get("username"),
+            "password": form.get("password"),
+        }
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported Media Type",
+        )
+
+    try:
         return LoginBody(**body)
     except ValidationError as e:
         raise RequestValidationError(repr(e))

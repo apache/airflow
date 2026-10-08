@@ -1510,7 +1510,13 @@ class S3Hook(AwsBaseHook):
             for retry in range(max_retries):
                 bucket_keys = self.list_keys(bucket_name=bucket_name)
                 if not bucket_keys:
-                    break
+                    try:
+                        self.conn.delete_bucket(Bucket=bucket_name)
+                        return
+                    except ClientError as e:
+                        if e.response["Error"]["Code"] != "BucketNotEmpty":
+                            raise
+                        continue
                 if retry:  # Avoid first loop
                     time.sleep(500)
 

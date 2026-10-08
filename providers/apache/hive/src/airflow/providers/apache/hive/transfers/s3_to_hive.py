@@ -90,7 +90,7 @@ class S3ToHiveOperator(BaseOperator):
     :param select_expression: S3 Select expression
     """
 
-    template_fields: Sequence[str] = ("s3_key", "partition", "hive_table")
+    template_fields: Sequence[str] = ("s3_key", "partition", "hive_table", "aws_conn_id", "hive_cli_conn_id")
     template_ext: Sequence[str] = ()
     ui_color = "#a0e08c"
 

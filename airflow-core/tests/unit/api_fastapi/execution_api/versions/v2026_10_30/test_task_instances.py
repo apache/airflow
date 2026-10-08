@@ -18,7 +18,15 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.app import _jwt_generator
+from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.trigger import Trigger
+from airflow.models.xcom import XComModelV2
 from airflow.sdk import task
 from airflow.utils.state import State
 
@@ -27,6 +35,167 @@ from tests_common.test_utils.db import clear_db_runs
 pytestmark = pytest.mark.db_test
 
 TIMESTAMP_STR = "2024-09-30T12:00:00Z"
+
+
+@pytest.mark.parametrize(
+    ("version", "expected_status"), [("2025-04-11", 404), ("2026-06-30", 404), ("2026-10-30", 410)]
+)
+def test_retired_state_report_response_by_version(
+    client, session, create_task_instance, version, expected_status
+):
+    ti = create_task_instance(task_id="retired_state_report", state=State.RUNNING)
+    ti.try_number = 1
+    old_id = ti.id
+    session.commit()
+    client.headers["Airflow-API-Version"] = version
+    payload = {"state": "up_for_retry", "end_date": TIMESTAMP_STR}
+    assert client.patch(f"/execution/task-instances/{old_id}/state", json=payload).status_code == 204
+
+    response = client.patch(f"/execution/task-instances/{old_id}/state", json=payload)
+
+    assert response.status_code == expected_status
+    session.expunge_all()
+    replacement = session.scalar(select(TaskInstance).where(TaskInstance.task_id == "retired_state_report"))
+    assert replacement.id != old_id
+    assert (replacement.try_number, replacement.state) == (2, State.UP_FOR_RETRY)
+
+
+@pytest.mark.parametrize("version", ["2025-04-11", "2026-06-30"])
+def test_old_api_omits_stopped_report_from_schema(client, version):
+    response = client.get(f"/execution/openapi.json?version={version}")
+    assert response.status_code == 200
+    schemas = response.json()["components"]["schemas"]
+    assert "server_terminated" not in schemas["TerminalStateNonSuccess"]["enum"]
+    assert "hostname" not in schemas["TITerminalStatePayload"]["properties"]
+    assert "pid" not in schemas["TITerminalStatePayload"]["properties"]
+
+
+@pytest.mark.parametrize("version", ["2025-04-11", "2026-06-30"])
+def test_old_api_rejects_stopped_report(client, session, create_task_instance, version):
+    ti = create_task_instance(task_id="legacy_stopped_report", state=State.RESTARTING)
+    ti.hostname = "worker"
+    ti.pid = 123
+    old_id = ti.id
+    session.commit()
+    client.headers["Airflow-API-Version"] = version
+
+    response = client.patch(
+        f"/execution/task-instances/{old_id}/state",
+        json={"state": "server_terminated", "end_date": TIMESTAMP_STR, "hostname": "worker", "pid": 123},
+    )
+
+    assert response.status_code == 422
+    session.refresh(ti)
+    assert (ti.id, ti.state) == (old_id, State.RESTARTING)
+
+
+@pytest.mark.parametrize("version", ["2025-04-11", "2026-06-30"])
+@pytest.mark.parametrize("extra_field", [None, "hostname", "pid"])
+def test_legacy_worker_finish_payload(client, session, create_task_instance, version, extra_field):
+    ti = create_task_instance(task_id="legacy_finish", state=State.RUNNING)
+    session.commit()
+    client.headers["Airflow-API-Version"] = version
+    payload = {"state": "failed", "end_date": TIMESTAMP_STR}
+    if extra_field is not None:
+        payload[extra_field] = {"hostname": "worker", "pid": 123}[extra_field]
+    response = client.patch(
+        f"/execution/task-instances/{ti.id}/state",
+        json=payload,
+    )
+    assert response.status_code == (204 if extra_field is None else 422)
+    if extra_field is not None:
+        assert any(
+            error["type"] == "extra_forbidden" and error["loc"][-1] == extra_field
+            for error in response.json()["detail"]
+        )
+    session.refresh(ti)
+    assert ti.state == (State.FAILED if extra_field is None else State.RUNNING)
+
+
+@pytest.mark.parametrize("version", ["2025-04-11", "2026-06-30"])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param(
+            {
+                "state": "success",
+                "end_date": TIMESTAMP_STR,
+                "task_outlets": [],
+                "outlet_events": [],
+            },
+            id="success",
+        ),
+        pytest.param(
+            {
+                "state": "deferred",
+                "classpath": "my.trigger",
+                "trigger_kwargs": {"__type": "dict", "__var": {"key": "value"}},
+                "trigger_timeout": None,
+                "next_method": "execute_complete",
+                "next_kwargs": {"__type": "dict", "__var": {"argument": "value"}},
+            },
+            id="deferred",
+        ),
+        pytest.param(
+            {
+                "state": "up_for_reschedule",
+                "end_date": TIMESTAMP_STR,
+                "reschedule_date": "2024-09-30T12:05:00Z",
+            },
+            id="reschedule",
+        ),
+    ],
+)
+def test_legacy_worker_completion_payload_preserves_attempt(
+    client, session, create_task_instance, time_machine, version, payload
+):
+    time_machine.move_to("2024-09-30T11:59:00Z", tick=False)
+    ti = create_task_instance(task_id="legacy_completion", state=State.RUNNING)
+    ti.start_date = timezone.parse("2024-09-30T11:59:00Z")
+    old_identity = (ti.id, ti.try_number)
+    session.commit()
+    client.headers["Airflow-API-Version"] = version
+
+    response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+    assert response.status_code == 204
+    session.refresh(ti)
+    assert (ti.id, ti.try_number) == old_identity
+    assert ti.state == payload["state"]
+    if ti.state == State.DEFERRED:
+        trigger = session.get(Trigger, ti.trigger_id)
+        assert trigger.classpath == payload["classpath"]
+        assert trigger.kwargs == {"key": "value"}
+        assert ti.next_method == payload["next_method"]
+        assert ti.next_kwargs == payload["next_kwargs"]
+        assert ti.trigger_timeout is None
+    else:
+        assert ti.end_date == timezone.parse(TIMESTAMP_STR)
+        assert ti.duration == 60
+        if ti.state == State.UP_FOR_RESCHEDULE:
+            reschedule = session.scalars(select(TaskReschedule).where(TaskReschedule.ti_id == ti.id)).one()
+            assert reschedule.start_date == ti.start_date
+            assert reschedule.end_date == ti.end_date
+            assert reschedule.reschedule_date == timezone.parse(payload["reschedule_date"])
+            assert reschedule.duration == 60
+
+
+def test_legacy_worker_heartbeat_rejects_restarting_task(client, session, create_task_instance):
+    ti = create_task_instance(task_id="legacy_clear", state=State.RESTARTING)
+    ti.hostname = "worker"
+    ti.pid = 123
+    old_id = ti.id
+    old_try = ti.try_number
+    session.commit()
+    client.headers["Airflow-API-Version"] = "2025-04-11"
+    response = client.put(
+        f"/execution/task-instances/{ti.id}/heartbeat",
+        json={"hostname": "worker", "pid": 123},
+    )
+    assert response.status_code == 409
+    session.refresh(ti)
+    assert (ti.id, ti.try_number, ti.state) == (old_id, old_try, State.RESTARTING)
+
 
 RUN_PATCH_BODY = {
     "state": "running",
@@ -98,3 +267,49 @@ class TestArgBindingsFieldBackwardCompat:
                 "from_default": True,
             },
         ]
+
+
+@pytest.fixture
+def archived_attempt(client, exec_app, monkeypatch, create_task_instance, session):
+    """A running attempt, authenticated with a signed token, that has since been retried."""
+    ti = create_task_instance(state=State.RUNNING)
+    session.commit()
+    monkeypatch.delitem(exec_app.dependency_overrides, require_auth)
+    client.headers["Authorization"] = f"Bearer {_jwt_generator().generate({'sub': str(ti.id)})}"
+    successor = ti.prepare_db_for_next_try(session)
+    successor.state = State.UP_FOR_RETRY
+    session.commit()
+    return ti, successor
+
+
+@pytest.mark.parametrize(
+    ("version", "rtif_status", "heartbeat_status", "xcom_status", "xcom_kept"),
+    [
+        pytest.param("2025-04-11", 410, 410, 201, True, id="oldest"),
+        pytest.param("2026-06-30", 410, 410, 201, True, id="3.3"),
+        pytest.param("2026-10-30", 410, 410, 410, False, id="current"),
+    ],
+)
+def test_mutations_after_retry_response_by_version(
+    client, archived_attempt, session, version, rtif_status, heartbeat_status, xcom_status, xcom_kept
+):
+    ti, successor = archived_attempt
+    client.headers["Airflow-API-Version"] = version
+
+    rtif = client.put(f"/execution/task-instances/{ti.id}/rtif", json={"field": "late"})
+    heartbeat = client.put(
+        f"/execution/task-instances/{ti.id}/heartbeat", json={"hostname": "host", "pid": 1}
+    )
+    xcom = client.post(
+        f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/extra_link", json="https://example.com"
+    )
+
+    assert (rtif.status_code, heartbeat.status_code, xcom.status_code) == (
+        rtif_status,
+        heartbeat_status,
+        xcom_status,
+    )
+    session.expire_all()
+    stored = XComModelV2.get_for_attempt(ti.id, "extra_link", session=session)
+    assert (stored is not None) is xcom_kept
+    assert XComModelV2.get_for_attempt(successor.id, "extra_link", session=session) is None

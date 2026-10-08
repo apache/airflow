@@ -61,8 +61,9 @@ for this run.
 If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
 non-empty, ``params`` is forwarded as ``job_parameters`` as-is, so Airflow Dag params can
 be passed dynamically to a run without hardcoding them in ``json``. If ``json`` already
-contains ``job_parameters``, it is left untouched. You can set ``forward_dag_params=False`` to
-disable this parameter forwarding behavior.
+contains ``job_parameters``, it is left untouched. Params whose value resolves to ``None`` are
+skipped, since Databricks has no value to receive for them. You can set
+``forward_dag_params=False`` to disable this parameter forwarding behavior.
 
 .. note::
   The Databricks API does not permit ``job_parameters`` to be used in combination with
@@ -80,6 +81,35 @@ disable this parameter forwarding behavior.
   # The triggered run receives:
   #   job_parameters={"env": "staging", "batch_size": "42"}
   # i.e. the same dict, passed straight through to the run-now request body.
+
+OpenLineage parent job information
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Set ``openlineage_inject_parent_job_info=True`` to add the standardized OpenLineage context to the
+run's ``job_parameters`` under the ``OPENLINEAGE_CONTEXT`` key. The JSON value contains the Airflow
+task as the parent job, with ``jobType`` set to ``BATCH/AIRFLOW/TASK``. When the current Airflow Dag
+is the root job, its ``jobType`` is set to ``BATCH/AIRFLOW/DAG``. For a root inherited through
+``DagRun.conf``, the job type is copied from ``conf["openlineage"]["rootParentJobType"]`` when that
+mapping is present; otherwise, the root job has no ``jobType`` facet. This follows the context format
+introduced in `OpenLineage #4682 <https://github.com/OpenLineage/OpenLineage/pull/4682>`_.
+
+``OPENLINEAGE_CONTEXT`` is a Databricks job parameter, not an operating-system environment variable.
+The Databricks task must expose the parameter to the downstream OpenLineage integration through its
+own configuration channel (for example, ``spark.openlineage.context`` for OpenLineage Spark or the
+``OPENLINEAGE_CONTEXT`` environment variable for dbt).
+
+The option defaults to the ``openlineage.spark_inject_parent_job_info`` configuration value. Existing
+OpenLineage context job parameters are preserved. Injection is skipped when a legacy parameter slot
+such as ``notebook_params`` or ``spark_submit_params`` is used because Databricks does not allow those
+slots to be combined with ``job_parameters``.
+
+.. code-block:: python
+
+  run_now = DatabricksRunNowOperator(
+      task_id="run_now",
+      job_id=123,
+      openlineage_inject_parent_job_info=True,
+  )
 
 
 Durable execution

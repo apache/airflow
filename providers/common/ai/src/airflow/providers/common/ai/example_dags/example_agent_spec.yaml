@@ -17,7 +17,7 @@
 
 # pydantic-ai AgentSpec file — referenced by example_pydantic_ai_hook.py
 ---
-model: openai:gpt-4o-mini
+model: openai:gpt-5-mini
 instructions: >
   You are a concise summarizer. Given any text, respond with a single
   paragraph that captures the key points. Do not add commentary.

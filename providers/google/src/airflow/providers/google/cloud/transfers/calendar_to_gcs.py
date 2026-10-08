@@ -88,6 +88,7 @@ class GoogleCalendarToGCSOperator(BaseOperator):
         "destination_bucket",
         "destination_path",
         "impersonation_chain",
+        "gcp_conn_id",
     ]
 
     def __init__(

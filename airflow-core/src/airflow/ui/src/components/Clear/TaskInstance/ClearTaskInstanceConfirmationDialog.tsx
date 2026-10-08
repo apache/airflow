@@ -27,7 +27,7 @@ import type { ClearTaskInstancesBody } from "openapi/requests/types.gen";
 import { Dialog } from "src/system-components";
 
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
-import { getRelativeTime } from "src/utils/datetimeUtils";
+import { useDurationFormat } from "src/utils";
 
 type Props = {
   readonly dagDetails?: {
@@ -56,6 +56,7 @@ const ClearTaskInstanceConfirmationDialog = ({
   preventRunningTask,
 }: Props) => {
   const { t: translate } = useTranslation();
+  const { formatRelative } = useDurationFormat();
   const useExplicitTaskIds = dagDetails?.taskIds !== undefined;
   const { data, isFetching } = useClearTaskInstancesDryRun({
     dagId: dagDetails?.dagId ?? "",
@@ -68,10 +69,10 @@ const ClearTaskInstanceConfirmationDialog = ({
     },
     requestBody: {
       dag_run_id: dagDetails?.dagRunId ?? "",
-      include_downstream: useExplicitTaskIds ? false : dagDetails?.downstream,
+      include_downstream: !useExplicitTaskIds && dagDetails?.downstream,
       include_future: dagDetails?.future,
       include_past: dagDetails?.past,
-      include_upstream: useExplicitTaskIds ? false : dagDetails?.upstream,
+      include_upstream: !useExplicitTaskIds && dagDetails?.upstream,
       only_failed: dagDetails?.onlyFailed,
       task_ids: useExplicitTaskIds
         ? dagDetails.taskIds
@@ -127,7 +128,7 @@ const ClearTaskInstanceConfirmationDialog = ({
                         state: taskCurrentState,
                         time:
                           firstInstance?.start_date !== null && firstInstance?.start_date !== undefined
-                            ? getRelativeTime(firstInstance.start_date)
+                            ? formatRelative(firstInstance.start_date)
                             : undefined,
                         user:
                           (firstInstance?.unixname?.trim().length ?? 0) > 0
@@ -140,9 +141,7 @@ const ClearTaskInstanceConfirmationDialog = ({
               </VStack>
             </Dialog.Header>
             <Dialog.Footer>
-              <Button colorPalette="blue" onClick={onClose}>
-                {translate("common:modal.confirm")}
-              </Button>
+              <Button onClick={onClose}>{translate("common:modal.confirm")}</Button>
             </Dialog.Footer>
           </>
         ) : null}

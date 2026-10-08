@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
@@ -149,6 +150,8 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
 
     :param presto_conn_id: Reference to a specific Presto hook.
     """
+
+    template_fields: Sequence[str] = (*BaseSQLToGCSOperator.template_fields, "presto_conn_id")
 
     ui_color = "#a0e08c"
 

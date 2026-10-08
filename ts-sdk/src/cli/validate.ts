@@ -31,12 +31,12 @@ type WarnFn = (message: string) => void;
  * one depend on server configuration the packer cannot see.
  */
 export function warnOnSuspiciousIds(
-  dags: BundleManifest["dags"],
+  taskHandlers: BundleManifest["task_handlers"],
   warn: WarnFn = (message) => process.stderr.write(`${message}\n`),
 ): void {
-  for (const dagId of Object.keys(dags).sort()) {
+  for (const dagId of Object.keys(taskHandlers).sort()) {
     warnOnSuspiciousId(`dag id ${JSON.stringify(dagId)}`, dagId, warn);
-    for (const taskId of dags[dagId]!.tasks) {
+    for (const taskId of taskHandlers[dagId]!.tasks) {
       warnOnSuspiciousId(
         `task id ${JSON.stringify(taskId)} in dag ${JSON.stringify(dagId)}`,
         taskId,

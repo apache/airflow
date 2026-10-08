@@ -39,8 +39,14 @@ Concurrency control
 -------------------
 
 You can set ``max_active_runs`` on a backfill and it will control how many Dag runs in
-the backfill can run concurrently. Backfill ``max_active_runs`` is applied independently
+the backfill can run concurrently. Backfill ``max_active_runs`` is applied independently of
 the Dag ``max_active_runs`` setting.
+
+Once a backfill's Dag runs are actually running, the scheduler does not otherwise
+deprioritize their task scheduling relative to other running Dag runs. ``max_active_runs``
+is therefore the primary lever for controlling how much of your scheduling capacity a
+backfill consumes at once — lower it to leave more room for time-sensitive scheduled work
+while the backfill is in progress.
 
 Run ordering
 ------------
@@ -83,7 +89,12 @@ For UI, follow the following steps:
    - **Max active runs**: limit concurrent backfill runs for this backfill.
    - **Run backwards**: execute most recent intervals first.
    - **Advanced Config**: optionally provide JSON ``dag_run.conf``.
-   - If the Dag is paused, you can **Unpause** it in the same window.
+   - If the Dag is paused, choose under **Dag is paused** what happens to the Dag: **Unpause** (the
+     default) makes the Dag active and resumes its schedule; **Drain** lets the unfinished Dag runs,
+     including the backfill's, start or resume without creating scheduled ones, and pauses the Dag again once
+     they finish (see :ref:`concepts:dag-pausing`); **Keep paused** leaves the backfill runs queued until the
+     Dag is unpaused. Both **Unpause** and **Drain** show how many unfinished Dag runs will start or resume.
+     Paused backfills remain paused under all three choices.
 
 .. image:: ../img/ui-light/backfill.png
    :alt: Backfill pop-up window (Light Mode)

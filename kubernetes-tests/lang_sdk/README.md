@@ -36,16 +36,16 @@ End-to-end test that one Dag mixing **Python + Go + Java** tasks runs to success
                           worker pod (from that pod template):
                           initContainer  stage_artifacts.py  ── S3DagBundle.initialize() ──►
                               pulls go-artifacts / java-artifacts bucket into the shared
-                              emptyDir = executables_root / jars_root
+                              emptyDir = go-task-handlers / java-task-handlers LocalDagBundle
                           base container  supervisor → coordinator forks the Go binary / Java jar
 ```
 
-Key point: in coordinator mode the worker pod does **not** run the Python task-runner,
-so the artifact is not downloaded by the normal Dag-bundle path. The init container runs
-`stage_artifacts.py`, which reuses the **DagBundle interface**
+Key point: each coordinator's `task_handler_bundle_name` names a `LocalDagBundle` over the
+shared `emptyDir`, registered in `dagProcessor.dagBundleConfigList`. The init container fills it
+by running `stage_artifacts.py`, which reuses the **DagBundle interface**
 (`DagBundlesManager().get_bundle(name).initialize()` — the download half of
-`task_runner.parse`) to pull the artifact from its S3 bucket into the path the
-coordinator scans.
+`task_runner.parse`) to pull the artifact from its S3 bucket, then restores the Go binary's
+execute bit, which the S3 download drops and the coordinator requires.
 
 ## Components
 
@@ -58,7 +58,7 @@ coordinator scans.
 | `pod_templates/lang_sdk_golang.yaml` | `golang` queue worker pod: prod image + go-artifacts init container. |
 | `pod_templates/lang_sdk_java.yaml` | `java` queue worker pod: JVM image + java-artifacts init container. |
 | `manifests/localstack.yaml` | In-cluster S3 (localstack). |
-| `config/values.yaml` | Helm overrides: KubernetesExecutor, coordinators (+extra.pod_template_file), queue routing, stub-Dag S3 bundle, AWS conn, scheduler pod-template mount. |
+| `config/values.yaml` | Helm overrides: KubernetesExecutor, coordinators (+extra.pod_template_file), queue routing, stub-Dag S3 bundle, artifact Dag bundles, AWS conn, scheduler pod-template mount. |
 
 The Go binary, Java jar, and stub Dag share one object store (localstack) but live in
 **separate buckets** (`go-artifacts`, `java-artifacts`, `dags`).

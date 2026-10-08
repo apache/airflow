@@ -52,7 +52,7 @@ To set up ``dag.test``, add these two lines to the bottom of your Dag file:
 and that's it! You can add optional arguments to fine tune the testing but otherwise you can run or debug Dags as
 needed. Here are some examples of arguments:
 
-* ``execution_date`` if you want to test argument-specific Dag runs
+* ``logical_date`` if you want to test argument-specific Dag runs
 * ``use_executor`` if you want to test the Dag using an executor. By default ``dag.test`` runs the Dag without an
   executor, it just runs all the tasks locally.
   By providing this argument, the Dag is executed using the executor configured in the Airflow environment.
@@ -80,7 +80,7 @@ is manually ingested. The cleanup step is also skipped, making the intermediate 
   if __name__ == "__main__":
       ingest_testing_data()
       run = dag.test(mark_success_pattern="wait_for_.*|cleanup")
-      print(f"Intermediate csv: {run.get_task_instance('collect_stats').xcom_pull(task_id='collect_stats')}")
+      print(f"Intermediate csv: {run.get_task_instance('collect_stats').xcom_pull(task_ids='collect_stats')}")
 
 
 Debugging Airflow Dags on the command line
@@ -91,7 +91,7 @@ Run ``python -m pdb <path to Dag file>.py`` for an interactive debugging experie
 
 .. code-block:: bash
 
-  [Breeze:3.10.19] root@ef2c84ad4856:/opt/airflow# python -m pdb providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py
+  [Breeze:3.11.16] root@ef2c84ad4856:/opt/airflow# python -m pdb providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py
   > /opt/airflow/providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py(18)<module>()
   -> """Example Dag demonstrating the usage of the BashOperator."""
   (Pdb) b 45

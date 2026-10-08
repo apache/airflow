@@ -55,6 +55,38 @@ class ConnectionTypeContract(BaseModel):
     external_services: list[str] = Field(default_factory=list)
 
 
+class AssetUriContract(BaseModel):
+    """Dotted paths an asset-uris entry registers for a scheme."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    handler: str | None = Field(
+        default=None,
+        description="URI normalizer. null registers Airflow's no-op normalizer; the scheme is still recognized.",
+    )
+    factory: str | None = Field(default=None, description="Asset factory. null means none is registered.")
+    to_openlineage_converter: str | None = Field(
+        default=None, description="OpenLineage converter. null means none is registered."
+    )
+
+
+class UriSchemeContract(BaseModel):
+    """What a provider registers for one URI scheme."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scheme: str
+    filesystem: str | None = Field(
+        default=None, description="Module exposing get_fs for ObjectStoragePath paths with this scheme."
+    )
+    asset: AssetUriContract | None = Field(
+        default=None, description="Present when the provider registers Asset URI handling for this scheme."
+    )
+    remote_logging: str | None = Field(
+        default=None, description="RemoteLogIO class used when remote_base_log_folder has this scheme."
+    )
+
+
 class ProviderContract(BaseModel):
     """Top-level provider entry in providers.json."""
 
@@ -73,6 +105,7 @@ class ProviderContract(BaseModel):
     module_counts: dict[str, int] = Field(default_factory=dict)
     categories: list[CategoryContract] = Field(default_factory=list)
     connection_types: list[ConnectionTypeContract] = Field(default_factory=list)
+    uri_schemes: list[UriSchemeContract] = Field(default_factory=list)
     requires_python: str = ""
     dependencies: list[str] = Field(default_factory=list)
     optional_extras: dict[str, list[str]] = Field(default_factory=dict)
@@ -112,6 +145,10 @@ class ModuleContract(BaseModel):
     provider_id: str | None = None
     provider_name: str | None = None
     supports_durable_execution: bool = False
+    supports_deferrable: bool = False
+    # Only set for classes and task decorators (e.g. ``@task.agent``) that a how-to
+    # guide documents in a section of their own.
+    guide_url: str | None = None
 
 
 class ModulesCatalogContract(BaseModel):
@@ -212,6 +249,7 @@ class ProviderVersionMetadataContract(BaseModel):
     dependencies: list[str]
     optional_extras: dict[str, list[str]]
     connection_types: list[ConnectionTypeContract]
+    uri_schemes: list[UriSchemeContract] = Field(default_factory=list)
     module_counts: dict[str, int]
     modules: list[ModuleContract]
 

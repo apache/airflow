@@ -22,7 +22,7 @@ import logging
 import os
 import textwrap
 import time
-from datetime import datetime as dt, timedelta, timezone as std_timezone
+from datetime import UTC, datetime as dt, timedelta
 from pathlib import Path
 from unittest import mock
 from unittest.mock import ANY, call
@@ -55,7 +55,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 
 
 def get_time_str(time_in_milliseconds):
-    dt_time = dt.fromtimestamp(time_in_milliseconds / 1000.0, tz=std_timezone.utc)
+    dt_time = dt.fromtimestamp(time_in_milliseconds / 1000.0, tz=UTC)
     return dt_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 

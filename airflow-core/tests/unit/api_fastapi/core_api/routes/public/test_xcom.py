@@ -32,7 +32,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, AssetAlias
 from airflow.sdk.bases.xcom import BaseXCom
@@ -40,7 +40,11 @@ from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
+from tests_common.test_utils.asserts import (
+    assert_no_cartesian_products,
+    assert_queries_count,
+    capture_orm_selects,
+)
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import (
@@ -314,6 +318,65 @@ class TestGetXComEntries(TestXComEndpoint):
             "total_entries": 2,
         }
         assert response_data == expected_response
+
+    @pytest.mark.parametrize(
+        ("method", "path", "body", "expected_status", "expected"),
+        [
+            pytest.param(
+                "GET",
+                "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+                None,
+                200,
+                [
+                    (TEST_DAG_ID, TEST_TASK_ID, f"{TEST_XCOM_KEY}-0"),
+                    (TEST_DAG_ID, TEST_TASK_ID, f"{TEST_XCOM_KEY}-1"),
+                    (TEST_DAG_ID_2, TEST_TASK_ID_2, f"{TEST_XCOM_KEY}-0"),
+                    (TEST_DAG_ID_2, TEST_TASK_ID_2, f"{TEST_XCOM_KEY}-1"),
+                ],
+                id="list",
+            ),
+            pytest.param(
+                "GET",
+                f"/dags/{TEST_DAG_ID_2}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID_2}/xcomEntries/{TEST_XCOM_KEY}-1",
+                None,
+                200,
+                [(TEST_DAG_ID_2, TEST_TASK_ID_2, f"{TEST_XCOM_KEY}-1")],
+                id="get",
+            ),
+            pytest.param(
+                "PATCH",
+                f"/dags/{TEST_DAG_ID_2}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID_2}/xcomEntries/{TEST_XCOM_KEY}-1",
+                {"value": "patched"},
+                200,
+                [(TEST_DAG_ID_2, TEST_TASK_ID_2, f"{TEST_XCOM_KEY}-1")],
+                id="patch",
+            ),
+            pytest.param(
+                "POST",
+                f"/dags/{TEST_DAG_ID_2}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID_2}/xcomEntries",
+                {"key": "created", "value": "created"},
+                201,
+                [(TEST_DAG_ID_2, TEST_TASK_ID_2, "created")],
+                id="create",
+            ),
+        ],
+    )
+    def test_each_entry_is_joined_to_its_own_task_and_run(
+        self, test_client, method, path, body, expected_status, expected
+    ):
+        self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
+        self._create_xcom_entries(TEST_DAG_ID_2, run_id, logical_date_parsed, TEST_TASK_ID_2)
+
+        with assert_no_cartesian_products():
+            response = test_client.request(method, path, json=body)
+
+        assert response.status_code == expected_status
+        entries = response.json().get("xcom_entries", [response.json()])
+        assert response.json().get("total_entries", len(expected)) == len(expected)
+        assert [
+            (e["dag_id"], e["dag_display_name"], e["task_id"], e["task_display_name"], e["run_id"], e["key"])
+            for e in entries
+        ] == [(dag_id, dag_id, task_id, task_id, run_id, key) for dag_id, task_id, key in expected]
 
     def test_should_respond_200_with_tilde(self, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
@@ -776,7 +839,7 @@ class TestCreateXComEntry(TestXComEndpoint):
 
     def test_create_xcom_entry_duplicate_check_is_bounded(self, test_client):
         """Checking for an existing XCom before inserting must ask the database for one row."""
-        with capture_orm_selects("xcom") as statements:
+        with capture_orm_selects("xcom_v2") as statements:
             response = test_client.post(
                 f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
                 json=XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE).model_dump(),
@@ -867,7 +930,7 @@ class TestCreateXComEntry(TestXComEndpoint):
     def test_create_xcom_entry_blocks_forbidden_keys_in_json_string(self, test_client, value):
         """A forbidden payload submitted as a JSON string literal is blocked too.
 
-        ``_check_forbidden_xcom_keys._walk`` previously descended dict/list/tuple but not
+        The reserved-key walk previously descended dict/list/tuple but not
         ``str``, so a value like ``json.dumps({"__classname__": ...})`` slipped past the
         filter and was reconstructed into a dict on a ``deserialize=true`` read.
         """
@@ -1086,3 +1149,28 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert data["value"] == patch_value
         assert isinstance(data["value"], int), f"Expected int type but got {type(data['value'])}"
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
+
+    def test_patch_xcom_preserves_mapped_length(self, test_client, session):
+        """set() replaces the row, so an edit must not drop the recorded expansion length."""
+        key = XCOM_RETURN_KEY
+        XComModel.set(
+            key=key,
+            value=[1, 2, 3],
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=run_id,
+            mapped_length=3,
+            session=session,
+        )
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{key}",
+            json={"value": [9, 9, 9]},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["value"] == [9, 9, 9]
+        read = XComModel.get_many(run_id=run_id, dag_ids=TEST_DAG_ID, task_ids=TEST_TASK_ID, key=key)
+        entity = xcom_entity(read)
+        assert session.scalar(read.with_only_columns(entity.mapped_length)) == 3

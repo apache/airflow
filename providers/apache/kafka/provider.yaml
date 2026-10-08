@@ -21,7 +21,7 @@ name: Apache Kafka
 
 state: ready
 lifecycle: production
-source-date-epoch: 1787011200
+source-date-epoch: 1791328844
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
 # Note that those versions are maintained by release manager - do not update them manually
@@ -29,6 +29,8 @@ description: |
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.1.0
+  - 2.0.0
   - 1.16.0
   - 1.15.1
   - 1.15.0
@@ -113,6 +115,7 @@ triggers:
     python-modules:
       - airflow.providers.apache.kafka.triggers.await_message
       - airflow.providers.apache.kafka.triggers.msg_queue
+      - airflow.providers.apache.kafka.triggers.shared_stream
 
 connection-types:
   - hook-class-name: airflow.providers.apache.kafka.hooks.base.KafkaBaseHook
@@ -156,7 +159,7 @@ config:
           other string-valued callback is refused. Empty (default) disables
           string-valued callbacks entirely. Managed authentication (Amazon MSK IAM,
           Google Managed Kafka) does not rely on this and is unaffected.
-        version_added: 1.16.0
+        version_added: 2.0.0
         type: string
         example: "my_company.kafka.auth.oauth_cb"
         default: ""

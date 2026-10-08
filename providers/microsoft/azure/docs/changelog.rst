@@ -27,6 +27,87 @@
 Changelog
 ---------
 
+15.2.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Read the msgraph connection extra with get_async_extra_dejson (#74161)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Cap microsoft-kiota-http below 1.13 in the Microsoft Azure provider (#74090)``
+* ``Support azure-datalake-store 1.x in AzureDataLakeHook (#73819)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Fix connection screenshots missing from the msgraph and IBM MQ docs (#74287)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+15.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Invalidate cached Microsoft Graph request adapter on 403 Forbidden (#73601)``
+* ``Contain remote log upload paths within base_log_folder (#72162)``
+
+Doc-only
+~~~~~~~~
+
+* ``Keep message queue provider doc markers out of class docstrings (#73588)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Remove newsfragments for changes already shipped in released versions (#73300)``
+   * ``Fix grammar typos (#73145)``
+
+15.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for sending emails through Microsoft Graph (#71565)``
+* ``Add Azure Analysis Services model refresh support (#71350)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph pagination offset across paginated pages (#71986)``
+* ``Invalidate cached Microsoft Graph request adapter on 401 Unauthorized (#72688)``
+* ``Avoid extra_dejson in ADF and Synapse async hooks (#72130)``
+* ``Restrict MSGraph deferrable pagination to the configured host (#71842)``
+
+Misc
+~~~~
+
+* ``Depend on ''httpx2'' instead of ''httpx'' (#72111)``
+* ``Replace generic AirflowException in AzureBatchOperator input validation (#71981)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+
 15.0.1
 ......
 

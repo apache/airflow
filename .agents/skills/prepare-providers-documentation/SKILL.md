@@ -680,7 +680,11 @@ breeze release-management update-providers-next-version
 ```
 
 This rewrites every `# use next version` dependency to the just-bumped
-version of the referenced provider and removes the comment.
+version of the referenced provider and removes the comment. Pins whose
+referenced provider already has a final release tag are left alone (the
+"next version" is then a future release); when only release candidate tags
+exist the pin is updated with a warning, revert it if that provider is in
+vote rather than re-cut in this release.
 
 > [!IMPORTANT]
 > **Run this every time, before opening the PR — even when you believe no

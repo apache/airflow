@@ -19,3 +19,21 @@
 rules:
   secrets-outside-env:
     disable: true
+  # This audit wants every in-repo `uses: ./...` rewritten to GitHub's
+  # self-repository form (`uses: $/...`). Two things outside this repository's
+  # control block that, and both were confirmed by pushing the conversion:
+  #
+  #  * `$/` makes the runner fetch apache/airflow as an action repository, and
+  #    that download cannot materialise the symlinks this repository commits --
+  #    it aborts on `.claude/skills/airflow-translations`, whose target is not
+  #    tracked, before any job runs.
+  #  * ASF infrastructure's allowlist check does not recognise the syntax and
+  #    reports every `$/...` reference as an action missing from the allowlist.
+  #
+  # The audit's own threat model -- a privileged workflow loading a local action
+  # out of a checkout untrusted code could have altered first -- does not reach
+  # us either, since no Airflow workflow runs on `pull_request_target` or
+  # `workflow_run`. Revisit if the symlinks go away and ASF Infra teaches the
+  # allowlist about `$/`.
+  self-repository:
+    disable: true
