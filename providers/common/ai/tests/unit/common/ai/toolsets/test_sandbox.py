@@ -690,7 +690,7 @@ class TestLifecycle:
         async with ts:
             await _call(ts, "run_command", {"command": "x"})
 
-        assert "Failed to destroy sandbox box-1 on backend rec; it may need manual cleanup" in caplog
+        assert "Failed to destroy sandbox box-1 on backend rec; it may need manual cleanup" in caplog.messages
 
     @pytest.mark.asyncio
     async def test_reentry_creates_a_fresh_sandbox(self):
@@ -960,10 +960,11 @@ class TestExports:
                 async with ts:
                     await _call(ts, "run_command", {"command": "x"})
 
-        assert {
-            "event": re.compile(r"Could not remove .*out\.bin\.\w+\.partial after a failed export"),
-            "logger": "airflow.providers.common.ai.toolsets.sandbox",
-        } in caplog
+        assert any(
+            r.name == "airflow.providers.common.ai.toolsets.sandbox"
+            and re.match(r"Could not remove .*out\.bin\.\w+\.partial after a failed export", r.getMessage())
+            for r in caplog.records
+        )
 
     @pytest.mark.asyncio
     async def test_a_local_destination_gets_its_directories(self, tmp_path):
@@ -1009,7 +1010,7 @@ class TestExports:
             await _call(ts, "run_command", {"command": "x"})
 
         assert (tmp_path / "out.bin").read_bytes() == b"payload"
-        assert "Failed to destroy sandbox box-1 on backend rec; it may need manual cleanup" in caplog
+        assert "Failed to destroy sandbox box-1 on backend rec; it may need manual cleanup" in caplog.messages
 
     @pytest.mark.asyncio
     async def test_a_run_that_never_used_its_sandbox_cannot_deliver_its_files(self, tmp_path):
@@ -1244,7 +1245,7 @@ class TestAttachMode:
         assert (
             "Failed to release sandbox sb-1 on backend attachable after 3 attempts; it stays marked as "
             "held by me, and only that holder, or the task that created the sandbox, can use it"
-        ) in caplog
+        ) in caplog.messages
         assert backend.tags["sb-1"][HOLDER_TAG] == "me"
 
     @pytest.mark.asyncio
@@ -1257,7 +1258,7 @@ class TestAttachMode:
             backend.tags_errors = [RuntimeError("blip"), RuntimeError("blip")]
 
         assert HOLDER_TAG not in backend.tags["sb-1"]
-        assert not any("Failed to release" in e["event"] for e in caplog)
+        assert not any("Failed to release" in m for m in caplog.messages)
 
     @pytest.mark.asyncio
     async def test_releasing_a_sandbox_that_has_ended_is_quiet(self, caplog):
@@ -1269,7 +1270,7 @@ class TestAttachMode:
         async with ts:
             del backend.tags["sb-1"]
 
-        assert not any("Failed to release" in e["event"] for e in caplog)
+        assert not any("Failed to release" in m for m in caplog.messages)
 
     @pytest.mark.asyncio
     async def test_the_sandbox_is_released_but_not_destroyed_when_a_call_raises(self):

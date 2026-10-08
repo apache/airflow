@@ -166,9 +166,9 @@ class TestInvoke:
             group.invoke(REQUEST)
         assert (
             "Managed agent a on fake.cloud (member 0) failed; failing over to b on fake.cloud (member 1)"
-            in caplog
+            in caplog.messages
         )
-        assert "Managed agent request served by standby b on fake.cloud (member 1)" in caplog
+        assert "Managed agent request served by standby b on fake.cloud (member 1)" in caplog.messages
 
 
 class TestMetrics:
