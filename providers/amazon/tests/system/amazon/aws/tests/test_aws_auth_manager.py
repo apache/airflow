@@ -145,7 +145,7 @@ def _saml_auth_mock(nameid: str, attributes: dict) -> Mock:
     auth.is_authenticated.return_value = True
     auth.get_nameid.return_value = nameid
     auth.get_attributes.return_value = attributes
-    auth.login.return_value = SAML_METADATA_PARSED["idp"]["singleSignOnService"]["url"]
+    auth.login.return_value = "https://idp.example.com/sso"
     auth.get_last_request_id.return_value = TEST_REQUEST_ID
     return auth
 
