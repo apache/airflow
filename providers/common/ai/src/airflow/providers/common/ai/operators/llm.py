@@ -60,8 +60,9 @@ except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` wa
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
+    from types import UnionType
+
     from pydantic_ai import Agent
-    from pydantic_ai.output import OutputSpec
     from pydantic_ai.usage import UsageLimits
 
     from airflow.sdk import Context
@@ -100,8 +101,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
         for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the LLM agent.
-    :param output_type: Expected output type. Default ``str``. Set to a Pydantic
-        ``BaseModel`` subclass for structured output; the model instance is
+    :param output_type: Expected output type. Default ``str``. A single type
+        (``str``, ``int``, ``list[str]``, a Pydantic ``BaseModel`` subclass) or a
+        union (``A | B``). For a ``BaseModel`` subclass, the model instance is
         returned to XCom unchanged so downstream tasks can type-hint it
         directly. The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
@@ -198,7 +200,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: OutputSpec[Any] = str,
+        output_type: type | UnionType = str,
         agent_params: dict[str, Any] | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
