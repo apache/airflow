@@ -1495,10 +1495,45 @@ def is_dag_run_asset_triggered(
     return dag_run.run_type == DagRunType.DATASET_TRIGGERED  # type: ignore[attr-defined]  # This attr is available on AF2, but mypy can't see it
 
 
+def _is_task_instance_in_loop(task_instance: TaskInstance | RuntimeTaskInstance) -> bool:
+    """
+    Tell whether the instance runs inside a loop body, where its coordinates no longer identify its run.
+
+    A plain mapped task keeps the region of its own expansion, so its dag, task, try, logical date and
+    map index stay unique. Anything whose group structure cannot be read is treated as a loop instance,
+    which keeps the execution UUID.
+    """
+    from airflow.sdk.definitions._internal.loop import LoopTaskGroup
+    from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedTaskGroup
+
+    task = getattr(task_instance, "task", None)
+    if task is not None:
+        group = getattr(task, "task_group", None)
+        while isinstance(group, (TaskGroup, SerializedTaskGroup)):
+            if isinstance(group, (LoopTaskGroup, SerializedLoopTaskGroup)):
+                return True
+            group = group.parent_group
+        return group is not None
+    if isinstance(task_instance, TaskInstance):
+        from sqlalchemy.orm import object_session
+
+        from airflow.models.dynamic_region import DynamicRegion
+        from airflow.utils.session import create_session
+
+        session = object_session(task_instance)
+        with nullcontext(session) if session is not None else create_session() as session:
+            region = session.get(DynamicRegion, task_instance.region_id)
+        return (
+            region is None or region.node_id != task_instance.task_id or region.parent_region_id is not None
+        )
+    return True
+
+
 def get_regional_task_instance_run_id(task_instance: TaskInstance | RuntimeTaskInstance) -> str | None:
     if AIRFLOW_V_3_4_PLUS:
         region_id = getattr(task_instance, "region_id", None)
-        if isinstance(region_id, UUID) and region_id.int != 0:
+        if isinstance(region_id, UUID) and region_id.int != 0 and _is_task_instance_in_loop(task_instance):
             return str(task_instance.id)
     return None
 

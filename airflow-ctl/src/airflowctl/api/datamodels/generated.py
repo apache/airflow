@@ -908,6 +908,7 @@ class EventLogResponse(BaseModel):
 
     event_log_id: Annotated[int, Field(title="Event Log Id")]
     when: Annotated[datetime, Field(title="When")]
+    task_instance_id: Annotated[UUID | None, Field(title="Task Instance Id")] = None
     dag_id: Annotated[str | None, Field(title="Dag Id")]
     task_id: Annotated[str | None, Field(title="Task Id")]
     run_id: Annotated[str | None, Field(title="Run Id")]
@@ -1622,6 +1623,7 @@ class AssetEventResponse(BaseModel):
     source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
     source_map_index: Annotated[int, Field(title="Source Map Index")]
+    source_task_instance_id: Annotated[UUID | None, Field(title="Source Task Instance Id")] = None
     created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None

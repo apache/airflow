@@ -285,6 +285,18 @@ export const $AssetEventResponse = {
             type: 'integer',
             title: 'Source Map Index'
         },
+        source_task_instance_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Source Task Instance Id'
+        },
         created_dagruns: {
             items: {
                 '$ref': '#/components/schemas/DagRunAssetReference'
@@ -5674,6 +5686,18 @@ export const $EventLogResponse = {
             type: 'string',
             format: 'date-time',
             title: 'When'
+        },
+        task_instance_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Instance Id'
         },
         dag_id: {
             anyOf: [

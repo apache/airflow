@@ -74,6 +74,9 @@ def _eager_load_display_names() -> tuple[LoaderOption, ...]:
         joinedload(Log.task_instance)
         .load_only(TaskInstance._task_display_property_value, TaskInstance.task_id)
         .raiseload(TaskInstance.dag_run),
+        joinedload(Log.coordinate_task_instance)
+        .load_only(TaskInstance._task_display_property_value, TaskInstance.task_id)
+        .raiseload(TaskInstance.dag_run),
         joinedload(Log.dag_model).load_only(DagModel._dag_display_property_value),
     )
 

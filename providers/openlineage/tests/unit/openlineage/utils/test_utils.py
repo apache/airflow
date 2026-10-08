@@ -72,6 +72,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_operator_class,
     get_operator_provider_version,
     get_parent_information_from_dagrun_conf,
+    get_regional_task_instance_run_id,
     get_root_information_from_dagrun_conf,
     get_runtime_outlet_assets,
     get_task_documentation,
@@ -3874,6 +3875,27 @@ def test_orm_lineage_facets_project_public_index(dag_maker, session, mapped):
     else:
         assert facets == {}
     assert ti in session
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+@pytest.mark.parametrize("in_loop", [False, True])
+def test_regional_run_id_is_the_execution_uuid_only_inside_a_loop(in_loop):
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("run_id_dag") as dag:
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        if in_loop:
+            create_loop(body, max_iterations=2)
+        else:
+            body()
+    ti = SimpleNamespace(id=uuid4(), region_id=uuid4(), task=dag.get_task("body.work"))
+
+    assert get_regional_task_instance_run_id(ti) == (str(ti.id) if in_loop else None)
 
 
 class TestExtractOlInfoFromAssetEvent:

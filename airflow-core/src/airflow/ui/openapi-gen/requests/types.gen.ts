@@ -78,6 +78,7 @@ export type AssetEventResponse = {
     source_dag_id?: string | null;
     source_run_id?: string | null;
     source_map_index: number;
+    source_task_instance_id?: string | null;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;
     partition_key?: string | null;
@@ -1578,6 +1579,7 @@ export type EventLogCollectionResponse = {
 export type EventLogResponse = {
     event_log_id: number;
     when: string;
+    task_instance_id?: string | null;
     dag_id: string | null;
     task_id: string | null;
     run_id: string | null;

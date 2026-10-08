@@ -21,18 +21,32 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Index, Integer, String, Text, Uuid, event
-from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
+from sqlalchemy import Index, Integer, String, Text, Uuid, and_, event
+from sqlalchemy.orm import Mapped, Session, foreign, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.models.base import Base, StringID
+from airflow.models.dynamic_region import SENTINEL_REGION_ID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
+
+
+def _coordinate_join():
+    from airflow.models.taskinstance import TaskInstance
+
+    return and_(
+        Log.task_instance_id.is_(None),
+        Log.dag_id == foreign(TaskInstance.dag_id),
+        Log.task_id == foreign(TaskInstance.task_id),
+        Log.run_id == foreign(TaskInstance.run_id),
+        Log.map_index == foreign(TaskInstance.region_index),
+        foreign(TaskInstance.region_id) == SENTINEL_REGION_ID,
+    )
 
 
 class Log(Base):
@@ -75,6 +89,15 @@ class Log(Base):
         viewonly=True,
         foreign_keys=[task_instance_id],
         primaryjoin="Log.task_instance_id == TaskInstance.id",
+        lazy="raise",
+    )
+    # Rows written before ``task_instance_id`` existed name no attempt, but task-level values such as the
+    # display name still resolve through the coordinates of the live legacy-region execution.
+    coordinate_task_instance: Mapped[TaskInstance | None] = relationship(
+        "TaskInstance",
+        viewonly=True,
+        uselist=False,
+        primaryjoin=lambda: _coordinate_join(),
         lazy="raise",
     )
 

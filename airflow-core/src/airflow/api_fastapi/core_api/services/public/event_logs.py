@@ -48,9 +48,11 @@ def event_log_to_response(event_log: Log, *, public_map_index: int | None) -> Ev
     # Null relationships that weren't eager-loaded so model validation cannot trigger a lazy load
     # (N+1) while resolving dag_display_name / task_display_name.
     unloaded: set[str] = inspect(event_log).unloaded
-    for relationship_name in ("dag_model", "task_instance"):
+    for relationship_name in ("dag_model", "task_instance", "coordinate_task_instance"):
         if relationship_name in unloaded:
             set_committed_value(event_log, relationship_name, None)
+    if event_log.task_instance is None and event_log.coordinate_task_instance is not None:
+        set_committed_value(event_log, "task_instance", event_log.coordinate_task_instance)
 
     response = EventLogResponse.model_validate(event_log)
     response.map_index = public_map_index

@@ -215,6 +215,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
             "owner_display_name": expected_body.get("owner_display_name"),
             "extra": expected_body.get("extra"),
             "team_name": None,
+            "task_instance_id": str(event_log.task_instance_id) if event_log.task_instance_id else None,
         }
 
         assert response.json() == expected_json
@@ -390,6 +391,47 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         assert listed.status_code == 200, listed.text
         assert listed.json()["total_entries"] == 1
         assert listed.json()["event_logs"][0]["map_index"] == expected_index
+
+    def test_row_without_attempt_takes_the_display_name_of_its_live_task_instance(
+        self, test_client, session, create_task_instance
+    ):
+        task_instance = create_task_instance(
+            session=session, dag_id="legacy_audit", task_id="work", run_id="legacy_run"
+        )
+        task_instance._task_display_property_value = "Shown name"
+        before_upgrade = Log(
+            event="success",
+            dag_id="legacy_audit",
+            task_id="work",
+            run_id="legacy_run",
+            map_index=-1,
+        )
+        other_task = Log(
+            event="success", dag_id="legacy_audit", task_id="other", run_id="legacy_run", map_index=-1
+        )
+        session.add_all([before_upgrade, other_task])
+        session.commit()
+
+        shown = test_client.get(f"/eventLogs/{before_upgrade.id}").json()
+        unmatched = test_client.get(f"/eventLogs/{other_task.id}").json()
+        listed = {
+            entry["event_log_id"]: entry
+            for entry in test_client.get("/eventLogs", params={"dag_id": "legacy_audit"}).json()["event_logs"]
+        }
+
+        assert shown["task_display_name"] == "Shown name"
+        assert shown["task_instance_id"] is None
+        assert unmatched["task_display_name"] is None
+        assert listed[before_upgrade.id]["task_display_name"] == "Shown name"
+
+    def test_row_with_attempt_resolves_by_attempt_and_exposes_its_id(self, test_client, session, setup):
+        row = setup[TASK_INSTANCE_EVENT]
+        by_attempt = test_client.get(f"/eventLogs/{row.id}").json()
+        unattributed = test_client.get(f"/eventLogs/{setup[EVENT_NORMAL].id}").json()
+
+        assert by_attempt["task_instance_id"] == str(row.task_instance_id)
+        assert by_attempt["task_display_name"] == TASK_DISPLAY_NAME
+        assert unattributed["task_instance_id"] is None
 
     @pytest.mark.parametrize("unknown", [False, True])
     def test_filters_exact_execution_before_pagination(self, test_client, session, unknown):

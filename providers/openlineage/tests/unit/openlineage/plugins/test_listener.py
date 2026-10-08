@@ -1166,7 +1166,18 @@ class TestOpenLineageListenerAirflow3:
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
     )
     def test_regional_listener_events_share_macro_execution_identity(self, state, map_index):
+        from airflow.sdk import DAG, task_group
+        from airflow.sdk.definitions._internal.loop import create_loop
+
         listener, ti = self._create_listener_and_task_instance()
+        with DAG("loop_dag") as loop_dag:
+
+            @task_group
+            def body():
+                EmptyOperator(task_id="work")
+
+            create_loop(body, max_iterations=2)
+        ti.task = loop_dag.get_task("body.work")
         listener.adapter.build_dag_run_id.side_effect = OpenLineageAdapter.build_dag_run_id
         listener.adapter.build_task_instance_run_id.side_effect = (
             OpenLineageAdapter.build_task_instance_run_id
