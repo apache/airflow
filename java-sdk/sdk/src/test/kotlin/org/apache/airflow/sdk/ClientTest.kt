@@ -106,6 +106,23 @@ private class FakeTransport(
   }
 
   override fun skipDownstreamTasks(taskIds: List<String>) = Unit
+
+  override fun triggerDagRun(
+    dagId: String,
+    runId: String,
+    logicalDate: OffsetDateTime?,
+    runAfter: OffsetDateTime?,
+    conf: Map<String, Any?>?,
+    resetDagRun: Boolean,
+    note: String?,
+  ): Boolean = throw NotImplementedError()
+
+  override fun getDagRunState(
+    dagId: String,
+    runId: String,
+  ): String = throw NotImplementedError()
+
+  override fun isDagPaused(dagId: String): Boolean = throw NotImplementedError()
 }
 
 class ClientTest {

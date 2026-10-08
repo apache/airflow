@@ -444,7 +444,7 @@ repos:
           ^java-sdk/scripts/ci/prek/check_serialization_conformance\.py$|
           ^java-sdk/sdk/schema/dag-schema\.json$|
           ^java-sdk/sdk/build\.gradle\.kts$|
-          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(Switch|Bundle|Condition|DagDef|Decider|Deps|Arg|TaskGroupRef)\.kt$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(Switch|Bundle|Condition|DagDef|Decider|Deps|Arg|TaskGroupRef|TriggerDagRun)\.kt$|
           ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/execution/Serde\.kt$|
           ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/internal/(Refs|Fields)\.kt$|
           ^java-sdk/sdk/src/test/kotlin/org/apache/airflow/sdk/conformance/.*$|

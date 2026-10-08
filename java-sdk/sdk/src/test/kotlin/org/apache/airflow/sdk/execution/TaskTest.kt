@@ -402,6 +402,23 @@ class TaskTest {
         override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
 
         override fun skipDownstreamTasks(taskIds: List<String>): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun triggerDagRun(
+          dagId: String,
+          runId: String,
+          logicalDate: OffsetDateTime?,
+          runAfter: OffsetDateTime?,
+          conf: Map<String, Any?>?,
+          resetDagRun: Boolean,
+          note: String?,
+        ): Boolean = throw UnsupportedOperationException("not used in test")
+
+        override fun getDagRunState(
+          dagId: String,
+          runId: String,
+        ): String = throw UnsupportedOperationException("not used in test")
+
+        override fun isDagPaused(dagId: String): Boolean = throw UnsupportedOperationException("not used in test")
       },
     )
 
@@ -520,6 +537,23 @@ class TaskTest {
     ): Unit = throw UnsupportedOperationException("not used in test")
 
     override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
+
+    override fun triggerDagRun(
+      dagId: String,
+      runId: String,
+      logicalDate: OffsetDateTime?,
+      runAfter: OffsetDateTime?,
+      conf: Map<String, Any?>?,
+      resetDagRun: Boolean,
+      note: String?,
+    ): Boolean = throw UnsupportedOperationException("not used in test")
+
+    override fun getDagRunState(
+      dagId: String,
+      runId: String,
+    ): String = throw UnsupportedOperationException("not used in test")
+
+    override fun isDagPaused(dagId: String): Boolean = throw UnsupportedOperationException("not used in test")
   }
 
   class SuccessTask : Task {

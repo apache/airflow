@@ -161,6 +161,31 @@ class DagDef(
   }
 
   /**
+   * Declares a task that starts a run of another Dag.
+   *
+   * ```java
+   * dag.task("trigger_downstream", new TriggerDagRun("downstream_etl"));
+   * ```
+   *
+   * The task runs no Java code and takes no arguments, so it has no ID to
+   * derive and names one here.
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param trigger What to trigger, and how.
+   * @return The handle representing this task.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  fun task(
+    id: String,
+    trigger: TriggerDagRun,
+  ): TaskRef<Void> {
+    val def = TaskDef(id, trigger)
+    addTask(def)
+    return TaskRef(def)
+  }
+
+  /**
    * Declares a task whose boolean picks one of two tasks; the other is
    * skipped.
    *
@@ -404,6 +429,20 @@ class TaskDef(
   val id: String,
   val definition: Class<out Task>,
 ) : Endpoint {
+  /**
+   * Declares a task that starts a run of another Dag instead of running Java
+   * code.
+   *
+   * [DagDef.task] is the spelling user code uses; this is what a generated
+   * wiring view calls.
+   *
+   * @param id Task identifier, unique within a [DagDef].
+   * @param trigger What to trigger, and how.
+   */
+  constructor(id: String, trigger: TriggerDagRun) : this(id, TriggerDagRunPlaceholder::class.java) {
+    this.trigger = trigger
+  }
+
   init {
     validateTaskInput(definition)
   }
@@ -418,6 +457,9 @@ class TaskDef(
 
   /** What this task decides to run, for a condition or a switch; null otherwise. */
   internal var decider: DeciderDef? = null
+
+  /** The Dag run this task starts, for a task declared from a [TriggerDagRun]; null otherwise. */
+  internal var trigger: TriggerDagRun? = null
 
   /**
    * Sets one task-level configuration value.
