@@ -35,6 +35,7 @@ const NO_RUNS: Array<DagRunSearchOption> = [];
 type Props = {
   readonly children: ReactNode;
   readonly dagId: string;
+  readonly isMapped: boolean;
   readonly shape: CrumbShape;
   readonly to: string;
 };
@@ -44,28 +45,40 @@ type Props = {
  * stands in for both a named run and the "all runs" level, so `to` comes from the crumb itself.
  *
  * The runs the panel lists are loaded here rather than inside it: a query that only starts when
- * the panel opens has nothing to show until it answers. Here it is already loaded by the time
- * anyone opens the panel, and the page's auto-refresh keeps it that way. Unlike the grid, this
- * list has to notice runs that do not exist yet, so `checkPendingRuns` scales the interval back
- * once they have all finished rather than stopping.
+ * the panel opens has nothing to show until it answers, so opening would mean a spinner over an
+ * empty list. Here it is loaded ahead of that, and opening only asks for a fresh answer over the
+ * one already on screen.
+ *
+ * Polling is held to while the panel is open. It cannot be held to while runs are pending the way
+ * the grid does, because this list exists to notice runs that do not exist yet; left on, it would
+ * poll from every page of a Dag for a panel nobody opened.
  */
-export const DagRunSwitcherButton = ({ children, dagId, shape, to }: Props) => {
+export const DagRunSwitcherButton = ({ children, dagId, isMapped, shape, to }: Props) => {
   const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
-  const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
-  const { data } = useDagRunServiceGetDagRuns(
+  const refetchInterval = useAutoRefresh({ dagId });
+  const { data, refetch } = useDagRunServiceGetDagRuns(
     { dagId, limit: SEARCH_LIMIT, orderBy: NEWEST_FIRST },
     undefined,
-    { refetchInterval },
+    { refetchInterval: open && refetchInterval },
   );
   const runs = data === undefined ? NO_RUNS : data.dag_runs.map(buildDagRunOption);
+
+  const onOpenChange = (next: boolean) => {
+    setOpen(next);
+
+    // The cached runs are shown straight away; this only catches up what changed while closed.
+    if (next) {
+      void refetch();
+    }
+  };
 
   return (
     <CrumbSwitcher
       label={translate("switchDagRun")}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
       open={open}
-      search={<SearchDagRuns dagId={dagId} onClose={() => setOpen(false)} runs={runs} />}
+      search={<SearchDagRuns dagId={dagId} isMapped={isMapped} onClose={() => setOpen(false)} runs={runs} />}
       shape={shape}
       testId="switch-dag-run"
       to={to}

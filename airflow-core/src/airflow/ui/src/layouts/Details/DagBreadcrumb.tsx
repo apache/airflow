@@ -52,11 +52,13 @@ const BreadcrumbItem = ({
   crumb,
   dagId,
   isLast,
+  isMapped,
   shape,
 }: {
   readonly crumb: Crumb;
   readonly dagId: string;
   readonly isLast: boolean;
+  readonly isMapped: boolean;
   readonly shape: CrumbShape;
 }) => {
   const content = (
@@ -79,7 +81,7 @@ const BreadcrumbItem = ({
 
   if (RUN_LEVEL_KEYS.has(crumb.key) && crumb.to !== undefined) {
     return (
-      <DagRunSwitcherButton dagId={dagId} shape={shape} to={crumb.to}>
+      <DagRunSwitcherButton dagId={dagId} isMapped={isMapped} shape={shape} to={crumb.to}>
         {content}
       </DagRunSwitcherButton>
     );
@@ -227,6 +229,7 @@ export const DagBreadcrumb = () => {
           crumb={crumb}
           dagId={dagId}
           isLast={index === crumbs.length - 1}
+          isMapped={hasExpandedInstances}
           key={crumb.key}
           shape={{ hasNotch: index > 0, hasPoint: index < crumbs.length - 1 }}
         />

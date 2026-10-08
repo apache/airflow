@@ -25,15 +25,42 @@ export const SEARCH_LIMIT = 10;
 
 export const NEWEST_FIRST = ["-run_after"];
 
-export const buildDagOption = (dag: DAGWithLatestDagRunsResponse): DagSearchOption => ({
-  isBackfillable: dag.is_backfillable,
-  label: dag.dag_display_name || dag.dag_id,
-  state: dag.latest_dag_runs[0]?.state ?? null,
-  value: dag.dag_id,
-});
+// react-select keeps keyboard focus only while the focused option is still in `options` by
+// reference, so rebuilding every option on each poll would drop the user back to the first row
+// mid-arrow-key. TanStack hands back the same row object for a row that did not change, so
+// caching against that object keeps the options for unchanged rows stable too.
+const dagOptions = new WeakMap<DAGWithLatestDagRunsResponse, DagSearchOption>();
+const dagRunOptions = new WeakMap<DAGRunResponse, DagRunSearchOption>();
 
-export const buildDagRunOption = (dagRun: DAGRunResponse): DagRunSearchOption => ({
-  label: dagRun.dag_run_id,
-  state: dagRun.state,
-  value: dagRun.dag_run_id,
-});
+export const buildDagOption = (dag: DAGWithLatestDagRunsResponse): DagSearchOption => {
+  const cached = dagOptions.get(dag);
+
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const option = {
+    isBackfillable: dag.is_backfillable,
+    label: dag.dag_display_name || dag.dag_id,
+    state: dag.latest_dag_runs[0]?.state ?? null,
+    value: dag.dag_id,
+  };
+
+  dagOptions.set(dag, option);
+
+  return option;
+};
+
+export const buildDagRunOption = (dagRun: DAGRunResponse): DagRunSearchOption => {
+  const cached = dagRunOptions.get(dagRun);
+
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const option = { label: dagRun.dag_run_id, state: dagRun.state, value: dagRun.dag_run_id };
+
+  dagRunOptions.set(dagRun, option);
+
+  return option;
+};

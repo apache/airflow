@@ -20,7 +20,7 @@ import { Flex, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { GroupBase, OptionsOrGroups, SingleValue } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 
 import { UseDagRunServiceGetDagRunsKeyFn } from "openapi/queries";
@@ -30,6 +30,7 @@ import type { DAGRunCollectionResponse } from "openapi/requests/types.gen";
 import { SearchSelect } from "src/components/SearchSelect";
 import { StateBadge } from "src/components/StateBadge";
 
+import { buildTaskInstanceUrl } from "src/utils/links";
 import type { DagRunSearchOption } from "src/utils/option";
 
 import { NEWEST_FIRST, SEARCH_LIMIT, buildDagRunOption } from "./searchOptions";
@@ -41,40 +42,47 @@ const formatOptionLabel = (option: DagRunSearchOption) => (
   </Flex>
 );
 
-/**
- * Carries the task level across the switch so the same task stays in view in the run picked. A map
- * index is dropped: the same expansion is not guaranteed to exist in another run.
- */
-const buildTaskPath = (groupId: string | undefined, taskId: string | undefined) => {
-  if (groupId !== undefined) {
-    return `/tasks/group/${groupId}`;
-  }
-
-  return taskId === undefined ? "" : `/tasks/${taskId}`;
-};
-
 export const SearchDagRuns = ({
   dagId,
+  isMapped,
   onClose,
   runs,
 }: {
   readonly dagId: string;
+  /** Whether the task in view has expanded instances, so the switch lands on its list, not a row. */
+  readonly isMapped: boolean;
   readonly onClose: () => void;
   /** Already loaded by the breadcrumb level, so opening the panel shows them straight away. */
   readonly runs: Array<DagRunSearchOption>;
 }) => {
-  const { t: translate } = useTranslation("dags");
+  const { t: translate } = useTranslation(["dags", "common"]);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { groupId, taskId } = useParams();
+  const { pathname } = useLocation();
 
+  // The task in view carries across the switch, through the same builder the grid and keyboard
+  // navigation use: it keeps the open tab, and sends an expanded task to its list of instances
+  // rather than to a map index that the run picked is not guaranteed to have.
   const onSelect = (selected: SingleValue<DagRunSearchOption>) => {
-    if (selected) {
-      onClose();
-      void Promise.resolve(
-        navigate(`/dags/${dagId}/runs/${selected.value}${buildTaskPath(groupId, taskId)}`),
-      );
+    if (!selected) {
+      return;
     }
+
+    const target =
+      groupId === undefined && taskId === undefined
+        ? `/dags/${dagId}/runs/${selected.value}`
+        : buildTaskInstanceUrl({
+            currentPathname: pathname,
+            dagId,
+            isGroup: groupId !== undefined,
+            isMapped,
+            runId: selected.value,
+            taskId: groupId ?? taskId ?? "",
+          });
+
+    onClose();
+    void Promise.resolve(navigate(target));
   };
 
   const searchDagRunsDebounced = useDebouncedCallback(
@@ -112,6 +120,7 @@ export const SearchDagRuns = ({
     <SearchSelect
       defaultOptions={runs}
       formatOptionLabel={formatOptionLabel}
+      loadingMessage={translate("common:loading")}
       loadOptions={searchDagRunsDebounced}
       onChange={onSelect}
       placeholder={translate("search.dagRuns")}

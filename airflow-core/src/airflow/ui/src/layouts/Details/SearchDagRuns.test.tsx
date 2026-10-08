@@ -68,7 +68,7 @@ const onClose = vi.fn();
 
 const LocationDisplay = () => <output data-testid="location">{useLocation().pathname}</output>;
 
-const renderSearch = (initialEntry: string, route: string) =>
+const renderSearch = (initialEntry: string, route: string, isMapped = false) =>
   render(
     <BaseWrapper>
       <MemoryRouter initialEntries={[initialEntry]}>
@@ -77,6 +77,7 @@ const renderSearch = (initialEntry: string, route: string) =>
             element={
               <SearchDagRuns
                 dagId="my_dag"
+                isMapped={isMapped}
                 onClose={onClose}
                 runs={[{ label: "run_2", state: "failed", value: "run_2" }]}
               />
@@ -171,15 +172,26 @@ describe("SearchDagRuns", () => {
     expect(screen.getByTestId("location").textContent).toBe("/dags/my_dag/runs/run_2/tasks/task_1");
   });
 
-  it("drops the map index, which is not guaranteed to exist in the run picked", () => {
+  it("lands an expanded task on its list of instances, not on a map index", () => {
     renderSearch(
       "/dags/my_dag/runs/run_1/tasks/task_1/mapped/3",
       "/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
+      true,
     );
 
     fireEvent.click(screen.getByRole("button", { name: RUN_2 }));
 
-    expect(screen.getByTestId("location").textContent).toBe("/dags/my_dag/runs/run_2/tasks/task_1");
+    // `/tasks/task_1` would be a row the run picked is not guaranteed to have, and renders
+    // "No task instance found".
+    expect(screen.getByTestId("location").textContent).toBe("/dags/my_dag/runs/run_2/tasks/task_1/mapped");
+  });
+
+  it("keeps the open task instance tab across the switch", () => {
+    renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/xcom", "/dags/:dagId/runs/:runId/tasks/:taskId/xcom");
+
+    fireEvent.click(screen.getByRole("button", { name: RUN_2 }));
+
+    expect(screen.getByTestId("location").textContent).toBe("/dags/my_dag/runs/run_2/tasks/task_1/xcom");
   });
 
   it("keeps the task group in view when switching runs from one", () => {

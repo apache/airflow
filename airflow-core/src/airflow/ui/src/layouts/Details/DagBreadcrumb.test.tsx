@@ -151,6 +151,25 @@ describe("DagBreadcrumb", () => {
     expect(screen.queryByTestId("switch-dag-run-popover")).not.toBeInTheDocument();
   });
 
+  it("asks for fresh runs when the panel opens, having listed them without polling for them", async () => {
+    const getDagRuns = vi
+      .spyOn(DagRunService, "getDagRuns")
+      .mockResolvedValue({ dag_runs: [], total_entries: 0 });
+
+    render(<DagBreadcrumb />, { wrapper: createWrapper(`/dags/${DAG_ID}`, "/dags/:dagId") });
+
+    const listCalls = () =>
+      getDagRuns.mock.calls.filter(([params]) => params.limit === 10 && params.orderBy !== undefined).length;
+
+    // Loaded up front, so the panel never opens onto an empty list.
+    await waitFor(() => expect(listCalls()).toBe(1));
+
+    fireEvent.click(await screen.findByTestId("switch-dag-run"));
+
+    // Opening catches up whatever changed while the panel was closed and not polling.
+    await waitFor(() => expect(listCalls()).toBe(2));
+  });
+
   it("switches Dag run from the chevron dropdown, keeping the task in view", async () => {
     render(<DagBreadcrumb />, {
       wrapper: createWrapper(

@@ -54,6 +54,11 @@ type Props<Option> = {
    */
   readonly defaultOptions: Array<Option>;
   readonly formatOptionLabel: (option: Option) => ReactNode;
+  /**
+   * Shown while a search is in flight. react-select empties the list for the first search after
+   * the input is cleared, so without this the panel would render nothing at all in that window.
+   */
+  readonly loadingMessage: string;
   readonly loadOptions: (
     inputValue: string,
     callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void,
@@ -69,6 +74,7 @@ type Props<Option> = {
 export const SearchSelect = <Option,>({
   defaultOptions,
   formatOptionLabel,
+  loadingMessage,
   loadOptions,
   onChange,
   placeholder,
@@ -92,13 +98,14 @@ export const SearchSelect = <Option,>({
       <AsyncSelect<Option>
         backspaceRemovesValue={true}
         chakraStyles={chakraStyles}
-        // No loading affordance anywhere: the listed options are in hand before the panel opens,
-        // and a search replaces them once it answers rather than blanking them first.
+        // No spinner: the listed options are in hand before the panel opens, and a search
+        // replaces them once it answers. Only the window where react-select empties the list
+        // itself gets an affordance, and a line of text is enough for it.
         components={{ Control: SearchControl, DropdownIndicator: null, LoadingIndicator: NoIndicator }}
         defaultOptions={defaultOptions}
         filterOption={undefined}
         formatOptionLabel={formatOptionLabel}
-        loadingMessage={() => null}
+        loadingMessage={() => loadingMessage}
         loadOptions={loadOptions}
         menuIsOpen
         onChange={onChange}

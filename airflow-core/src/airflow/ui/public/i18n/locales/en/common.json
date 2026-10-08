@@ -168,6 +168,7 @@
   "generateToken": "Generate Token",
   "includedIn": "Included in",
   "key": "Key",
+  "loading": "Loading…",
   "logLevel": {
     "hide": "Hide Log Levels",
     "hotkey": "l",

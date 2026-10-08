@@ -51,7 +51,7 @@ export const SearchDags = ({
   readonly dags: Array<DagSearchOption>;
   readonly onClose: () => void;
 }) => {
-  const { t: translate } = useTranslation("dags");
+  const { t: translate } = useTranslation(["dags", "common"]);
   const queryClient = useQueryClient();
   const matches = useMatches();
   const navigate = useNavigate();
@@ -98,6 +98,7 @@ export const SearchDags = ({
     <SearchSelect
       defaultOptions={dags}
       formatOptionLabel={formatOptionLabel}
+      loadingMessage={translate("common:loading")}
       loadOptions={searchDagDebounced}
       onChange={onSelect}
       placeholder={translate("search.dags")}
