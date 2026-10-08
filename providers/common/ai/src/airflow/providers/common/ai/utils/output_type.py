@@ -18,9 +18,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, get_origin
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic.errors import PydanticSchemaGenerationError
+
+from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 
 
 def rehydrate_pydantic_output(
@@ -30,25 +33,43 @@ def rehydrate_pydantic_output(
     serialize_output: bool,
 ) -> Any:
     """
-    Turn a JSON string back into a value of ``output_type``.
+    Turn the reviewed string (JSON, or bare text for str-valued types) back into ``output_type``.
 
     Used by the HITL/approval paths in ``LLMOperator`` and ``AgentOperator``
     that round-trip the output through a string when deferring to a human
     reviewer. ``str`` outputs pass through unchanged; any other ``output_type``
     (``BaseModel`` subclass, ``int``, ``list[str]``, ...) is validated with a
-    pydantic ``TypeAdapter``. When validation fails (reviewer edited the string
-    into something the type rejects), returns ``raw`` unchanged.
+    pydantic ``TypeAdapter``, first as JSON and then as bare text.
+    An ``output_type`` pydantic has no schema for returns ``raw`` unchanged.
 
     When ``serialize_output`` is ``True``, returns the model dumped to a
     ``dict`` -- matches the operator's ``serialize_output=True`` opt-in for
     consumers that want the dict shape.
+
+    :raises ReviewedOutputValidationError: If ``output_type`` is not ``str`` and ``raw``
+        (typically a reviewer's edit) is neither valid JSON for it nor valid as plain text.
     """
     if output_type is str:
         return raw
     try:
-        rehydrated = TypeAdapter(output_type).validate_json(raw)
-    except (ValidationError, ValueError, TypeError):
+        adapter: TypeAdapter[Any] = TypeAdapter(output_type)
+    except PydanticSchemaGenerationError:
+        # Nothing to validate against, so the reviewed text is all there is.
         return raw
+    try:
+        rehydrated = adapter.validate_json(raw)
+    except (ValidationError, ValueError, TypeError) as exc:
+        # Bare text is how a str-valued Literal, Enum or ``str | None`` output is carried through review.
+        try:
+            rehydrated = adapter.validate_python(raw)
+        except (ValidationError, ValueError, TypeError):
+            type_name = (
+                output_type if get_origin(output_type) else getattr(output_type, "__name__", output_type)
+            )
+            raise ReviewedOutputValidationError(
+                f"The reviewed output could not be converted to the output_type {type_name}. "
+                f"Received {raw!r}. {exc}"
+            ) from exc
     if serialize_output and isinstance(rehydrated, BaseModel):
         return rehydrated.model_dump()
     return rehydrated

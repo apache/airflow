@@ -31,6 +31,15 @@ HITL interface.  Optionally allow the reviewer to edit the output before
 approving with ``allow_modifications=True``, and set a deadline with
 ``approval_timeout``.
 
+On ``LLMOperator`` and the operators that keep its typed output, the edited text is
+converted back into ``output_type`` when the task resumes.  Write it as JSON for the
+type, such as ``31`` for an ``int``, ``["a", "b"]`` for a ``list[str]`` or an object for
+a Pydantic model.  A ``Literal``, a ``str`` Enum or ``str | None`` also accepts the
+bare text.  If the text does not validate, the task fails with
+:class:`~airflow.providers.common.ai.exceptions.ReviewedOutputValidationError`
+naming the type and the text received, rather than passing a value of the wrong
+type downstream (for types pydantic can build a schema for).  With ``output_type=str`` any edit is accepted as is.
+
 Human-in-the-loop review needs Airflow 3.1+, whether ``require_approval`` or a
 ``decision_policy`` with ``on_uncertain="review"`` opens it. On an older Airflow version the
 operator raises ``AirflowOptionalProviderFeatureException`` when it is constructed, so the Dag file

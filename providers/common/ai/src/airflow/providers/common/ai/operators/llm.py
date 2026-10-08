@@ -144,8 +144,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         ``decision_policy`` that reviews) and a positive
         ``approval_timeout``.
     :param allow_modifications: If ``True``, the reviewer can edit the output
-        before approving.  The modified value is returned as the task result.
-        Default ``False``.
+        before approving.  The edit is converted back into ``output_type`` and returned
+        as the task result, and one that does not validate fails the task with
+        ``ReviewedOutputValidationError``.  Default ``False``.
     :param approval_notifiers: Notifiers called once the review is open, so a
         reviewer is told about it.  Only takes effect when a review is
         opened.  A retry re-notifies with the regenerated
@@ -363,7 +364,11 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         event: dict[str, Any],
         decision: dict[str, Any] | None = None,
     ) -> Any:
-        """Resume after human review and restore the Pydantic model for XCom consumers."""
+        """
+        Resume after human review and convert the output back into ``output_type``.
+
+        :raises ReviewedOutputValidationError: If the approved output does not validate against it.
+        """
         output = self._resume_after_review(context, generated_output, event, decision)
         self._finalize_decision(context, event, decision, action=None)
         return rehydrate_pydantic_output(

@@ -24,7 +24,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
@@ -371,18 +371,3 @@ class LLMSchemaCompareOperator(LLMOperator):
             self.defer_for_approval(context, output, body=body)  # type: ignore[misc]
 
         return output_result
-
-    def execute_complete(
-        self,
-        context: Context,
-        generated_output: str,
-        event: dict[str, Any],
-        decision: dict[str, Any] | None = None,
-    ) -> Any:
-        output = super().execute_complete(context, generated_output, event, decision)
-        if isinstance(output, dict):
-            return output
-        try:
-            return SchemaCompareResult.model_validate_json(output).model_dump()
-        except ValidationError as e:
-            raise ValueError(f"Reviewed output is not a valid SchemaCompareResult: {e}") from e
