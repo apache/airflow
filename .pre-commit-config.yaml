@@ -1582,7 +1582,7 @@ repos:
         require_serial: true
       - id: generate-yaml-importer-schema-snapshot
         name: Regenerate YAML DAG importer schema snapshot
-        entry: ./scripts/ci/prek/generate_yaml_importer_schema_snapshot.py
+        entry: uv run -p 3.12 --frozen --no-progress --project task-sdk -s scripts/ci/prek/generate_yaml_importer_schema.py
         language: python
         pass_filenames: false
         files: ^task-sdk/src/airflow/sdk/importers/yaml_importer/(models|parser|versions/.*)\.py$
