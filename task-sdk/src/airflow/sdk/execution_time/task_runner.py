@@ -2611,6 +2611,8 @@ def _run_execute_callable(
     context: Context,
     execute: Callable[..., Any] | functools.partial[Any],
     task: BaseOperator,
+    *,
+    enforce_timeout: bool = True,
 ) -> Any:
     """
     Run the task's execute callable, applying the execution timeout if one is set.
@@ -2620,10 +2622,15 @@ def _run_execute_callable(
     than under the caller. ``ExecutorSafeguard``'s tracker is set into that copy
     so the operator's ``execute`` passes the safeguard check, while the copy keeps
     the change from leaking into the surrounding context.
+
+    ``enforce_timeout`` is False for the items of an iterated task: they run in worker
+    threads, where ``TimeoutPosix`` cannot fire, under the parent's own limit, which the
+    parent already told the supervisor about; sending ``SetExecutionTimeout`` again per item
+    would move the supervisor's deadline to the last item started.
     """
     ctx = contextvars.copy_context()
     ctx.run(ExecutorSafeguard.tracker.set, task)
-    if task.execution_timeout:
+    if task.execution_timeout and enforce_timeout:
         from airflow.sdk.execution_time.timeout import timeout
 
         # TODO: handle timeout in case of deferral
@@ -2677,7 +2684,11 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    result = _run_execute_callable(context, execute, task)
+    # An indexed sub-task runs in a worker thread under the parent's execution_timeout, which the
+    # parent enforces and reported to the supervisor once (see _run_execute_callable).
+    result = _run_execute_callable(
+        context, execute, task, enforce_timeout=not isinstance(ti, IndexedTaskInstance)
+    )
 
     _run_post_execute(task, context, outlet_events, result, log)
     return result

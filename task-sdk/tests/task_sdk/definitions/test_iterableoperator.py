@@ -2720,6 +2720,38 @@ class TestExecutionTimeoutKillsInFlightSubTasks:
 
         assert sorted(KILLED_ON_TIMEOUT) == [(kind, 1), (kind, 2)]
 
+    def test_the_parents_timeout_is_sent_to_the_supervisor_once(self, mock_supervisor_comms):
+        """
+        Sync items with an execution_timeout run in worker threads, where TimeoutPosix cannot fire,
+        under the parent's limit. Re-sending SetExecutionTimeout per item would move the
+        supervisor's hard-kill deadline to the last item started, up to one full timeout late.
+        """
+        from airflow.sdk.execution_time.comms import SetExecutionTimeout
+        from airflow.sdk.execution_time.task_runner import _run_execute_callable
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}, {"arg1": 3}])
+            mapped_op = create_mapped_operator(
+                dag,
+                expand_input,
+                task_id="timed_items",
+                task_concurrency=2,
+                execution_timeout=timedelta(seconds=30),
+            )
+            with pytest.warns(UserWarning, match="not enforced per sync sub-task"):
+                iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            with mock_context(task=iterable_op) as context:
+                _run_execute_callable(context, iterable_op.execute, iterable_op)
+
+        sent = [
+            call.kwargs.get("msg", call.args[0] if call.args else None)
+            for call in mock_supervisor_comms.send.call_args_list
+        ]
+        assert [msg for msg in sent if isinstance(msg, SetExecutionTimeout)] == [
+            SetExecutionTimeout(timeout_seconds=30.0)
+        ]
+
     def test_the_struck_async_items_on_kill_runs_off_the_loop_thread(self):
         """
         The parent's timeout can land inside the async item running on the loop thread. Its on_kill
