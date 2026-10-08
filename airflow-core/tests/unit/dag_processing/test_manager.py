@@ -2459,7 +2459,7 @@ class TestDagFileProcessorManager:
 
     @mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True)
     def test_persist_parsing_result_passes_parsed_definitions_and_source_codes(self, mock_update):
-        source_codes = {"/bundle/dags.zip/a.py": DagSourceCode(source_code="src", language="python")}
+        source_codes = {"a": DagSourceCode(source_code="src", language="python")}
         parsing_result = DagFileParsingResult(
             fileloc="/bundle/dags.zip",
             serialized_dags=[],

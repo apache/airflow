@@ -99,7 +99,7 @@ class BuilderTest {
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             return Refs.record(dag, List.of("t1", "t2", "t3"), new TestExample.Wiring()::depends);
+             return Refs.record(dag, List.of("t1", "t2", "t3"), List.of(), new TestExample.Wiring()::depends);
            }
 
            public static final class T1 implements Task {
@@ -136,6 +136,7 @@ class BuilderTest {
 
          import java.lang.Integer;
          import java.lang.Void;
+         import java.util.List;
          import org.apache.airflow.sdk.Arg;
          import org.apache.airflow.sdk.Deps;
          import org.apache.airflow.sdk.TaskDef;
@@ -151,15 +152,15 @@ class BuilderTest {
           */
          public interface TestExampleDeps extends Deps {
            default TaskRef<Void> t1() {
-             return Refs.node(new TaskDef("t1", TestExampleBuilder.T1.class));
+             return Refs.node("", new TaskDef("t1", TestExampleBuilder.T1.class));
            }
 
            default TaskRef<Integer> t2() {
-             return Refs.node(new TaskDef("t2", TestExampleBuilder.T2.class));
+             return Refs.node("", new TaskDef("t2", TestExampleBuilder.T2.class));
            }
 
            default TaskRef<Void> t3(Arg<? extends Integer> value) {
-             return Refs.call(new TaskDef("t3", TestExampleBuilder.T3.class), value);
+             return Refs.call("", new TaskDef("t3", TestExampleBuilder.T3.class), List.of("value"), value);
            }
          }
         """,
@@ -213,7 +214,7 @@ class BuilderTest {
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             return Refs.record(dag, List.of("t"), new TestExample.Wiring()::depends);
+             return Refs.record(dag, List.of("t"), List.of(), new TestExample.Wiring()::depends);
            }
 
            public static final class T implements Task {
@@ -281,7 +282,7 @@ class BuilderTest {
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             return Refs.record(dag, List.of("t"), new TestExample.Wiring()::depends);
+             return Refs.record(dag, List.of("t"), List.of(), new TestExample.Wiring()::depends);
            }
 
            public static final class T implements Task {
@@ -364,24 +365,24 @@ class BuilderTest {
           */
          public interface TestExampleDeps extends Deps {
            default TaskRef<String> ps() {
-             return Refs.node(new TaskDef("ps", TestExampleBuilder.Ps.class));
+             return Refs.node("", new TaskDef("ps", TestExampleBuilder.Ps.class));
            }
 
            default TaskRef<Void> pv() {
-             return Refs.node(new TaskDef("pv", TestExampleBuilder.Pv.class));
+             return Refs.node("", new TaskDef("pv", TestExampleBuilder.Pv.class));
            }
 
            default TaskRef<List<String>> pl() {
-             return Refs.node(new TaskDef("pl", TestExampleBuilder.Pl.class));
+             return Refs.node("", new TaskDef("pl", TestExampleBuilder.Pl.class));
            }
 
            default TaskRef<Long> pn() {
-             return Refs.node(new TaskDef("pn", TestExampleBuilder.Pn.class));
+             return Refs.node("", new TaskDef("pn", TestExampleBuilder.Pn.class));
            }
 
            default TaskRef<Void> t(Arg<? extends String> text, Arg<?> anything,
                Arg<? extends List<String>> items, Arg<? extends Long> boxed) {
-             return Refs.call(new TaskDef("t", TestExampleBuilder.T.class), text, anything, items, boxed);
+             return Refs.call("", new TaskDef("t", TestExampleBuilder.T.class), List.of("text", "anything", "items", "boxed"), text, anything, items, boxed);
            }
          }
         """,
@@ -437,7 +438,7 @@ class BuilderTest {
              dag.config("tags", List.of("a", "b"));
              dag.config("catchup", true);
              dag.config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00Z"));
-             return Refs.record(dag, List.of("t1"), new TestExample.Wiring()::depends);
+             return Refs.record(dag, List.of("t1"), List.of(), new TestExample.Wiring()::depends);
            }
 
            public static final class T1 implements Task {
@@ -472,7 +473,7 @@ class BuilderTest {
           */
          public interface TestExampleDeps extends Deps {
            default TaskRef<Void> t1() {
-             return Refs.node(new TaskDef("t1", TestExampleBuilder.T1.class).config("retries", 2).config("queue", "q").config("retry_delay", Duration.parse("PT5M")).config("retry_exponential_backoff", 1.5));
+             return Refs.node("", new TaskDef("t1", TestExampleBuilder.T1.class).config("retries", 2).config("queue", "q").config("retry_delay", Duration.parse("PT5M")).config("retry_exponential_backoff", 1.5));
            }
          }
         """,
@@ -523,7 +524,7 @@ class BuilderTest {
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             return Refs.record(dag, List.of("t"), new TestExample.Wiring()::depends);
+             return Refs.record(dag, List.of("t"), List.of(), new TestExample.Wiring()::depends);
            }
            public static final class T implements Task {
              @Override
@@ -593,7 +594,7 @@ class BuilderTest {
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             return Refs.record(dag, List.of("flat", "named"), new TestExample.Wiring()::depends);
+             return Refs.record(dag, List.of("flat", "named"), List.of(), new TestExample.Wiring()::depends);
            }
 
            public static final class Flat implements Task {
@@ -814,7 +815,7 @@ class BuilderTest {
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("foo");
-             return Refs.record(dag, List.of(), new TestExample.Wiring()::depends);
+             return Refs.record(dag, List.of(), List.of(), new TestExample.Wiring()::depends);
            }
          }
         """,
@@ -850,7 +851,7 @@ class BuilderTest {
          public final class Foo {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             return Refs.record(dag, List.of(), new TestExample.Wiring()::depends);
+             return Refs.record(dag, List.of(), List.of(), new TestExample.Wiring()::depends);
            }
          }
         """,
@@ -898,7 +899,7 @@ class BuilderTest {
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             return Refs.record(dag, List.of("foo"), new TestExample.Wiring()::depends);
+             return Refs.record(dag, List.of("foo"), List.of(), new TestExample.Wiring()::depends);
            }
 
            public static final class T1 implements Task {
@@ -932,7 +933,7 @@ class BuilderTest {
           */
          public interface TestExampleDeps extends Deps {
            default TaskRef<Void> t1() {
-             return Refs.node(new TaskDef("foo", TestExampleBuilder.T1.class));
+             return Refs.node("", new TaskDef("foo", TestExampleBuilder.T1.class));
            }
          }
         """,
@@ -1277,6 +1278,474 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("nest a wiring view per task group, keyed by the class tree")
+  fun generateBuilderWithTaskGroups() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void extract() {}
+
+          @Builder.TaskGroup
+          static class Staging {
+            @Builder.Task public void stage() {}
+
+            @Builder.TaskGroup(id = "checks")
+            static class Checks {
+              @Builder.Task public void nulls() {}
+            }
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              extract().before(staging());
+              staging().stage().before(staging().checks().nulls());
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .contentsAsUtf8String()
+      .contains(
+        "return Refs.record(dag, List.of(\"extract\", \"Staging.stage\", \"Staging.checks.nulls\"), " +
+          "List.of(\"Staging\", \"Staging.checks\"), new TestExample.Wiring()::depends);",
+      )
+    val view = assertThat(compilation).generatedSourceFile("org.apache.airflow.example.TestExampleDeps")
+    view.contentsAsUtf8String().contains("default Staging staging() {")
+    view.contentsAsUtf8String().contains("interface Staging extends Deps.TaskGroup {")
+    view.contentsAsUtf8String().contains("return \"Staging.checks\";")
+    view.contentsAsUtf8String().contains(
+      "return Refs.node(groupId(), new TaskDef(\"Staging.checks.nulls\", " +
+        "TestExampleBuilder.Staging_Checks_Nulls.class));",
+    )
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .contentsAsUtf8String()
+      .contains("public static final class Staging_Checks_Nulls implements Task {")
+  }
+
+  @Test
+  @DisplayName("scope task method names to their own task group")
+  fun generateBuilderScopesTaskNamesPerGroup() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup
+          static class First {
+            @Builder.Task public void run() {}
+          }
+
+          @Builder.TaskGroup
+          static class Second {
+            @Builder.Task public void run() {}
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { first().run().before(second().run()); }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .contentsAsUtf8String()
+      .contains("public static final class First_Run implements Task {")
+  }
+
+  @Test
+  @DisplayName("reject a task group ID that is not a plain identifier")
+  fun rejectInvalidTaskGroupId() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup(id = "staging.checks")
+          static class Staging {
+            @Builder.Task public void t1() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task group ID 'staging.checks' must contain only ASCII letters, digits, underscores, or dashes",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a non-static task group class")
+  fun rejectNonStaticTaskGroupClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup
+          class Staging {
+            @Builder.Task public void t1() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.TaskGroup class 'Staging' must be static and non-private",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a task group whose accessor clashes with a task method")
+  fun rejectTaskGroupClashingWithTaskMethod() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void staging() {}
+
+          @Builder.TaskGroup
+          static class Staging {
+            @Builder.Task public void t1() {}
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task group class 'Staging' and task method 'staging' would both be 'staging()' on the wiring " +
+        "view; rename one",
+    )
+  }
+
+  @Test
+  @DisplayName("reject an abstract task group class")
+  fun rejectAbstractTaskGroupClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup
+          abstract static class Staging {
+            @Builder.Task public void t1() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining("@Builder.TaskGroup 'Staging' must be a concrete class")
+  }
+
+  @Test
+  @DisplayName("reject a task group class with no no-argument constructor")
+  fun rejectTaskGroupClassWithoutNoArgConstructor() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup
+          static class Staging {
+            Staging(String name) {}
+
+            @Builder.Task public void t1() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.TaskGroup class 'Staging' needs a non-private no-argument constructor",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a task in a group whose name clashes with the group view")
+  fun rejectTaskClashingWithGroupView() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup
+          static class Staging {
+            @Builder.Task public void nodes() {}
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task method 'nodes' clashes with a member of the wiring view; rename the method and keep the " +
+        "task id with @Builder.Task(id = \"nodes\")",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a task in a group named after a member the view inherits from Flow")
+  fun rejectTaskNamedBeforeInGroup() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup
+          static class Staging {
+            @Builder.Task public void before() {}
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task method 'before' clashes with a member of the wiring view; rename the method and keep the " +
+        "task id with @Builder.Task(id = \"before\")",
+    )
+  }
+
+  @Test
+  @DisplayName("reject two task groups in one scope with the same id")
+  fun rejectDuplicateTaskGroupIds() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup(id = "checks")
+          static class Alpha {
+            @Builder.Task public void t1() {}
+          }
+
+          @Builder.TaskGroup(id = "checks")
+          static class Beta {
+            @Builder.Task public void t2() {}
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining("Class TestExample declares more than one task group 'checks'")
+  }
+
+  @Test
+  @DisplayName("accept a task named after a group view member outside a group")
+  fun acceptTaskNamedAfterGroupViewMemberAtTopLevel() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void nodes() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            public void depends() { nodes(); }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).succeeded()
+  }
+
+  @Test
+  @DisplayName("reject two task group classes that share an accessor")
+  fun rejectTaskGroupsSharingAnAccessor() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup
+          static class Staging {
+            @Builder.Task public void t1() {}
+          }
+
+          @Builder.TaskGroup(id = "lower")
+          static class staging {
+            @Builder.Task public void t2() {}
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task group classes 'Staging' and 'staging' would both be 'staging()' on the wiring view; rename one",
+    )
+  }
+
+  @Test
+  @DisplayName("accept a task id that carries a dot, as Python's KEY_REGEX does")
+  fun acceptDottedTaskId() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task(id = "staging.stage") public void stage() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            public void depends() { stage(); }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).succeeded()
+  }
+
+  @Test
+  @DisplayName("reject a task and a task group sharing an id")
+  fun rejectTaskSharingIdWithGroup() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task(id = "Staging") public void staged() {}
+
+          @Builder.TaskGroup
+          static class Staging {
+            @Builder.Task public void t1() {}
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Dag has both a task and a task group with ID 'Staging'; rename one",
+    )
+  }
+
+  @Test
+  @DisplayName("reject two task methods whose generated classes would collide")
+  fun rejectCollidingGeneratedTaskClasses() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup(id = "flat")
+          static class A_B {
+            @Builder.Task public void c() {}
+          }
+
+          @Builder.TaskGroup(id = "outer")
+          static class A {
+            @Builder.TaskGroup(id = "inner")
+            static class B {
+              @Builder.Task public void c() {}
+            }
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "both generate the task class 'A_B_C'; rename one of them or an enclosing @Builder.TaskGroup class",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a task group class that is not nested in a dag or another group")
+  fun rejectMisplacedTaskGroup() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        public class TestExample {
+          @Builder.TaskGroup
+          static class Staging {
+            @Builder.Task public void t1() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.TaskGroup class 'Staging' must be nested in a @Builder.Dag class or in another " +
+        "@Builder.TaskGroup class",
+    )
+  }
+
+  @Test
   @DisplayName("generate builder for dag class with varargs task parameter")
   fun generateBuilderForDagClassWithVarArgsTaskParameter() {
     val compilation =
@@ -1338,7 +1807,7 @@ class BuilderTest {
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "Dag class TestExample overloads task method 'extract'; a method's name is the name of its " +
+      "Class TestExample overloads task method 'extract'; a method's name is the name of its " +
         "generated task class and of its wiring-view method, so rename one and keep its task id " +
         "with @Builder.Task(id = \"b\")",
     )
@@ -1501,7 +1970,7 @@ class BuilderTest {
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             return Refs.record(dag, List.of("score"), new TestExample.Wiring()::depends);
+             return Refs.record(dag, List.of("score"), List.of(), new TestExample.Wiring()::depends);
            }
 
            public static final class Score implements Task {

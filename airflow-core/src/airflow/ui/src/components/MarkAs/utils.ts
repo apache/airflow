@@ -16,6 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DagRunMutableStates } from "openapi/requests/types.gen";
+import type { DagRunMutableStates, TaskInstanceState } from "openapi/requests/types.gen";
 
 export const allowedStates: Array<DagRunMutableStates> = ["success", "failed"];
+
+// Narrower than isStatePending: excludes states where the task has started or may start at any moment.
+const skippableTaskInstanceStates: Array<TaskInstanceState> = [
+  "scheduled",
+  "up_for_reschedule",
+  "up_for_retry",
+];
+
+export const canMarkTaskInstanceAsSkipped = (state?: TaskInstanceState | null) =>
+  state === null || state === undefined || skippableTaskInstanceStates.includes(state);

@@ -23,7 +23,7 @@ runs and deletes Tasks in the Google Cloud Tasks service in the Google Cloud.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue
@@ -108,7 +108,7 @@ with DAG(
     @task(task_id="build_task")
     def build_task_with_schedule_time():
         # Computed when the task runs: a value computed when the file is parsed changes the Dag on every parse.
-        return {**TASK, "schedule_time": datetime.now(tz=timezone.utc) + timedelta(hours=12)}
+        return {**TASK, "schedule_time": datetime.now(tz=UTC) + timedelta(hours=12)}
 
     # [START create_task]
     create_task = CloudTasksTaskCreateOperator(

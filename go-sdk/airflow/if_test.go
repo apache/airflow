@@ -191,7 +191,7 @@ func TestIfPanicsUnderItsOwnName(t *testing.T) {
 		{
 			name: "nil input",
 			add:  func(dag *DagRef) { dag.If(hasRows, Inputs(nil)) },
-			want: "airflow.Inputs got a nil *airflow.TaskRef",
+			want: "airflow.Inputs got a nil input",
 		},
 		{
 			name: "input from another Dag",
@@ -206,7 +206,7 @@ func TestIfPanicsUnderItsOwnName(t *testing.T) {
 		{
 			name: "missing input",
 			add:  func(dag *DagRef) { dag.If(hasRows) },
-			want: "but airflow.Inputs passes no task",
+			want: "but airflow.Inputs passes no input",
 		},
 		{
 			name: "input from TriggerDagRun",
@@ -498,7 +498,7 @@ func (c *deciderClient) skip(_ context.Context, taskIDs []string) error {
 func runDecider(task *TaskRef, results map[string]any) (*deciderClient, error) {
 	args := make([]binding.Arg, len(task.inputs))
 	for i, upstream := range task.inputs {
-		args[i] = binding.XComArg{Kind: "xcom", Name: "rows", TaskID: upstream.taskID}
+		args[i] = binding.XComArg{Kind: "xcom", Name: "rows", TaskID: upstream.ref.taskID}
 	}
 	client := &deciderClient{results: results, xcoms: map[string]any{}}
 	ti := sdk.TaskInstance{DagID: "etl", RunID: "run1", TaskID: task.taskID}

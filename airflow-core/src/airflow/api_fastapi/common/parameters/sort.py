@@ -168,7 +168,8 @@ class SortParam(BaseParam[list[str]]):
 
     def get_primary_key_column(self) -> Column:
         """Get the primary key column of the model of SortParam object."""
-        return inspect(self.model).primary_key[0]
+        inspection = inspect(self.model)
+        return inspection.selectable.corresponding_column(inspection.mapper.primary_key[0])
 
     def get_primary_key_string(self) -> str:
         """Get the primary key string of the model of SortParam object."""

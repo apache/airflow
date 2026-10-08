@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import cached_property
 
 import boto3
@@ -163,11 +163,18 @@ class AirflowClient:
         """Get an Airflow Variable via API."""
         return self._make_request(method="GET", endpoint=f"variables/{key}")
 
+    def get_task_state_store(self, dag_id: str, run_id: str, task_id: str, key: str):
+        """Get a single task state store entry via API."""
+        return self._make_request(
+            method="GET",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/state-store/{key}",
+        )
+
     def trigger_dag_and_wait(self, dag_id: str, json=None):
         """Trigger a DAG and wait for it to complete."""
         self.un_pause_dag(dag_id)
 
-        resp = self.trigger_dag(dag_id, json=json or {"logical_date": datetime.now(timezone.utc).isoformat()})
+        resp = self.trigger_dag(dag_id, json=json or {"logical_date": datetime.now(UTC).isoformat()})
 
         # Wait for the DAG run to complete
         return self.wait_for_dag_run(

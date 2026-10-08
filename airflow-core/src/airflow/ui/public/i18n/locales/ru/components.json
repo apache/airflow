@@ -43,7 +43,6 @@
   },
   "close": "Закрыть",
   "configForm": {
-    "advancedOptions": "Расширенные параметры",
     "configJson": "Конфигурация JSON",
     "invalidJson": "Некорректный формат JSON: {{errorMessage}}"
   },

@@ -1,0 +1,428 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.airflow.sdk.execution
+
+import org.apache.airflow.sdk.Arg
+import org.apache.airflow.sdk.Bundle
+import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.Context
+import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.Task
+import org.apache.airflow.sdk.TaskDef
+import org.apache.airflow.sdk.execution.comm.DagFileParseRequest
+import org.apache.airflow.sdk.internal.Refs
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import java.time.Duration
+import java.time.OffsetDateTime
+
+private class SerdeNoopTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun taskData(
+  serialized: Map<String, Any?>,
+  index: Int,
+): Map<String, Any?> {
+  val tasks = serialized["tasks"] as List<Map<String, Any?>>
+  assertEquals("operator", tasks[index]["__type"])
+  return tasks[index]["__var"] as Map<String, Any?>
+}
+
+internal class SerdeTest {
+  @Test
+  @DisplayName("Should emit required dag fields and leave unset config-backed fields out")
+  fun shouldEmitRequiredDagFields() {
+    val serialized = serializeDag(DagDef("d"), "/bundles/app/dags.jar", "app/dags.jar")
+
+    assertEquals("d", serialized["dag_id"])
+    assertEquals("/bundles/app/dags.jar", serialized["fileloc"])
+    assertEquals("app/dags.jar", serialized["relative_fileloc"])
+    assertEquals("UTC", serialized["timezone"])
+    assertEquals(
+      mapOf("__type" to "airflow.timetables.simple.NullTimetable", "__var" to emptyMap<String, Any?>()),
+      serialized["timetable"],
+    )
+    assertEquals(emptyList<Any?>(), serialized["tasks"])
+    assertEquals(emptyList<Any?>(), serialized["dag_dependencies"])
+    assertEquals(emptyMap<String, Any?>(), serialized["edge_info"])
+    assertEquals(emptyList<Any?>(), serialized["params"])
+    assertNull(serialized["deadline"])
+    assertNull(serialized["allowed_run_types"])
+    assertFalse("max_active_tasks" in serialized)
+    assertFalse("max_active_runs" in serialized)
+    assertFalse("max_consecutive_failed_dag_runs" in serialized)
+    assertFalse("catchup" in serialized)
+    assertFalse("disable_bundle_versioning" in serialized)
+    assertFalse("description" in serialized)
+    assertFalse("fail_fast" in serialized)
+    assertFalse("tags" in serialized)
+  }
+
+  @Test
+  @DisplayName("Should map schedule strings to the matching timetable")
+  fun shouldMapScheduleToTimetable() {
+    val cron = serializeDag(DagDef("d").config("schedule", "@daily"), "", ".")
+    assertEquals(
+      mapOf(
+        "__type" to "airflow.timetables.trigger.CronTriggerTimetable",
+        "__var" to
+          mapOf(
+            "expression" to "0 0 * * *",
+            "timezone" to "UTC",
+            "interval" to 0.0,
+            "run_immediately" to false,
+          ),
+      ),
+      cron["timetable"],
+    )
+
+    val once = serializeDag(DagDef("d").config("schedule", "@once"), "", ".")
+    assertEquals(
+      mapOf("__type" to "airflow.timetables.simple.OnceTimetable", "__var" to emptyMap<String, Any?>()),
+      once["timetable"],
+    )
+
+    val continuous = serializeDag(DagDef("d").config("schedule", "@continuous"), "", ".")
+    assertEquals(
+      mapOf("__type" to "airflow.timetables.simple.ContinuousTimetable", "__var" to emptyMap<String, Any?>()),
+      continuous["timetable"],
+    )
+  }
+
+  @Test
+  @DisplayName("Should apply dag config values with Python's emit rules")
+  fun shouldApplyDagConfig() {
+    val dag =
+      DagDef("d")
+        .config("description", "demo")
+        .config("tags", listOf("b", "a", "b"))
+        .config("catchup", true)
+        .config("fail_fast", true)
+        .config("max_active_runs", 3)
+        .config("dagrun_timeout", Duration.ofMinutes(5))
+        .config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00Z"))
+
+    val serialized = serializeDag(dag, "", ".")
+
+    assertEquals("demo", serialized["description"])
+    assertEquals(listOf("a", "b"), serialized["tags"])
+    assertEquals(true, serialized["catchup"])
+    assertEquals(true, serialized["fail_fast"])
+    assertEquals(3, serialized["max_active_runs"])
+    assertEquals(300.0, serialized["dagrun_timeout"])
+    assertEquals(1.7672256E9, serialized["start_date"])
+  }
+
+  @Test
+  @DisplayName("Should serialize tasks with identity fields, config, and sorted downstream ids")
+  fun shouldSerializeTasks() {
+    val extractDef =
+      TaskDef("extract", SerdeNoopTask::class.java)
+        .config("retries", 2)
+        .config("queue", "q")
+        .config("retry_delay", Duration.ofMinutes(10))
+        .config("email_on_failure", false)
+        .config("email_on_retry", false)
+    val transformDef =
+      TaskDef("transform", SerdeNoopTask::class.java)
+        .dependsOn(extractDef)
+        // Explicitly at schema defaults: omitted from the serialized form.
+        .config("retries", 0)
+        .config("queue", "default")
+        .config("retry_delay", Duration.ofMinutes(5))
+    val dag = DagDef("d").addTask(extractDef).addTask(transformDef)
+
+    val serialized = serializeDag(dag, "", ".")
+
+    val extract = taskData(serialized, 0)
+    assertEquals("extract", extract["task_id"])
+    assertEquals("SerdeNoopTask", extract["task_type"])
+    assertEquals("org.apache.airflow.sdk.execution", extract["_task_module"])
+    assertEquals("java", extract["language"])
+    assertEquals(emptyList<Any?>(), extract["template_fields"])
+    assertEquals(2, extract["retries"])
+    assertEquals("q", extract["queue"])
+    assertEquals(600.0, extract["retry_delay"])
+    assertEquals(listOf("transform"), extract["downstream_task_ids"])
+    assertFalse("email_on_failure" in extract)
+    assertFalse("email_on_retry" in extract)
+
+    val transform = taskData(serialized, 1)
+    assertEquals("transform", transform["task_id"])
+    assertFalse("retries" in transform)
+    assertFalse("queue" in transform)
+    assertFalse("retry_delay" in transform)
+    assertFalse("downstream_task_ids" in transform)
+
+    assertEquals(
+      mapOf("extract" to listOf("operator", "extract"), "transform" to listOf("operator", "transform")),
+      (serialized["task_group"] as Map<*, *>)["children"],
+    )
+  }
+
+  @Test
+  @DisplayName("Should serialize nested task groups with their own edges")
+  fun shouldSerializeTaskGroups() {
+    val dag = DagDef("d")
+    val extract = dag.task<Unit>("extract", SerdeNoopTask::class.java)
+    val staging = dag.taskGroup("staging")
+    staging.task<Unit>("stage", SerdeNoopTask::class.java)
+    staging.taskGroup("checks").task<Unit>("nulls", SerdeNoopTask::class.java)
+    extract.before(staging)
+
+    val root = serializeDag(dag, "", ".")["task_group"] as Map<*, *>
+
+    val group = { name: String, children: Map<String, Any?>, upstreamTasks: List<String> ->
+      mapOf(
+        "_group_id" to name,
+        "group_display_name" to "",
+        "prefix_group_id" to true,
+        "tooltip" to "",
+        "ui_color" to "CornflowerBlue",
+        "ui_fgcolor" to "#000",
+        "children" to children,
+        "upstream_group_ids" to emptyList<String>(),
+        "downstream_group_ids" to emptyList<String>(),
+        "upstream_task_ids" to upstreamTasks,
+        "downstream_task_ids" to emptyList<String>(),
+      )
+    }
+    val checks = group("checks", mapOf("staging.checks.nulls" to listOf("operator", "staging.checks.nulls")), emptyList())
+    assertEquals(
+      mapOf(
+        "extract" to listOf("operator", "extract"),
+        "staging" to
+          listOf(
+            "taskgroup",
+            group(
+              "staging",
+              mapOf(
+                "staging.stage" to listOf("operator", "staging.stage"),
+                "staging.checks" to listOf("taskgroup", checks),
+              ),
+              listOf("extract"),
+            ),
+          ),
+      ),
+      root["children"],
+    )
+    assertEquals(null, root["_group_id"])
+  }
+
+  @Test
+  @DisplayName("Should serialize wiring-registered dags with their data-flow edges")
+  fun shouldSerializeWiredDag() {
+    val dag = DagDef("d")
+    Refs.record(dag, listOf("extract", "transform"), emptyList()) {
+      val extracted = Refs.node<Long>("", TaskDef("extract", SerdeNoopTask::class.java))
+      Refs.call<Unit>("", TaskDef("transform", SerdeNoopTask::class.java), listOf("rows"), extracted)
+    }
+
+    val serialized = serializeDag(dag, "", ".")
+
+    assertEquals(listOf("transform"), taskData(serialized, 0)["downstream_task_ids"])
+    assertEquals(
+      listOf(mapOf("name" to "rows", "kind" to "xcom", "task_id" to "extract")),
+      taskData(serialized, 1)["_arg_bindings"],
+    )
+    assertEquals(true, taskData(serialized, 1)["is_stub"])
+  }
+
+  @Test
+  @DisplayName("Should bind a wired literal as a literal argument binding")
+  fun shouldSerializeLiteralArgBinding() {
+    val dag = DagDef("d")
+    Refs.record(dag, listOf("transform"), emptyList()) {
+      Refs.call<Unit>("", TaskDef("transform", SerdeNoopTask::class.java), listOf("region"), Arg.lit("uk"))
+    }
+
+    val serialized = serializeDag(dag, "", ".")
+
+    assertEquals(
+      listOf(mapOf("name" to "region", "kind" to "literal", "value" to "uk")),
+      taskData(serialized, 0)["_arg_bindings"],
+    )
+  }
+
+  @Test
+  @DisplayName("Should leave out the binding spec of a task called with no arguments")
+  fun shouldOmitArgBindingsWithoutArguments() {
+    val serialized =
+      serializeDag(DagDef("d").addTask(TaskDef("t", SerdeNoopTask::class.java)), "", ".")
+
+    assertFalse("_arg_bindings" in taskData(serialized, 0))
+    assertEquals(true, taskData(serialized, 0)["is_stub"])
+  }
+
+  @Test
+  @DisplayName("Should reject a wired literal that has no JSON form")
+  fun shouldRejectNonJsonLiteral() {
+    val dag = DagDef("d")
+    Refs.record(dag, listOf("t"), emptyList()) {
+      Refs.call<Unit>("", TaskDef("t", SerdeNoopTask::class.java), listOf("at"), Arg.lit(Duration.ofSeconds(5)))
+    }
+
+    val error = assertThrows(IllegalArgumentException::class.java) { serializeDag(dag, "", ".") }
+
+    assertEquals(
+      "Argument 'at' of task 't' is a java.time.Duration, which has no JSON form; the Dag's call " +
+        "arguments travel as JSON, so pass a string, number, boolean, list, or map",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should take the dag timezone from the start date, as Python does")
+  fun shouldTakeTimezoneFromStartDate() {
+    val dag =
+      DagDef("d")
+        .config("schedule", "0 3 * * *")
+        .config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00+05:30"))
+
+    val serialized = serializeDag(dag, "", ".")
+
+    assertEquals(19800, serialized["timezone"])
+    assertEquals(19800, (serialized["timetable"] as Map<*, *>)["__var"].let { (it as Map<*, *>)["timezone"] })
+  }
+
+  private fun cronExpression(schedule: String): Any? {
+    val timetable = serializeDag(DagDef("d").config("schedule", schedule), "", ".")["timetable"] as Map<*, *>
+    return (timetable["__var"] as Map<*, *>)["expression"]
+  }
+
+  @Test
+  @DisplayName("Should accept every cron schedule croniter does")
+  fun shouldAcceptCroniterSchedules() {
+    listOf(
+      "0 9 * * MON,WED,FRI",
+      "0 0 * JAN,JUL *",
+      "0 0 * * MON#2",
+      "0 0 15W * *",
+      "*/5 1-5/2 * * MON-FRI",
+    ).forEach { assertEquals(it, cronExpression(it)) }
+  }
+
+  @Test
+  @DisplayName("Should serialize croniter's @midnight and @annually aliases unexpanded")
+  fun shouldKeepCronAliasesUnexpanded() {
+    assertEquals("@midnight", cronExpression("@midnight"))
+    assertEquals("@annually", cronExpression("@annually"))
+    assertEquals("0 0 * * *", cronExpression("@daily"))
+  }
+
+  @Test
+  @DisplayName("Should reject schedules that are not cron expressions")
+  fun shouldRejectProseAndUnknownAliases() {
+    listOf("every tuesday", "@bogus", "0 0 * * tuesday").forEach {
+      assertThrows(IllegalArgumentException::class.java) { cronExpression(it) }
+    }
+  }
+
+  @Test
+  @DisplayName("Should reject a schedule the scheduler cannot build a timetable from")
+  fun shouldRejectNonCronSchedule() {
+    val dag = DagDef("d").config("schedule", "every monday")
+
+    val error = assertThrows(IllegalArgumentException::class.java) { serializeDag(dag, "", ".") }
+
+    assertEquals(
+      "Schedule 'every monday' of Dag 'd' is not a cron expression or a preset " +
+        "(@hourly, @daily, @weekly, @monthly, @quarterly, @yearly, @midnight, @annually, @once, @continuous); a schedule the " +
+        "scheduler cannot parse would leave the Dag unschedulable",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should report a dag that cannot be serialized as an import error")
+  fun shouldReportUnserializableDagAsImportError() {
+    val broken = DagDef("broken").config("schedule", "every monday")
+    val healthy = DagDef("healthy").addTask(TaskDef("t", SerdeNoopTask::class.java))
+    val request =
+      DagFileParseRequest().also {
+        it.file = "/bundles/app/dags.jar"
+        it.bundlePath = "/bundles"
+      }
+
+    val result = parseDags(Bundle(listOf(broken, healthy)), request)
+
+    assertEquals(1, (result["serialized_dags"] as List<*>).size)
+    assertEquals(
+      mapOf(
+        "app/dags.jar" to
+          "Dag \"broken\": Schedule 'every monday' of Dag 'broken' is not a cron expression or a preset " +
+          "(@hourly, @daily, @weekly, @monthly, @quarterly, @yearly, @midnight, @annually, @once, @continuous); a schedule the " +
+          "scheduler cannot parse would leave the Dag unschedulable",
+      ),
+      result["import_errors"],
+    )
+  }
+
+  @Test
+  @DisplayName("Should wrap parsed dags in a DagFileParsingResult body")
+  fun shouldBuildParsingResult() {
+    val bundle = Bundle(listOf(DagDef("d").addTask(TaskDef("t", SerdeNoopTask::class.java))))
+    val request =
+      DagFileParseRequest().also {
+        it.file = "/bundles/app/dags.jar"
+        it.bundlePath = "/bundles"
+      }
+
+    val result = parseDags(bundle, request)
+
+    assertEquals("DagFileParsingResult", result["type"])
+    assertEquals("/bundles/app/dags.jar", result["fileloc"])
+    val dags = result["serialized_dags"] as List<*>
+    assertEquals(1, dags.size)
+    val data = (dags[0] as Map<*, *>)["data"] as Map<*, *>
+    assertEquals(3, data["__version"])
+    val dag = data["dag"] as Map<*, *>
+    assertEquals("d", dag["dag_id"])
+    assertEquals("app/dags.jar", dag["relative_fileloc"])
+  }
+
+  @Test
+  @DisplayName("Should encode temporals and nested maps with the type/var envelope")
+  fun shouldEncodeValuesWithTypeEnvelope() {
+    assertEquals(
+      mapOf("__type" to "timedelta", "__var" to 90.0),
+      serializeValue(Duration.ofSeconds(90)),
+    )
+    assertEquals(
+      mapOf("__type" to "datetime", "__var" to 1.7672256E9),
+      serializeValue(OffsetDateTime.parse("2026-01-01T00:00:00Z")),
+    )
+    assertEquals(
+      mapOf("__type" to "dict", "__var" to mapOf("k" to listOf(1, 2))),
+      serializeValue(mapOf("k" to listOf(1, 2))),
+    )
+    assertEquals(42, unwrapTypeEncoding(mapOf("__type" to "timedelta", "__var" to 42)))
+    assertEquals(mapOf("plain" to 1), unwrapTypeEncoding(mapOf("plain" to 1)))
+  }
+}

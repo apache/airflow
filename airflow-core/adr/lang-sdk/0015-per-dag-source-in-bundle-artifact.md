@@ -95,6 +95,9 @@ packers adopt the same shape — per-Dag source resolution, de-duplication by pa
 always-embedded entrypoint fallback — so a bundle reader treats every language the same way and the
 Code tab behaves identically regardless of which SDK produced the artifact.
 
+Go has no module evaluation, so the Go SDK records the file that calls `airflow.Dag`. A Dag built in
+a factory function maps to the factory's file, not to the file that calls the factory.
+
 ## What a reader returns
 
 | the Task is… | reader returns |
@@ -113,11 +116,11 @@ Code tab behaves identically regardless of which SDK produced the artifact.
   `DagCode` → the Code tab, deferred to [ADR-0010](0010-native-dag-processing.md)'s open question and
   future work) sees one contract.
 - Generated Dags (built in a loop or a factory during module evaluation) are resolved to their
-  generator file like any other Dag — they are fully supported, not a fallback case. Best-effort
-  resolution only bites a Dag built in a detached callback after its module finished, which then
-  shows the entrypoint — a real file in the bundle rather than a wrong one. This mirrors the source
-  view already being best effort for Python factory-function Dags
-  ([ADR-0006](0006-no-lang-sdk-source-display.md), "Why Not" #3).
+  generator file (for Go, the file that calls `airflow.Dag`) like any other Dag — they are fully
+  supported, not a fallback case. Best-effort resolution only bites a Dag built in a detached
+  callback after its module finished, which then shows the entrypoint — a real file in the bundle
+  rather than a wrong one. This mirrors the source view already being best effort for Python
+  factory-function Dags ([ADR-0006](0006-no-lang-sdk-source-display.md), "Why Not" #3).
 
 ## References
 

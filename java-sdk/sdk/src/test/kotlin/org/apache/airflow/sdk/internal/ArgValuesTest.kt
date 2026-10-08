@@ -34,6 +34,7 @@ import org.apache.airflow.sdk.TaskInstance
 import org.apache.airflow.sdk.TaskRef
 import org.apache.airflow.sdk.execution.comm.ConnectionResult
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.execution.comm.TaskStateStoreResult
 import org.apache.airflow.sdk.execution.comm.VariableResult
 import org.apache.airflow.sdk.execution.comm.XComResult
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -41,6 +42,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import java.time.OffsetDateTime
+import java.util.UUID
 import org.apache.airflow.sdk.execution.Client as Transport
 import org.apache.airflow.sdk.execution.comm.TaskInstance as CommTaskInstance
 
@@ -106,6 +109,25 @@ internal class ArgValuesTest {
           runId: String,
           mapIndex: Int,
         ): Unit = throw NotImplementedError()
+
+        override fun getTaskStateStore(
+          tiId: UUID,
+          key: String,
+        ): TaskStateStoreResult? = throw NotImplementedError()
+
+        override fun setTaskStateStore(
+          tiId: UUID,
+          key: String,
+          value: Any,
+          expiresAt: OffsetDateTime?,
+        ): Unit = throw NotImplementedError()
+
+        override fun deleteTaskStateStore(
+          tiId: UUID,
+          key: String,
+        ): Unit = throw NotImplementedError()
+
+        override fun clearTaskStateStore(tiId: UUID): Unit = throw NotImplementedError()
       },
     )
 
@@ -119,7 +141,7 @@ internal class ArgValuesTest {
       .distinct()
       .forEach { dag.addTask(it) }
     val def = TaskDef("consumer", NoopArgTask::class.java)
-    Refs.record(dag, listOf("consumer")) { Refs.call<Unit>(def, *inputs.toTypedArray()) }
+    Refs.record(dag, listOf("consumer"), emptyList()) { Refs.call<Unit>("", def, emptyList(), *inputs.toTypedArray()) }
     return contextWithoutTaskDef().also { it.taskDef = def }
   }
 

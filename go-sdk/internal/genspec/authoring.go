@@ -49,7 +49,8 @@ type authoringShape struct {
 
 // propertyOverride is the part of a property genspec rewrites. goType and imports
 // become go-jsonschema's goJSONSchema extension, which it reads before a $ref, so
-// an override applies to a property written as a reference too.
+// an override applies to a property written as a reference too. An override with no
+// goType changes the doc alone.
 type propertyOverride struct {
 	goType  string
 	imports []string
@@ -80,7 +81,7 @@ var dagShape = authoringShape{
 		"task_group":                "the groups dag.TaskGroup registers",
 		"edge_info":                 "the labels airflow.Label carries into an edge verb",
 		"dag_dependencies":          "derived from the edges and the assets a Dag declares",
-		"timezone":                  "carried by the time.Time an author sets on StartDate",
+		"timezone":                  "always UTC for a Go Dag, even when StartDate has another location",
 		"timetable":                 "the serialized form of Schedule, which is injected instead",
 		"allowed_run_types":         "no Go authoring type yet: a list of DagRunType values",
 		"_concurrency":              "the pre-2.2 spelling of MaxActiveTasks",
@@ -94,7 +95,11 @@ var dagShape = authoringShape{
 		"rerun_with_latest_version": "no Go authoring type yet: the tri-state a null allows",
 	},
 	override: map[string]propertyOverride{
-		"start_date":       {goType: "time.Time", imports: []string{"time"}},
+		"start_date": {
+			goType:  "time.Time",
+			imports: []string{"time"},
+			doc:     "StartDate is the start_date of the Dag. The timezone of the Dag is UTC even when StartDate has another location, so Airflow reads Schedule in UTC.",
+		},
 		"end_date":         {goType: "time.Time", imports: []string{"time"}},
 		"dagrun_timeout":   {goType: "time.Duration", imports: []string{"time"}},
 		"max_active_tasks": {goType: "int"},
@@ -110,7 +115,15 @@ var dagShape = authoringShape{
 		// expression an author writes.
 		"schedule": {
 			"type":        "string",
-			"description": "Schedule is the cron expression or preset the Dag runs on, such as \"@daily\".",
+			"description": "Schedule is when the Dag runs: a cron expression such as \"0 3 * * *\", or one of the presets \"@hourly\", \"@daily\", \"@weekly\", \"@monthly\", \"@quarterly\", \"@yearly\", \"@once\" and \"@continuous\". A cron expression has five fields. A sixth field adds the seconds, and a seventh field after it adds the year. Airflow reads a cron expression in UTC. A Dag with an empty Schedule runs only when something triggers it.",
+		},
+		// The schema has no Dag-level queue. A Python Dag gives all of its tasks a
+		// queue through default_args, which the Go SDK does not have. The Go tasks of a
+		// Dag all run on a coordinator for Go, so one queue on the Dag can route all of
+		// them there.
+		"queue": {
+			"type":        "string",
+			"description": "Queue is the queue that each task of the Dag runs on, unless the TaskSpec of the task sets a Queue. The queue_to_coordinator option in the [sdk] section of the Airflow configuration maps the queue to the coordinator that runs Go code. A task from TriggerDagRun runs on a Python worker, so it does not take this queue.",
 		},
 	},
 }
@@ -180,6 +193,15 @@ var taskShape = authoringShape{
 		// A multiplier, not a switch: 0 keeps the delay constant, 2.0 doubles it each
 		// retry. The schema's number is right, and the float is what carries the 2.0.
 		"retry_exponential_backoff": {goType: "float64"},
+		// Python writes email_on_failure and email_on_retry only for an operator that has
+		// an email recipient, and a TaskSpec has no field for one. The fields stay, as in
+		// the TypeScript SDK, so that setting one keeps compiling once a recipient exists.
+		"email_on_failure": {
+			doc: "EmailOnFailure has no effect yet. Python writes email_on_failure only for a task that has an email recipient, and a TaskSpec cannot set one.",
+		},
+		"email_on_retry": {
+			doc: "EmailOnRetry has no effect yet. Python writes email_on_retry only for a task that has an email recipient, and a TaskSpec cannot set one.",
+		},
 		"task_id": {
 			goType: "string",
 			doc:    "TaskID is the task_id of the task. When TaskID is empty, the task_id is the name of the Go function that the task runs. A task from TriggerDagRun runs no Go function, so it needs a TaskID. A task added through a task group takes the group_id as a prefix of its task_id, unless the TaskGroupSpec of the group sets PrefixGroupID to false.",
@@ -295,7 +317,13 @@ func overrideProperties(
 				name, property, override[property].goType,
 			)
 		}
-		extension := map[string]any{"type": override[property].goType}
+		extension := map[string]any{}
+		if goType := override[property].goType; goType != "" {
+			extension["type"] = goType
+			// The override replaces whatever the reference resolves to, and dropping it
+			// keeps the pruned schema free of references to definitions that are gone.
+			delete(node, "$ref")
+		}
 		if imports := override[property].imports; len(imports) > 0 {
 			extension["imports"] = anySlice(imports)
 		}
@@ -306,9 +334,6 @@ func overrideProperties(
 			extension["pointer"] = true
 		}
 		node["goJSONSchema"] = extension
-		// The override replaces whatever the reference resolves to, and dropping it
-		// keeps the pruned schema free of references to definitions that are gone.
-		delete(node, "$ref")
 	}
 	return nil
 }

@@ -18,6 +18,7 @@
 package airflow
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -32,6 +33,9 @@ import (
 // DagRef is a Dag authored in Go. [Dag] returns a new one.
 type DagRef struct {
 	dagID string
+	// file is the source file that called Dag, as the compiler recorded it. It is empty when the
+	// runtime cannot report a caller.
+	file string
 	// Dag and Task copy the specs they are given with copySpec, so a caller cannot change a
 	// registered Dag through a spec it still holds.
 	spec DagSpec
@@ -58,8 +62,7 @@ type DagRef struct {
 }
 
 // Dag returns an empty Dag with the given dag_id. An optional [DagSpec] holds the rest of the
-// Dag's attributes, and Dag panics if it gets more than one DagSpec. Add the tasks with
-// [DagRef.Task], then pass the Dag to [BundleRef.Register]:
+// Dag's attributes. Add the tasks with [DagRef.Task], then pass the Dag to [BundleRef.Register]:
 //
 //	dag := airflow.Dag("etl")
 //	dag.Task(extract)
@@ -71,8 +74,20 @@ type DagRef struct {
 // [IfRef.Then], [IfRef.Else], [SwitchRef.Case] and the methods of [TaskGroupRef] panic once the Dag
 // is registered.
 //
-// [BundleRef.Serve] does not yet serve the Dags that Dag returns. It leaves them out of the
-// --airflow-metadata manifest and cannot run their tasks.
+// The bundle embeds the source file that calls Dag, so call it from the file that declares the Dag.
+// A Dag built in a factory function belongs to the file of the factory.
+//
+// [BundleRef.Serve] sends the registered Dags to the Dag processor and runs their tasks, but does
+// not list them in the dags of the --airflow-metadata manifest.
+//
+// Dag panics if it gets more than one DagSpec, or if the DagSpec has a value that Python rejects
+// when it builds or validates a Dag:
+//   - Schedule is something other than an empty string, a preset or a cron expression of five to
+//     seven fields
+//   - Schedule is "@continuous" and MaxActiveRuns is not 1
+//   - Catchup is true and StartDate is the zero Time, for a Dag that has a Schedule
+//   - a tag in Tags is longer than 100 characters
+//   - the year of StartDate or EndDate in UTC is not from 1 to 9999
 func Dag(dagID string, spec ...DagSpec) *DagRef {
 	if len(spec) > 1 {
 		panic(fmt.Sprintf(
@@ -82,10 +97,54 @@ func Dag(dagID string, spec ...DagSpec) *DagRef {
 		))
 	}
 	d := &DagRef{dagID: dagID}
+	_, d.file, _, _ = runtime.Caller(1)
 	if len(spec) == 1 {
+		if err := checkDagSpec(spec[0]); err != nil {
+			panic(fmt.Sprintf("airflow.Dag: Dag %q: %v", dagID, err))
+		}
 		d.spec = copySpec(spec[0])
 	}
 	return d
+}
+
+// tagMaxLength is the longest tag that Python's DAG accepts, counted in characters. Airflow stores
+// a tag in a column of that length.
+const tagMaxLength = 100
+
+// TODO: run this validation only at build time (airflow-go-pack), not on every Dag call.
+//
+// checkDagSpec rejects a DagSpec with a value that Python rejects when it builds or validates a
+// Dag. Depending on the value, Airflow would otherwise fail to load the serialized Dag, fail to
+// store the Dag, or never schedule the Dag.
+func checkDagSpec(spec DagSpec) error {
+	if err := checkSchedule(spec.Schedule); err != nil {
+		return err
+	}
+	// An unset MaxActiveRuns takes [core] max_active_runs_per_dag, which is 16 by default.
+	if spec.Schedule == "@continuous" && spec.MaxActiveRuns != 1 {
+		return errors.New(
+			`airflow.DagSpec.Schedule is "@continuous", which allows one active Dag run at a ` +
+				"time; set MaxActiveRuns to 1",
+		)
+	}
+	if spec.Catchup != nil && *spec.Catchup && spec.Schedule != "" && spec.StartDate.IsZero() {
+		return errors.New(
+			"airflow.DagSpec.Catchup is true, which needs a StartDate to catch up from; " +
+				"set StartDate",
+		)
+	}
+	for _, tag := range spec.Tags {
+		if n := utf8.RuneCountInString(tag); n > tagMaxLength {
+			return fmt.Errorf(
+				"airflow.DagSpec.Tags has %q, which has %d characters; a tag has at most %d",
+				tag, n, tagMaxLength,
+			)
+		}
+	}
+	if err := checkTime("airflow.DagSpec.StartDate", spec.StartDate); err != nil {
+		return err
+	}
+	return checkTime("airflow.DagSpec.EndDate", spec.EndDate)
 }
 
 func (*DagRef) registerable() {}
@@ -104,9 +163,9 @@ type TaskRef struct {
 	// resultType is the type of the result that the task function returns with its error. It is
 	// nil when the function returns only an error.
 	resultType reflect.Type
-	// inputs holds the tasks that Inputs passed, in the order of the parameters they fill. Each
-	// of them is an upstream task of this one.
-	inputs []*TaskRef
+	// inputs holds what Inputs passed, in the order of the parameters it fills. The task of each ref
+	// is an upstream task of this one, and a literal adds no edge.
+	inputs []taskInput
 	// upstreams and downstreams hold the edges of the task, in the order they were declared and
 	// without a repeat, so that an edge is recorded in both directions. Inputs, Before and After
 	// all record an edge here.
@@ -126,8 +185,8 @@ type TaskRef struct {
 //
 // fn takes a [Context] first and returns either error or (result, error), like a function
 // passed to [TaskHandler]. The parameters after the Context take the results of the tasks
-// passed to [Inputs], in order. fn can also be the value that [TriggerDagRun] returns. The task
-// then runs no Go code and takes no Inputs.
+// and the [Literal] values passed to [Inputs], in order. fn can also be the value that
+// [TriggerDagRun] returns. The task then runs no Go code and takes no Inputs.
 //
 // The task_id is the name of fn, spelled exactly as it is in Go. dag.Task(extractRows) adds the
 // task extractRows, and dag.Task(svc.Extract), which passes a method value, adds the task
@@ -155,7 +214,8 @@ type TaskRef struct {
 //   - opts holds more than one TaskSpec or more than one Inputs
 //   - the TaskSpec sets TriggerRule to a value that is not a TriggerRule constant
 //   - the TaskSpec sets WeightRule to a value that is not a WeightRule constant
-//   - the tasks passed to Inputs do not match the parameters of fn after the Context
+//   - the year of the StartDate or the EndDate of the TaskSpec in UTC is not from 1 to 9999
+//   - the inputs passed to Inputs do not match the parameters of fn after the Context
 //   - the task_id, with the group_ids that prefix it, is longer than 250 characters, or holds a
 //     character other than a letter, a digit, an underscore, a dash or a dot, as Python's
 //     validate_key requires
@@ -291,7 +351,7 @@ func (d *DagRef) addTask(
 			method, d.dagID, taskID, taken,
 		))
 	}
-	var upstreams []*TaskRef
+	var taskInputs []taskInput
 	var resultType reflect.Type
 	if isTrigger {
 		if cfg.hasInputs {
@@ -303,7 +363,7 @@ func (d *DagRef) addTask(
 		}
 	} else {
 		fnType := reflect.TypeOf(fn)
-		upstreams = d.checkInputs(method, taskID, fnType, cfg.inputs)
+		taskInputs = d.checkInputs(method, taskID, fnType, cfg.inputs)
 		// newTaskFunction has checked that fn returns either error or (result, error).
 		if fnType.NumOut() == 2 {
 			resultType = fnType.Out(0)
@@ -316,7 +376,7 @@ func (d *DagRef) addTask(
 		taskID:        taskID,
 		spec:          copySpec(cfg.spec),
 		resultType:    resultType,
-		inputs:        upstreams,
+		inputs:        taskInputs,
 		task:          wrapped,
 		triggerDagRun: triggerSpec,
 		decider:       decider,
@@ -334,8 +394,10 @@ func (d *DagRef) addTask(
 	}
 	// Inputs passes a task once per parameter it fills, so the same task can arrive twice. The
 	// edge is one either way, and the task is new, so no edge to it carries a label to settle.
-	for _, upstream := range upstreams {
-		d.addEdgeLocked(upstream, task, "")
+	for _, input := range taskInputs {
+		if !input.literal {
+			d.addEdgeLocked(input.ref, task, "")
+		}
 	}
 	return task
 }

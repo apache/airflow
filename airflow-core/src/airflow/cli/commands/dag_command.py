@@ -129,6 +129,7 @@ def dag_delete(args) -> None:
         print("Cancelled")
 
 
+@deprecated_for_airflowctl("airflowctl dags clear")
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session

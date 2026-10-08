@@ -139,7 +139,7 @@ export const UseBackfillServiceListBackfillDagRunsKeyFn = ({ backfillId, limit, 
 export type BackfillServiceListBackfillsUiDefaultResponse = Awaited<ReturnType<typeof BackfillService.listBackfillsUi>>;
 export type BackfillServiceListBackfillsUiQueryResult<TData = BackfillServiceListBackfillsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useBackfillServiceListBackfillsUiKey = "BackfillServiceListBackfillsUi";
-export const UseBackfillServiceListBackfillsUiKeyFn = ({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
+export const UseBackfillServiceListBackfillsUiKeyFn = ({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
   active?: boolean;
   completedAtGt?: string;
   completedAtGte?: string;
@@ -150,6 +150,10 @@ export const UseBackfillServiceListBackfillsUiKeyFn = ({ active, completedAtGt, 
   createdAtLt?: string;
   createdAtLte?: string;
   dagId?: string;
+  durationGt?: number;
+  durationGte?: number;
+  durationLt?: number;
+  durationLte?: number;
   fromDateGt?: string;
   fromDateGte?: string;
   fromDateLt?: string;
@@ -166,7 +170,7 @@ export const UseBackfillServiceListBackfillsUiKeyFn = ({ active, completedAtGt, 
   toDateGte?: string;
   toDateLt?: string;
   toDateLte?: string;
-} = {}, queryKey?: Array<unknown>) => [useBackfillServiceListBackfillsUiKey, ...(queryKey ?? [{ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }])];
+} = {}, queryKey?: Array<unknown>) => [useBackfillServiceListBackfillsUiKey, ...(queryKey ?? [{ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }])];
 export type ConnectionServiceGetConnectionDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnection>>;
 export type ConnectionServiceGetConnectionQueryResult<TData = ConnectionServiceGetConnectionDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceGetConnectionKey = "ConnectionServiceGetConnection";
@@ -473,6 +477,12 @@ export const useDagServiceGetDagRunStateCountsUiKey = "DagServiceGetDagRunStateC
 export const UseDagServiceGetDagRunStateCountsUiKeyFn = ({ dagIds }: {
   dagIds: string[];
 }, queryKey?: Array<unknown>) => [useDagServiceGetDagRunStateCountsUiKey, ...(queryKey ?? [{ dagIds }])];
+export type DagServiceGetRecentTaskInstanceStateCountsUiDefaultResponse = Awaited<ReturnType<typeof DagService.getRecentTaskInstanceStateCountsUi>>;
+export type DagServiceGetRecentTaskInstanceStateCountsUiQueryResult<TData = DagServiceGetRecentTaskInstanceStateCountsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagServiceGetRecentTaskInstanceStateCountsUiKey = "DagServiceGetRecentTaskInstanceStateCountsUi";
+export const UseDagServiceGetRecentTaskInstanceStateCountsUiKeyFn = ({ dagRunIds }: {
+  dagRunIds: number[];
+}, queryKey?: Array<unknown>) => [useDagServiceGetRecentTaskInstanceStateCountsUiKey, ...(queryKey ?? [{ dagRunIds }])];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<ReturnType<typeof EventLogService.getEventLog>>;
 export type EventLogServiceGetEventLogQueryResult<TData = EventLogServiceGetEventLogDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useEventLogServiceGetEventLogKey = "EventLogServiceGetEventLog";
@@ -948,10 +958,11 @@ export const UseTaskServiceGetTasksKeyFn = ({ dagId, orderBy }: {
 export type TaskServiceGetTaskDefaultResponse = Awaited<ReturnType<typeof TaskService.getTask>>;
 export type TaskServiceGetTaskQueryResult<TData = TaskServiceGetTaskDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskServiceGetTaskKey = "TaskServiceGetTask";
-export const UseTaskServiceGetTaskKeyFn = ({ dagId, taskId }: {
+export const UseTaskServiceGetTaskKeyFn = ({ dagId, taskId, versionNumber }: {
   dagId: string;
   taskId: unknown;
-}, queryKey?: Array<unknown>) => [useTaskServiceGetTaskKey, ...(queryKey ?? [{ dagId, taskId }])];
+  versionNumber?: number;
+}, queryKey?: Array<unknown>) => [useTaskServiceGetTaskKey, ...(queryKey ?? [{ dagId, taskId, versionNumber }])];
 export type VariableServiceGetVariableDefaultResponse = Awaited<ReturnType<typeof VariableService.getVariable>>;
 export type VariableServiceGetVariableQueryResult<TData = VariableServiceGetVariableDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useVariableServiceGetVariableKey = "VariableServiceGetVariable";

@@ -37,6 +37,7 @@ import (
 	"github.com/apache/airflow/go-sdk/internal/contexttest"
 	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
+	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // assertSucceedTask asserts RunTask produced a terminal SucceedTask body.
@@ -551,6 +552,54 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	assert.Equal(t, start, *dagRun.DataIntervalStart)
 	require.NotNil(t, dagRun.DataIntervalEnd)
 	assert.Equal(t, end, *dagRun.DataIntervalEnd)
+}
+
+// Guards against the runtime binding the task state store to an empty task instance id.
+func TestRunTaskBindsTaskStateStoreClient(t *testing.T) {
+	const tiID = "0199e0e5-1b2c-7c3d-8e4f-5a6b7c8d9e0f"
+
+	// A default-retention write needs the setting the supervisor passes.
+	t.Setenv(defaultRetentionDaysEnv, "30")
+
+	var got sdk.TaskStateStoreClient
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("test_dag").AddTaskWithName("statestore",
+			func(actx contexttest.Context) error {
+				got = actx.Client()
+				return actx.Client().TaskStateStore().Set(actx, "job_id", "abc123")
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       tiID,
+			DagID:    "test_dag",
+			TaskID:   "statestore",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+	}
+
+	responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+
+	require.NotNil(t, got, "the task must reach a coordinator-backed task state store")
+
+	sent, err := readFrame(&requestBuf)
+	require.NoError(t, err)
+	sentMap := rawToMap(t, sent.Body)
+	assert.Equal(t, "SetTaskStateStore", sentMap["type"])
+	assert.Equal(t, tiID, sentMap["ti_id"],
+		"the runtime must bind the store to the started task instance")
 }
 
 // Serve traps SIGINT/SIGTERM into the context it hands RunTask, so a
@@ -1312,7 +1361,8 @@ func TestServeFailureAfterConnectClosesComm(t *testing.T) {
 	logsConn := <-logsCh
 	defer logsConn.Close()
 
-	// Serve expects StartupDetails as the first frame, so it fails to decode a VariableResult.
+	// Serve expects StartupDetails or DagFileParseRequest first, so it fails to decode a
+	// VariableResult.
 	payload, err := encodeRequest(
 		0,
 		map[string]any{"type": "VariableResult", "key": "k", "value": "v"},
@@ -1332,4 +1382,66 @@ func TestServeFailureAfterConnectClosesComm(t *testing.T) {
 	require.NoError(t, commConn.SetReadDeadline(time.Now().Add(time.Second)))
 	_, err = readFrame(commConn)
 	require.Error(t, err)
+}
+
+// parseBundle is a bundle that serializes Dags and has no task to run.
+type parseBundle struct {
+	testBundle
+	*serializedDags
+}
+
+const dagParseRequestID = 7
+
+// startDagParse runs Serve for dags and sends it a DagFileParseRequest. It returns the frame that
+// Serve answers with and the channel that gets what Serve returns.
+func startDagParse(t *testing.T, dags *serializedDags) (frame IncomingFrame, done <-chan error) {
+	t.Helper()
+	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+	t.Cleanup(cleanup)
+
+	served := make(chan error, 1)
+	go func() { served <- Serve(parseBundle{testBundle{}, dags}, commAddr, logsAddr) }()
+
+	commConn := <-commCh
+	t.Cleanup(func() { commConn.Close() })
+	logsConn := <-logsCh
+	t.Cleanup(func() { logsConn.Close() })
+	deadline := time.Now().Add(10 * time.Second)
+	require.NoError(t, commConn.SetDeadline(deadline))
+	require.NoError(t, logsConn.SetDeadline(deadline))
+
+	payload, err := encodeRequest(dagParseRequestID, map[string]any{
+		"type":        "DagFileParseRequest",
+		"file":        "/bundles/go/etl",
+		"bundle_path": "/bundles/go",
+		"bundle_name": "go",
+	})
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, payload))
+
+	frame, err = readFrame(commConn)
+	require.NoError(t, err)
+	require.True(t, isNilRaw(frame.Err))
+	return frame, served
+}
+
+func TestServeDagFileParseRequestEndToEnd(t *testing.T) {
+	dags := &serializedDags{dags: []bundle.SerializedDag{serializedDag("etl")}}
+	frame, done := startDagParse(t, dags)
+
+	assert.EqualValues(t, dagParseRequestID, frame.ID)
+	var result genmodels.DagFileParsingResult
+	require.NoError(t, decodeBody(frame.Body, &result))
+	assert.Equal(t, "DagFileParsingResult", result.Type)
+	assert.Equal(t, "/bundles/go/etl", result.Fileloc)
+	require.Len(t, result.SerializedDags, 1)
+	assert.Equal(t, "etl", result.SerializedDags[0].Data["dag"].(map[string]any)["dag_id"])
+	assert.Equal(t, "etl", dags.relative)
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after it sent the Dag parsing result")
+	}
 }

@@ -212,21 +212,21 @@ def test_get_airflow_dag_run_facet():
     dagrun_mock.conf = {}
     dagrun_mock.clear_number = 0
     dagrun_mock.dag_id = dag.dag_id
-    dagrun_mock.data_interval_start = datetime.datetime(2024, 6, 1, 1, 2, 3, tzinfo=datetime.timezone.utc)
-    dagrun_mock.data_interval_end = datetime.datetime(2024, 6, 1, 2, 3, 4, tzinfo=datetime.timezone.utc)
+    dagrun_mock.data_interval_start = datetime.datetime(2024, 6, 1, 1, 2, 3, tzinfo=datetime.UTC)
+    dagrun_mock.data_interval_end = datetime.datetime(2024, 6, 1, 2, 3, 4, tzinfo=datetime.UTC)
     dagrun_mock.external_trigger = True
     dagrun_mock.run_id = "manual_2024-06-01T00:00:00+00:00"
     dagrun_mock.run_type = DagRunType.MANUAL
-    dagrun_mock.execution_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
-    dagrun_mock.logical_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
-    dagrun_mock.run_after = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
-    dagrun_mock.start_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
-    dagrun_mock.end_date = datetime.datetime(2024, 6, 1, 1, 2, 14, 34172, tzinfo=datetime.timezone.utc)
+    dagrun_mock.execution_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.UTC)
+    dagrun_mock.logical_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.UTC)
+    dagrun_mock.run_after = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.UTC)
+    dagrun_mock.start_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.UTC)
+    dagrun_mock.end_date = datetime.datetime(2024, 6, 1, 1, 2, 14, 34172, tzinfo=datetime.UTC)
     dagrun_mock.triggering_user_name = "user1"
     dagrun_mock.triggered_by = "something"
     dagrun_mock.note = "note"
     dagrun_mock.partition_key = "some_partition_key"
-    dagrun_mock.partition_date = datetime.datetime(2024, 6, 1, 2, 3, 34, tzinfo=datetime.timezone.utc)
+    dagrun_mock.partition_date = datetime.datetime(2024, 6, 1, 2, 3, 34, tzinfo=datetime.UTC)
     dagrun_mock.dag_versions = [
         MagicMock(
             bundle_name="bundle_name",
@@ -306,8 +306,8 @@ def test_get_airflow_dag_run_facet():
         ({"start_date": "2024-06-01T01:02:04+00:00", "end_date": "2024-06-01T01:02:14.034172+00:00"}, None),
         (
             {
-                "start_date": datetime.datetime(2025, 1, 1, 6, 1, 1, tzinfo=datetime.timezone.utc),
-                "end_date": datetime.datetime(2025, 1, 1, 6, 1, 12, 3456, tzinfo=datetime.timezone.utc),
+                "start_date": datetime.datetime(2025, 1, 1, 6, 1, 1, tzinfo=datetime.UTC),
+                "end_date": datetime.datetime(2025, 1, 1, 6, 1, 12, 3456, tzinfo=datetime.UTC),
             },
             11.003456,
         ),
@@ -2883,7 +2883,7 @@ class TestDagRunInfoDeadlines:
         alert.callback_def = {"path": "my_module.on_deadline_missed", "kwargs": {}}
 
         deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
-        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.UTC)
         deadline.missed = False
         deadline.deadline_alert = alert
 
@@ -2920,12 +2920,12 @@ class TestDagRunInfoDeadlines:
         alert2.callback_def = {"path": "mod.cb2", "kwargs": {"notify": True}}
 
         d1 = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
-        d1.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        d1.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.UTC)
         d1.missed = True
         d1.deadline_alert = alert1
 
         d2 = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
-        d2.deadline_time = datetime.datetime(2025, 6, 1, 14, 0, 0, tzinfo=datetime.timezone.utc)
+        d2.deadline_time = datetime.datetime(2025, 6, 1, 14, 0, 0, tzinfo=datetime.UTC)
         d2.missed = False
         d2.deadline_alert = alert2
 
@@ -2955,7 +2955,7 @@ class TestDagRunInfoDeadlines:
     def test_dagrun_deadline_alert_access_fails(self):
         """When the alert relationship can't be loaded, execution details still appear."""
         deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
-        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.UTC)
         deadline.missed = False
         type(deadline).deadline_alert = PropertyMock(side_effect=Exception("DB not available"))
 
@@ -2981,7 +2981,7 @@ class TestDagRunInfoDeadlines:
         alert.callback_def = None
 
         deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
-        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.UTC)
         deadline.missed = True
         deadline.deadline_alert = alert
 
@@ -3035,7 +3035,7 @@ class TestDagRunInfoDeadlines:
         bad_deadline.deadline_alert = None
 
         good_deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
-        good_deadline.deadline_time = datetime.datetime(2025, 6, 1, 14, 0, 0, tzinfo=datetime.timezone.utc)
+        good_deadline.deadline_time = datetime.datetime(2025, 6, 1, 14, 0, 0, tzinfo=datetime.UTC)
         good_deadline.missed = True
         good_deadline.deadline_alert = None
 
@@ -3058,7 +3058,7 @@ class TestDagRunInfoDeadlines:
         type(alert).reference = PropertyMock(side_effect=Exception("Column error"))
 
         deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
-        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.UTC)
         deadline.missed = False
         deadline.deadline_alert = alert
 
@@ -3082,7 +3082,7 @@ def test_dagrun_info_af3(mocked_dag_versions):
     from airflow.models.dag_version import DagVersion
     from airflow.utils.types import DagRunTriggeredByType
 
-    date = datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc)
+    date = datetime.datetime(2024, 6, 1, tzinfo=datetime.UTC)
     dv1 = DagVersion()
     dv2 = DagVersion()
     dv2.id = "version_id"
@@ -3157,7 +3157,7 @@ def test_dagrun_info_af3(mocked_dag_versions):
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 test")
 def test_dagrun_info_af2():
-    date = datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc)
+    date = datetime.datetime(2024, 6, 1, tzinfo=datetime.UTC)
     dag = DAG(
         "dag_id",
         schedule=None,
@@ -3260,7 +3260,7 @@ def test_taskinstance_info_af3():
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 test")
 @patch.object(TaskInstance, "log_url", "some_log_url")  # Depends on the host, hard to test exact value
 def test_taskinstance_info_af2():
-    some_date = datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc)
+    some_date = datetime.datetime(2024, 6, 1, tzinfo=datetime.UTC)
     task_obj = PythonOperator(task_id="task_id", python_callable=lambda x: x)
     ti = TaskInstance(
         task=task_obj, run_id="task_instance_run_id", state=TaskInstanceState.RUNNING, map_index=2
@@ -3748,7 +3748,7 @@ def test_is_dag_run_asset_triggered_af2():
 
 def test_build_task_instance_ol_run_id():
     """Test deterministic UUID generation for task instance."""
-    logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+    logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
     run_id = build_task_instance_ol_run_id(
         dag_id="test_dag",
         task_id="test_task",
@@ -3782,7 +3782,7 @@ def test_build_task_instance_ol_run_id():
 
 def test_build_dag_run_ol_run_id():
     """Test deterministic UUID generation for DAG run."""
-    logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+    logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
     run_id = build_dag_run_ol_run_id(
         dag_id="test_dag",
         logical_date=logical_date,
@@ -3838,7 +3838,7 @@ class TestExtractOlInfoFromAssetEvent:
 
     def test_extract_ol_info_from_task_instance(self):
         """Test extraction from TaskInstance (priority 1)."""
-        logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
 
         # Mock TaskInstance - using MagicMock without spec to avoid SQLAlchemy mapper inspection
         ti = MagicMock()
@@ -3908,7 +3908,7 @@ class TestExtractOlInfoFromAssetEvent:
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 specific test")
     def test_extract_ol_info_from_task_instance_run_after_fallback(self):
         """Test extraction from TaskInstance with run_after fallback (AF3)."""
-        run_after = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        run_after = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
 
         # Mock TaskInstance
         ti = MagicMock()
@@ -4248,7 +4248,7 @@ class TestGetDagJobDependencyFacet:
     @patch("airflow.providers.openlineage.utils.utils._get_eagerly_loaded_dagrun_consumed_asset_events")
     def test_get_dag_job_dependency_facet_with_events(self, mock_get_events):
         """Test facet generation with asset events - tests full flow."""
-        logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
 
         # Create mock asset events with source TaskInstance (priority 1 source)
         ti1 = MagicMock()
@@ -4342,7 +4342,7 @@ class TestGetDagJobDependencyFacet:
     @patch("airflow.providers.openlineage.utils.utils._get_eagerly_loaded_dagrun_consumed_asset_events")
     def test_get_dag_job_dependency_facet_deduplication(self, mock_get_events):
         """Test that duplicate asset events from same job/run are deduplicated."""
-        logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
 
         # Create two events from the same source TI (should be deduplicated)
         ti = MagicMock()
@@ -4465,8 +4465,8 @@ def test_build_task_event_run_facets_composes_all_sections(
     dag = MagicMock(dag_id="my_dag")
     dag_run = MagicMock(
         conf={"k": "v"},
-        data_interval_start=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
-        data_interval_end=datetime.datetime(2024, 1, 2, tzinfo=datetime.timezone.utc),
+        data_interval_start=datetime.datetime(2024, 1, 1, tzinfo=datetime.UTC),
+        data_interval_end=datetime.datetime(2024, 1, 2, tzinfo=datetime.UTC),
     )
     facets = build_task_event_run_facets(
         task_instance=MagicMock(),

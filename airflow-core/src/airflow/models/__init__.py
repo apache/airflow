@@ -45,7 +45,6 @@ __all__ = [
     "RenderedTaskInstanceFields",
     "SkipMixin",
     "TaskInstance",
-    "TaskInstanceHistory",
     "TaskReschedule",
     "Trigger",
     "Variable",
@@ -74,7 +73,6 @@ def import_all_models():
     import airflow.models.revoked_token
     import airflow.models.serialized_dag
     import airflow.models.task_state_store
-    import airflow.models.taskinstancehistory
     import airflow.models.tasklog
     import airflow.models.team
     import airflow.models.xcom
@@ -146,7 +144,6 @@ if TYPE_CHECKING:
     from airflow.models.pool import Pool
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
     from airflow.models.taskinstance import TaskInstance, clear_task_instances
-    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
