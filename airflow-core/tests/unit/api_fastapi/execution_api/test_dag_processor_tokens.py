@@ -16,18 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-import stat
-from unittest import mock
+from datetime import UTC, datetime
+from unittest.mock import MagicMock
 
 import pytest
 import uuid6
 
-from airflow.api_fastapi.execution_api.app import _jwt_validator
+from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.app import _jwt_validator, create_jwt_generator
 from airflow.api_fastapi.execution_api.dag_processor_tokens import (
+    ExpiredDagProcessorToken,
     generate_dag_processor_session_token,
-    write_token_file,
+    generate_dag_processor_token,
 )
-from airflow.api_fastapi.execution_api.datamodels.token import TIClaims
+from airflow.api_fastapi.execution_api.datamodels.token import DagProcessorSessionClaims
 
 from tests_common.test_utils.config import conf_vars
 
@@ -37,39 +39,30 @@ def test_generated_token_is_a_valid_dag_processor_session_token():
     session_id = uuid6.uuid7()
 
     token = generate_dag_processor_session_token(
-        session_id=session_id, bundle_names={"b", "a"}, valid_for=120
+        create_jwt_generator(), session_id=session_id, bundle_names={"b", "a"}, valid_for=120
     )
 
     claims = _jwt_validator().validated_claims(token)
     assert claims["sub"] == str(session_id)
     assert claims["dag_bundles"] == ["a", "b"]
     assert claims["exp"] - claims["iat"] == 120
-    parsed = TIClaims(**claims)
+    parsed = DagProcessorSessionClaims(**claims)
     assert (parsed.scope, parsed.dag_bundles) == ("dag_processor_session", frozenset({"a", "b"}))
 
 
-class TestWriteTokenFile:
-    def test_replaces_the_file_readable_only_by_its_owner(self, tmp_path):
-        token_file = tmp_path / "token"
-        token_file.write_text("old")
+@pytest.mark.parametrize("remaining", [0, -1], ids=["expires-now", "already-expired"])
+def test_expired_session_is_not_signed(time_machine, remaining):
+    now = datetime(2026, 10, 5, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+    generator = MagicMock(spec=JWTGenerator)
 
-        write_token_file(token_file, "new")
+    with pytest.raises(ExpiredDagProcessorToken, match="Session credential has expired"):
+        generate_dag_processor_token(
+            generator,
+            session_id=uuid6.uuid7(),
+            job_id=1,
+            bundle_names={"bundle"},
+            session_expiry=now.timestamp() + remaining,
+        )
 
-        assert token_file.read_text() == "new"
-        assert stat.S_IMODE(token_file.stat().st_mode) == 0o600
-        assert [path.name for path in tmp_path.iterdir()] == ["token"]
-
-    @mock.patch(
-        "airflow.api_fastapi.execution_api.dag_processor_tokens.os.replace",
-        autospec=True,
-        side_effect=OSError("disk full"),
-    )
-    def test_failure_keeps_the_previous_token(self, _, tmp_path):
-        token_file = tmp_path / "token"
-        token_file.write_text("old")
-
-        with pytest.raises(OSError, match="disk full"):
-            write_token_file(token_file, "new")
-
-        assert token_file.read_text() == "old"
-        assert [path.name for path in tmp_path.iterdir()] == ["token"]
+    generator.generate.assert_not_called()

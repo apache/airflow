@@ -16,7 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from uuid import UUID
+
 import pytest
+
+from airflow.api_fastapi.execution_api.datamodels.token import DagProcessorClaims, DagProcessorToken
+from airflow.api_fastapi.execution_api.security import require_auth
 
 pytestmark = pytest.mark.db_test
 
@@ -25,6 +30,16 @@ MISSING_JOB_HEARTBEAT_URL = "/execution/jobs/0/heartbeat"
 
 class TestDagProcessorJobEndpointsVersioning:
     """The jobs endpoints didn't exist before the 2027-02-28 API version."""
+
+    @pytest.fixture(autouse=True)
+    def processor_identity(self, exec_app):
+        def authenticate():
+            return DagProcessorToken(
+                id=UUID(int=1),
+                claims=DagProcessorClaims(job_id=1, dag_bundles=frozenset({"bundle"}), exp=1),
+            )
+
+        exec_app.dependency_overrides[require_auth] = authenticate
 
     @pytest.mark.parametrize(
         "path",

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import jwt
@@ -24,7 +24,11 @@ import pytest
 from fastapi import Request
 from sqlalchemy import event, insert, select, update
 
-from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import (
+    DagProcessorSessionToken,
+    DagProcessorToken,
+    ExecutionToken,
+)
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.jobs.job import Job, JobState
 from airflow.models.dagbundle import DagBundleModel
@@ -39,7 +43,7 @@ SESSION_ID = UUID("00000000-0000-0000-0000-0000000000aa")
 OTHER_SESSION_ID = UUID("00000000-0000-0000-0000-0000000000bb")
 REGISTRATION_ID = UUID("00000000-0000-0000-0000-00000000000a")
 OTHER_REGISTRATION_ID = UUID("00000000-0000-0000-0000-00000000000b")
-NOW = datetime(2026, 10, 5, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
 SESSION_EXPIRY = NOW + timedelta(hours=1)
 
 
@@ -62,8 +66,13 @@ def frozen_time(time_machine):
 @pytest.fixture
 def authenticate(exec_app):
     def _authenticate(**claims) -> None:
-        async def _auth(request: Request) -> TIToken:
-            return TIToken(id=SESSION_ID, claims=TIClaims(**claims))
+        claims.setdefault("exp", SESSION_EXPIRY.timestamp())
+        token_type = (
+            DagProcessorSessionToken if claims["scope"] == "dag_processor_session" else DagProcessorToken
+        )
+
+        async def _auth(request: Request) -> ExecutionToken:
+            return token_type.model_validate({"id": SESSION_ID, "claims": claims})
 
         exec_app.dependency_overrides[require_auth] = _auth
 
@@ -141,6 +150,24 @@ class TestRegisterJob:
 
         assert response.status_code == 422
         assert session.scalars(select(Job)).all() == []
+
+    @pytest.mark.parametrize("resume", [False, True], ids=["new-registration", "retry"])
+    @pytest.mark.parametrize("remaining", [0, -1], ids=["expires-now", "already-expired"])
+    def test_refuses_a_session_credential_that_expires_after_authentication(
+        self, client, session, authenticate, resume, remaining
+    ):
+        expected_job_ids = [_create_job(session).id] if resume else []
+        authenticate(
+            scope="dag_processor_session",
+            dag_bundles=["bundle_a", "bundle_b"],
+            exp=NOW.timestamp() + remaining,
+        )
+
+        response = _register(client)
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Session credential has expired"
+        assert session.scalars(select(Job.id)).all() == expected_job_ids
 
     def test_rejects_an_ungranted_bundle(self, client, session):
         response = _register(client, bundle_names=["bundle_a", "bundle_c"])
