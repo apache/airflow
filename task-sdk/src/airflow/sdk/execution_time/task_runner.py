@@ -25,7 +25,6 @@ import inspect
 import logging
 import os
 import sys
-import threading
 import time
 from asyncio import CancelledError, wait_for
 from collections.abc import Callable, Iterable, Iterator, Mapping
@@ -35,7 +34,7 @@ from datetime import UTC, datetime, timedelta
 from functools import cached_property
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal, NoReturn, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, NoReturn, Protocol, cast
 from urllib.parse import quote
 
 import attrs
@@ -1093,6 +1092,14 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         return self.task.do_xcom_push
 
 
+class SubOperatorRegister(Protocol):
+    """Where an indexed task's operator is noted while its code runs, so that a kill reaches it."""
+
+    def register(self, operator: BaseOperator) -> None: ...
+
+    def unregister(self, operator: BaseOperator) -> None: ...
+
+
 class IndexedTaskRunner(LoggingMixin):
     """
     Run one indexed task of an iterated task: its operator, against its own view of the context.
@@ -1104,8 +1111,7 @@ class IndexedTaskRunner(LoggingMixin):
     def __init__(
         self,
         task_instance: IndexedTaskInstance,
-        active_operators: dict[int, BaseOperator] | None = None,
-        active_operators_lock: threading.Lock | None = None,
+        register: SubOperatorRegister | None = None,
         outlet_events: OutletEventAccessors | None = None,
     ):
         """
@@ -1114,12 +1120,9 @@ class IndexedTaskRunner(LoggingMixin):
         :param outlet_events: The accessor the sub-task's asset events are collected in, its own
             so they can be checkpointed and merged apart from its siblings'. Created here when not
             given; the caller reads it back through :attr:`outlet_events` after the run.
-        :param active_operators: Optional shared register, keyed by ``id(operator)``, that the
-            operator is entered in while its code runs (see :meth:`in_flight`), so that
-            IterableOperator.on_kill() can reach whichever sub-tasks are in flight. Keyed by
-            identity because the sub-operators of one iterated task compare equal.
-        :param active_operators_lock: Lock guarding ``active_operators``, required whenever
-            ``active_operators`` is given since multiple sub-tasks may run concurrently.
+        :param register: Optional register the operator is entered in while its code runs (see
+            :meth:`in_flight`), so that IterableOperator.on_kill() can reach whichever sub-tasks
+            are in flight; the iterated task's ``IterationState``.
         """
         super().__init__()
         self.task_instance = task_instance
@@ -1127,8 +1130,7 @@ class IndexedTaskRunner(LoggingMixin):
         self._result: Any | None = None
         self._start_time: float | None = None
         self._context: Context | None = None
-        self._active_operators = active_operators
-        self._active_operators_lock = active_operators_lock
+        self._register = register
         #: The exception this indexed task failed with, noted by __exit__ and reported by
         #: :meth:`report_failure` once the whole task's fate is known.
         self.failure: BaseException | None = None
@@ -1139,7 +1141,8 @@ class IndexedTaskRunner(LoggingMixin):
         Note that the coroutine waiting for this sync indexed task was cancelled.
 
         Its thread may go on, but the task gets no checkpoint from here on, so its exit records
-        no state and fires no callback; the next attempt runs it again and reports it then.
+        no state and fires no callback; the next attempt runs it again and reports it then. Best
+        effort: a thread already past the check in its exit still reports.
         """
         self._cancelled = True
 
@@ -1205,10 +1208,8 @@ class IndexedTaskRunner(LoggingMixin):
         main thread, as async operators do), it is killed here, since it leaves the register as the
         timeout unwinds and the parent's ``on_kill`` would no longer see it.
         """
-        registered = self._active_operators is not None and self._active_operators_lock is not None
-        if registered:
-            with self._active_operators_lock:  # type: ignore[union-attr]
-                self._active_operators[id(self.operator)] = self.operator  # type: ignore[index]
+        if self._register is not None:
+            self._register.register(self.operator)
         try:
             yield
         except AirflowTaskTimeout:
@@ -1218,9 +1219,8 @@ class IndexedTaskRunner(LoggingMixin):
                 self.log.exception("Error calling on_kill() for sub-task operator %s", self.task_id)
             raise
         finally:
-            if registered:
-                with self._active_operators_lock:  # type: ignore[union-attr]
-                    self._active_operators.pop(id(self.operator), None)  # type: ignore[union-attr]
+            if self._register is not None:
+                self._register.unregister(self.operator)
 
     def run(self, context: Context):
         """Run the operator synchronously against this indexed task's own view of ``context``."""

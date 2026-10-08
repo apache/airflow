@@ -300,6 +300,92 @@ class Checkpoints:
             self._store.set(self.COMPLETION_KEY, {"completed": True, "try_number": self._try_number})
 
 
+class IterationState:
+    """
+    The state of one run of an iterated task, kept apart from the operator's configuration.
+
+    It holds what the run needs to remember while it is going: the sub-operators in flight and
+    those already killed, so that :meth:`IterableOperator.on_kill` reaches each one once; the
+    stop flag a kill sets, which the executor consults before starting the next item; the
+    runners of the items that failed, whose callbacks wait for the task's fate; the resolved
+    input; and the retry policy's decision for the exception handed to the runner.
+
+    A deep copy of the operator (``dag.partial_subset``, ``prepare_for_execution``) is another
+    task with nothing in flight and no kill pending, so copying the state gives a fresh one. The
+    operator starts every run with a fresh one as well.
+    """
+
+    def __init__(self) -> None:
+        # Keyed by identity: BaseOperator equality compares fields such as task_id, which every
+        # sub-operator of one iterated task shares, so a set would hold one of them at most.
+        self._in_flight: dict[int, BaseOperator] = {}
+        self._lock = threading.Lock()
+        # The runner calls on_kill() again after the execution timeout that made _run_tasks call
+        # it first, and a sub-operator is killed once.
+        self._killed: set[int] = set()
+        self._stop_requested = threading.Event()
+        self._failed_runners: list[IndexedTaskRunner] = []
+        self._decision: tuple[BaseException, RetryDecision] | None = None
+        #: The input resolved for this task instance, once ``aresolve`` returned.
+        self.resolved: Resolved | None = None
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> IterationState:
+        return IterationState()
+
+    def register(self, operator: BaseOperator) -> None:
+        """Note that ``operator`` is executing, so a kill reaches it."""
+        with self._lock:
+            self._in_flight[id(operator)] = operator
+
+    def unregister(self, operator: BaseOperator) -> None:
+        """Note that ``operator`` is done, one way or another."""
+        with self._lock:
+            self._in_flight.pop(id(operator), None)
+
+    def __contains__(self, operator: object) -> bool:
+        with self._lock:
+            return id(operator) in self._in_flight
+
+    def take_in_flight(self) -> list[BaseOperator]:
+        """Return the sub-operators in flight that were not handed out before, and mark them killed."""
+        with self._lock:
+            operators = [op for key, op in self._in_flight.items() if key not in self._killed]
+            self._killed.update(map(id, operators))
+        return operators
+
+    def request_stop(self) -> None:
+        """Ask the iteration to start nothing else; see :meth:`stop_requested`."""
+        self._stop_requested.set()
+
+    def stop_requested(self) -> bool:
+        """Whether :meth:`request_stop` was called; passed to the executor as its ``stop``."""
+        return self._stop_requested.is_set()
+
+    @property
+    def length(self) -> int | None:
+        """How many items the resolved input has, or None while it is still being resolved."""
+        return self.resolved.length if self.resolved is not None else None
+
+    def note_failed(self, runner: IndexedTaskRunner) -> None:
+        """Remember a failed item's runner: its callback waits for the task's fate."""
+        self._failed_runners.append(runner)
+
+    @property
+    def failed_runners(self) -> tuple[IndexedTaskRunner, ...]:
+        """The runners of the items that failed in this run, in the order they failed."""
+        return tuple(self._failed_runners)
+
+    def keep_decision(self, exception: BaseException, decision: RetryDecision) -> None:
+        """Keep the retry policy's decision for the exception handed to the runner."""
+        self._decision = (exception, decision)
+
+    def decision_for(self, exception: BaseException) -> RetryDecision | None:
+        """Return the decision kept for ``exception``, if it is the one handed to the runner."""
+        if self._decision is not None and self._decision[0] is exception:
+            return self._decision[1]
+        return None
+
+
 class IterableOperator(BaseOperator):
     """
     Operator used for Iterable Tasks (IT) that runs a mapped operator over an iterable input.
@@ -458,7 +544,6 @@ class IterableOperator(BaseOperator):
         "expand_input",
         "partial_kwargs",
         "_log",
-        "_resolved",
     )
 
     def __init__(
@@ -560,38 +645,9 @@ class IterableOperator(BaseOperator):
         for key, value in self.partial_kwargs.items():
             if key in self._operator.template_fields:
                 XComArg.apply_upstream_relationship(self, value)
-        # Populated with each sub-task's unmapped operator while it is actively executing, so
-        # on_kill() (see below) can propagate a kill/timeout signal to whichever sub-tasks happen
-        # to be in flight; guarded by a lock since sub-tasks execute concurrently.
-        # Keyed by identity: BaseOperator equality compares fields such as task_id, which every
-        # sub-task of one iterated task shares, so a set would hold one of them at most.
-        self._active_sub_operators: dict[int, BaseOperator] = {}
-        self._active_sub_operators_lock = threading.Lock()
-        # Identities of the sub-operators on_kill() already reached: the runner calls it again after
-        # the execution timeout that made _run_tasks call it first, and an operator is killed once.
-        self._killed_sub_operators: set[int] = set()
-        # Runners of the sub-tasks that failed in this run: their failure or retry callback waits
-        # for the whole task's fate (see _report_failed_items).
-        self._failed_runners: list[IndexedTaskRunner] = []
-        # Per-run state of execute: the input resolved for this task instance.
-        self._resolved: Resolved | None = None
-        # The retry policy's decision for the exception handed to the runner, kept so the failed
-        # items' callbacks follow it instead of evaluating the policy once more (see _task_will_retry).
-        self._decision_for_the_runner: tuple[BaseException, RetryDecision] | None = None
-        # Set by on_kill(): the executor pulls no further item once it is set (see _run_tasks), so
-        # a kill stops the iteration instead of being followed by the next items starting.
-        self._stop_requested = threading.Event()
-
-    def __deepcopy__(self, memo: dict[int, Any]) -> IterableOperator:
-        # A copy (deepcopy, dag.partial_subset) is another task with no sub-tasks in flight: it gets
-        # a lock and a set of its own. The lock cannot be copied at all, so both are handed to
-        # BaseOperator.__deepcopy__ through the memo it consults for every attribute.
-        memo[id(self._active_sub_operators)] = {}
-        memo[id(self._active_sub_operators_lock)] = threading.Lock()
-        memo[id(self._killed_sub_operators)] = set()
-        memo[id(self._failed_runners)] = []
-        memo[id(self._stop_requested)] = threading.Event()
-        return super().__deepcopy__(memo)
+        # What one run remembers while it is going (see IterationState); fresh for every run and
+        # for every copy of the operator.
+        self._state = IterationState()
 
     def on_kill(self) -> None:
         # The default BaseOperator.on_kill() is a no-op, which would otherwise leave every
@@ -599,12 +655,8 @@ class IterableOperator(BaseOperator):
         # (SIGTERM) or hit its execution_timeout: propagate to each active sub-operator instead.
         # First stop the iteration from starting anything else: the killed items come back as
         # failures and free their slots, which would otherwise be filled with the next items.
-        self._stop_requested.set()
-        with self._active_sub_operators_lock:
-            active_operators = [
-                op for key, op in self._active_sub_operators.items() if key not in self._killed_sub_operators
-            ]
-            self._killed_sub_operators.update(map(id, active_operators))
+        self._state.request_stop()
+        active_operators = self._state.take_in_flight()
         if not active_operators:
             return
         try:
@@ -691,9 +743,7 @@ class IterableOperator(BaseOperator):
         total = 0
         do_xcom_push = True
 
-        self._failed_runners = []
-        self._decision_for_the_runner = None
-        self._stop_requested.clear()
+        self._state = IterationState()
         try:
             self.log.info("Running tasks with %d workers", self.max_workers)
 
@@ -710,7 +760,7 @@ class IterableOperator(BaseOperator):
                                     since=checkpoints.since,
                                 ),
                                 tasks,
-                                stop=self._stop_requested.is_set,
+                                stop=self._state.stop_requested,
                             ):
                                 total += 1
                                 do_xcom_push = task.do_xcom_push
@@ -789,14 +839,14 @@ class IterableOperator(BaseOperator):
                                 self.on_kill()
                             raise
 
-                if self._stop_requested.is_set():
+                if self._state.stop_requested():
                     # Killed: nothing started once on_kill() ran, and what was in flight has
                     # finished one way or another. The task fails without a retry, as the runner
                     # treats a terminated task; no completion marker is written, so a later clear
                     # resumes from the checkpoints of the items that did finish. Checked before the
                     # other outcomes: with every killed item returning normally there would be no
                     # failure to raise, and a kill while the input resolves is not an empty input.
-                    length = self._resolved.length if self._resolved is not None else None
+                    length = self._state.length
                     raise AirflowTaskTerminated(
                         f"The iterated task was killed: {total} of {length} items ran, the rest never started."
                         if length is not None
@@ -825,10 +875,10 @@ class IterableOperator(BaseOperator):
         item no longer announces a retry a sibling's ``AirflowFailException`` then rules out. They
         run one after another, on the thread that ran the iteration.
         """
-        if not self._failed_runners:
+        if not self._state.failed_runners:
             return
         task_will_retry = self._task_will_retry(context, raised)
-        for runner in self._failed_runners:
+        for runner in self._state.failed_runners:
             runner.report_failure(task_will_retry=task_will_retry)
 
     def _task_will_retry(self, context: Context, raised: BaseException) -> bool:
@@ -844,11 +894,11 @@ class IterableOperator(BaseOperator):
         """
         if isinstance(raised, FAIL_WITHOUT_RETRY) or not isinstance(raised, (Exception, AirflowTaskTimeout)):
             return False
-        if not self._failed_runners[0].task_instance.is_eligible_to_retry:
+        if not self._state.failed_runners[0].task_instance.is_eligible_to_retry:
             return False
         if (policy := self.retry_policy) is not None:
-            if (kept := self._decision_for_the_runner) is not None and kept[0] is raised:
-                decision = kept[1]
+            if (kept := self._state.decision_for(raised)) is not None:
+                decision = kept
             else:
                 ti = context["ti"]
                 from_server = getattr(ti, "_ti_context_from_server", None)
@@ -904,7 +954,7 @@ class IterableOperator(BaseOperator):
                 index = weights.index(max(weights))
                 chosen = exceptions[index]
                 if (kept := decisions[index]) is not None:
-                    self._decision_for_the_runner = (chosen, kept)
+                    self._state.keep_decision(chosen, kept)
         if chosen is None:
             return group
         if len(exceptions) > 1:
@@ -982,8 +1032,7 @@ class IterableOperator(BaseOperator):
         # _serialize_outlet_events/_merge_outlet_events).
         indexed_task_runner = IndexedTaskRunner(
             task_instance=task,
-            active_operators=self._active_sub_operators,
-            active_operators_lock=self._active_sub_operators_lock,
+            register=self._state,
         )
         try:
             if task.is_async:
@@ -1032,7 +1081,7 @@ class IterableOperator(BaseOperator):
                 # so its exit must report nothing either (see IndexedTaskRunner.cancel).
                 indexed_task_runner.cancel()
             if indexed_task_runner.failure is not None:
-                self._failed_runners.append(indexed_task_runner)
+                self._state.note_failed(indexed_task_runner)
             raise
         except AirflowSkipException as e:
             await task.aset_state(
@@ -1045,7 +1094,7 @@ class IterableOperator(BaseOperator):
             return task, None, e
         except BaseException as e:
             if indexed_task_runner.failure is not None:
-                self._failed_runners.append(indexed_task_runner)
+                self._state.note_failed(indexed_task_runner)
             # Written with the input and the attempt, like the other outcomes, so the next attempt
             # tells a plain retry apart from a clear or a changed input and logs only the latter.
             await task.aset_state(
@@ -1109,8 +1158,8 @@ class IterableOperator(BaseOperator):
             # Resolved and read by the executor on the running event loop, so the input's XCom
             # reads go through asend and cannot deadlock with the sub-tasks' own SDK calls (see
             # AsyncAwareExecutor.imap_unordered).
-            self._resolved = await self.expand_input.aresolve(context)
-            for index in range(self._resolved.length):
+            self._state.resolved = await self.expand_input.aresolve(context)
+            for index in range(self._state.resolved.length):
                 # Rendering may call the supervisor synchronously (an XComArg in a partial kwarg,
                 # ``{{ var.value.x }}``, ``{{ conn.x }}``), which raises DeadlockImminentError on the
                 # loop thread while a sub-task's asend is in flight. From a worker thread the same
@@ -1119,7 +1168,7 @@ class IterableOperator(BaseOperator):
                     self._create_task,
                     context=context,
                     index=index,
-                    mapped_kwargs=await self._resolved.aget(index),
+                    mapped_kwargs=await self._state.resolved.aget(index),
                     jinja_env=jinja_env,
                 )
 
@@ -1129,11 +1178,11 @@ class IterableOperator(BaseOperator):
                 task_id=self.task_id,
                 dag_id=self.dag_id,
                 run_id=context["run_id"],
-                length=self._resolved.length,
+                length=self._state.length,
                 map_index=context["ti"].map_index,
                 skipped=skipped,
             )
-            if do_xcom_push and self._resolved
+            if do_xcom_push and self._state.resolved
             else None
         )
         if skipped:

@@ -54,7 +54,12 @@ from airflow.sdk.definitions._internal.expandinput import (
     Resolved,
 )
 from airflow.sdk.definitions.context import clone_context
-from airflow.sdk.definitions.iterableoperator import Checkpoints, IterableOperator, _fingerprint
+from airflow.sdk.definitions.iterableoperator import (
+    Checkpoints,
+    IterableOperator,
+    IterationState,
+    _fingerprint,
+)
 from airflow.sdk.exceptions import (
     AirflowFailException,
     AirflowRescheduleException,
@@ -1949,7 +1954,7 @@ class TestIterableOperator:
             )
 
         active_operator = MockOnKillOperator(task_id="active_sub_task")
-        iterable_op._active_sub_operators[id(active_operator)] = active_operator
+        iterable_op._state.register(active_operator)
 
         iterable_op.on_kill()
 
@@ -1970,7 +1975,8 @@ class TestIterableOperator:
         kills = []
         first.on_kill = lambda: kills.append("first")  # type: ignore[method-assign]
         second.on_kill = lambda: kills.append("second")  # type: ignore[method-assign]
-        iterable_op._active_sub_operators.update({id(first): first, id(second): second})
+        iterable_op._state.register(first)
+        iterable_op._state.register(second)
 
         iterable_op.on_kill()
         iterable_op.on_kill()
@@ -1989,8 +1995,8 @@ class TestIterableOperator:
                 dag, ListOfDictsExpandInput([{}]), task_id="on_kill_raises", operator_class=MockOnKillOperator
             )
         first, second = RaisingOnKill(task_id="first"), MockOnKillOperator(task_id="second")
-        iterable_op._active_sub_operators[id(first)] = first
-        iterable_op._active_sub_operators[id(second)] = second
+        iterable_op._state.register(first)
+        iterable_op._state.register(second)
 
         iterable_op.on_kill()
 
@@ -2016,7 +2022,7 @@ class TestIterableOperator:
                 dag, ListOfDictsExpandInput([{}]), task_id="on_kill_in_loop", operator_class=Op
             )
         op = Op(task_id="active")
-        iterable_op._active_sub_operators[id(op)] = op
+        iterable_op._state.register(op)
 
         async def kill_from_the_loop():
             iterable_op.on_kill()
@@ -2058,7 +2064,7 @@ class TestIterableOperator:
                 seen_active_during_run = []
 
                 def tracking_execute(context, ti, log):
-                    seen_active_during_run.append(id(task.task) in iterable_op._active_sub_operators)
+                    seen_active_during_run.append(task.task in iterable_op._state)
 
                 monkeypatch.setattr("airflow.sdk.execution_time.task_runner._execute_task", tracking_execute)
 
@@ -2069,7 +2075,7 @@ class TestIterableOperator:
 
         assert raised is None
         assert seen_active_during_run == [True]
-        assert id(task.task) not in iterable_op._active_sub_operators
+        assert task.task not in iterable_op._state
 
     def test_multiple_outputs_is_ignored(self):
         with DAG("test_dag") as dag:
@@ -2396,6 +2402,114 @@ class TestItemThreads:
                     iterable_op.execute(context=context)
 
         assert [fired for fired in FIRED_CALLBACKS if fired[1] == "sleeper"] == []
+
+
+class TestIterationState:
+    """What one run of an iterated task remembers, apart from the operator's configuration."""
+
+    def test_registered_operators_are_in_flight_until_unregistered(self):
+        state = IterationState()
+        op = MockOperator(task_id="op")
+        assert op not in state
+        state.register(op)
+        assert op in state
+        state.unregister(op)
+        assert op not in state
+        state.unregister(op)  # a second time is harmless
+
+    def test_in_flight_is_keyed_by_identity(self):
+        """Sub-operators of one iterated task compare equal; each is registered on its own."""
+        state = IterationState()
+        first, second = MockOperator(task_id="same"), MockOperator(task_id="same")
+        assert first == second
+        state.register(first)
+        state.register(second)
+        assert first in state
+        assert second in state
+        state.unregister(first)
+        assert first not in state
+        assert second in state
+
+    def test_take_in_flight_hands_each_operator_out_once(self):
+        """The runner's second on_kill() after a timeout must not kill the same operator again."""
+        state = IterationState()
+        first, second, third = (MockOperator(task_id=f"op{i}") for i in range(3))
+        state.register(first)
+        state.register(second)
+        assert state.take_in_flight() == [first, second]
+        state.register(third)
+        assert state.take_in_flight() == [third]
+        assert state.take_in_flight() == []
+        # Still in flight as far as the register goes: a kill does not unregister.
+        assert first in state
+
+    def test_stop_is_requested_once_asked(self):
+        state = IterationState()
+        assert not state.stop_requested()
+        state.request_stop()
+        assert state.stop_requested()
+        state.request_stop()
+        assert state.stop_requested()
+
+    def test_a_copy_is_a_fresh_state(self):
+        import copy
+
+        state = IterationState()
+        op = MockOperator(task_id="op")
+        runner, exc, decision = object(), ValueError("x"), object()
+        state.register(op)
+        state.request_stop()
+        state.note_failed(runner)  # type: ignore[arg-type]
+        state.keep_decision(exc, decision)  # type: ignore[arg-type]
+
+        copied = copy.deepcopy(state)
+
+        assert copied is not state
+        assert op not in copied
+        assert not copied.stop_requested()
+        assert copied.failed_runners == ()
+        assert copied.resolved is None
+        assert copied.decision_for(exc) is None
+        assert op in state
+        assert state.stop_requested()
+        assert state.failed_runners == (runner,)
+        assert state.decision_for(exc) is decision
+
+    def test_failed_runners_are_kept_in_the_order_they_failed(self):
+        state = IterationState()
+        first, second = object(), object()
+        state.note_failed(first)  # type: ignore[arg-type]
+        state.note_failed(second)  # type: ignore[arg-type]
+        assert state.failed_runners == (first, second)
+
+    def test_the_kept_decision_is_for_one_exception_only(self):
+        """The runner gets one exception; only that object's decision is kept, not its type's."""
+        state = IterationState()
+        chosen, other, decision = ValueError("x"), ValueError("x"), object()
+        assert state.decision_for(chosen) is None
+        state.keep_decision(chosen, decision)  # type: ignore[arg-type]
+        assert state.decision_for(chosen) is decision
+        assert state.decision_for(other) is None
+
+    def test_length_is_unknown_until_the_input_is_resolved(self):
+        from airflow.sdk.definitions._internal.expandinput import Resolved
+
+        state = IterationState()
+        assert state.length is None
+
+        async def aget(index):
+            return {}
+
+        state.resolved = Resolved(3, aget)
+        assert state.length == 3
+
+    def test_a_fresh_state_remembers_nothing(self):
+        state = IterationState()
+        assert state.failed_runners == ()
+        assert state.resolved is None
+        assert state.length is None
+        assert state.decision_for(ValueError("x")) is None
+        assert state.take_in_flight() == []
 
 
 KILL_TARGET: list = []
@@ -2875,25 +2989,24 @@ class TestIterableOperatorCopy:
             down(f.iterate(x=up()))
         return dag
 
-    def test_deepcopy_gets_its_own_lock_and_no_sub_tasks_in_flight(self):
+    def test_deepcopy_gets_its_own_state_with_no_sub_tasks_in_flight(self):
         import copy
-        import threading
 
         iterable_op = self._dag().task_dict["f"]
         in_flight = MockOperator(task_id="in_flight")
-        iterable_op._active_sub_operators[id(in_flight)] = in_flight
+        iterable_op._state.register(in_flight)
+        iterable_op._state.request_stop()
 
         copied = copy.deepcopy(iterable_op)
 
         assert isinstance(copied, IterableOperator)
         assert copied.task_id == "f"
-        assert copied._active_sub_operators == {}
-        assert copied._active_sub_operators_lock is not iterable_op._active_sub_operators_lock
-        assert isinstance(copied._active_sub_operators_lock, type(threading.Lock()))
-        with copied._active_sub_operators_lock:
-            pass
+        assert copied._state is not iterable_op._state
+        assert in_flight not in copied._state
+        assert not copied._state.stop_requested()
         # The original is untouched.
-        assert iterable_op._active_sub_operators == {id(in_flight): in_flight}
+        assert in_flight in iterable_op._state
+        assert iterable_op._state.stop_requested()
 
     def test_partial_subset_keeps_the_iterated_task(self):
         dag = self._dag()
