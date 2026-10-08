@@ -273,7 +273,7 @@
   "settings": {
     "clearing": {
       "keepTaskState": {
-        "helper": "Conservar per defecte les entrades del magatzem de tasca en rellançar instàncies de tasca, en lloc de descartar-les.",
+        "helper": "Conservar per defecte les entrades del magatzem d'estat de tasca en rellançar instàncies de tasca, en lloc de descartar-les.",
         "label": "Conservar l'estat de la tasca en rellançar"
       },
       "preventRunningTask": {

@@ -31,7 +31,7 @@
     "degraded": "Degradat",
     "degradedHint": {
       "dagProcessor": "Algunes col·leccions de Dags configurades no tenen cap Dag Processor que les analitzi.",
-      "triggerer": "Alguns equips no tenen cap Triggerer que executi les seves tasques diferides."
+      "triggerer": "Alguns equips no tenen cap triggerer que executi les seves tasques diferides."
     },
     "down": "Inactiu",
     "health": "Estat de salut",
