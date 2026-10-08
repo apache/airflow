@@ -33,7 +33,6 @@ Misc
 ~~~~
 
 * ``Drop support for Python 3.10 (#74157)``
-* ``Apply ruff Python 3.11 fixes to providers (#74155)``
 * ``Bump stylelint to 17.16.0 (#74252)``
 * ``Bump prettier to 3.9.9 (#73857)``
 
@@ -47,6 +46,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
    * ``[main] Upgrade important CI environment (#73629)``
 
 3.10.0
