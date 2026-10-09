@@ -1992,31 +1992,23 @@ class TestDag:
         mock_task_object_2.assert_not_called()
 
     @pytest.mark.parametrize(
-        ("mark_success_pattern", "expected_mapped_tasks_num"),
+        ("mark_success_pattern", "expected_dag_run_state", "expected_mapped_tis"),
         [
-            ("make_items|process_item", 1),
-            ("process_item", 3),
+            ("make_items|process_item", DagRunState.SUCCESS, [(0, TaskInstanceState.SUCCESS)]),
+            ("make_items", DagRunState.FAILED, [(-1, TaskInstanceState.UPSTREAM_FAILED)]),
         ],
+        ids=["mapped-marked", "mapped-unmarked"],
     )
-    def test_dag_test_mark_success_pattern_allows_mapped_task(
-        self,
-        mark_success_pattern,
-        expected_mapped_tasks_num,
-        testing_dag_bundle,
+    def test_dag_test_mark_success_pattern_upstream_marked(
+        self, mark_success_pattern, expected_dag_run_state, expected_mapped_tis, testing_dag_bundle
     ):
-        upstream_callable = mock.MagicMock()
         mapped_callable = mock.MagicMock()
 
         @task_decorator
         def make_items():
-            upstream_callable()
             return [1, 2, 3]
 
-        with DAG(
-            dag_id="test_dag",
-            schedule=None,
-            start_date=DEFAULT_DATE,
-        ) as dag:
+        with DAG(dag_id="test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
             PythonOperator.partial(
                 task_id="process_item",
                 python_callable=mapped_callable,
@@ -2026,19 +2018,51 @@ class TestDag:
 
         dr = dag.test(mark_success_pattern=mark_success_pattern)
 
-        assert dr.state == DagRunState.SUCCESS
-
-        upstream_ti = dr.get_task_instance("make_items")
-        assert upstream_ti is not None
-        assert upstream_ti.state == TaskInstanceState.SUCCESS
-        if "make_items" in mark_success_pattern:
-            upstream_callable.assert_not_called()
-        else:
-            upstream_callable.assert_called()
-
+        assert dr.state == expected_dag_run_state
         mapped_tis = [ti for ti in dr.get_task_instances() if ti.task_id == "process_item"]
-        assert len(mapped_tis) == expected_mapped_tasks_num
-        assert all(ti.state == TaskInstanceState.SUCCESS for ti in mapped_tis)
+        assert [(ti.map_index, ti.state) for ti in mapped_tis] == expected_mapped_tis
+        mapped_callable.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("upstream_items", "expected_mapped_tis"),
+        [
+            (
+                [1, 2, 3],
+                [
+                    (0, TaskInstanceState.SUCCESS),
+                    (1, TaskInstanceState.SUCCESS),
+                    (2, TaskInstanceState.SUCCESS),
+                ],
+            ),
+            ([], [(-1, TaskInstanceState.SKIPPED)]),
+        ],
+        ids=["non-empty-upstream", "empty-upstream"],
+    )
+    def test_dag_test_mark_success_pattern_upstream_runs(
+        self, upstream_items, expected_mapped_tis, testing_dag_bundle
+    ):
+        mapped_callable = mock.MagicMock()
+
+        @task_decorator
+        def make_items():
+            return upstream_items
+
+        with DAG(dag_id="test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            PythonOperator.partial(
+                task_id="process_item",
+                python_callable=mapped_callable,
+            ).expand(op_args=make_items())
+
+        sync_dag_to_db(dag)
+
+        dr = dag.test(mark_success_pattern="process_item")
+
+        assert dr.state == DagRunState.SUCCESS
+        mapped_tis = sorted(
+            (ti for ti in dr.get_task_instances() if ti.task_id == "process_item"),
+            key=lambda ti: ti.map_index,
+        )
+        assert [(ti.map_index, ti.state) for ti in mapped_tis] == expected_mapped_tis
         mapped_callable.assert_not_called()
 
     def test_dag_test_mark_success_pattern_literal_mapped_task(self, testing_dag_bundle):
@@ -2048,7 +2072,7 @@ class TestDag:
             PythonOperator.partial(
                 task_id="process_item",
                 python_callable=mapped_callable,
-            ).expand(op_args=[[1], [2], [3]])
+            ).expand(op_args=[1, 2, 3])
 
         sync_dag_to_db(dag)
 
@@ -2064,50 +2088,6 @@ class TestDag:
             (1, TaskInstanceState.SUCCESS),
             (2, TaskInstanceState.SUCCESS),
         ]
-        mapped_callable.assert_not_called()
-
-    def test_dag_test_mark_success_pattern_mapped_task_with_empty_upstream(self, testing_dag_bundle):
-        mapped_callable = mock.MagicMock()
-
-        @task_decorator
-        def make_items():
-            return []
-
-        with DAG(dag_id="test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            PythonOperator.partial(
-                task_id="process_item",
-                python_callable=mapped_callable,
-            ).expand(op_args=make_items())
-
-        sync_dag_to_db(dag)
-
-        dr = dag.test(mark_success_pattern="process_item")
-
-        assert dr.state == DagRunState.SUCCESS
-        mapped_tis = [ti for ti in dr.get_task_instances() if ti.task_id == "process_item"]
-        assert [(ti.map_index, ti.state) for ti in mapped_tis] == [(-1, TaskInstanceState.SKIPPED)]
-        mapped_callable.assert_not_called()
-
-    def test_dag_test_mark_success_pattern_upstream_only_fails_mapped_task(self, testing_dag_bundle):
-        mapped_callable = mock.MagicMock()
-
-        @task_decorator
-        def make_items():
-            return [1, 2, 3]
-
-        with DAG(dag_id="test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            PythonOperator.partial(
-                task_id="process_item",
-                python_callable=mapped_callable,
-            ).expand(op_args=make_items())
-
-        sync_dag_to_db(dag)
-
-        dr = dag.test(mark_success_pattern="make_items")
-
-        assert dr.state == DagRunState.FAILED
-        mapped_tis = [ti for ti in dr.get_task_instances() if ti.task_id == "process_item"]
-        assert [(ti.map_index, ti.state) for ti in mapped_tis] == [(-1, TaskInstanceState.UPSTREAM_FAILED)]
         mapped_callable.assert_not_called()
 
     @staticmethod
