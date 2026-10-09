@@ -16,18 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { describe, expect, it } from "vitest";
 
-export { capitalize } from "./capitalize";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
-export { formatNumber } from "./formatNumber";
-export { getMetaKey } from "./getMetaKey";
-export { hasDagRunConfig } from "./hasDagRunConfig";
-export { isOneOf } from "./isOneOf";
-export { toNullablePartitionKey } from "./partitionKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useDocumentTitle } from "./useDocumentTitle";
-export { type DurationFormat, useDurationFormat } from "./useDurationFormat";
-export { DocumentTitleProvider } from "./useDocumentTitleProvider";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+import { isOneOf } from "./isOneOf";
+
+const isColour = isOneOf(["red", "green"] as const);
+
+describe("isOneOf", () => {
+  it.each(["red", "green"])("accepts the allowed value %s", (value) => {
+    expect(isColour(value)).toBe(true);
+  });
+
+  it.each([["blue"], ["RED"], [""], [null]])("rejects %s", (value) => {
+    expect(isColour(value)).toBe(false);
+  });
+});
