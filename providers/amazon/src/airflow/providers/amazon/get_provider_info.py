@@ -1577,7 +1577,7 @@ def get_provider_info():
                         "default": "aws_default",
                     },
                     "region_name": {
-                        "description": "The name of the AWS Region where the EKS cluster is located. If not\nspecified then the default boto3 behaviour is used.\n",
+                        "description": "The name of the AWS Region where the EKS cluster is located. If not\nspecified, falls back to the AWS connection's region, then boto3's.\n",
                         "version_added": "9.38.0",
                         "type": "string",
                         "example": "us-east-1",

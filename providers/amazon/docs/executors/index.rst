@@ -39,7 +39,7 @@ Choosing an executor
     * - :doc:`Batch <batch-executor>`
       - An AWS Batch job on a job queue
       - You run many tasks at once and want Batch's job queues and priorities, with Batch
-        managing Fargate, EC2 or EKS compute for you.
+        managing Fargate or EC2 compute for you.
     * - :doc:`EKS <eks-executor>`
       - A pod on an Amazon EKS cluster
       - You already run EKS, or want Kubernetes executor features such as pod templates

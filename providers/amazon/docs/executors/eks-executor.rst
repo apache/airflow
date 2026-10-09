@@ -103,8 +103,9 @@ Optional config options:
 
 -  CONN_ID - The Airflow connection (i.e. credentials) used by the EKS
    executor to make API calls to Amazon EKS. Defaults to ``aws_default``.
--  REGION_NAME - The AWS Region the cluster is in. When this is left empty, the
-   region comes from the standard boto3 resolution order.
+-  REGION_NAME - The AWS Region the cluster is in. When this is left empty, it
+   falls back to the :ref:`AWS connection's <howto/connection:aws>` region, then
+   boto3's.
 -  CHECK_HEALTH_ON_STARTUP - Whether to check on startup that the executor can
    list pods in its namespace. Defaults to ``True``.
 
@@ -147,7 +148,7 @@ the Kubernetes client is authenticated.
   :start-after: .. BEGIN LOGGING
   :end-before: .. END LOGGING
 
--  Worker pods are deleted once their task finishes (``[kubernetes_executor]
+-  Worker pods are deleted when their task succeeds (``[kubernetes_executor]
    delete_worker_pods``), and their logs go with them, so configure remote
    logging to CloudWatch Logs or S3 to keep task logs viewable in the Airflow UI.
 -  The remote logging configuration must be set on the worker pods as well as on

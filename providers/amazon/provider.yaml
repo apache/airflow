@@ -1542,7 +1542,7 @@ config:
       region_name:
         description: |
           The name of the AWS Region where the EKS cluster is located. If not
-          specified then the default boto3 behaviour is used.
+          specified, falls back to the AWS connection's region, then boto3's.
         version_added: 9.38.0
         type: string
         example: "us-east-1"
