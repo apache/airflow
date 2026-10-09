@@ -120,10 +120,15 @@ masked, take no part in it.
 
 A step whose request cannot be fingerprinted is not cached, and on retry it runs
 live rather than replaying an unverified entry. That happens when pydantic cannot
-render a value at all, which includes a set of models and a model used as a dict
-key; when two distinct dict keys render alike, such as ``1`` and ``"1"``, because
-the fingerprint would then be unable to tell those payloads apart; and when a value
-would render through an iterator, since rendering it would consume it. A parameter
+render a value at all; when two distinct dict keys render alike, such as ``1`` and
+``"1"``, because the fingerprint would then be unable to tell those payloads apart;
+when a set of strings cannot be found in the rendering, because a serializer that
+applies only in JSON mode renamed or reshaped it, so its order would differ on the
+next attempt; and when a value would render through an iterator, since rendering it
+would consume it. A tool argument or a setting that holds a set of models or
+dataclass instances, or a dict keyed by one, is not fingerprinted either, as
+before; in the message history pydantic renders those, and they hash as they
+always did. A parameter
 annotated ``Iterable[...]`` is the usual iterator: pydantic validates it lazily,
 and reading it in order to hash it would consume the input the tool itself has not
 read yet. Tool arguments are rendered from copies, so fingerprinting never changes
@@ -138,7 +143,9 @@ later attempt. A history holding a set whose order was already stable, such as a
 set of integers returned by a tool, can therefore re-run from that step once, on
 the first retry after upgrading. A list that a serializer produces is hashed as the
 serializer produced it, so a set that a serializer turns into a list may not match
-on retry.
+on retry. The one list that is re-sorted is the output of a serializer that applies
+only in JSON mode (``when_used="json"``) and returns the members of a set: it cannot
+be told from the set itself, so ``["z-first", "a"]`` hashes as ``["a", "z-first"]``.
 
 On the model path a request that cannot be fingerprinted is rarely confined to a
 single step. The value at fault is usually in ``model_settings``, which is attached
