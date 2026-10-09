@@ -28,7 +28,6 @@ import math
 import os
 import subprocess
 import sys
-import textwrap
 from collections import deque
 from collections.abc import Iterable, Iterator, Mapping
 from decimal import Decimal
@@ -61,9 +60,13 @@ from pydantic_core import to_jsonable_python
 
 from airflow.providers.common.ai.durable import fingerprint as fingerprint_module
 from airflow.providers.common.ai.durable.fingerprint import (
+    _LEAF,
+    _apply_template,
     _digest,
+    _member_template,
     _normalize_params,
     _render,
+    _unpaired,
     fingerprint_model_request,
     fingerprint_tool_call,
 )
@@ -603,59 +606,6 @@ class TestSetMemberOrdering:
 
         assert _render(Filter(tags={"b", "a"})) == {"tags": ["a", "b"]}
 
-    def test_digest_is_stable_across_process_hash_seeds(self):
-        """The real proof: two fresh interpreters must agree, as two attempts would.
-
-        In-process comparisons cannot catch a hash-seed dependency, since one process
-        has one seed. The subprocess loads the module by path so it does not pay for
-        importing Airflow.
-        """
-        snippet = (
-            "import importlib.util;"
-            f"spec = importlib.util.spec_from_file_location('fp', r'{fingerprint_module.__file__}');"
-            "mod = importlib.util.module_from_spec(spec);"
-            "spec.loader.exec_module(mod);"
-            "print(mod._digest(mod._render({'tags': {'alpha', 'beta', 'gamma', 'delta'}})))"
-        )
-        digests = set()
-        for seed in ("0", "1", "2", "42"):
-            completed = subprocess.run(
-                [sys.executable, "-c", snippet],
-                capture_output=True,
-                text=True,
-                env={**os.environ, "PYTHONHASHSEED": seed, "PYTHONWARNINGS": "ignore"},
-                check=True,
-            )
-            digests.add(completed.stdout.strip().splitlines()[-1])
-
-        assert len(digests) == 1, f"digest depends on the hash seed: {digests}"
-
-    def test_set_returned_by_a_tool_is_stable_across_process_hash_seeds(self):
-        """The same proof through the message history, where a tool's set return lands."""
-        snippet = (
-            "import importlib.util;"
-            "from pydantic_ai.messages import ModelRequest, ToolReturnPart;"
-            "from pydantic_ai.models import ModelRequestParameters;"
-            f"spec = importlib.util.spec_from_file_location('fp', r'{fingerprint_module.__file__}');"
-            "mod = importlib.util.module_from_spec(spec);"
-            "spec.loader.exec_module(mod);"
-            "part = ToolReturnPart(tool_name='t', content={'alpha', 'beta', 'gamma', 'delta'}, tool_call_id='c1');"
-            "print(mod.fingerprint_model_request('m', [ModelRequest(parts=[part])], None, ModelRequestParameters()))"
-        )
-        digests = set()
-        for seed in ("0", "1", "2", "42"):
-            completed = subprocess.run(
-                [sys.executable, "-c", snippet],
-                capture_output=True,
-                text=True,
-                env={**os.environ, "PYTHONHASHSEED": seed, "PYTHONWARNINGS": "ignore"},
-                check=True,
-            )
-            digests.add(completed.stdout.strip().splitlines()[-1])
-
-        assert "None" not in digests
-        assert len(digests) == 1, f"digest depends on the hash seed: {digests}"
-
 
 class TestLazilyValidatedIterable:
     """A lazily validated ``Iterable`` must be refused, not consumed.
@@ -1040,50 +990,6 @@ class TestAliasedAndRootModelSets:
 
         assert _render(Aliased(labels=_MANY)) == {"labels": sorted(_MANY)}  # type: ignore[call-arg]
 
-    def test_digests_are_stable_across_process_hash_seeds(self):
-        """Aliased, camelCase and root-model sets, and ``revealed_tool_names`` in real request params."""
-        snippet = textwrap.dedent(
-            f"""
-            import importlib.util
-            import pydantic
-            from pydantic.alias_generators import to_camel
-            from pydantic_ai.messages import ModelRequest, ToolReturnPart
-            from pydantic_ai.models import ModelRequestParameters
-
-            spec = importlib.util.spec_from_file_location("fp", r"{fingerprint_module.__file__}")
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-
-            class Aliased(pydantic.BaseModel):
-                tags: set[str] = pydantic.Field(alias="labels")
-
-            class Camel(pydantic.BaseModel):
-                model_config = pydantic.ConfigDict(alias_generator=to_camel, serialize_by_alias=True)
-                my_tags: set[str]
-
-            tags = {{"alpha", "beta", "gamma", "delta", "epsilon"}}
-            print(mod.fingerprint_tool_call(
-                "t", {{"a": Aliased(labels=tags), "r": pydantic.RootModel[set[str]](tags)}}, "c1"
-            ))
-            history = [ModelRequest(parts=[ToolReturnPart(tool_name="t", content=Camel(myTags=tags), tool_call_id="c1")])]
-            params = ModelRequestParameters(revealed_tool_names={{"search", "fetch", "summarize", "rank"}})
-            print(mod.fingerprint_model_request("m", history, None, params))
-            """
-        )
-        outputs = set()
-        for seed in ("0", "1", "2", "42"):
-            completed = subprocess.run(
-                [sys.executable, "-c", snippet],
-                capture_output=True,
-                text=True,
-                env={**os.environ, "PYTHONHASHSEED": seed, "PYTHONWARNINGS": "ignore"},
-                check=True,
-            )
-            outputs.add(tuple(completed.stdout.strip().splitlines()[-2:]))
-
-        assert len(outputs) == 1, f"digest depends on the hash seed: {outputs}"
-        assert "None" not in next(iter(outputs))
-
 
 def _earlier_tool_fingerprint(name, tool_args, tool_call_id):
     """What an earlier version stored for a tool call: the raw arguments, hashed by ``json``."""
@@ -1378,46 +1284,6 @@ class TestSetsElsewhereAreOrdered:
 
         assert _render({"groups": groups}) == {"groups": [["delta", "epsilon"], sorted(_MANY)]}
 
-    def test_digests_are_stable_across_process_hash_seeds(self):
-        snippet = textwrap.dedent(
-            f"""
-            import enum
-            import importlib.util
-            from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
-            from pydantic_ai.models import ModelRequestParameters
-
-            spec = importlib.util.spec_from_file_location("fp", r"{fingerprint_module.__file__}")
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-
-            tags = frozenset({{"alpha", "beta", "gamma", "delta", "epsilon"}})
-
-            class Scope(enum.Enum):
-                READ = tags
-
-            history = [ModelRequest(parts=[ToolReturnPart(tool_name="t", content=Scope.READ, tool_call_id="c1")])]
-            print(mod.fingerprint_model_request("m", history, None, ModelRequestParameters()))
-            groups = {{tags, frozenset({{"zeta", "eta", "theta"}})}}
-            print(mod.fingerprint_tool_call("t", {{"scope": Scope.READ, "groups": groups}}, "c1"))
-            prompt = [ModelRequest(parts=[UserPromptPart(content="hi")])]
-            settings = {{"extra_body": {{"include": set(tags)}}}}
-            print(mod.fingerprint_model_request("m", prompt, settings, ModelRequestParameters()))
-            """
-        )
-        outputs = set()
-        for seed in ("0", "1", "2", "42"):
-            completed = subprocess.run(
-                [sys.executable, "-c", snippet],
-                capture_output=True,
-                text=True,
-                env={**os.environ, "PYTHONHASHSEED": seed, "PYTHONWARNINGS": "ignore"},
-                check=True,
-            )
-            outputs.add(tuple(completed.stdout.strip().splitlines()[-3:]))
-
-        assert len(outputs) == 1, f"digest depends on the hash seed: {outputs}"
-        assert "None" not in next(iter(outputs))
-
 
 class _Windows(pydantic.BaseModel):
     windows: deque[Iterable[int]]
@@ -1603,9 +1469,12 @@ class TestShapesPydanticGivesTheRendering:
             pytest.param(_JsonOnlyRenamed(tags=set(_MANY)), id="json-only-renamed"),
         ],
     )
-    def test_rendering_a_json_only_serializer_reshapes_is_kept_as_rendered(self, value):
-        """Python mode skips a json-only serializer, so where the two dumps disagree nothing is paired."""
-        assert _render({"q": value}) == to_jsonable_python({"q": value}, by_alias=True, bytes_mode="base64")
+    def test_set_a_json_only_serializer_reshapes_is_refused(self, value):
+        """Python mode skips a json-only serializer, so the set is not found where it rendered."""
+        with pytest.raises(TypeError, match="cannot be found in its JSON rendering"):
+            _render({"q": value})
+
+        assert fingerprint_tool_call("t", {"q": value}, "id1") is None
 
     def test_key_a_json_only_serializer_drops_is_not_a_collision(self):
         """Python mode keeps the key, so only a key that is not a string can mean a collision."""
@@ -1621,3 +1490,398 @@ class TestShapesPydanticGivesTheRendering:
         assert fingerprint_model_request("m", messages, None, ModelRequestParameters()) == (
             _json_mode_reference("m", messages, ModelRequestParameters())
         )
+
+
+@dataclasses.dataclass(frozen=True)
+class _Point:
+    x: int
+
+
+class _FrozenRegion(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(frozen=True)
+
+    name: str
+
+
+class _SalesByRegion(pydantic.BaseModel):
+    by_region: dict[_FrozenRegion, float]
+
+
+class TestValuesPythonModeCannotDump:
+    """A set of models or a dict keyed by one has no python-mode dump, and hashes as it always did.
+
+    Python mode turns the member or the key into a dict, which cannot be hashed, on
+    the pydantic versions that dump a key at all; older ones keep the key object.
+    Either way the message history must hash to what an earlier version stored.
+    """
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            pytest.param(frozenset({_Point(1), _Point(2), _Point(3)}), id="frozenset-of-frozen-dataclasses"),
+            pytest.param(
+                frozenset({_FrozenRegion(name="eu"), _FrozenRegion(name="us")}),
+                id="frozenset-of-frozen-models",
+            ),
+            pytest.param(
+                _SalesByRegion(by_region={_FrozenRegion(name="eu"): 1.5, _FrozenRegion(name="us"): 2.5}),
+                id="dict-keyed-by-a-frozen-model",
+            ),
+        ],
+    )
+    def test_tool_return_hashes_as_before(self, content):
+        messages = _with_tool_return(content)
+
+        fingerprint = fingerprint_model_request("m", messages, None, ModelRequestParameters())
+
+        assert fingerprint is not None
+        assert fingerprint == _json_mode_reference("m", messages, ModelRequestParameters())
+
+    def test_tool_argument_is_still_refused(self):
+        """Tool arguments never fingerprinted with one of these, so there is nothing stored to match."""
+        assert fingerprint_tool_call("t", {"points": frozenset({_Point(1), _Point(2)})}, "id1") is None
+
+
+class _SwappedFields(pydantic.BaseModel):
+    tags: Any
+    rows: list[Any]
+
+    @pydantic.model_serializer(mode="wrap", when_used="json")
+    def _swap(self, handler: Any) -> dict[str, Any]:
+        data = handler(self)
+        return {"tags": data["rows"], "rows": data["tags"]}
+
+
+class _ReversedTags(pydantic.BaseModel):
+    tags: set[str]
+
+    @pydantic.field_serializer("tags", when_used="json")
+    def _reverse(self, tags: set[str]) -> list[str]:
+        return sorted(tags, reverse=True)
+
+
+class _NonZeroCounts(pydantic.BaseModel):
+    counts: dict[int, int]
+
+    @pydantic.field_serializer("counts", when_used="json")
+    def _drop_zero(self, counts: dict[int, int]) -> dict[int, int]:
+        return {key: count for key, count in counts.items() if count}
+
+
+class _SortedIntKeys(pydantic.BaseModel):
+    data: dict[int, Any]
+
+    @pydantic.field_serializer("data", when_used="json")
+    def _sort(self, data: dict[int, Any]) -> dict[int, Any]:
+        return dict(sorted(data.items()))
+
+
+class _NoteAddedBack(pydantic.BaseModel):
+    tags: set[int]
+    note: str = pydantic.Field(exclude=True)
+
+    @pydantic.model_serializer(mode="wrap", when_used="json")
+    def _add_note(self, handler: Any) -> dict[str, Any]:
+        return {**handler(self), "note": self.note}
+
+
+class _Blobs(pydantic.BaseModel):
+    blobs: set[bytes]
+
+
+class _HexBlobs(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(ser_json_bytes="hex")
+
+    blobs: set[bytes]
+
+
+class _OptionsAsPairs(pydantic.BaseModel):
+    options: dict[str, Any]
+
+    @pydantic.field_serializer("options", when_used="json")
+    def _pairs(self, options: dict[str, Any]) -> list[Any]:
+        return list(options.items())
+
+
+class _GroupsWithTotal(pydantic.BaseModel):
+    groups: list[Any]
+
+    @pydantic.field_serializer("groups", when_used="json")
+    def _add_total(self, groups: list[Any]) -> list[Any]:
+        return [*groups, len(groups)]
+
+
+class TestListsThatDidNotComeFromTheSet:
+    """A list is sorted only where it holds the members of the set found at its place.
+
+    A serializer that applies only in JSON mode can put anything where python mode
+    has a set. Sorting what it put there would hide an order that is data.
+    """
+
+    def test_list_a_json_only_serializer_moves_to_a_set_field_keeps_its_order(self):
+        def fingerprints(rows):
+            value = _SwappedFields(tags={7, 8, 9}, rows=rows)
+            messages = _with_tool_return(value)
+            return (
+                fingerprint_tool_call("t", {"q": value}, "id1"),
+                fingerprint_model_request("m", messages, None, ModelRequestParameters()),
+            )
+
+        tool, model = fingerprints([1, 2, 3])
+        tool_reordered, model_reordered = fingerprints([3, 2, 1])
+
+        assert None not in (tool, model, tool_reordered, model_reordered)
+        assert tool != tool_reordered
+        assert model != model_reordered
+
+    def test_moved_set_whose_order_follows_the_hash_seed_is_refused(self):
+        value = _SwappedFields(tags=set(_MANY), rows=["x", "y"])
+
+        assert fingerprint_tool_call("t", {"q": value}, "id1") is None
+        assert (
+            fingerprint_model_request("m", _with_tool_return(value), None, ModelRequestParameters()) is None
+        )
+
+    def test_moved_set_of_integers_hashes_as_before(self):
+        messages = _with_tool_return(_SwappedFields(tags={7, 8, 9}, rows=[3, 1, 2]))
+
+        assert fingerprint_model_request("m", messages, None, ModelRequestParameters()) == (
+            _json_mode_reference("m", messages, ModelRequestParameters())
+        )
+
+    def test_json_only_serializer_that_returns_the_members_is_sorted_like_the_set(self):
+        """Its list cannot be told from the set's own rendering, so its order does not count."""
+        assert _render({"q": _ReversedTags(tags={"z-first", "a"})}) == {"q": {"tags": ["a", "z-first"]}}
+
+    def test_members_of_different_shapes_are_refused(self):
+        mixed = {"a", "b", frozenset({"x", "y"})}
+
+        assert _member_template(mixed) is None
+        assert fingerprint_tool_call("t", {"groups": mixed}, "id1") is None
+        assert (
+            fingerprint_model_request("m", _with_tool_return(mixed), None, ModelRequestParameters()) is None
+        )
+
+    def test_integer_members_of_different_shapes_hash_as_before(self):
+        mixed = {1, 2, frozenset({3, 4})}
+        messages = _with_tool_return(mixed)
+
+        assert _member_template(mixed) is None
+        assert fingerprint_model_request("m", messages, None, ModelRequestParameters()) == (
+            _json_mode_reference("m", messages, ModelRequestParameters())
+        )
+
+    def test_member_rendered_longer_than_its_template_is_left_alone(self):
+        rendered = ["a", ["c", "b"], "extra"]
+
+        assert _apply_template(("sequence", (_LEAF, ("set", _LEAF))), rendered) is rendered
+        assert _apply_template(("sequence", (_LEAF, ("set", _LEAF))), ["a", ["c", "b"]]) == ["a", ["b", "c"]]
+
+    def test_field_a_json_only_serializer_adds_back_still_counts(self):
+        def fingerprint(note):
+            return fingerprint_tool_call("t", {"q": _NoteAddedBack(tags={7, 8, 9}, note=note)}, "id1")
+
+        assert fingerprint("DROP TABLE a") is not None
+        assert fingerprint("DROP TABLE a") != fingerprint("DROP TABLE b")
+
+    def test_set_of_bytes_in_a_model_is_ordered(self):
+        """Bytes in a model render as UTF-8 text by default, and outside one as base64."""
+        assert _render({"q": _Blobs(blobs={b"b", b"c", b"a"})}) == {"q": {"blobs": ["a", "b", "c"]}}
+        assert _render({"blobs": {b"b", b"\xff", b"a"}}) == {"blobs": ["YQ==", "Yg==", "_w=="]}
+        assert _render({"q": _HexBlobs(blobs={b"b", b"\xff", b"a"})}) == {"q": {"blobs": ["61", "62", "ff"]}}
+
+    def test_dict_a_json_only_serializer_renders_as_a_list_is_not_paired(self):
+        assert fingerprint_tool_call("t", {"q": _OptionsAsPairs(options={"tags": set(_MANY)})}, "id1") is None
+        assert (
+            fingerprint_tool_call("t", {"q": _OptionsAsPairs(options={"ids": {3, 1, 2}})}, "id1") is not None
+        )
+
+    def test_set_in_tool_definition_metadata_is_ordered(self):
+        def fingerprint(scopes):
+            tool = ToolDefinition(name="search", parameters_json_schema={}, metadata={"scopes": scopes})
+            params = ModelRequestParameters(function_tools=[tool])
+            return fingerprint_model_request("m", make_messages(), None, params)
+
+        assert fingerprint(set(_MANY)) is not None
+        assert fingerprint(set(_MANY)) == fingerprint(sorted(_MANY))
+
+    def test_list_a_json_only_serializer_lengthens_is_not_paired_by_position(self):
+        """The extra item means no item is known to be the rendering of the set next to it."""
+        assert fingerprint_tool_call("t", {"q": _GroupsWithTotal(groups=[set(_MANY)])}, "id1") is None
+        assert _render({"q": _GroupsWithTotal(groups=[{3, 1, 2}])}) == to_jsonable_python(
+            {"q": _GroupsWithTotal(groups=[{3, 1, 2}])}
+        )
+
+    @pytest.mark.parametrize(
+        ("guide", "refused"),
+        [
+            pytest.param({"tags": {"a", "b"}}, True, id="strings"),
+            pytest.param([{"tags": [(1, "a"), {(1, "b"), (2, "c")}]}], True, id="tuples-holding-strings"),
+            pytest.param({"scope": _Scope.READ}, True, id="enum-value"),
+            pytest.param({"tags": {"only"}}, False, id="single-member"),
+            pytest.param({"ids": {3, 1, 2}, "pairs": {(1, 2.5), (None, True)}}, False, id="numbers"),
+            pytest.param({"rows": ["b", "a"]}, False, id="no-set"),
+        ],
+    )
+    def test_unpaired_refuses_only_a_set_ordered_by_the_hash_seed(self, guide, refused):
+        rendered = object()
+
+        if refused:
+            with pytest.raises(TypeError, match="cannot be found in its JSON rendering"):
+                _unpaired(guide, rendered)
+        else:
+            assert _unpaired(guide, rendered) is rendered
+
+
+class TestJsonOnlySerializersOnDictsWithOtherKeys:
+    """Keys that are not strings are rendered on their own, to see what a serializer did to the dict."""
+
+    def test_entries_a_json_only_serializer_drops_are_not_a_collision(self):
+        messages = _with_tool_return(_NonZeroCounts(counts={1: 0, 2: 5, 3: 0, 4: 1}))
+
+        fingerprint = fingerprint_model_request("m", messages, None, ModelRequestParameters())
+
+        assert fingerprint is not None
+        assert fingerprint == _json_mode_reference("m", messages, ModelRequestParameters())
+
+    def test_reordered_entries_do_not_lend_a_set_to_a_neighbouring_list(self):
+        def fingerprint(order):
+            value = _SortedIntKeys(data={2: {5, 6, 7}, 1: order})
+            return fingerprint_model_request("m", _with_tool_return(value), None, ModelRequestParameters())
+
+        assert fingerprint(["y", "x", "w"]) is not None
+        assert fingerprint(["y", "x", "w"]) != fingerprint(["w", "x", "y"])
+
+    def test_reordered_entries_next_to_a_set_of_strings_are_refused(self):
+        value = _SortedIntKeys(data={2: set(_MANY), 1: ["y", "x"]})
+
+        assert (
+            fingerprint_model_request("m", _with_tool_return(value), None, ModelRequestParameters()) is None
+        )
+
+    def test_keys_that_render_alike_are_still_refused(self):
+        assert fingerprint_tool_call("t", {"d": {1: "a", "1": "b"}}, "id1") is None
+        assert (
+            fingerprint_model_request(
+                "m", _with_tool_return({1: "a", "1": "b"}), None, ModelRequestParameters()
+            )
+            is None
+        )
+
+
+# Every case that could follow the hash seed, fingerprinted in one interpreter:
+# starting one imports Airflow, which takes seconds.
+_HASH_SEED_SNIPPET = """
+import dataclasses
+import enum
+import importlib.util
+import json
+import sys
+
+import pydantic
+from pydantic.alias_generators import to_camel
+from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
+from pydantic_ai.models import ModelRequestParameters
+
+spec = importlib.util.spec_from_file_location("fp", sys.argv[1])
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+
+TAGS = frozenset({"alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta"})
+
+
+class Aliased(pydantic.BaseModel):
+    tags: set[str] = pydantic.Field(alias="labels")
+
+
+class Camel(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(alias_generator=to_camel, serialize_by_alias=True)
+    my_tags: set[str]
+
+
+class Scope(enum.Enum):
+    READ = TAGS
+
+
+@dataclasses.dataclass(frozen=True)
+class Point:
+    x: int
+
+
+def request(content, settings=None, params=None):
+    part = ToolReturnPart(tool_name="t", content=content, tool_call_id="c1")
+    return mod.fingerprint_model_request(
+        "m", [ModelRequest(parts=[part])], settings, params or ModelRequestParameters()
+    )
+
+
+prompt = [ModelRequest(parts=[UserPromptPart(content="hi")])]
+print(json.dumps({
+    "order": list(TAGS),
+    "plain set": mod._digest(mod._render({"tags": set(TAGS)})),
+    "set a tool returned": request(set(TAGS)),
+    "aliased and root model sets": mod.fingerprint_tool_call(
+        "t", {"a": Aliased(labels=set(TAGS)), "r": pydantic.RootModel[set[str]](set(TAGS))}, "c1"
+    ),
+    "generated alias and revealed tool names": request(
+        Camel(myTags=set(TAGS)),
+        params=ModelRequestParameters(revealed_tool_names={"search", "fetch", "summarize", "rank", "plan"}),
+    ),
+    "enum value in the history": request(Scope.READ),
+    "enum value and sets in a set": mod.fingerprint_tool_call(
+        "t", {"scope": Scope.READ, "groups": {TAGS, frozenset({"iota", "kappa", "lambda"})}}, "c1"
+    ),
+    "set in model settings": mod.fingerprint_model_request(
+        "m", prompt, {"extra_body": {"include": set(TAGS)}}, ModelRequestParameters()
+    ),
+    "set of frozen dataclasses": request(frozenset({Point(1), Point(2), Point(3)})),
+}))
+"""
+
+_HASH_SEEDS = ("0", "1")
+
+
+@functools.cache
+def _digests_under_hash_seed(seed: str) -> dict[str, Any]:
+    completed = subprocess.run(
+        [sys.executable, "-c", _HASH_SEED_SNIPPET, fingerprint_module.__file__],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PYTHONHASHSEED": seed, "PYTHONWARNINGS": "ignore"},
+        check=True,
+    )
+    return json.loads(completed.stdout.strip().splitlines()[-1])
+
+
+class TestDigestsAcrossHashSeeds:
+    """The real proof: fresh interpreters with different hash seeds must agree, as two attempts would.
+
+    In-process comparisons cannot catch a hash-seed dependency, since one process has
+    one seed.
+    """
+
+    def test_the_seeds_iterate_a_set_in_different_orders(self):
+        """Otherwise the cases below would pass with nothing ordered."""
+        first, second = (_digests_under_hash_seed(seed)["order"] for seed in _HASH_SEEDS)
+
+        assert sorted(first) == sorted(second)
+        assert first != second
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            "plain set",
+            "set a tool returned",
+            "aliased and root model sets",
+            "generated alias and revealed tool names",
+            "enum value in the history",
+            "enum value and sets in a set",
+            "set in model settings",
+            "set of frozen dataclasses",
+        ],
+    )
+    def test_digest_does_not_depend_on_the_hash_seed(self, case):
+        first, second = (_digests_under_hash_seed(seed)[case] for seed in _HASH_SEEDS)
+
+        assert first is not None
+        assert first == second

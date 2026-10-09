@@ -50,13 +50,21 @@ shape as the JSON rendering but keeps sets as sets and dict keys as they are, an
 wraps an iterator instead of reading it (see ``_check_guide``).  The members of a
 set are sorted by their JSON encoding, because a set of strings iterates in an
 order that follows the interpreter's hash seed and every task attempt is a fresh
-process (see ``_order_sets``); a list that a serializer produced is left as the
-serializer produced it.  And a payload is refused rather than hashed if it would
+process (see ``_order_sets``).  A list is sorted only where it holds exactly the
+members of the set found at its place, so a list that a serializer produced is
+left as the serializer produced it; a set that cannot be found in the rendering
+is refused if its order follows the hash seed, since the digest would not be
+reproduced on retry.  And a payload is refused rather than hashed if it would
 render through an iterator, since rendering consumes it, or if distinct dict keys
 render alike, such as ``1`` and ``"1"``, since two different payloads would then
 share a digest.  Sorting changes the digest of a set whose order was already
 stable, such as a set of integers, so a history holding one can re-run from that
 step once after upgrading.
+
+Python mode cannot dump a set of models or dataclass instances, or a dict keyed
+by one, because it turns them into dicts, which cannot be hashed.  The message history
+and the request parameters are then hashed from their JSON rendering alone, as
+they were before, with nothing sorted and nothing refused.
 
 Tool arguments are rendered from deep copies, so nothing that rendering runs -- a
 computed field, a cached property, a serializer -- reaches the objects the tool is
@@ -77,12 +85,16 @@ its result is part of the history they fingerprint.
 from __future__ import annotations
 
 import copy
+import datetime
 import enum
 import hashlib
 import json
+import math
+import uuid
 from collections import deque
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import TypeAdapter
 from pydantic_ai.messages import ModelMessagesTypeAdapter
@@ -130,6 +142,14 @@ _LEAF_TYPES = frozenset({str, bytes, bytearray, bool, int, float, type(None)})
 
 # A set member with no set inside it: its rendering is taken as it is.
 _LEAF = "leaf"
+
+# Exact types whose hash does not follow the interpreter's hash seed, so a set of
+# them iterates in the same order in every process.
+_SEED_FREE_TYPES = frozenset({bool, int, float, complex, type(None), Decimal, datetime.timedelta, uuid.UUID})
+
+# Every way pydantic renders bytes as JSON. Bytes inside a model follow that model's
+# ``ser_json_bytes``, which the python-mode dump does not record.
+_BYTES_MODES: tuple[Literal["base64", "utf8", "hex"], ...] = ("base64", "utf8", "hex")
 
 
 def _content_settings(model_settings: ModelSettings | None) -> dict[str, Any] | None:
@@ -274,6 +294,71 @@ def _apply_template(template: Any, rendered: Any) -> Any:
     return [_apply_template(part, item) for part, item in zip(inner, rendered)]
 
 
+def _seed_free(member: Any) -> bool:
+    """Whether the hash of a set member is the same in every process."""
+    if type(member) in (tuple, frozenset):
+        return all(_seed_free(item) for item in member)
+    return type(member) in _SEED_FREE_TYPES
+
+
+def _unpaired(guide: Any, rendered: Any) -> Any:
+    """
+    Return ``rendered`` as it is, for a part of the guide that does not line up with it.
+
+    Raises ``TypeError`` if that part of the guide holds a set whose order follows
+    the hash seed. Its members are somewhere in ``rendered`` in that order, and
+    hashing them would cache a digest the next attempt cannot reproduce: the step
+    would miss with a "diverged" warning on every retry instead of being reported
+    as not cached. A set whose order is the same in every process is kept as
+    rendered, which is what was always hashed.
+    """
+    pending = [guide]
+    seen: set[int] = set()
+    while pending:
+        item = pending.pop()
+        if type(item) in _LEAF_TYPES or id(item) in seen:
+            continue
+        seen.add(id(item))
+        if isinstance(item, enum.Enum):
+            pending.append(item.value)
+        elif isinstance(item, dict):
+            pending.extend(item.values())
+        elif isinstance(item, (list, tuple, deque)):
+            pending.extend(item)
+        elif isinstance(item, (set, frozenset)):
+            if len(item) > 1 and not all(_seed_free(member) for member in item):
+                raise TypeError("cannot fingerprint a set that cannot be found in its JSON rendering")
+    return rendered
+
+
+def _order_set(guide: set[Any] | frozenset[Any], rendered: Any) -> Any:
+    """
+    Return ``rendered`` sorted, if it is the list of the members of the set ``guide``.
+
+    That both dumps have a list and a set at the same place does not prove one came
+    from the other: a serializer that applies only in JSON mode can put any list
+    there, and sorting it would let two different payloads share a digest. So the
+    set is rendered on its own, and ``rendered`` is sorted only where both give the
+    same members once ordered. A set's members cannot pair up by position -- the
+    dump builds a new set, which may iterate in another order -- so the members'
+    shared template says where any set inside one of them sits (see ``_template``).
+    """
+    template = _member_template(guide)
+    if template is None or not isinstance(rendered, list):
+        return _unpaired(guide, rendered)
+    ordered = sorted((_apply_template(template, item) for item in rendered), key=_json_order)
+    encoded = [_json_order(member) for member in ordered]
+    for bytes_mode in _BYTES_MODES:
+        try:
+            own = to_jsonable_python(guide, bytes_mode=bytes_mode)
+        except ValueError:
+            # Bytes that are not UTF-8 cannot have been rendered as UTF-8.
+            continue
+        if sorted(_json_order(_apply_template(template, member)) for member in own) == encoded:
+            return ordered
+    return _unpaired(guide, rendered)
+
+
 def _order_sets(guide: Any, rendered: Any) -> Any:
     """
     Return ``rendered`` with every list that pydantic rendered from a set sorted.
@@ -281,48 +366,72 @@ def _order_sets(guide: Any, rendered: Any) -> Any:
     ``rendered`` is the json-mode rendering that is hashed, and ``guide`` the
     python-mode dump of the same payload (see ``_check_guide``). They are walked
     side by side: a dict or a sequence pairs up by position, because both dumps
-    keep the same order, and a list is sorted where the guide holds a set. A set's
-    members cannot pair up by position -- the dump builds a new set, which may
-    iterate in another order -- so the members' shared template says where any set
-    inside one of them sits (see ``_template``). Anything that does not line up is
-    kept exactly as rendered, so nothing that did not come from a set is reordered.
+    keep the same order, and a list is sorted where the guide holds a set with
+    those members (see ``_order_set``). Only a serializer that applies in JSON mode
+    alone can make the two differ, and what does not line up is kept exactly as
+    rendered or refused (see ``_unpaired``), never reordered.
 
     Raises ``TypeError`` where distinct dict keys render alike, such as ``1`` and
-    ``"1"``, or ``None`` and ``nan`` in a message dump: the guide then holds more keys
-    than the rendering, and hashing it would let two different payloads share a
-    digest. A dict whose keys are all strings cannot collide, so one that renders
-    fewer keys was reshaped by a serializer that applies only in JSON mode, and is
-    kept as rendered.
+    ``"1"``: hashing the rendering would let two different payloads share a digest.
+    The keys are rendered on their own to tell that apart from a serializer that
+    drops, renames or reorders entries, whose dict is kept as rendered. ``None``
+    and ``nan`` collide only in a message dump, so a dict with a ``nan`` or ``inf``
+    key that renders fewer keys is refused as well.
     """
     if isinstance(guide, enum.Enum):
         # An Enum member renders as its value.
         return _order_sets(guide.value, rendered)
     if isinstance(guide, (set, frozenset)):
-        if not isinstance(rendered, list) or len(rendered) != len(guide):
-            return rendered
-        template = _member_template(guide)
-        if template is None:
-            return rendered
-        return sorted((_apply_template(template, item) for item in rendered), key=_json_order)
+        return _order_set(guide, rendered)
     if isinstance(guide, dict):
         if not isinstance(rendered, dict):
-            return rendered
-        if len(rendered) != len(guide):
-            if len(rendered) < len(guide) and any(not isinstance(key, str) for key in guide):
+            return _unpaired(guide, rendered)
+        keys = list(guide)
+        if any(not isinstance(key, str) for key in keys):
+            try:
+                keys = list(to_jsonable_python(dict.fromkeys(keys), bytes_mode="base64"))
+            except ValueError:
+                # Keys only the enclosing schema can render, such as a ``PurePath``:
+                # nothing says which entries the rendering kept.
+                return _unpaired(guide, rendered)
+            # The message dump renders ``nan`` and ``inf`` keys as ``None``, which
+            # rendering the keys on their own does not show.
+            unsure = len(rendered) < len(guide) and any(
+                isinstance(key, float) and not math.isfinite(key) for key in guide
+            )
+            if len(keys) < len(guide) or unsure:
                 raise TypeError("dict keys collide once rendered as JSON")
-            return rendered
-        ordered = {}
-        for (guide_key, guide_item), (key, item) in zip(guide.items(), rendered.items()):
-            if isinstance(guide_key, str) and guide_key != key:
-                # A string key renders as itself, so the two do not line up.
-                return rendered
-            ordered[key] = _order_sets(guide_item, item)
-        return ordered
+        if keys != list(rendered):
+            # Not the entries the guide has, or not in its order: a value would be
+            # paired with another entry's rendering.
+            return _unpaired(guide, rendered)
+        return {
+            key: _order_sets(guide_item, item)
+            for guide_item, (key, item) in zip(guide.values(), rendered.items())
+        }
     if isinstance(guide, (list, tuple, deque)):
         if not isinstance(rendered, list) or len(rendered) != len(guide):
-            return rendered
+            return _unpaired(guide, rendered)
         return [_order_sets(guide_item, item) for guide_item, item in zip(guide, rendered)]
     return rendered
+
+
+def _guide(adapter: TypeAdapter[Any], payload: Any) -> tuple[Any, bool]:
+    """
+    Dump the message history or the request parameters in python mode, and check the dump.
+
+    Returns the guide and whether the JSON rendering needs ``_order_sets``. Python
+    mode dumps a model or a dataclass to a dict even where it is a member of a set
+    or a dict key, which fails with ``TypeError: unhashable type: 'dict'`` although
+    JSON mode renders the same value. There is then no guide: the JSON rendering is
+    hashed as it is, exactly as before, so nothing in it is sorted and an iterator
+    in it is read rather than refused.
+    """
+    try:
+        guide = adapter.dump_python(payload)
+    except TypeError:
+        return None, False
+    return guide, _check_guide(guide)
 
 
 def _render(value: Any, *, copy_first: bool = False) -> Any:
@@ -391,12 +500,11 @@ def fingerprint_model_request(
     """
     try:
         # Messages and parameters are hashed from pydantic's json-mode dump, as they
-        # always were, so stored fingerprints still match. The python-mode dumps only
-        # guide ``_order_sets``, which runs where a set or a non-string key needs it.
-        messages_guide = ModelMessagesTypeAdapter.dump_python(messages)
-        params_guide = _MODEL_REQUEST_PARAMETERS_ADAPTER.dump_python(model_request_parameters)
-        messages_need_check = _check_guide(messages_guide)
-        params_need_check = _check_guide(params_guide)
+        # always were, so stored fingerprints still match. The python-mode dumps are
+        # taken first, since they refuse an iterator before the json-mode dump reads
+        # it, and they guide ``_order_sets`` where a set or a non-string key needs it.
+        messages_guide, messages_need_check = _guide(ModelMessagesTypeAdapter, messages)
+        params_guide, params_need_check = _guide(_MODEL_REQUEST_PARAMETERS_ADAPTER, model_request_parameters)
         dumped = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
         params = _MODEL_REQUEST_PARAMETERS_ADAPTER.dump_python(model_request_parameters, mode="json")
         if messages_need_check:
