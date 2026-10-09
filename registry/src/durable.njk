@@ -1,0 +1,108 @@
+---
+layout: base.njk
+title: Durable and Deferrable Operators
+description: Operators, sensors and decorators across all Airflow providers that reconnect to their job on retry or wait in the Triggerer instead of holding a worker slot
+mainClass: durable-page
+---
+
+{% set counts = durableModules.counts %}
+
+<div class="container">
+  <header class="page-header">
+    <h1>Durable and Deferrable Operators</h1>
+    <p>{{ counts.all }} operators, sensors and decorators across {{ durableModules.groups.length }} providers that can reconnect to their job on retry (Durable) or wait in the Triggerer instead of holding a worker slot (Deferrable).</p>
+  </header>
+
+  <dl class="capabilities">
+    <div>
+      <dt><span class="durable-badge">Durable</span> {{ counts.durable }}</dt>
+      <dd>On retry, reconnects to the job it already started, or replays the progress it saved, instead of starting over. Controlled by the operator's <code>durable</code> flag: on by default for most, opt-in for the AI agent operators. Several only reconnect on Airflow 3.3+.</dd>
+    </div>
+    <div>
+      <dt><span class="deferrable-badge">Deferrable</span> {{ counts.deferrable }}</dt>
+      <dd>Frees the worker slot while waiting: a Triggerer does the waiting, and if it dies another Triggerer restarts the wait. Off by default: pass <code>deferrable=True</code> (or set <code>[operators] default_deferrable</code>) where the operator exposes it; some always defer.</dd>
+    </div>
+  </dl>
+
+  <div class="filters">
+    <div class="search-wrapper">
+      <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <input id="durable-search" type="text" placeholder="Search modules..." aria-label="Search durable and deferrable modules">
+    </div>
+
+    <div class="filter-group">
+      <label id="capability-label">Capability:</label>
+      <div class="capability-buttons" role="group" aria-labelledby="capability-label">
+        <button class="capability-btn active" data-capability="all" aria-pressed="true">Durable or deferrable ({{ counts.all }})</button>
+        <button class="capability-btn" data-capability="durable" aria-pressed="false">Durable ({{ counts.durable }})</button>
+        <button class="capability-btn" data-capability="deferrable" aria-pressed="false">Deferrable ({{ counts.deferrable }})</button>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label for="durable-provider-filter">Provider:</label>
+      <select id="durable-provider-filter">
+        <option value="all">All providers</option>
+        {% for group in durableModules.groups %}
+        <option value="{{ group.id }}">{{ group.name }} ({{ group.modules.length }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="durable-type-filter">Type:</label>
+      <select id="durable-type-filter">
+        <option value="all">All types</option>
+        {% for t in types | sortTypesByCount(durableModules.typeCounts) %}
+        <option value="{{ t.id }}">{{ t.label }} ({{ t.count }})</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <p id="durable-status" class="result-count" aria-live="polite">{{ counts.all }} modules</p>
+
+  {% for group in durableModules.groups %}
+  {% set providerPage = ('/providers/' | url) + group.id + '/' + (group.version + '/' if group.version else '') %}
+  <section class="provider-group" data-provider="{{ group.id }}">
+    <h2>
+      <a href="{{ providerPage }}">
+        {% if group.logo %}<img src="{{ group.logo | url }}" alt="" loading="lazy">{% endif %}
+        {{ group.name }}
+      </a>
+      <span class="count">{{ group.modules.length }}</span>
+    </h2>
+    <ul class="modules">
+      {% for module in group.modules %}
+      <li class="module"
+          data-name="{{ module.name | lower }} {{ module.import_path | lower }}"
+          data-type="{{ module.type }}"
+          data-durable="{{ module.supports_durable_execution | default(false) }}"
+          data-deferrable="{{ module.supports_deferrable | default(false) }}">
+        <span class="icon {{ module.type }}" title="{{ module.type | capitalize }}">{{ types | typeIcon(module.type) }}</span>
+        <div class="content">
+          <h3>
+            <a href="{{ providerPage }}#{{ module.id or module.name }}">{{ module.name }}</a>
+            {% if module.supports_durable_execution %}<span class="durable-badge">Durable</span>{% endif %}
+            {% if module.supports_deferrable %}<span class="deferrable-badge">Deferrable</span>{% endif %}
+          </h3>
+          <p>{{ module.short_description }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+
+  <div id="durable-empty" class="empty-state" hidden>
+    <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <h3>No modules found</h3>
+    <p>Try adjusting your search or filters</p>
+  </div>
+</div>
+
+<script src="{{ '/js/durable-filters.js' | url }}"></script>
