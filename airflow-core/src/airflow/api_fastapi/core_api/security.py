@@ -203,6 +203,8 @@ def requires_access_dag(
     method: ResourceMethod,
     access_entity: DagAccessEntity | None = None,
     param_dag_id: str | None = None,
+    *,
+    use_query_params: bool = True,
 ) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
@@ -212,7 +214,9 @@ def requires_access_dag(
         # Prevent from using a nonlocal statement causing test failures.
         dag_id = param_dag_id
         if dag_id is None:
-            dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
+            dag_id = request.path_params.get("dag_id")
+            if not dag_id and use_query_params:
+                dag_id = request.query_params.get("dag_id")
             dag_id = dag_id if dag_id != "~" else None
 
         team_name = DagModel.get_team_name(dag_id) if dag_id else None

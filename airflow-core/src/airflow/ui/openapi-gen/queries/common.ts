@@ -1246,6 +1246,7 @@ export type TaskStateStoreServicePatchTaskStateStoreMutationResult = Awaited<Ret
 export type XcomServiceUpdateXcomEntryMutationResult = Awaited<ReturnType<typeof XcomService.updateXcomEntry>>;
 export type VariableServicePatchVariableMutationResult = Awaited<ReturnType<typeof VariableService.patchVariable>>;
 export type VariableServiceBulkVariablesMutationResult = Awaited<ReturnType<typeof VariableService.bulkVariables>>;
+export type AssetServiceDeleteAssetEventsMutationResult = Awaited<ReturnType<typeof AssetService.deleteAssetEvents>>;
 export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<ReturnType<typeof AssetService.deleteAssetQueuedEvents>>;
 export type AssetServiceDeleteDagAssetQueuedEventsMutationResult = Awaited<ReturnType<typeof AssetService.deleteDagAssetQueuedEvents>>;
 export type AssetServiceDeleteDagAssetQueuedEventMutationResult = Awaited<ReturnType<typeof AssetService.deleteDagAssetQueuedEvent>>;
