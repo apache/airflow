@@ -77,6 +77,7 @@ from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 from airflow.providers.common.ai.utils.toolsets import find_toolset
@@ -485,7 +486,7 @@ class TestAgentOperatorToolsetTemplating:
         with caplog.at_level("INFO"):
             op.render_template_fields(self.CONTEXT)
 
-        assert "Rendered toolset sql-tenant_acme" in caplog.text
+        assert "Rendered toolset sql-tenant_acme" in caplog.messages
 
     def test_rendering_twice_logs_once(self, caplog):
         """@task.agent renders a second time; by then the id no longer changes."""
@@ -500,7 +501,7 @@ class TestAgentOperatorToolsetTemplating:
             op.render_template_fields(self.CONTEXT)
             op.render_template_fields(self.CONTEXT)
 
-        assert caplog.text.count("Rendered toolset sql-tenant_acme") == 1
+        assert caplog.messages.count("Rendered toolset sql-tenant_acme") == 1
 
     def test_toolset_without_template_fields_is_left_as_is(self):
         toolset = FunctionToolset()
@@ -1664,13 +1665,17 @@ class TestAgentOperatorDurable:
             op._log_durable_summary(counter)
 
         assert (
-            "replayed 0 cached steps (0 model, 0 tool), cached 3 new steps (2 model, 1 tool)" in caplog.text
+            "Durable: replayed 0 cached steps (0 model, 0 tool), cached 3 new steps (2 model, 1 tool)"
+            in caplog.messages
         )
         assert (
-            "3 tool results were not cached, and a retry runs them again: run_query (x2), get_schema"
-            in caplog.text
+            "Durable: 3 tool results were not cached, and a retry runs them again: run_query (x2), get_schema"
+            in caplog.messages
         )
-        assert "1 model responses were not cached, and a retry re-runs them" in caplog.text
+        assert (
+            "Durable: 1 model responses were not cached, and a retry re-runs them and every step after "
+            "the first of them"
+        ) in caplog.messages
 
     def test_durable_summary_has_no_warning_when_everything_was_cached(self, caplog):
         counter = DurableStepCounter()
@@ -1680,7 +1685,10 @@ class TestAgentOperatorDurable:
         with caplog.at_level("INFO"):
             op._log_durable_summary(counter)
 
-        assert "cached 1 new steps (1 model, 0 tool)" in caplog.text
+        assert (
+            "Durable: replayed 0 cached steps (0 model, 0 tool), cached 1 new steps (1 model, 0 tool)"
+            in caplog.messages
+        )
         assert not [r for r in caplog.records if r.levelname == "WARNING"]
 
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator._build_durable_storage")
@@ -1715,8 +1723,14 @@ class TestAgentOperatorDurable:
         with caplog.at_level("INFO"), pytest.raises(RuntimeError, match="downstream failure"):
             op.execute(context=_make_context())
 
-        assert "cached 2 new steps (2 model, 0 tool)" in caplog.text
-        assert "1 tool results were not cached, and a retry runs them again: send_email" in caplog.text
+        assert (
+            "Durable: replayed 0 cached steps (0 model, 0 tool), cached 2 new steps (2 model, 0 tool)"
+            in caplog.messages
+        )
+        assert (
+            "Durable: 1 tool results were not cached, and a retry runs them again: send_email"
+            in caplog.messages
+        )
 
     @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
     @patch("pydantic_ai.models.infer_model", autospec=True)
@@ -1826,10 +1840,10 @@ class TestAgentOperatorMessageHistory:
         op.execute(context=context)
 
         assert "message_history" not in mock_agent.run_sync.call_args.kwargs
-        # The transcript is not emitted without history, but run id + usage always are.
+        # The transcript is not emitted without history, but run id + usage + model always are.
         pushed_keys = {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list}
         assert "message_history" not in pushed_keys
-        assert pushed_keys == {"run_id", "usage"}
+        assert pushed_keys == {"run_id", "usage", MODEL_NAME_XCOM_KEY}
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_transcript_emitted_to_xcom_when_history_set(self, mock_hook_cls, make_mock_run_result):
@@ -1844,7 +1858,7 @@ class TestAgentOperatorMessageHistory:
 
         ti = context["task_instance"]
         pushes = {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list}
-        assert set(pushes) == {"run_id", "usage", "message_history"}
+        assert set(pushes) == {"run_id", "usage", "message_history", MODEL_NAME_XCOM_KEY}
         restored = ModelMessagesTypeAdapter.validate_json(pushes["message_history"])
         assert len(restored) == 2
 
@@ -2232,8 +2246,8 @@ class TestAgentOperatorSandboxHandleTemplating:
 
 class TestAgentOperatorRunIdentity:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_run_id_and_usage_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):
-        """The pydantic-ai run id and token usage are exposed on XCom for downstream tasks."""
+    def test_run_id_usage_and_model_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):
+        """The pydantic-ai run id, resolved model name, and token usage are exposed on XCom."""
         mock_agent = _make_mock_agent("ok", make_mock_run_result)
         mock_agent.run_sync.return_value.run_id = "the-run-id"
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -2246,6 +2260,7 @@ class TestAgentOperatorRunIdentity:
             c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
         }
         assert pushes["run_id"] == "the-run-id"
+        assert pushes[MODEL_NAME_XCOM_KEY] == "test-model"
         assert pushes["usage"] == {
             "requests": 1,
             "input_tokens": 0,

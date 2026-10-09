@@ -154,6 +154,10 @@ class LLMSchemaCompareOperator(LLMOperator):
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         **kwargs: Any,
     ) -> None:
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMSchemaCompareOperator does not accept 'output_type'; it always returns SchemaCompareResult."
+            )
         kwargs["output_type"] = SchemaCompareResult
         # execute() always returns a dict, so the approval resume path must too
         kwargs["serialize_output"] = True

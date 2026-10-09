@@ -1,4 +1,4 @@
-/*!
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,4 +17,13 @@
  * under the License.
  */
 
-export { SearchDags } from "./SearchDags";
+package org.apache.airflow.sdk
+
+/**
+ * One end of an ordering edge: a single task, or a whole task group.
+ *
+ * [Deps.Flow.before] and [Deps.Flow.after] draw edges between endpoints. A
+ * task stands for itself; a task group stands for the group, so an edge drawn
+ * to it reaches whatever it holds when the Dag is registered.
+ */
+sealed interface Endpoint

@@ -26,6 +26,7 @@ from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,
 )
+from airflow.providers.common.compat.sdk import DAG, task
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -47,6 +48,19 @@ def _make_mock_agent(output: SchemaCompareResult, make_mock_run_result):
 class TestLLMSchemaCompareDecoratedOperator:
     def test_custom_operator_name(self):
         assert _LLMSchemaCompareDecoratedOperator.custom_operator_name == "@task.llm_schema_compare"
+
+    def test_output_type_rejected(self):
+        @task.llm_schema_compare(
+            llm_conn_id="my_llm", db_conn_ids=["conn_a", "conn_b"], table_names=["t"], output_type=int
+        )
+        def my_prompt_fn():
+            return "Compare schemas"
+
+        with (
+            DAG(dag_id="dag"),
+            pytest.raises(TypeError, match="LLMSchemaCompareOperator does not accept 'output_type'"),
+        ):
+            my_prompt_fn()
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")

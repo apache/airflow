@@ -1,4 +1,4 @@
-/*!
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,22 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { chakraComponents } from "chakra-react-select";
-import type { ControlProps } from "chakra-react-select";
-import { FiSearch } from "react-icons/fi";
 
-import type { DagSearchOption } from "src/utils/option";
+package org.apache.airflow.sdk.internal
 
 /**
- * Leads the input with the search affordance. react-select only renders indicators after the value
- * container, so an icon on the start side has to come from the control itself.
+ * @suppress
+ *
+ * What a task group ID may contain, mirroring Python's `GROUP_KEY_REGEX`.
+ * Public so the annotation processor, which is a separate module, can check it
+ * against the same pattern the SDK enforces; not user-facing API.
  */
-export const Control = ({ children, ...props }: ControlProps<DagSearchOption, false>) => (
-  <chakraComponents.Control {...props}>
-    <Box alignItems="center" as="span" color="fg.muted" display="flex" flexShrink={0} pe={1.5}>
-      <FiSearch />
-    </Box>
-    {children}
-  </chakraComponents.Control>
-);
+val GROUP_ID: Regex = Regex("[A-Za-z0-9_-]+")
+
+/**
+ * @suppress
+ *
+ * The task ID a task declared from a class alone carries: the class's simple
+ * name with its first character lowercased, so `HasRows.class` and a
+ * `hasRows` task method name agree. Public so the annotation processor can
+ * check an ID it derives the same way; not user-facing API.
+ */
+fun deriveTaskId(definition: Class<*>): String = definition.simpleName.replaceFirstChar { it.lowercaseChar() }

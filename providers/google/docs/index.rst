@@ -90,7 +90,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 22.6.0
+Release: 22.7.0
 
 Provider package
 ----------------
@@ -267,7 +267,7 @@ Extra                 Dependencies
 ``trino``             ``apache-airflow-providers-trino``
 ``http``              ``apache-airflow-providers-http``
 ``standard``          ``apache-airflow-providers-standard``
-``common.ai``         ``apache-airflow-providers-common-ai>=0.10.0``
+``common.ai``         ``apache-airflow-providers-common-ai>=0.11.0``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ====================  =====================================================
 
@@ -277,5 +277,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 22.6.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.6.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.6.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.6.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 22.6.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.6.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.6.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.6.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 22.7.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.7.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.7.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.7.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 22.7.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.7.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.7.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.7.0-py3-none-any.whl.sha512>`__)

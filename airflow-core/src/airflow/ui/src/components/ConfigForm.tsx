@@ -18,7 +18,7 @@
  */
 import type { ReactNode, Dispatch, SetStateAction } from "react";
 
-import { Box, Field } from "@chakra-ui/react";
+import { Field, Stack, Text } from "@chakra-ui/react";
 import { type Control, type FieldValues, type Path, Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
@@ -84,48 +84,43 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   };
 
   return (
-    <Accordion.Root
-      collapsible
-      data-testid="config-form"
-      defaultValue={[flexibleFormDefaultSection]}
-      mb={4}
-      overflow="visible"
-      size="lg"
-      variant="enclosed"
-    >
+    <Stack data-testid="config-form" gap={4} mb={4}>
       <FlexibleForm
         flexibleFormDefaultSection={flexibleFormDefaultSection}
         initialParamsDict={initialParamsDict}
         setError={setFormError}
       />
-      <Accordion.Item key="advancedOptions" value="advancedOptions">
-        <Accordion.ItemTrigger cursor="button">
-          {translate("configForm.advancedOptions")}
-        </Accordion.ItemTrigger>
-        <Accordion.ItemContent>
-          <Box p={4}>
-            {children}
-            <Controller
-              control={control}
-              name={"conf" as Path<T>}
-              render={({ field }) => (
-                <Field.Root invalid={Boolean(errors.conf)} mt={6}>
-                  <Field.Label fontSize="md">{translate("configForm.configJson")}</Field.Label>
-                  <JsonEditor
-                    onBlur={() => {
-                      field.onChange(validateAndPrettifyJson(field.value));
-                    }}
-                    onChange={field.onChange}
-                    value={field.value}
-                  />
-                  {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
-                </Field.Root>
-              )}
-            />
-          </Box>
-        </Accordion.ItemContent>
-      </Accordion.Item>
-    </Accordion.Root>
+      <Stack gap={4}>
+        {children}
+        <Accordion.Root collapsible overflow="visible" size="lg" variant="enclosed">
+          <Accordion.Item value="configJson">
+            <Accordion.ItemTrigger cursor="button">
+              <Text color={Boolean(errors.conf) ? "fg.error" : undefined}>
+                {translate("configForm.configJson")}
+              </Text>
+            </Accordion.ItemTrigger>
+            <Accordion.ItemContent>
+              <Controller
+                control={control}
+                name={"conf" as Path<T>}
+                render={({ field }) => (
+                  <Field.Root invalid={Boolean(errors.conf)}>
+                    <JsonEditor
+                      onBlur={() => {
+                        field.onChange(validateAndPrettifyJson(field.value));
+                      }}
+                      onChange={field.onChange}
+                      value={field.value}
+                    />
+                    {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
+                  </Field.Root>
+                )}
+              />
+            </Accordion.ItemContent>
+          </Accordion.Item>
+        </Accordion.Root>
+      </Stack>
+    </Stack>
   );
 };
 
