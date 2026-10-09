@@ -661,11 +661,12 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
 
     callback_type = event.task_instance_state
     should_retry = False
+    dag_bag = DBDagBag()
 
     if event.task_instance_state == TaskInstanceState.FAILED:
         # Load the serialized task so retry eligibility matches the normal task path.
         try:
-            dag = DBDagBag().get_dag_for_run(dag_run=task_instance.dag_run, session=session)
+            dag = dag_bag.get_dag_for_run(dag_run=task_instance.dag_run, session=session)
             if dag is not None:
                 task_instance.task = dag.get_task(task_instance.task_id)
                 should_retry = task_instance.is_eligible_to_retry()
@@ -708,7 +709,7 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
                 ti=task_instance_to_runtime(
                     task_instance,
                     model=TIDataModel,
-                    map_index=TaskCoordinateResolver(DBDagBag(), session).public_map_index(task_instance),
+                    map_index=TaskCoordinateResolver(dag_bag, session).public_map_index(task_instance),
                 ),
                 task_callback_type=callback_type,
                 bundle_name=bundle_name,

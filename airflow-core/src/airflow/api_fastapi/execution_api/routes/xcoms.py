@@ -655,7 +655,7 @@ def delete_xcom(
     token=CurrentTIToken,
 ):
     """Delete a single XCom Value."""
-    owner = _get_writer_id(
+    owner = _find_writer_id(
         token.id,
         dag_id=dag_id,
         run_id=run_id,
@@ -663,11 +663,12 @@ def delete_xcom(
         map_index=map_index,
         session=session,
     )
-    XComModel.delete_for_attempts(
-        producer_ids=select(TaskInstance.id).where(TaskInstance.id == owner),
-        key=key,
-        session=session,
-    )
+    if owner is not None:
+        XComModel.delete_for_attempts(
+            producer_ids=select(TaskInstance.id).where(TaskInstance.id == owner),
+            key=key,
+            session=session,
+        )
     return {"message": f"XCom with key: {key} successfully deleted."}
 
 

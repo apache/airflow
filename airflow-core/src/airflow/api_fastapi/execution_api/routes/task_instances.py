@@ -23,7 +23,7 @@ import contextlib
 import itertools
 import json
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Collection, Iterator, Sequence
 from typing import Annotated, Any, NoReturn, cast
 from uuid import UUID
 
@@ -38,7 +38,7 @@ from pydantic import JsonValue, ValidationError
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import Session, contains_eager, joinedload
 from sqlalchemy.sql import select
 from sqlalchemy.sql.dml import Update
 from structlog.contextvars import bind_contextvars
@@ -94,8 +94,9 @@ from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun as DR
-from airflow.models.dynamic_region import AmbiguousProducerError
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.task_coordinates import (
@@ -662,19 +663,20 @@ def _emit_task_span(ti, state, *, resolver: TaskCoordinateResolver):
             context=dr_ctx,
         )
 
-        span.set_attributes(
-            {
-                "airflow.dag_id": ti.dag_id,
-                "airflow.task_id": ti.task_id,
-                "airflow.dag_run.run_id": ti.run_id,
-                "airflow.task_instance.try_number": ti.try_number,
-                "airflow.task_instance.map_index": map_index,
-                "airflow.task_instance.region_id": str(ti.region_id),
-                "airflow.task_instance.region_index": ti.region_index,
-                "airflow.task_instance.state": state,
-                "airflow.task_instance.id": str(ti.id),
-            }
-        )
+        attributes: dict[str, str | int] = {
+            "airflow.dag_id": ti.dag_id,
+            "airflow.task_id": ti.task_id,
+            "airflow.dag_run.run_id": ti.run_id,
+            "airflow.task_instance.try_number": ti.try_number,
+            "airflow.task_instance.map_index": map_index,
+            "airflow.task_instance.state": state,
+            "airflow.task_instance.id": str(ti.id),
+        }
+        region_id, region_index = get_public_region(ti.region_id, ti.region_index)
+        if region_id is not None and region_index is not None:
+            attributes["airflow.task_instance.region_id"] = str(region_id)
+            attributes["airflow.task_instance.region_index"] = region_index
+        span.set_attributes(attributes)
         status_code = StatusCode.OK if state == TaskInstanceState.SUCCESS else StatusCode.ERROR
         span.set_status(status_code)
         span.end()
@@ -1302,33 +1304,56 @@ async def get_previous_successful_dagrun(
     return PrevSuccessfulDagRunResponse.model_validate(dag_run)
 
 
-def _find_superseded_ids(rows: Iterable[tuple[TI, int]], resolver: TaskCoordinateResolver) -> set[UUID]:
+def _find_superseded_ids(
+    session: Session, dag_id: str, tasks: Collection[tuple[str, str]], dag_bag: DBDagBag
+) -> set[UUID]:
     """
-    Find live rows that a later loop pass of the same task slot supersedes.
+    Find the live rows of ``tasks`` (``(run_id, task_id)`` pairs) that a later loop pass supersedes.
 
     A task inside a loop keeps every pass live, so callers that name a task without a pass get its latest
-    one. Two live rows that are not told apart by their loop pass leave the slot ambiguous.
+    one, whatever map index, state or run they filter on: the latest pass is chosen among every live row of
+    the task in the run. Two live rows of that pass in one slot leave it ambiguous.
     """
-    slots: dict[tuple[str, str, int], dict[UUID, TI]] = defaultdict(dict)
-    for ti, public_index in rows:
-        slots[ti.run_id, ti.task_id, public_index][ti.id] = ti
+    if not tasks:
+        return set()
+    live = session.execute(
+        select(
+            TI.id,
+            TI.dag_id,
+            TI.run_id,
+            TI.task_id,
+            TI.region_id,
+            TI.region_index,
+            TI.dag_version_id,
+            public_map_index_expression(TI).label("slot"),
+        ).where(
+            TI.working_set.is_(True),
+            TI.dag_id == dag_id,
+            tuple_(TI.run_id, TI.task_id).in_(list(tasks)),
+        )
+    ).all()
+    try:
+        passes = TaskCoordinateResolver(dag_bag, session).get_loop_passes(live)
+    except ValueError as error:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot"
+        ) from error
+    rows_by_task: dict[tuple[str, str], list[tuple[Any, int | None]]] = defaultdict(list)
+    for row, loop_pass in zip(live, passes):
+        rows_by_task[row.run_id, row.task_id].append((row, loop_pass))
     superseded: set[UUID] = set()
-    for live in slots.values():
-        if len(live) < 2:
-            continue
-        try:
-            passes = {
-                ti_id: resolver.get_loop_pass(ti, dag_version_id=ti.dag_version_id)
-                for ti_id, ti in live.items()
-            }
-        except ValueError as error:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot"
-            ) from error
-        latest = max(passes.values(), key=lambda iteration: -1 if iteration is None else iteration)
-        if sum(iteration == latest for iteration in passes.values()) > 1:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot")
-        superseded.update(ti_id for ti_id, iteration in passes.items() if iteration != latest)
+    for rows in rows_by_task.values():
+        latest = max((loop_pass for _, loop_pass in rows), key=lambda value: -1 if value is None else value)
+        latest_slots: set[int] = set()
+        for row, loop_pass in rows:
+            if loop_pass != latest:
+                superseded.add(row.id)
+            elif row.slot in latest_slots:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot"
+                )
+            else:
+                latest_slots.add(row.slot)
     return superseded
 
 
@@ -1377,25 +1402,11 @@ def get_task_instance_count(
         else:
             conditions.append(TI.id.in_(ti.id for ti in group_tasks))
 
-    slot = public_map_index_expression(TI)
-    slots = (
-        select(TI.run_id.label("run_id"), TI.task_id.label("task_id"), slot.label("slot"))
-        .where(*conditions)
-        .subquery()
-    )
-    shared_slots = session.execute(
-        select(slots.c.run_id, slots.c.task_id, slots.c.slot)
-        .group_by(slots.c.run_id, slots.c.task_id, slots.c.slot)
-        .having(func.count() > 1)
-    ).all()
-    if shared_slots:
-        rows = session.execute(
-            select(TI, slot).where(
-                *conditions, tuple_(TI.run_id, TI.task_id, slot).in_([tuple(slot_) for slot_ in shared_slots])
-            )
-        ).tuples()
-        if superseded := _find_superseded_ids(rows, TaskCoordinateResolver(dag_bag, session)):
-            conditions.append(TI.id.not_in(superseded))
+    regional_tasks = session.execute(
+        select(TI.run_id, TI.task_id).where(*conditions, TI.region_id != SENTINEL_REGION_ID).distinct()
+    ).tuples()
+    if superseded := _find_superseded_ids(session, dag_id, set(regional_tasks), dag_bag):
+        conditions.append(TI.id.not_in(superseded))
 
     if states:
         if "null" in states:
@@ -1410,17 +1421,27 @@ def get_task_instance_count(
     return session.scalar(select(func.count()).select_from(TI).where(*conditions)) or 0
 
 
-@router.get("/previous/{dag_id}/{task_id}", status_code=status.HTTP_200_OK)
+@router.get(
+    "/previous/{dag_id}/{task_id}",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc(
+        [(status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot")]
+    ),
+)
 async def get_previous_task_instance(
     dag_id: str,
     task_id: str,
     session: AsyncSessionDep,
+    dag_bag: DagBagDep,
     logical_date: Annotated[UtcDateTime | None, Query()] = None,
     map_index: Annotated[int, Query()] = -1,
     state: Annotated[TaskInstanceState | None, Query()] = None,
 ) -> PreviousTIResponse | None:
     """
     Get the previous task instance matching the given criteria, preferring a looped task's latest pass.
+
+    A run whose latest loop pass of the task holds no row matching the criteria is skipped, as the count
+    and states endpoints would not report such a row either.
 
     :param dag_id: DAG ID (from path)
     :param task_id: Task ID (from path)
@@ -1434,20 +1455,39 @@ async def get_previous_task_instance(
         .join(DR, (TI.dag_id == DR.dag_id) & (TI.run_id == DR.run_id))
         .options(contains_eager(TI.dag_run).load_only(DR.logical_date))
         .where(TI.dag_id == dag_id, TI.task_id == task_id, *build_coordinate_filters(TI, map_index=map_index))
-        .order_by(DR.logical_date.desc(), TI.region_index.desc())
     )
-
-    if logical_date:
-        # Find TI with logical_date BEFORE the provided date (previous)
-        query = query.where(DR.logical_date < logical_date)
 
     if state:
         query = query.where(TI.state == state)
 
-    row = (await session.execute(query.limit(1))).first()
-    if row is None:
-        return None
-    ti, public_index = row
+    before = logical_date
+    while True:
+        candidates = query if before is None else query.where(DR.logical_date < before)
+        row = (
+            await session.execute(
+                candidates.order_by(DR.logical_date.desc(), TI.region_index.desc()).limit(1)
+            )
+        ).first()
+        if row is None:
+            return None
+        ti, public_index = row
+        if ti.region_id == SENTINEL_REGION_ID:
+            break
+
+        superseded = await session.run_sync(_find_superseded_ids, dag_id, {(ti.run_id, task_id)}, dag_bag)
+        if ti.id not in superseded:
+            break
+        run_rows = (
+            await session.execute(query.where(DR.run_id == ti.run_id).order_by(TI.region_index.desc()))
+        ).all()
+        current = next(((other, index) for other, index in run_rows if other.id not in superseded), None)
+        if current is not None:
+            ti, public_index = current
+            break
+        before = ti.dag_run.logical_date
+        if before is None:
+            return None
+
     region_id, region_index = get_public_region(ti.region_id, ti.region_index)
 
     return PreviousTIResponse(
@@ -1514,7 +1554,12 @@ def get_task_instance_states(
         group_results = session.execute(group_query).tuples().all()
         results = [*results, *group_results] if task_ids else group_results
 
-    superseded = _find_superseded_ids(results, TaskCoordinateResolver(dag_bag, session))
+    superseded = _find_superseded_ids(
+        session,
+        dag_id,
+        {(task.run_id, task.task_id) for task, _ in results if task.region_id != SENTINEL_REGION_ID},
+        dag_bag,
+    )
     for task, public_index in results:
         if task.id in superseded:
             continue

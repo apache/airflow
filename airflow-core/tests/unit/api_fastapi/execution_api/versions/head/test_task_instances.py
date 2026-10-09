@@ -61,6 +61,7 @@ from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.state.metastore import MetastoreBackend
@@ -270,6 +271,118 @@ def test_execution_previous_reports_the_latest_loop_pass(client, loop_reader_tis
     assert response.status_code == 200
     assert response.json()["map_index"] == -1
     assert response.json()["region_index"] == 2
+
+
+@pytest.fixture
+def mapped_loop_runs(dag_maker, session):
+    """A loop over a mapped task: the old run has one pass of two items, the current run two passes."""
+
+    @task_group(group_id="body")
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+
+    with dag_maker(serialized=True) as dag:
+        create_loop(body, max_iterations=3)
+
+    def add_pass(run, loop_region, iteration, states):
+        region = DynamicRegion(
+            dag_id=run.dag_id,
+            run_id=run.run_id,
+            node_id="body.mapped",
+            parent_region_id=loop_region.id,
+            parent_region_index=iteration,
+        )
+        session.add(region)
+        session.flush()
+        expanded = sorted(
+            (ti for ti in run.task_instances if ti.task_id == "body.mapped"), key=lambda ti: ti.map_index
+        )
+        for index, state in enumerate(states):
+            if iteration == 0:
+                ti = expanded[index]
+            else:
+                ti = TaskInstance(
+                    task=dag.get_task("body.mapped"),
+                    run_id=run.run_id,
+                    dag_version_id=expanded[0].dag_version_id,
+                )
+                session.add(ti)
+            ti.region_id, ti.region_index, ti.state = region.id, index, state
+
+    runs = {}
+    for run_id, logical_date, passes in [
+        ("old", timezone.datetime(2026, 1, 1), [[State.SUCCESS, State.SUCCESS]]),
+        ("current", timezone.datetime(2026, 1, 2), [[State.SUCCESS, State.SUCCESS], [State.FAILED]]),
+    ]:
+        run = dag_maker.create_dagrun(run_id=run_id, logical_date=logical_date)
+        loop_region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="body")
+        session.add(loop_region)
+        session.flush()
+        for iteration, states in enumerate(passes):
+            add_pass(run, loop_region, iteration, states)
+        runs[run_id] = run
+    session.commit()
+    return runs
+
+
+@pytest.mark.parametrize(
+    ("map_index", "expected_count"),
+    [
+        pytest.param(None, 1, id="all-slots"),
+        pytest.param(0, 1, id="slot-of-the-latest-pass"),
+        pytest.param(1, 0, id="slot-only-an-older-pass-has"),
+    ],
+)
+def test_execution_count_ignores_slots_of_older_passes_that_the_latest_pass_lacks(
+    client, mapped_loop_runs, map_index, expected_count
+):
+    run = mapped_loop_runs["current"]
+    params = {"dag_id": run.dag_id, "task_ids": ["body.mapped"], "run_ids": [run.run_id]}
+    if map_index is not None:
+        params["map_index"] = map_index
+
+    response = client.get("/execution/task-instances/count", params=params)
+
+    assert response.json() == expected_count
+
+
+def test_execution_states_ignore_slots_of_older_passes_that_the_latest_pass_lacks(client, mapped_loop_runs):
+    run = mapped_loop_runs["current"]
+
+    response = client.get(
+        "/execution/task-instances/states",
+        params={"dag_id": run.dag_id, "task_ids": ["body.mapped"], "run_ids": ["old", "current"]},
+    )
+
+    assert response.json() == {
+        "task_states": {
+            "old": {"body.mapped_0": "success", "body.mapped_1": "success"},
+            "current": {"body.mapped_0": "failed"},
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ("map_index", "expected_run", "expected_pass"),
+    [
+        pytest.param(0, "current", 1, id="slot-of-the-latest-pass"),
+        pytest.param(1, "old", 0, id="slot-only-an-older-pass-has-skips-to-the-earlier-run"),
+    ],
+)
+def test_execution_previous_skips_slots_of_older_passes_that_the_latest_pass_lacks(
+    client, session, mapped_loop_runs, map_index, expected_run, expected_pass
+):
+    run = mapped_loop_runs["current"]
+
+    response = client.get(
+        f"/execution/task-instances/previous/{run.dag_id}/body.mapped", params={"map_index": map_index}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_id"] == expected_run
+    assert response.json()["map_index"] == map_index
+    region = session.get(DynamicRegion, response.json()["region_id"])
+    assert region.parent_region_index == expected_pass
 
 
 def test_execution_breadcrumbs_keep_regional_identity_separate_from_map_index(client, loop_reader_tis):
@@ -5580,6 +5693,8 @@ class TestEmitTaskSpan:
         span = next(span for span in self.exporter.get_finished_spans() if span.name == "task_run.retry_span")
         assert span.attributes["airflow.task_instance.id"] == str(retiring_id)
         assert span.attributes["airflow.task_instance.try_number"] == 3
+        assert "airflow.task_instance.region_id" not in span.attributes
+        assert "airflow.task_instance.region_index" not in span.attributes
 
     def test_loop_span_keeps_public_index_and_exact_region(self, client, session, loop_reader_tis):
         ti, _ = loop_reader_tis

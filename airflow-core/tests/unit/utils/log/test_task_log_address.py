@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest import mock
 from uuid import UUID, uuid4
 
 import pytest
@@ -24,6 +25,7 @@ from sqlalchemy import event
 
 from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -173,6 +175,30 @@ def test_batched_loop_contexts_and_archived_tries_keep_original_addresses(dag_ma
     replacement_path = handler._render_filename(replacement, 1, session=session)
     assert "pass=1.2/attempt=1.log" in replacement_path
     assert replacement_path != path
+
+
+@pytest.mark.db_test
+def test_log_contexts_read_the_dag_from_the_supplied_dag_bag(dag_maker, session):
+    @task_group(group_id="body")
+    def body():
+        EmptyOperator(task_id="work")
+
+    with dag_maker(serialized=True):
+        create_loop(body, max_iterations=3)
+    run = dag_maker.create_dagrun()
+    ti = next(ti for ti in run.task_instances if ti.task_id == "body.work")
+    region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="body")
+    session.add(region)
+    session.flush()
+    ti.region_id, ti.region_index = region.id, 1
+    session.flush()
+    dag_bag = mock.create_autospec(DBDagBag, instance=True)
+    dag_bag.get_dag.side_effect = DBDagBag().get_dag
+
+    context = prepare_task_log_contexts([ti], session=session, dag_bag=dag_bag)[ti.id]
+
+    dag_bag.get_dag.assert_called_once_with(ti.dag_version_id, session=session)
+    assert context.log_position == "pass=1"
 
 
 @pytest.mark.db_test

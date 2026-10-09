@@ -888,6 +888,28 @@ class TestXComsDeleteEndpoint:
             assert verify.get(XComModelV1, (ti.dag_run.id, ti.task_id, ti.map_index, "xcom_1")) is None
             assert XComModelV2.get_for_attempt(ti1.id, "xcom_1", session=verify) is not None
 
+    @pytest.mark.parametrize(
+        ("target_task_id", "ti_map_index"),
+        [
+            pytest.param("missing_task", -1, id="task-not-in-run"),
+            pytest.param("op1", 0, id="mapped-task-with-default-map-index"),
+        ],
+    )
+    def test_xcom_delete_without_a_matching_task_instance_is_a_no_op(
+        self, client, create_task_instance, authenticate_as, session, target_task_id, ti_map_index
+    ):
+        ti = create_task_instance(map_index=ti_map_index)
+        ti.xcom_push(key="xcom_1", value='"value1"', session=session)
+        session.commit()
+        authenticate_as(ti)
+
+        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{target_task_id}/xcom_1")
+
+        assert response.status_code == 200
+        assert response.json() == {"message": "XCom with key: xcom_1 successfully deleted."}
+        with create_session(scoped=False) as verify:
+            assert XComModelV2.get_for_attempt(ti.id, "xcom_1", session=verify) is not None
+
 
 class TestXComTeamAccess:
     """Multi-team isolation for the Execution API XCom routes (no cross-team sharing)."""

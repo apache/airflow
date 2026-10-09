@@ -758,13 +758,17 @@ class TestEdgeWorker:
     @pytest.mark.asyncio
     async def test_push_logs_in_chunks(self, mock_logs_push, worker_with_job: EdgeWorker):
         job = EdgeWorker.jobs[0]
+        job.edge_job.task_instance_id = uuid4()
         await anyio.Path(job.logfile).write_text("some log content")
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             await worker_with_job._push_logs_in_chunks(job)
 
         assert len(EdgeWorker.jobs) == 1
         mock_logs_push.assert_called_once_with(
-            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="some log content"
+            task=job.edge_job.key,
+            log_chunk_time=timezone.utcnow(),
+            log_chunk_data="some log content",
+            task_instance_id=job.edge_job.task_instance_id,
         )
 
     @time_machine.travel(datetime.now(), tick=False)
@@ -780,7 +784,10 @@ class TestEdgeWorker:
             await worker_with_job._push_logs_in_chunks(job)
         assert len(EdgeWorker.jobs) == 1
         mock_logs_push.assert_called_once_with(
-            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="world"
+            task=job.edge_job.key,
+            log_chunk_time=timezone.utcnow(),
+            log_chunk_data="world",
+            task_instance_id=job.edge_job.task_instance_id,
         )
 
     @time_machine.travel(datetime.now(), tick=False)
@@ -798,16 +805,28 @@ class TestEdgeWorker:
         calls = mock_logs_push.call_args_list
         assert len(calls) == 4
         assert calls[0] == call(
-            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="log1"
+            task=job.edge_job.key,
+            log_chunk_time=timezone.utcnow(),
+            log_chunk_data="log1",
+            task_instance_id=job.edge_job.task_instance_id,
         )
         assert calls[1] == call(
-            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="log2"
+            task=job.edge_job.key,
+            log_chunk_time=timezone.utcnow(),
+            log_chunk_data="log2",
+            task_instance_id=job.edge_job.task_instance_id,
         )
         assert calls[2] == call(
-            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="\\xfc"
+            task=job.edge_job.key,
+            log_chunk_time=timezone.utcnow(),
+            log_chunk_data="\\xfc",
+            task_instance_id=job.edge_job.task_instance_id,
         )
         assert calls[3] == call(
-            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="log3"
+            task=job.edge_job.key,
+            log_chunk_time=timezone.utcnow(),
+            log_chunk_data="log3",
+            task_instance_id=job.edge_job.task_instance_id,
         )
 
     @patch("airflow.providers.edge3.cli.worker.logger")

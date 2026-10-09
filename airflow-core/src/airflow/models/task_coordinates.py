@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
@@ -37,7 +38,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Sequence
 
     from sqlalchemy import Select
     from sqlalchemy.orm import Session
@@ -227,23 +228,41 @@ class TaskCoordinateResolver:
             or_(*targets),
         )
 
-    def get_loop_pass(self, ti: TaskCoordinate, *, dag_version_id: UUID | None = None) -> int | None:
-        """Return the iteration of the loop enclosing ``ti``'s task, or ``None`` outside any loop."""
-        if ti.region_id == SENTINEL_REGION_ID:
-            return None
-        try:
-            loop = enclosing_loop(
-                self.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=dag_version_id)
-            )
-        except (TaskNotFound, ValueError):
-            return None
-        if loop is None or loop.group_id is None:
-            return None
-        regions = load_region_ancestry(
-            [ti.region_id], dag_id=ti.dag_id, run_id=ti.run_id, session=self.session
-        )
-        position = loop_position(regions, ti.region_id, ti.region_index, loop.group_id)
-        return None if position is None else position[1]
+    def get_loop_passes(self, tis: Sequence[TaskCoordinate]) -> list[int | None]:
+        """
+        Return the iteration of the loop enclosing each of ``tis``, ``None`` outside any loop.
+
+        The region ancestry of every Dag run is loaded once for all of its task instances.
+        """
+        passes: list[int | None] = [None] * len(tis)
+        loop_ids: dict[tuple[str, str, str, UUID | None], str | None] = {}
+        looped: dict[int, str] = {}
+        regions_by_run: dict[tuple[str, str], set[UUID]] = defaultdict(set)
+        for position, ti in enumerate(tis):
+            if ti.region_id == SENTINEL_REGION_ID:
+                continue
+            version = getattr(ti, "dag_version_id", None)
+            key = (ti.dag_id, ti.run_id, ti.task_id, version)
+            if key not in loop_ids:
+                try:
+                    loop = enclosing_loop(
+                        self.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=version)
+                    )
+                except (TaskNotFound, ValueError):
+                    loop = None
+                loop_ids[key] = None if loop is None else loop.group_id
+            if (loop_id := loop_ids[key]) is not None:
+                looped[position] = loop_id
+                regions_by_run[ti.dag_id, ti.run_id].add(ti.region_id)
+        ancestry = {
+            run: load_region_ancestry(region_ids, dag_id=run[0], run_id=run[1], session=self.session)
+            for run, region_ids in regions_by_run.items()
+        }
+        for position, loop_id in looped.items():
+            ti = tis[position]
+            found = loop_position(ancestry[ti.dag_id, ti.run_id], ti.region_id, ti.region_index, loop_id)
+            passes[position] = None if found is None else found[1]
+        return passes
 
     def has_regions(self, dag_id: str, run_id: str | None, task_id: str) -> bool:
         if (known := self._regional_tasks.get((dag_id, run_id, task_id))) is not None:

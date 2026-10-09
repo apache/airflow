@@ -291,6 +291,7 @@ class EdgeWorker:
                     task=job.edge_job.key,
                     log_chunk_time=timezone.utcnow(),
                     log_chunk_data=f"{message}\n",
+                    task_instance_id=job.edge_job.task_instance_id,
                 )
             except Exception:
                 logger.exception("Failed to push drain notice to task log for %s", job.edge_job.identifier)
@@ -576,6 +577,7 @@ class EdgeWorker:
                             task=job.edge_job.key,
                             log_chunk_time=timezone.utcnow(),
                             log_chunk_data=chunk_data,
+                            task_instance_id=job.edge_job.task_instance_id,
                         )
         except (FileNotFoundError, OSError):
             logger.exception("Log file %s vanished while reading, ignoring.", job.logfile)
@@ -729,6 +731,7 @@ class EdgeWorker:
                     task=job.edge_job.key,
                     log_chunk_time=timezone.utcnow(),
                     log_chunk_data=f"Error executing job:\n{ex_txt}",
+                    task_instance_id=job.edge_job.task_instance_id,
                 )
                 await jobs_set_state(
                     job.edge_job.key, TaskInstanceState.FAILED, task_instance_id=job.edge_job.task_instance_id

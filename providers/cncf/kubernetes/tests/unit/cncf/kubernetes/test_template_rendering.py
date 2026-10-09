@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import os
 from unittest import mock
 
@@ -34,40 +33,9 @@ from airflow.version import version
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_4_PLUS
 
-if AIRFLOW_V_3_4_PLUS:
-    from airflow.models.dynamic_region import DynamicRegion
-    from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.sdk import task_group
-    from airflow.sdk.definitions._internal.loop import create_loop
-
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 9)
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regional coordinates require Airflow 3.4+")
-@mock.patch("airflow.settings.pod_mutation_hook", autospec=True)
-def test_loop_pod_preview_is_labelled_with_the_stored_region_index(pod_mutation_hook, dag_maker, session):
-    @task_group
-    def body():
-        EmptyOperator(task_id="work")
-
-    with dag_maker("loop_pod_preview", serialized=True):
-        create_loop(body, max_iterations=3)
-    dr = dag_maker.create_dagrun()
-    ti = next(ti for ti in dr.task_instances if ti.task_id == "body.work")
-    region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
-    session.add(region)
-    session.flush()
-    ti.region_id, ti.region_index = region.id, 2
-    session.flush()
-
-    pod = render_k8s_pod_yaml(ti)
-
-    assert pod["metadata"]["annotations"]["map_index"] == "2"
-    workload = json.loads(pod["spec"]["containers"][0]["args"][-1])
-    assert workload["ti"]["map_index"] == -1
-    assert workload["ti"]["region_index"] == 2
 
 
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})

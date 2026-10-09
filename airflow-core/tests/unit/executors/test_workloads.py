@@ -362,9 +362,10 @@ def test_execute_task_carries_persisted_legacy_coordinates(dag_maker, session, m
     )
     received = GeneratedTaskInstance.model_validate_json(workload.ti.model_dump_json())
 
-    assert received.region_id == UUID(int=0)
-    assert received.region_index == map_index
+    assert received.region_id is None
+    assert received.region_index is None
     assert received.map_index == map_index
+    assert workload.key.map_index == map_index
 
 
 @pytest.mark.db_test

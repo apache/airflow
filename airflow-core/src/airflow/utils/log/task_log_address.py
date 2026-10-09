@@ -29,9 +29,9 @@ from jinja2.meta import find_undeclared_variables
 from sqlalchemy import inspect, select, tuple_
 from sqlalchemy.orm.attributes import NO_VALUE
 
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.tasklog import LogTemplate
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 from airflow.utils.helpers import render_template
@@ -147,13 +147,19 @@ def prepare_task_log_contexts(
     tis: Collection[TaskInstance],
     *,
     session: Session | None = None,
+    dag_bag: DBDagBag | None = None,
 ) -> dict[UUID, TaskLogContext]:
-    """Load shared address inputs in batches before rendering workloads or reading logs."""
+    """
+    Load shared address inputs in batches before rendering workloads or reading logs.
+
+    Pass the caller's ``dag_bag`` so the loop and map nodes of a Dag version come from its cache instead of
+    deserializing the Dag again.
+    """
     if not tis:
         return {}
     if session is None:
         with create_session(scoped=False) as session:
-            return prepare_task_log_contexts(tis, session=session)
+            return prepare_task_log_contexts(tis, session=session, dag_bag=dag_bag)
     runs: dict[tuple[str, str], DagRun] = {}
     for ti in tis:
         loaded_run: DagRun | None = inspect(ti).attrs.dag_run.loaded_value
@@ -189,14 +195,17 @@ def prepare_task_log_contexts(
                 if ancestor_id is not None and ancestor_id not in regions
             }
         version_ids = {
-            ti.dag_version_id or runs[ti.dag_id, ti.run_id].created_dag_version_id for ti in regional
+            version_id
+            for ti in regional
+            if (version_id := ti.dag_version_id or runs[ti.dag_id, ti.run_id].created_dag_version_id)
         }
-        for row in session.scalars(
-            select(SerializedDagModel).where(SerializedDagModel.dag_version_id.in_(version_ids))
-        ):
-            row.load_op_links = False
-            dag = row.dag
-            node_kinds[row.dag_version_id] = {
+        if dag_bag is None:
+            dag_bag = DBDagBag(load_op_links=False)
+        for version_id in version_ids:
+            dag = dag_bag.get_dag(version_id, session=session)
+            if dag is None:
+                continue
+            node_kinds[version_id] = {
                 group_id: "loop"
                 for group_id, group in dag.task_group.get_task_group_dict().items()
                 if group_id is not None and isinstance(group, SerializedLoopTaskGroup)

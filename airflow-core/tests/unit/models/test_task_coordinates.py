@@ -32,7 +32,7 @@ from airflow.sdk import task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.utils.log.task_log_address import prepare_task_log_contexts
 
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 
 pytestmark = pytest.mark.db_test
 
@@ -104,6 +104,17 @@ def test_shared_loop_uses_pinned_graph_and_retained_producer(loop_coordinates, s
     assert resolver.resolve(dag_id=dr.dag_id, run_id=dr.run_id, task_id=outside.task_id, caller=consumer) == (
         outside,
     )
+
+
+def test_loop_passes_load_the_region_ancestry_once_for_all_task_instances(loop_coordinates, session):
+    _, producer, consumer, previous, outside = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    with capture_orm_selects("dynamic_region") as statements:
+        passes = resolver.get_loop_passes([producer, consumer, previous, outside])
+
+    assert passes == [2, 2, 1, None]
+    assert len(statements) == 1
 
 
 def test_loop_without_context_requires_explicit_scope(loop_coordinates, session):

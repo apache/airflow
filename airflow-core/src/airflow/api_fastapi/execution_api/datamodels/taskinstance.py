@@ -312,8 +312,13 @@ _RuntimeTI = TypeVar("_RuntimeTI", bound=TaskInstance)
 
 
 def task_instance_to_runtime(ti: TaskInstanceModel, *, model: type[_RuntimeTI], map_index: int) -> _RuntimeTI:
-    """Build a runtime identity with a prepared public map index."""
-    return model.model_validate(ti, from_attributes=True).model_copy(update={"map_index": map_index})
+    """Build a runtime identity with a prepared public map index and the region a client sees."""
+    from airflow.models.task_coordinates import get_public_region
+
+    region_id, region_index = get_public_region(ti.region_id, ti.region_index)
+    return model.model_validate(ti, from_attributes=True).model_copy(
+        update={"map_index": map_index, "region_id": region_id, "region_index": region_index}
+    )
 
 
 class AssetReferenceAssetEventDagRun(StrictBaseModel):

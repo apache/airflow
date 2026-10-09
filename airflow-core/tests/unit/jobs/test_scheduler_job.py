@@ -48,6 +48,7 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
@@ -206,6 +207,12 @@ EXAMPLE_STANDARD_DAGS_FOLDER = (
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_LOGICAL_DATE = timezone.coerce_datetime(DEFAULT_DATE)
 TRY_NUMBER = 1
+
+
+def get_callback_ti(ti):
+    return TIDataModel.model_validate(ti, from_attributes=True).model_copy(
+        update={"region_id": None, "region_index": None}
+    )
 
 
 @pytest.fixture(scope="class")
@@ -4561,7 +4568,7 @@ class TestSchedulerJob:
             bundle_version=orm_dag.bundle_version,
             context_from_server=DagRunContext(
                 dag_run=dr,
-                last_ti=dr.get_task_instance("dummy", session=session),
+                last_ti=get_callback_ti(dr.get_task_instance("dummy", session=session)),
             ),
             msg="timed_out",
         )
@@ -4807,7 +4814,7 @@ class TestSchedulerJob:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=dr,
-                last_ti=ti,
+                last_ti=get_callback_ti(ti),
             ),
         )
 
@@ -4889,7 +4896,7 @@ class TestSchedulerJob:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=dr,
-                last_ti=dr.get_task_instance("empty", session=session),
+                last_ti=get_callback_ti(dr.get_task_instance("empty", session=session)),
             ),
         )
 
@@ -10559,7 +10566,7 @@ class TestSchedulerJob:
         assert callback_req.msg == "timed_out"
         assert callback_req.context_from_server == DagRunContext(
             dag_run=dag_run,
-            last_ti=dag_run.get_task_instance(task_id="test_task"),
+            last_ti=get_callback_ti(dag_run.get_task_instance(task_id="test_task")),
         )
 
     @mock.patch("airflow.models.dagrun.get_listener_manager")

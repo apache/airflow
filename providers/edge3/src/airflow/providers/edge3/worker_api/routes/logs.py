@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
-from fastapi import Body, Depends, status
+from fastapi import Body, Depends, Query, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
@@ -42,20 +42,22 @@ logs_router = AirflowRouter(tags=["Logs"], prefix="/logs")
 
 @cache
 @provide_session
-def _logfile_path(task: TaskInstanceKey, *, session=NEW_SESSION) -> str:
+def _logfile_path(task: TaskInstanceKey, task_instance_id: UUID | None = None, *, session=NEW_SESSION) -> str:
     """Elaborate the (relative) path and filename to expect from task execution."""
-    ti_id = session.scalar(
-        select(EdgeJobModel.task_instance_id).where(
-            EdgeJobModel.dag_id == task.dag_id,
-            EdgeJobModel.task_id == task.task_id,
-            EdgeJobModel.run_id == task.run_id,
-            EdgeJobModel.map_index == task.map_index,
-            EdgeJobModel.try_number == task.try_number,
-            EdgeJobModel.task_instance_id != "",
+    if task_instance_id is None:
+        stored_id = session.scalar(
+            select(EdgeJobModel.task_instance_id).where(
+                EdgeJobModel.dag_id == task.dag_id,
+                EdgeJobModel.task_id == task.task_id,
+                EdgeJobModel.run_id == task.run_id,
+                EdgeJobModel.map_index == task.map_index,
+                EdgeJobModel.try_number == task.try_number,
+                EdgeJobModel.task_instance_id != "",
+            )
         )
-    )
-    if ti_id:
-        ti = session.get(TaskInstance, UUID(ti_id), execution_options={"include_all_attempts": True})
+        task_instance_id = UUID(stored_id) if stored_id else None
+    if task_instance_id:
+        ti = session.get(TaskInstance, task_instance_id, execution_options={"include_all_attempts": True})
         if TYPE_CHECKING:
             assert ti
         return FileTaskHandler(".")._render_filename(ti, task.try_number)
@@ -88,12 +90,15 @@ def logfile_path(
     run_id: Annotated[str, WorkerApiDocs.run_id],
     try_number: Annotated[int, WorkerApiDocs.try_number],
     map_index: Annotated[int, WorkerApiDocs.map_index],
+    task_instance_id: Annotated[
+        UUID | None, Query(description=WorkerApiDocs.task_instance_id_description)
+    ] = None,
 ) -> str:
     """Elaborate the path and filename to expect from task execution."""
     task = TaskInstanceKey(
         dag_id=dag_id, task_id=task_id, run_id=run_id, try_number=try_number, map_index=map_index
     )
-    return _logfile_path(task)
+    return _logfile_path(task, task_instance_id)
 
 
 @logs_router.post(
@@ -137,7 +142,7 @@ def push_logs(
         dag_id=dag_id, task_id=task_id, run_id=run_id, try_number=try_number, map_index=map_index
     )
     base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
-    logfile_path = Path(base_log_folder, _logfile_path(task))
+    logfile_path = Path(base_log_folder, _logfile_path(task, body.task_instance_id))
     if not logfile_path.exists():
         new_folder_permissions = int(
             conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8

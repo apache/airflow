@@ -52,6 +52,7 @@ from airflow._shared.observability.traces import (
     OverrideableRandomIdGenerator,
 )
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
@@ -106,6 +107,12 @@ pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
+
+
+def get_callback_ti(ti):
+    return TIDataModel.model_validate(ti, from_attributes=True).model_copy(
+        update={"region_id": None, "region_index": None}
+    )
 
 
 async def empty_callback_for_deadline():
@@ -638,7 +645,7 @@ class TestDagRun:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=dag_run,
-                last_ti=dag_run.get_task_instance(task_id="test_state_succeeded2"),
+                last_ti=get_callback_ti(dag_run.get_task_instance(task_id="test_state_succeeded2")),
             ),
             msg="success",
         )
@@ -688,7 +695,7 @@ class TestDagRun:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=dag_run,
-                last_ti=dag_run.get_task_instance(task_id="test_state_failed2"),
+                last_ti=get_callback_ti(dag_run.get_task_instance(task_id="test_state_failed2")),
             ),
         )
 

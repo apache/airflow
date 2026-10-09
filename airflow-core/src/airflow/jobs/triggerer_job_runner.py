@@ -964,6 +964,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     if trigger.task_instance is not None and trigger.task_instance.dag_version_id
                 ],
                 session=session,
+                dag_bag=dag_bag,
             )
 
             def render_log_fname(*, ti):

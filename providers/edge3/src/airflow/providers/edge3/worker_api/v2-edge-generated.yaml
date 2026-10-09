@@ -228,6 +228,19 @@ paths:
             task is not mapped.
         description: For dynamically mapped tasks the mapping number, -1 if the task
           is not mapped.
+      - name: task_instance_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          description: Attempt UUID of the job; tells apart task instances that share
+            the other key fields.
+          title: Task Instance Id
+        description: Attempt UUID of the job; tells apart task instances that share
+          the other key fields.
       - name: authorization
         in: header
         required: true
@@ -1304,6 +1317,14 @@ components:
           type: string
           title: Log Chunk Data
           description: Log chunk data as incremental log text.
+        task_instance_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Instance Id
+          description: Attempt UUID of the job; tells apart task instances that share
+            the other key fields.
       type: object
       required:
       - log_chunk_time

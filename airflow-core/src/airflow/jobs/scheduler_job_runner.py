@@ -1244,6 +1244,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if ti.dag_version_id and ti.dag_run.state not in State.finished_dr_states
             ],
             session=session,
+            dag_bag=self.scheduler_dag_bag,
         )
         # actually enqueue them
         for ti in task_instances:
