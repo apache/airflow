@@ -105,8 +105,8 @@ banner. The components' logs fill the lines in between:
 .. code-block:: text
 
     standalone | Starting Airflow Standalone
-    2026-10-09T00:16:49.108917Z [warning  ] SimpleAuthManager is active but the deployment shape looks like production (non-sqlite backend, non-local API host, or a distributed executor). ...
-    Simple auth manager | Password for user 'admin': KTpeNaPsEqknZGPm
+    [warning  ] SimpleAuthManager is active but the deployment shape looks like production (non-sqlite backend, non-local API host, or a distributed executor). ...
+    Simple auth manager | Password for user 'admin': <generated-password>
     ...
     standalone | Airflow is ready
     standalone | Airflow Standalone is for development purposes only. Do not use this in production!
@@ -137,7 +137,7 @@ It maps each user to their password:
 
 .. code-block:: text
 
-    {"admin": "KTpeNaPsEqknZGPm"}
+    {"admin": "<generated-password>"}
 
 Airflow loads a set of example Dags, all paused. Open **Dags**, find ``example_bash_operator``, and switch on
 its toggle to unpause it. The scheduler starts a run within a few seconds; click the Dag name to follow its
