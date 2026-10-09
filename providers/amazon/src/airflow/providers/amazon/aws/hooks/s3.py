@@ -55,7 +55,7 @@ if TYPE_CHECKING:
 
 
 from boto3.s3.transfer import S3Transfer, TransferConfig
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookPathTraversalError, S3HookUriParseFailure
@@ -687,7 +687,8 @@ class S3Hook(AwsBaseHook):
         delimiter: str | None = None,
         page_size: int | None = None,
         max_items: int | None = None,
-    ) -> list[str]:
+        start_after_key: str | None = None,
+    ) -> list[dict]:
         """
         List keys in a bucket under prefix and not containing delimiter.
 
@@ -696,7 +697,8 @@ class S3Hook(AwsBaseHook):
         :param delimiter: the delimiter marks key hierarchy.
         :param page_size: pagination size
         :param max_items: maximum items to return
-        :return: a list of matched keys
+        :param start_after_key: should return only keys greater than this key
+        :return: a list of matched key metadata
         """
         prefix = prefix or ""
         delimiter = delimiter or ""
@@ -712,15 +714,21 @@ class S3Hook(AwsBaseHook):
             "Delimiter": delimiter,
             "PaginationConfig": config,
         }
+
+        if start_after_key:
+            params["StartAfter"] = start_after_key
+
         if self._requester_pays:
             params["RequestPayer"] = "requester"
+
         response = paginator.paginate(**params)
 
         keys = []
+
         async for page in response:
             if "Contents" in page:
                 for k in page["Contents"]:
-                    keys.append(k["Key"])
+                    keys.append(k)  # Handling additional fields (LastModified, etc.), like sync version
 
         return keys
 
@@ -737,7 +745,69 @@ class S3Hook(AwsBaseHook):
                 return False
             return True
 
-        return [k["Key"] for k in keys if _is_in_period(k["LastModified"])]
+        return [k for k in keys if _is_in_period(k["LastModified"])]
+
+    @provide_bucket_name
+    async def list_keys_async(
+        self,
+        bucket_name: str | None = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
+        start_after_key: str | None = None,
+        from_datetime: datetime | None = None,
+        to_datetime: datetime | None = None,
+        object_filter: Callable[..., list] | None = None,
+        apply_wildcard: bool = False,
+    ) -> list[dict]:
+        """
+        Mirror list_keys method in async fashion, used by things like a BaseEventTrigger to.
+
+        :param bucket_name: the name of the bucket
+        :param prefix: a key prefix
+        :param delimiter: the delimiter marks key hierarchy.
+        :param page_size: pagination size
+        :param max_items: maximum items to return
+        :param start_after_key: should return only keys greater than this key
+        :param from_datetime: should return only keys with LastModified attr greater than this equal
+            from_datetime
+        :param to_datetime: should return only keys with LastModified attr less than this to_datetime
+        :param object_filter: Function that receives the list of the S3 objects, from_datetime and
+            to_datetime and returns the List of matched keys.
+        :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
+        """
+        _original_prefix = prefix or ""
+        _apply_wildcard = bool(apply_wildcard and "*" in _original_prefix)
+        _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
+        delimiter = delimiter or ""
+        start_after_key = start_after_key or ""
+        object_filter_usr = object_filter
+
+        try:
+            async with await self.get_async_conn() as client:
+                keys: list[dict] = await self._list_keys_async(
+                    client=client,
+                    bucket_name=bucket_name,
+                    prefix=_prefix,
+                    delimiter=delimiter,
+                    page_size=page_size,
+                    max_items=max_items,
+                    start_after_key=start_after_key,
+                )
+
+        except (ClientError, BotoCoreError) as e:
+            message = f"Error occurred while listing keys: {e}"
+            self.log.error(message)
+            raise RuntimeError(message) from e
+
+        if _apply_wildcard:
+            keys = [k for k in keys if fnmatch.fnmatch(k["Key"], _original_prefix)]
+
+        if object_filter_usr is not None:
+            return object_filter_usr(keys, from_datetime, to_datetime)
+
+        return self._list_key_object_filter(keys, from_datetime, to_datetime)
 
     async def is_keys_unchanged_async(
         self,
@@ -773,7 +843,7 @@ class S3Hook(AwsBaseHook):
         if not previous_objects:
             previous_objects = set()
         list_keys = await self._list_keys_async(client=client, bucket_name=bucket_name, prefix=prefix)
-        current_objects = set(list_keys)
+        current_objects = set([k["Key"] for k in list_keys])
         current_num_objects = len(current_objects)
         if current_num_objects > len(previous_objects):
             # When new objects arrived, reset the inactivity_seconds
@@ -938,7 +1008,7 @@ class S3Hook(AwsBaseHook):
         if object_filter_usr is not None:
             return object_filter_usr(keys, from_datetime, to_datetime)
 
-        return self._list_key_object_filter(keys, from_datetime, to_datetime)
+        return [k["Key"] for k in self._list_key_object_filter(keys, from_datetime, to_datetime)]
 
     @provide_bucket_name
     def get_file_metadata(

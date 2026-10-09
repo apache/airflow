@@ -18,14 +18,12 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from datetime import datetime, timezone
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-if TYPE_CHECKING:
-    from datetime import datetime
+from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 
 
 class S3KeyTrigger(BaseTrigger):
@@ -148,6 +146,154 @@ class S3KeyTrigger(BaseTrigger):
                     await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
+
+
+class S3KeyEventTrigger(BaseEventTrigger):
+    """
+    Watch an S3 prefix for new or updated keys and fire an event per matched key.
+
+    Intended for use as an :class:`~airflow.sdk.AssetWatcher` trigger: each poll lists keys under
+    ``prefix`` with a ``LastModified`` after the stored watermark, fires one ``TriggerEvent`` per
+    matched key, then advances the watermark to the latest ``LastModified`` seen.
+
+    :param bucket_name: name of the S3 bucket to watch.
+    :param prefix: key prefix to watch. Supports a trailing ``*`` wildcard when ``wildcard_match``
+        is ``True``.
+    :param wildcard_match: whether ``prefix`` should be interpreted as a wildcard pattern.
+    :param start_after_last_key: whether to additionally use the last matched key as S3's
+        ``StartAfter`` cursor on the next poll. Only safe when the bucket's key naming convention
+        is lexicographically sortable by upload time (e.g. date-prefixed paths); otherwise a new
+        key that sorts alphabetically before the last-seen key would be silently skipped.
+    :param aws_conn_id: reference to the S3 connection.
+    :param poke_interval: seconds to sleep between polls when no new keys are found.
+    :param region_name: AWS region name.
+    :param verify: whether to verify SSL certificates for the S3 connection.
+    :param botocore_config: additional botocore config to pass to the underlying S3 hook.
+    :param metadata_keys: list of S3 object attributes to include in each event's ``file`` payload.
+        Specify ``["*"]`` to include all available attributes. Defaults to ``["Size", "Key", "LastModified"]``.
+    :param hook_params: additional params to pass to the underlying S3 hook.
+    """
+
+    def __init__(
+        self,
+        bucket_name: str,
+        prefix: str,
+        wildcard_match: bool = False,
+        start_after_last_key: bool = False,
+        aws_conn_id: str | None = "aws_default",
+        poke_interval: float = 30.0,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
+        metadata_keys: list[str] | None = None,
+        **hook_params: Any,
+    ):
+        super().__init__()
+        self.bucket_name = bucket_name
+        self.prefix = prefix
+        self.wildcard_match = wildcard_match
+        self.start_after_last_key = start_after_last_key
+        self.aws_conn_id = aws_conn_id
+        self.hook_params = hook_params
+        self.poke_interval = poke_interval
+        self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
+        self.metadata_keys = metadata_keys if metadata_keys else ["Size", "Key", "LastModified"]
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize S3KeyEventTrigger arguments and classpath."""
+        return (
+            "airflow.providers.amazon.aws.triggers.s3.S3KeyEventTrigger",
+            {
+                "bucket_name": self.bucket_name,
+                "prefix": self.prefix,
+                "wildcard_match": self.wildcard_match,
+                "start_after_last_key": self.start_after_last_key,
+                "aws_conn_id": self.aws_conn_id,
+                "hook_params": self.hook_params,
+                "poke_interval": self.poke_interval,
+                "should_check_fn": self.should_check_fn,
+                "use_regex": self.use_regex,
+                "region_name": self.region_name,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
+                "metadata_keys": self.metadata_keys,
+            },
+        )
+
+    @cached_property
+    def hook(self) -> S3Hook:
+        return S3Hook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
+
+    @staticmethod
+    def fix_max_key(keys: list[dict]) -> dict:
+        """Return the key dict with the latest LastModified value."""
+        return max(keys, key=lambda k: k["LastModified"])
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Fire TriggerEvent's if there are new files in the S3 bucket."""
+        # Retrieve the Asset state to store and retrieve watermarking information
+        asset_state_store = self.asset_state_store
+        stored_from_datetime = asset_state_store.get("from_datetime")
+        from_datetime: datetime | None = None  # Look for files from this datetime onwards
+
+        # Assume that the last stored datetime is where we should be looking from
+        if stored_from_datetime is not None:
+            from_datetime = datetime.fromisoformat(stored_from_datetime)
+
+            if from_datetime.tzinfo is None:
+                from_datetime = from_datetime.replace(tzinfo=timezone.utc)
+
+        # This is the alphabetical key that would be the "starting point" for new files, if specified by user
+        start_after_key = asset_state_store.get("start_after_key") if self.start_after_last_key else None
+
+        while True:
+            upserted_files = await self.hook.list_keys_async(
+                bucket_name=self.bucket_name,
+                prefix=self.prefix,
+                delimiter=None,
+                page_size=None,
+                max_items=None,
+                start_after_key=start_after_key,
+                from_datetime=from_datetime,
+                to_datetime=None,  # No cap, always looking up until the present
+                object_filter=None,
+                apply_wildcard=self.wildcard_match,
+            )
+
+            if upserted_files:
+                for f in upserted_files:
+                    # Create the "file" payload that is going to be returned
+                    file_metadata = (
+                        f if "*" in self.metadata_keys else {k: f[k] for k in self.metadata_keys if k in f}
+                    )
+
+                    if "LastModified" in file_metadata:
+                        file_metadata["LastModified"] = (
+                            file_metadata["LastModified"].astimezone(timezone.utc).isoformat()
+                        )
+
+                    yield TriggerEvent({"status": "success", "file": file_metadata})
+
+                # Update the from_datetime value to use next time around when filtering
+                max_key: dict = self.fix_max_key(upserted_files)
+                new_from_datetime: datetime = max_key["LastModified"]
+                asset_state_store.set("from_datetime", new_from_datetime.astimezone(timezone.utc).isoformat())
+
+                # Update the start_after_key
+                if self.start_after_last_key:
+                    new_start_after_key = max_key.get("Key")
+                    asset_state_store.set("start_after_key", new_start_after_key)
+
+                return
+
+            await asyncio.sleep(self.poke_interval)
 
 
 class S3KeysUnchangedTrigger(BaseTrigger):
