@@ -5270,6 +5270,7 @@ export class DeadlinesService {
      * @param data.dagId
      * @param data.versionNumber
      * @param data.limit
+     * @param data.name
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
      * @returns DeadlineAlertCollectionResponse Successful Response
@@ -5285,6 +5286,7 @@ export class DeadlinesService {
             query: {
                 version_number: data.versionNumber,
                 limit: data.limit,
+                name: data.name,
                 offset: data.offset,
                 order_by: data.orderBy
             },

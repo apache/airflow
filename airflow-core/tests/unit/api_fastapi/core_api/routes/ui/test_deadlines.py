@@ -178,6 +178,17 @@ def setup(dag_maker, session):
         callback_def={"path": _CALLBACK_PATH},
     )
     session.add(alert)
+
+    session.add(
+        DeadlineAlert(
+            serialized_dag_id=serialized_dag.id,
+            name="Another Alert",
+            reference=DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference(),
+            interval=3600.0,
+            callback_def={"path": _CALLBACK_PATH},
+        )
+    )
+
     session.flush()
     session.add(
         Deadline(
@@ -533,7 +544,14 @@ class TestGetDagDeadlineAlerts:
         session.scalar.return_value = None
 
         with pytest.raises(HTTPException, match=f"Dag with id {DAG_ID} was not found"):
-            get_dag_deadline_alerts(DAG_ID, session, limit=100, offset=0, order_by=Mock())
+            get_dag_deadline_alerts(
+                DAG_ID,
+                session,
+                limit=100,
+                offset=0,
+                order_by=Mock(),
+                name=None,
+            )
 
         statement = session.scalar.call_args.args[0]
         assert "LIMIT 1" in str(statement.compile(compile_kwargs={"literal_binds": True}))
@@ -543,19 +561,52 @@ class TestGetDagDeadlineAlerts:
         response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
         assert response.status_code == 200
         data = response.json()
-        assert data["total_entries"] == 1
-        assert len(data["deadline_alerts"]) == 1
+        assert data["total_entries"] == 2
+        assert len(data["deadline_alerts"]) == 2
 
     def test_alert_response_fields(self, test_client):
         """Alert response includes expected fields with correct values."""
         response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
+
         assert response.status_code == 200
-        alert = response.json()["deadline_alerts"][0]
+
+        data = response.json()
+        alert = next(alert for alert in data["deadline_alerts"] if alert["name"] == ALERT_NAME)
+
         assert alert["name"] == ALERT_NAME
         assert alert["interval"] == 3600.0
         assert alert["reference_type"] == "DagRunQueuedAtDeadline"
         assert "id" in alert
         assert "created_at" in alert
+
+    @pytest.mark.parametrize(
+        ("params", "expected_alerts"),
+        [
+            pytest.param(
+                {"name": ALERT_NAME},
+                [ALERT_NAME],
+                id="matching_name",
+            ),
+            pytest.param(
+                {"name": "does-not-exist"},
+                [],
+                id="no_match",
+            ),
+        ],
+    )
+    def test_filter_by_name(self, test_client, params, expected_alerts):
+        """Filtering by name returns only matching DeadlineAlerts."""
+        response = test_client.get(
+            f"/dags/{DAG_ID}/deadlineAlerts",
+            params=params,
+        )
+
+        assert response.status_code == 200
+
+        data = response.json()
+
+        assert data["total_entries"] == len(expected_alerts)
+        assert [alert["name"] for alert in data["deadline_alerts"]] == expected_alerts
 
     def test_dag_with_no_alerts_returns_empty_list(self, test_client, dag_maker, session):
         """A DAG with no deadline alerts returns an empty list."""
@@ -605,19 +656,29 @@ class TestGetDagDeadlineAlerts:
         return dag_id
 
     @pytest.mark.parametrize(
-        ("params", "expected_alert"),
+        ("params", "expected_alerts"),
         [
-            pytest.param({}, "v2_alert", id="default_returns_latest_version"),
-            pytest.param({"version_number": 1}, "v1_alert", id="older_version"),
-            pytest.param({"version_number": 2}, "v2_alert", id="latest_version"),
+            pytest.param({}, ["v2_alert"], id="default_returns_latest_version"),
+            pytest.param({"version_number": 1}, ["v1_alert"], id="older_version"),
+            pytest.param({"version_number": 2}, ["v2_alert"], id="latest_version"),
+            pytest.param(
+                {"version_number": 1, "name": "v1_alert"},
+                ["v1_alert"],
+                id="version_1_matching_name",
+            ),
+            pytest.param(
+                {"version_number": 1, "name": "v2_alert"},
+                [],
+                id="version_1_non_matching_name",
+            ),
         ],
     )
-    def test_version_number_scopes_alerts(self, test_client, dag_maker, session, params, expected_alert):
+    def test_version_number_scopes_alerts(self, test_client, dag_maker, session, params, expected_alerts):
         dag_id = self._make_two_versions_with_alerts(dag_maker, session)
         response = test_client.get(f"/dags/{dag_id}/deadlineAlerts", params=params)
         assert response.status_code == 200
         data = response.json()
-        assert [alert["name"] for alert in data["deadline_alerts"]] == [expected_alert]
+        assert [alert["name"] for alert in data["deadline_alerts"]] == expected_alerts
 
     def test_unknown_version_number_returns_404(self, test_client, dag_maker, session):
         dag_id = self._make_two_versions_with_alerts(dag_maker, session)
