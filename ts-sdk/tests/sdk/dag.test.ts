@@ -25,6 +25,7 @@ import {
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
+  label,
   type DagSpec,
   type TaskRef,
   type TaskSpec,
@@ -559,6 +560,39 @@ describe("Dag", () => {
         { upstream: "load", downstream: "cleanup" },
         { upstream: "transform", downstream: "cleanup" },
       ]);
+    });
+
+    it("labels each edge of a fan-out from its own endpoint", () => {
+      const { dag, refs } = placedDag("d", "check", "process", "notify");
+
+      refs.check!.before(label(refs.process!, "rows found"), label(refs.notify!, "no rows"));
+      refs.notify!.after(label(refs.process!, "after processing"));
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "check", downstream: "process", label: "rows found" },
+        { upstream: "check", downstream: "notify", label: "no rows" },
+        { upstream: "process", downstream: "notify", label: "after processing" },
+      ]);
+    });
+
+    it("replaces a label on a redrawn edge, and keeps it on an unlabelled redraw", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(label(refs.cleanup!, "first"));
+      refs.load!.before(label(refs.cleanup!, "second"));
+      refs.cleanup!.after(refs.load!);
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "load", downstream: "cleanup", label: "second" },
+      ]);
+    });
+
+    it("drops a label on the reference the call is made on", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      label(refs.load!, "ignored").before(refs.cleanup!);
+
+      expect(getDagOrderEdges(dag)).toEqual([{ upstream: "load", downstream: "cleanup" }]);
     });
 
     it.each([
