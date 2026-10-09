@@ -16,10 +16,8 @@
 # under the License.
 """Kubernetes client factories for the AwsEksExecutor."""
 
-# Internal to AwsEksExecutor, not a public API. The executor writes the import paths of
-# _get_eks_kube_client and _get_eks_async_kube_client into [kubernetes_executor] client_factory
-# and async_client_factory, and cncf.kubernetes re-resolves them by that path in every process
-# that builds a client, including the spawned pod watcher. Keep eks_executor's paths in step.
+# Internal to AwsEksExecutor, which writes these functions' import paths into
+# [kubernetes_executor] client_factory and async_client_factory.
 
 from __future__ import annotations
 
@@ -106,8 +104,7 @@ def _configure_eks_auth(
         )
     session = eks_hook.get_session()
 
-    # EKS only accepts tokens presigned against the regional STS endpoint; some regions
-    # otherwise default to the global one. Same dance as EksHook.generate_config_file.
+    # EKS only accepts tokens presigned against the regional STS endpoint.
     os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
     try:
         sts_endpoint = StsHook(
@@ -139,8 +136,7 @@ def _configure_eks_auth(
 
 
 def _write_cluster_ca_file(base64_ca_data: str) -> str:
-    # The kubernetes client only accepts the CA as a file path and urllib3 reads it lazily,
-    # so the file must outlive this function; it is left for the OS to clean up.
+    # The kubernetes client reads the CA file lazily, so it must outlive this function.
     with tempfile.NamedTemporaryFile(
         mode="wb", prefix="airflow-eks-ca-", suffix=".pem", delete=False
     ) as ca_file:

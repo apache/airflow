@@ -46,7 +46,6 @@ if "client_factory" not in (
 ):
     raise AirflowOptionalProviderFeatureException(_CNCF_KUBERNETES_REQUIRED)
 
-# Import paths, because cncf.kubernetes re-resolves the factories in each process (see _client_factory).
 _FACTORY_MODULE = "airflow.providers.amazon.aws.executors.eks._client_factory"
 _CLIENT_FACTORY_PATH = f"{_FACTORY_MODULE}._get_eks_kube_client"
 _ASYNC_CLIENT_FACTORY_PATH = f"{_FACTORY_MODULE}._get_eks_async_kube_client"
@@ -61,14 +60,12 @@ class AwsEksExecutor(KubernetesExecutor):
     KubernetesExecutor and its ``[kubernetes_executor]`` configuration.
     """
 
-    # Like the KubernetesExecutor, teams share the cluster from the global config and get their
-    # own team-scoped [kubernetes_executor] settings.
     supports_multi_team: bool = True
 
     def __init__(self, *args, **kwargs):
         self._validate_eks_config()
         super().__init__(*args, **kwargs)
-        # After super().__init__, which sets team_name; clients are only built later, in start().
+        # Needs team_name, which super().__init__ sets.
         self._ensure_client_factory()
 
     def start(self) -> None:
@@ -121,11 +118,9 @@ class AwsEksExecutor(KubernetesExecutor):
             )
 
     def _ensure_client_factory(self) -> None:
-        # cncf.kubernetes looks a team's factory up in the team's own config only, with no
-        # fallback to the global section, so a team executor has to set the team-scoped one.
+        # A team's factory is looked up in team config only, with no global fallback.
         team_name = self.team_name
         team_kwargs = {"team_name": team_name} if team_name else {}
-        # Team-scoped variables are named AIRFLOW__<TEAM>___<SECTION>__<KEY>.
         env_var_prefix = f"AIRFLOW__{team_name.upper()}___" if team_name else "AIRFLOW__"
         for key, path in (
             ("client_factory", _CLIENT_FACTORY_PATH),
@@ -138,7 +133,5 @@ class AwsEksExecutor(KubernetesExecutor):
                     f"it is set to {configured}"
                 )
             if not configured:
-                # Environment variable rather than an in-memory conf.set so the setting also
-                # reaches the pod watcher subprocess, which re-reads configuration under the
-                # spawn start method.
+                # An env var, not conf.set, so the spawned pod watcher process sees it too.
                 os.environ[f"{env_var_prefix}KUBERNETES_EXECUTOR__{key.upper()}"] = path

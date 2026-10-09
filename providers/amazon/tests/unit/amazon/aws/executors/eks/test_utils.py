@@ -24,17 +24,8 @@ from airflow.providers.amazon.aws.executors.eks.utils import (
 from airflow.providers.amazon.get_provider_info import get_provider_info
 
 
-def _eks_config_options() -> dict:
-    return get_provider_info()["config"][CONFIG_GROUP_NAME]["options"]
+def test_config_keys_and_defaults_match_the_provider_config_section():
+    options = get_provider_info()["config"][CONFIG_GROUP_NAME]["options"]
 
-
-def test_config_keys_match_the_provider_config_section():
-    assert set(AllEksConfigKeys()) == set(_eks_config_options())
-
-
-def test_config_defaults_match_the_provider_config_section():
-    options = _eks_config_options()
-
-    assert set(CONFIG_DEFAULTS) <= set(AllEksConfigKeys())
-    for key, default in CONFIG_DEFAULTS.items():
-        assert options[key]["default"] == default
+    assert set(AllEksConfigKeys()) == set(options)
+    assert {key: options[key]["default"] for key in CONFIG_DEFAULTS} == CONFIG_DEFAULTS
