@@ -75,6 +75,14 @@ from unit.listeners.class_listener import ClassBasedListener
 pytestmark = pytest.mark.db_test
 
 DEFAULT = datetime(2020, 1, 1)
+
+
+def _public_coordinates(ti: TaskInstance) -> tuple[str, str | None, int | None]:
+    if ti.region_id.int == 0:
+        return ti.task_id, None, None
+    return ti.task_id, str(ti.region_id), ti.region_index
+
+
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
 DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
 
@@ -267,8 +275,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
-            "region_id": "00000000-0000-0000-0000-000000000000",
-            "region_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": None,
@@ -382,8 +388,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": run_id,
             "dag_display_name": "dag_with_multiple_versions",
             "map_index": -1,
-            "region_id": "00000000-0000-0000-0000-000000000000",
-            "region_index": -1,
             "logical_date": mock.ANY,
             "start_date": None,
             "end_date": mock.ANY,
@@ -472,8 +476,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
-            "region_id": "00000000-0000-0000-0000-000000000000",
-            "region_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
@@ -542,8 +544,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
-            "region_id": "00000000-0000-0000-0000-000000000000",
-            "region_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
@@ -602,8 +602,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
-            "region_id": "00000000-0000-0000-0000-000000000000",
-            "region_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
@@ -727,8 +725,6 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "hostname": "",
                 "id": response_data["id"],
                 "map_index": map_index,
-                "region_id": "00000000-0000-0000-0000-000000000000",
-                "region_index": map_index,
                 "max_tries": 0,
                 "note": "placeholder-note",
                 "operator": "PythonOperator",
@@ -3549,6 +3545,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             session.commit()
         before = {(ti.id, ti.state, ti.try_number) for ti in tis}
         coordinates = {ti.id: (ti.task_id, str(ti.region_id), ti.region_index) for ti in tis}
+        tis_by_id = {ti.id: ti for ti in tis}
 
         response = test_client.post(
             f"/dags/{dr.dag_id}/clearTaskInstances",
@@ -3573,9 +3570,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 or (later and ti.region_id == root.id and ti.region_index > 1)
             )
         assert {
-            (row["task_id"], row["region_id"], row["region_index"])
+            (row["task_id"], row.get("region_id"), row.get("region_index"))
             for row in response.json()["task_instances"]
-        } == {coordinates[value] for value in expected}
+        } == {_public_coordinates(tis_by_id[value]) for value in expected}
         session.expire_all()
         if dry_run:
             assert {
@@ -3730,10 +3727,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             )
         } - archived_before
         reported = {
-            (row["task_id"], row["region_id"], row["region_index"]) for row in dry.json()["task_instances"]
+            (row["task_id"], row.get("region_id"), row.get("region_index"))
+            for row in dry.json()["task_instances"]
         }
         replaced = {
-            (ti.task_id, str(ti.region_id), ti.region_index)
+            _public_coordinates(ti)
             for ti in session.scalars(
                 select(TaskInstance)
                 .where(TaskInstance.id.in_(archived_ids))
@@ -3742,7 +3740,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         }
         assert reported == replaced
         assert {
-            (row["task_id"], row["region_id"], row["region_index"]) for row in real.json()["task_instances"]
+            (row["task_id"], row.get("region_id"), row.get("region_index"))
+            for row in real.json()["task_instances"]
         } >= reported
 
     @pytest.mark.parametrize("new_note", [None, "Reason for clearing", ""])
@@ -4499,8 +4498,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "id": response_data["task_instances"][0]["id"],
                 "logical_date": response_logical_date,
                 "map_index": -1,
-                "region_id": "00000000-0000-0000-0000-000000000000",
-                "region_index": -1,
                 "max_tries": 0,
                 "note": "placeholder-note",
                 "operator": "PythonOperator",
@@ -6097,8 +6094,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "hostname": "",
                     "id": response_data["task_instances"][0]["id"],
                     "map_index": -1,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": -1,
                     "max_tries": 0,
                     "note": "placeholder-note",
                     "operator": "PythonOperator",
@@ -6378,8 +6373,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "hostname": "",
                             "id": mock.ANY,
                             "map_index": -1,
-                            "region_id": "00000000-0000-0000-0000-000000000000",
-                            "region_index": -1,
                             "max_tries": 0,
                             "note": "placeholder-note",
                             "operator": "PythonOperator",
@@ -6519,8 +6512,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": -1,
                     "max_tries": 0,
                     "note": new_note_value,
                     "operator": "PythonOperator",
@@ -6587,8 +6578,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": -1,
                     "max_tries": 0,
                     "note": new_note_value,
                     "operator": "PythonOperator",
@@ -6702,8 +6691,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "executor_config": "{}",
                         "hostname": "",
                         "map_index": map_index,
-                        "region_id": "00000000-0000-0000-0000-000000000000",
-                        "region_index": map_index,
                         "max_tries": 0,
                         "note": new_note_value,
                         "operator": "PythonOperator",
@@ -6791,8 +6778,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "executor_config": "{}",
                 "hostname": "",
                 "map_index": map_index,
-                "region_id": "00000000-0000-0000-0000-000000000000",
-                "region_index": map_index,
                 "max_tries": 0,
                 "note": new_note_value,
                 "operator": "PythonOperator",
@@ -6992,8 +6977,6 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "hostname": "",
                     "id": response_data["task_instances"][0]["id"],
                     "map_index": -1,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": -1,
                     "max_tries": 0,
                     "note": "placeholder-note",
                     "operator": "PythonOperator",
@@ -7285,8 +7268,6 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "hostname": "",
                             "id": mock.ANY,
                             "map_index": -1,
-                            "region_id": "00000000-0000-0000-0000-000000000000",
-                            "region_index": -1,
                             "max_tries": 0,
                             "note": "placeholder-note",
                             "operator": "PythonOperator",

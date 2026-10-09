@@ -2660,8 +2660,8 @@ class TaskInstanceResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
-    region_id: Annotated[UUID, Field(title="Region Id")]
-    region_index: Annotated[int, Field(title="Region Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     run_after: Annotated[datetime, Field(title="Run After")]
     start_date: Annotated[datetime | None, Field(title="Start Date")]

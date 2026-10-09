@@ -1358,15 +1358,11 @@ components:
           title: Map Index
           default: -1
         region_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
+          type: string
+          format: uuid
           title: Region Id
         region_index:
-          anyOf:
-          - type: integer
-          - type: 'null'
+          type: integer
           title: Region Index
         hostname:
           anyOf:

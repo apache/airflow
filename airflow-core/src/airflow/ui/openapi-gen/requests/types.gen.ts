@@ -2193,8 +2193,8 @@ export type TaskInstanceResponse = {
     dag_id: string;
     dag_run_id: string;
     map_index: number;
-    region_id: string;
-    region_index: number;
+    region_id?: string;
+    region_index?: number;
     logical_date: string | null;
     run_after: string;
     start_date: string | null;

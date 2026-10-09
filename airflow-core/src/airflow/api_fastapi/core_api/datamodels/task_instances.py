@@ -35,6 +35,7 @@ from pydantic import (
 )
 
 from airflow._shared.secrets_masker import redact
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
@@ -49,7 +50,7 @@ class NewTaskResponse(BaseModel):
     task_display_name: str
 
 
-class TaskInstanceResponse(BaseModel):
+class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
     """TaskInstance serializer for responses."""
 
     id: UUID
@@ -57,8 +58,8 @@ class TaskInstanceResponse(BaseModel):
     dag_id: str
     run_id: str = Field(alias="dag_run_id")
     map_index: int
-    region_id: UUID
-    region_index: int
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     logical_date: datetime | None
     run_after: datetime
     start_date: datetime | None
