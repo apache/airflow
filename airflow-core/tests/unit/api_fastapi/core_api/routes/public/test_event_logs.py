@@ -22,6 +22,7 @@ from unittest import mock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -291,7 +292,8 @@ class TestGetEventLog(TestEventLogsEndpoint):
     def test_non_dag_row_is_gated_on_audit_logs_all(
         self, test_client, setup, can_view_all_audit_logs, expected_status_code
     ):
-        """A row with a NULL dag_id records an operation that is not tied to a Dag -- a
+        """
+        A row with a NULL dag_id records an operation that is not tied to a Dag -- a
         Connection, Variable or Pool change -- so it has no per-Dag key to authorize on.
         Visibility is gated on the dedicated ``AUDIT_LOGS_ALL`` view rather than riding on
         Dag-level audit log access, which every viewer holds.
@@ -309,7 +311,8 @@ class TestGetEventLog(TestEventLogsEndpoint):
         )
 
     def test_unknown_id_stays_404_and_does_not_consult_audit_logs_all(self, test_client, setup):
-        """An id that matches no row must answer 404, not 403.
+        """
+        An id that matches no row must answer 404, not 403.
 
         A missing row and a NULL dag_id both read back as ``None``, so the guard has to tell
         them apart: turning an unknown id into a permission error would change the documented
@@ -339,10 +342,10 @@ class TestGetEventLog(TestEventLogsEndpoint):
 
 
 class TestGetEventLogs(TestEventLogsEndpoint):
-    @pytest.mark.parametrize("archived", [False, True])
+    @pytest.mark.parametrize("fate", ["live", "archived", "purged"])
     @pytest.mark.parametrize("mapped", [False, True])
     def test_projects_public_mapping_index_for_exact_execution(
-        self, test_client, dag_maker, session, archived, mapped
+        self, test_client, dag_maker, session, fate, mapped
     ):
         @task_group
         def body():
@@ -377,8 +380,10 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         event = Log(event="success", task_instance=ti)
         session.add(event)
         session.flush()
-        if archived:
+        if fate == "archived":
             ti.prepare_db_for_next_try(session=session)
+        elif fate == "purged":
+            session.execute(delete(TaskInstance.__table__).where(TaskInstance.__table__.c.id == identity))
         session.commit()
         expected_index = 1 if mapped else -1
 
@@ -392,22 +397,28 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         assert listed.json()["total_entries"] == 1
         assert listed.json()["event_logs"][0]["map_index"] == expected_index
 
+    @pytest.mark.parametrize("mapped", [False, True])
     def test_row_without_attempt_takes_the_display_name_of_its_live_task_instance(
-        self, test_client, session, create_task_instance
+        self, test_client, session, dag_maker, mapped
     ):
-        task_instance = create_task_instance(
-            session=session, dag_id="legacy_audit", task_id="work", run_id="legacy_run"
-        )
+        with dag_maker(dag_id="legacy_audit", serialized=True):
+            if mapped:
+                PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+            else:
+                EmptyOperator(task_id="work")
+        run = dag_maker.create_dagrun()
+        index = 1 if mapped else -1
+        task_instance = next(ti for ti in run.task_instances if ti.region_index == index)
         task_instance._task_display_property_value = "Shown name"
         before_upgrade = Log(
             event="success",
             dag_id="legacy_audit",
             task_id="work",
-            run_id="legacy_run",
-            map_index=-1,
+            run_id=run.run_id,
+            map_index=index,
         )
         other_task = Log(
-            event="success", dag_id="legacy_audit", task_id="other", run_id="legacy_run", map_index=-1
+            event="success", dag_id="legacy_audit", task_id="other", run_id=run.run_id, map_index=index
         )
         session.add_all([before_upgrade, other_task])
         session.commit()
@@ -463,7 +474,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         assert [row["event_log_id"] for row in response.json()["event_logs"]] == (
             [] if unknown else [events[1].id]
         )
-        assert all(row["map_index"] is None for row in response.json()["event_logs"])
+        assert all(row["map_index"] == -1 for row in response.json()["event_logs"])
 
     @pytest.mark.parametrize(
         ("query_params", "expected_status_code", "expected_total_entries", "expected_events"),
@@ -579,17 +590,6 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         assert resp_json["total_entries"] == expected_total_entries
         for event_log, expected_event in zip(resp_json["event_logs"], expected_events):
             assert event_log["event"] == expected_event
-
-    def test_get_event_logs_count_query_skips_public_map_index_subquery(self, test_client):
-        with capture_orm_selects("log") as statements:
-            response = test_client.get("/eventLogs")
-
-        assert response.status_code == 200
-        count_statements = [statement for statement in statements if "count(" in statement.lower()]
-        page_statements = [statement for statement in statements if "count(" not in statement.lower()]
-        assert len(count_statements) == 1
-        assert "FROM task_instance" not in count_statements[0]
-        assert any("FROM task_instance" in statement for statement in page_statements)
 
     def test_get_event_logs_selects_only_display_name_columns(self, test_client):
         with capture_orm_selects("log") as statements:
@@ -756,7 +756,8 @@ class TestGetEventLogs(TestEventLogsEndpoint):
     def test_non_dag_rows_are_gated_on_audit_logs_all(
         self, test_client, can_view_all_audit_logs, expected_events
     ):
-        """Rows with a NULL dag_id are returned only to callers holding ``AUDIT_LOGS_ALL``.
+        """
+        Rows with a NULL dag_id are returned only to callers holding ``AUDIT_LOGS_ALL``.
 
         Before this gate every caller that could read event logs at all received them, which
         for the default auth manager is any viewer. ``EVENT_NORMAL`` and ``EVENT_WITH_OWNER``

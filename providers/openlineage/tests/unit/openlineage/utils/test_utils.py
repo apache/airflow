@@ -413,7 +413,8 @@ def test_dag_run_team_name(mock_getboolean, mock_object_session, mock_get_team_n
 @patch("sqlalchemy.orm.object_session")
 @patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
 def test_dag_run_team_name_from_execution_api_dag_run(mock_getboolean, mock_object_session, team_name):
-    """The task runner has no DB session, so a DagRun carrying `team_name` must be trusted as-is.
+    """
+    The task runner has no DB session, so a DagRun carrying `team_name` must be trusted as-is.
 
     The cascade must stop at the first step — the DB lookup (object_session) must never be reached.
     """
@@ -480,7 +481,8 @@ def test_dag_run_team_name_below_airflow_3_3():
 @patch("sqlalchemy.orm.object_session")
 @patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
 def test_dag_run_team_name_from_scheduler_stamp(mock_getboolean, mock_object_session):
-    """Scheduler stamps _team_name on ORM DagRun objects; the attribute is read back as-is.
+    """
+    Scheduler stamps _team_name on ORM DagRun objects; the attribute is read back as-is.
 
     The cascade must stop at `_team_name` — the DB lookup (object_session) must never be reached.
     """
@@ -1646,7 +1648,7 @@ def test_build_labeled_edge_map_cross_group_via_downstream_join():
 
 
 def test_build_labeled_edge_map_mixed_task_and_group_edges():
-    """task >> TaskGroup produces both task_edges (per-root) and group_edges (group-level)."""
+    """Task >> TaskGroup produces both task_edges (per-root) and group_edges (group-level)."""
     with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         start = EmptyOperator(task_id="start")
         branch = EmptyOperator(task_id="branch")
@@ -1696,7 +1698,7 @@ def test_build_labeled_edge_map_multiple_targets_same_group():
 
 
 def test_build_labeled_edge_map_task_to_taskgroup():
-    """task >> TaskGroup: per-root entries in task_edges, group-level in group_edges."""
+    """Task >> TaskGroup: per-root entries in task_edges, group-level in group_edges."""
     with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         start = EmptyOperator(task_id="start")
         with TaskGroup("grp") as tg:
@@ -1740,7 +1742,6 @@ def test_get_tasks_details_with_edge_labels():
 
     See ``_build_labeled_edge_map`` docstring for classification rules and consumer guidance.
     """
-
     with DAG(dag_id="labeled_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         start = BashOperator(task_id="start", bash_command="echo start")
         branch_a = BashOperator(task_id="branch_a", bash_command="echo a")
@@ -3898,6 +3899,28 @@ def test_regional_run_id_is_the_execution_uuid_only_inside_a_loop(in_loop):
     assert get_regional_task_instance_run_id(ti) == (str(ti.id) if in_loop else None)
 
 
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+@pytest.mark.parametrize("mapped", [False, True])
+def test_orm_regional_run_id_is_the_execution_uuid_only_outside_a_plain_expansion(dag_maker, session, mapped):
+    with dag_maker(serialized=True):
+        if mapped:
+            PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+        else:
+            EmptyOperator(task_id="work")
+    run = dag_maker.create_dagrun()
+    ti = max(run.task_instances, key=lambda ti: ti.region_index)
+    if not mapped:
+        region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
+        session.add(region)
+        session.flush()
+        ti.region_id = region.id
+    session.flush()
+    ti.task = None
+
+    assert get_regional_task_instance_run_id(ti) == (None if mapped else str(ti.id))
+
+
 class TestExtractOlInfoFromAssetEvent:
     """Tests for _extract_ol_info_from_asset_event function."""
 
@@ -3948,8 +3971,9 @@ class TestExtractOlInfoFromAssetEvent:
         session.add(nested)
         session.flush()
         events = []
+        tis = {}
         for region, task_id in [(root, "mapped"), (loop, "work"), (nested, "nested")]:
-            ti = SimpleNamespace(
+            ti = tis[task_id] = SimpleNamespace(
                 id=uuid4(),
                 dag_id=run.dag_id,
                 task_id=task_id,
@@ -3978,10 +4002,8 @@ class TestExtractOlInfoFromAssetEvent:
             dependencies = _get_ol_job_dependencies_from_asset_events(events)
 
         assert len(dependencies) == 3
-        assert {item["job_name"] for item in dependencies if "run_id" in item} == {
-            f"{run.dag_id}.mapped",
-            f"{run.dag_id}.work",
-            f"{run.dag_id}.nested",
+        assert {(item["job_name"], item["run_id"]) for item in dependencies} == {
+            (f"{run.dag_id}.{task_id}", str(ti.id)) for task_id, ti in tis.items()
         }
         assert all(len(item["asset_events"]) == 10 for item in dependencies)
 
@@ -4357,7 +4379,8 @@ class TestGetOlJobDependenciesFromAssetEvents:
 
 
 class TestGetDagJobDependencyFacet:
-    """Tests for get_dag_job_dependency_facet function.
+    """
+    Tests for get_dag_job_dependency_facet function.
 
     These tests mock only the DB-accessing function (_get_eagerly_loaded_dagrun_consumed_asset_events)
     to test the full flow of facet generation including event processing and facet building.

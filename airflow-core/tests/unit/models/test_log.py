@@ -26,9 +26,11 @@ from sqlalchemy.orm import joinedload
 
 from airflow.models.dag import DagModel, clear_team_name_cache
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.log import Log
 from airflow.models.team import Team
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
@@ -169,6 +171,75 @@ class TestLogTaskInstanceId:
         assert (
             Log(event="event", task_instance=ti, task_instance_id=attempt_id).task_instance_id == attempt_id
         )
+
+
+class TestLogPublicMapIndex:
+    @pytest.fixture
+    def make_task_instance(self, dag_maker, session):
+        def make(mapped: bool):
+            with dag_maker("log_public_map_index", session=session):
+                if mapped:
+                    PythonOperator.partial(task_id="work", python_callable=list).expand(
+                        op_kwargs=[{}, {}, {}]
+                    )
+                else:
+                    EmptyOperator(task_id="work")
+            run = dag_maker.create_dagrun()
+            ti = max(run.task_instances, key=lambda ti: ti.region_index)
+            if not mapped:
+                region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
+                session.add(region)
+                session.flush()
+                ti.region_id, ti.region_index = region.id, 2
+            session.flush()
+            return ti
+
+        return make
+
+    @pytest.mark.parametrize(("mapped", "expected"), [(True, 2), (False, -1)])
+    @pytest.mark.parametrize("keyed_by_coordinates", [False, True])
+    def test_attributed_event_stores_the_index_a_client_sees(
+        self, make_task_instance, session, mapped, expected, keyed_by_coordinates
+    ):
+        ti = make_task_instance(mapped)
+        log = (
+            Log(event="event", task_instance=ti.key, task_instance_id=ti.id)
+            if keyed_by_coordinates
+            else Log(event="event", task_instance=ti)
+        )
+        assert log.map_index == 2
+
+        session.add(log)
+        session.flush()
+
+        assert log.map_index == expected
+
+    def test_event_of_a_task_instance_in_no_region_keeps_its_index(self, dag_maker, session):
+        with dag_maker("log_legacy_map_index", session=session):
+            EmptyOperator(task_id="work")
+        ti = dag_maker.create_dagrun().get_task_instance("work")
+        log = Log(event="event", task_instance=ti)
+
+        session.add(log)
+        session.flush()
+
+        assert log.map_index == -1
+
+    def test_event_of_a_purged_task_instance_keeps_the_index_it_was_given(self, session):
+        log = Log(event="event", task_instance_id=uuid4(), map_index=5)
+
+        session.add(log)
+        session.flush()
+
+        assert log.map_index == 5
+
+    def test_event_without_a_task_instance_keeps_the_index_it_was_given(self, session):
+        log = Log(event="event", map_index=5)
+
+        session.add(log)
+        session.flush()
+
+        assert log.map_index == 5
 
 
 class TestLogTeamName:

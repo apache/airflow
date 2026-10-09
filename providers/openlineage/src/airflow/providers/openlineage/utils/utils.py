@@ -671,18 +671,14 @@ def get_task_instance_map_index(task_instance: TaskInstance | RuntimeTaskInstanc
         if task_instance.region_id.int == 0:
             return task_instance.region_index
 
-        from sqlalchemy import select
         from sqlalchemy.orm import object_session
 
-        from airflow.models.dynamic_region import DynamicRegion
+        from airflow.models.task_coordinates import get_public_map_index
         from airflow.utils.session import create_session
 
         session = object_session(task_instance)
         with nullcontext(session) if session is not None else create_session() as session:
-            region_node_id = session.scalar(
-                select(DynamicRegion.node_id).where(DynamicRegion.id == task_instance.region_id)
-            )
-        return task_instance.region_index if region_node_id == task_instance.task_id else -1
+            return get_public_map_index(task_instance, session=session)
     return getattr(task_instance, "map_index", -1)
 
 
@@ -1518,15 +1514,12 @@ def _is_task_instance_in_loop(task_instance: TaskInstance | RuntimeTaskInstance)
     if isinstance(task_instance, TaskInstance):
         from sqlalchemy.orm import object_session
 
-        from airflow.models.dynamic_region import DynamicRegion
+        from airflow.models.task_coordinates import is_plain_expansion
         from airflow.utils.session import create_session
 
         session = object_session(task_instance)
         with nullcontext(session) if session is not None else create_session() as session:
-            region = session.get(DynamicRegion, task_instance.region_id)
-        return (
-            region is None or region.node_id != task_instance.task_id or region.parent_region_id is not None
-        )
+            return not is_plain_expansion(task_instance, session=session)
     return True
 
 

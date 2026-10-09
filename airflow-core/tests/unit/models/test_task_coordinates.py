@@ -24,7 +24,12 @@ from airflow.executors.workloads.task import ExecuteTask
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dynamic_region import AmbiguousProducerError, DynamicRegion
-from airflow.models.task_coordinates import TaskCoordinateResolver, build_coordinate_filters
+from airflow.models.task_coordinates import (
+    TaskCoordinateResolver,
+    build_coordinate_filters,
+    get_public_map_index,
+    is_plain_expansion,
+)
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -52,6 +57,34 @@ def test_removed_task_coordinates_degrade_to_stored_region_data(dag_maker, sessi
     resolver = TaskCoordinateResolver(DBDagBag(), session)
 
     assert sorted(resolver.public_map_index(ti) for ti in removed) == [0, 1]
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected_index", "expected_plain", "expected_queries"),
+    [("legacy", 2, False, 0), ("mapped", 2, True, 1), ("loop", -1, False, 1)],
+)
+def test_public_map_index_and_plain_expansion_of_a_persisted_task_instance(
+    dag_maker, session, kind, expected_index, expected_plain, expected_queries
+):
+    with dag_maker("public-index", serialized=True):
+        if kind == "mapped":
+            PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}, {}])
+        else:
+            EmptyOperator(task_id="work")
+    dr = dag_maker.create_dagrun()
+    ti = max(dr.task_instances, key=lambda ti: ti.region_index)
+    if kind != "mapped":
+        ti.region_index = 2
+    if kind == "loop":
+        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="loop")
+        session.add(region)
+        session.flush()
+        ti.region_id = region.id
+    session.flush()
+
+    with assert_queries_count(expected_queries):
+        assert get_public_map_index(ti, session=session) == expected_index
+    assert is_plain_expansion(ti, session=session) is expected_plain
 
 
 @pytest.fixture

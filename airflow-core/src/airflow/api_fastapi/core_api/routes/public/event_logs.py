@@ -50,10 +50,7 @@ from airflow.api_fastapi.core_api.security import (
     ReadableEventLogsFilterDep,
     requires_access_event_log,
 )
-from airflow.api_fastapi.core_api.services.public.event_logs import (
-    event_log_public_map_index,
-    event_log_to_response,
-)
+from airflow.api_fastapi.core_api.services.public.event_logs import event_log_to_response
 from airflow.models import DagModel, Log, TaskInstance
 
 if TYPE_CHECKING:
@@ -90,21 +87,19 @@ def get_event_log(
     event_log_id: int,
     session: SessionDep,
 ) -> EventLogResponse:
-    row = session.execute(
+    event_log = session.scalars(
         # Log.dttm is nullable at the DB level, but EventLogResponse.when is a non-optional
         # datetime. Rows with dttm=NULL would cause a Pydantic validation error (500), so
         # exclude them here. Such rows can exist in legacy installs or via direct DB inserts
         # that bypass Log.__init__ (which always sets dttm = timezone.utcnow()).
         # Making EventLogResponse.when nullable would be a breaking API contract change for
         # clients that currently rely on `when` always being present.
-        select(Log, event_log_public_map_index())
-        .where(Log.id == event_log_id, Log.dttm.is_not(None))
-        .options(*_eager_load_display_names())
+        select(Log).where(Log.id == event_log_id, Log.dttm.is_not(None)).options(*_eager_load_display_names())
     ).one_or_none()
-    if row is None:
+    if event_log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Event Log with id: `{event_log_id}` not found")
 
-    return event_log_to_response(event_log=row[0], public_map_index=row[1])
+    return event_log_to_response(event_log=event_log)
 
 
 @event_logs_router.get(
@@ -145,7 +140,7 @@ def get_event_logs(
     run_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.run_id, str | None))],
     map_index: Annotated[
         FilterParam[int | None],
-        Depends(filter_param_factory(event_log_public_map_index(), int | None, filter_name="map_index")),
+        Depends(filter_param_factory(Log.map_index, int | None)),
     ],
     try_number: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.try_number, int | None))],
     owner: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.owner, str | None))],
@@ -259,12 +254,9 @@ def get_event_logs(
         limit=limit,
         session=session,
     )
-    event_logs = session.execute(event_logs_select.add_columns(event_log_public_map_index())).all()
+    event_logs = session.scalars(event_logs_select).all()
 
     return EventLogCollectionResponse(
-        event_logs=[
-            event_log_to_response(event_log=event_log, public_map_index=public_index)
-            for event_log, public_index in event_logs
-        ],
+        event_logs=[event_log_to_response(event_log=event_log) for event_log in event_logs],
         total_entries=total_entries,
     )

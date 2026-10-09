@@ -16,29 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import case, inspect, select
+from typing import TYPE_CHECKING
+
+from sqlalchemy import inspect
 from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow.api_fastapi.core_api.datamodels.event_logs import EventLogResponse
-from airflow.models import Log
-from airflow.models.task_coordinates import public_map_index_expression
-from airflow.models.taskinstance import TaskInstance
+
+if TYPE_CHECKING:
+    from airflow.models import Log
 
 
-def event_log_public_map_index():
-    """Resolve an attributed execution's public index without guessing once its row has been purged."""
-    # The Table, unlike the ORM entity, is not narrowed to working_set rows, so archived tries still resolve.
-    task_instances = TaskInstance.__table__
-    attributed = (
-        select(public_map_index_expression(task_instances))
-        .where(task_instances.c.id == Log.task_instance_id)
-        .correlate(Log)
-        .scalar_subquery()
-    )
-    return case((Log.task_instance_id.is_(None), Log.map_index), else_=attributed).label("public_map_index")
-
-
-def event_log_to_response(event_log: Log, *, public_map_index: int | None) -> EventLogResponse:
+def event_log_to_response(event_log: Log) -> EventLogResponse:
     # owner_display_name is stored when the action is logged (the API layer populates it; other Log
     # creation paths leave it unset). Resolve it once, at log time, and only fall back to the raw
     # owner here so the value stays stable no matter who views the entry later. set_committed_value
@@ -54,6 +43,4 @@ def event_log_to_response(event_log: Log, *, public_map_index: int | None) -> Ev
     if event_log.task_instance is None and event_log.coordinate_task_instance is not None:
         set_committed_value(event_log, "task_instance", event_log.coordinate_task_instance)
 
-    response = EventLogResponse.model_validate(event_log)
-    response.map_index = public_map_index
-    return response
+    return EventLogResponse.model_validate(event_log)
