@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-hashicorp``
 
-Release: ``4.8.2``
+Release: ``4.8.3``
 
 
 Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``hashicorp`` provider. All classes for this prov
 are in ``airflow.providers.hashicorp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-hashicorp/4.8.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-hashicorp/4.8.3/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-hashicorp``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -83,9 +83,9 @@ Optional dependencies
 ==========  ===================================
 Extra       Dependencies
 ==========  ===================================
-``boto3``   ``boto3>=1.37.2``
+``boto3``   ``boto3>=1.42.79``
 ``google``  ``apache-airflow-providers-google``
 ==========  ===================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-hashicorp/4.8.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-hashicorp/4.8.3/changelog.html>`_.

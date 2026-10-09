@@ -82,11 +82,17 @@ class SmtpHook(BaseHook):
         return await self.aget_conn()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._smtp_client.close()
+        try:
+            self._smtp_client.close()
+        finally:
+            self._smtp_client = None
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self._smtp_client:
-            await self._smtp_client.quit()
+            try:
+                await self._smtp_client.quit()
+            finally:
+                self._smtp_client = None
 
     def _setup_oauth2(self) -> tuple[str, str]:
         """

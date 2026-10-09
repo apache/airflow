@@ -27,7 +27,7 @@ import typing
 import uuid
 import zipfile
 from collections.abc import Callable, Iterable
-from socket import socketpair
+from socket import socket, socketpair
 from typing import TYPE_CHECKING, Any, BinaryIO
 from unittest.mock import MagicMock, PropertyMock, patch
 
@@ -54,6 +54,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import DagFileProcessorManager, process_parse_results
 from airflow.dag_processing.processor import (
+    BaseDagFileProcessorProcess,
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
@@ -89,6 +90,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.sdk.importers import DagSourceCode
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -786,9 +788,7 @@ def test_parse_file_reports_definitions_source_codes_and_dag_warnings(mock_dag_w
     )
 
     assert result.parsed_definitions == ["dags.zip/member.py"]
-    assert result.dag_source_codes == {
-        os.fspath(tmp_path / "dags.zip" / "member.py"): DagSourceCode(source_code=source, language="python")
-    }
+    assert result.dag_source_codes == {"member": DagSourceCode(source_code=source, language="python")}
     assert result.warnings == [
         {"dag_id": "member", "warning_type": "test:deprecated_field", "message": "Deprecated field"}
     ]
@@ -1288,6 +1288,22 @@ class TestExecuteDagCallbacks:
 
         with pytest.raises(ValueError, match="DAG 'missing_dag' not found in DagBag"):
             _execute_dag_callbacks(dagbag, request, log)
+
+    def test_execute_dag_callbacks_native_dag(self, tmp_path):
+        dagbag = DagBag(dag_folder=tmp_path)
+        native_dag = DAG("native_dag", schedule=None)
+        dagbag.dags["native_dag"] = DagSerialization.from_dict(DagSerialization.to_dict(native_dag))
+        request = DagCallbackRequest(
+            filepath="dags.native",
+            dag_id="native_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+        )
+
+        with pytest.raises(ValueError, match="DAG 'native_dag' is a native Lang-SDK Dag"):
+            _execute_dag_callbacks(dagbag, request, structlog.get_logger())
 
     @pytest.mark.parametrize(
         ("xcom_operation", "expected_message_type", "expected_message", "mock_response"),
@@ -2299,6 +2315,7 @@ class TestDagProcessingMessageTypes:
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
             "SetRenderedMapIndex",
+            "SetExecutionTimeout",
             # AIP-103 task/asset store — Dag processor has no task execution context.
             "GetTaskStateStore",
             "SetTaskStateStore",
@@ -2390,6 +2407,34 @@ class TestDagFileProcessorProcess:
             error=comms.ErrorResponse(detail={"status_code": 400, "message": "Unhandled request"}),
         )
         assert not proc.client.mock_calls
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    @pytest.mark.parametrize(
+        "message_type",
+        DagFileProcessorProcess._client_request_types,
+        ids=lambda message_type: message_type.__name__,
+    )
+    def test_client_requests_get_an_error_without_a_client(self, send_msg, proc, message_type):
+        proc.client = None
+        proc._handle_request(message_type.model_construct(), structlog.get_logger(), req_id=42)
+
+        send_msg.assert_called_once_with(
+            proc,
+            None,
+            request_id=42,
+            error=comms.ErrorResponse(
+                detail={"message": f"{message_type.__name__} is answered only in the Dag processor"}
+            ),
+        )
+
+    @patch("airflow.sdk.execution_time.request_handlers.mask_secret", autospec=True)
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_a_secret_is_masked_without_a_client(self, send_msg, mock_mask_secret, proc):
+        proc.client = None
+        proc._handle_request(comms.MaskSecret(value="secret", name="conn"), structlog.get_logger(), req_id=42)
+
+        mock_mask_secret.assert_called_once_with("secret", "conn")
+        send_msg.assert_called_once_with(proc, None, request_id=42, error=None)
 
     @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
     def test_dispatch_parsing_result(self, send_msg, proc):
@@ -2544,6 +2589,27 @@ class TestDagFileProcessorProcess:
             "value": "super-secret-value",
             "type": "VariableResult",
         }
+
+
+class TestBaseDagFileProcessorProcess:
+    @patch.object(BaseDagFileProcessorProcess, "cleanup_sockets_after_kill", autospec=True)
+    def test_without_a_parse_log_the_output_goes_to_devnull_and_close_closes_it(self, mock_cleanup):
+        proc = BaseDagFileProcessorProcess(
+            process_log=structlog.get_logger(),
+            id=uuid.uuid4(),
+            pid=1234,
+            process=MagicMock(spec=supervisor.ProcessTracker),
+            stdin=MagicMock(spec=socket),
+            bundle_name="mybundle",
+            dag_file_rel_path="dags/my_dag.py",
+        )
+        logger_filehandle = proc.logger_filehandle
+
+        proc.close()
+
+        assert logger_filehandle.name == os.devnull
+        assert logger_filehandle.closed
+        mock_cleanup.assert_called_once_with(proc)
 
 
 class TestMultiTeamCallbackMetrics:

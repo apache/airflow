@@ -166,6 +166,39 @@ Using multiple MCP servers
         ],
     )
 
+.. _howto/toolset:mcp-filtered:
+
+Offer only some of a server's tools
+-----------------------------------
+
+``MCPToolset`` offers the model every tool the server lists. To offer fewer, wrap it
+with ``.filtered()``. The function you pass receives the run context and each tool's
+definition, and the model is offered only the tools it returns ``True`` for:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_mcp.py
+    :language: python
+    :start-after: [START howto_toolset_mcp_filtered]
+    :end-before: [END howto_toolset_mcp_filtered]
+
+Against a server that lists ``get_forecast``, ``get_alerts`` and ``delete_alert``, the
+model is offered the first two. If it calls ``delete_alert`` anyway, the call never
+reaches the server, and the model gets this back instead of a result:
+
+.. code-block:: text
+
+    Unknown tool name: 'delete_alert'. Available tools: 'get_alerts', 'get_forecast'
+
+    Fix the errors and try again.
+
+With ``tool_prefix`` set, the filter sees the prefixed names, such as
+``weather_get_forecast``. The filter runs in the worker and changes only what this
+agent is offered. It does not change what the server lets the connection's credential
+do, so give the connection the narrowest credential the server accepts.
+
+To keep a tool available but have a person approve a call to it before it runs, wrap
+the toolset with ``.approval_required()`` instead. A task instance can pause for
+approval once per Dag run; see :doc:`../tool_approval`.
+
 Direct pydantic-ai MCP toolsets
 -------------------------------
 
@@ -209,12 +242,12 @@ yourself.
   ``MCPToolset`` is itself built on the same ``AbstractToolset`` base every
   toolset in this provider extends, a Dag author can call ``.filtered()`` to
   subset the advertised tool list using a filter function that inspects each
-  tool's definition. That filtering happens on the client: it narrows what
-  the agent is offered, it does not revoke or authorize anything on the
-  server, and unlike ``allowed_methods`` on ``HookToolset``, which is required
-  and rejects an empty list, nothing here requires you to set a filter. The
-  defense-layer table is explicit that a server can expose shell, filesystem
-  or network access.
+  tool's definition (see :ref:`howto/toolset:mcp-filtered`). That filtering
+  happens on the client: it narrows what the agent is offered, it does not
+  revoke or authorize anything on the server, and unlike ``allowed_methods`` on
+  ``HookToolset``, which is required and rejects an empty list, nothing here
+  requires you to set a filter. The defense-layer table is explicit that a
+  server can expose shell, filesystem or network access.
 - It cannot guarantee the credential came from a connection. ``mcp_conn_id`` is
   the default path, but ``token_provider`` and ``env_provider`` are your own
   callables and are free to read an environment variable, a file, or an entirely

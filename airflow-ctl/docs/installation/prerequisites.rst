@@ -65,7 +65,7 @@ use cases. Simply install them to make them available:
 
 Python Version Compatibility
 ----------------------------
-``airflowctl`` is compatible with versions of Python 3.10 through Python 3.14.
+``airflowctl`` is compatible with versions of Python 3.11 through Python 3.14.
 
 .. list-table::
    :widths: 15 85
@@ -73,8 +73,6 @@ Python Version Compatibility
 
    * - Python Version
      - Supported
-   * - 3.10
-     - Yes
    * - 3.11
      - Yes
    * - 3.12

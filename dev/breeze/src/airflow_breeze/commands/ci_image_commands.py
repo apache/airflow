@@ -1063,7 +1063,7 @@ def import_mount_cache(
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
     dockerfile = """
     # syntax=docker/dockerfile:1.4
-    FROM python:3.10-slim-bookworm
+    FROM python:3.11-slim-bookworm
     ARG TARGETARCH
     ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
     COPY cache.tar.gz /root/.cache.tar.gz
@@ -1106,7 +1106,9 @@ def import_mount_cache(
     console_print("[info]Built temporary image and copied cache[/]")
     console_print("[info]Removing temporary image[/]")
     run_command(["docker", "rmi", "airflow-import-cache"], check=True)
-    run_command(["docker", "system", "prune", "-f"], check=True)
+    # Not `docker system prune`: it also removes unused build cache, which includes the cache
+    # mount that was just filled, so the next build would start with an empty uv cache.
+    run_command(["docker", "image", "prune", "-f"], check=True)
     console_print("[info]Built temporary image and copying context[/]")
     console_print(f"[info]Removing context: {context}[/]")
     context_cache_file.unlink()

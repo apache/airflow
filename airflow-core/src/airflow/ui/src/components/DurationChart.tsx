@@ -185,7 +185,7 @@ export const DurationChart = ({
           }}
           datasetIdKey="id"
           options={{
-            animation: isAutoRefreshing ? false : undefined,
+            animation: !isAutoRefreshing && undefined,
             maintainAspectRatio: false,
             onClick: (_event, elements) => {
               const [element] = elements;

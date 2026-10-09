@@ -35,7 +35,6 @@
         "title": "Reompliment generat"
       }
     },
-    "unpause": "Reactivar {{dag_display_name}} a l'executar",
     "validation": {
       "datesRequired": "S'ha de proporcionar tant la data d'inici com la data de finalització.",
       "startBeforeEnd": "La data d'inici de l'interval de dates ha de ser anterior o igual a la data de finalització de l'interval de dates."
@@ -53,7 +52,6 @@
   },
   "close": "Tancar",
   "configForm": {
-    "advancedOptions": "Opcions avançades",
     "configJson": "Configuració JSON",
     "invalidJson": "Format JSON no vàlid: {{errorMessage}}"
   },
@@ -132,11 +130,23 @@
     "hide": "Amagar el valor",
     "show": "Mostrar el valor"
   },
+  "pausedDag": {
+    "drain": "Finalitzar execucions pendents",
+    "drainDescription": "Les execucions inacabades continuen, però no es creen execucions programades. Els reompliments pausats continuen pausats. El Dag es torna a pausar quan totes les execucions inacabades finalitzen.",
+    "keepPaused": "Mantenir pausat",
+    "keepPausedDescription": "Les execucions noves i inacabades esperen fins que es reactiva el Dag.",
+    "title": "El Dag està pausat",
+    "unfinishedRunsWillRun_one": "S'iniciarà o es reprendrà 1 execució de Dag inacabada.",
+    "unfinishedRunsWillRun_other": "S'iniciaran o es reprendran {{count}} execucions de Dag inacabades.",
+    "unpause": "Reactivar",
+    "unpauseDescription": "El Dag s'activa: les execucions inacabades continuen i es reprèn la programació. Els reompliments pausats continuen pausats."
+  },
   "reparseDag": "Reanalitzar el Dag",
   "slowestTaskInstances": {
     "empty": "No hi ha cap instància de tasca completada en aquest interval",
     "title": "Instàncies de tasca més lentes"
   },
+  "sortMultiColumnHint": "Feu clic amb la tecla Maj premuda per ordenar per diverses columnes",
   "sortedAscending": "ordenat de manera ascendent",
   "sortedDescending": "ordenat de manera descendent",
   "sortedUnsorted": "no ordenat",
@@ -156,6 +166,7 @@
     "dataInterval": "Interval de dades",
     "dataIntervalAuto": "Inferit a partir de la data lògica i el calendari",
     "dataIntervalManual": "Especificar manualment",
+    "editConfigAndTrigger": "Editar configuració i executar",
     "intervalEnd": "Fi",
     "intervalStart": "Inici",
     "loading": "Carregant informació del Dag...",
@@ -176,7 +187,7 @@
       }
     },
     "triggerAgainWithConfig": "Tornar a executar amb aquesta configuració",
-    "unpause": "Reactivar {{dagDisplayName}} a l'executar"
+    "triggerOptions": "Opcions d'execució"
   },
   "trimText": {
     "details": "Detalls",
@@ -193,6 +204,7 @@
   "versionSelect": {
     "allVersions": "Totes les versions",
     "dagVersion": "Versió del Dag",
+    "placeholder": "Seleccionar versió",
     "versionCode": "v{{versionCode}}"
   }
 }

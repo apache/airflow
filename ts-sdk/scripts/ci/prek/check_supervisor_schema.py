@@ -51,8 +51,8 @@ if __name__ == "__main__":
     )
     if diff.stdout.strip():
         message = (
-            f"{GENERATED} is out of date with the supervisor wire schema "
-            "(task-sdk/src/airflow/sdk/execution_time/schema/schema.json).\n"
+            f"{GENERATED} is out of date with the vendored supervisor wire schema "
+            "(ts-sdk/schema/supervisor-schema.json).\n"
             "Regenerate it with `pnpm run generate:supervisor` in ts-sdk/ and commit the result."
         )
         if console:

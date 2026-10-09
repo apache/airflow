@@ -23,6 +23,7 @@ import boto3
 
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena_spark import AthenaSparkOperator
+from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -40,15 +41,34 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-from system.amazon.aws.utils import SystemTestContextBuilder
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_athena_spark"
 
-# The Spark workgroup is preconfigured test infrastructure; this DAG creates only the session.
-# Test runners can override the default by exporting ATHENA_SPARK_WORK_GROUP.
-ATHENA_SPARK_WORK_GROUP_KEY = "ATHENA_SPARK_WORK_GROUP"
+# Athena rejects a PySpark work group without an execution role, so the role is preconfigured
+# test infrastructure. The results bucket and the work group are created here.
+EXECUTION_ROLE_ARN_KEY = "EXECUTION_ROLE_ARN"
 
-sys_test_context_task = SystemTestContextBuilder().add_variable(ATHENA_SPARK_WORK_GROUP_KEY).build()
+sys_test_context_task = SystemTestContextBuilder().add_variable(EXECUTION_ROLE_ARN_KEY).build()
+
+
+@task
+def create_work_group(work_group: str, execution_role_arn: str, bucket_name: str) -> None:
+    client = boto3.client("athena")
+    client.create_work_group(
+        Name=work_group,
+        Configuration={
+            "ExecutionRole": execution_role_arn,
+            "ResultConfiguration": {"OutputLocation": f"s3://{bucket_name}/"},
+            "EngineVersion": {"SelectedEngineVersion": "PySpark engine version 3"},
+        },
+    )
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_work_group(work_group: str) -> None:
+    client = boto3.client("athena")
+    client.delete_work_group(WorkGroup=work_group, RecursiveDeleteOption=True)
 
 
 @task
@@ -83,9 +103,16 @@ with DAG(
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
-    athena_spark_work_group = test_context[ATHENA_SPARK_WORK_GROUP_KEY]
+    env_id = test_context[ENV_ID_KEY]
 
-    session_id = start_athena_spark_session(athena_spark_work_group)
+    work_group = f"{env_id}-athena-spark"
+    bucket_name = f"{env_id}-athena-spark-bucket"
+
+    create_bucket = S3CreateBucketOperator(task_id="create_bucket", bucket_name=bucket_name)
+
+    setup_work_group = create_work_group(work_group, test_context[EXECUTION_ROLE_ARN_KEY], bucket_name)
+
+    session_id = start_athena_spark_session(work_group)
     idle_session_id = wait_for_athena_spark_session(session_id)
 
     # [START howto_operator_athena_spark]
@@ -100,15 +127,26 @@ with DAG(
 
     stop_session = stop_athena_spark_session(session_id)
 
+    delete_bucket = S3DeleteBucketOperator(
+        task_id="delete_bucket",
+        bucket_name=bucket_name,
+        force_delete=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     chain(
         # TEST SETUP
         test_context,
+        create_bucket,
+        setup_work_group,
         session_id,
         idle_session_id,
         # TEST BODY
         run_spark_calculation,
         # TEST TEARDOWN
         stop_session,
+        delete_work_group(work_group),
+        delete_bucket,
     )
 
     from tests_common.test_utils.watcher import watcher

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-hdfs``
 
-Release: ``4.14.0``
+Release: ``4.14.1``
 
 
 `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
@@ -37,7 +37,7 @@ This is a provider package for ``apache.hdfs`` provider. All classes for this pr
 are in ``airflow.providers.apache.hdfs`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hdfs/4.14.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hdfs/4.14.1/>`_.
 
 Installation
 ------------
@@ -46,7 +46,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-hdfs``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -66,4 +66,4 @@ PIP package                                 Version required
 ==========================================  ==================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hdfs/4.14.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hdfs/4.14.1/changelog.html>`_.

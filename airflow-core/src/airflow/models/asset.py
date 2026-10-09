@@ -884,6 +884,7 @@ class AssetEvent(Base):
             AssetEvent.source_run_id == foreign(TaskInstance.run_id),
             AssetEvent.source_task_id == foreign(TaskInstance.task_id),
             AssetEvent.source_map_index == foreign(TaskInstance.map_index),
+            TaskInstance.working_set.is_(True),
         )""",
         viewonly=True,
         lazy="select",

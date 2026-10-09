@@ -24,9 +24,11 @@ import os
 import re
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import Mock, patch
 from urllib.parse import quote
+from uuid import UUID, uuid4
 
 import elasticsearch
 import pendulum
@@ -41,8 +43,10 @@ from airflow.providers.elasticsearch.log.es_task_handler import (
     ElasticsearchRemoteLogIO,
     ElasticsearchTaskHandler,
     _build_log_fields,
+    _build_log_query,
     _clean_date,
     _format_error_detail,
+    _get_ti_id_fields,
     _render_log_id,
     _safe_build_structured_log_message,
     _strip_userinfo,
@@ -57,6 +61,41 @@ from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
+@pytest.mark.parametrize(
+    ("is_airflow_3_4_plus", "expected"),
+    [(False, {}), (True, {"ti_id": "some-ti-id"})],
+)
+def test_ti_id_is_only_written_from_airflow_3_4(is_airflow_3_4_plus, expected):
+    ti = SimpleNamespace(id="some-ti-id")
+
+    with patch("airflow.providers.elasticsearch.log.es_task_handler.AIRFLOW_V_3_4_PLUS", is_airflow_3_4_plus):
+        assert _get_ti_id_fields(ti) == expected
+
+
+@pytest.mark.parametrize("is_airflow_3_4_plus", [False, True])
+def test_log_query_matches_ti_id_or_documents_without_it(is_airflow_3_4_plus):
+    ti = SimpleNamespace(id=uuid4())
+    log_id_match = {"match_phrase": {"log_id": "some-log-id"}}
+
+    with patch("airflow.providers.elasticsearch.log.es_task_handler.AIRFLOW_V_3_4_PLUS", is_airflow_3_4_plus):
+        must = _build_log_query("some-log-id", ti)
+
+    if not is_airflow_3_4_plus:
+        assert must == [log_id_match]
+        return
+    assert must == [
+        {
+            "bool": {
+                "should": [
+                    {"match_phrase": {"ti_id": str(ti.id)}},
+                    {"bool": {"must": [log_id_match], "must_not": {"exists": {"field": "ti_id"}}}},
+                ],
+                "minimum_should_match": 1,
+            }
+        }
+    ]
+
+
 @dataclasses.dataclass
 class _MockTI:
     dag_id: str = "dag_for_testing_es_log_handler"
@@ -64,6 +103,7 @@ class _MockTI:
     run_id: str = "run_for_testing_es_log_handler"
     try_number: int = 1
     map_index: int = -1
+    id: UUID = dataclasses.field(default_factory=uuid4)
 
 
 def get_ti(dag_id, task_id, run_id, logical_date, create_task_instance):
@@ -706,6 +746,7 @@ class TestElasticsearchRemoteLogIO:
         file_path.write_text("\n".join(json.dumps(log) for log in sample_logs) + "\n")
         return file_path
 
+    @patch("airflow.providers.elasticsearch.log.es_task_handler.AIRFLOW_V_3_4_PLUS", True)
     def test_write_to_stdout(self, tmp_json_file, ti, capsys):
         self.elasticsearch_io.write_to_es = False
         self.elasticsearch_io.upload(tmp_json_file, ti)
@@ -714,6 +755,7 @@ class TestElasticsearchRemoteLogIO:
         stdout_lines = captured.out.strip().splitlines()
         log_entries = [json.loads(line) for line in stdout_lines]
         assert [entry["message"] for entry in log_entries] == ["start", "processing", "end"]
+        assert {entry["ti_id"] for entry in log_entries} == {str(ti.id)}
 
     def test_invalid_task_log_file_path(self, ti):
         with (
@@ -816,7 +858,7 @@ class TestElasticsearchRemoteLogIO:
         query = {
             "bool": {
                 "filter": [{"range": {self.elasticsearch_io.offset_field: {"gt": 2}}}],
-                "must": [{"match_phrase": {"log_id": log_id}}],
+                "must": _build_log_query(log_id, ti),
             }
         }
 

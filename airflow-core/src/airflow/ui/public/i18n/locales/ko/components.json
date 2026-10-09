@@ -26,7 +26,7 @@
     "run": "백필 실행",
     "scheduleNotBackfillable": "이 Dag의 스케줄은 백필을 지원하지 않습니다.",
     "schedulerPriorityHint": "백필 Dag 실행은 각 스케줄러 주기에서 백필이 아닌 Dag 실행보다 나중에 처리됩니다. 백필이 아닌 실행이 있으면 백필 실행은 대기열에서 더 오래 기다릴 수 있습니다.",
-    "selectDescription": "이 Dag을(를) 특정 날짜 범위에 대해 실행합니다.",
+    "selectDescription": "이 Dag를 특정 날짜 범위에 대해 실행합니다.",
     "selectLabel": "백필",
     "title": "백필 실행",
     "toaster": {
@@ -35,7 +35,6 @@
         "title": "백필 생성됨"
       }
     },
-    "unpause": "트리거 시 {{dag_display_name}} 일시 중지 해제",
     "validation": {
       "datesRequired": "데이터 구간 시작일과 종료일이 모두 제공되어야 합니다.",
       "startBeforeEnd": "데이터 구간 시작일은 데이터 구간 종료일보다 작거나 같아야 합니다."
@@ -53,7 +52,6 @@
   },
   "close": "닫기",
   "configForm": {
-    "advancedOptions": "고급 옵션",
     "configJson": "구성 JSON",
     "invalidJson": "잘못된 JSON 형식: {{errorMessage}}"
   },
@@ -163,7 +161,7 @@
     "manualRunDenied": "이 Dag는 수동으로 실행할 수 없습니다.",
     "partitionKeyHelp": "선택 사항 - 파티션된 Dag에만 적용됩니다.",
     "runIdHelp": "선택 사항 - 제공되지 않으면 생성됩니다.",
-    "selectDescription": "이 Dag을(를) 단일 실행 트리거",
+    "selectDescription": "이 Dag를 단일 실행 트리거",
     "selectLabel": "단일 실행",
     "title": "Dag 트리거",
     "toaster": {
@@ -175,8 +173,7 @@
         "title": "Dag 트리거에 성공했습니다."
       }
     },
-    "triggerAgainWithConfig": "현재 구성으로 다시 트리거",
-    "unpause": "트리거 시 {{dagDisplayName}} 일시 중지 해제"
+    "triggerAgainWithConfig": "현재 구성으로 다시 트리거"
   },
   "trimText": {
     "details": "세부 정보",

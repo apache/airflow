@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
 import { setupServer, type SetupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -29,7 +29,7 @@ let server: SetupServer;
 
 beforeAll(() => {
   server = setupServer(...handlers);
-  server.listen({ onUnhandledRequest: "bypass" });
+  server.listen({ onUnhandledFrame: "bypass" });
 });
 
 afterEach(() => server.resetHandlers());
@@ -56,6 +56,37 @@ describe("AssetsList columns", () => {
 });
 
 describe("AssetsList filtering", () => {
+  it.each(["true", "false"])("preserves has_events=%s when removing Dag ID", async (hasEvents) => {
+    const requests: Array<{ dagIds: Array<string>; hasEvents: string | null }> = [];
+
+    server.use(
+      http.get("/ui/assets", ({ request }) => {
+        const params = new URL(request.url).searchParams;
+
+        requests.push({ dagIds: params.getAll("dag_ids"), hasEvents: params.get("has_events") });
+
+        return HttpResponse.json({ assets: [], total_entries: 0 });
+      }),
+    );
+
+    render(<AppWrapper initialEntries={[`/assets?dag_id=consumer_dag&has_events=${hasEvents}`]} />);
+
+    await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: ["consumer_dag"], hasEvents }));
+
+    const dagIdPill = await screen.findByTestId("dag_id-pill");
+
+    fireEvent.click(within(dagIdPill).getByRole("button", { name: /Remove .* filter/u }));
+
+    await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: [], hasEvents }));
+    expect(screen.getByTestId("has_events-pill")).toBeInTheDocument();
+
+    fireEvent.click(
+      within(screen.getByTestId("has_events-pill")).getByRole("button", { name: /Remove .* filter/u }),
+    );
+
+    await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: [], hasEvents: null }));
+  });
+
   it.each([
     { expectedLabel: "yes", hasEvents: "true" },
     { expectedLabel: "no", hasEvents: "false" },
@@ -103,5 +134,57 @@ describe("AssetsList filtering", () => {
 
     expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument();
     expect(screen.queryAllByTestId("skeleton")).toHaveLength(0);
+  });
+
+  it("offers Dag ID as an exact-match filter", async () => {
+    render(<AppWrapper initialEntries={["/assets"]} />);
+
+    fireEvent.click(await screen.findByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-dag_id"));
+
+    expect(await screen.findByTestId("filter-pill-input")).toBeInTheDocument();
+    // The page search keeps its own advanced-search toggle. An exact-match Dag ID
+    // filter must not add a second toggle inside its editor.
+    expect(screen.getAllByTestId("advanced-search-toggle")).toHaveLength(1);
+  });
+
+  it("passes the selected Dag ID to the Assets API and omits it after clearing", async () => {
+    const requestedDagIds: Array<Array<string>> = [];
+
+    server.use(
+      http.get("/ui/assets", ({ request }) => {
+        requestedDagIds.push(new URL(request.url).searchParams.getAll("dag_ids"));
+
+        return HttpResponse.json({ assets: [], total_entries: 0 });
+      }),
+    );
+
+    render(<AppWrapper initialEntries={["/assets?dag_id=consumer_dag"]} />);
+
+    await waitFor(() => expect(requestedDagIds.at(-1)).toEqual(["consumer_dag"]));
+
+    const dagIdPill = await screen.findByTestId("dag_id-pill");
+
+    fireEvent.click(within(dagIdPill).getByRole("button", { name: /Remove .* filter/u }));
+
+    await waitFor(() => expect(requestedDagIds.at(-1)).toEqual([]));
+    expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument();
+  });
+
+  it("ignores an empty Dag ID query parameter", async () => {
+    const requestedDagIds: Array<Array<string>> = [];
+
+    server.use(
+      http.get("/ui/assets", ({ request }) => {
+        requestedDagIds.push(new URL(request.url).searchParams.getAll("dag_ids"));
+
+        return HttpResponse.json({ assets: [], total_entries: 0 });
+      }),
+    );
+
+    render(<AppWrapper initialEntries={["/assets?dag_id="]} />);
+
+    await waitFor(() => expect(requestedDagIds.at(-1)).toEqual([]));
+    expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument();
   });
 });

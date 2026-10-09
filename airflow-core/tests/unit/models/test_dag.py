@@ -66,7 +66,6 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.hitl import HITLDetail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.trigger import handle_event_submit
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -100,8 +99,8 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -122,6 +121,7 @@ from tests_common.test_utils.taskinstance import run_task_instance
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
 from unit.models import DEFAULT_DATE
 from unit.plugins.priority_weight_strategy import (
+    DecreasingPriorityStrategy,
     FactorPriorityWeightStrategy,
     StaticTestPriorityWeightStrategy,
     TestPriorityWeightStrategyPlugin,
@@ -430,6 +430,7 @@ class TestDag:
         [
             (StaticTestPriorityWeightStrategy, 99),
             (FactorPriorityWeightStrategy, 3),
+            (DecreasingPriorityStrategy, 4),
         ],
     )
     def test_dag_task_custom_weight_strategy(self, cls, expected):
@@ -1178,7 +1179,7 @@ class TestDag:
 
         DagModel.deactivate_deleted_dags(
             bundle_name=orm_dag.bundle_name,
-            rel_filelocs=list_py_file_paths(settings.DAGS_FOLDER),
+            rel_filelocs=[],
         )
 
         orm_dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
@@ -1796,11 +1797,9 @@ class TestDag:
             dag_run_state=dag_run_state,
             session=session,
         )
-        session.refresh(upstream_ti)
-        session.refresh(ti)
         session.refresh(ti2)
-        assert upstream_ti.state is None  # cleared
-        assert ti.state is None  # cleared
+        assert dagrun_1.get_task_instance("make_arg_lists", session=session).state is None  # cleared
+        assert dagrun_1.get_task_instance(task_id, map_index=0, session=session).state is None  # cleared
         assert ti2.state == State.SUCCESS  # not cleared
         dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all()
 
@@ -1851,6 +1850,33 @@ class TestDag:
         assert ti.max_tries == 2
         assert ti.state == (TaskInstanceState.SUCCESS if succeed_on_last_try else TaskInstanceState.FAILED)
         assert dr.state == (DagRunState.SUCCESS if succeed_on_last_try else DagRunState.FAILED)
+
+    def test_dag_test_without_logical_date_keeps_other_runs_task_instances(self, testing_dag_bundle, session):
+        dag = DAG(dag_id="test_dateless_dag_test", schedule=None, start_date=DEFAULT_DATE)
+
+        @task_decorator
+        def check_task():
+            pass
+
+        with dag:
+            check_task()
+
+        _create_dagrun(
+            dag,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_type=DagRunType.SCHEDULED,
+            state=DagRunState.SUCCESS,
+        )
+        run_id = session.scalar(select(DagRun.run_id).where(DagRun.dag_id == dag.dag_id))
+        session.execute(update(TI).where(TI.run_id == run_id).values(state=TaskInstanceState.SUCCESS))
+        session.commit()
+
+        dag.test(logical_date=None)
+
+        session.expire_all()
+        states = session.scalars(select(TI.state).where(TI.run_id == run_id)).all()
+        assert states == [TaskInstanceState.SUCCESS]
 
     def test_dag_test_with_dependencies(self, testing_dag_bundle):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
@@ -1905,10 +1931,9 @@ class TestDag:
         assert state_during_callback == TaskInstanceState.RUNNING
         assert value == "written"
         with create_session() as session:
-            history = session.scalar(
-                select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
-            )
+            history = session.get(TI, old_id)
             assert history is not None
+            assert history.working_set is None
             assert history.end_date == end_date
             ti = dr.get_task_instance("fail_once", session=session)
             assert ti.id != old_id
@@ -3103,6 +3128,45 @@ class TestDagModel:
         assert dag_model.scheduling_state == state
         assert dag_model.is_paused is (state == DagSchedulingState.PAUSED)
         assert dag_model.is_draining is (state == DagSchedulingState.DRAINING)
+
+    @pytest.mark.parametrize("state", list(DagSchedulingState))
+    def test_start_drain(self, state, session, testing_dag_bundle):
+        dag_model = DagModel(dag_id="test_start_drain", bundle_name="testing")
+        dag_model.set_scheduling_state(state)
+        session.add(dag_model)
+        session.flush()
+
+        DagModel.start_drain(dag_model.dag_id, session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.DRAINING
+
+    def test_start_drain_reads_state_committed_after_the_dag_was_loaded(self, session, testing_dag_bundle):
+        dag_model = DagModel(dag_id="test_start_drain_stale", bundle_name="testing")
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        session.add(dag_model)
+        session.flush()
+        # The drain finalizer pauses the Dag behind the back of the already-loaded object.
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == dag_model.dag_id)
+            .values(is_paused=True, is_draining=False)
+            .execution_options(synchronize_session=False)
+        )
+
+        DagModel.start_drain(dag_model.dag_id, session=session)
+        session.flush()
+
+        assert session.scalar(select(DagModel.is_draining).where(DagModel.dag_id == dag_model.dag_id))
+
+    @mock.patch("airflow.models.dag.with_row_locks", autospec=True, side_effect=with_row_locks)
+    def test_start_drain_locks_the_dag_row(self, mock_with_row_locks, session, testing_dag_bundle):
+        dag_model = DagModel(dag_id="test_start_drain_lock", bundle_name="testing", is_paused=True)
+        session.add(dag_model)
+        session.flush()
+
+        DagModel.start_drain(dag_model.dag_id, session=session)
+
+        mock_with_row_locks.assert_called_once_with(mock.ANY, of=DagModel, session=session)
 
     def test_dags_needing_dagruns_only_unpaused(self, testing_dag_bundle):
         """
