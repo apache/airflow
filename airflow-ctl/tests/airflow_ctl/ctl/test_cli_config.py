@@ -500,6 +500,52 @@ class TestCommandFactory:
 
 
 class TestCliConfigMethods:
+    @pytest.mark.parametrize("method", ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"])
+    @pytest.mark.parametrize(
+        ("failure", "ambiguous"),
+        [
+            (httpx.ReadTimeout, True),
+            (httpx.ReadError, True),
+            (httpx.RemoteProtocolError, True),
+            ("json-500", True),
+            ("plain-503", True),
+            ("json-400", False),
+            ("plain-401", False),
+            ("redirect", False),
+            ("connection", False),
+        ],
+    )
+    def test_safe_call_command_warns_only_for_ambiguous_writes(self, method, failure, ambiguous, capsys):
+        request = httpx.Request(method, "http://localhost/operation")
+        error: Exception
+        if failure == "connection":
+            error = AirflowCtlConnectionException("Connection refused. Is the API server running?")
+        elif isinstance(failure, str):
+            status_code = {
+                "json-500": 500,
+                "plain-503": 503,
+                "json-400": 400,
+                "plain-401": 401,
+                "redirect": 302,
+            }[failure]
+            response = httpx.Response(status_code, request=request, json={"detail": "boom"})
+            error_type = ServerResponseError if failure.startswith("json-") else httpx.HTTPStatusError
+            error = error_type("request failed", request=request, response=response)
+        else:
+            error = failure("request failed", request=request)
+
+        def raise_error(_args):
+            raise error
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        stderr = " ".join(capsys.readouterr().err.split())
+        warning_expected = ambiguous and method in {"POST", "PUT", "PATCH", "DELETE"}
+        assert ("may already have been applied" in stderr) is warning_expected
+        assert ("Check the server state before retrying" in stderr) is warning_expected
+
     @pytest.mark.parametrize(
         "raised_exception",
         [
