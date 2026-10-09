@@ -22,7 +22,7 @@
 // Both Dags in `dags/` are declared in Python with `@task.stub` tasks routed to the Node
 // coordinator, so this side only supplies the task bodies.
 
-import { Bundle, getClient, getContext, TaskHandler } from "apache-airflow-ts-sdk";
+import { Bundle, getClient, getContext, NEVER_EXPIRE, TaskHandler } from "apache-airflow-ts-sdk";
 
 import { buildSummaryMessage, report, summarize } from "./taskflow.js";
 
@@ -57,6 +57,38 @@ export async function writeAndDeleteVariable() {
   await client.deleteVariable(SCRATCH_VARIABLE);
 }
 
+const JOB_ID_KEY = "typescript_example_job_id";
+const STATE_SCRATCH_KEY = "typescript_example_scratch";
+
+export async function writeAndReadTaskState() {
+  const store = getClient().taskStateStore;
+  const { runId, tryNumber } = getContext();
+
+  await store.set(JOB_ID_KEY, runId, { retentionMs: NEVER_EXPIRE });
+  await store.set(STATE_SCRATCH_KEY, { attempt: tryNumber });
+
+  const jobId = await store.get<string>(JOB_ID_KEY);
+  const scratchBeforeDelete = await store.get(STATE_SCRATCH_KEY);
+
+  await store.delete(STATE_SCRATCH_KEY);
+  const scratchAfterDelete = await store.get(STATE_SCRATCH_KEY);
+
+  return { jobId, scratchBeforeDelete, scratchAfterDelete };
+}
+
+export async function clearTaskState() {
+  const store = getClient().taskStateStore;
+
+  await store.set(JOB_ID_KEY, "placeholder");
+  await store.set(STATE_SCRATCH_KEY, { attempt: 1 });
+
+  await store.clear();
+
+  const afterClear = await store.get(JOB_ID_KEY);
+
+  return { afterClear };
+}
+
 export async function readConnection() {
   const connection = await getClient().getConnection("typescript_example_http");
 
@@ -77,6 +109,8 @@ bundle.register(
   new TaskHandler("typescript_example", "build_message", buildMessage),
   new TaskHandler("typescript_example", "read_connection", readConnection),
   new TaskHandler("typescript_example", "write_and_delete_variable", writeAndDeleteVariable),
+  new TaskHandler("typescript_example", "write_and_read_task_state", writeAndReadTaskState),
+  new TaskHandler("typescript_example", "clear_task_state", clearTaskState),
   new TaskHandler("typescript_taskflow_example", "summarize", summarize),
   new TaskHandler("typescript_taskflow_example", "report", report),
   new TaskHandler("typescript_taskflow_example", "build_message", buildSummaryMessage),

@@ -404,7 +404,7 @@ class TestLLMOperatorConfidenceGate:
             output = op.execute(context)
 
         assert Summary.model_validate(output).text == "t"
-        assert "'decision' was not pushed to XCom" in caplog.text
+        assert "No task instance in the context; 'decision' was not pushed to XCom." in caplog.messages
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_resolved_model_name_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):

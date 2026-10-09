@@ -3052,7 +3052,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
             backfill_id = dag_run.backfill_id
-            dag = dag_run.dag = cached_get_dag(dag_run)
+            try:
+                dag = dag_run.dag = cached_get_dag(dag_run)
+            except DBAPIError:
+                raise
+            except Exception:
+                self.log.exception("Failed to load Dag %s for queued run %s, skipping it", dag_id, run_id)
+                continue
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue

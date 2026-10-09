@@ -160,7 +160,11 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         ignore_downstream_trigger_rules: bool = False,
         **kwargs: Any,
     ) -> None:
-        kwargs.pop("output_type", None)
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMBranchOperator does not accept 'output_type'; it builds the output type "
+                "itself from the downstream task IDs."
+            )
         super().__init__(**kwargs)
         self.branches = self._normalize_branches(branches)
         self.allow_multiple_branches = allow_multiple_branches

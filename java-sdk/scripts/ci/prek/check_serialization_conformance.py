@@ -56,7 +56,7 @@ if __name__ == "__main__":
         "--sdk",
         "java",
         "--supports",
-        "literal_inputs",
+        "literal_inputs,branch,switch,trigger_dag_run",
         "--",
         *serializer,
     ]
