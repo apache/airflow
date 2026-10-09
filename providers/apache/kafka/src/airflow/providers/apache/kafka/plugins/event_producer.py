@@ -55,7 +55,7 @@ class EventProducerKafkaTopic(Enum):
     TASK_INSTANCE = "task_instance"
 
 
-TOPIC_CONFIG_MAP = {
+TOPIC_CONFIG_MAP: dict[EventProducerKafkaTopic, str] = {
     EventProducerKafkaTopic.DAG_RUN: "dagrun_topic",
     EventProducerKafkaTopic.TASK_INSTANCE: "task_instance_topic",
 }
@@ -183,8 +183,8 @@ def _task_instance_event_allowed(dag_id: str, task_id: str) -> bool:
 # the topic flags track whether the topic exists on the broker and whether we're
 # currently in a back-off window after a failed topic check.
 _producer: Producer | None = None
-_topic_check_retry_after: float = 0.0
-_topic_existence_map = {EventProducerKafkaTopic.DAG_RUN: False, EventProducerKafkaTopic.TASK_INSTANCE: False}
+_topic_check_retry_after: dict[EventProducerKafkaTopic, float] = {EventProducerKafkaTopic.DAG_RUN: 0.0, EventProducerKafkaTopic.TASK_INSTANCE: 0.0}
+_topic_existence_map: dict[EventProducerKafkaTopic, bool] = {EventProducerKafkaTopic.DAG_RUN: False, EventProducerKafkaTopic.TASK_INSTANCE: False}
 
 
 def _reset_state_after_fork() -> None:
@@ -201,7 +201,7 @@ def _reset_state_after_fork() -> None:
         EventProducerKafkaTopic.DAG_RUN: False,
         EventProducerKafkaTopic.TASK_INSTANCE: False,
     }
-    _topic_check_retry_after = 0.0
+    _topic_check_retry_after = {EventProducerKafkaTopic.DAG_RUN: 0.0, EventProducerKafkaTopic.TASK_INSTANCE: 0.0}
 
 
 os.register_at_fork(after_in_child=_reset_state_after_fork)
@@ -241,12 +241,12 @@ def _check_topic_exists(topic_type: EventProducerKafkaTopic) -> bool:
     global _topic_existence_map, _topic_check_retry_after  # noqa: PLW0602
     if _topic_existence_map[topic_type]:
         return True
-    if time.monotonic() < _topic_check_retry_after:
+    if time.monotonic() < _topic_check_retry_after[topic_type]:
         return False
 
     producer = _get_producer()
     if producer is None:
-        _topic_check_retry_after = time.monotonic() + _get_topic_check_retry_interval()
+        _topic_check_retry_after[topic_type] = time.monotonic() + _get_topic_check_retry_interval()
         return False
 
     try:
@@ -257,7 +257,7 @@ def _check_topic_exists(topic_type: EventProducerKafkaTopic) -> bool:
             exc,
             _get_topic_check_retry_interval(),
         )
-        _topic_check_retry_after = time.monotonic() + _get_topic_check_retry_interval()
+        _topic_check_retry_after[topic_type] = time.monotonic() + _get_topic_check_retry_interval()
         return False
 
     if _get_topic(topic_type) not in topics:
@@ -267,7 +267,7 @@ def _check_topic_exists(topic_type: EventProducerKafkaTopic) -> bool:
             _get_topic(topic_type),
             _get_topic_check_retry_interval(),
         )
-        _topic_check_retry_after = time.monotonic() + _get_topic_check_retry_interval()
+        _topic_check_retry_after[topic_type] = time.monotonic() + _get_topic_check_retry_interval()
         return False
 
     log.info(
@@ -300,7 +300,7 @@ def _on_delivery(topic_type: EventProducerKafkaTopic, err, _msg) -> None:
     if err.code() in (KafkaError.UNKNOWN_TOPIC_OR_PART, KafkaError._UNKNOWN_TOPIC):
         global _topic_existence_map, _topic_check_retry_after  # noqa: PLW0602
         _topic_existence_map[topic_type] = False
-        _topic_check_retry_after = time.monotonic() + _get_topic_check_retry_interval()
+        _topic_check_retry_after[topic_type] = time.monotonic() + _get_topic_check_retry_interval()
 
 
 def _now_iso() -> str:
