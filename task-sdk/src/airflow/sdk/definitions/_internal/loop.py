@@ -53,6 +53,18 @@ class LoopTaskGroup(TaskGroup):
         super().__attrs_post_init__()
 
 
+def check_dag_result_outside_loop(operator: Any) -> None:
+    """Raise if the operator sits in a loop group, whose tasks cannot be the Dag result."""
+    group = operator.task_group
+    while group is not None:
+        if isinstance(group, LoopTaskGroup):
+            raise ValueError(
+                f"Task {operator.task_id!r} is inside a loop and cannot be a Dag result; "
+                "publish the result through a task outside the loop"
+            )
+        group = group.parent_group
+
+
 class LoopGateOperator(BaseOperator):
     """Definition of a loop gate task."""
 

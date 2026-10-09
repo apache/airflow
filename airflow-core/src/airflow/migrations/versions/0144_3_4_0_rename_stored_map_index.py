@@ -28,6 +28,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.utils import sqlite_rebuilds
+
 revision = "7f8c9a2d410e"
 down_revision = "54a27b6f9d01"
 branch_labels = None
@@ -53,41 +55,22 @@ def _rename(old: str, new: str) -> None:
         )
 
 
-def _alter_dynamic_region(apply) -> None:
-    """Alter the table in batch mode; SQLite recreates it, so keep its self-referencing cascade from firing."""
-    context = op.get_context()
-    if context.dialect.name != "sqlite":
-        with op.batch_alter_table("dynamic_region") as batch_op:
-            apply(batch_op)
-        return
-    with context.autocommit_block():
-        foreign_keys = op.get_bind().exec_driver_sql("PRAGMA foreign_keys").scalar_one()
-        op.execute("PRAGMA foreign_keys=OFF")
-        try:
-            with op.batch_alter_table("dynamic_region") as batch_op:
-                apply(batch_op)
-        finally:
-            op.execute(f"PRAGMA foreign_keys={foreign_keys}")
-
-
 def upgrade():
     """Rename the stored coordinate without rewriting rows, keys or indexes, and add the slot key."""
-    _rename("map_index", "region_index")
-    op.add_column(
-        "dynamic_region",
-        sa.Column("slot_key", sa.LargeBinary(32).with_variant(sa.BINARY(32), "mysql", "mariadb")),
-    )
-    _alter_dynamic_region(
-        lambda batch_op: batch_op.create_unique_constraint(_SLOT_KEY_CONSTRAINT, ["slot_key"])
-    )
+    with sqlite_rebuilds(op):
+        _rename("map_index", "region_index")
+        op.add_column(
+            "dynamic_region",
+            sa.Column("slot_key", sa.LargeBinary(32).with_variant(sa.BINARY(32), "mysql", "mariadb")),
+        )
+        with op.batch_alter_table("dynamic_region") as batch_op:
+            batch_op.create_unique_constraint(_SLOT_KEY_CONSTRAINT, ["slot_key"])
 
 
 def downgrade():
     """Restore the prior column name without changing coordinate identity, and drop the slot key."""
-    _alter_dynamic_region(
-        lambda batch_op: (
-            batch_op.drop_constraint(_SLOT_KEY_CONSTRAINT, type_="unique"),
-            batch_op.drop_column("slot_key"),
-        )
-    )
-    _rename("region_index", "map_index")
+    with sqlite_rebuilds(op):
+        with op.batch_alter_table("dynamic_region") as batch_op:
+            batch_op.drop_constraint(_SLOT_KEY_CONSTRAINT, type_="unique")
+            batch_op.drop_column("slot_key")
+        _rename("region_index", "map_index")

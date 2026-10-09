@@ -44,6 +44,7 @@ PREVIOUS_REVISION = _migration.down_revision
 DAG_ID = "migration_0144"
 RUN_ID = "run"
 REGION_ID = UUID(int=7)
+CHILD_REGION_ID = UUID(int=8)
 
 metadata = sa.MetaData()
 dag_run = sa.Table(
@@ -90,6 +91,8 @@ dynamic_region = sa.Table(
     sa.Column("dag_id", sa.String(250)),
     sa.Column("run_id", sa.String(250)),
     sa.Column("node_id", sa.String(250)),
+    sa.Column("parent_region_id", CompactUUID),
+    sa.Column("parent_region_index", sa.Integer),
     sa.Column("created_at", UtcDateTime),
 )
 task_reschedule = sa.Table(
@@ -183,6 +186,17 @@ def stored_rows(database_at_revision):
                 id=REGION_ID, dag_id=DAG_ID, run_id=RUN_ID, node_id="task", created_at=now
             )
         )
+        connection.execute(
+            dynamic_region.insert().values(
+                id=CHILD_REGION_ID,
+                dag_id=DAG_ID,
+                run_id=RUN_ID,
+                node_id="task",
+                parent_region_id=REGION_ID,
+                parent_region_index=0,
+                created_at=now,
+            )
+        )
         common = {
             "dag_id": DAG_ID,
             "task_id": "task",
@@ -267,6 +281,13 @@ def _count_children(engine):
         }
 
 
+def _region_ids(engine):
+    with engine.connect() as connection:
+        return set(
+            connection.scalars(sa.select(dynamic_region.c.id).where(dynamic_region.c.dag_id == DAG_ID))
+        )
+
+
 def _column_names(engine, table):
     return {column["name"] for column in inspect(engine).get_columns(table.name)}
 
@@ -288,6 +309,7 @@ def test_downgrade_then_upgrade_renames_the_column_and_preserves_rows_and_their_
         table.name: _stored(database_at_revision, table.name, "map_index") for table in RENAMED
     } == upgraded
     assert _count_children(database_at_revision) == child_counts
+    assert _region_ids(database_at_revision) == {REGION_ID, CHILD_REGION_ID}
 
     upgradedb(to_revision=REVISION)
 
@@ -299,3 +321,4 @@ def test_downgrade_then_upgrade_renames_the_column_and_preserves_rows_and_their_
         table.name: _stored(database_at_revision, table.name, "region_index") for table in RENAMED
     } == upgraded
     assert _count_children(database_at_revision) == child_counts
+    assert _region_ids(database_at_revision) == {REGION_ID, CHILD_REGION_ID}

@@ -4490,7 +4490,7 @@ class TestWaitDagRun:
     def test_rejects_loop_results_before_streaming(
         self, test_client, dag_maker, session, state, explicit, mapped, has_live_tis
     ):
-        with dag_maker("wait_loop_result", session=session) as dag:
+        with dag_maker("wait_loop_result", session=session):
 
             @task
             def value(v=1):
@@ -4500,7 +4500,8 @@ class TestWaitDagRun:
             def body():
                 output = value.expand(v=[1, 2]) if mapped else value()
                 if not explicit:
-                    dag.add_result(output)
+                    # Authoring rejects this now; a Dag serialized before that still reaches the wait API.
+                    output.operator.returns_dag_result = True
 
             create_loop(body, max_iterations=2)
 
@@ -4520,12 +4521,12 @@ class TestWaitDagRun:
 
     @pytest.mark.parametrize("explicit", [False, True])
     def test_loop_result_preflight_uses_pinned_definition(self, test_client, dag_maker, session, explicit):
-        with dag_maker("wait_pinned_loop", session=session) as dag:
+        with dag_maker("wait_pinned_loop", session=session):
 
             @task_group
             def body():
                 output = EmptyOperator(task_id="value")
-                dag.add_result(output.output)
+                output.returns_dag_result = True
 
             create_loop(body, max_iterations=2)
         run = dag_maker.create_dagrun(state=DagRunState.SUCCESS, session=session)

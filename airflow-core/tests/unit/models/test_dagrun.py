@@ -1777,6 +1777,48 @@ def test_expand_mapped_task_instance_at_create(is_noop, literal, dag_maker, sess
         ]
 
 
+@pytest.mark.parametrize(
+    ("has_upstream", "partial_kwargs"),
+    [
+        pytest.param(True, {}, id="upstream"),
+        pytest.param(False, {"depends_on_past": True}, id="depends_on_past"),
+        pytest.param(False, {"wait_for_downstream": True}, id="wait_for_downstream"),
+    ],
+)
+def test_empty_literal_mapped_task_with_pending_dependencies_is_not_skipped_at_create(
+    has_upstream, partial_kwargs, dag_maker, session
+):
+    with dag_maker(session=session, dag_id="test_dag"):
+        mapped = MockOperator.partial(task_id="mapped", **partial_kwargs).expand(arg2=[])
+        if has_upstream:
+            BaseOperator(task_id="upstream") >> mapped
+
+    dr = dag_maker.create_dagrun()
+
+    state = session.scalar(
+        select(TI.state).where(TI.task_id == "mapped", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+    )
+    assert state is None
+
+
+def test_empty_literal_mapped_task_becomes_upstream_failed_when_upstream_fails(dag_maker, session):
+    with dag_maker(session=session, dag_id="test_dag"):
+        upstream = BaseOperator(task_id="upstream")
+        upstream >> MockOperator.partial(task_id="mapped").expand(arg2=[])
+
+    dr = dag_maker.create_dagrun()
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    tis["upstream"].state = TaskInstanceState.FAILED
+    session.flush()
+
+    dr.update_state(execute_callbacks=False, session=session)
+
+    assert {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)} == {
+        "upstream": TaskInstanceState.FAILED,
+        "mapped": TaskInstanceState.UPSTREAM_FAILED,
+    }
+
+
 @pytest.mark.parametrize("task_count", [2, 40])
 def test_creating_literal_mapped_tasks_costs_constant_queries(task_count, dag_maker, session):
     with dag_maker(session=session, serialized=True):
@@ -2395,7 +2437,7 @@ def test_task_no_longer_mapped_returns_placeholder_when_the_run_is_repinned_to_t
     assert (placeholder.region_id, placeholder.region_index) == (SENTINEL_REGION_ID, -1)
 
 
-def test_task_no_longer_mapped_removes_unfinished_expanded_slots(dag_maker, session):
+def test_task_no_longer_mapped_moves_lowest_unfinished_expanded_slot_to_sentinel(dag_maker, session):
     @task
     def consume(x): ...
 
@@ -2404,18 +2446,45 @@ def test_task_no_longer_mapped_removes_unfinished_expanded_slots(dag_maker, sess
 
     dr = dag_maker.create_dagrun()
     assert {ti.state for ti in _consume_instances(dr, session)} == {None}
+    region_id = _consume_instances(dr, session)[0].region_id
 
     with dag_maker(session=session):
         consume(x=1)
     _verify_latest_version(dr, dag_maker, session)
 
-    assert {(ti.region_index, ti.state) for ti in _consume_instances(dr, session)} == {
-        (0, TaskInstanceState.REMOVED),
-        (1, TaskInstanceState.REMOVED),
+    assert {(ti.region_id, ti.region_index, ti.state) for ti in _consume_instances(dr, session)} == {
+        (SENTINEL_REGION_ID, -1, None),
+        (region_id, 1, TaskInstanceState.REMOVED),
     }
 
 
-def test_task_no_longer_mapped_keeps_removed_slots_removed_on_the_next_pass(dag_maker, session):
+def test_task_no_longer_mapped_removes_unfinished_slots_when_a_slot_has_finished(dag_maker, session):
+    @task
+    def consume(x): ...
+
+    with dag_maker(session=session):
+        consume.expand(x=[1, 2, 3])
+
+    dr = dag_maker.create_dagrun()
+    first, *_ = sorted(_consume_instances(dr, session), key=lambda ti: ti.region_index)
+    first.state = TaskInstanceState.SUCCESS
+    region_id = first.region_id
+    session.flush()
+
+    with dag_maker(session=session):
+        consume(x=1)
+    _verify_latest_version(dr, dag_maker, session)
+
+    assert {(ti.region_id, ti.region_index, ti.state) for ti in _consume_instances(dr, session)} == {
+        (region_id, 0, TaskInstanceState.SUCCESS),
+        (region_id, 1, TaskInstanceState.REMOVED),
+        (region_id, 2, TaskInstanceState.REMOVED),
+    }
+
+
+def test_task_no_longer_mapped_keeps_removed_slots_removed_and_plain_instance_on_the_next_pass(
+    dag_maker, session
+):
     @task
     def consume(x): ...
 
@@ -2428,9 +2497,12 @@ def test_task_no_longer_mapped_keeps_removed_slots_removed_on_the_next_pass(dag_
     _verify_latest_version(dr, dag_maker, session)
     _verify_latest_version(dr, dag_maker, session)
 
-    assert {(ti.region_index, ti.state) for ti in _consume_instances(dr, session)} == {
-        (0, TaskInstanceState.REMOVED),
-        (1, TaskInstanceState.REMOVED),
+    assert {
+        (ti.region_id == SENTINEL_REGION_ID, ti.region_index, ti.state)
+        for ti in _consume_instances(dr, session)
+    } == {
+        (True, -1, None),
+        (False, 1, TaskInstanceState.REMOVED),
     }
 
 

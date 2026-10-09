@@ -35,9 +35,11 @@ from airflow.sdk import (
     TaskGroup,
     dag as dag_decorator,
     task,
+    task_group,
 )
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
@@ -703,6 +705,44 @@ def test_continuous_schedule_interval_limits_max_active_runs_error():
         ValueError, match="Invalid max_active_runs: ContinuousTimetable requires max_active_runs <= 1"
     ):
         DAG(dag_id="continuous", schedule="@continuous", max_active_runs=2)
+
+
+def _build_dag_with_loop_and_outside_task():
+    @task_group
+    def body():
+        @task
+        def inner():
+            return 1
+
+        inner()
+
+    @task
+    def outside():
+        return 2
+
+    with DAG("result_with_loop", schedule=None) as dag:
+        create_loop(body, max_iterations=2)
+        outside()
+    return dag
+
+
+def test_add_result_rejects_task_inside_a_loop():
+    dag = _build_dag_with_loop_and_outside_task()
+    inner = dag.get_task("body.inner")
+
+    with pytest.raises(ValueError, match="'body.inner' is inside a loop"):
+        dag.add_result(inner.output)
+
+    assert inner.returns_dag_result is False
+
+
+def test_add_result_accepts_task_outside_a_loop():
+    dag = _build_dag_with_loop_and_outside_task()
+    outside = dag.get_task("outside")
+
+    dag.add_result(outside.output)
+
+    assert outside.returns_dag_result is True
 
 
 class TestDagDecorator:

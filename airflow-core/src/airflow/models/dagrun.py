@@ -1940,7 +1940,12 @@ class DagRun(Base, LoggingMixin):
         )
         self._create_task_instances(self.dag_id, tis_to_create, created_counts, hook_is_noop, session=session)
         empty_literal_tasks = [
-            task.task_id for task in missing_tasks if self._get_literal_expansion_count(task) == 0
+            task.task_id
+            for task in missing_tasks
+            if not task.upstream_task_ids
+            and not task.depends_on_past
+            and not task.wait_for_downstream
+            and self._get_literal_expansion_count(task) == 0
         ]
         if empty_literal_tasks:
             session.execute(
@@ -1972,6 +1977,8 @@ class DagRun(Base, LoggingMixin):
 
         A mapped task's placeholder lives in the task's own region. When a later Dag version stops mapping the
         task, nothing else would move the placeholder back, and a plain task is looked up in the sentinel region.
+        When the task was already expanded, its lowest unfinished slot takes the sentinel slot as the plain
+        instance, provided no slot of that region has finished; the other slots are removed.
         Returns whether the instance was marked removed.
 
         A mapped task only turns plain mid-run when the run's definition is replaced: an unversioned bundle
@@ -1999,11 +2006,32 @@ class DagRun(Base, LoggingMixin):
             )
             .limit(1)
         )
-        if ti.region_index >= 0 or sentinel_slot_taken is not None:
+        if sentinel_slot_taken is not None or (
+            ti.region_index >= 0 and not self._is_first_slot_of_untouched_region(ti, session=session)
+        ):
             ti.state = TaskInstanceState.REMOVED
             return True
         ti.region_id = SENTINEL_REGION_ID
+        ti.region_index = -1
         return False
+
+    @staticmethod
+    def _is_first_slot_of_untouched_region(ti: TI, *, session: Session) -> bool:
+        """Return whether ti is the lowest unfinished slot of a region none of whose slots has finished."""
+        if ti.state == TaskInstanceState.REMOVED:
+            return False
+        slots = session.execute(
+            select(TI.region_index, TI.state).where(
+                TI.dag_id == ti.dag_id,
+                TI.run_id == ti.run_id,
+                TI.task_id == ti.task_id,
+                TI.region_id == ti.region_id,
+                TI.working_set.is_(True),
+            )
+        ).all()
+        if any(state not in State.unfinished and state != TaskInstanceState.REMOVED for _, state in slots):
+            return False
+        return ti.region_index == min(index for index, state in slots if state in State.unfinished)
 
     def _check_for_removed_or_restored_tasks(
         self, dag: SerializedDAG, ti_mutation_hook, *, session: Session

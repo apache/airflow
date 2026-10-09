@@ -1134,6 +1134,10 @@ class DAG:
     def add_result(self, xcom_arg: X) -> X:
         if not _is_valid_dag_result(xcom_arg):
             raise ValueError("Only plain return value can be used as dag result")
+        # Imported here because taskgroup imports this module.
+        from airflow.sdk.definitions._internal.loop import check_dag_result_outside_loop
+
+        check_dag_result_outside_loop(xcom_arg.operator)
         xcom_arg.operator.returns_dag_result = True
         return xcom_arg
 

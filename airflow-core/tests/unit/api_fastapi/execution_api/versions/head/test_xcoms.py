@@ -34,7 +34,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun
-from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import LegacyTaskDataOwner, TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, XComModelV1, XComModelV2, xcom_entity
@@ -179,15 +179,9 @@ def test_prior_dates_resolves_mapped_region_separately_for_each_run(
         PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1]])
     old = dag_maker.create_dagrun(run_id="old", logical_date=timezone.datetime(2026, 1, 1))
     current = dag_maker.create_dagrun(run_id="current", logical_date=timezone.datetime(2026, 1, 2))
-    for dr in (old, current):
-        if dr is current and not current_regional:
-            continue
-        region = DynamicRegion.get_or_create(
-            dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped", session=session
-        )
-        session.add(region)
+    if not current_regional:
+        current.task_instances[0].region_id = SENTINEL_REGION_ID
         session.flush()
-        dr.task_instances[0].region_id = region.id
     producer = old.task_instances[0]
     XComModel.set_for_attempt(
         task_instance_id=producer.id, key="key", value="old", serialize=False, session=session

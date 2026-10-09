@@ -45,6 +45,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     ListOfDictsExpandInput,
     is_mappable,
 )
+from airflow.sdk.definitions._internal.loop import check_dag_result_outside_loop
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
@@ -562,6 +563,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         op.is_setup = self.is_setup
         op.is_teardown = self.is_teardown
         op.on_failure_fail_dagrun = on_failure_fail_dagrun
+        if self.returns_dag_result:
+            check_dag_result_outside_loop(op)
         op.returns_dag_result = self.returns_dag_result
         op_doc_attrs = [op.doc, op.doc_json, op.doc_md, op.doc_rst, op.doc_yaml]
         # Set the task's doc_md to the function's docstring if it exists and no other doc* args are set.
@@ -727,6 +730,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             start_from_trigger=self.operator_class.start_from_trigger,
             returns_dag_result=self.returns_dag_result,
         )
+        if self.returns_dag_result:
+            check_dag_result_outside_loop(operator)
         return XComArg(operator=operator)
 
     def partial(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:

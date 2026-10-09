@@ -285,14 +285,14 @@ def mapped_loop_runs(dag_maker, session):
         create_loop(body, max_iterations=3)
 
     def add_pass(run, loop_region, iteration, states):
-        region = DynamicRegion(
+        region = DynamicRegion.get_or_create(
             dag_id=run.dag_id,
             run_id=run.run_id,
             node_id="body.mapped",
             parent_region_id=loop_region.id,
             parent_region_index=iteration,
+            session=session,
         )
-        session.add(region)
         session.flush()
         expanded = sorted(
             (ti for ti in run.task_instances if ti.task_id == "body.mapped"), key=lambda ti: ti.map_index
@@ -315,8 +315,9 @@ def mapped_loop_runs(dag_maker, session):
         ("current", timezone.datetime(2026, 1, 2), [[State.SUCCESS, State.SUCCESS], [State.FAILED]]),
     ]:
         run = dag_maker.create_dagrun(run_id=run_id, logical_date=logical_date)
-        loop_region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="body")
-        session.add(loop_region)
+        loop_region = DynamicRegion.get_or_create(
+            dag_id=run.dag_id, run_id=run.run_id, node_id="body", session=session
+        )
         session.flush()
         for iteration, states in enumerate(passes):
             add_pass(run, loop_region, iteration, states)
