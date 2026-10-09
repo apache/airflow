@@ -19,7 +19,7 @@
 
 import { describe, it, expect } from "vitest";
 import { ConnectionNotFoundError } from "../../src/sdk/client.js";
-import { createCoordinatorClient } from "../../src/coordinator/client.js";
+import { createCoordinatorClient, type CoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
 import type { TaskClient } from "../../src/sdk/client.js";
 import type { TaskContext } from "../../src/sdk/task.js";
@@ -157,6 +157,7 @@ describe("writes do not read a supervisor 404 as absence", () => {
     ["setVariable", "PutVariable", (c: TaskClient) => c.setVariable("k", "v")],
     ["deleteVariable", "DeleteVariable", (c: TaskClient) => c.deleteVariable("k")],
     ["setXCom", "SetXCom", (c: TaskClient) => c.setXCom({ key: "k", value: 1 })],
+    ["deleteXCom", "DeleteXCom", (c: CoordinatorClient) => c.deleteXCom("k")],
   ])("%s rejects", async (_name, op, call) => {
     const c = client([
       { body: null, error: { error: "API_SERVER_ERROR", detail: { status_code: 404 } } },

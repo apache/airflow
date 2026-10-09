@@ -37,7 +37,7 @@
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
 import { resolveArgs, type BoundArgs } from "./arg-binding.js";
-import { createCoordinatorClient } from "./client.js";
+import { createCoordinatorClient, type CoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
 import {
@@ -348,6 +348,8 @@ async function handleTask(
   if (trigger) {
     const ctx = buildContext(details, signal);
     const client = createCoordinatorClient(comm, ctx, clientLogs);
+    const deleteFailure = await deleteListedXComs(details, client, logs);
+    if (deleteFailure) return deleteFailure;
     const fail = (message: string) => {
       logs.error("Task failed", { task_id: ctx.taskId, error: message });
       return buildFailureResponse(details, message);
@@ -378,6 +380,8 @@ async function handleTask(
 
   const ctx = buildContext(details, signal);
   const client = createCoordinatorClient(comm, ctx, clientLogs);
+  const deleteFailure = await deleteListedXComs(details, client, logs);
+  if (deleteFailure) return deleteFailure;
 
   let bound: BoundArgs;
   try {
@@ -431,6 +435,43 @@ async function handleTask(
     });
     return buildFailureResponse(details, message);
   }
+}
+
+/**
+ * Delete the XComs that `ti_context.xcom_keys_to_clear` lists.
+ *
+ * When a try starts, Airflow lists the XComs that the try already has and
+ * leaves deleting them to the runtime. The Python task runner deletes the
+ * listed XComs before it renders templates and fails the try if a delete
+ * fails. This runtime calls this function before a triggerDagRun task runs
+ * and before a task handler's arguments are bound. Those calls match the point
+ * where the Python task runner deletes the listed XComs. The list is empty
+ * when a task resumes from a deferral, so this function does not delete the
+ * XComs that a triggerDagRun task wrote before the task deferred.
+ *
+ * Returns the response that fails the try when a delete fails, and null when
+ * every listed XCom is deleted.
+ */
+async function deleteListedXComs(
+  details: StartupDetails,
+  client: CoordinatorClient,
+  logs: LogChannel,
+): Promise<RuntimeRetryTask | RuntimeTaskState | null> {
+  for (const key of details.ti_context?.xcom_keys_to_clear ?? []) {
+    logs.debug("Clearing XCom with key", { key });
+    try {
+      await client.deleteXCom(key);
+    } catch (err) {
+      const message = (err as Error).message ?? String(err);
+      logs.error("Cannot clear XCom before running the task", {
+        task_id: details.ti.task_id,
+        key,
+        error: message,
+      });
+      return buildFailureResponse(details, message);
+    }
+  }
+  return null;
 }
 
 async function sendSupervisorResponse(

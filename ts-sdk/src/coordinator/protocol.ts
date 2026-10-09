@@ -65,6 +65,7 @@ export type {
   DeleteVariable,
   GetXCom,
   SetXCom,
+  DeleteXCom,
   GetConnection,
   SkipDownstreamTasks,
   TriggerDagRun,
