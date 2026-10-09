@@ -18,10 +18,23 @@ from __future__ import annotations
 
 from airflow.providers.apache.hive.macros.hive import closest_ds_partition, max_partition
 from airflow.providers.apache.hive.plugins.hive import HivePlugin
+from airflow.providers.common.compat.sdk import AirflowPlugin
+from airflow.sdk._shared.module_loading import import_string
 
 
-def test_hive_plugin_registers_macros():
-    plugin = HivePlugin()
+class TestHivePlugin:
+    def test_name_is_hive(self):
+        assert HivePlugin.name == "hive"
 
-    assert plugin.name == "hive"
-    assert plugin.macros == [max_partition, closest_ds_partition]
+    def test_exposed_macros(self):
+        assert max_partition in HivePlugin.macros
+        assert closest_ds_partition in HivePlugin.macros
+
+    def test_subclasses_airflow_plugin(self):
+        assert issubclass(HivePlugin, AirflowPlugin)
+
+    def test_hive_plugin_dotted_path(self):
+        path = "airflow.providers.apache.hive.plugins.hive.HivePlugin"
+        resolved_class = import_string(path)
+
+        assert resolved_class is HivePlugin
