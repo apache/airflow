@@ -185,11 +185,11 @@ def _task_instance_event_allowed(dag_id: str, task_id: str) -> bool:
 _producer: Producer | None = None
 _topic_check_retry_after: dict[EventProducerKafkaTopic, float] = {
     EventProducerKafkaTopic.DAG_RUN: 0.0,
-    EventProducerKafkaTopic.TASK_INSTANCE: 0.0
+    EventProducerKafkaTopic.TASK_INSTANCE: 0.0,
 }
 _topic_existence_map: dict[EventProducerKafkaTopic, bool] = {
     EventProducerKafkaTopic.DAG_RUN: False,
-    EventProducerKafkaTopic.TASK_INSTANCE: False
+    EventProducerKafkaTopic.TASK_INSTANCE: False,
 }
 
 
@@ -209,7 +209,7 @@ def _reset_state_after_fork() -> None:
     }
     _topic_check_retry_after = {
         EventProducerKafkaTopic.DAG_RUN: 0.0,
-        EventProducerKafkaTopic.TASK_INSTANCE: 0.0
+        EventProducerKafkaTopic.TASK_INSTANCE: 0.0,
     }
 
 
