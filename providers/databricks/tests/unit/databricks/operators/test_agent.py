@@ -44,7 +44,7 @@ def operator():
         invocation_id=INVOCATION_ID,
     )
     op.hook = mock.create_autospec(DatabricksAgentHook, instance=True)
-    op.hook.invoke_agent.return_value = {"id": INVOCATION_ID, "status_url": "ignored"}
+    op.hook.create_invocation.return_value = {"id": INVOCATION_ID, "status_url": "ignored"}
     return op
 
 
@@ -108,15 +108,15 @@ def test_template_fields():
 def test_submit_without_waiting(operator):
     operator.wait_for_termination = False
     operator.deferrable = True
-    assert operator.execute({}) == operator.hook.invoke_agent.return_value
-    operator.hook.invoke_agent.assert_called_once_with(INVOCATION_ID, operator.input, "conversation")
+    assert operator.execute({}) == operator.hook.create_invocation.return_value
+    operator.hook.create_invocation.assert_called_once_with(INVOCATION_ID, operator.input, "conversation")
     operator.hook.get_invocation.assert_not_called()
 
 
 @pytest.mark.parametrize("status", ["completed", "interrupted"])
 def test_immediate_result(operator, status):
     result = {"status": status, "output": {"answer": "hello"}}
-    operator.hook.invoke_agent.return_value = result
+    operator.hook.create_invocation.return_value = result
     assert operator.execute({}) == result
     operator.hook.get_invocation.assert_not_called()
 

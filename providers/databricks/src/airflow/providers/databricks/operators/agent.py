@@ -118,7 +118,7 @@ class DatabricksAgentInvokeOperator(BaseOperator):
 
     def execute(self, context: Context) -> dict[str, Any]:
         invocation_id = self._get_invocation_id(context)
-        submitted = self.hook.invoke_agent(invocation_id, self.input, self.session_id)
+        submitted = self.hook.create_invocation(invocation_id, self.input, self.session_id)
         if not self.wait_for_termination:
             return submitted
         result = self._get_result(submitted, invocation_id) if submitted.get("status") else None
