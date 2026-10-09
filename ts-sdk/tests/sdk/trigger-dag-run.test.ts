@@ -232,6 +232,17 @@ describe("triggerDagRun", () => {
       );
     });
 
+    it.each(["if", "switch"] as const)("a trigger task given to dag.%s", (decider) => {
+      const dag = new Dag("d");
+      const declare = dag[decider].bind(dag) as (...args: unknown[]) => unknown;
+
+      expect(() =>
+        declare(triggerDagRun({ dagId: "downstream_etl" }), undefined, {
+          taskId: "trigger_downstream",
+        }),
+      ).toThrowError(/A triggerDagRun task of Dag "d" was given to dag.if or dag.switch/);
+    });
+
     it("a trigger task left uncalled, when the Dag is read", () => {
       const dag = new Dag("d");
       dag.task(triggerDagRun({ dagId: "downstream_etl" }), { taskId: "trigger_downstream" });

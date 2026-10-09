@@ -629,6 +629,12 @@ export class Dag {
   }
 
   #placeDecider(handler: (args: never) => unknown, args: readonly unknown[]): TaskRef {
+    if (isTriggerDagRunTask(handler)) {
+      throw new Error(
+        `A triggerDagRun task of Dag "${this.dagId}" was given to dag.if or dag.switch, ` +
+          "which need a handler to decide the branch with",
+      );
+    }
     const [inputs, spec] = args as [unknown, TaskOptions | undefined];
     const factory = this.#addTask(undefined, handler, spec) as (...inputs: unknown[]) => TaskRef;
     return inputs === undefined ? factory() : factory(inputs);
