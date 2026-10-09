@@ -66,6 +66,25 @@ public class AnnotationExample {
     return transformed > 0;
   }
 
+  @Builder.Task(id = "report_long")
+  public void reportLong() {
+    log.log(INFO, "Long report");
+  }
+
+  @Builder.Task(id = "report_short")
+  public void reportShort() {
+    log.log(INFO, "Short report");
+  }
+
+  // A switch: it names the one case that runs by the class generated for it,
+  // and every other case is skipped.
+  @Builder.Switch(id = "pick_report")
+  public Class<? extends Task> pickReport(long transformed) {
+    return transformed > 100
+        ? AnnotationExampleBuilder.ReportLong.class
+        : AnnotationExampleBuilder.ReportShort.class;
+  }
+
   // A task group: everything it declares is prefixed with its id, so this is
   // the task "checks.audit".
   @Builder.TaskGroup(id = "checks")
@@ -84,6 +103,7 @@ public class AnnotationExample {
       var extracted = extract();
       var transformed = transform(extracted, lit(1.5));
       hasRows(transformed).Then(load(transformed)).Else(loadEmpty());
+      pickReport(transformed).Case(reportLong()).Case(reportShort());
       // Ordering-only edge: the checks group runs after extract, with no data
       // flowing.
       extracted.before(checks());

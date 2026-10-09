@@ -49,6 +49,7 @@ import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
 import javax.annotation.processing.SupportedSourceVersion
 import javax.lang.model.SourceVersion
+import javax.lang.model.element.AnnotationMirror
 import javax.lang.model.element.AnnotationValue
 import javax.lang.model.element.Element
 import javax.lang.model.element.ElementKind
@@ -56,8 +57,10 @@ import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
 import javax.lang.model.element.VariableElement
+import javax.lang.model.type.DeclaredType
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
+import javax.lang.model.type.WildcardType
 import javax.tools.Diagnostic
 import java.lang.reflect.Modifier as ReflectModifier
 import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
@@ -97,6 +100,7 @@ import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
   "org.apache.airflow.sdk.Builder.Dag",
   "org.apache.airflow.sdk.Builder.Task",
   "org.apache.airflow.sdk.Builder.If",
+  "org.apache.airflow.sdk.Builder.Switch",
   "org.apache.airflow.sdk.Builder.TaskGroup",
   "org.apache.airflow.sdk.Builder.TaskHandler",
   "org.apache.airflow.sdk.Builder.Deps",
@@ -357,24 +361,22 @@ class BuilderProcessor : AbstractProcessor() {
     builderName: ClassName,
     inGroup: Boolean,
   ): MethodSpec {
-    val condition = decl.kind == TaskKind.CONDITION
     val method =
       MethodSpec
         .methodBuilder(decl.method.simpleName.toString())
         .addModifiers(Modifier.PUBLIC, Modifier.DEFAULT)
         .returns(
-          if (condition) {
-            CONDITION_REF_TYPE
-          } else {
-            ParameterizedTypeName.get(TASK_HANDLE_TYPE, TypeName.get(decl.method.returnType).boxIfPossible())
-          },
+          decl.kind.refType
+            ?: ParameterizedTypeName.get(TASK_HANDLE_TYPE, TypeName.get(decl.method.returnType).boxIfPossible()),
         )
     decl.dataParams.forEach { method.addParameter(inType(it.type), it.name) }
     val def = taskDefCode(decl, CodeBlock.of($$"$T.$L", builderName, decl.className))
     // The view knows the group it belongs to, so the recorder is told where
     // the task goes instead of deriving it from the task's ID.
     val group = if (inGroup) CodeBlock.of("groupId()") else CodeBlock.of($$"$S", "")
-    val wrap = { call: CodeBlock -> if (condition) CodeBlock.of($$"$T.of($L)", CONDITION_REF_TYPE, call) else call }
+    val wrap = { call: CodeBlock ->
+      decl.kind.refType?.let { CodeBlock.of($$"$T.of($L)", it, call) } ?: call
+    }
     if (decl.dataParams.isEmpty()) {
       method.addStatement($$"return $L", wrap(CodeBlock.of($$"$T.node($L, $L)", REFS_TYPE, group, def)))
     } else {
@@ -435,17 +437,19 @@ class BuilderProcessor : AbstractProcessor() {
     val tasks = mutableListOf<TaskDeclaration>()
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
-      val task = inner.getAnnotation(Builder.Task::class.java)
-      val condition = inner.getAnnotation(Builder.If::class.java)
-      if (task == null && condition == null) continue
-      require(task == null || condition == null) {
-        "Method '${inner.simpleName}' carries both @Builder.Task and @Builder.If; a condition is a " +
-          "task, so it carries @Builder.If alone"
-      }
-      val kind = if (condition != null) TaskKind.CONDITION else TaskKind.TASK
+      val declared =
+        TaskKind.entries.filter { kind -> inner.annotationMirrors.any { it.names(kind.annotation) } }
+      if (declared.isEmpty()) continue
+      val kind =
+        declared.singleOrNull()
+          ?: throw IllegalArgumentException(
+            "Method '${inner.simpleName}' carries ${declared.joinToString { it.spelling }}; a task is " +
+              "declared by one of them alone",
+          )
+      val annotated = declaredId(inner, kind)
       if (inner.isVarArgs) throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
       checkDeciderReturn(kind, inner)
-      val localId = (condition?.id ?: task!!.id).ifBlank { inner.simpleName.toString() }
+      val localId = annotated.ifBlank { inner.simpleName.toString() }
       require(tasks.none { it.method.simpleName.contentEquals(inner.simpleName) }) {
         "Class ${el.simpleName} overloads task method '${inner.simpleName}'; a method's name is the " +
           "name of its generated task class and of its wiring-view method, so rename one and keep its " +
@@ -712,24 +716,55 @@ class BuilderProcessor : AbstractProcessor() {
     kind: TaskKind,
     method: ExecutableElement,
   ) {
-    if (kind != TaskKind.CONDITION) return
     val returns = method.returnType
-    val boolean = returns.kind == TypeKind.BOOLEAN || with(processingEnv) { isType(returns, BOXED_BOOLEAN_TYPE) }
-    require(boolean) {
-      "@Builder.If method '${method.simpleName}' returns $returns, but a condition returns boolean: " +
-        "true runs the task named by Then, false the one named by Else"
+    when (kind) {
+      TaskKind.TASK -> return
+      TaskKind.CONDITION ->
+        require(returns.kind == TypeKind.BOOLEAN || with(processingEnv) { isType(returns, BOXED_BOOLEAN_TYPE) }) {
+          "@Builder.If method '${method.simpleName}' returns $returns, but a condition returns boolean: " +
+            "true runs the task named by Then, false the one named by Else"
+        }
+      TaskKind.SWITCH ->
+        require(returnsTaskClass(returns)) {
+          "@Builder.Switch method '${method.simpleName}' returns $returns, but a switch returns the " +
+            "class of the task it chose, as Class<? extends Task>"
+        }
     }
   }
 
+  /** Whether [type] is `Class<T>` or `Class<? extends T>` for a [Task] type `T`. */
+  private fun returnsTaskClass(type: TypeMirror): Boolean {
+    val declared = type as? DeclaredType ?: return false
+    if (!(declared.asElement() as TypeElement).qualifiedName.contentEquals("java.lang.Class")) return false
+    val argument = declared.typeArguments.singleOrNull() ?: return false
+    val bound = if (argument is WildcardType) argument.extendsBound else argument
+    return bound != null &&
+      with(processingEnv) { typeUtils.isAssignable(bound, elementUtils.getTypeElement(TASK_TYPE.canonicalName()).asType()) }
+  }
+
+  /** The `id` the declaring annotation sets, empty when it leaves it out. */
+  private fun declaredId(
+    method: ExecutableElement,
+    kind: TaskKind,
+  ): String {
+    val mirror = method.annotationMirrors.first { it.names(kind.annotation) }
+    val id = mirror.elementValues.entries.firstOrNull { it.key.simpleName.contentEquals("id") }
+    return id?.value?.value as String? ?: ""
+  }
+
   private fun buildTask(decl: TaskDeclaration): TypeSpec {
-    val condition = decl.kind == TaskKind.CONDITION
     val executeSpec =
       MethodSpec
-        .methodBuilder(if (condition) "decide" else "execute")
+        .methodBuilder(decl.kind.bodyMethod)
         .addAnnotation(Override::class.java)
         .addModifiers(Modifier.PUBLIC)
-        .returns(if (condition) TypeName.BOOLEAN else TypeName.VOID)
-        .addParameter(CONTEXT_TYPE, "context")
+        .returns(
+          when (decl.kind) {
+            TaskKind.TASK -> TypeName.VOID
+            TaskKind.CONDITION -> TypeName.BOOLEAN
+            TaskKind.SWITCH -> TASK_CLASS_TYPE
+          },
+        ).addParameter(CONTEXT_TYPE, "context")
         .addParameter(CLIENT_TYPE, "client")
         .addException(Exception::class.java)
 
@@ -775,8 +810,8 @@ class BuilderProcessor : AbstractProcessor() {
     }
 
     when {
-      // The SDK pushes a condition's result itself, after it has skipped the side not taken.
-      condition -> $$"return new $T().$L($L)"
+      // The SDK pushes a decider's choice itself, after it has skipped what the choice rules out.
+      decl.kind != TaskKind.TASK -> $$"return new $T().$L($L)"
       inner.returnType.kind == TypeKind.VOID -> $$"new $T().$L($L)"
       else -> $$"client.setXCom(new $T().$L($L))"
     }.also {
@@ -790,7 +825,7 @@ class BuilderProcessor : AbstractProcessor() {
 
     return TypeSpec
       .classBuilder(decl.className)
-      .addSuperinterface(if (condition) CONDITION_TASK_TYPE else ClassName.get(Task::class.java))
+      .addSuperinterface(decl.kind.taskInterface)
       .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
       .addMethod(executeSpec.build())
       .build()
@@ -966,8 +1001,13 @@ private val DAG_SOURCE_TYPE = ClassName.get(DagSource::class.java)
 private val REFS_TYPE = ClassName.get(Refs::class.java)
 private val ARG_TYPE = ClassName.get(Arg::class.java)
 private val TASK_HANDLE_TYPE = ClassName.get(TaskRef::class.java)
+private val TASK_TYPE = ClassName.get(Task::class.java)
 private val CONDITION_TASK_TYPE = ClassName.get(ConditionTask::class.java)
 private val CONDITION_REF_TYPE = ClassName.get(ConditionRef::class.java)
+private val SWITCH_TASK_TYPE = ClassName.get(SwitchTask::class.java)
+private val SWITCH_REF_TYPE = ClassName.get(SwitchRef::class.java)
+private val TASK_CLASS_TYPE =
+  ParameterizedTypeName.get(ClassName.get(Class::class.java), WildcardTypeName.subtypeOf(TASK_TYPE))
 private val BOXED_BOOLEAN_TYPE = ClassName.get("java.lang", "Boolean")
 private val DEPS_TYPE = ClassName.get(Deps::class.java)
 private val GROUP_TYPE = DEPS_TYPE.nestedClass("TaskGroup")
@@ -983,10 +1023,18 @@ private const val DAG_ANNOTATION = "org.apache.airflow.sdk.Builder.Dag"
 private enum class TaskKind(
   val annotation: String,
   val spelling: String,
+  /** Method the generated class implements, and the type its wiring view hands back. */
+  val bodyMethod: String,
+  val taskInterface: ClassName,
+  val refType: ClassName?,
 ) {
-  TASK("org.apache.airflow.sdk.Builder.Task", "@Builder.Task"),
-  CONDITION("org.apache.airflow.sdk.Builder.If", "@Builder.If"),
+  TASK("org.apache.airflow.sdk.Builder.Task", "@Builder.Task", "execute", TASK_TYPE, null),
+  CONDITION("org.apache.airflow.sdk.Builder.If", "@Builder.If", "decide", CONDITION_TASK_TYPE, CONDITION_REF_TYPE),
+  SWITCH("org.apache.airflow.sdk.Builder.Switch", "@Builder.Switch", "choose", SWITCH_TASK_TYPE, SWITCH_REF_TYPE),
 }
+
+/** Whether this annotation is the one [name] qualifies. */
+private fun AnnotationMirror.names(name: String): Boolean = (annotationType.asElement() as TypeElement).qualifiedName.contentEquals(name)
 
 private val RESERVED_VIEW_NAMES =
   setOf(

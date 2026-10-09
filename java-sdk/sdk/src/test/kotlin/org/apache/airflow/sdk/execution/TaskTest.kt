@@ -24,6 +24,7 @@ import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
 import org.apache.airflow.sdk.execution.comm.BundleInfo
@@ -245,6 +246,62 @@ class TaskTest {
     Assertions.assertEquals(emptyList<Pair<String, Any>>(), transport.xComs)
   }
 
+  @Test
+  @DisplayName("Should push the case a switch chose and skip every other one")
+  fun shouldSkipTheCasesNotChosen() {
+    TestSwitch.choice = HandleLongTask::class.java
+    val transport = RecordingTransport()
+
+    val result = runTask(switchBundle(), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+    Assertions.assertEquals(listOf("handle_short"), transport.skipped)
+    Assertions.assertEquals(
+      listOf("skipmixin_key" to mapOf("skipped" to listOf("handle_short")), "return_value" to "handle_long"),
+      transport.xComs,
+    )
+  }
+
+  @Test
+  @DisplayName("Should fail a switch that chose a task it cannot run")
+  fun shouldFailSwitchThatChoseAnUnknownCase() {
+    TestSwitch.choice = SuccessTask::class.java
+    val transport = RecordingTransport()
+
+    val result = runTask(switchBundle(), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+    Assertions.assertEquals(emptyList<String>(), transport.skipped)
+    Assertions.assertEquals(emptyList<Pair<String, Any>>(), transport.xComs)
+  }
+
+  @Test
+  @DisplayName("Should fail a generated switch that chose a task of the Dag that is not one of its cases")
+  fun shouldFailGeneratedSwitchThatChoseANonCase() {
+    val dag = DagDef("test_dag")
+    val long = dag.task<Unit>("handle_long", HandleLongTask::class.java)
+    val short = dag.task<Unit>("handle_short", HandleShortTask::class.java)
+    dag.task<Unit>("unlisted", UnlistedTask::class.java)
+    dag.Switch("pick", TestGeneratedSwitch::class.java).Case(long).Case(short)
+    val transport = RecordingTransport()
+
+    val result = runTask(Bundle(listOf(dag)), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+    Assertions.assertEquals(emptyList<String>(), transport.skipped)
+    Assertions.assertEquals(emptyList<Pair<String, Any>>(), transport.xComs)
+  }
+
+  private fun switchBundle(): Bundle {
+    val dag = DagDef("test_dag")
+    val long = dag.task<Unit>("handle_long", HandleLongTask::class.java)
+    val short = dag.task<Unit>("handle_short", HandleShortTask::class.java)
+    dag.Switch("pick", TestSwitch::class.java).Case(long).Case(short)
+    return Bundle(listOf(dag))
+  }
+
   private fun conditionBundle(withElse: Boolean): Bundle {
     val dag = DagDef("test_dag")
     val load = dag.task<Unit>("load", SuccessTask::class.java)
@@ -358,6 +415,47 @@ class TaskTest {
     companion object {
       var decision: Boolean? = true
     }
+  }
+
+  class HandleLongTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
+  }
+
+  class HandleShortTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
+  }
+
+  /** Chooses whatever [choice] holds, so a test can drive it to a case or past one. */
+  class TestSwitch : SwitchTask {
+    override fun choose(
+      context: Context,
+      client: Client,
+    ): Class<out Task> = choice
+
+    companion object {
+      var choice: Class<out Task> = HandleLongTask::class.java
+    }
+  }
+
+  class UnlistedTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
+  }
+
+  /** The shape the annotation processor generates: it returns the class of a task, here one that is no case. */
+  class TestGeneratedSwitch : SwitchTask {
+    override fun choose(
+      context: Context,
+      client: Client,
+    ): Class<out Task> = UnlistedTask::class.java
   }
 
   /** Records what a deciding task pushed and asked to skip, and the order of the two. */

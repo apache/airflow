@@ -107,6 +107,36 @@ class TaskGroupRef internal constructor(
   ): ConditionRef = ConditionRef.of(task(id, definition))
 
   /**
+   * Declares a switch in this group, as [DagDef.Switch] does for the Dag.
+   *
+   * @param definition Class that implements [SwitchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The switch, to list its cases on.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Switch(definition: Class<out SwitchTask>): SwitchRef = Switch(deriveTaskId(definition), definition)
+
+  /**
+   * Declares a switch in this group under the task ID `<group ID>.<id>`.
+   *
+   * @param id Task ID within this group.
+   * @param definition Class that implements [SwitchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The switch, to list its cases on.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   *
+   * @see Switch
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Switch(
+    id: String,
+    definition: Class<out SwitchTask>,
+  ): SwitchRef = SwitchRef.of(task<Any?>(id, definition))
+
+  /**
    * Nests a task group inside this one.
    *
    * @param id Group ID within this group; the nested group's ID is

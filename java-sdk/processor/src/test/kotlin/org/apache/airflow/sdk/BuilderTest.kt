@@ -2301,6 +2301,216 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("let a wiring view name a switch's cases in more than one statement")
+  fun switchNamedAcrossStatements() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Task;
+
+        @Builder.Dag(id = "etl")
+        public class TestExample {
+          @Builder.Switch(id = "pick_path")
+          public Class<? extends Task> pickPath() {
+            return TestExampleBuilder.HandleLong.class;
+          }
+
+          @Builder.Task
+          public void handleLong() {}
+
+          @Builder.Task
+          public void handleShort() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              pickPath().Case(handleLong());
+              pickPath().Case(handleShort());
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+  }
+
+  @Test
+  @DisplayName("generate a switch that names its case by the class generated for it")
+  fun generateSwitchTask() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Task;
+
+        @Builder.Dag(id = "etl")
+        public class TestExample {
+          @Builder.Switch(id = "pick_path")
+          public Class<? extends Task> pickPath() {
+            return TestExampleBuilder.HandleLong.class;
+          }
+
+          @Builder.Task
+          public void handleLong() {}
+
+          @Builder.Task
+          public void handleShort() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              pickPath().Case(handleLong()).Case(handleShort());
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Class;
+         import java.lang.Exception;
+         import java.lang.Override;
+         import java.util.List;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.SwitchTask;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.DagSource;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         public final class TestExampleBuilder {
+           public static DagDef build() {
+             var dag = DagSource.declaredBy(new DagDef("etl"), TestExample.class);
+             return Refs.record(dag, List.of("pick_path", "handleLong", "handleShort"), List.of(), new TestExample.Wiring()::depends);
+           }
+
+           public static final class PickPath implements SwitchTask {
+             @Override
+             public Class<? extends Task> choose(Context context, Client client) throws Exception {
+               return new TestExample().pickPath();
+             }
+           }
+
+           public static final class HandleLong implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               new TestExample().handleLong();
+             }
+           }
+
+           public static final class HandleShort implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               new TestExample().handleShort();
+             }
+           }
+         }
+        """,
+      )
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleDeps")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleDeps",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Void;
+         import org.apache.airflow.sdk.Deps;
+         import org.apache.airflow.sdk.SwitchRef;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.TaskRef;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         public interface TestExampleDeps extends Deps {
+           default SwitchRef pickPath() {
+             return SwitchRef.of(Refs.node("", new TaskDef("pick_path", TestExampleBuilder.PickPath.class)));
+           }
+
+           default TaskRef<Void> handleLong() {
+             return Refs.node("", new TaskDef("handleLong", TestExampleBuilder.HandleLong.class));
+           }
+
+           default TaskRef<Void> handleShort() {
+             return Refs.node("", new TaskDef("handleShort", TestExampleBuilder.HandleShort.class));
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("reject a switch that does not return the class of a task")
+  fun rejectNonTaskClassSwitch() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Switch
+          public String pickPath() {
+            return "handleLong";
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.Switch method 'pickPath' returns java.lang.String, but a switch returns the class of the task it chose",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a switch that returns a class that is not a task")
+  fun rejectSwitchReturningNonTaskClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Switch
+          public Class<String> pickPath() {
+            return String.class;
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.Switch method 'pickPath' returns java.lang.Class<java.lang.String>, but a switch returns the class of the task it chose",
+    )
+  }
+
+  @Test
   @DisplayName("reject a condition that does not return a boolean")
   fun rejectNonBooleanCondition() {
     val compilation =
@@ -2355,7 +2565,7 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "Method 'hasRows' carries both @Builder.Task and @Builder.If",
+      "Method 'hasRows' carries @Builder.Task, @Builder.If; a task is declared by one of them alone",
     )
   }
 

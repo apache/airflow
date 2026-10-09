@@ -71,6 +71,31 @@ public class InterfaceExample {
     }
   }
 
+  public static class ReportLong implements Task {
+    @Override
+    public void execute(Context context, Client client) {
+      log.log(INFO, "Long report");
+    }
+  }
+
+  public static class ReportShort implements Task {
+    @Override
+    public void execute(Context context, Client client) {
+      log.log(INFO, "Short report");
+    }
+  }
+
+  // A switch: it names the one case that runs by its class, and every other
+  // case is skipped.
+  public static class PickReport implements SwitchTask {
+    @Override
+    public Class<? extends Task> choose(Context context, Client client) {
+      return ((Number) client.getXCom("transform")).longValue() > 100
+          ? ReportLong.class
+          : ReportShort.class;
+    }
+  }
+
   public static DagDef build() {
     var dag =
         new DagDef("java_native_interface_example")
@@ -87,9 +112,14 @@ public class InterfaceExample {
     var load = dag.task("load", Load.class);
     var loadEmpty = dag.task("load_empty", LoadEmpty.class);
 
+    var reportLong = dag.task("report_long", ReportLong.class);
+    var reportShort = dag.task("report_short", ReportShort.class);
+
     transform.after(extract);
-    // With no task id given, the condition takes one from its class: "hasRows".
+    // With no task id given, a decider takes one from its class: "hasRows" and
+    // "pickReport".
     dag.If(HasRows.class).after(transform).Then(load).Else(loadEmpty);
+    dag.Switch(PickReport.class).after(transform).Case(reportLong).Case(reportShort);
     return dag;
   }
 }

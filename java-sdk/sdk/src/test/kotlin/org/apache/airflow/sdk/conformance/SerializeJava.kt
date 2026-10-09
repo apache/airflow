@@ -39,6 +39,8 @@ import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.Deps
+import org.apache.airflow.sdk.SwitchRef
+import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskGroupRef
 import org.apache.airflow.sdk.TaskRef
@@ -50,18 +52,121 @@ import java.io.File
 import java.time.Duration
 import java.time.OffsetDateTime
 
-class ConformanceTask : Task {
+// A switch names its cases by class, so each task of a Dag runs a class of its own. The pool has
+// room for the largest Dag in test_dags.yaml and a few more; the serialized task type is not compared.
+class ConformanceTask1 : Task {
   override fun execute(
     context: Context,
     client: Client,
   ) = Unit
 }
 
+class ConformanceTask2 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask3 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask4 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask5 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask6 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask7 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask8 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask9 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask10 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask11 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+class ConformanceTask12 : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+private val taskPool: List<Class<out Task>> =
+  listOf(
+    ConformanceTask1::class.java,
+    ConformanceTask2::class.java,
+    ConformanceTask3::class.java,
+    ConformanceTask4::class.java,
+    ConformanceTask5::class.java,
+    ConformanceTask6::class.java,
+    ConformanceTask7::class.java,
+    ConformanceTask8::class.java,
+    ConformanceTask9::class.java,
+    ConformanceTask10::class.java,
+    ConformanceTask11::class.java,
+    ConformanceTask12::class.java,
+  )
+
 class ConformanceCondition : ConditionTask {
   override fun decide(
     context: Context,
     client: Client,
   ) = true
+}
+
+// Never run, only serialized, so any task class will do.
+class ConformanceSwitch : SwitchTask {
+  override fun choose(
+    context: Context,
+    client: Client,
+  ): Class<out Task> = ConformanceTask1::class.java
 }
 
 fun main(args: Array<String>) {
@@ -90,20 +195,33 @@ private fun buildDag(case: JsonNode): DagDef {
   }
 
   val tasks = linkedMapOf<String, TaskRef<*>>()
-  // A condition names tasks that may be declared after it, so the sides are wired once every task exists.
-  val conditions = mutableListOf<Pair<ConditionRef, JsonNode>>()
+  val unusedTaskClasses = taskPool.iterator()
+  // A decider names tasks that may be declared after it, so its cases are wired once every task exists.
+  val deciders = mutableListOf<Pair<Deps.Flow, JsonNode>>()
   case.path("tasks").forEach { task ->
     val groupId = task.path("group").asText("")
     val localId = task.path("task_id").asText()
     val branch = task.path("branch")
-    val definition = if (branch.isMissingNode) ConformanceTask::class.java else ConformanceCondition::class.java
+    val definition =
+      when {
+        branch.isMissingNode -> {
+          require(unusedTaskClasses.hasNext()) {
+            "Dag '${dag.id}' has more tasks than the ${taskPool.size} classes in taskPool; add a ConformanceTask class"
+          }
+          unusedTaskClasses.next()
+        }
+        branch.has("cases") -> ConformanceSwitch::class.java
+        else -> ConformanceCondition::class.java
+      }
     val ref =
       if (groupId.isEmpty()) {
         dag.task<Any?>(localId, definition)
       } else {
         groups.getValue(groupId).task<Any?>(localId, definition)
       }
-    if (!branch.isMissingNode) conditions += asCondition(ref) to branch
+    if (!branch.isMissingNode) {
+      deciders += (if (branch.has("cases")) SwitchRef.of(ref) else asCondition(ref)) to branch
+    }
     task.path("spec").fields().forEach { (key, value) -> ref.config(key, toValue(SchemaFields.TASK, key, value)) }
     // A task's `upstream` handles and its `literals` are its call arguments, in that order, so the
     // Dag carries the binding spec a stub call would. Names are positional, as the Go SDK names
@@ -117,9 +235,15 @@ private fun buildDag(case: JsonNode): DagDef {
     tasks[ref.def.id] = ref
   }
 
-  conditions.forEach { (condition, branch) ->
-    condition.Then(tasks.getValue(branch.path("then").asText()))
-    branch.path("else").takeIf { !it.isMissingNode }?.let { condition.Else(tasks.getValue(it.asText())) }
+  deciders.forEach { (decider, branch) ->
+    when (decider) {
+      is SwitchRef -> branch.path("cases").forEach { decider.Case(tasks.getValue(it.asText())) }
+      is ConditionRef -> {
+        decider.Then(tasks.getValue(branch.path("then").asText()))
+        branch.path("else").takeIf { !it.isMissingNode }?.let { decider.Else(tasks.getValue(it.asText())) }
+      }
+      else -> throw IllegalStateException("Unknown decider: $decider")
+    }
   }
 
   case.path("order_edges").forEach { edge ->

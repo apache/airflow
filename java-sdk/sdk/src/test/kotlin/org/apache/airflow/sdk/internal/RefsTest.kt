@@ -27,6 +27,8 @@ import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.Deps
 import org.apache.airflow.sdk.LiteralArg
+import org.apache.airflow.sdk.SwitchRef
+import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
 import org.apache.airflow.sdk.TaskRef
@@ -54,6 +56,20 @@ private class NoopCondition : ConditionTask {
     context: Context,
     client: Client,
   ) = true
+}
+
+private class OtherNoopRefTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+private class NoopSwitch : SwitchTask {
+  override fun choose(
+    context: Context,
+    client: Client,
+  ): Class<out Task> = NoopRefTask::class.java
 }
 
 internal class RefsTest {
@@ -227,6 +243,26 @@ internal class RefsTest {
       listOf("load", "report_empty"),
       dag.tasks
         .getValue("has_rows")
+        .decider!!
+        .cases
+        .map { it.id },
+    )
+  }
+
+  @Test
+  @DisplayName("Should let a view name a switch's cases in separate statements")
+  fun shouldNameSwitchCasesAcrossStatements() {
+    val dag = DagDef("d")
+    Refs.record(dag, listOf("pick", "long", "short"), emptyList()) {
+      fun pick() = SwitchRef.of(Refs.node<Unit>("", TaskDef("pick", NoopSwitch::class.java)))
+      pick().Case(Refs.node<Unit>("", TaskDef("long", NoopRefTask::class.java)))
+      pick().Case(Refs.node<Unit>("", TaskDef("short", OtherNoopRefTask::class.java)))
+    }
+
+    assertEquals(
+      listOf("long", "short"),
+      dag.tasks
+        .getValue("pick")
         .decider!!
         .cases
         .map { it.id },
