@@ -1144,6 +1144,10 @@ into the bundle JAR, so the Airflow UI can show the source of a native Java Dag 
 :ref:`java-sdk/native-dag-parsing`). To find those classes, the plugin runs ``mainClass`` once at build
 time. If that run fails, the build logs a warning and packs only the ``mainClass`` source.
 
+A Dag is recorded against the class that constructed it. A Dag built by a factory therefore maps to the
+factory's class, and one built by a factory in a dependency JAR has no source in the project and falls
+back to the ``mainClass`` source.
+
 .. note::
 
   You only need the ``annotationProcessor`` entry if you use the annotation-based API. It is not needed for

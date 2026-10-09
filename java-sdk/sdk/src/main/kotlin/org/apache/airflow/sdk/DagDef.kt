@@ -19,6 +19,7 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.DagSource
 import org.apache.airflow.sdk.internal.GROUP_ID
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.checkConfigValue
@@ -56,6 +57,9 @@ class DagDef(
 
   /** Edges with a task group at either end, in the order drawn. */
   internal val groupEdges = linkedSetOf<Pair<Endpoint, Endpoint>>()
+
+  /** Outermost class that declared this Dag, or `null` if it could not be told. */
+  internal var declaringClass: Class<*>? = DagSource.capture()
 
   /**
    * Sets one Dag-level configuration value.
