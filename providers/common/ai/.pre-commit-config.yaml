@@ -30,7 +30,7 @@ repos:
         language: node
         files: |
           (?x)
-          ^src/airflow/providers/common/ai/plugins/www/.*\.(js|ts|tsx|yaml|css|json)$
+          ^src/airflow/providers/common/ai/plugins/www/.*\.(m?js|ts|tsx|yaml|css|json)$
         exclude: |
           (?x)
           ^src/airflow/providers/common/ai/plugins/www/node-modules/.*|

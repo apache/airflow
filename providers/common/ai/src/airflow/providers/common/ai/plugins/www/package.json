@@ -25,6 +25,7 @@
     "build:types": "tsc --p tsconfig.lib.json",
     "build:lib": "vite build",
     "lint": "tsc --p tsconfig.app.json --noEmit",
+    "test": "node --test --experimental-strip-types \"tests/**/*.test.*\"",
     "preview": "vite preview"
   },
   "dependencies": {

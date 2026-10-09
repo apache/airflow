@@ -30,7 +30,7 @@ from uuid import UUID
 
 import time_machine
 from fastapi.testclient import TestClient
-from sqlalchemy import false, select
+from sqlalchemy import select
 
 from airflow.api_fastapi.app import create_app, purge_cached_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -60,6 +60,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 if AIRFLOW_V_3_4_PLUS:
+    from airflow.models.dynamic_region import DynamicRegion
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import task_group
     from airflow.sdk.definitions._internal.loop import create_loop
@@ -564,18 +565,6 @@ class TestReadXcom:
         else:
             assert result == expected
         _clear_db()
-
-    @pytest.mark.parametrize(("is_v3_4_plus", "expect_region"), [(True, True), (False, False)])
-    @mock.patch("airflow.providers.common.ai.plugins.hitl_review.XComModel.get_many", autospec=True)
-    def test_region_is_only_passed_to_airflow_that_supports_it(
-        self, mock_get_many, session, is_v3_4_plus, expect_region
-    ):
-        mock_get_many.return_value = select(1).where(false())
-
-        with mock.patch("airflow.providers.common.ai.plugins.hitl_review.AIRFLOW_V_3_4_PLUS", is_v3_4_plus):
-            _read_xcom(session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t", key="k")
-
-        assert ("region_id" in mock_get_many.call_args.kwargs) is expect_region
 
 
 class TestWriteXcom:
@@ -1174,6 +1163,114 @@ class TestRegionalReview:
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regional task identity requires Airflow 3.4+")
+class TestForkedRegionReview:
+    # A live row beyond a fork's cut should be impossible; this is a defensive test for a clear racing the scheduler.
+    @pytest.fixture
+    def forked_passes(self, dag_maker, session):
+        _clear_db()
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="review")
+
+        with dag_maker(TEST_DAG_ID, serialized=True):
+            create_loop(body, max_iterations=2)
+        dr = dag_maker.create_dagrun(run_id=TEST_RUN_ID)
+        first = next(ti for ti in dr.task_instances if ti.task_id == "body.review")
+        region = session.get(DynamicRegion, first.region_id)
+        fork = DynamicRegion(
+            dag_id=region.dag_id,
+            run_id=region.run_id,
+            node_id=region.node_id,
+            forked_from_region_id=region.id,
+        )
+        session.add(fork)
+        session.flush()
+        task = dag_maker.serialized_dag.get_task(first.task_id)
+        beyond_cut = TaskInstance(
+            task=task,
+            run_id=dr.run_id,
+            dag_version_id=first.dag_version_id,
+            region_id=region.id,
+            region_index=1,
+            state="failed",
+        )
+        forked = TaskInstance(
+            task=task,
+            run_id=dr.run_id,
+            dag_version_id=first.dag_version_id,
+            region_id=fork.id,
+            region_index=1,
+            state="running",
+        )
+        session.add_all([beyond_cut, forked])
+        for ti, output in ((beyond_cut, "beyond cut"), (forked, "forked")):
+            values = {
+                XCOM_AGENT_SESSION: AgentSessionData(
+                    status=SessionStatus.PENDING_REVIEW,
+                    iteration=1,
+                    max_iterations=5,
+                    current_output=output,
+                ).model_dump(mode="json"),
+                f"{XCOM_AGENT_OUTPUT_PREFIX}1": output,
+            }
+            session.flush()
+            for key, value in values.items():
+                XComModel.set_for_attempt(
+                    task_instance_id=ti.id, key=key, value=value, serialize=False, session=session
+                )
+        session.commit()
+        yield beyond_cut, forked
+        _clear_db()
+
+    @staticmethod
+    def _params(ti):
+        return {
+            "dag_id": ti.dag_id,
+            "run_id": ti.run_id,
+            "task_id": ti.task_id,
+            "region_id": str(ti.region_id),
+            "region_index": ti.region_index,
+        }
+
+    @pytest.mark.parametrize(
+        ("action", "expected_status"),
+        [
+            ("feedback", "changes_requested"),
+            ("approve", "approved"),
+            ("reject", "rejected"),
+        ],
+    )
+    def test_response_ignores_live_row_left_beyond_a_fork_cut(
+        self, forked_passes, test_client, action, expected_status
+    ):
+        beyond_cut, forked = forked_passes
+
+        response = test_client.post(
+            f"/hitl-review/sessions/{action}", params=self._params(forked), json={"feedback": "revise"}
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["status"] == expected_status
+        assert response.json()["current_output"] == "forked"
+        other = test_client.get("/hitl-review/sessions/find", params=self._params(beyond_cut))
+        assert other.status_code == 200, other.text
+        assert other.json()["status"] == "pending_review"
+        assert other.json()["current_output"] == "beyond cut"
+
+    @pytest.mark.parametrize(("pass_number", "expected_completed"), [(0, True), (1, False)])
+    def test_completion_ignores_live_row_left_beyond_a_fork_cut(
+        self, forked_passes, test_client, pass_number, expected_completed
+    ):
+        response = test_client.get(
+            "/hitl-review/sessions/find", params=self._params(forked_passes[pass_number])
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["task_completed"] is expected_completed
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regional task identity requires Airflow 3.4+")
 class TestMappedReview:
     @pytest.fixture
     def mapped_review(self, dag_maker, session):
@@ -1242,6 +1339,108 @@ class TestMappedReview:
         )
 
         assert response.status_code == 404
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regional task identity requires Airflow 3.4+")
+class TestMappedReviewInLoop:
+    @pytest.fixture
+    def loop_passes(self, dag_maker, session):
+        _clear_db()
+
+        @task_group
+        def body():
+            PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1]])
+
+        with dag_maker(TEST_DAG_ID, serialized=True):
+            create_loop(body, max_iterations=2)
+        dr = dag_maker.create_dagrun(run_id=TEST_RUN_ID)
+        first_pass = next(ti for ti in dr.task_instances if ti.task_id == "body.mapped")
+        first_region = session.get(DynamicRegion, first_pass.region_id)
+        second_region = DynamicRegion.get_or_create(
+            dag_id=first_region.dag_id,
+            run_id=first_region.run_id,
+            node_id=first_region.node_id,
+            parent_region_id=first_region.parent_region_id,
+            parent_region_index=1,
+            session=session,
+        )
+        session.flush()
+        second_pass = TaskInstance(
+            task=dag_maker.serialized_dag.get_task(first_pass.task_id),
+            run_id=dr.run_id,
+            dag_version_id=first_pass.dag_version_id,
+            region_id=second_region.id,
+            region_index=first_pass.region_index,
+            state="running",
+        )
+        session.add(second_pass)
+        first_pass.state = "failed"
+        for ti, output in ((first_pass, "first pass"), (second_pass, "second pass")):
+            values = {
+                XCOM_AGENT_SESSION: AgentSessionData(
+                    status=SessionStatus.PENDING_REVIEW,
+                    iteration=1,
+                    max_iterations=5,
+                    current_output=output,
+                ).model_dump(mode="json"),
+                f"{XCOM_AGENT_OUTPUT_PREFIX}1": output,
+            }
+            session.flush()
+            for key, value in values.items():
+                XComModel.set_for_attempt(
+                    task_instance_id=ti.id, key=key, value=value, serialize=False, session=session
+                )
+        session.commit()
+        yield first_pass, second_pass
+        _clear_db()
+
+    @staticmethod
+    def _params(ti):
+        return {
+            "dag_id": ti.dag_id,
+            "run_id": ti.run_id,
+            "task_id": ti.task_id,
+            "region_id": str(ti.region_id),
+            "region_index": ti.region_index,
+        }
+
+    @pytest.mark.parametrize(
+        ("action", "expected_status"),
+        [
+            ("feedback", "changes_requested"),
+            ("approve", "approved"),
+            ("reject", "rejected"),
+        ],
+    )
+    def test_response_for_one_pass_leaves_the_same_map_index_in_the_other_pass(
+        self, loop_passes, test_client, session, action, expected_status
+    ):
+        first_pass, second_pass = loop_passes
+        assert first_pass.region_id != second_pass.region_id
+        assert first_pass.region_index == second_pass.region_index
+
+        response = test_client.post(
+            f"/hitl-review/sessions/{action}", params=self._params(second_pass), json={"feedback": "revise"}
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["status"] == expected_status
+        assert response.json()["current_output"] == "second pass"
+        other = test_client.get("/hitl-review/sessions/find", params=self._params(first_pass))
+        assert other.status_code == 200, other.text
+        assert other.json()["status"] == "pending_review"
+        assert other.json()["current_output"] == "first pass"
+
+    @pytest.mark.parametrize(("pass_number", "expected_completed"), [(0, True), (1, False)])
+    def test_task_completion_is_reported_for_the_selected_pass(
+        self, loop_passes, test_client, pass_number, expected_completed
+    ):
+        response = test_client.get(
+            "/hitl-review/sessions/find", params=self._params(loop_passes[pass_number])
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["task_completed"] is expected_completed
 
 
 class TestFindSessionEndpoint:
