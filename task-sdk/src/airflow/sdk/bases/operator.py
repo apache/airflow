@@ -85,9 +85,9 @@ T = TypeVar("T", bound=FunctionType)
 
 if TYPE_CHECKING:
     from types import ClassMethodDescriptorType
+    from typing import Self
 
     import jinja2
-    from typing_extensions import Self
 
     from airflow.sdk.api.datamodels._generated import DagAttributeTypes
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
@@ -202,23 +202,28 @@ def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
 
 @contextlib.contextmanager
 def event_loop() -> Generator[AbstractEventLoop]:
-    new_event_loop = False
-    loop = None
+    """
+    Own an event loop for the duration of the block, to drive coroutines from synchronous code.
+
+    Unlike ``asyncio.run()``, which creates a loop for one coroutine and closes it, the loop yielded here
+    outlives any number of ``run_until_complete()`` calls: tasks created on it in one call are still there
+    for the next, which is what code that pauses and resumes a loop between batches of work needs.
+
+    This is :class:`asyncio.Runner`: the loop is set as the current loop of the thread while the block runs
+    and unset afterwards, leftover tasks are cancelled, async generators and the default executor are shut
+    down and the loop is closed. Nothing goes through ``asyncio.get_event_loop()``, which since
+    Python 3.12 warns and since 3.14 raises when no loop is set. Entering the block from a running loop is
+    refused: a loop cannot drive another loop on the same thread.
+    """
     try:
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_closed():
-                raise RuntimeError
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            new_event_loop = True
-        yield loop
-    finally:
-        if new_event_loop and loop is not None:
-            with contextlib.suppress(AttributeError):
-                loop.close()
-                asyncio.set_event_loop(None)
+        asyncio.get_running_loop()
+    except RuntimeError:
+        pass
+    else:
+        raise RuntimeError("event_loop() cannot be used from a running event loop")
+
+    with asyncio.Runner() as runner:
+        yield runner.get_loop()
 
 
 class _PartialDescriptor:

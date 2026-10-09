@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import BaseHook
 
@@ -50,6 +50,34 @@ async def get_async_connection(conn_id: str, hook: BaseHook | type[BaseHook] | N
     return await sync_to_async(hook.get_connection)(conn_id=conn_id)
 
 
+async def get_async_extra_dejson(conn: Connection) -> dict[str, Any]:
+    """
+    Get the connection's extra as a dict, asynchronously and backwards compatible.
+
+    The async counterpart of ``Connection.extra_dejson``, for hooks running on an event loop
+    (async tasks, triggers). ``extra_dejson`` masks the extra's secrets with a synchronous
+    call to the supervisor, which raises ``DeadlockImminentError`` when another async call
+    is in flight on the same event loop.
+
+    On Airflow 3.3.2+ this awaits ``Connection.aextra_dejson()``, which masks the secrets
+    asynchronously. On older versions the synchronous ``extra_dejson`` runs in a worker
+    thread, where blocking on the supervisor is safe, the same way
+    :func:`get_async_connection` falls back to ``get_connection``.
+
+    :param conn: The connection, e.g. from :func:`get_async_connection`.
+    :returns: The deserialized extra, with its secrets masked.
+    """
+    if hasattr(conn, "aextra_dejson"):
+        log.debug("Get connection extra using `Connection.aextra_dejson()`.")
+        return await conn.aextra_dejson()
+
+    from asgiref.sync import sync_to_async
+
+    log.debug("Get connection extra using `Connection.extra_dejson` in a worker thread.")
+    return await sync_to_async(lambda: conn.extra_dejson)()
+
+
 __all__ = [
     "get_async_connection",
+    "get_async_extra_dejson",
 ]

@@ -138,6 +138,32 @@ class DbtCloudResourceLookupError(AirflowException):
     """Exception raised when a dbt Cloud resource cannot be uniquely identified."""
 
 
+class DbtCloudTriggerEventException(AirflowException):
+    """Raised when a deferred task resumes with a missing or malformed trigger event."""
+
+
+#: Statuses the provider's trigger emits in its terminal event.
+TRIGGER_EVENT_STATUSES = frozenset({"success", "cancelled", "error", "timeout"})
+
+
+def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Validate the event a deferred task resumes with, returning it if well-formed.
+
+    The event crosses the triggerer/worker boundary through the metadata DB, so a
+    resuming task can receive ``None`` (e.g. a lost payload) or a status its handlers
+    do not recognize (triggerer/worker version skew, a custom trigger). Both must fail
+    loudly rather than silently falling through to the success path.
+    """
+    if event is None:
+        raise DbtCloudTriggerEventException("Trigger error: event is None")
+    if event.get("status") not in TRIGGER_EVENT_STATUSES:
+        raise DbtCloudTriggerEventException(
+            f"Unexpected trigger event status {event.get('status')!r}: {event!r}"
+        )
+    return event
+
+
 T = TypeVar("T", bound=Any)
 
 

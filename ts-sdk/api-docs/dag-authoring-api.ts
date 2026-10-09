@@ -19,8 +19,17 @@
 
 /** @module Authoring */
 
-export { Bundle, Dag, getClient, getContext, TaskHandler } from "../src/index.js";
+export {
+  Bundle,
+  Dag,
+  getClient,
+  getContext,
+  NEVER_EXPIRE,
+  TaskHandler,
+  withArgNames,
+} from "../src/index.js";
 export type {
+  ArgNameMap,
   DagSpec,
   Registerable,
   TaskClient,
@@ -30,4 +39,5 @@ export type {
   TaskOptions,
   TaskRef,
   TaskSpec,
+  TaskStateStore,
 } from "../src/index.js";

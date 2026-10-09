@@ -16,9 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ChangeEvent } from "react";
-
-import { Box, Editable, Text, VStack } from "@chakra-ui/react";
+import { Box, Field, Heading, Stack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type {
@@ -29,7 +27,9 @@ import type {
 
 import { Accordion } from "src/system-components";
 
-import ReactMarkdown from "src/components/ReactMarkdown";
+import EditableMarkdown from "src/components/TriggerDag/EditableMarkdown";
+
+import { formatNumber } from "src/utils";
 
 import { DataTable } from "../DataTable";
 import { getColumns, type RowSelection } from "./columns";
@@ -71,7 +71,7 @@ const TasksTable = ({
 // TODO: Make a front-end only unconnected table component with client side ordering and pagination
 const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, selection, setNote }: Props) => {
   const showTaskSection = affectedTasks !== undefined;
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
 
   // Group task instances by dag_run_id when requested
   const runGroups = (() => {
@@ -95,91 +95,61 @@ const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, selection,
   const shouldGroup = groupByRunId && runGroups !== undefined && runGroups.size > 1;
 
   return (
-    <Accordion.Root
-      collapsible
-      defaultValue={showTaskSection ? ["tasks"] : ["note"]}
-      multiple={false}
-      variant="enclosed"
-    >
+    <VStack align="stretch" gap={4}>
       {showTaskSection ? (
-        <Accordion.Item key="tasks" value="tasks">
-          <Accordion.ItemTrigger>
-            <Text fontWeight="bold">
-              {translate("dags:runAndTaskActions.affectedTasks.title", {
-                count: affectedTasks.total_entries ?? 0,
-              })}
-            </Text>
-          </Accordion.ItemTrigger>
-          <Accordion.ItemContent>
-            <Box maxH="400px" overflowY="scroll">
-              {shouldGroup ? (
-                <Accordion.Root collapsible multiple variant="plain">
-                  {[...runGroups.entries()].map(([runId, tis]) => (
-                    <Accordion.Item key={runId} value={runId}>
-                      <Accordion.ItemTrigger px={2} py={1}>
-                        <Text fontSize="sm" fontWeight="semibold">
-                          {translate("runId")}: {runId}{" "}
-                          <Text as="span" color="fg.subtle" fontWeight="normal">
-                            ({tis.length})
-                          </Text>
+        <Box>
+          <Heading mb={2} size="lg">
+            {translate("dags:runAndTaskActions.affectedTasks.title", {
+              count: affectedTasks.total_entries ?? 0,
+            })}
+          </Heading>
+          <Box borderRadius="md" borderWidth={1} maxH="400px" overflowY="auto">
+            {shouldGroup ? (
+              <Accordion.Root collapsible defaultValue={[...runGroups.keys()]} multiple variant="plain">
+                {[...runGroups.entries()].map(([runId, tis]) => (
+                  <Accordion.Item key={runId} value={runId}>
+                    <Accordion.ItemTrigger px={2} py={1}>
+                      <Text fontSize="sm" fontWeight="semibold">
+                        {translate("runId")}: {runId}{" "}
+                        <Text as="span" color="fg.subtle" fontWeight="normal">
+                          ({formatNumber(tis.length, i18n.language)})
                         </Text>
-                      </Accordion.ItemTrigger>
-                      <Accordion.ItemContent>
-                        <TasksTable
-                          noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
-                          selection={selection}
-                          tasks={tis}
-                        />
-                      </Accordion.ItemContent>
-                    </Accordion.Item>
-                  ))}
-                </Accordion.Root>
-              ) : (
-                <TasksTable
-                  noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
-                  selection={selection}
-                  tasks={affectedTasks.task_instances}
-                />
-              )}
-            </Box>
-          </Accordion.ItemContent>
-        </Accordion.Item>
+                      </Text>
+                    </Accordion.ItemTrigger>
+                    <Accordion.ItemContent>
+                      <TasksTable
+                        noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
+                        selection={selection}
+                        tasks={tis}
+                      />
+                    </Accordion.ItemContent>
+                  </Accordion.Item>
+                ))}
+              </Accordion.Root>
+            ) : (
+              <TasksTable
+                noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
+                selection={selection}
+                tasks={affectedTasks.task_instances}
+              />
+            )}
+          </Box>
+        </Box>
       ) : undefined}
-      <Accordion.Item key="note" value="note">
-        <Accordion.ItemTrigger>
-          <Text fontWeight="bold">{translate("note.label")}</Text>
-        </Accordion.ItemTrigger>
-        <Accordion.ItemContent>
-          <Editable.Root
-            onChange={(event: ChangeEvent<HTMLInputElement>) => setNote(event.target.value)}
-            value={note ?? ""}
-          >
-            <Editable.Preview
-              _hover={{ backgroundColor: "transparent" }}
-              alignItems="flex-start"
-              as={VStack}
-              gap="0"
-              height="200px"
-              overflowY="auto"
-              width="100%"
-            >
-              {Boolean(note) ? (
-                <ReactMarkdown>{note}</ReactMarkdown>
-              ) : (
-                <Text color="fg.subtle">{translate("note.placeholder")}</Text>
-              )}
-            </Editable.Preview>
-            <Editable.Textarea
-              data-testid="notes-input"
-              height="200px"
-              overflowY="auto"
-              placeholder={translate("note.placeholder")}
-              resize="none"
-            />
-          </Editable.Root>
-        </Accordion.ItemContent>
-      </Accordion.Item>
-    </Accordion.Root>
+      <Field.Root orientation="horizontal">
+        <Stack>
+          <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+            {translate("note.label")}
+          </Field.Label>
+        </Stack>
+        <Stack css={{ flexBasis: "70%" }}>
+          <EditableMarkdown
+            field={{ onChange: setNote, value: note ?? "" }}
+            placeholder={translate("note.placeholder")}
+          />
+        </Stack>
+      </Field.Root>
+    </VStack>
   );
 };
 

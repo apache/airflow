@@ -10,6 +10,36 @@
       "eventType": "Tipus d'esdeveniment"
     }
   },
+  "dagBundles": {
+    "active": "Activa",
+    "columns": {
+      "active": "Activa",
+      "importErrors": "Errors d'importació",
+      "lastRefreshed": "Darrera actualització",
+      "name": "Nom",
+      "version": "Versió"
+    },
+    "detail": {
+      "status": "Estat"
+    },
+    "files": {
+      "columns": {
+        "file": "Fitxer",
+        "lastParsed": "Darrera anàlisi",
+        "parseDuration": "Durada de l'anàlisi"
+      },
+      "file_one": "Fitxer",
+      "file_other": "Fitxers",
+      "importErrorGone": "Aquest error d'importació ja no consta al registre. Probablement s'ha resolt amb una nova anàlisi.",
+      "neverParsed": "Mai",
+      "showImportError_one": "Veure error",
+      "showImportError_other": "Veure {{count}} errors"
+    },
+    "inactive": "Inactiva",
+    "neverRefreshed": "Mai",
+    "notRefreshedYet": "Encara no s'ha actualitzat",
+    "notVersioned": "Sense versions"
+  },
   "deadlines": {
     "columns": {
       "alertName": "Nom de l'alerta",

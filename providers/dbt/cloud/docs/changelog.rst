@@ -28,6 +28,58 @@
 Changelog
 ---------
 
+4.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Apply hook_params to deferred dbt Cloud job runs (#74199)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add validate trigger events in dbt cloud deferrable tasks (#69739)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+4.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Link dbt Cloud runs to the triggering Airflow task via OpenLineage (#70131)``
+* ``Surface dbt Cloud failure details in Airflow task logs (#70171)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix typo in dbt cloud hook docstring (#71971)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Prepare providers release 2026-09-09 (#72834)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
 4.9.3
 .....
 

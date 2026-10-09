@@ -19,13 +19,13 @@
 
 import { describe, it, expect } from "vitest";
 import { Dag } from "../../src/sdk/dag.js";
-import { Bundle, listBundleDags, listBundleTasks } from "../../src/sdk/bundle.js";
+import { Bundle, bundleDagTaskIds, finalizeBundleDags } from "../../src/sdk/bundle.js";
 
 describe("Bundle", () => {
   it("registers a Dag and retrieves its handlers", () => {
     const handler = async () => "hello";
     const dag = new Dag("example_dag");
-    dag.task("my_task", handler);
+    dag.task("my_task", handler)();
     const bundle = new Bundle();
     bundle.register(dag);
     expect(bundle.getTaskHandler("example_dag", "my_task")).toBe(handler);
@@ -34,13 +34,15 @@ describe("Bundle", () => {
   it("registers the Dags passed to its constructor", () => {
     const handler = async () => "hello";
     const dagA = new Dag("dag_a");
-    dagA.task("a", handler);
+    dagA.task("a", handler)();
     const bundle = new Bundle(dagA, new Dag("dag_b"));
     expect(bundle.getTaskHandler("dag_a", "a")).toBe(handler);
-    expect(listBundleDags(bundle)).toEqual([
-      { dagId: "dag_a", tasks: ["a"] },
-      { dagId: "dag_b", tasks: [] },
-    ]);
+    expect(bundleDagTaskIds(bundle)).toEqual(
+      new Map([
+        ["dag_a", ["a"]],
+        ["dag_b", []],
+      ]),
+    );
   });
 
   it("rejects duplicate dagIds passed to the constructor", () => {
@@ -58,28 +60,30 @@ describe("Bundle", () => {
   it("returns undefined for unknown taskIds and dagIds", () => {
     const bundle = new Bundle();
     const dag = new Dag("example_dag");
-    dag.task("my_task", async () => undefined);
+    dag.task("my_task", async () => undefined)();
     bundle.register(dag);
     expect(bundle.getTaskHandler("example_dag", "nope")).toBeUndefined();
     expect(bundle.getTaskHandler("unknown_dag", "my_task")).toBeUndefined();
   });
 
-  it("returns an empty list when no Dags are registered", () => {
+  it("returns nothing when no Dags are registered", () => {
     const bundle = new Bundle();
-    expect(listBundleTasks(bundle)).toEqual([]);
+    expect(bundleDagTaskIds(bundle)).toEqual(new Map());
   });
 
   it("lists tasks across registered Dags", () => {
     const dagA = new Dag("dag_a");
-    dagA.task("a", async () => undefined);
+    dagA.task("a", async () => undefined)();
     const dagB = new Dag("dag_b");
-    dagB.task("b", async () => undefined);
+    dagB.task("b", async () => undefined)();
     const bundle = new Bundle();
     bundle.register(dagA, dagB);
-    const registered = listBundleTasks(bundle);
-    expect(registered).toHaveLength(2);
-    expect(registered).toContainEqual({ dagId: "dag_a", taskId: "a" });
-    expect(registered).toContainEqual({ dagId: "dag_b", taskId: "b" });
+    expect(bundleDagTaskIds(bundle)).toEqual(
+      new Map([
+        ["dag_a", ["a"]],
+        ["dag_b", ["b"]],
+      ]),
+    );
   });
 
   it("rejects registering the same dagId in separate calls", () => {
@@ -105,10 +109,10 @@ describe("Bundle", () => {
   it("registers none of the Dags when a call throws", () => {
     const bundle = new Bundle();
     const dag = new Dag("dag_a");
-    dag.task("a", async () => undefined);
+    dag.task("a", async () => undefined)();
     expect(() => bundle.register(dag, new Dag("dag_a"))).toThrowError(/already registered/);
     expect(bundle.getTaskHandler("dag_a", "a")).toBeUndefined();
-    expect(listBundleTasks(bundle)).toEqual([]);
+    expect(bundleDagTaskIds(bundle)).toEqual(new Map());
   });
 
   it("rejects values that are neither a Dag nor a task handler", () => {
@@ -129,14 +133,16 @@ describe("Bundle", () => {
 
   it("lists every registered Dag with its tasks, empty Dags included", () => {
     const dagA = new Dag("dag_a");
-    dagA.task("a1", async () => undefined);
-    dagA.task("a2", async () => undefined);
+    dagA.task("a1", async () => undefined)();
+    dagA.task("a2", async () => undefined)();
     const bundle = new Bundle();
     bundle.register(dagA, new Dag("empty_dag"));
-    expect(listBundleDags(bundle)).toEqual([
-      { dagId: "dag_a", tasks: ["a1", "a2"] },
-      { dagId: "empty_dag", tasks: [] },
-    ]);
+    expect(bundleDagTaskIds(bundle)).toEqual(
+      new Map([
+        ["dag_a", ["a1", "a2"]],
+        ["empty_dag", []],
+      ]),
+    );
   });
 
   it("accepts a call that registers nothing", () => {
@@ -144,7 +150,7 @@ describe("Bundle", () => {
     // guard at the call site.
     const bundle = new Bundle();
     expect(() => bundle.register()).not.toThrow();
-    expect(listBundleDags(bundle)).toEqual([]);
+    expect(bundleDagTaskIds(bundle)).toEqual(new Map());
   });
 
   it("carries the brand its own serve guard reads", () => {
@@ -153,18 +159,30 @@ describe("Bundle", () => {
     expect(Symbol.for("airflow.ts-sdk.Bundle") in new Bundle()).toBe(true);
   });
 
-  it("sees tasks added to a Dag after registration", () => {
+  it("sees tasks added to a Dag between registration and the first read", () => {
+    // Registration records Dag identity rather than a snapshot of its tasks, so
+    // a Dag assembled across several modules is still complete when it is read.
     const bundle = new Bundle();
     const dag = new Dag("example_dag");
     bundle.register(dag);
-    expect(listBundleTasks(bundle)).toEqual([]);
 
     const handler = async () => "late";
-    dag.task("late_task", handler);
+    dag.task("late_task", handler)();
     expect(bundle.getTaskHandler("example_dag", "late_task")).toBe(handler);
-    expect(listBundleTasks(bundle)).toContainEqual({
-      dagId: "example_dag",
-      taskId: "late_task",
-    });
+    expect(bundleDagTaskIds(bundle).get("example_dag")).toContain("late_task");
+  });
+
+  it("rejects a task added to a Dag the bundle has already reported", () => {
+    const dag = new Dag("example_dag");
+    dag.task("extract", async () => undefined)();
+    const bundle = new Bundle(dag);
+    // Reporting what the bundle provides is what finalizes a native Dag;
+    // enumerating what it can dispatch does not.
+    expect(bundleDagTaskIds(bundle)).toEqual(new Map([["example_dag", ["extract"]]]));
+    finalizeBundleDags(bundle);
+
+    expect(() => dag.task("late_task", async () => "late")).toThrowError(
+      /Task "late_task" cannot be added to Dag "example_dag" after the Dag was read/,
+    );
   });
 });

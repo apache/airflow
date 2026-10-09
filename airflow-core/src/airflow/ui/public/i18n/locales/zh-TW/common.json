@@ -27,6 +27,7 @@
   "breadcrumb": "麵包屑導覽",
   "browse": {
     "auditLog": "稽核日誌",
+    "dagBundles": "Dag 套件包",
     "deadlines": "截止期限",
     "jobs": "工作",
     "requiredActions": "待回應的任務實例",
@@ -39,6 +40,8 @@
   "createdAssetEvent_other": "已建立資源事件",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag 套件包",
+  "dagBundle_other": "Dag 套件包",
   "dagDetails": {
     "activeRuns": "活躍執行數",
     "catchup": "自動回填",
@@ -165,6 +168,11 @@
   "generateToken": "產生權杖",
   "includedIn": "包含於",
   "key": "鍵",
+  "logLevel": {
+    "hide": "隱藏日誌層級",
+    "hotkey": "l",
+    "show": "顯示日誌層級"
+  },
   "logicalDate": "邏輯日期",
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",
@@ -191,6 +199,7 @@
     "plugins": "外掛",
     "security": "安全"
   },
+  "no": "否",
   "noItemsFound": "找不到 {{modelName}}",
   "note": {
     "add": "新增筆記",
@@ -263,6 +272,10 @@
   "selected": "已選取",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "清除任務實例時，預設保留任務狀態儲存項目，而不是捨棄。",
+        "label": "清除時保留任務狀態"
+      },
       "preventRunningTask": {
         "helper": "清除任務實例時，跳過目前正在執行中的任務。",
         "label": "防止清除執行中的任務"
@@ -276,6 +289,13 @@
         "label": "預設任務清除選項"
       },
       "title": "清除"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "在 Dag 列表中顯示每個 Dag 的近期任務狀態。關閉後將不載入這些資料，有助於改善 Dag 數量眾多的部署環境效能。",
+        "label": "顯示近期任務"
+      },
+      "title": "Dag 列表"
     },
     "description": "這些偏好設定僅會儲存在此瀏覽器中，並套用至整個應用程式。",
     "general": {
@@ -294,6 +314,10 @@
         "helper": "尚未個別設定的 Dag 與資源圖形版面配置方向。",
         "label": "預設圖形方向"
       },
+      "taskGroupsExpanded": {
+        "helper": "在尚未儲存群組選擇的 Dag 中展開任務群組。既有的選擇會保留。",
+        "label": "預設展開任務群組"
+      },
       "title": "圖形"
     },
     "marking": {
@@ -302,6 +326,13 @@
         "label": "預設標記選項"
       },
       "title": "標記"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) 各搜尋列的個別選擇與分享連結仍具有較高優先權。",
+        "label": "預設比對任意位置"
+      },
+      "title": "搜尋"
     },
     "taskInstance": {
       "defaultTab": {
@@ -345,6 +376,7 @@
       "toggleExpand": "展開或收合所有群組",
       "toggleFullscreen": "切換全螢幕",
       "toggleGraphGrid": "切換圖形／網格檢視",
+      "toggleLogLevel": "切換日誌層級",
       "toggleSource": "切換來源",
       "toggleTaskGroup": "展開或收合$t(taskGroup_one)",
       "toggleTimestamp": "切換時間戳記",
@@ -441,6 +473,11 @@
     "queuedWhen": "開始排隊時間",
     "renderedMapIndex": "渲染後的映射索引",
     "scheduledWhen": "開始排程時間",
+    "stateReason": "狀態原因",
+    "stateReasonSummary": {
+      "failed": "於第 {{tryNumber}} 次嘗試（共 {{totalTries}} 次）時停止",
+      "upForRetry": "第 {{tryNumber}} 次嘗試（共 {{totalTries}} 次）後重試中"
+    },
     "trigger": "觸發器",
     "triggerer": {
       "assigned": "指派的觸發者",
@@ -462,9 +499,14 @@
     "title": "團隊"
   },
   "timeRange": {
+    "anyTime": "不限時間",
+    "in": "於",
+    "last7Days": "最近 7 天",
     "last12Hours": "最近 12 小時",
     "last24Hours": "最近 24 小時",
+    "last30Days": "最近 30 天",
     "lastHour": "最近 1 小時",
+    "latestRun": "最近一次執行",
     "pastWeek": "過去一週"
   },
   "timestamp": {
@@ -557,5 +599,6 @@
     "tooltip": "按 {{hotkey}} 切換換行",
     "unwrap": "不換行",
     "wrap": "換行"
-  }
+  },
+  "yes": "是"
 }

@@ -28,7 +28,7 @@
 // `buildSummaryMessage` implements a task named `build_message`, exactly as the other Dag has, and
 // the two share nothing else.
 
-import { getClient, getContext } from "apache-airflow-ts-sdk";
+import { getClient, getContext, withArgNames } from "apache-airflow-ts-sdk";
 
 /** What `make_totals` returns on the Python side. */
 export interface Totals {
@@ -87,6 +87,34 @@ export async function summarize({
     dryRun,
   };
 }
+
+/** Every argument the Dag's `report(...)` call binds, as the handler wants them. */
+export interface ReportArgs {
+  summary: Summary;
+  /** The call's `run_label`, which folding cannot reach, so it is mapped below. */
+  label: string;
+}
+
+/**
+ * Renaming an argument the Python side named something else entirely.
+ *
+ * The mapping comes first, the handler second. `summary` is absent from the map
+ * because folding already reaches it.
+ */
+export const report = withArgNames(
+  { label: "run_label" },
+  async ({ summary, label }: ReportArgs) => {
+    if (label !== "nightly") {
+      throw new Error(`expected run label "nightly" but got "${label}"`);
+    }
+
+    return {
+      label,
+      regionCode: summary.regionCode,
+      healthy: summary.passed,
+    };
+  },
+);
 
 export async function buildSummaryMessage() {
   // Nothing was passed to this task, so its upstream's output is read explicitly.

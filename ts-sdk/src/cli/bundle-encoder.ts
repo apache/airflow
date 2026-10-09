@@ -25,14 +25,17 @@
  *
  *   airflowBundle header
  *   -> airflowMetadata
+ *   -> airflowSource region, one block per source file, in the order they
+ *      appear in `entrypointSources`
  *   -> executable JavaScript
  *
- * The header tells Airflow where each region begins and ends and carries the
- * digest used to verify each one. Metadata describes what the bundle can serve,
- * and executable JavaScript runs its task handlers.
+ * The header records each region's byte range and digest, and each source
+ * region also carries the path it was compiled from. Metadata describes what
+ * the bundle serves, source regions carry the author's original files, and
+ * the executable JavaScript runs the task handlers.
  *
  * This module owns the on-disk encoding. Readers must use the header's named
- * byte ranges rather than relying on incidental line positions.
+ * byte ranges and paths rather than incidental line positions.
  */
 
 import { createHash } from "node:crypto";
@@ -41,23 +44,34 @@ import type { BundleManifest } from "../coordinator/manifest.js";
 
 const AIRFLOW_BUNDLE_METADATA_VERSION = "1.0";
 const EMBEDDED_METADATA_MAX_BYTES = 1024 * 1024;
+const EMBEDDED_SOURCE_MAX_BYTES = 1024 * 1024;
 const OFFSET_HEX_WIDTH = 16;
 
 export const EMBEDDED_METADATA_PREFIX = "//# airflowMetadata=";
 export const EMBEDDED_LAYOUT_PREFIX = "//# airflowBundle=";
+/** Opens each source block, followed by the region's path and a newline. */
+export const EMBEDDED_SOURCE_MARKER = "/*# airflowSource:";
+export const EMBEDDED_SOURCE_CLOSE = "\n#*/\n";
 
 export interface BundleEncoderInput {
   bundleManifest: BundleManifest;
   sdkVersion: string;
-  entrypointName: string;
+  /** Project-relative path of the entry file `airflow-ts-pack` bundled. Always present among
+   *  `sourceFiles`, so a reader has a source to fall back to for a Dag with no attributed file
+   *  (dynamically constructed, or a mixed-lang Dag owned by Python). */
+  entrypointPath: string;
+  /** Author-owned source file per native Dag, keyed by its path in
+   *  `BundleManifest.dag_source_paths`, plus the entrypoint. */
+  sourceFiles: Record<string, string>;
   executable: Uint8Array;
 }
 
 interface BundleMetadata {
   airflow_bundle_metadata_version: string;
   sdk: { language: string; version: string; supervisor_schema_version: string };
-  source: string;
-  dags: BundleManifest["dags"];
+  entrypoint_path: string;
+  dag_source_paths: BundleManifest["dag_source_paths"];
+  task_handlers: BundleManifest["task_handlers"];
 }
 
 interface VerifiedByteRange {
@@ -66,53 +80,154 @@ interface VerifiedByteRange {
   start: string;
 }
 
+interface VerifiedSourceRegion extends VerifiedByteRange {
+  path: string;
+}
+
 interface BundleHeader {
   code: VerifiedByteRange;
   metadata: VerifiedByteRange;
+  sources: VerifiedSourceRegion[];
+}
+
+/** Per-source-region metadata within the concatenated sources buffer. */
+interface SourceRegion {
+  path: string;
+  payloadStart: number;
+  payloadEnd: number;
+  sha256: string;
+}
+
+interface EncodedSources {
+  buffer: Buffer;
+  regions: SourceRegion[];
 }
 
 export function encodeBundle(input: BundleEncoderInput): Buffer {
+  // The reader falls back to the entrypoint's source, so it must be one of the embedded regions.
+  if (!Object.hasOwn(input.sourceFiles, input.entrypointPath)) {
+    throw new Error(
+      `entrypoint ${JSON.stringify(input.entrypointPath)} must be among the packed source files`,
+    );
+  }
   const metadata = encodeMetadata(input);
+  const sources = encodeSources(input.sourceFiles);
   const executable = encodeExecutable(input.executable);
-  const header = encodeHeader({ metadata, executable });
+  const header = encodeHeader({ metadata, sources, executable });
 
-  return Buffer.concat([header, metadata, executable]);
+  return Buffer.concat([header, metadata, sources.buffer, executable]);
 }
 
-function encodeHeader(regions: { metadata: Buffer; executable: Buffer }): Buffer {
+function encodeHeader(regions: {
+  metadata: Buffer;
+  sources: EncodedSources;
+  executable: Buffer;
+}): Buffer {
+  // Each digest covers the payload only. The framing markers and newlines are re-derived.
   const metadataPayload = regions.metadata.subarray(
     Buffer.byteLength(EMBEDDED_METADATA_PREFIX),
     -1,
   );
-  const digests = {
-    code: computeSha256(regions.executable),
-    metadata: computeSha256(metadataPayload),
-  };
+  const metadataDigest = computeSha256(metadataPayload);
+  const codeDigest = computeSha256(regions.executable);
   const zeroOffset = "0".repeat(OFFSET_HEX_WIDTH);
+  // Placeholder header with zeroed offsets and real digests, to measure its
+  // length without recursing. Every source path is present, so the array
+  // length is what it will be in the final header.
   const placeholderHeader = renderHeader({
-    code: { start: zeroOffset, end: zeroOffset, sha256: digests.code },
-    metadata: { start: zeroOffset, end: zeroOffset, sha256: digests.metadata },
+    code: { start: zeroOffset, end: zeroOffset, sha256: codeDigest },
+    metadata: { start: zeroOffset, end: zeroOffset, sha256: metadataDigest },
+    sources: regions.sources.regions.map((region) => ({
+      path: region.path,
+      start: zeroOffset,
+      end: zeroOffset,
+      sha256: region.sha256,
+    })),
   });
   const metadataStart = placeholderHeader.length + Buffer.byteLength(EMBEDDED_METADATA_PREFIX);
   const metadataEnd = metadataStart + metadataPayload.length;
-  const codeStart = placeholderHeader.length + regions.metadata.length;
+  const sourcesBaseOffset = placeholderHeader.length + regions.metadata.length;
+  const codeStart = sourcesBaseOffset + regions.sources.buffer.length;
   const codeEnd = codeStart + regions.executable.length;
   const header = renderHeader({
     code: {
       start: formatOffset(codeStart),
       end: formatOffset(codeEnd),
-      sha256: digests.code,
+      sha256: codeDigest,
     },
     metadata: {
       start: formatOffset(metadataStart),
       end: formatOffset(metadataEnd),
-      sha256: digests.metadata,
+      sha256: metadataDigest,
     },
+    sources: regions.sources.regions.map((region) => ({
+      path: region.path,
+      start: formatOffset(sourcesBaseOffset + region.payloadStart),
+      end: formatOffset(sourcesBaseOffset + region.payloadEnd),
+      sha256: region.sha256,
+    })),
   });
   if (header.length !== placeholderHeader.length) {
     throw new Error("Bundle header changed length while resolving section offsets");
   }
   return header;
+}
+
+/**
+ * Wrap each source in its own block comment, one per author-owned Dag file.
+ *
+ * A comment terminator would splice the rest of the payload into executable position, so it is
+ * escaped. `*\\` is escaped too, which keeps the transformation reversible.
+ *
+ * The returned regions are keyed by path and hold byte offsets within the
+ * concatenated sources buffer (not the final bundle); the header adds the
+ * bundle-relative base offset when it renders.
+ */
+function encodeSources(sources: Record<string, string>): EncodedSources {
+  const chunks: Buffer[] = [];
+  const regions: SourceRegion[] = [];
+  let offset = 0;
+
+  for (const [path, content] of Object.entries(sources)) {
+    // A `*/` in the path would close the marker's own comment early, so the
+    // packer refuses rather than trying to escape it — no real filesystem path
+    // holds one, and rejecting keeps the marker line trivially readable.
+    if (path.includes("*/") || path.includes("\n")) {
+      throw new Error(
+        `Source path ${JSON.stringify(path)} contains a block-comment terminator or newline; ` +
+          `airflow-ts-pack cannot embed it`,
+      );
+    }
+    const openBytes = Buffer.from(`${EMBEDDED_SOURCE_MARKER}${path}\n`, "utf-8");
+    const payloadBytes = Buffer.from(escapeBlockComment(content), "utf-8");
+    const closeBytes = Buffer.from(EMBEDDED_SOURCE_CLOSE, "ascii");
+    // Per-file cap: one large source cannot drown the others, and the total
+    // is only bounded by however many files a bundle declares.
+    if (payloadBytes.length > EMBEDDED_SOURCE_MAX_BYTES) {
+      throw new Error(
+        `Embedded source ${JSON.stringify(path)} is ${payloadBytes.length} bytes, ` +
+          `over the ${EMBEDDED_SOURCE_MAX_BYTES} byte limit; move code out of that file into ` +
+          `imported modules`,
+      );
+    }
+
+    chunks.push(openBytes, payloadBytes, closeBytes);
+    const payloadStart = offset + openBytes.length;
+    const payloadEnd = payloadStart + payloadBytes.length;
+    regions.push({
+      path,
+      payloadStart,
+      payloadEnd,
+      sha256: computeSha256(payloadBytes),
+    });
+    offset = payloadEnd + closeBytes.length;
+  }
+
+  return { buffer: Buffer.concat(chunks), regions };
+}
+
+function escapeBlockComment(source: string): string {
+  return source.replaceAll(/\*([\\/])/g, "*\\$1");
 }
 
 function encodeMetadata(input: BundleEncoderInput): Buffer {
@@ -151,14 +266,18 @@ function buildBundleMetadata(input: BundleEncoderInput): BundleMetadata {
       version: input.sdkVersion,
       supervisor_schema_version: input.bundleManifest.supervisor_schema_version,
     },
-    source: input.entrypointName,
-    dags: input.bundleManifest.dags,
+    entrypoint_path: input.entrypointPath,
+    dag_source_paths: input.bundleManifest.dag_source_paths,
+    task_handlers: input.bundleManifest.task_handlers,
   };
 }
 
 function renderHeader(header: BundleHeader): Buffer {
+  // utf-8 rather than ascii because source paths (`sources[i].path`) may hold
+  // non-ASCII characters — a Latin-1 filename otherwise loses bytes here and
+  // the metadata-to-region mapping stops round-tripping.
   const payload = JSON.stringify(header);
-  return Buffer.from(`${EMBEDDED_LAYOUT_PREFIX}${payload}\n`, "ascii");
+  return Buffer.from(`${EMBEDDED_LAYOUT_PREFIX}${payload}\n`, "utf-8");
 }
 
 function formatOffset(offset: number): string {

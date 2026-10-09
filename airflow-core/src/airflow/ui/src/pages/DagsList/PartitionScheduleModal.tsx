@@ -30,6 +30,7 @@ import { Modal } from "src/system-components";
 
 import { AssetProgressCell } from "src/components/AssetProgressCell";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
@@ -45,7 +46,7 @@ type PartitionScheduleModalProps = {
 const getColumns = (
   translate: (key: string) => string,
   dagId: string,
-): Array<ColumnDef<PartitionedDagRunResponse>> => [
+): Array<ColumnDef<DataTableFeatures, PartitionedDagRunResponse>> => [
   {
     accessorKey: "partition_key",
     enableSorting: false,

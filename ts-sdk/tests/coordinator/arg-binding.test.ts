@@ -23,7 +23,9 @@ import { foldArgName, resolveArgs, type BoundArgs } from "../../src/coordinator/
 import type { CoordinatorClient, XComEntry } from "../../src/coordinator/client.js";
 import type { LogChannel } from "../../src/coordinator/log-channel.js";
 import type { ArgBindings } from "../../src/generated/supervisor.js";
+import { Bundle } from "../../src/sdk/bundle.js";
 import type { GetXComOpts } from "../../src/sdk/client-types.js";
+import { Dag } from "../../src/sdk/dag.js";
 
 function literal(name: string, value: unknown, extra: Record<string, unknown> = {}) {
   return { name, kind: "literal" as const, value, ...extra };
@@ -32,6 +34,8 @@ function literal(name: string, value: unknown, extra: Record<string, unknown> = 
 function xcom(name: string, taskId: string, extra: Record<string, unknown> = {}) {
   return { name, kind: "xcom" as const, task_id: taskId, ...extra };
 }
+
+const NO_RENAMES: ReadonlyMap<string, string> = new Map();
 
 function makeLogs() {
   const warning = vi.fn();
@@ -56,14 +60,40 @@ interface BindResult extends BoundArgs {
 
 async function bind(
   bindings: ArgBindings,
-  opts: { upstream?: Record<string, XComEntry>; signal?: AbortSignal } = {},
+  opts: {
+    upstream?: Record<string, XComEntry>;
+    signal?: AbortSignal;
+    argNames?: Record<string, string>;
+  } = {},
 ): Promise<BindResult> {
   const { logs, warning } = makeLogs();
   const { client, pulls } = makeClient(opts.upstream);
   const signal = opts.signal ?? new AbortController().signal;
-  const bound = await resolveArgs(bindings, { client, signal, logs });
+  const bound = await resolveArgs(bindings, {
+    client,
+    signal,
+    logs,
+    argNames: new Map(Object.entries(opts.argNames ?? {})),
+  });
   return { ...bound, warning, pulls };
 }
+
+describe("a native task's bound arguments", () => {
+  it("reach a named handler as the object it destructures", async () => {
+    const dag = new Dag("d");
+    const seen: unknown[] = [];
+    const store = dag.task("store", async ({ rows }: { rows: number }) => {
+      seen.push(rows);
+    });
+    store({ rows: 1 });
+    const handler = new Bundle(dag).getTaskHandler("d", "store")!;
+
+    const { args } = await bind([literal("rows", 7)]);
+    await handler(args as never);
+
+    expect(seen).toEqual([7]);
+  });
+});
 
 describe("foldArgName", () => {
   it.each([
@@ -165,12 +195,14 @@ describe("resolveArgs", () => {
     expect(reigonCode).toBeUndefined();
     expect(warning).toHaveBeenCalledWith("Task argument not bound by this task's call", {
       requested: "runId",
+      renamed_to: null,
       bound: ["region_code"],
     });
     // Both the requested name and what the call actually delivered, so a typo
     // is diagnosable from the task log alone.
     expect(warning).toHaveBeenCalledWith("Task argument not bound by this task's call", {
       requested: "reigonCode",
+      renamed_to: null,
       bound: ["region_code"],
     });
   });
@@ -293,7 +325,7 @@ describe("resolveArgs", () => {
 
     const bound = await resolveArgs(
       [xcom("a", "t_a"), xcom("b", "t_b"), xcom("c", "t_c"), xcom("d", "t_d")],
-      { client, signal: new AbortController().signal, logs: makeLogs().logs },
+      { client, signal: new AbortController().signal, logs: makeLogs().logs, argNames: NO_RENAMES },
     );
 
     expect(peak).toBe(4);
@@ -326,6 +358,7 @@ describe("resolveArgs", () => {
           client,
           signal: new AbortController().signal,
           logs: makeLogs().logs,
+          argNames: NO_RENAMES,
         },
       ),
     ).rejects.toThrowError(/both fold to "regioncode"/);
@@ -344,6 +377,7 @@ describe("resolveArgs", () => {
         client,
         signal: controller.signal,
         logs: makeLogs().logs,
+        argNames: NO_RENAMES,
       }),
     ).rejects.toThrowError(
       /Aborted while resolving this task's arguments.*Task aborted by SIGTERM/,
@@ -361,6 +395,7 @@ describe("resolveArgs", () => {
       client,
       signal: controller.signal,
       logs: makeLogs().logs,
+      argNames: NO_RENAMES,
     });
     controller.abort(new Error("Task aborted by SIGTERM"));
 
@@ -409,6 +444,69 @@ describe("resolveArgs", () => {
     await expect(bind(unknownKind)).rejects.toThrowError(
       /has binding kind "dataset", which this version of apache-airflow-ts-sdk cannot bind/,
     );
+  });
+
+  describe("with explicit renames", () => {
+    it("binds a name the Python side never used", async () => {
+      const { args } = await bind([literal("run_label", "nightly")], {
+        argNames: { label: "run_label" },
+      });
+      expect((args as { label: string }).label).toBe("nightly");
+    });
+
+    it("still folds everything the map does not mention", async () => {
+      const { args } = await bind([literal("run_label", "nightly"), literal("region_code", "uk")], {
+        argNames: { label: "run_label" },
+      });
+      const { label, regionCode } = args as { label: string; regionCode: string };
+      expect({ label, regionCode }).toEqual({ label: "nightly", regionCode: "uk" });
+    });
+
+    it("beats a folded match on the same name", async () => {
+      // An author who stated a binding meant it, so the map wins over the
+      // name that would otherwise have folded to it.
+      const { args } = await bind([literal("run_label", "nightly"), literal("label", "folded")], {
+        argNames: { label: "run_label" },
+      });
+      expect((args as { label: string }).label).toBe("nightly");
+    });
+
+    it("leaves the renamed wire name reachable under its own name", async () => {
+      // Enumeration reports Python's names, so rest destructuring must keep
+      // resolving them whatever the handler renamed.
+      const { args } = await bind([literal("run_label", "nightly")], {
+        argNames: { label: "run_label" },
+      });
+      expect({ ...(args as object) }).toEqual({ run_label: "nightly" });
+      expect("run_label" in (args as object)).toBe(true);
+      expect("label" in (args as object)).toBe(true);
+    });
+
+    it("misses rather than falling back when the mapped name was not passed", async () => {
+      // Falling back to folding would hand the handler a value the SDK
+      // guessed at, and hide the fact that the stated binding was wrong.
+      const { args, warning } = await bind([literal("label", "folded")], {
+        argNames: { label: "run_label" },
+      });
+
+      expect((args as { label?: string }).label).toBeUndefined();
+      expect("label" in (args as object)).toBe(false);
+      // The wire name the handler asked for, so a wrong entry is diagnosable
+      // from the task log rather than looking like an argument never passed.
+      expect(warning).toHaveBeenCalledWith("Task argument not bound by this task's call", {
+        requested: "label",
+        renamed_to: "run_label",
+        bound: ["label"],
+      });
+    });
+
+    it("renames an XCom-backed argument too", async () => {
+      const { args } = await bind([xcom("run_totals", "make_totals")], {
+        argNames: { totals: "run_totals" },
+        upstream: { make_totals: { found: true, value: { orders: 12 } } },
+      });
+      expect((args as { totals: { orders: number } }).totals).toEqual({ orders: 12 });
+    });
   });
 
   it("refuses assignment and deletion", async () => {

@@ -75,8 +75,9 @@ capabilities:
     since: "3.4"
     note: "getConnection"
   variable-read-write:
-    supported: false
-    note: "getVariable only; no write over the comm socket yet"
+    supported: true
+    since: "3.4"
+    note: "getVariable / setVariable / deleteVariable"
   self-contained-bundle:
     supported: true
     since: "3.4"
@@ -85,8 +86,9 @@ capabilities:
     supported: false
     note: "no task-facing retry-policy API yet"
   task-state-store:
-    supported: false
-    note: "no task-facing state-store API yet"
+    supported: true
+    since: "3.4"
+    note: "taskStateStore.get / set / delete / clear"
   asset-state-store:
     supported: false
     note: "no task-facing state-store API yet"

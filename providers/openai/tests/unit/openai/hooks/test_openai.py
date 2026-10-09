@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
@@ -35,10 +36,13 @@ from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
 from openai.types.beta.threads import Message, Run
 from openai.types.chat import ChatCompletion
 from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+from pydantic import BaseModel
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.openai.exceptions import (
+    OpenAIAgentSessionError,
+    OpenAIBatchCancelled,
     OpenAIBatchJobException,
     OpenAIBatchTimeout,
     OpenAITriggerEventError,
@@ -317,6 +321,39 @@ def test_create_response(mock_openai_hook):
     result = mock_openai_hook.create_response(input="Hello", model=MODEL)
     mock_openai_hook.conn.responses.create.assert_called_once_with(model=MODEL, input="Hello")
     assert result is expected
+
+
+def test_parse_response(mock_openai_hook):
+    class Person(BaseModel):
+        name: str
+
+    expected = mock_openai_hook.conn.responses.parse.return_value
+    result = mock_openai_hook.parse_response(
+        input="Extract: Alice",
+        text_format=Person,
+        model=MODEL,
+        instructions="Be precise.",
+    )
+    mock_openai_hook.conn.responses.parse.assert_called_once_with(
+        model=MODEL,
+        input="Extract: Alice",
+        text_format=Person,
+        instructions="Be precise.",
+    )
+    assert result is expected
+
+
+def test_parse_response_matches_create_response_positional_order(mock_openai_hook):
+    class Person(BaseModel):
+        name: str
+
+    # model is the second positional argument, as in create_response; text_format is keyword-only.
+    mock_openai_hook.parse_response("Extract: Alice", MODEL, text_format=Person)
+    mock_openai_hook.conn.responses.parse.assert_called_once_with(
+        model=MODEL, input="Extract: Alice", text_format=Person
+    )
+    with pytest.raises(TypeError, match="text_format"):
+        mock_openai_hook.parse_response("Extract: Alice", Person)
 
 
 def test_get_response(mock_openai_hook):
@@ -690,6 +727,41 @@ def test_wait_for_in_progress_batch_timeout(mock_openai_hook, mock_wip_batch):
     assert mock_openai_hook.conn.batches.cancel.call_count == 1
 
 
+def test_wait_for_in_progress_batch_timeout_cancel_failure_does_not_mask_timeout(
+    mock_openai_hook, mock_wip_batch, caplog
+):
+    """A cancellation failure inside the timeout branch must not replace ``OpenAIBatchTimeout``
+    with the cancellation's own exception, and the failure must still be logged.
+    """
+    mock_openai_hook.conn.batches.retrieve.return_value = mock_wip_batch
+    mock_openai_hook.conn.batches.cancel.side_effect = RuntimeError("cancel failed")
+
+    with caplog.at_level("WARNING"):
+        with pytest.raises(OpenAIBatchTimeout, match="Timeout"):
+            mock_openai_hook.wait_for_batch(batch_id=BATCH_ID, wait_seconds=0.01, timeout=0.01)
+
+    assert mock_openai_hook.conn.batches.cancel.call_count == 1
+    assert any("Failed to request cancellation of batch" in message for message in caplog.messages)
+
+
+@pytest.mark.parametrize("status", ["cancelled", "cancelling"])
+def test_wait_for_cancelled_batch_raises_exact_cancelled_type(mock_openai_hook, status):
+    """``OpenAIBatchCancelled`` is a subclass of ``OpenAIBatchJobException``, so asserting
+    only the base class would stay green even if this raised the wrong (base) type. Assert
+    the exact type to prove the exception was actually narrowed.
+    """
+    mock_openai_hook.conn.batches.retrieve.return_value = create_batch(status)
+    with pytest.raises(OpenAIBatchCancelled):
+        mock_openai_hook.wait_for_batch(batch_id=BATCH_ID)
+
+
+def test_wait_for_expired_batch_message_does_not_mention_hour_window(mock_openai_hook):
+    mock_openai_hook.conn.batches.retrieve.return_value = create_batch("expired")
+    with pytest.raises(OpenAIBatchJobException, match="completion window") as exc_info:
+        mock_openai_hook.wait_for_batch(batch_id=BATCH_ID)
+    assert "hour time window" not in str(exc_info.value)
+
+
 def test_openai_hook_test_connection(mock_openai_hook):
     result, message = mock_openai_hook.test_connection()
     assert result is True
@@ -953,3 +1025,10 @@ class TestValidateTriggerEvent:
     )
     def test_valid_event_is_returned(self, event):
         assert validate_execute_complete_event(event) is event
+
+
+def test_managed_agents_reports_sdk_upgrade_without_breaking_hook():
+    hook = OpenAIHook()
+    hook.conn = SimpleNamespace(beta=SimpleNamespace())
+    with pytest.raises(OpenAIAgentSessionError, match="requires openai>=3.13.0"):
+        hook.create_agent_session(input="Hello", environment={"type": "none"}, agent_id="agent")

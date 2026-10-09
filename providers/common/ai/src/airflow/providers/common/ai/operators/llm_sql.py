@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 try:
     from airflow.providers.common.ai.utils.sql_validation import (
@@ -50,6 +50,11 @@ class LLMSQLQueryOperator(LLMOperator):
     """
     Generate SQL queries from natural language using an LLM.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Inherits from :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     for LLM access and optionally uses a
     :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook`
@@ -63,8 +68,15 @@ class LLMSQLQueryOperator(LLMOperator):
 
     :param prompt: Natural language description of the desired query.
     :param llm_conn_id: Connection ID for the LLM provider.
-    :param model_id: Model identifier (e.g. ``"openai:gpt-4o"``).
+    :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field. ``None`` (default) reads the
+        connection's own extra field; an explicit ``[]`` disables a chain
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: Additional instructions appended to the built-in SQL
         safety prompt. Use for domain-specific guidance.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
@@ -101,6 +113,9 @@ class LLMSQLQueryOperator(LLMOperator):
         "schema_context",
     )
 
+    # Runs its own execute() without the confidence gate; a decision_policy is rejected at construction.
+    supports_decision_policy: ClassVar[bool] = False
+
     def __init__(
         self,
         *,
@@ -113,7 +128,10 @@ class LLMSQLQueryOperator(LLMOperator):
         datasource_config: DataSourceConfig | None = None,
         **kwargs: Any,
     ) -> None:
-        kwargs.pop("output_type", None)  # SQL operator always returns str
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMSQLQueryOperator does not accept 'output_type'; it always returns the generated SQL as str."
+            )
         super().__init__(**kwargs)
         self.db_conn_id = db_conn_id
         self.table_names = table_names
@@ -152,7 +170,7 @@ class LLMSQLQueryOperator(LLMOperator):
         agent = self.llm_hook.create_agent(
             output_type=str, instructions=full_system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt, usage_limits=usage_limits)
+        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 
@@ -166,9 +184,15 @@ class LLMSQLQueryOperator(LLMOperator):
 
         return sql
 
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
+    def execute_complete(
+        self,
+        context: Context,
+        generated_output: str,
+        event: dict[str, Any],
+        decision: dict[str, Any] | None = None,
+    ) -> str:
         """Resume after human review, re-validating if the reviewer modified the SQL."""
-        output = super().execute_complete(context, generated_output, event)
+        output = super().execute_complete(context, generated_output, event, decision)
         if output != generated_output:
             _validate_sql(output, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
         return output

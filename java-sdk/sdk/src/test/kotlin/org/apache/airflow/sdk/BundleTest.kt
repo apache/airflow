@@ -24,6 +24,31 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 internal class BundleTest {
+  private class NoOp : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
+  }
+
+  /** A class of handlers that the processor generated [BundleTest_NestedHandlers] for. */
+  class Nested
+
+  /** A Dag class that the processor generated [WiredDagBuilder] for. */
+  @Builder.Dag(id = "wired")
+  class WiredDag
+
+  /** A Dag class whose generated [BrokenDagBuilder] fails, as an invalid wiring would. */
+  @Builder.Dag
+  class BrokenDag
+
+  /** A Dag class that also holds a task handler, so the processor generated both. */
+  @Builder.Dag(id = "mixed")
+  class MixedDag {
+    @Builder.TaskHandler(dag = "etl", task = "score")
+    fun score() = Unit
+  }
+
   @Test
   @DisplayName("Should index dags by dagId")
   fun shouldIndexDagsByDagId() {
@@ -43,5 +68,285 @@ internal class BundleTest {
       }
 
     Assertions.assertEquals("Dags in bundle have duplicate ID: dag", error.message)
+  }
+
+  @Test
+  @DisplayName("Should reject a task depending on an unregistered upstream")
+  fun shouldRejectUnregisteredUpstream() {
+    val missing = TaskDef("missing", NoOp::class.java)
+    val dag = DagDef("dag").addTask(TaskDef("t", NoOp::class.java).dependsOn(missing))
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Bundle(listOf(dag))
+      }
+
+    Assertions.assertEquals(
+      "Task 't' in Dag 'dag' depends on task 'missing' that is not registered in the same Dag",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject a task depending on a task registered in another dag")
+  fun shouldRejectUpstreamFromAnotherDag() {
+    val foreign = TaskDef("u", NoOp::class.java)
+    val other = DagDef("other").addTask(foreign)
+    val dag = DagDef("dag").addTask(TaskDef("t", NoOp::class.java).dependsOn(foreign))
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Bundle(listOf(other, dag))
+      }
+
+    Assertions.assertEquals(
+      "Task 't' in Dag 'dag' depends on task 'u' that is not registered in the same Dag",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject dependency cycles")
+  fun shouldRejectDependencyCycle() {
+    val a = TaskDef("a", NoOp::class.java)
+    val b = TaskDef("b", NoOp::class.java)
+    a.dependsOn(b)
+    b.dependsOn(a)
+    val dag = DagDef("dag").addTask(a).addTask(b)
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Bundle(listOf(dag))
+      }
+
+    Assertions.assertEquals(
+      "Task dependencies in Dag 'dag' contain a cycle involving task 'a'",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should accept a diamond-shaped dependency graph")
+  fun shouldAcceptDiamondGraph() {
+    val root = TaskDef("root", NoOp::class.java)
+    val left = TaskDef("left", NoOp::class.java).dependsOn(root)
+    val right = TaskDef("right", NoOp::class.java).dependsOn(root)
+    val join = TaskDef("join", NoOp::class.java).dependsOn(left, right)
+    val dag = DagDef("dag")
+    listOf(root, left, right, join).forEach(dag::addTask)
+
+    Assertions.assertEquals(mapOf("dag" to dag), Bundle(listOf(dag)).dags)
+  }
+
+  @Test
+  @DisplayName("Should leave the bundle unchanged when a Dag fails validation")
+  fun shouldNotRegisterInvalidDag() {
+    val bundle = Bundle()
+    val dag = DagDef("dag").addTask(TaskDef("t", NoOp::class.java).dependsOn(TaskDef("missing", NoOp::class.java)))
+
+    Assertions.assertThrows(IllegalArgumentException::class.java) { bundle.register(dag) }
+
+    Assertions.assertEquals(emptySet<String>(), bundle.dags.keys)
+  }
+
+  @Test
+  @DisplayName("Should register the Dag a @Builder.Dag class's generated builder builds")
+  fun shouldRegisterDagFromBuilderClass() {
+    val bundle = Bundle().register(WiredDag::class.java)
+
+    Assertions.assertEquals(listOf("wired"), bundle.dags.keys.toList())
+    Assertions.assertEquals(emptySet<String>(), bundle.taskHandlers.keys)
+  }
+
+  @Test
+  @DisplayName("Should rethrow the failure of a generated builder rather than its reflection wrapper")
+  fun shouldUnwrapBuilderFailure() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Bundle().register(BrokenDag::class.java)
+      }
+
+    Assertions.assertEquals("wiring failed", error.message)
+  }
+
+  @Test
+  @DisplayName("Should register both the Dag and the handlers of a class that carries both")
+  fun shouldRegisterDagAndHandlersOfOneClass() {
+    val bundle = Bundle().register(MixedDag::class.java)
+
+    Assertions.assertEquals(listOf("mixed"), bundle.dags.keys.toList())
+    Assertions.assertEquals(
+      listOf("score"),
+      bundle.taskHandlers
+        .getValue("etl")
+        .tasks.keys
+        .toList(),
+    )
+  }
+
+  @Test
+  @DisplayName("Should find the registrar generated for a nested handler class")
+  fun shouldFindRegistrarOfNestedHandlerClass() {
+    val bundle = Bundle().register(Nested::class.java)
+
+    Assertions.assertEquals(listOf("etl"), bundle.taskHandlers.keys.toList())
+    Assertions.assertEquals(
+      listOf("score"),
+      bundle.taskHandlers
+        .getValue("etl")
+        .tasks.keys
+        .toList(),
+    )
+  }
+
+  @Test
+  @DisplayName("Should name the registrar it looked for when there is none")
+  fun shouldNameTheRegistrarItLookedFor() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Bundle().register(NoOp::class.java)
+      }
+
+    Assertions.assertEquals(
+      "No generated registrar org.apache.airflow.sdk.BundleTest_NoOpHandlers for " +
+        "${NoOp::class.java.name}; does it carry @Builder.Dag or @Builder.TaskHandler, " +
+        "and is airflow-sdk-processor on the annotationProcessor path?",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject a Dag whose ID task handlers already hold")
+  fun shouldRejectDagWhoseIdTaskHandlersHold() {
+    val bundle = Bundle().register("etl", "score", NoOp::class.java)
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        bundle.register(DagDef("etl"))
+      }
+
+    Assertions.assertEquals(
+      "Dag 'etl' already has registered task handlers; a Dag declared in Java owns its own " +
+        "tasks, so one Dag ID cannot have both",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject task handlers for a Dag ID declared in Java")
+  fun shouldRejectTaskHandlersForJavaDeclaredDag() {
+    val bundle = Bundle().register(DagDef("etl"))
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        bundle.register("etl", "score", NoOp::class.java)
+      }
+
+    Assertions.assertEquals(
+      "Dag 'etl' is declared in Java; attach its tasks with addTask(...) rather than " +
+        "registering task handlers for them",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should keep accepting more handlers for a Dag the Python file owns")
+  fun shouldAcceptMoreHandlersForSameDag() {
+    val bundle =
+      Bundle()
+        .register("etl", "score", NoOp::class.java)
+        .register("etl", "report", NoOp::class.java)
+
+    Assertions.assertEquals(
+      setOf("score", "report"),
+      bundle.taskHandlers
+        .getValue("etl")
+        .tasks.keys,
+    )
+  }
+
+  @Test
+  @DisplayName("Should find a task whichever side registered its Dag")
+  fun shouldFindTaskFromEitherSide() {
+    val declared = DagDef("java_etl").addTask("extract", NoOp::class.java)
+    val bundle = Bundle().register(declared).register("py_etl", "score", NoOp::class.java)
+
+    Assertions.assertEquals("extract", bundle.taskDef("java_etl", "extract")?.id)
+    Assertions.assertEquals("score", bundle.taskDef("py_etl", "score")?.id)
+    Assertions.assertNull(bundle.taskDef("java_etl", "score"))
+    Assertions.assertNull(bundle.taskDef("absent", "extract"))
+  }
+
+  @Test
+  @DisplayName("Should reject every register once serving has started")
+  fun shouldRejectRegisterAfterServing() {
+    val bundle = Bundle()
+    bundle.finalizeRegistration()
+
+    val message = "Server.serve has already been called; register everything before serve"
+    listOf<() -> Unit>(
+      { bundle.register(DagDef("etl")) },
+      { bundle.register(Nested::class.java) },
+      { bundle.register("etl", "score", NoOp::class.java) },
+    ).forEach { register ->
+      val error = Assertions.assertThrows(IllegalStateException::class.java, register)
+      Assertions.assertEquals(message, error.message)
+    }
+  }
+}
+
+class NoopBundleTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+/** Stands in for the builder the annotation processor generates for [BundleTest.WiredDag]. */
+class WiredDagBuilder {
+  companion object {
+    @JvmStatic
+    fun build() = DagDef("wired")
+  }
+}
+
+/** Stands in for a generated builder whose wiring is invalid. */
+class BrokenDagBuilder {
+  companion object {
+    @JvmStatic
+    fun build(): DagDef = throw IllegalArgumentException("wiring failed")
+  }
+}
+
+/** Stands in for the builder the annotation processor generates for [BundleTest.MixedDag]. */
+class MixedDagBuilder {
+  companion object {
+    @JvmStatic
+    fun build() = DagDef("mixed")
+  }
+}
+
+/** Stands in for the registrar the annotation processor generates for [BundleTest.MixedDag]. */
+@Suppress("ktlint:standard:class-naming", "ClassName")
+class BundleTest_MixedDagHandlers {
+  companion object {
+    @JvmStatic
+    fun registerInto(bundle: Bundle) {
+      bundle.register("etl", "score", NoopBundleTask::class.java)
+    }
+  }
+}
+
+/**
+ * Stands in for the registrar the annotation processor generates beside
+ * [BundleTest.Nested], to pin the name [Bundle.register] looks up.
+ */
+@Suppress("ktlint:standard:class-naming", "ClassName")
+class BundleTest_NestedHandlers {
+  companion object {
+    @JvmStatic
+    fun registerInto(bundle: Bundle) {
+      bundle.register("etl", "score", NoopBundleTask::class.java)
+    }
   }
 }

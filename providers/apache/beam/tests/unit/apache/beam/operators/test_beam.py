@@ -54,6 +54,7 @@ OUTPUT_LOCATION = "gs://test/output"
 TEST_VERSION = f"v{version.replace('.', '-').replace('+', '-')}"
 TEST_IMPERSONATION_ACCOUNT = "test@impersonation.com"
 TEST_POLL_SLEEP = 30
+TEST_SERVICE_ACCOUNT = "test@service-account.com"
 BEAM_OPERATOR_PATH = "airflow.providers.apache.beam.operators.beam.{}"
 
 
@@ -219,7 +220,10 @@ class TestBeamRunPythonPipelineOperator:
         """
         gcs_provide_file = gcs_hook.return_value.provide_file
         op = BeamRunPythonPipelineOperator(
-            dataflow_config={"impersonation_chain": TEST_IMPERSONATION_ACCOUNT},
+            dataflow_config={
+                "impersonation_chain": TEST_IMPERSONATION_ACCOUNT,
+                "service_account": TEST_SERVICE_ACCOUNT,
+            },
             runner="DataflowRunner",
             **self.default_op_kwargs,
         )
@@ -244,6 +248,7 @@ class TestBeamRunPythonPipelineOperator:
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
             "region": "us-central1",
+            "service_account_email": TEST_SERVICE_ACCOUNT,
             "impersonate_service_account": TEST_IMPERSONATION_ACCOUNT,
             "requirements_file": gcs_provide_file.return_value.__enter__.return_value.name,
         }
@@ -446,7 +451,9 @@ class TestBeamRunJavaPipelineOperator:
         """Test DataflowHook is created and the right args are passed to
         start_java_dataflow.
         """
-        dataflow_config = DataflowConfiguration(impersonation_chain="test@impersonation.com")
+        dataflow_config = DataflowConfiguration(
+            impersonation_chain="test@impersonation.com", service_account=TEST_SERVICE_ACCOUNT
+        )
         op = BeamRunJavaPipelineOperator(
             **self.default_op_kwargs, dataflow_config=dataflow_config, runner="DataflowRunner"
         )
@@ -473,6 +480,7 @@ class TestBeamRunJavaPipelineOperator:
             "region": "us-central1",
             "labels": {"foo": "bar"},
             "output": "gs://test/output",
+            "serviceAccount": TEST_SERVICE_ACCOUNT,
             "impersonateServiceAccount": TEST_IMPERSONATION_ACCOUNT,
         }
         persist_link_mock.assert_called_once_with(
@@ -777,7 +785,9 @@ class TestBeamRunGoPipelineOperator:
         start_go_dataflow.
         """
         gcs_download_method = gcs_hook.return_value.download
-        dataflow_config = DataflowConfiguration(impersonation_chain="test@impersonation.com")
+        dataflow_config = DataflowConfiguration(
+            impersonation_chain="test@impersonation.com", service_account=TEST_SERVICE_ACCOUNT
+        )
         op = BeamRunGoPipelineOperator(
             runner="DataflowRunner",
             dataflow_config=dataflow_config,
@@ -803,6 +813,7 @@ class TestBeamRunGoPipelineOperator:
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
             "region": "us-central1",
+            "service_account_email": TEST_SERVICE_ACCOUNT,
         }
         persist_link_mock.assert_called_once_with(context={})
         expected_go_file = "/tmp/apache-beam-go/main.go"

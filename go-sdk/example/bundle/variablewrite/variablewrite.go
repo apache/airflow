@@ -22,7 +22,7 @@ package variablewrite
 import (
 	"fmt"
 
-	"github.com/apache/airflow/go-sdk/sdk"
+	"github.com/apache/airflow/go-sdk/airflow"
 )
 
 const (
@@ -37,14 +37,16 @@ const (
 
 // WriteAndDeleteVariable stores the current run id under WrittenKey, then
 // writes and deletes ScratchKey to exercise the delete path.
-func WriteAndDeleteVariable(ctx sdk.TIRunContext, client sdk.VariableClient) error {
-	if err := client.SetVariable(ctx, WrittenKey, ctx.DagRun().RunID, WrittenDescription); err != nil {
+func WriteAndDeleteVariable(actx airflow.Context) error {
+	client := actx.Client()
+	runID := actx.DagRun().RunID
+	if err := client.SetVariable(actx, WrittenKey, runID, WrittenDescription); err != nil {
 		return fmt.Errorf("setting %s: %w", WrittenKey, err)
 	}
-	if err := client.SetVariable(ctx, ScratchKey, "scratch", ""); err != nil {
+	if err := client.SetVariable(actx, ScratchKey, "scratch", ""); err != nil {
 		return fmt.Errorf("setting %s: %w", ScratchKey, err)
 	}
-	if err := client.DeleteVariable(ctx, ScratchKey); err != nil {
+	if err := client.DeleteVariable(actx, ScratchKey); err != nil {
 		return fmt.Errorf("deleting %s: %w", ScratchKey, err)
 	}
 	return nil

@@ -293,7 +293,7 @@ class AssetsOperations(BaseOperations):
 
     def materialize(self, asset_id: str) -> DAGRunResponse | ServerResponseError:
         """Materialize an asset."""
-        self.response = self.client.post(f"assets/{asset_id}/materialize")
+        self.response = self.client.post(f"assets/{asset_id}/materialize", json={})
         return DAGRunResponse.model_validate_json(self.response.content)
 
     def get_queued_events(self, asset_id: str) -> QueuedEventCollectionResponse | ServerResponseError:
@@ -368,14 +368,15 @@ class BackfillOperations(BaseOperations):
     def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
         """Create a backfill."""
         self.response = self.client.post(
-            "backfills", json=backfill.model_dump(mode="json", exclude_none=True)
+            "backfills", json=backfill.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
         )
         return BackfillResponse.model_validate_json(self.response.content)
 
     def create_dry_run(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
         """Create a dry run backfill."""
         self.response = self.client.post(
-            "backfills/dry_run", json=backfill.model_dump(mode="json", exclude_none=True)
+            "backfills/dry_run",
+            json=backfill.model_dump(mode="json", exclude_none=True, exclude_defaults=True),
         )
         return BackfillResponse.model_validate_json(self.response.content)
 
@@ -540,7 +541,7 @@ class DagsOperations(BaseOperations):
         if trigger_dag_run.conf is None:
             trigger_dag_run.conf = {}
         self.response = self.client.post(
-            f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json")
+            f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json", exclude_defaults=True)
         )
         return DAGRunResponse.model_validate_json(self.response.content)
 
@@ -768,7 +769,7 @@ class TasksOperations(BaseOperations):
         """Clear task instances of a Dag; with dry_run (the default) only previews the affected task instances."""
         self.response = self.client.post(
             f"dags/{dag_id}/clearTaskInstances",
-            json=clear_task_instances.model_dump(mode="json", exclude_none=True),
+            json=clear_task_instances.model_dump(mode="json", exclude_defaults=True),
         )
         return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
 

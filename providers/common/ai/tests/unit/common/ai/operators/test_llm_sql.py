@@ -20,7 +20,7 @@ import subprocess
 import sys
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import ANY, MagicMock, PropertyMock, patch
 from uuid import uuid4
 
 import pytest
@@ -28,6 +28,7 @@ import pytest
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
+from airflow.providers.common.ai.operators.llm import DecisionPolicy
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 from airflow.providers.common.compat.sdk import TaskDeferred
@@ -36,9 +37,9 @@ from airflow.providers.common.sql.config import DataSourceConfig
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
-    # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer to
+    # On Airflow 3.3+ require_approval pauses the task in AWAITING_INPUT; older Airflow versions defer to
     # HITLTrigger. Both signals carry method_name/kwargs/timeout, so the approval tests assert
-    # against whichever pause signal the running core uses.
+    # against whichever pause signal the running Airflow version uses.
     from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
 else:
     ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
@@ -191,11 +192,16 @@ class TestLLMSQLQueryOperator:
 
         assert issubclass(LLMSQLQueryOperator, LLMOperator)
 
+    def test_output_type_rejected(self):
+        with pytest.raises(TypeError, match="LLMSQLQueryOperator does not accept 'output_type'"):
+            LLMSQLQueryOperator(task_id="test", prompt="get users", llm_conn_id="my_llm", output_type=int)
+
     def test_template_fields_include_parent_and_sql_specific(self):
         expected = {
             "prompt",
             "llm_conn_id",
             "model_id",
+            "fallback_conn_ids",
             "system_prompt",
             "agent_params",
             "usage_limits",
@@ -204,6 +210,25 @@ class TestLLMSQLQueryOperator:
             "schema_context",
         }
         assert set(LLMSQLQueryOperator.template_fields) == expected
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_forwards_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
+        """``fallback_conn_ids`` is accepted without a per-subclass code change and reaches the hook."""
+        mock_agent = _make_mock_agent("SELECT id FROM users", make_mock_run_result)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMSQLQueryOperator(
+            task_id="test",
+            prompt="Get users",
+            llm_conn_id="my_llm",
+            schema_context="Table: users\nColumns: id INT",
+            fallback_conn_ids=["conn_a", "conn_b"],
+        )
+        op.execute(context=MagicMock())
+
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": ["conn_a", "conn_b"]}
+        )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_schema_context(self, mock_hook_cls, make_mock_run_result):
@@ -220,7 +245,9 @@ class TestLLMSQLQueryOperator:
         result = op.execute(context=MagicMock())
 
         assert result == "SELECT id, name FROM users WHERE active = true"
-        mock_agent.run_sync.assert_called_once_with("Get active users", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Get active users", usage_limits=None, cancellation_token=ANY
+        )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, make_mock_run_result):
@@ -856,3 +883,13 @@ class TestLLMSQLQueryOperatorMultimodalPromptGuard:
             op.execute(context=_make_context())
 
         mock_agent.run_sync.assert_not_called()
+
+
+def test_decision_policy_with_a_bar_is_rejected_at_construction():
+    """The operator runs its own execute without the gate; accepting the policy would silently ignore it."""
+    with pytest.raises(ValueError, match="LLMSQLQueryOperator does not support decision_policy"):
+        LLMSQLQueryOperator(
+            task_id="t", prompt="p", llm_conn_id="c", decision_policy=DecisionPolicy(min_confidence=0.7)
+        )
+    # A policy without a bar is the default and stays accepted.
+    LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c", decision_policy=DecisionPolicy())

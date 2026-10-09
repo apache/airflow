@@ -17,8 +17,8 @@
 
 .. _howto/connection:pydanticai_azure:
 
-Pydantic AI (Azure OpenAI) Connection
-======================================
+Pydantic AI (Azure OpenAI) connection
+=====================================
 
 The ``pydanticai_azure`` connection type configures access to
 `Azure OpenAI <https://azure.microsoft.com/en-us/products/ai-services/openai-service>`__
@@ -31,26 +31,9 @@ that do not use the OpenAI-compatible v1 API, ``api_version``. The generic
 
 .. note::
 
-    This connection type was previously named ``pydanticai-azure``.
-
-    Connections stored as a URI or as JSON need no change: ``-`` is how ``_`` is
-    encoded in a URI scheme, so ``pydanticai-azure`` is decoded to ``pydanticai_azure``
-    on read and resolves as before. That covers ``AIRFLOW_CONN_*`` environment
-    variables and secrets backends such as HashiCorp Vault, AWS Secrets Manager and
-    GCP Secret Manager.
-
-    A connection whose type is stored verbatim does need updating, because the
-    hyphen is preserved and no longer matches a registered hook. That means rows in
-    the metadata database, including any created through the UI, and connections
-    imported in object form from a local file:
-
-    .. code-block:: bash
-
-        airflow connections get <conn_id> -o json    # confirm conn_type is 'pydanticai-azure'
-        airflow connections delete <conn_id>
-        airflow connections add <conn_id> --conn-type pydanticai_azure ...
-
-    In the UI, edit the connection and re-pick its type.
+    This connection type was previously named ``pydanticai-azure``. Connections
+    stored as a URI or as JSON keep working; a type stored verbatim, such as a row
+    created in the UI, must be re-created. See :ref:`troubleshooting-conn-type-rename`.
 
 Default Connection IDs
 ----------------------
@@ -61,12 +44,18 @@ Configuring the Connection
 --------------------------
 
 Model
-    Azure model identifier (e.g. ``azure:gpt-4o``). This field appears as a
-    dedicated input in the connection form (via ``conn-fields``) and stores its
-    value in ``extra["model"]``.
+    Azure model identifier (e.g. ``azure:gpt-5``, or the bare ``gpt-5``). This
+    field appears as a dedicated input in the connection form (via
+    ``conn-fields``) and stores its value in ``extra["model"]``.
 
-    The ``azure:`` prefix is required — it is what makes pydantic-ai instantiate
-    the Azure OpenAI provider instead of the plain OpenAI one.
+    A bare name is automatically resolved to ``azure:<name>`` -- Azure OpenAI is
+    this connection type's own platform, so nothing else needs naming it
+    explicitly. Writing the ``azure:`` prefix yourself has the same effect and is
+    still accepted. A name prefixed with a *different*, recognized platform (e.g.
+    ``openai:gpt-5``) is used verbatim instead, pinning that platform and
+    bypassing Azure OpenAI entirely -- a name is only treated as already prefixed
+    when the segment before its first ``:`` is itself a real pydantic-ai
+    provider, not merely present.
 
 API Key (Password field)
     The Azure OpenAI API key.
@@ -82,6 +71,12 @@ API Version (Extra field)
     ``OPENAI_API_VERSION`` environment variable if omitted. Endpoints matching
     either OpenAI-compatible v1 form reject this field.
 
+Fallback Connections
+    Other connection IDs to fail over to, in order, while this provider is
+    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
+    ``pydanticai`` connection type, so one chain can span vendors. See
+    :doc:`/provider_fallback`.
+
 Examples
 --------
 
@@ -91,7 +86,7 @@ Examples
         "conn_type": "pydanticai_azure",
         "password": "<azure-api-key>",
         "host": "https://<resource>.openai.azure.com/openai/v1",
-        "extra": "{\"model\": \"azure:gpt-4o\"}"
+        "extra": "{\"model\": \"azure:gpt-5\"}"
     }
 
 Relationship to the hook

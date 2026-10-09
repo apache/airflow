@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm_sql import _LLMSQLDecoratedOperator
+from airflow.providers.common.compat.sdk import DAG, task
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -29,6 +30,17 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 class TestLLMSQLDecoratedOperator:
     def test_custom_operator_name(self):
         assert _LLMSQLDecoratedOperator.custom_operator_name == "@task.llm_sql"
+
+    def test_output_type_rejected(self):
+        @task.llm_sql(llm_conn_id="my_llm", output_type=int)
+        def my_prompt_fn():
+            return "Get all users"
+
+        with (
+            DAG(dag_id="dag"),
+            pytest.raises(TypeError, match="LLMSQLQueryOperator does not accept 'output_type'"),
+        ):
+            my_prompt_fn()
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_calls_callable_and_uses_result_as_prompt(self, mock_hook_cls, make_mock_run_result):
@@ -45,7 +57,9 @@ class TestLLMSQLDecoratedOperator:
 
         assert result == "SELECT 1"
         assert op.prompt == "Get all users"
-        mock_agent.run_sync.assert_called_once_with("Get all users", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Get all users", usage_limits=None, cancellation_token=ANY
+        )
 
     @pytest.mark.parametrize(
         "return_value",
@@ -79,7 +93,7 @@ class TestLLMSQLDecoratedOperator:
         op.execute(context={})
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, cancellation_token=ANY)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="require_approval needs Airflow >= 3.1.0")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)

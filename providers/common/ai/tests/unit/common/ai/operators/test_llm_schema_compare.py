@@ -147,6 +147,12 @@ class TestLLMSchemaCompareOperator:
         op = LLMSchemaCompareOperator(**_BASE_KWARGS, **kwargs)
         assert op.context_strategy == "full"
 
+    def test_output_type_rejected(self):
+        with pytest.raises(TypeError, match="LLMSchemaCompareOperator does not accept 'output_type'"):
+            LLMSchemaCompareOperator(
+                **_BASE_KWARGS, db_conn_ids=["conn_a", "conn_b"], table_names=["t"], output_type=int
+            )
+
     def test_init_succeeds_with_all_parameters(self):
         ds = _make_ds_config(conn_id="ds")
         op = LLMSchemaCompareOperator(
@@ -280,7 +286,9 @@ class TestLLMSchemaCompareOperator:
             instructions="system_prompt",
             param="value",
         )
-        mock_agent.run_sync.assert_called_once_with("user_prompt", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "user_prompt", usage_limits=None, cancellation_token=mock.ANY
+        )
         assert result == {"compatible": True, "mismatches": [], "summary": "All good"}
 
     @mock.patch(
@@ -395,6 +403,7 @@ class TestLLMSchemaCompareOperator:
         mock_agent.run_sync.assert_called_once_with(
             "Compare S3 Parquet schema against the Postgres table and flag breaking changes",
             usage_limits=None,
+            cancellation_token=mock.ANY,
         )
         assert result["compatible"] is True
         assert result["summary"] == "S3 and Postgres schemas are compatible"

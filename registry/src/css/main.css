@@ -3287,6 +3287,7 @@ main {
 /* Modules section header */
 .modules-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
@@ -3295,6 +3296,30 @@ main {
 
 .module-search-wrapper {
   max-width: 16rem;
+  /* Floor the input so it doesn't absorb the squeeze once the nowrap capability
+     toggles beside it stop shrinking, which collapsed it below its placeholder. */
+  min-width: 12rem;
+}
+
+.capability-filter-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.capability-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.capability-filter-toggle input {
+  cursor: pointer;
 }
 
 /* Modules */
@@ -3459,7 +3484,8 @@ main {
   margin-bottom: var(--space-1);
 }
 
-.provider-detail-page .modules .module .content h3 .durable-badge {
+.provider-detail-page .modules .module .content h3 .durable-badge,
+.provider-detail-page .modules .module .content h3 .deferrable-badge {
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
@@ -3468,8 +3494,18 @@ main {
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   border-radius: var(--radius-lg);
+}
+
+.provider-detail-page .modules .module .content h3 .durable-badge {
   background: color-mix(in srgb, var(--color-teal-500) 15%, transparent);
-  color: var(--color-teal-400);
+  color: var(--color-teal-700);
+  color: light-dark(var(--color-teal-700), var(--color-teal-400));
+}
+
+.provider-detail-page .modules .module .content h3 .deferrable-badge {
+  background: color-mix(in srgb, var(--color-blue-500) 15%, transparent);
+  color: var(--color-blue-700);
+  color: light-dark(var(--color-blue-700), var(--color-blue-400));
 }
 
 .provider-detail-page .modules .module .content p {
@@ -3516,12 +3552,14 @@ main {
 /* Module Actions (View Docs, Source) */
 .provider-detail-page .module-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   margin-top: var(--space-3);
 }
 
 .provider-detail-page .module-actions .docs-link,
+.provider-detail-page .module-actions .guide-link,
 .provider-detail-page .module-actions .source-link {
   display: inline-flex;
   align-items: center;
@@ -3536,6 +3574,14 @@ main {
 }
 
 .provider-detail-page .module-actions .docs-link:hover {
+  color: var(--color-cyan-300);
+}
+
+.provider-detail-page .module-actions .guide-link {
+  color: var(--accent-secondary);
+}
+
+.provider-detail-page .module-actions .guide-link:hover {
   color: var(--color-cyan-300);
 }
 
@@ -4033,6 +4079,83 @@ main {
 .provider-detail-page .connections-card .conn-copy-btn svg {
   width: 1rem;
   height: 1rem;
+}
+
+/* URI Schemes Card */
+.provider-detail-page .uri-schemes {
+  padding: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+.provider-detail-page .uri-schemes > h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.provider-detail-page .uri-schemes > h3 svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-blue-400);
+}
+
+.provider-detail-page .uri-schemes > p {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.provider-detail-page .uri-schemes dl {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.provider-detail-page .uri-schemes dl > div {
+  display: grid;
+  gap: var(--space-2);
+}
+
+@media (min-width: 640px) {
+  .provider-detail-page .uri-schemes dl > div {
+    grid-template-columns: 10rem 1fr;
+    align-items: baseline;
+  }
+}
+
+.provider-detail-page .uri-schemes dt {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+}
+
+.provider-detail-page .uri-schemes dt a {
+  color: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.provider-detail-page .uri-schemes dt a:hover {
+  color: var(--accent-primary);
+}
+
+.provider-detail-page .uri-schemes dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.provider-detail-page .uri-schemes dd code {
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-blue-400);
+  background: rgb(from var(--color-blue-500) r g b / 0.05);
+  border: 1px solid rgb(from var(--color-blue-500) r g b / 0.2);
+  border-radius: var(--radius-full);
 }
 
 /* Search Modal */

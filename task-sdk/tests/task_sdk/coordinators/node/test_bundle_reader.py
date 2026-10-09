@@ -31,6 +31,8 @@ from task_sdk.coordinators.node._bundle_test_utils import (
     METADATA_PREFIX,
     OFFSET_WIDTH,
     SCHEMA_VERSION,
+    SOURCE_CLOSE,
+    SOURCE_OPEN,
     metadata_json as _metadata_json,
     mutate_byte as _mutate_byte,
     read_layout as _read_layout,
@@ -40,11 +42,17 @@ from task_sdk.coordinators.node._bundle_test_utils import (
 )
 
 from airflow.sdk.coordinators.node import _bundle_reader as _reader
-from airflow.sdk.coordinators.node._bundle_reader import _digest_cache, _hash_region, read_bundle
+from airflow.sdk.coordinators.node._bundle_reader import (
+    _digest_cache,
+    _hash_region,
+    read_bundle,
+    read_bundle_entrypoint_source,
+    read_bundle_source,
+)
 
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
 
-TYPESCRIPT_V1_FIXTURE = AIRFLOW_ROOT_PATH / "ts-sdk" / "tests" / "cli" / "fixtures" / "bundle-v1.mjs"
+TYPESCRIPT_V1_FIXTURE = AIRFLOW_ROOT_PATH / "ts-sdk" / "tests" / "cli" / "fixtures" / "bundle-v1.min.mjs"
 
 
 @pytest.fixture(autouse=True)
@@ -59,6 +67,31 @@ class TestBundleReader:
 
         assert metadata.dag_ids == frozenset({"test_dag"})
         assert metadata.supervisor_schema_version == SCHEMA_VERSION
+
+    def test_reads_source_embedded_by_typescript_encoder(self):
+        # Real encoder output, whose source region needs both escape branches. Recovering it
+        # exactly is the cross-language agreement on the escape scheme, which the Python helper
+        # used by the other tests cannot establish on its own.
+        assert read_bundle_source(TYPESCRIPT_V1_FIXTURE, "test_dag") == (
+            "/** Handlers for the test Dag. */\n"
+            'import { Bundle, Dag } from "apache-airflow-ts-sdk";\n'
+            "\n"
+            r"const TERMINATOR = /\*\//;"
+            "\n"
+            'const dag = new Dag("test_dag");\n'
+            'dag.task("test_task", async () => TERMINATOR.source);\n'
+            "\n"
+            "await new Bundle(dag).serve();\n"
+        )
+
+    def test_accepts_block_comment_terminator_inside_the_code_region(self):
+        # Rejecting a terminator in the code region would make every real bundle unreadable.
+        fixture = TYPESCRIPT_V1_FIXTURE.read_bytes()
+        layout = _read_layout(TYPESCRIPT_V1_FIXTURE)
+        code_start = int(layout["code"]["start"], 16)  # type: ignore[index, call-overload]
+        assert b"*/" in fixture[code_start:]
+
+        assert read_bundle(TYPESCRIPT_V1_FIXTURE).dag_ids == frozenset({"test_dag"})
 
     def test_rejects_metadata_first_legacy_bundle(self, tmp_path):
         payload = _metadata_json("sales")
@@ -85,12 +118,12 @@ class TestBundleReader:
         original_header_size = len(bundle.read_bytes().partition(b"\n")[0])
         layout["future_header_field"] = True
         layout["code"]["future_section_field"] = True  # type: ignore[index]
-        # Fixed-width offsets let us relocate both sections after extending the header.
+        # Fixed-width offsets let us relocate every section after extending the header.
         header_growth = len(LAYOUT_PREFIX) + len(json.dumps(layout).encode()) - original_header_size
-        for name in ("metadata", "code"):
+        for section in (layout["metadata"], layout["code"], *layout["sources"]):  # type: ignore[misc]
             for field in ("start", "end"):
-                value = int(layout[name][field], 16) + header_growth  # type: ignore[index, call-overload]
-                layout[name][field] = f"{value:0{OFFSET_WIDTH}x}"  # type: ignore[index]
+                value = int(section[field], 16) + header_growth
+                section[field] = f"{value:0{OFFSET_WIDTH}x}"
         _replace_layout_payload(bundle, json.dumps(layout).encode())
 
         metadata = read_bundle(bundle)
@@ -168,7 +201,7 @@ class TestBundleReader:
         with pytest.raises(ValueError, match="metadata contains a JavaScript line terminator"):
             read_bundle(bundle)
 
-    @pytest.mark.parametrize("section", ["code", "metadata"])
+    @pytest.mark.parametrize("section", ["code", "metadata", "sources"])
     def test_requires_every_layout_section(self, tmp_path, section):
         bundle = write_bundle(tmp_path, "sales")
         layout = _read_layout(bundle)
@@ -227,6 +260,180 @@ class TestBundleReader:
         with pytest.raises(ValueError, match=f"{section} SHA-256 mismatch"):
             read_bundle(tmp_path / BUNDLE_NAME)
 
+    def test_rejects_source_region_digest_mismatch(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales")
+        layout = _read_layout(bundle)
+        _mutate_byte(bundle, int(layout["sources"][0]["start"], 16))  # type: ignore[index, call-overload]
+
+        with pytest.raises(ValueError, match="source main.ts SHA-256 mismatch"):
+            read_bundle(tmp_path / BUNDLE_NAME)
+
+    def test_rejects_source_offset_mismatch(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales")
+        layout = _read_layout(bundle)
+        source_start = int(layout["sources"][0]["start"], 16)  # type: ignore[index, call-overload]
+        layout["sources"][0]["start"] = f"{source_start + 1:0{OFFSET_WIDTH}x}"  # type: ignore[index]
+        _rewrite_layout(bundle, layout)
+
+        with pytest.raises(ValueError, match="source offsets do not match"):
+            read_bundle(tmp_path / BUNDLE_NAME)
+
+    def test_requires_source_comment_immediately_after_metadata(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales")
+        contents = bundle.read_bytes()
+        # Replace the block-comment opener with a line comment of the same length,
+        # leaving every declared offset intact.
+        bundle.write_bytes(contents.replace(SOURCE_OPEN, b"//# airflowSource:main.ts\n", 1))
+
+        with pytest.raises(ValueError, match="no embedded airflow source after its metadata"):
+            read_bundle(tmp_path / BUNDLE_NAME)
+
+    def test_rejects_unterminated_source(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales")
+        contents = bundle.read_bytes()
+        bundle.write_bytes(contents.replace(SOURCE_CLOSE, b"\n#*-\n", 1))
+
+        with pytest.raises(ValueError, match="not closed by its block comment"):
+            read_bundle(tmp_path / BUNDLE_NAME)
+
+    def test_rejects_source_declared_past_end_of_file(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales")
+        layout = _read_layout(bundle)
+        source_end = int(layout["sources"][0]["end"], 16)  # type: ignore[index, call-overload]
+        layout["sources"][0]["end"] = f"{source_end + 4096:0{OFFSET_WIDTH}x}"  # type: ignore[index]
+        _rewrite_layout(bundle, layout)
+
+        with pytest.raises(ValueError, match="not closed by its block comment"):
+            read_bundle(tmp_path / BUNDLE_NAME)
+
+    def test_rejects_oversized_source(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales")
+        layout = _read_layout(bundle)
+        source_start = int(layout["sources"][0]["start"], 16)  # type: ignore[index, call-overload]
+        layout["sources"][0]["end"] = f"{source_start + 1024 * 1024 + 1:0{OFFSET_WIDTH}x}"  # type: ignore[index]
+        _rewrite_layout(bundle, layout)
+
+        with pytest.raises(ValueError, match="embedded airflow source exceeds"):
+            read_bundle(tmp_path / BUNDLE_NAME)
+
+    def test_rejects_unescaped_block_comment_terminator_in_source(self, tmp_path):
+        # Node would end the comment at the terminator and execute what follows, while both
+        # digests still match. Reject rather than vouch for such a bundle.
+        write_bundle(tmp_path, "sales", source_payload=b'const s = "*/";')
+
+        with pytest.raises(ValueError, match="unescaped block comment terminator"):
+            read_bundle(tmp_path / BUNDLE_NAME)
+
+    def test_rejects_source_that_is_not_utf8(self, tmp_path):
+        write_bundle(tmp_path, "sales", source_payload=b"const s = '" + bytes([0xFF]) + b"';")
+
+        with pytest.raises(ValueError, match="embedded airflow source is not valid UTF-8"):
+            read_bundle_source(tmp_path / BUNDLE_NAME, "sales")
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            pytest.param(b"export {};" + b"\n", id="plain"),
+            pytest.param(b"/** doc */" + b"\nexport {};\n", id="doc-comment"),
+            pytest.param(b'const s = "*/";\n', id="terminator"),
+            pytest.param(b'const s = "*\\/";' + b"\n", id="escaped-slash"),
+            pytest.param(b'const s = "*\\\\";' + b"\n", id="double-backslash"),
+            pytest.param('const s = "\u65e5\u672c\u8a9e";\n'.encode(), id="non-ascii"),
+            pytest.param(b"line one\nline two\nline three\n", id="multi-line"),
+        ],
+    )
+    def test_round_trips_embedded_source_exactly(self, tmp_path, source):
+        bundle = write_bundle(tmp_path, "sales", source=source)
+
+        result = read_bundle_source(bundle, "sales")
+        assert result is not None
+        assert result.encode() == source
+
+    def test_reads_one_source_region_per_dag(self, tmp_path):
+        bundle = write_bundle(
+            tmp_path,
+            "sales",
+            "inventory",
+            sources=[
+                ("sales.ts", b"export const sales = 1;\n"),
+                ("inventory.ts", b"export const inv = 2;\n"),
+                ("main.ts", b'import "./sales";\n'),
+            ],
+            dag_source_paths={"sales": "sales.ts", "inventory": "inventory.ts"},
+            entrypoint_path="main.ts",
+        )
+
+        assert read_bundle(bundle).dag_ids == frozenset({"sales", "inventory"})
+        assert read_bundle_source(bundle, "sales") == "export const sales = 1;\n"
+        assert read_bundle_source(bundle, "inventory") == "export const inv = 2;\n"
+        assert read_bundle_entrypoint_source(bundle) == 'import "./sales";\n'
+
+    def test_reads_no_entrypoint_source_when_none_is_declared(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales", entrypoint_path=None)
+
+        assert read_bundle_entrypoint_source(bundle) is None
+
+    def test_returns_none_without_a_dag_id(self, tmp_path):
+        # A Dag owned by another language (Python) shows its own source; the caller omits dag_id
+        # and gets None rather than an unrelated TypeScript file such as the entrypoint.
+        bundle = write_bundle(tmp_path, "sales")
+
+        assert read_bundle_source(bundle) is None
+
+    def test_falls_back_to_entrypoint_for_unattributed_dag(self, tmp_path):
+        # A native Dag the packer could not attribute (built dynamically) is absent from
+        # dag_source_paths; a source read for it falls back to the always-embedded entrypoint.
+        bundle = write_bundle(
+            tmp_path,
+            "sales",
+            sources=[("main.ts", b"export const entry = 1;\n")],
+            dag_source_paths={},
+            entrypoint_path="main.ts",
+        )
+
+        assert read_bundle(bundle).dag_ids == frozenset({"sales"})
+        assert read_bundle_source(bundle, "dynamic_dag") == "export const entry = 1;\n"
+
+    def test_falls_back_to_entrypoint_when_dag_source_paths_absent(self, tmp_path):
+        metadata = json.loads(_metadata_json("sales", entrypoint_path="main.ts"))
+        del metadata["dag_source_paths"]
+        bundle = write_bundle(tmp_path, "sales", metadata_payload=json.dumps(metadata).encode())
+
+        assert read_bundle_source(bundle, "sales") == "export {};\n"
+
+    def test_returns_none_for_unmapped_dag_without_entrypoint(self, tmp_path):
+        # No per-Dag source and no entrypoint to fall back to. read_bundle still verifies and
+        # returns metadata from a layout with an empty sources array.
+        bundle = write_bundle(tmp_path, "sales", sources=[], dag_source_paths={}, entrypoint_path=None)
+
+        assert read_bundle(bundle).dag_ids == frozenset({"sales"})
+        assert read_bundle_source(bundle, "sales") is None
+
+    def test_rejects_source_read_when_dag_maps_to_absent_region(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales", dag_source_paths={"sales": "ghost.ts"})
+
+        with pytest.raises(ValueError, match="no source region at path 'ghost.ts'"):
+            read_bundle_source(bundle, "sales")
+
+    def test_rejects_duplicate_source_paths(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales")
+        layout = _read_layout(bundle)
+        layout["sources"].append(dict(layout["sources"][0]))  # type: ignore[attr-defined, index]
+        _replace_layout_payload(bundle, json.dumps(layout).encode())
+
+        with pytest.raises(ValueError, match="duplicate source paths"):
+            read_bundle(tmp_path / BUNDLE_NAME)
+
+    def test_rejects_source_marker_path_mismatch(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales")
+        layout = _read_layout(bundle)
+        # A same-length path keeps every declared offset valid, so only the marker text disagrees.
+        layout["sources"][0]["path"] = "main.js"  # type: ignore[index]
+        _rewrite_layout(bundle, layout)
+
+        with pytest.raises(ValueError, match="marker does not match its declared path"):
+            read_bundle(tmp_path / BUNDLE_NAME)
+
     def test_rejects_truncated_code(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
         bundle.write_bytes(bundle.read_bytes()[:-1])
@@ -264,16 +471,16 @@ class TestBundleReader:
         with pytest.raises(ValueError, match="embedded airflow metadata must contain a mapping"):
             read_bundle(tmp_path / BUNDLE_NAME)
 
-    @pytest.mark.parametrize("dags", [None, []], ids=["missing", "not-a-mapping"])
-    def test_rejects_missing_or_malformed_dags(self, tmp_path, dags):
+    @pytest.mark.parametrize("task_handlers", [None, []], ids=["missing", "not-a-mapping"])
+    def test_rejects_missing_or_malformed_task_handlers(self, tmp_path, task_handlers):
         metadata = json.loads(_metadata_json("sales"))
-        if dags is None:
-            del metadata["dags"]
+        if task_handlers is None:
+            del metadata["task_handlers"]
         else:
-            metadata["dags"] = dags
+            metadata["task_handlers"] = task_handlers
         write_bundle(tmp_path, metadata_payload=json.dumps(metadata).encode())
 
-        with pytest.raises(ValueError, match="metadata must contain a dags mapping"):
+        with pytest.raises(ValueError, match="metadata must contain a task_handlers mapping"):
             read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_rejects_oversized_metadata(self, tmp_path):
@@ -363,7 +570,8 @@ class TestBundleReader:
         read_bundle(tmp_path / BUNDLE_NAME)
         read_bundle(tmp_path / BUNDLE_NAME)
 
-        assert hash_region.call_count == 2
+        # Three regions hashed on the first read, none on the second.
+        assert hash_region.call_count == 3
 
     @mock.patch.object(_reader.os, "fstat", autospec=True)
     def test_cache_uses_ctime_to_detect_corruption_with_restored_mtime(self, fstat, tmp_path):
@@ -389,12 +597,14 @@ class TestBundleReader:
     def test_digest_cache_evicts_least_recently_used_entry(self):
         cache = _reader._BundleDigestCache(maxsize=2)
         section = _reader._DeclaredSection(start=0, end=1, sha256=b"0" * 32)
-        digests = _reader._ComputedDigests(metadata=b"1" * 32, code=b"2" * 32)
+        source_region = _reader._DeclaredSourceRegion(path="main.ts", start=0, end=1, sha256=b"0" * 32)
+        digests = _reader._ComputedDigests(metadata=b"1" * 32, sources=(b"2" * 32,), code=b"3" * 32)
 
         def build_key(inode):
             return _reader._DigestCacheKey(
                 path="bundle.min.mjs",
                 metadata=section,
+                sources=(source_region,),
                 code=section,
                 device=1,
                 inode=inode,

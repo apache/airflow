@@ -60,6 +60,10 @@ Number of days after which task state store rows expire. When a key is written w
 ``clear_on_success``
 ~~~~~~~~~~~~~~~~~~~~
 
+Retention and ``clear_on_success`` are not the only ways task state store entries get removed:
+clearing a task instance through the REST API, the UI, or ``airflowctl`` also discards them by
+default unless ``keep_task_state`` is set. See :doc:`/core-concepts/resumable-tasks`.
+
 When ``True``, all task state store keys for a task instance are automatically deleted when that task instance moves to the ``success`` state. Defaults to ``False``, which preserves task state store entries after success for observability (e.g. the submitted job ID or the last row count is still readable from the UI or REST API after the run completes).
 
 .. important::
@@ -124,7 +128,7 @@ Custom backends
 
 A custom backend must subclass :class:`~airflow.sdk.state.BaseStoreBackend` and implement its abstract methods: ``get``, ``set``, ``delete``, and ``clear`` for synchronous callers and the ``aget``, ``aset``, ``adelete``, and ``aclear`` async equivalents. Refer to :class:`~airflow.sdk.state.BaseStoreBackend` for the full API.
 
-Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.state.TaskScope` or an :class:`~airflow.sdk.state.AssetScope`. Use ``isinstance`` to dispatch:
+Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.state.TaskScope` or an :class:`~airflow.sdk.state.AssetScope`. The union of the two is exported as ``airflow.sdk.state.StoreScope`` for type annotations. Use ``isinstance`` to dispatch:
 
 .. code-block:: python
 
@@ -150,13 +154,13 @@ If the storage client is synchronous, implement the async methods by offloading 
             return await asyncio.to_thread(self.get, scope, key)
 
         async def aset(self, scope, key, value, *, expires_at=None, session=None):
-            await asyncio.to_thread(self.set, scope, key, value, expires_at=expires_at, session=session)
+            await asyncio.to_thread(self.set, scope, key, value, expires_at=expires_at)
 
         async def adelete(self, scope, key, *, session=None):
-            await asyncio.to_thread(self.delete, scope, key, session=session)
+            await asyncio.to_thread(self.delete, scope, key)
 
         async def aclear(self, scope, *, all_map_indices=False, session=None):
-            await asyncio.to_thread(self.clear, scope, all_map_indices=all_map_indices, session=session)
+            await asyncio.to_thread(self.clear, scope, all_map_indices=all_map_indices)
 
 :class:`~airflow.sdk.state.AssetScope` has three optional fields: ``asset_id`` (integer, server-side only), ``name``, and ``uri``. At least one must be set. Server-side operations (REST API calls) provide ``asset_id``. Worker-side operations provide ``name`` or ``uri`` (workers do not have access to the integer ``asset_id``).
 
