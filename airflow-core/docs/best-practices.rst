@@ -464,14 +464,17 @@ for any variable that contains sensitive data.
 Timetables
 ----------
 Avoid using Airflow Variables/Connections or accessing Airflow database anywhere in your timetable code: at the
-top level of the module, in ``__init__``, and in scheduling methods such as ``next_dagrun_info``. The scheduler
-rebuilds your timetable from the serialized Dag by calling ``deserialize``, which calls ``__init__`` again, so
-this code runs in the scheduler, outside of any task. Retrieving a Variable or Connection there fails and can
-crash the Dag processor or the scheduler.
+top level of the module, in ``__init__``, and in scheduling methods such as ``next_dagrun_info``. The Dag
+processor and the scheduler rebuild your timetable from the serialized Dag by calling ``deserialize``, which
+calls ``__init__`` again, so this code runs every time they load the Dag, not only when the Dag file is parsed.
+Each load queries the Variable again, and if the lookup fails, for example because the Variable does not exist,
+the timetable cannot be loaded.
 
 Instead, pass configuration as plain arguments to your timetable and store them with ``serialize`` and
-``deserialize``, as described in :doc:`/howto/timetable`. If a value really has to come from a Variable, read
-it in a task at execution time.
+``deserialize``, as described in :doc:`/howto/timetable`. If the value comes from a Variable, read it in the
+Dag file and pass it in: it is then serialized with the timetable and refreshed whenever the Dag file is
+parsed, and the scheduler never looks it up. Reading Variables in the Dag file has its own cost, see
+:ref:`best_practices/airflow_variables`.
 
 Bad example:
 
@@ -521,6 +524,18 @@ Good example:
             timetable = super().deserialize(data)
             timetable._something = data["something"]
             return timetable
+
+and in the Dag file:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, Variable
+
+    with DAG(
+        dag_id="my_dag",
+        schedule=CustomTimetable("0 0 * * *", timezone="UTC", something=Variable.get("something")),
+    ):
+        ...
 
 
 Triggering Dags after changes
