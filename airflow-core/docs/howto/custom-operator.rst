@@ -75,7 +75,7 @@ You can now use the derived custom operator as follows:
         hello_task = HelloOperator(task_id="sample-task", name="foo_bar")
 
 As mentioned above, you can use your ``plugins`` folder for storing your custom operators. 
-If you have the file ``hello_operator.py`` within the ``plugins/`` folder, you can import the operator as follows:
+If you have the file ``hello_operator.py`` within the ``plugins`` folder, you can import the operator as follows:
 
 .. code-block:: python
 
