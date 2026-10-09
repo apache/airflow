@@ -18,7 +18,7 @@
  */
 import { useEffect, useState } from "react";
 
-import { Button, Flex, Stack, useDisclosure } from "@chakra-ui/react";
+import { Button, Flex, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
@@ -119,6 +119,9 @@ const getRunGroups = (targets: Array<ClearTarget>): Array<RunGroup> => {
   return [...groups.values()];
 };
 
+const LATER_ITERATIONS = "laterIterations";
+const WHOLE_EXPANSION = "wholeExpansion";
+
 // An empty mapped expansion is a placeholder at region index -1.
 const isMappedTarget = (target: ClearTarget) => target.map_index >= 0 || target.region_index === -1;
 
@@ -160,17 +163,20 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTaskDefault] = useClearPreventRunningTaskDefault();
   const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
+  const initialOptions = loopMode
+    ? [...clearTaskInstanceDefaultOptions, LATER_ITERATIONS]
+    : clearTaskInstanceDefaultOptions;
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(initialOptions);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const past = selectedOptions.includes("past");
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
+  const laterLoopIterations = selectedOptions.includes(LATER_ITERATIONS);
+  const wholeExpansions = selectedOptions.includes(WHOLE_EXPANSION);
   const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [preventRunningTask, setPreventRunningTask] = useState(preventRunningTaskDefault);
-  const [laterLoopIterations, setLaterLoopIterations] = useState(true);
-  const [wholeExpansions, setWholeExpansions] = useState(false);
 
   const [note, setNote] = useState<string | null>(initialNote);
 
@@ -186,8 +192,6 @@ const ClearTaskInstanceDialog = (props: Props) => {
   useEffect(() => {
     if (openDialog) {
       setKeepTaskState(keepTaskStateDefault);
-      setLaterLoopIterations(true);
-      setWholeExpansions(false);
     }
   }, [openDialog, keepTaskStateDefault]);
 
@@ -432,7 +436,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
       >
         <Flex justifyContent="center">
           <SegmentedControl
-            defaultValues={clearTaskInstanceDefaultOptions}
+            defaultValues={initialOptions}
             multiple
             onChange={setSelectedOptions}
             options={[
@@ -458,27 +462,25 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 label: translate("dags:runAndTaskActions.options.onlyFailed"),
                 value: "onlyFailed",
               },
+              ...(loopMode
+                ? [
+                    {
+                      label: translate("dags:runAndTaskActions.options.laterIterations"),
+                      value: LATER_ITERATIONS,
+                    },
+                  ]
+                : []),
+              ...(loopMode && hasMappedTargets
+                ? [
+                    {
+                      label: translate("dags:runAndTaskActions.options.wholeExpansion"),
+                      value: WHOLE_EXPANSION,
+                    },
+                  ]
+                : []),
             ]}
           />
         </Flex>
-        {loopMode ? (
-          <Stack alignItems="center" gap={2} mt={4}>
-            <Checkbox
-              checked={laterLoopIterations}
-              onCheckedChange={(event) => setLaterLoopIterations(event.checked === true)}
-            >
-              {translate("dag:execution.clearLater")}
-            </Checkbox>
-            {hasMappedTargets ? (
-              <Checkbox
-                checked={wholeExpansions}
-                onCheckedChange={(event) => setWholeExpansions(event.checked === true)}
-              >
-                {translate("dag:execution.clearWhole")}
-              </Checkbox>
-            ) : undefined}
-          </Stack>
-        ) : undefined}
         <ErrorAlert error={dryRunError} />
         <ActionAccordion
           affectedTasks={data}

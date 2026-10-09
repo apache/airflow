@@ -211,9 +211,25 @@ describe("ClearTaskInstanceDialog", () => {
       );
 
       expect(await screen.findByRole("checkbox", { name: /keepTaskState/iu })).toBeVisible();
-      expect(screen.queryByRole("checkbox", { name: /execution\.clearLater/iu }) !== null).toBe(shown);
+      expect(screen.queryByRole("button", { name: /options\.laterIterations/iu }) !== null).toBe(shown);
     },
   );
+
+  it("includes later iterations in the first dry run and leaves the saved defaults untouched", async () => {
+    localStorage.setItem(CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY, JSON.stringify(["downstream"]));
+    render(<ClearTaskInstanceDialog onClose={vi.fn()} open taskInstance={loopMember} />, {
+      wrapper: Wrapper,
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /options\.laterIterations/iu }));
+
+    expect(dryRunsMock.mock.calls[0]?.[0]).toMatchObject({
+      requests: [{ requestBody: { include_later_loop_iterations: true } }],
+    });
+    expect(localStorage.getItem(CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY)).toBe(
+      JSON.stringify(["downstream"]),
+    );
+  });
 
   it("clears a loop member by execution id with the later-iterations choice and never sends past or future", async () => {
     localStorage.setItem(
@@ -224,7 +240,7 @@ describe("ClearTaskInstanceDialog", () => {
       wrapper: Wrapper,
     });
 
-    fireEvent.click(await screen.findByRole("checkbox", { name: /execution\.clearLater/iu }));
+    fireEvent.click(await screen.findByRole("button", { name: /options\.laterIterations/iu }));
     fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
 
     await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
@@ -248,7 +264,7 @@ describe("ClearTaskInstanceDialog", () => {
       wrapper: Wrapper,
     });
 
-    fireEvent.click(await screen.findByRole("checkbox", { name: /execution\.clearWhole/iu }));
+    fireEvent.click(await screen.findByRole("button", { name: /options\.wholeExpansion/iu }));
     fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
 
     await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
@@ -265,8 +281,8 @@ describe("ClearTaskInstanceDialog", () => {
       wrapper: Wrapper,
     });
 
-    expect(await screen.findByRole("checkbox", { name: /execution\.clearLater/iu })).toBeVisible();
-    expect(screen.queryByRole("checkbox", { name: /execution\.clearWhole/iu })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /options\.laterIterations/iu })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /options\.wholeExpansion/iu })).not.toBeInTheDocument();
   });
 
   it("does not offer the exclusion checkboxes for a loop clear", async () => {
@@ -437,6 +453,6 @@ describe("ClearTaskInstanceDialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /clear\.button/iu }));
 
-    expect(await screen.findByRole("checkbox", { name: /execution\.clearLater/iu })).toBeVisible();
+    expect(await screen.findByRole("button", { name: /options\.laterIterations/iu })).toBeVisible();
   });
 });

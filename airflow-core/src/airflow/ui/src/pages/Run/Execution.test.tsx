@@ -37,6 +37,7 @@ import { BaseWrapper } from "src/utils/Wrapper";
 
 import commonTranslations from "../../../public/i18n/locales/en/common.json";
 import dagTranslations from "../../../public/i18n/locales/en/dag.json";
+import dagsTranslations from "../../../public/i18n/locales/en/dags.json";
 import { Execution } from "./Execution";
 
 vi.mock("src/router", () => ({ taskInstanceRoutes: [] }));
@@ -66,6 +67,7 @@ vi.mock("src/components/Clear/TaskInstance/ClearTaskInstanceConfirmationDialog",
 beforeAll(() => {
   i18n.addResourceBundle("en", "dag", dagTranslations, true, true);
   i18n.addResourceBundle("en", "common", commonTranslations, true, true);
+  i18n.addResourceBundle("en", "dags", dagsTranslations, true, true);
 });
 
 const refresh = vi.hoisted<{ interval: number | false }>(() => ({ interval: false }));
@@ -417,7 +419,7 @@ describe("Run Execution", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Clear selected executions" }));
 
-    expect(await screen.findByRole("checkbox", { name: "Clear later loop iterations" })).toBeChecked();
+    expect(await screen.findByRole("button", { name: "Later iterations" })).toBeVisible();
     await waitFor(() =>
       expect(clear.mock.lastCall?.[0].requestBody).toMatchObject({
         include_later_loop_iterations: true,
@@ -450,7 +452,7 @@ describe("Run Execution", () => {
       expect(clear.mock.lastCall?.[0].requestBody).toMatchObject({ task_ids: [["plain", 0]] }),
     );
     expect(clear.mock.lastCall?.[0].requestBody).not.toHaveProperty("task_instance_ids");
-    expect(screen.queryByRole("checkbox", { name: "Clear later loop iterations" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Later iterations" })).not.toBeInTheDocument();
   });
 
   it("selects the current execution once a selected one has been retried", async () => {

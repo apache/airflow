@@ -69,9 +69,7 @@
     "upcomingCount_other": "{{count}} Upcoming Deadlines"
   },
   "execution": {
-    "clearLater": "Clear later loop iterations",
     "clearSelected": "Clear selected executions",
-    "clearWhole": "Clear whole mapped expansions",
     "empty": "No executions in this run.",
     "iteration": "{{node}} · Iteration {{index}}",
     "mapped_one": "{{task}} ({{count}} mapped task on this page)",
