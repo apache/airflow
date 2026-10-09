@@ -428,7 +428,8 @@ class IndexedTaskOutcomes:
         others stay attached as its cause, so every traceback reaches the log. Several failures no
         policy decides between are raised as a group, which the task's own retries then apply to.
         The policy is evaluated once per failure, and the decision for the chosen one is kept for
-        the callbacks (see :meth:`_task_will_retry`).
+        the callbacks, as is the default for a group no decision outweighs (see
+        :meth:`_task_will_retry`).
         """
         exceptions = self.exceptions
         group = BaseExceptionGroup("Multiple sub-task failures", exceptions)
@@ -460,6 +461,11 @@ class IndexedTaskOutcomes:
                 chosen = exceptions[index]
                 if (kept := decisions[index]) is not None:
                     self._decision = (chosen, kept)
+            else:
+                # Every decision was the default, or failed to evaluate, which the runner treats
+                # the same: the group carries the default, so the callbacks follow it instead of
+                # evaluating the policy once more, on an exception no item raised.
+                self._decision = (group, RetryDecision.default())
         if chosen is None:
             return group
         if len(exceptions) > 1:

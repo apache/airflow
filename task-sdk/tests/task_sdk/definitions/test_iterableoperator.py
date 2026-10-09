@@ -3516,6 +3516,35 @@ class TestCallbacksFollowTheTasksFate:
         assert len(CountingPolicy.calls) == 3
         assert fired == [("retry", "a"), ("retry", "b"), ("retry", "c")]
 
+    def test_an_undecided_group_is_not_evaluated_again_for_the_callbacks(self):
+        """
+        Failures whose decisions are all the default are handed over as a group, decided once.
+
+        Choosing costs one evaluation per failed item; the group then carries the default, so the
+        callbacks follow it without evaluating the policy once more, on an exception no item raised.
+        """
+        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryDecision
+
+        class DefaultPolicy(ExceptionRetryPolicy):
+            calls: list = []
+
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                self.calls.append(exception)
+                return RetryDecision.default()
+
+        raised, fired = self._run(
+            [
+                {"arg1": "a", "raise_exception": ValueError("a")},
+                {"arg1": "b", "raise_exception": KeyError("b")},
+                {"arg1": "c", "raise_exception": OSError("c")},
+            ],
+            retry_policy=DefaultPolicy(rules=[]),
+        )
+
+        assert isinstance(raised, BaseExceptionGroup)
+        assert len(DefaultPolicy.calls) == 3
+        assert fired == [("retry", "a"), ("retry", "b"), ("retry", "c")]
+
     def test_the_callbacks_follow_the_decision_taken_for_the_exception_handed_over(self):
         """
         A policy that answers differently per call cannot make the callbacks disagree with the task.
