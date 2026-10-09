@@ -37,6 +37,12 @@ Iterations run one after another; task instances within an iteration can run in 
 If you are not sure whether you need a loop or mapped tasks, see
 :ref:`loops-and-mapped-tasks`.
 
+Before we go any further, it is worth addressing one thing: "How can you have
+loops in a Dag, given Dag stands for Directed Acyclic Graph". The answer to that
+is by being very careful. Essentially, there is no dependency loop introduced,
+the tasks in the Dag still do form a cycle-free graph. The looping nature is
+handled at runtime only.
+
 Create a loop
 =============
 
@@ -166,8 +172,8 @@ still running.
 
 Limitations:
 
-* ``include_prior_dates=True`` cannot select a loop iteration from another Dag run. Push the result to XCom through a task outside the loop if later Dag runs need to retrieve it with an ordinary XCom pull.
-* The experimental DagRun wait API also requires an outside-loop result task. It rejects results selected directly from a loop member. See :ref:`dag-result`.
+* ``include_prior_dates=True`` cannot select a loop iteration from another Dag run. Push the result to XCom through a task outside the loop if later Dag runs need to retrieve it with an ordinary XCom pull; see :ref:`loops-outside-result`.
+* The experimental DagRun wait API also requires an outside-loop result task. Marking a loop member as the Dag result raises ``ValueError`` while the Dag is parsed, and the wait API rejects results selected directly from a loop member. Mark a task outside the loop as the result instead, for example one that returns the last element of a loop task's results. See :ref:`dag-result`.
 
 Connect a loop to other tasks
 =============================
@@ -181,6 +187,52 @@ Use the object returned by ``.loop()`` in dependencies:
 With the default ``all_success`` trigger rule, ``finished`` waits for successful
 loop completion. Other trigger rules behave normally; ``always`` does not wait
 for the loop.
+
+.. _loops-outside-result:
+
+Use a loop's result outside the loop
+====================================
+
+A task outside the loop can read the output of a task inside it. Refer to the
+loop task through the loop object and pass its output as an argument:
+
+.. code-block:: python
+
+   refinement = refine.loop(max_iterations=10, until=accurate_enough)
+
+
+   @task
+   def report(results):
+       print(f"{len(results)} iterations, last error {results[-1]['error']}")
+
+
+   report(refinement["evaluate"].output)
+
+The task receives a sequence (``LazyXComSequence``) with one element for each
+iteration the loop ran, in iteration order, so ``results[-1]`` is the last
+iteration's result and ``len(results)`` is the number of iterations. A mapped
+loop task gives one element per mapped instance for each iteration, ordered by
+iteration first and then by map index: all instances of iteration 0, then all
+instances of iteration 1, and so on. ``ti.xcom_pull(task_ids=...)`` and
+``{{ ti.xcom_pull(task_ids=...) }}`` in a template return the same sequence.
+
+Only the current executions are included. Iterations that a rerun replaced do
+not appear.
+
+A task that uses a loop's output waits for the whole loop, not just for the loop task
+it reads. Any dependency from a task in a loop to a task outside it, whether from an
+argument, ``>>`` or ``set_downstream``, makes the outside task wait for the loop's
+gate, which is the task that creates the next iteration. With the default
+``all_success`` trigger rule the task then runs after the last iteration and sees
+the final sequence. If the loop stops without completing, for example because
+the body's terminal task failed or was skipped, the trigger rule applies to the
+gate's state. A trigger rule such as ``always`` does not wait for the loop and
+may see only the iterations that exist so far.
+
+Inside the loop nothing changes: use ``loop.result`` and ``loop.previous``. A
+task outside the loop cannot pull a single value from a loop task, because the
+task ran once for each iteration, and cannot use its output to expand a mapped
+task.
 
 .. _loops-mapped-tasks:
 
