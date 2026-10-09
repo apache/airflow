@@ -6,6 +6,7 @@
     "title": "Afhankelijkheden die de Task blokkeren om ingepland te worden"
   },
   "calendar": {
+    "backfill": "Achteraf vullen",
     "daily": "Dagelijks",
     "hourly": "Uurlijks",
     "legend": {
@@ -37,11 +38,12 @@
   "code": {
     "bundleUrl": "Bundle URL",
     "noCode": "Geen code gevonden",
-    "parseDuration": "Vewrwerkingsduur:",
+    "parseDuration": "Verwerkingsduur:",
     "parsedAt": "Geparsed op:"
   },
   "deadlineAlerts": {
     "completionRule": "Moet worden voltooid binnen {{interval}} van {{reference}}",
+    "completionRuleDynamic": "Moet worden voltooid binnen een variabel interval gemeten vanaf {{reference}}",
     "count_one": "{{count}} deadline",
     "count_other": "{{count}} deadlines",
     "referenceType": {
@@ -99,13 +101,12 @@
       "placeholder": "Zoek in logs..."
     },
     "settings": "Loginstellingen",
+    "tryNotStarted": "Deze poging is nog niet gestart.",
+    "viewFailedTry": "Bekijk logs voor mislukte poging {{tryNumber}}",
     "viewInExternal": "Bekijk logs in {{name}} (poging {{attempt}})",
+    "viewPreviousTry": "Bekijk logs voor vorige poging {{tryNumber}}",
+    "waitingToRetry": "Poging {{tryNumber}} wacht om opnieuw te proberen.",
     "warning": "WARNING"
-  },
-  "navigation": {
-    "navigation": "Navigatie: {{arrow}}",
-    "openGraphFilters": "Taakfilters: Ctrl+Shift+F",
-    "toggleGroup": "Groep in-/uitklappen: Spatie"
   },
   "notFound": {
     "back": "Ga terug",
@@ -148,13 +149,7 @@
       "label": "Aantal Dag Runs"
     },
     "dependencies": {
-      "label": "Afhankelijkheden",
-      "options": {
-        "allDagDependencies": "Alle Dag afhankelijkheden",
-        "externalConditions": "Externe omstandigheden",
-        "onlyTasks": "Alleen taken"
-      },
-      "placeholder": "Afhankelijkheden"
+      "allDagDependencies": "Alle Dag afhankelijkheden"
     },
     "graphDirection": {
       "label": "Richting van de grafiek"
@@ -229,6 +224,7 @@
     "taskInstances": "Taakinstanties",
     "taskStateStore": "Task State Store",
     "tasks": "Taken",
+    "versions": "Versies",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -246,6 +242,8 @@
     "deleteWarning": "De taak zal dit persistente geheugen verliezen. Als de taak deze sleutel gebruikt om extern werk bij te houden (bijv. een extern job-ID), kan het niet worden hervat.",
     "edit": "Wijzig Task State Store",
     "emptyStore": "Task state store slaat waarden op die persistent blijven over retries. Workers kunnen task state store schrijven via de Task SDK.",
+    "entry_one": "Invoer",
+    "entry_other": "Invoeren",
     "expiresAt": {
       "column": "Verloopt op",
       "custom": "Aangepast",
@@ -254,5 +252,67 @@
       "never": "Nooit"
     },
     "title": "Task State Store"
+  },
+  "versions": {
+    "aboutThisComparison": "Over deze vergelijking",
+    "base": "Vergelijk vanaf",
+    "categories": {
+      "asset": "Asset",
+      "authorization": "Autorisatie",
+      "callback": "Callback",
+      "deadline": "Deadline",
+      "dependency": "Afhankelijkheid",
+      "metadata": "Metadata",
+      "param": "Parameter",
+      "provenance": "Herkomst",
+      "schedule": "Schema",
+      "task": "Taak",
+      "unknown": "Onbekend"
+    },
+    "codeAccess": "Waarden vereisen toegang tot Dag-code",
+    "columns": {
+      "after": "Na",
+      "before": "Voor",
+      "category": "Categorie",
+      "impact": "Impact",
+      "occurrences": "Voorkomens",
+      "operation": "Operatie",
+      "path": "Pad"
+    },
+    "heading": "Versie {{base}} → Versie {{target}}",
+    "impacts": {
+      "authorization": "Autorisatie",
+      "execution": "Uitvoering",
+      "metadata": "Metadata",
+      "provenance": "Herkomst",
+      "unknown": "Onbekend"
+    },
+    "maxChanges": "Maximale wijzigingen",
+    "maxChangesDefault": "Standaard",
+    "noChanges": "Deze versies hebben dezelfde status.",
+    "observedState": "Waargenomen status",
+    "observedStateBoundary": "Vergelijkt de huidig opgeslagen status, niet het bewijs van het aanmaakmoment. Bronvergelijking is niet beschikbaar voor historische versies; gebruik het tabblad Code om de bron te vergelijken.",
+    "operations": {
+      "added": "Toegevoegd",
+      "changed": "Veranderd",
+      "removed": "Verwijderd"
+    },
+    "record_one": "Record",
+    "record_other": "Records",
+    "selectPrompt": "Selecteer twee versies om te zien wat er tussen veranderd is.",
+    "summary_one": "{{count}} wijziging · geserializeerd schema {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count}} wijzigingen · geserializeerd schema {{baseSchema}} → {{targetSchema}}",
+    "target": "Vergelijk met",
+    "truncated": {
+      "description": "Wijzigingen op paden die niet worden weergegeven, zijn weggelaten om binnen de limiet te blijven, dus het aantal is een ondergrens.",
+      "title": "Sommige wijzigingen zijn niet teruggegeven"
+    },
+    "unavailable": {
+      "description": "Deze versies kunnnen niet worden vergeleken. Reden:",
+      "title": "Vergelijking niet beschikbaar",
+      "withoutReason": "Deze versies kunnen niet worden vergeleken."
+    },
+    "valuesHidden": "Waarden verborgen",
+    "valuesShown": "Waarden weergegeven"
   }
 }

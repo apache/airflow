@@ -9,7 +9,9 @@
   "config": {
     "columns": {
       "section": "Sectie"
-    }
+    },
+    "config_one": "Configuratie",
+    "config_other": "Configuraties"
   },
   "connections": {
     "add": "Connectie toevoegen",
@@ -34,7 +36,7 @@
       "connectionIdRequirement": "Connectie ID kan niet bestaan uit enkel spaties",
       "connectionTypeRequired": "Connectie type is verplicht",
       "extraFieldsJson": "Extra velden JSON",
-      "helperText": "Missend connectie type? Controller of je de bijbehorende Airflow Providers Package hebt geïnstalleerd.",
+      "helperText": "Ontbreekt het connectietype? Controleer of je het bijbehorende Airflow Providers Package hebt geïnstalleerd.",
       "helperTextForRedactedFields": "Gemaskeerde velden ('***') blijven onveranderd als ze niet worden gewijzigd.",
       "selectConnectionType": "Selecteer connectie type",
       "standardFields": "Standaard velden"
@@ -94,7 +96,9 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_one": "Job",
+    "job_other": "Jobs"
   },
   "plugins": {
     "columns": {
@@ -102,6 +106,8 @@
     },
     "importError_one": "Plugin import fout",
     "importError_other": "Plugin import fouten",
+    "plugin_one": "Plugin",
+    "plugin_other": "Plugins",
     "searchPlaceholder": "Zoeken op bestand"
   },
   "pools": {
@@ -135,7 +141,9 @@
     "columns": {
       "packageName": "Package naam",
       "version": "Versie"
-    }
+    },
+    "provider_one": "Provider",
+    "provider_other": "Providers"
   },
   "variables": {
     "add": "Variabele toevoegen",
@@ -160,7 +168,7 @@
     "import": {
       "button": "Importeer",
       "conflictResolution": "Selecteer variabele conflict oplossing",
-      "errorParsingJsonFile": "Fout bij parsen van JSON bestand: Upload een JSON bestand met variabelen (bijv., {\"key\": \"value\", ...}).",
+      "errorParsingJsonFile": "Fout bij het parsen van een JSON-bestand: upload een JSON-bestand met variabelen (bijv. {\"key\": \"value\", ...}).",
       "options": {
         "fail": {
           "description": "Misluk de import als bestaande variabelen gedetecteerd zijn.",
@@ -175,9 +183,10 @@
           "title": "Overslaan"
         }
       },
+      "parsingFile": "Bestand wordt geparsed...",
       "title": "Importeer variabelen",
-      "upload": "Upload een JSON bestand",
-      "uploadPlaceholder": "Upload een JSON bestand met variabelen (bijv., {\"sleutel\": \"waarde\", ...})"
+      "upload": "Upload een JSON-bestand",
+      "uploadPlaceholder": "Upload een JSON-bestand met variabelen (bijv. {\"sleutel\": \"waarde\", ...})"
     },
     "noRowsMessage": "Geen variabelen gevonden",
     "searchPlaceholder": "Sleutels zoeken",

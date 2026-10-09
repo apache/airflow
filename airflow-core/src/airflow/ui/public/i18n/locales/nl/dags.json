@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} van {{total}} assets geupdatet",
+  "assetSchedule": "{{count}} van {{total}} assets geüpdatet",
   "dagActions": {
     "delete": {
       "button": "Verwijder Dag",
@@ -15,12 +15,28 @@
       "favorite": "Favoriet",
       "unfavorite": "Verwijder Favoriet"
     },
+    "favoriteState": "Favoriete status",
+    "favoriteStatePlaceholder": "Selecteer favoriete status…",
+    "noTimetableTypesFound": "Geen timetable types gevonden",
     "paused": {
       "active": "Actief",
       "all": "Alles",
       "paused": "Gepauzeerd"
     },
-    "runIdPatternFilter": "Zoek Dag Runs"
+    "pausedPlaceholder": "Selecteer gepauzeerde status…",
+    "pausedState": "Gepauzeerde status",
+    "requiresHitlAction": "Vereist HITL actie",
+    "runIdPatternFilter": "Zoek Dag Runs",
+    "runState": "Run status",
+    "runStatePlaceholder": "Selecteer run status…",
+    "timetableType": "Timetable type"
+  },
+  "folders": {
+    "all": "Alle Dags",
+    "empty": "Geen mappen",
+    "hide": "Verberg mappen",
+    "show": "Toon mappen",
+    "title": "Mappen"
   },
   "ownerLink": "Eigenaarslink voor {{owner}}",
   "runAndTaskActions": {
@@ -68,13 +84,39 @@
       "downstream": "Downstream",
       "existingTasks": "Wis bestaande taken",
       "future": "Toekomst",
+      "keepTaskState": "Behoud taakstatus en hervat",
       "onlyFailed": "Wis enkel mislukte taken",
       "past": "Verleden",
       "preventRunningTasks": "Voorkom opnieuw uitvoeren als taak bezig is",
       "queueNew": "Zet nieuwe taken in de wachtrij",
       "runOnLatestVersion": "Voer uit met de nieuwste bundelversie",
+      "runOnLatestVersionForced": "Gebruik altijd de laatste — er is geen eerdere versie om naar terug te gaan",
       "upstream": "Upstream"
     }
+  },
+  "runStateCounts": {
+    "label": "Run statussen",
+    "loading": "Run status aantallen aan het laden",
+    "tooltip": "{{state}}: {{formattedCount}} — klik om runs te filteren"
+  },
+  "schedulingActions": {
+    "cancelDrain": "Annuleer leegmaken",
+    "drain": "Leegmaken en vervolgens pauzeren",
+    "drainPrompt": "Deze Dag heeft lopende Dag runs. Leegmaken laat ze voltooien voordat de Dag pauzeert; nu pauzeren stopt de planning onmiddellijk zonder te wachten.",
+    "pauseNow": "Nu pauzeren",
+    "pauseSelected": "Pauzeer / Leegmaken"
+  },
+  "schedulingBanner": {
+    "message": "Deze Dag is aan het leegmaken. Het zal pauzeren zodra de lopende Dag runs zijn voltooid."
+  },
+  "schedulingState": {
+    "active": "Actief",
+    "draining": "Leegmaken",
+    "drainingBadgeTooltip": "Deze Dag pauzeert zodra de lopende Dag runs zijn voltooid.",
+    "drainingTooltip": "Maak {{dagDisplayName}}  leeg — pauzeert zodra de lopende Dag runs zijn voltooid. Klik om te hervatten.",
+    "label": "Scheduling status",
+    "paused": "Gepauzeerd",
+    "placeholder": "Selecteer scheduling state…"
   },
   "search": {
     "advanced": "Geavanceerd zoeken",
@@ -88,9 +130,9 @@
       "asc": "Sorteer op weergavenaam (A-Z)",
       "desc": "Sorteer op weergavenaam (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Sorteer op laatste Run startdatum (Eerste-Laatste)",
-      "desc": "Sorteer op laatste Run startdatum (Laatste-Eerste)"
+    "lastRunAfter": {
+      "asc": "Sorteer op laatste Run na (Eerste-Laatste)",
+      "desc": "Sorteer op laatste Run na (Laatste-Eerste)"
     },
     "lastRunState": {
       "asc": "Sorteer op laatste Run status (A-Z)",
