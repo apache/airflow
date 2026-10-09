@@ -1683,6 +1683,7 @@ api:
               }
             }
       default: ~
+      from_file: true
     enable_swagger_ui:
       description: |
         Boolean for running SwaggerUI in the webserver.
@@ -2238,6 +2239,7 @@ sdk:
           }
         }
       default: ~
+      from_file: true
     queue_to_coordinator:
       description: |
         JSON mapping of queue names to a coordinator key from
@@ -3281,6 +3283,7 @@ dag_processor:
                 "kwargs": {{}}
               }}
             ]
+      from_file: true
 
     dag_importer_configs:
       description: |
@@ -3314,6 +3317,7 @@ dag_processor:
               }
             ]
       default: ~
+      from_file: true
     refresh_interval:
       description: |
         How often (in seconds) to refresh, or look for new files, in a DAG bundle.
