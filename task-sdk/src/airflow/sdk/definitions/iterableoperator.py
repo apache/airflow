@@ -782,53 +782,10 @@ class IterableOperator(BaseOperator):
                                     skipped[task.index] = raised
                                     continue
 
-                                if isinstance(raised, TaskDeferred):
-                                    raise AirflowFailException(
-                                        f"Sub-task {task.task_id}[{task.index}] attempted to defer. "
-                                        "Deferrable operators are not supported inside IterableOperator."
-                                    )
-
-                                if isinstance(raised, (DagRunTriggerException, DownstreamTasksSkipped)):
-                                    raise AirflowFailException(
-                                        f"Sub-task {task.task_id}[{task.index}] raised "
-                                        f"{type(raised).__name__}. Triggering DAG runs "
-                                        "(TriggerDagRunOperator) and skipping downstream tasks "
-                                        "(ShortCircuitOperator and similar) are not supported inside "
-                                        "IterableOperator: the sub-task's index has no downstream "
-                                        "tasks or DAG run of its own for the effect to apply to."
-                                    ) from raised
-
-                                if isinstance(raised, AirflowRescheduleException):
-                                    raise AirflowFailException(
-                                        f"Sub-task {task.task_id}[{task.index}] attempted to reschedule "
-                                        "(raised AirflowRescheduleException). Reschedule-mode sensors are not "
-                                        "supported inside IterableOperator: the sub-task's index has no task "
-                                        "instance of its own to reschedule."
-                                    ) from raised
-
-                                # Non-Exception BaseExceptions (e.g. DeadlockImminentError,
-                                # KeyboardInterrupt, SystemExit) must never be swallowed: they
-                                # signal conditions where continuing iteration is meaningless
-                                # because every subsequent task would fail for the same reason.
-                                # Re-raise immediately to stop iterating over the remaining sub-tasks.
-                                if isinstance(raised, DeadlockImminentError):
-                                    raise AirflowFailException(
-                                        f"Sub-task {task.task_id}[{task.index}] made a synchronous SDK call "
-                                        "(e.g. Variable.get, BaseHook.get_connection/get_hook, ti.xcom_pull) on "
-                                        "the event loop thread while another sub-task's async SDK call was in "
-                                        "flight, which would deadlock the loop, so it is detected and raised "
-                                        "eagerly instead. Inside IterableOperator only async sub-tasks run on "
-                                        "that thread: an async operator's aexecute(), its pre_execute/"
-                                        "post_execute and its callbacks. Use the async-safe equivalents there "
-                                        "(e.g. Variable.aget/aset, Hook.aget_connection/aget_hook, "
-                                        "ti.axcom_pull); sync sub-tasks and their callbacks run in worker "
-                                        "threads, where the same calls wait their turn."
-                                    ) from raised
-                                if not isinstance(raised, Exception):
-                                    raise AirflowFailException(
-                                        f"Sub-task {task.task_id}[{task.index}] raised a non-Exception BaseException: "
-                                        f"{type(raised).__name__}: {raised}"
-                                    ) from raised
+                                # An outcome the iteration cannot carry stops it at once: every later
+                                # item would end the same way.
+                                if (fail_fast := self._fail_fast_for(task, raised)) is not None:
+                                    raise fail_fast from raised
 
                                 self.log.exception(
                                     "An exception occurred for task_id %s with index %s",
@@ -925,6 +882,52 @@ class IterableOperator(BaseOperator):
             if decision.action == RetryAction.FAIL:
                 return False
         return True
+
+    @staticmethod
+    def _fail_fast_for(task: IndexedTaskInstance, raised: BaseException) -> AirflowFailException | None:
+        """
+        Return the failure that ends the task at once for an item outcome the iteration cannot carry.
+
+        An item is not a task instance of its own: it cannot defer, reschedule, trigger a DAG run or
+        skip downstream tasks, and a ``BaseException`` that is no ``Exception`` (``DeadlockImminentError``,
+        ``KeyboardInterrupt``, ``SystemExit``) must never be swallowed into a retry. Each of these fails
+        the whole task without a retry, with a message saying why. Any other exception is the item's
+        own failure, which the caller collects.
+        """
+        item = f"Sub-task {task.task_id}[{task.index}]"
+        if isinstance(raised, TaskDeferred):
+            return AirflowFailException(
+                f"{item} attempted to defer. Deferrable operators are not supported inside IterableOperator."
+            )
+        if isinstance(raised, (DagRunTriggerException, DownstreamTasksSkipped)):
+            return AirflowFailException(
+                f"{item} raised {type(raised).__name__}. Triggering DAG runs (TriggerDagRunOperator) and "
+                "skipping downstream tasks (ShortCircuitOperator and similar) are not supported inside "
+                "IterableOperator: the sub-task's index has no downstream tasks or DAG run of its own for "
+                "the effect to apply to."
+            )
+        if isinstance(raised, AirflowRescheduleException):
+            return AirflowFailException(
+                f"{item} attempted to reschedule (raised AirflowRescheduleException). Reschedule-mode "
+                "sensors are not supported inside IterableOperator: the sub-task's index has no task "
+                "instance of its own to reschedule."
+            )
+        if isinstance(raised, DeadlockImminentError):
+            return AirflowFailException(
+                f"{item} made a synchronous SDK call (e.g. Variable.get, BaseHook.get_connection/get_hook, "
+                "ti.xcom_pull) on the event loop thread while another sub-task's async SDK call was in "
+                "flight, which would deadlock the loop, so it is detected and raised eagerly instead. "
+                "Inside IterableOperator only async sub-tasks run on that thread: an async operator's "
+                "aexecute(), its pre_execute/post_execute and its callbacks. Use the async-safe "
+                "equivalents there (e.g. Variable.aget/aset, Hook.aget_connection/aget_hook, "
+                "ti.axcom_pull); sync sub-tasks and their callbacks run in worker threads, where the "
+                "same calls wait their turn."
+            )
+        if not isinstance(raised, Exception):
+            return AirflowFailException(
+                f"{item} raised a non-Exception BaseException: {type(raised).__name__}: {raised}"
+            )
+        return None
 
     def _failure_for_the_runner(self, context: Context, exceptions: list[Exception]) -> BaseException:
         """
