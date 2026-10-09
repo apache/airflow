@@ -26,6 +26,7 @@ import yaml
 
 SCRIPT = Path(__file__).resolve().parents[2] / "ci" / "docker_data_root_snapshot.sh"
 WORKFLOW = SCRIPT.parents[2] / ".github" / "workflows" / "ci-image-build.yml"
+ACTION = SCRIPT.parents[2] / ".github" / "actions" / "prepare_breeze_and_image" / "action.yml"
 FINGERPRINT = "28.5.2 overlay2 x86_64 /var/lib/docker"
 
 
@@ -255,3 +256,19 @@ def test_snapshot_creation_uses_builder_after_cache_publication():
     cache_publishers = [i for i, step in enumerate(steps) if "/stash/save@" in step.get("uses", "")]
     assert cache_publishers
     assert all(publisher < snapshot for publisher in cache_publishers)
+
+
+def test_snapshot_artifact_name_matches_between_upload_and_restore():
+    upload = next(
+        step
+        for step in yaml.safe_load(WORKFLOW.read_text())["jobs"]["build-ci-images"]["steps"]
+        if "/upload-artifact@" in step.get("uses", "") and step["name"].startswith("Upload CI image snapshot")
+    )
+    restore = next(
+        step
+        for step in yaml.safe_load(ACTION.read_text())["runs"]["steps"]
+        if step.get("id") == "restore-snapshot"
+    )
+    producer = upload["with"]["name"].replace("env.PYTHON_MAJOR_MINOR_VERSION", "inputs.python")
+    assert producer.startswith("ci-image-snapshot-v1-")
+    assert producer == restore["with"]["name"]
