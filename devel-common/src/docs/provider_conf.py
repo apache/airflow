@@ -33,7 +33,6 @@ from __future__ import annotations
 # serve to show the default.
 import logging
 import os
-import subprocess
 from typing import Any
 
 import rich
@@ -65,6 +64,7 @@ from docs.utils.conf_constants import (
     get_intersphinx_mapping,
     get_rst_epilogue,
 )
+from docs.utils.example_source import example_source_ref
 from sphinx_exts.provider_yaml_utils import load_package_data
 
 PACKAGE_NAME = os.environ.get("AIRFLOW_PACKAGE_NAME", "")
@@ -154,37 +154,11 @@ PROVIDER_PACKAGES_WITH_LLMS_TXT = [
 ]
 
 
-def _example_source_ref(tag: str) -> str:
-    """
-    Return the git ref example source links point at: HEAD if it is pushed, else the release tag.
-
-    Docs built from ``main`` describe more than the last release, so linking the tag there would
-    point at example files that do not exist in it yet. A HEAD no remote branch or tag contains,
-    such as the commit the docs publish workflow makes when it cherry-picks fixes onto a release
-    tag, does not exist on GitHub, so those builds link the tag.
-    """
-
-    def git(*args: str) -> str:
-        try:
-            result = subprocess.run(
-                ["git", *args], cwd=AIRFLOW_REPO_ROOT_PATH, capture_output=True, text=True, check=False
-            )
-        except OSError:  # no git, e.g. building from an sdist
-            return ""
-        return result.stdout.strip()
-
-    head = git("rev-parse", "--verify", "--quiet", "HEAD^{commit}")
-    if not head or head == git("rev-parse", "--verify", "--quiet", f"{tag}^{{commit}}"):
-        return tag
-    pushed = git("for-each-ref", "--contains", head, "--count=1", "refs/remotes", "refs/tags")
-    return head if pushed else tag
-
-
 if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_LLMS_TXT:
     extensions.append("airflow_llms_txt")
     llms_txt_site_url = f"https://airflow.apache.org/docs/{PACKAGE_NAME}/{PACKAGE_VERSION}/"
     _release_tag = f"providers-{PACKAGE_ID.replace('.', '-')}/{PACKAGE_VERSION}"
-    llms_txt_source_url = f"https://github.com/apache/airflow/blob/{_example_source_ref(_release_tag)}/"
+    llms_txt_source_url = f"https://github.com/apache/airflow/blob/{example_source_ref(_release_tag)}/"
     llms_txt_release_source_url = f"https://github.com/apache/airflow/blob/{_release_tag}/"
     llms_txt_repo_root = AIRFLOW_REPO_ROOT_PATH.as_posix()
     llms_txt_intro = (
