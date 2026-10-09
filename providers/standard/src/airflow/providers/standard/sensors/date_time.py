@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.providers.common.compat.sdk import BaseSensorOperator, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
@@ -64,6 +65,7 @@ class DateTimeSensor(BaseSensorOperator):
 
     def __init__(self, *, target_time: str | datetime.datetime, **kwargs) -> None:
         super().__init__(**kwargs)
+
         self.target_time = target_time
 
     def poke(self, context: Context) -> bool:
@@ -89,8 +91,8 @@ class DateTimeSensorAsync(DateTimeSensor):
 
     :param target_time: datetime after which the job succeeds. (templated)
     :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
-        Ignored when ``target_time`` is a Jinja template: templates are only rendered on the worker, so the
-        task defers from the worker instead.
+        It's ignored on Airflow < 3.3 when ``target_time`` is a Jinja template
+
     :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
         during dynamic task mapping. This argument is not used in standard usage.
     :param end_from_trigger: End the task directly from the triggerer without going into the worker.
@@ -115,28 +117,35 @@ class DateTimeSensorAsync(DateTimeSensor):
     ) -> None:
         super().__init__(**kwargs)
         self.end_from_trigger = end_from_trigger
-
-        # A templated target is rendered after Dag parsing, so it cannot be used to
-        # construct the trigger arguments at task initialization time.
-        if (
-            start_from_trigger
-            and isinstance(self.target_time, str)
-            and any(delimiter in self.target_time for delimiter in ("{{", "{%", "{#"))
-        ):
-            start_from_trigger = False
-
         self.start_from_trigger = start_from_trigger
+
         if self.start_from_trigger:
-            # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
-            # assigning through it would overwrite the arguments of every other task built
-            # from this operator.
-            self.start_trigger_args = dataclasses.replace(
-                self.start_trigger_args,
-                trigger_kwargs=dict(
-                    moment=self._moment,
-                    end_from_trigger=self.end_from_trigger,
-                ),
-            )
+            if AIRFLOW_V_3_3_PLUS:
+                self.start_trigger_args = dataclasses.replace(
+                    self.start_trigger_args,
+                    trigger_kwargs={
+                        "target_time": self.target_time,
+                        "end_from_trigger": self.end_from_trigger,
+                    },
+                )
+            elif isinstance(self.target_time, str) and any(
+                delimiter in self.target_time for delimiter in ("{{", "{%", "{#")
+            ):
+                warnings.warn(
+                    f"start_from_trigger=True with a templated target_time ({self.target_time!r}) requires "
+                    "Airflow >= 3.3. Disabling start_from_trigger, the task will defer from the worker instead.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                self.start_from_trigger = False
+            else:
+                self.start_trigger_args = dataclasses.replace(
+                    self.start_trigger_args,
+                    trigger_kwargs={
+                        "moment": self._moment,
+                        "end_from_trigger": self.end_from_trigger,
+                    },
+                )
 
     def execute(self, context: Context) -> NoReturn:
         self.defer(
