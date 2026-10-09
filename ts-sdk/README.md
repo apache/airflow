@@ -179,12 +179,13 @@ both a Dag declared in TypeScript and the tasks of two Python Dags from one bund
 
 `getClient()` returns a `TaskClient` for task-time Airflow data access, for as long as a handler is running:
 
-| Method                                                          | Description             |
-| --------------------------------------------------------------- | ----------------------- |
-| `getVariable(key)` / `getVariableOrThrow`                       | Airflow Variables       |
-| `setVariable(key, value, description?)` / `deleteVariable(key)` | Variable write / delete |
-| `getXCom(opts)` / `setXCom(opts)`                               | XCom read/write         |
-| `getConnection(connId)` / `getConnectionOrThrow`                | Airflow Connections     |
+| Method                                                          | Description                            |
+| --------------------------------------------------------------- | -------------------------------------- |
+| `getVariable(key)` / `getVariableOrThrow`                       | Airflow Variables                      |
+| `setVariable(key, value, description?)` / `deleteVariable(key)` | Variable write / delete                |
+| `getXCom(opts)` / `setXCom(opts)`                               | XCom read/write                        |
+| `getConnection(connId)` / `getConnectionOrThrow`                | Airflow Connections                    |
+| `taskStateStore.get / set / delete / clear`                     | Per-task-instance key/value state store |
 
 Locator fields such as `dagId`, `runId`, and `taskId` default to the
 current task context when omitted.
@@ -227,7 +228,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | capability: `variable-read-write` | MUST | ✓ | 3.4 | getVariable / setVariable / deleteVariable |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.4 | Airflow metadata embedded in the bundle |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
-| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `task-state-store` | MAY | ✓ | 3.4 | taskStateStore.get / set / delete / clear |
 | capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
