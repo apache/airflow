@@ -41,7 +41,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesDeleteResourceOperator,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf, timezone
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEHook,
     GKEKubernetesHook,
@@ -66,10 +66,14 @@ try:
 except ImportError:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import KubernetesPodExecOperator. This operator is only available in cncf-kubernetes "
-        "provider version >=10.22.0"
-    )
+    class KubernetesPodExecOperator(BaseOperator):  # type: ignore[no-redef]
+        """Keep existing GKE operators importable with older Kubernetes providers."""
+
+        def __init__(self, **kwargs):
+            raise AirflowOptionalProviderFeatureException(
+                "GKEPodExecOperator requires apache-airflow-providers-cncf-kubernetes>=10.22.0."
+            )
+
 
 try:
     from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator

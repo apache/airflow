@@ -831,10 +831,31 @@ class TestGKEStartKueueInsideClusterOperator:
 
 @mock.patch.dict("sys.modules", {"airflow.providers.cncf.kubernetes.operators.pod_exec": None})
 def test_missing_kubernetes_pod_exec_operator_reports_required_provider_version():
+    operators = runpy.run_path(kubernetes_engine.__file__)
+    operators["GKECreateClusterOperator"](
+        task_id=TEST_TASK_ID,
+        project_id=TEST_PROJECT_ID,
+        location=TEST_LOCATION,
+        body={"name": GKE_CLUSTER_NAME, "node_pools": [{"name": "pool", "initial_node_count": 1}]},
+    )
+    operators["GKEStartPodOperator"](
+        task_id=TEST_TASK_ID,
+        project_id=TEST_PROJECT_ID,
+        location=TEST_LOCATION,
+        cluster_name=GKE_CLUSTER_NAME,
+        image=TEST_IMAGE,
+    )
     with pytest.raises(
-        AirflowOptionalProviderFeatureException, match="cncf-kubernetes provider version >=10.22.0"
+        AirflowOptionalProviderFeatureException,
+        match=r"GKEPodExecOperator requires apache-airflow-providers-cncf-kubernetes>=10\.22\.0",
     ):
-        runpy.run_path(kubernetes_engine.__file__)
+        operators["GKEPodExecOperator"](
+            task_id=TEST_TASK_ID,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            pod_name=K8S_POD_NAME,
+            command=["echo", "hello"],
+        )
 
 
 class TestGKEPodExecOperator:
