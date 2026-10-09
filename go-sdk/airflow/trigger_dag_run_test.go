@@ -33,7 +33,7 @@ func TestTriggerDagRunIsATask(t *testing.T) {
 	gate := dag.Task(extract)
 	spec := TriggerDagRunSpec{
 		DagID:                 "downstream_etl",
-		RunID:                 "{{ run_id }}_downstream",
+		RunID:                 "etl_downstream",
 		Conf:                  map[string]any{"source": "etl"},
 		LogicalDate:           time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC),
 		RunAfter:              time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC),
@@ -110,6 +110,20 @@ func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 			name:    "no DagID",
 			trigger: TriggerDagRun(TriggerDagRunSpec{WaitForCompletion: true}),
 			want:    "airflow.TriggerDagRunSpec has no DagID",
+		},
+		{
+			name:    "templated DagID",
+			trigger: TriggerDagRun(TriggerDagRunSpec{DagID: "{{ params.target }}"}),
+			want: `airflow.TriggerDagRunSpec.DagID is "{{ params.target }}"; ` +
+				"the task does not render templates",
+		},
+		{
+			name: "templated RunID",
+			trigger: TriggerDagRun(
+				TriggerDagRunSpec{DagID: "downstream_etl", RunID: "triggered_{{ run_id }}"},
+			),
+			want: `airflow.TriggerDagRunSpec.RunID is "triggered_{{ run_id }}"; ` +
+				"the task does not render templates",
 		},
 		{
 			name: "negative PokeInterval",

@@ -1637,7 +1637,7 @@
               "conf": "py"
             },
             "trigger_dag_id": "conformance_minimal",
-            "trigger_run_id": "triggered_{{ run_id }}",
+            "trigger_run_id": "triggered_by_conformance",
             "ui_color": "#ffefeb",
             "wait_for_completion": true
           }

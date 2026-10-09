@@ -38,8 +38,9 @@ import (
 // leaves its parameter at the Python default. PokeInterval and Deferrable are pointers so that a
 // pointer to 0 or false can set that value instead of leaving the default.
 //
-// The task does not render templates. DagID, RunID, Note and the values in Conf are sent as they
-// are, so a string such as "{{ ds }}" reaches the new Dag run unchanged. The task does not offer
+// The task does not render templates. Note and the values in Conf are sent as they are, so a
+// string such as "{{ ds }}" reaches the new Dag run unchanged. DagID and RunID must not contain
+// "{{", since Airflow rejects such a dag_id or run_id. The task does not offer
 // openlineage_inject_parent_info, so it adds nothing to Conf.
 type TriggerDagRunSpec struct {
 	// DagID is the dag_id of the Dag to trigger. It is required.
@@ -124,6 +125,16 @@ func TriggerDagRun(spec TriggerDagRunSpec) TriggerDagRunTask {
 func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 	if spec.DagID == "" {
 		return TriggerDagRunSpec{}, errors.New("airflow.TriggerDagRunSpec has no DagID")
+	}
+	for _, field := range []struct{ name, value string }{
+		{"DagID", spec.DagID}, {"RunID", spec.RunID},
+	} {
+		if strings.Contains(field.value, "{{") {
+			return TriggerDagRunSpec{}, fmt.Errorf(
+				"airflow.TriggerDagRunSpec.%s is %q; the task does not render templates",
+				field.name, field.value,
+			)
+		}
 	}
 	if poke := spec.PokeInterval; poke != nil && (*poke < 0 || *poke%time.Second != 0) {
 		return TriggerDagRunSpec{}, fmt.Errorf(

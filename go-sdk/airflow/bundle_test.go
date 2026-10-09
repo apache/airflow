@@ -487,7 +487,7 @@ func TestServeLooksUpATriggerDagRunTaskWithACopyOfItsSpec(t *testing.T) {
 	dag := Dag("native_etl")
 	dag.Task(TriggerDagRun(TriggerDagRunSpec{
 		DagID:                 "downstream_etl",
-		RunID:                 "{{ run_id }}",
+		RunID:                 "etl_downstream",
 		Note:                  "from etl",
 		Conf:                  map[string]any{"tables": []any{"rows"}},
 		LogicalDate:           logicalDate,
@@ -511,7 +511,7 @@ func TestServeLooksUpATriggerDagRunTaskWithACopyOfItsSpec(t *testing.T) {
 	require.True(t, ok, "got %T", task)
 	assert.Equal(t, bundle.TriggerSpec{
 		DagID:                 "downstream_etl",
-		RunID:                 "{{ run_id }}",
+		RunID:                 "etl_downstream",
 		Note:                  "from etl",
 		Conf:                  map[string]any{"tables": []any{"rows"}},
 		LogicalDate:           logicalDate,

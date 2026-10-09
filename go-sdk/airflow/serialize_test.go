@@ -905,7 +905,7 @@ func TestSerializeWritesATriggerDagRunAsATriggerDagRunOperator(t *testing.T) {
 	dag := Dag("etl", DagSpec{Queue: "golang"})
 	dag.Task(TriggerDagRun(TriggerDagRunSpec{
 		DagID:                 "downstream_etl",
-		RunID:                 "{{ run_id }}",
+		RunID:                 "etl_downstream",
 		Conf:                  map[string]any{"rows": 2, "nested": map[string]any{"ok": true}},
 		LogicalDate:           time.Date(2026, 1, 31, 8, 30, 0, 500000000, time.UTC),
 		RunAfter:              time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
@@ -938,7 +938,7 @@ func TestSerializeWritesATriggerDagRunAsATriggerDagRunOperator(t *testing.T) {
 		"template_fields_renderers": {"conf": "py"},
 		"_operator_extra_links": {"Triggered DAG": "_link_TriggerDagRunLink"},
 		"trigger_dag_id": "downstream_etl",
-		"trigger_run_id": "{{ run_id }}",
+		"trigger_run_id": "etl_downstream",
 		"logical_date": "2026-01-31 08:30:00.500000+00:00",
 		"conf": {"rows": 2, "nested": {"ok": true}},
 		"wait_for_completion": true,

@@ -204,7 +204,7 @@ func TestTriggerDagRunSendsTheOptionsAsWritten(t *testing.T) {
 	supervisor := &triggerSupervisor{}
 	spec := bundle.TriggerSpec{
 		DagID:       "downstream",
-		RunID:       "{{ run_id }}_x",
+		RunID:       "downstream_x",
 		Note:        "{{ ds }}",
 		Conf:        map[string]any{"day": "{{ ds }}", "rows": int64(2)},
 		ResetDagRun: true,
@@ -214,11 +214,11 @@ func TestTriggerDagRunSendsTheOptionsAsWritten(t *testing.T) {
 
 	assertSucceedTask(t, result)
 	sent := supervisor.request(t, "TriggerDagRun")
-	assert.Equal(t, "{{ run_id }}_x", sent["run_id"], "an explicit run_id is not generated")
+	assert.Equal(t, "downstream_x", sent["run_id"], "an explicit run_id is not generated")
 	assert.Equal(t, "{{ ds }}", sent["note"])
 	assert.Equal(t, map[string]any{"day": "{{ ds }}", "rows": int8(2)}, sent["conf"])
 	assert.Equal(t, true, sent["reset_dag_run"])
-	assert.Equal(t, "{{ run_id }}_x", supervisor.sent()[2]["value"])
+	assert.Equal(t, "downstream_x", supervisor.sent()[2]["value"])
 }
 
 func TestTriggerDagRunDatesAndRunID(t *testing.T) {
