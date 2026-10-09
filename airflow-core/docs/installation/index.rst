@@ -52,24 +52,45 @@ also be kept updated when Airflow is upgraded.
 Local start for development and testing
 '''''''''''''''''''''''''''''''''''''''
 
-You just want to try Apache Airflow without all production complexity? If you have ``pipx`` installed,
-you can install Airflow directly from PyPI with the command below:
+To run Airflow on your machine for development and testing, follow the :doc:`/start`. It installs Airflow
+into a virtual environment and starts every component with ``airflow standalone``, which is not meant for
+production.
+
+.. _starting-components-separately:
+
+Starting components separately
+""""""""""""""""""""""""""""""
+
+The ``airflow standalone`` command starts every component for you. To run them yourself, create the database
+tables once:
 
 .. code-block:: bash
 
-    pipx run apache-airflow standalone
+    airflow db migrate
 
-Alternatively, you can do something similar with Astral ``uv``:
+Then start each component in its own terminal, with the same virtual environment activated and the same
+``AIRFLOW_HOME`` if you set one. Each command keeps running until you stop it:
 
 .. code-block:: bash
 
-    uvx apache-airflow standalone
+    airflow api-server --port 8080
+    airflow scheduler
+    airflow dag-processor
+    airflow triggerer
 
-Which starts a minimal system with an auto-generated admin password and SQLite database, so you can
-start using Airflow right away. This is a great way to get familiar with Airflow and try it out
-without the need to set up a complex environment.
+With the default ``SimpleAuthManager``, the API server prints a generated password for the ``admin`` user on
+its first start and saves it in ``simple_auth_manager_passwords.json.generated`` under ``AIRFLOW_HOME``
+(``~/airflow`` unless you set it). If you use the :doc:`apache-airflow-providers-fab:auth-manager/index`
+instead, create an admin user with ``airflow users create``, which prompts for a password:
 
-Note that the standalone mode is not for production purposes. But it is a simple start for a local development.
+.. code-block:: bash
+
+    airflow users create \
+        --username admin \
+        --firstname Peter \
+        --lastname Parker \
+        --role Admin \
+        --email spiderman@superhero.org
 
 Using released sources
 ''''''''''''''''''''''
