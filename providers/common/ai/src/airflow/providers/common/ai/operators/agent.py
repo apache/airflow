@@ -383,8 +383,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         without calling the LLM. E.g. 5 allows changes at iterations 1–4.
         Default ``5``.
     :param hitl_timeout: Maximum wall-clock time to wait for
-        all review rounds combined.  ``None`` means no timeout (the
-        operator blocks until a terminal action).
+        all review rounds combined.  ``None`` means no wall-clock timeout;
+        the review still ends on a terminal action (approve or reject),
+        ``max_hitl_iterations``, or when polling the human action XCom fails
+        too many times in a row.
     :param hitl_poll_interval: Seconds between XCom polls
         while waiting for a human response.  Default ``10``.
 

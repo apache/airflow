@@ -128,7 +128,10 @@ class LLMSQLQueryOperator(LLMOperator):
         datasource_config: DataSourceConfig | None = None,
         **kwargs: Any,
     ) -> None:
-        kwargs.pop("output_type", None)  # SQL operator always returns str
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMSQLQueryOperator does not accept 'output_type'; it always returns the generated SQL as str."
+            )
         super().__init__(**kwargs)
         self.db_conn_id = db_conn_id
         self.table_names = table_names
