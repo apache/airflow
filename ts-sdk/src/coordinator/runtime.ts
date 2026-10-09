@@ -347,7 +347,7 @@ async function handleTask(
   const trigger = getBundleTrigger(bundle, ti.dag_id, ti.task_id);
   if (trigger) {
     const ctx = buildContext(details, signal);
-    const client = createCoordinatorClient(comm, ctx, clientLogs);
+    const client = createCoordinatorClient(comm, ctx, ti.id, clientLogs);
     const fail = (message: string) => {
       logs.error("Task failed", { task_id: ctx.taskId, error: message });
       return buildFailureResponse(details, message);
@@ -377,7 +377,7 @@ async function handleTask(
   }
 
   const ctx = buildContext(details, signal);
-  const client = createCoordinatorClient(comm, ctx, clientLogs);
+  const client = createCoordinatorClient(comm, ctx, ti.id, clientLogs);
 
   let bound: BoundArgs;
   try {

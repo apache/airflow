@@ -253,6 +253,85 @@ class CommsTest {
     return (requests.single().rawBody as Map<*, *>) to failure
   }
 
+  /**
+   * Like [roundTrip], but on the transport client, which is where the calls a
+   * trigger or a decider makes live.
+   */
+  private fun <T> transportRoundTrip(
+    response: (Int) -> ByteArray,
+    call: (CoordinatorClient) -> T,
+  ): Triple<Map<*, *>, T?, Throwable?> {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val client = CoordinatorClient(comm)
+
+    val requests = ConcurrentLinkedQueue<RawFrame>()
+    val server =
+      Thread {
+        val request = readRequest(fromClient)
+        requests.add(request)
+        runBlocking { toClient.writeFrame(response(request.id)) }
+      }
+    server.start()
+    val outcome = runCatching { call(client) }
+    server.join()
+    comm.close()
+
+    return Triple(requests.single().rawBody as Map<*, *>, outcome.getOrNull(), outcome.exceptionOrNull())
+  }
+
+  private fun dagRunExistsResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packNil()
+      packer.packMapHeader(3)
+      packer.packString("type")
+      packer.packString("ErrorResponse")
+      packer.packString("error")
+      packer.packString("DAGRUN_ALREADY_EXISTS")
+      packer.packString("detail")
+      packer.packMapHeader(1)
+      packer.packString("dag_id")
+      packer.packString("downstream")
+    }
+    return out.toByteArray()
+  }
+
+  private fun dagRunStateResultFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(2)
+      packer.packString("type")
+      packer.packString("DagRunStateResult")
+      packer.packString("state")
+      packer.packString("running")
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  private fun dagResultFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(3)
+      packer.packString("type")
+      packer.packString("DagResult")
+      packer.packString("dag_id")
+      packer.packString("downstream")
+      packer.packString("is_paused")
+      packer.packBoolean(true)
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
   private suspend fun ByteChannel.writeFrame(payload: ByteArray) {
     writeByteArray(Frame.lengthPrefix(payload.size.toUInt()))
     writeByteArray(payload)
@@ -381,6 +460,71 @@ class CommsTest {
   }
 
   @Test
+  @DisplayName("triggerDagRun takes the OKResponse the supervisor answers a trigger with")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun triggerDagRunAcceptsOkResponse() {
+    val (body, alreadyExists, failure) =
+      transportRoundTrip(::okResponseFrame) {
+        it.triggerDagRun(
+          dagId = "downstream",
+          runId = "manual__2026-09-30T00:00:00+00:00",
+          logicalDate = OffsetDateTime.parse("2026-09-30T00:00:00Z"),
+          runAfter = null,
+          conf = mapOf("rows" to 2),
+          resetDagRun = false,
+          note = null,
+        )
+      }
+
+    Assertions.assertNull(failure, "triggerDagRun should return normally on an OKResponse, got $failure")
+    Assertions.assertEquals(false, alreadyExists)
+    Assertions.assertEquals("TriggerDagRun", body["type"])
+    Assertions.assertEquals("downstream", body["dag_id"])
+    Assertions.assertEquals("manual__2026-09-30T00:00:00+00:00", body["run_id"])
+    // MessagePack packs a small integer as a byte, so the conf is compared by how it reads.
+    Assertions.assertEquals("{rows=2}", body["conf"].toString())
+  }
+
+  @Test
+  @DisplayName("triggerDagRun reports an existing run rather than failing")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun triggerDagRunReportsAnExistingRun() {
+    val (_, alreadyExists, failure) =
+      transportRoundTrip(::dagRunExistsResponseFrame) {
+        it.triggerDagRun("downstream", "run", null, null, null, false, null)
+      }
+
+    Assertions.assertNull(failure, "an existing run is a value, not an error, got $failure")
+    Assertions.assertEquals(true, alreadyExists)
+  }
+
+  @Test
+  @DisplayName("getDagRunState reads the state out of a DagRunStateResult")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getDagRunStateReadsTheState() {
+    val (body, state, failure) =
+      transportRoundTrip(::dagRunStateResultFrame) { it.getDagRunState("downstream", "run") }
+
+    Assertions.assertNull(failure, "getDagRunState should return normally, got $failure")
+    Assertions.assertEquals("running", state)
+    Assertions.assertEquals("GetDagRunState", body["type"])
+    Assertions.assertEquals("downstream", body["dag_id"])
+    Assertions.assertEquals("run", body["run_id"])
+  }
+
+  @Test
+  @DisplayName("isDagPaused reads is_paused out of a DagResult")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun isDagPausedReadsTheFlag() {
+    val (body, paused, failure) = transportRoundTrip(::dagResultFrame) { it.isDagPaused("downstream") }
+
+    Assertions.assertNull(failure, "isDagPaused should return normally, got $failure")
+    Assertions.assertEquals(true, paused)
+    Assertions.assertEquals("GetDag", body["type"])
+    Assertions.assertEquals("downstream", body["dag_id"])
+  }
+
+  @Test
   @DisplayName("setVariable keeps a null description on the wire so the supervisor accepts the request")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun setVariableKeepsNullDescriptionOnTheWire() {
@@ -506,6 +650,33 @@ class CommsTest {
     Assertions.assertNull(clearFailure, "clear should return normally on OKResponse, got $clearFailure")
     Assertions.assertEquals("ClearTaskStateStore", clearBody["type"])
     Assertions.assertEquals(tiId.toString(), clearBody["ti_id"])
+  }
+
+  @Test
+  @DisplayName("skipDownstreamTasks sends the task IDs to skip and accepts the supervisor's empty response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun skipDownstreamTasksSendsTaskIds() {
+    val (body, failure) =
+      roundTrip(::emptyResponseFrame) { it.impl.skipDownstreamTasks(listOf("report_empty", "audit")) }
+
+    Assertions.assertNull(failure, "skipDownstreamTasks should return normally on an empty response, got $failure")
+    Assertions.assertEquals("SkipDownstreamTasks", body["type"])
+    Assertions.assertEquals(listOf("report_empty", "audit"), body["tasks"])
+  }
+
+  @Test
+  @DisplayName("skipDownstreamTasks sends nothing when there is nothing to skip")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun skipDownstreamTasksSendsNothingForEmptyList() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    CoordinatorClient(comm).skipDownstreamTasks(emptyList())
+
+    runBlocking { fromClient.flushAndClose() }
+    Assertions.assertTrue(fromClient.isClosedForRead, "no frame should have been written")
+    comm.close()
   }
 
   @Test
