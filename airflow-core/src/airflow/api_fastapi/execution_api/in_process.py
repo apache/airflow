@@ -150,10 +150,26 @@ class InProcessExecutionAPI:
         thread = threading.Thread(target=loop.run_forever, name="InProcessExecutionAPI-loop", daemon=True)
         thread.start()
 
+        class PEP3333PathMiddleware(ASGIMiddleware):
+            """
+            Pass ``PATH_INFO`` and ``SCRIPT_NAME`` on to a2wsgi in PEP 3333 form.
+
+            ``httpx.WSGITransport`` puts the percent-decoded URL path into the environ as a regular ``str``,
+            whereas PEP 3333 (and ``a2wsgi``, which follows it) expects UTF-8 bytes decoded as latin-1.
+            Without this, any non-ASCII character in the path, such as a non-ASCII ``task_id``, fails with a
+            ``UnicodeDecodeError`` or ``UnicodeEncodeError``.
+            """
+
+            def __call__(self, environ, start_response):
+                for key in ("PATH_INFO", "SCRIPT_NAME"):
+                    if key in environ:
+                        environ[key] = environ[key].encode("utf-8").decode("latin-1")
+                return super().__call__(environ, start_response)
+
         app = self.app
         # a2wsgi types ASGI scopes and messages as TypedDict unions and Starlette as mutable mappings,
         # so no app typed against Starlette matches a2wsgi's ``ASGIApp``.
-        middleware = ASGIMiddleware(cast("ASGIApp", _RequestScopedServerContextApp(app)), loop=loop)
+        middleware = PEP3333PathMiddleware(cast("ASGIApp", _RequestScopedServerContextApp(app)), loop=loop)
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
