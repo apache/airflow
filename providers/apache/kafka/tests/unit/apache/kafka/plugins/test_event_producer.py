@@ -509,7 +509,7 @@ class TestCheckTopicExists:
 
             err = MagicMock()
             err.code.return_value = kafka_error
-            event_producer._on_delivery_map[topic_type](err, MagicMock())
+            event_producer._on_delivery(topic_type, err, MagicMock())
 
             assert event_producer._topic_existence_map[topic_type] is topic_exists_expected
 
