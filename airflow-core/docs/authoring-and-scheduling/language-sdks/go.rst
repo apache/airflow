@@ -426,8 +426,8 @@ every key stored for this task instance.
 
   The Go SDK does not implement the worker-side state backend (``[workers] state_store_backend``), which
   offloads large values to external storage and records only a reference marker in the database. If a
-  deployment configures one, a Go task reading a key that was written through that backend receives the raw
-  reference marker rather than the original value, and a Go task writing a key stores the whole value in the
+  deployment configures one, a Go task reading a key that the backend offloaded receives the raw reference
+  marker rather than the original value, and a Go task writing a key stores the whole value in the
   database instead of offloading it. This is the same behaviour as a Python worker that does not have the
   backend configured.
 

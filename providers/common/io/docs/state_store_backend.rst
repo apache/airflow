@@ -32,7 +32,10 @@ Task state is stored under ``<dag_id>/<run_id>/<task_id>/<map_index>/<key>`` and
 
 By default (``state_store_objectstorage_threshold = 0``) all serialized values are offloaded to object storage.
 Set ``state_store_objectstorage_threshold`` to a positive number of bytes to only offload values whose
-serialized size meets or exceeds the threshold, anything smaller are stored in the Airflow metadata database.
+serialized size meets or exceeds the threshold. Anything smaller is stored in the Airflow metadata database;
+on Airflow versions that support inline values it is stored as plain JSON, so the UI and REST API show the value
+itself rather than a ``__airflow_state_ref__`` wrapper. Small values written by older versions keep the wrapper
+until the key is written again; they still read back correctly.
 
 Optionally set ``state_store_objectstorage_compression`` to an fsspec-supported compression algorithm such as
 ``gzip`` or ``snappy`` to compress values before writing.
