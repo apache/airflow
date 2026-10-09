@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -39,150 +39,156 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
-apache-airflow = false
-apache-airflow-breeze = false
-apache-airflow-core = false
-apache-airflow-ctl = false
-apache-airflow-ctl-tests = false
-apache-airflow-dev = false
-apache-airflow-devel-common = false
-apache-airflow-docker-stack = false
-apache-airflow-docker-tests = false
-apache-airflow-e2e-tests = false
-apache-airflow-helm-chart = false
-apache-airflow-kubernetes-tests = false
-apache-airflow-mypy = false
-apache-airflow-providers = false
-apache-airflow-providers-airbyte = false
-apache-airflow-providers-akeyless = false
-apache-airflow-providers-alibaba = false
+apache-airflow-providers-informatica = false
+apache-airflow-providers-clickhousedb = false
 apache-airflow-providers-amazon = false
-apache-airflow-providers-anthropic = false
-apache-airflow-providers-apache-arrow = false
-apache-airflow-providers-apache-beam = false
-apache-airflow-providers-apache-cassandra = false
+apache-airflow-providers-elasticsearch = false
+apache-airflow-providers-duckdb = false
+apache-airflow-docker-tests = false
+apache-airflow-providers-microsoft-winrm = false
+typesafe-sdk = "2026-09-19T00:00:00Z"
+apache-airflow-providers = false
+apache-airflow-providers-fab = false
+apache-airflow-providers-openlineage = false
+apache-airflow-providers-sftp = false
+apache-airflow-e2e-tests = false
+apache-airflow-shared-logging = false
+apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-apache-drill = false
+apache-airflow-providers-pgvector = false
+apache-airflow-providers-imap = false
+apache-airflow-providers-qdrant = false
+apache-airflow-providers-edge3 = false
+apache-airflow-providers-neo4j = false
+apache-airflow-providers-discord = false
+apache-airflow-providers-opensearch = false
+apache-airflow-providers-samba = false
+apache-airflow-providers-arangodb = false
+apache-airflow-providers-apache-spark = false
+apache-airflow-providers-ftp = false
+apache-airflow-providers-jenkins = false
+apache-airflow-shared-listeners = false
+apache-airflow-shared-providers-discovery = false
+apache-airflow-providers-telegram = false
+apache-airflow-providers-celery = false
+apache-airflow-providers-docker = false
+apache-airflow-providers-sendgrid = false
+apache-airflow-providers-common-ai = false
+apache-airflow = false
+apache-airflow-shared-observability = false
+apache-airflow-dev = false
+apache-airflow-providers-dbt-cloud = false
+apache-airflow-providers-openfaas = false
+apache-airflow-devel-common = false
+apache-airflow-providers-apache-cassandra = false
+apache-airflow-providers-asana = false
+apache-airflow-providers-oracle = false
+apache-airflow-providers-mysql = false
+apache-airflow-providers-alibaba = false
+apache-airflow-providers-microsoft-mssql = false
+apache-airflow-providers-teradata = false
+apache-airflow-providers-jdbc = false
+apache-airflow-helm-chart = false
+apache-airflow-providers-anthropic = false
+apache-airflow-providers-common-io = false
+apache-airflow-providers-cohere = false
+apache-airflow-providers-pinecone = false
+apache-airflow-providers-segment = false
+apache-airflow-providers-redis = false
+apache-airflow-shared-dagnode = false
+apache-airflow-providers-apache-pinot = false
+apache-airflow-providers-weaviate = false
+google-cloud-aiplatform = "2026-08-13T00:00:00Z"
+apache-airflow-providers-akeyless = false
+apache-airflow-providers-salesforce = false
+apache-airflow-providers-ssh = false
+apache-airflow-providers-papermill = false
+apache-airflow-providers-google = false
+pydantic-ai-skills = "2026-07-16T00:00:00Z"
+apache-airflow-providers-apache-beam = false
+apache-airflow-providers-microsoft-psrp = false
+apache-airflow-providers-vertica = false
+apache-airflow-providers-apache-hdfs = false
+apache-airflow-shared-template-rendering = false
+apache-airflow-mypy = false
+apache-airflow-providers-http = false
+apache-airflow-providers-slack = false
+apache-airflow-providers-vespa = false
+apache-airflow-providers-databricks = false
+apache-airflow-shared-state = false
+apache-airflow-docker-stack = false
+apache-airflow-providers-sqlite = false
+apache-airflow-providers-ibm-mq = false
+apache-airflow-shared-module-loading = false
+apache-airflow-providers-yandex = false
+apache-airflow-shared-serialization = false
+apache-airflow-scripts = false
+apache-airflow-providers-exasol = false
+apache-airflow-providers-mongo = false
+apache-airflow-providers-apache-arrow = false
+apache-airflow-providers-apprise = false
+apache-airflow-providers-apache-impala = false
+apache-airflow-ctl = false
+apache-airflow-providers-github = false
+apache-airflow-providers-snowflake = false
+apache-airflow-providers-zendesk = false
+apache-airflow-providers-presto = false
+apache-airflow-providers-airbyte = false
+apache-airflow-providers-apache-hive = false
+apache-airflow-kubernetes-tests = false
+apache-airflow-providers-modal = false
+apache-airflow-providers-grpc = false
 apache-airflow-providers-apache-druid = false
 apache-airflow-providers-apache-flink = false
-apache-airflow-providers-apache-hdfs = false
-apache-airflow-providers-apache-hive = false
-apache-airflow-providers-apache-iceberg = false
-apache-airflow-providers-apache-impala = false
-apache-airflow-providers-apache-kafka = false
-apache-airflow-providers-apache-kylin = false
-apache-airflow-providers-apache-livy = false
-apache-airflow-providers-apache-pig = false
-apache-airflow-providers-apache-pinot = false
-apache-airflow-providers-apache-spark = false
-apache-airflow-providers-apache-tinkerpop = false
-apache-airflow-providers-apprise = false
-apache-airflow-providers-arangodb = false
-apache-airflow-providers-asana = false
-apache-airflow-providers-atlassian-jira = false
-apache-airflow-providers-celery = false
-apache-airflow-providers-clickhousedb = false
-apache-airflow-providers-cloudant = false
 apache-airflow-providers-cncf-kubernetes = false
-apache-airflow-providers-cohere = false
-apache-airflow-providers-common-ai = false
-apache-airflow-providers-common-compat = false
-apache-airflow-providers-common-dataquality = false
-apache-airflow-providers-common-io = false
-apache-airflow-providers-common-messaging = false
-apache-airflow-providers-common-sql = false
-apache-airflow-providers-databricks = false
-apache-airflow-providers-datadog = false
-apache-airflow-providers-dbt-cloud = false
-apache-airflow-providers-dingding = false
-apache-airflow-providers-discord = false
-apache-airflow-providers-docker = false
-apache-airflow-providers-duckdb = false
-apache-airflow-providers-edge3 = false
-apache-airflow-providers-elasticsearch = false
-apache-airflow-providers-exasol = false
-apache-airflow-providers-fab = false
-apache-airflow-providers-facebook = false
-apache-airflow-providers-ftp = false
-apache-airflow-providers-git = false
-apache-airflow-providers-github = false
-apache-airflow-providers-google = false
-apache-airflow-providers-grpc = false
-apache-airflow-providers-hashicorp = false
-apache-airflow-providers-http = false
-apache-airflow-providers-ibm-db2 = false
-apache-airflow-providers-ibm-mq = false
-apache-airflow-providers-imap = false
-apache-airflow-providers-influxdb = false
-apache-airflow-providers-informatica = false
-apache-airflow-providers-jdbc = false
-apache-airflow-providers-jenkins = false
-apache-airflow-providers-keycloak = false
-apache-airflow-providers-microsoft-azure = false
-apache-airflow-providers-microsoft-mssql = false
-apache-airflow-providers-microsoft-psrp = false
-apache-airflow-providers-microsoft-winrm = false
-apache-airflow-providers-modal = false
-apache-airflow-providers-mongo = false
-apache-airflow-providers-mysql = false
-apache-airflow-providers-neo4j = false
-apache-airflow-providers-odbc = false
-apache-airflow-providers-openai = false
-apache-airflow-providers-openfaas = false
-apache-airflow-providers-openlineage = false
-apache-airflow-providers-opensearch = false
+apache-airflow-providers-apache-pig = false
+apache-airflow-providers-apache-tinkerpop = false
+apache-airflow-shared-timezones = false
+apache-airflow-providers-apache-iceberg = false
+apache-airflow-breeze = false
 apache-airflow-providers-opsgenie = false
-apache-airflow-providers-oracle = false
+apache-airflow-providers-apache-livy = false
+apache-airflow-core = false
+apache-airflow-providers-hashicorp = false
 apache-airflow-providers-pagerduty = false
-apache-airflow-providers-papermill = false
-apache-airflow-providers-pgvector = false
-apache-airflow-providers-pinecone = false
-apache-airflow-providers-postgres = false
-apache-airflow-providers-presto = false
-apache-airflow-providers-qdrant = false
-apache-airflow-providers-redis = false
-apache-airflow-providers-salesforce = false
-apache-airflow-providers-samba = false
-apache-airflow-providers-segment = false
-apache-airflow-providers-sendgrid = false
-apache-airflow-providers-sftp = false
-apache-airflow-providers-singularity = false
-apache-airflow-providers-slack = false
-apache-airflow-providers-smtp = false
-apache-airflow-providers-snowflake = false
-apache-airflow-providers-sqlite = false
-apache-airflow-providers-ssh = false
-apache-airflow-providers-standard = false
-apache-airflow-providers-tableau = false
-apache-airflow-providers-telegram = false
-apache-airflow-providers-teradata = false
+apache-airflow-providers-datadog = false
+apache-airflow-providers-apache-kafka = false
+apache-airflow-providers-influxdb = false
+apache-airflow-providers-keycloak = false
 apache-airflow-providers-trino = false
-apache-airflow-providers-vertica = false
-apache-airflow-providers-vespa = false
-apache-airflow-providers-weaviate = false
-apache-airflow-providers-yandex = false
-apache-airflow-providers-ydb = false
-apache-airflow-providers-zendesk = false
-apache-airflow-scripts = false
+apache-airflow-providers-common-messaging = false
+apache-airflow-providers-standard = false
+apache-airflow-providers-singularity = false
+apache-airflow-providers-common-compat = false
+apache-airflow-ctl-tests = false
+apache-airflow-providers-tableau = false
+apache-airflow-providers-ibm-db2 = false
+apache-airflow-providers-common-sql = false
 apache-airflow-shared-configuration = false
-apache-airflow-shared-dagnode = false
-apache-airflow-shared-listeners = false
-apache-airflow-shared-logging = false
-apache-airflow-shared-module-loading = false
-apache-airflow-shared-observability = false
+apache-airflow-providers-facebook = false
+apache-airflow-providers-ydb = false
+apache-airflow-providers-microsoft-azure = false
 apache-airflow-shared-plugins-manager = false
-apache-airflow-shared-providers-discovery = false
 apache-airflow-shared-secrets-backend = false
 apache-airflow-shared-secrets-masker = false
-apache-airflow-shared-serialization = false
-apache-airflow-shared-state = false
-apache-airflow-shared-template-rendering = false
-apache-airflow-shared-timezones = false
+apache-airflow-providers-git = false
 apache-airflow-task-sdk = false
+apache-airflow-providers-atlassian-jira = false
+apache-airflow-providers-odbc = false
+apache-airflow-providers-postgres = false
+apache-airflow-providers-openai = false
 apache-airflow-task-sdk-integration-tests = false
+certifi = "2026-10-21T00:00:00Z"
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 pip = false
 pypdf = "2026-10-29T00:00:00Z"
 uv = false
+=======
+apache-airflow-providers-smtp = false
+apache-airflow-providers-dingding = false
+apache-airflow-providers-cloudant = false
+apache-airflow-providers-apache-kylin = false
+>>>>>>> a7c3e05a04 (Add tests and Markdown redirect coverage for LLM docs)
 
 [manifest]
 members = [
@@ -728,7 +734,7 @@ name = "aiohttp-cors"
 version = "0.8.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiohttp" },
+    { name = "aiohttp", marker = "python_full_version < '3.15'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6f/6d/d89e846a5444b3d5eb8985a6ddb0daef3774928e1bfbce8e84ec97b0ffa7/aiohttp_cors-0.8.1.tar.gz", hash = "sha256:ccacf9cb84b64939ea15f859a146af1f662a6b1d68175754a07315e305fb1403", size = 38626, upload-time = "2025-03-31T14:16:20.048Z" }
 wheels = [
@@ -11860,7 +11866,7 @@ name = "colorful"
 version = "0.5.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "python_full_version < '3.15' and sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/82/31/109ef4bedeb32b4202e02ddb133162457adc4eb890a9ed9c05c9dd126ed0/colorful-0.5.8.tar.gz", hash = "sha256:bb16502b198be2f1c42ba3c52c703d5f651d826076817185f0294c1a549a7445", size = 209361, upload-time = "2025-10-29T11:53:21.663Z" }
 wheels = [
@@ -13432,7 +13438,7 @@ name = "geomet"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click" },
+    { name = "click", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/2a/8c/dde022aa6747b114f6b14a7392871275dea8867e2bd26cddb80cc6d66620/geomet-1.1.0.tar.gz", hash = "sha256:51e92231a0ef6aaa63ac20c443377ba78a303fd2ecd179dc3567de79f3c11605", size = 28732, upload-time = "2023-11-14T15:43:36.764Z" }
 wheels = [
@@ -13618,10 +13624,10 @@ resolution-markers = [
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "fasteners" },
-    { name = "httplib2" },
-    { name = "oauth2client" },
-    { name = "six" },
+    { name = "fasteners", marker = "python_full_version < '3.13'" },
+    { name = "httplib2", marker = "python_full_version < '3.13'" },
+    { name = "oauth2client", marker = "python_full_version < '3.13'" },
+    { name = "six", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/19/da/aefc4cf4c168b5d875344cd9dddc77e3a2d11986b630251af5ce47dd2843/google-apitools-0.5.31.tar.gz", hash = "sha256:4af0dd6dd4582810690251f0b57a97c1873dadfda54c5bc195844c8907624170", size = 173463, upload-time = "2020-05-14T17:25:19.126Z" }
 
@@ -13642,10 +13648,10 @@ resolution-markers = [
     "(python_full_version == '3.13.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "fasteners" },
-    { name = "httplib2" },
-    { name = "oauth2client" },
-    { name = "six" },
+    { name = "fasteners", marker = "python_full_version >= '3.13'" },
+    { name = "httplib2", marker = "python_full_version >= '3.13'" },
+    { name = "oauth2client", marker = "python_full_version >= '3.13'" },
+    { name = "six", marker = "python_full_version >= '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f5/e4/15fbddfffa968e10c602a30b7ca4703f3e41d2dbdef011e98eee85575133/google-apitools-0.5.35.tar.gz", hash = "sha256:911bc3698686c74187414c610ae30bd6e3c0a7404178fc6479ead6c420d2dd94", size = 531707, upload-time = "2025-09-24T20:22:51.11Z" }
 wheels = [
@@ -14952,7 +14958,7 @@ name = "gssapi"
 version = "1.12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "decorator" },
+    { name = "decorator", marker = "sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6b/fb/9492eb37b5786369b7e96fff2cf4040713acb33b96124813e058cbbd4356/gssapi-1.12.0.tar.gz", hash = "sha256:0b48f17296f869db89221c3bde463fdff35152a4cb99ae4aaa42b0b64333fc6c", size = 95321, upload-time = "2026-08-26T03:00:50.067Z" }
 wheels = [
@@ -15128,8 +15134,8 @@ name = "httpcore2"
 version = "2.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11" },
-    { name = "truststore" },
+    { name = "h11", marker = "sys_platform != 'emscripten'" },
+    { name = "truststore", marker = "sys_platform != 'emscripten'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c0/61/afa9d6b7452f9eca73f73d45324eb0bb52f098fd5e6049bf6b8263be9b4e/httpcore2-2.16.0.tar.gz", hash = "sha256:c72cd0413563b17e1cd8354677dff887466f8ec2551679759e93126534428643", size = 69886, upload-time = "2026-10-21T07:09:45.31Z" }
 wheels = [
@@ -18942,9 +18948,9 @@ name = "opencensus"
 version = "0.11.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "google-api-core" },
-    { name = "opencensus-context" },
-    { name = "six" },
+    { name = "google-api-core", marker = "python_full_version < '3.15'" },
+    { name = "opencensus-context", marker = "python_full_version < '3.15'" },
+    { name = "six", marker = "python_full_version < '3.15'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/15/a7/a46dcffa1b63084f9f17fe3c8cb20724c4c8f91009fd0b2cfdb27d5d2b35/opencensus-0.11.4.tar.gz", hash = "sha256:cbef87d8b8773064ab60e5c2a1ced58bbaa38a6d052c41aec224958ce544eff2", size = 64966, upload-time = "2024-01-03T18:04:07.085Z" }
 wheels = [
@@ -19566,9 +19572,9 @@ wheels = [
 
 [package.optional-dependencies]
 sql-other = [
-    { name = "adbc-driver-postgresql" },
-    { name = "adbc-driver-sqlite" },
-    { name = "sqlalchemy" },
+    { name = "adbc-driver-postgresql", marker = "python_full_version < '3.13'" },
+    { name = "adbc-driver-sqlite", marker = "python_full_version < '3.13'" },
+    { name = "sqlalchemy", marker = "python_full_version < '3.13'" },
 ]
 
 [[package]]
@@ -22147,9 +22153,9 @@ name = "python3-saml"
 version = "1.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "isodate" },
-    { name = "lxml" },
-    { name = "xmlsec" },
+    { name = "isodate", marker = "python_full_version < '3.13'" },
+    { name = "lxml", marker = "python_full_version < '3.13'" },
+    { name = "xmlsec", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/5d/98/6e0268c3a9893af3d4c5cf670183e0314cd6b5cb034a612d6a7cc5060df8/python3-saml-1.16.0.tar.gz", hash = "sha256:97c9669aecabc283c6e5fb4eb264f446b6e006f5267d01c9734f9d8bffdac133", size = 83468, upload-time = "2023-10-09T10:37:43.128Z" }
 wheels = [
@@ -22435,7 +22441,7 @@ version = "2.59.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
-    { name = "filelock" },
+    { name = "filelock", version = "3.32.7", source = { registry = "https://pypi.org/simple" } },
     { name = "jsonschema" },
     { name = "msgpack" },
     { name = "packaging" },
@@ -22464,20 +22470,20 @@ wheels = [
 
 [package.optional-dependencies]
 default = [
-    { name = "aiohttp" },
-    { name = "aiohttp-cors" },
-    { name = "colorful" },
-    { name = "grpcio" },
-    { name = "opencensus" },
-    { name = "opentelemetry-exporter-prometheus" },
-    { name = "opentelemetry-proto" },
-    { name = "opentelemetry-sdk" },
-    { name = "prometheus-client" },
-    { name = "py-spy" },
-    { name = "pydantic" },
-    { name = "requests" },
-    { name = "smart-open" },
-    { name = "virtualenv" },
+    { name = "aiohttp", marker = "python_full_version < '3.15'" },
+    { name = "aiohttp-cors", marker = "python_full_version < '3.15'" },
+    { name = "colorful", marker = "python_full_version < '3.15'" },
+    { name = "grpcio", marker = "python_full_version < '3.15'" },
+    { name = "opencensus", marker = "python_full_version < '3.15'" },
+    { name = "opentelemetry-exporter-prometheus", marker = "python_full_version < '3.15'" },
+    { name = "opentelemetry-proto", marker = "python_full_version < '3.15'" },
+    { name = "opentelemetry-sdk", marker = "python_full_version < '3.15'" },
+    { name = "prometheus-client", marker = "python_full_version < '3.15'" },
+    { name = "py-spy", marker = "python_full_version < '3.15'" },
+    { name = "pydantic", marker = "python_full_version < '3.15'" },
+    { name = "requests", marker = "python_full_version < '3.15'" },
+    { name = "smart-open", marker = "python_full_version < '3.15'" },
+    { name = "virtualenv", marker = "python_full_version < '3.15'" },
 ]
 
 [[package]]
@@ -23188,7 +23194,7 @@ resolution-markers = [
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "numpy" },
+    { name = "numpy", marker = "python_full_version < '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz", hash = "sha256:95d8e012d8cb8816c226aef832200b1d45109ed4464303e997c5b13122b297c0", size = 30573822, upload-time = "2026-02-23T00:26:24.851Z" }
 wheels = [
@@ -23275,7 +23281,7 @@ resolution-markers = [
     "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "numpy" },
+    { name = "numpy", marker = "python_full_version >= '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7e/74/66de6258867beb2ef08f35f9f2ac017a52cacd5081714d239ff1a442d458/scipy-1.18.1.tar.gz", hash = "sha256:52c4b7422442aba924d03ad4019852b08a92e64ea187b933135687bfe2747307", size = 30781235, upload-time = "2026-08-21T23:28:50.599Z" }
 wheels = [
@@ -23379,8 +23385,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography" },
-    { name = "jeepney" },
+    { name = "cryptography", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "jeepney", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
@@ -23589,7 +23595,7 @@ name = "smart-open"
 version = "9.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "wrapt" },
+    { name = "wrapt", marker = "python_full_version < '3.15'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/05/87/d1d2e4504adf3c2f2da52f867d4aa25a8cc528d79b77b75955f1feb48809/smart_open-9.0.0.tar.gz", hash = "sha256:317d2e3b5491673dd30d4bd38120b91e0846451fe361fdf9273fcb2278594be3", size = 64866, upload-time = "2026-10-28T07:35:45.266Z" }
 wheels = [
@@ -23674,7 +23680,7 @@ dependencies = [
     { name = "certifi" },
     { name = "charset-normalizer" },
     { name = "cryptography" },
-    { name = "filelock" },
+    { name = "filelock", version = "3.32.7", source = { registry = "https://pypi.org/simple" } },
     { name = "idna" },
     { name = "packaging" },
     { name = "platformdirs" },
@@ -23728,10 +23734,10 @@ resolution-markers = [
     "python_full_version == '3.14.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "cryptography" },
-    { name = "protobuf" },
-    { name = "pytz" },
-    { name = "tomlkit" },
+    { name = "cryptography", marker = "python_full_version >= '3.15'" },
+    { name = "protobuf", marker = "python_full_version >= '3.15'" },
+    { name = "pytz", marker = "python_full_version >= '3.15'" },
+    { name = "tomlkit", marker = "python_full_version >= '3.15'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7a/e4/05727a3af8c240ff6880c0becf729968a34ef691f1bb9f6e0d983bb685e6/snowflake_connector_python-5.1.0.tar.gz", hash = "sha256:2d9eec7fbaa329b4013b9d67e01e2120fe2878854f6de421cc9d07c620fa270d", size = 1950546, upload-time = "2026-10-21T21:33:05.19Z" }
 wheels = [
@@ -23811,8 +23817,12 @@ resolution-markers = [
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "snowflake-connector-python", version = "4.8.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "snowflake-connector-python", version = "4.8.0", source = { registry = "https://pypi.org/simple" } },
     { name = "sqlalchemy" },
+=======
+    { name = "snowflake-connector-python", version = "4.7.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.15'" },
+    { name = "sqlalchemy", marker = "python_full_version < '3.15'" },
+>>>>>>> a7c3e05a04 (Add tests and Markdown redirect coverage for LLM docs)
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f2/0d/94458e9231da61efe076ff8b9d808da9c8e3be39d99eaff8e6fe85f7295e/snowflake_sqlalchemy-1.11.1.tar.gz", hash = "sha256:942b203de0404b79550c4098ca851aee2b0b22f695426b073e58d71772e38d51", size = 252184, upload-time = "2026-09-04T06:51:26.892Z" }
 wheels = [
@@ -23916,23 +23926,23 @@ resolution-markers = [
     "(python_full_version < '3.11.3' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.11.3' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "alabaster" },
-    { name = "babel" },
-    { name = "colorama", marker = "sys_platform == 'win32'" },
-    { name = "docutils" },
-    { name = "imagesize" },
-    { name = "jinja2" },
-    { name = "packaging" },
-    { name = "pygments" },
-    { name = "requests" },
-    { name = "roman-numerals" },
-    { name = "snowballstemmer" },
-    { name = "sphinxcontrib-applehelp" },
-    { name = "sphinxcontrib-devhelp" },
-    { name = "sphinxcontrib-htmlhelp" },
-    { name = "sphinxcontrib-jsmath" },
-    { name = "sphinxcontrib-qthelp" },
-    { name = "sphinxcontrib-serializinghtml" },
+    { name = "alabaster", marker = "python_full_version < '3.12'" },
+    { name = "babel", marker = "python_full_version < '3.12'" },
+    { name = "colorama", marker = "python_full_version < '3.12' and sys_platform == 'win32'" },
+    { name = "docutils", marker = "python_full_version < '3.12'" },
+    { name = "imagesize", marker = "python_full_version < '3.12'" },
+    { name = "jinja2", marker = "python_full_version < '3.12'" },
+    { name = "packaging", marker = "python_full_version < '3.12'" },
+    { name = "pygments", marker = "python_full_version < '3.12'" },
+    { name = "requests", marker = "python_full_version < '3.12'" },
+    { name = "roman-numerals", marker = "python_full_version < '3.12'" },
+    { name = "snowballstemmer", marker = "python_full_version < '3.12'" },
+    { name = "sphinxcontrib-applehelp", marker = "python_full_version < '3.12'" },
+    { name = "sphinxcontrib-devhelp", marker = "python_full_version < '3.12'" },
+    { name = "sphinxcontrib-htmlhelp", marker = "python_full_version < '3.12'" },
+    { name = "sphinxcontrib-jsmath", marker = "python_full_version < '3.12'" },
+    { name = "sphinxcontrib-qthelp", marker = "python_full_version < '3.12'" },
+    { name = "sphinxcontrib-serializinghtml", marker = "python_full_version < '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/50/a8c6ccc36d5eacdfd7913ddccd15a9cee03ecafc5ee2bc40e1f168d85022/sphinx-9.0.4.tar.gz", hash = "sha256:594ef59d042972abbc581d8baa577404abe4e6c3b04ef61bd7fc2acbd51f3fa3", size = 8710502, upload-time = "2025-12-04T07:45:27.343Z" }
 wheels = [
@@ -23990,23 +24000,23 @@ resolution-markers = [
     "(python_full_version == '3.13.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "alabaster" },
-    { name = "babel" },
-    { name = "colorama", marker = "sys_platform == 'win32'" },
-    { name = "docutils" },
-    { name = "imagesize" },
-    { name = "jinja2" },
-    { name = "packaging" },
-    { name = "pygments" },
-    { name = "requests" },
-    { name = "roman-numerals" },
-    { name = "snowballstemmer" },
-    { name = "sphinxcontrib-applehelp" },
-    { name = "sphinxcontrib-devhelp" },
-    { name = "sphinxcontrib-htmlhelp" },
-    { name = "sphinxcontrib-jsmath" },
-    { name = "sphinxcontrib-qthelp" },
-    { name = "sphinxcontrib-serializinghtml" },
+    { name = "alabaster", marker = "python_full_version >= '3.12'" },
+    { name = "babel", marker = "python_full_version >= '3.12'" },
+    { name = "colorama", marker = "python_full_version >= '3.12' and sys_platform == 'win32'" },
+    { name = "docutils", marker = "python_full_version >= '3.12'" },
+    { name = "imagesize", marker = "python_full_version >= '3.12'" },
+    { name = "jinja2", marker = "python_full_version >= '3.12'" },
+    { name = "packaging", marker = "python_full_version >= '3.12'" },
+    { name = "pygments", marker = "python_full_version >= '3.12'" },
+    { name = "requests", marker = "python_full_version >= '3.12'" },
+    { name = "roman-numerals", marker = "python_full_version >= '3.12'" },
+    { name = "snowballstemmer", marker = "python_full_version >= '3.12'" },
+    { name = "sphinxcontrib-applehelp", marker = "python_full_version >= '3.12'" },
+    { name = "sphinxcontrib-devhelp", marker = "python_full_version >= '3.12'" },
+    { name = "sphinxcontrib-htmlhelp", marker = "python_full_version >= '3.12'" },
+    { name = "sphinxcontrib-jsmath", marker = "python_full_version >= '3.12'" },
+    { name = "sphinxcontrib-qthelp", marker = "python_full_version >= '3.12'" },
+    { name = "sphinxcontrib-serializinghtml", marker = "python_full_version >= '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/64/d4/413466f0be8b1cb0e3e43893a148b96d7462d0923d82b4166b21afc5f30c/sphinx-9.2.0.tar.gz", hash = "sha256:90470459f3cab15d9dfed146c71cf77694b0445df17b2e0e69059cb9f7fc9ee4", size = 8782438, upload-time = "2026-10-21T00:05:15.019Z" }
 wheels = [
@@ -24131,8 +24141,7 @@ version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py" },
-    { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "sphinx-markdown-builder" },
 ]
@@ -24146,10 +24155,8 @@ name = "sphinx-markdown-builder"
 version = "0.6.11"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "docutils", version = "0.21.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "docutils", version = "0.22.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "docutils" },
+    { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "tabulate" },
 ]
@@ -26193,7 +26200,7 @@ name = "xmlsec"
 version = "1.3.18"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "lxml" },
+    { name = "lxml", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/4a/f9/034d0a8aeec12e68599583b992b88bb9a734861fd883665a38efc23a8118/xmlsec-1.3.18.tar.gz", hash = "sha256:84e29528b98b623ca3cf0495e46a6973513c0e7a525d23ae642277d6f29890cb", size = 75224, upload-time = "2026-10-29T11:01:30.721Z" }
 wheels = [
