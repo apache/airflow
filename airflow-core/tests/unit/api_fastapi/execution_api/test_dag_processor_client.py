@@ -152,7 +152,9 @@ def provision_token(tmp_path, api_secret):
 
 
 @mock.patch("airflow.dag_processing.api_client.monotonic", autospec=True, return_value=0)
-def test_rotation_stop_and_completion_over_http(clock, api_url, provision_token, session, time_machine):
+def test_rotation_stop_and_completion_over_http(
+    clock, api_url, api_requests, provision_token, session, time_machine
+):
     Variable.set("processor-client-key", "value")
     with DagProcessorAPIClient(
         base_url=api_url, token_file=provision_token(), hostname="processor-1", bundle_names=["bundle-a"]
@@ -187,6 +189,17 @@ def test_rotation_stop_and_completion_over_http(clock, api_url, provision_token,
         session.refresh(job)
         assert job.state == JobState.SUCCESS.value
         assert job.end_date is not None
+
+    scopes: dict[str, set[str]] = {}
+    for path, claims in api_requests:
+        scopes.setdefault(path.removeprefix("/execution/"), set()).add(claims["scope"])
+    assert scopes == {
+        "jobs": {"dag_processor_session"},
+        f"jobs/{job_id}/heartbeat": {"dag_processor"},
+        f"jobs/{job_id}/parse-token": {"dag_processor"},
+        f"jobs/{job_id}/complete": {"dag_processor"},
+        "variables/processor-client-key": {"dag_processor", "dag_parse"},
+    }
 
 
 class LostAcknowledgmentTransport(httpx.BaseTransport):

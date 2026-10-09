@@ -2321,7 +2321,8 @@ core_commands: list[CLICommand] = [
         description=(
             "Issue a session token that lets a Dag processor reach the Execution API for the given "
             "bundles, without the processor holding the signing key. Run it where the signing key is "
-            "available, and give the processor read access to the token file."
+            "available, and give the processor read access to the token file; its mode and group are kept when "
+            "rotation replaces it."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_processor_token_command.dag_processor_token"),
         args=(

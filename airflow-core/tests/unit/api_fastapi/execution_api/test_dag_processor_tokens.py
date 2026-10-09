@@ -26,6 +26,7 @@ from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.execution_api.app import _jwt_validator, create_jwt_generator
 from airflow.api_fastapi.execution_api.dag_processor_tokens import (
     ExpiredDagProcessorToken,
+    generate_dag_parse_token,
     generate_dag_processor_session_token,
     generate_dag_processor_token,
 )
@@ -50,11 +51,11 @@ def test_generated_token_is_a_valid_dag_processor_session_token():
     assert (parsed.scope, parsed.dag_bundles) == ("dag_processor_session", frozenset({"a", "b"}))
 
 
-@pytest.mark.parametrize("remaining", [0, -1], ids=["expires-now", "already-expired"])
+@pytest.mark.parametrize("remaining", [0.5, 0, -1], ids=["under-a-second", "expires-now", "already-expired"])
 def test_expired_session_is_not_signed(time_machine, remaining):
     now = datetime(2026, 10, 5, tzinfo=UTC)
     time_machine.move_to(now, tick=False)
-    generator = MagicMock(spec=JWTGenerator)
+    generator = MagicMock(spec=JWTGenerator, valid_for=600)
 
     with pytest.raises(ExpiredDagProcessorToken, match="Session credential has expired"):
         generate_dag_processor_token(
@@ -66,3 +67,27 @@ def test_expired_session_is_not_signed(time_machine, remaining):
         )
 
     generator.generate.assert_not_called()
+
+
+@conf_vars({("api_auth", "jwt_secret"): "provisioning-test-secret"})
+@pytest.mark.parametrize(
+    ("remaining", "expires_in"),
+    [(45.9, 45), (3600, 600)],
+    ids=["capped-by-the-parent", "capped-by-the-signer"],
+)
+def test_child_token_lifetime_never_exceeds_its_parent(time_machine, remaining, expires_in):
+    now = datetime(2026, 10, 5, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+
+    issued = generate_dag_parse_token(
+        create_jwt_generator(),
+        session_id=uuid6.uuid7(),
+        job_id=1,
+        attempt_id=uuid6.uuid7(),
+        bundle_name="bundle",
+        relative_fileloc="dag.py",
+        processor_expiry=now.timestamp() + remaining,
+    )
+
+    claims = _jwt_validator().validated_claims(issued.token)
+    assert issued.expires_in == claims["exp"] - claims["iat"] == expires_in

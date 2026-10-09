@@ -153,8 +153,9 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
 
                     # Only short-lived execution tokens are renewed here. Any other type has a
                     # lifetime set by its issuer (workload and callback tokens outlive queue waits,
-                    # dag_processor tokens are rotated by provisioning), so a new type must not
-                    # become renewable by default. Tokens without a scope are legacy execution tokens.
+                    # the dag_processor_session token is rotated by provisioning, and Job and parsing
+                    # tokens are renewed by re-registering and re-exchanging), so a new type must
+                    # not become renewable by default. Tokens without a scope are legacy execution tokens.
                     if claims.get("scope", "execution") != "execution":
                         return response
 

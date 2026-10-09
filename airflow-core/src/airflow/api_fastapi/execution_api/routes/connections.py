@@ -67,7 +67,8 @@ log = logging.getLogger(__name__)
     dependencies=[ExecutionOrProcessorSecretsToken],
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
-        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the connection"},
+        status.HTTP_400_BAD_REQUEST: {"description": "A Dag processor token did not name its Dag bundle"},
+        status.HTTP_403_FORBIDDEN: {"description": "The caller does not have access to the connection"},
     },
 )
 def get_connection(

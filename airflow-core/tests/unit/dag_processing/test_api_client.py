@@ -49,9 +49,11 @@ def make_job_token(**claims):
     )
 
 
-def make_registration_response(*, job_id=1, token=None, **kwargs):
+def make_registration_response(*, job_id=1, token=None, expires_in=300, **kwargs):
     return httpx.Response(
-        201, json={"job_id": job_id, "token": token or make_job_token(job_id=job_id)}, **kwargs
+        201,
+        json={"job_id": job_id, "token": token or make_job_token(job_id=job_id), "expires_in": expires_in},
+        **kwargs,
     )
 
 
@@ -127,6 +129,17 @@ def test_registration_and_runtime_use_distinct_credentials(make_client):
         f"Bearer {make_job_token()}",
     ]
     assert requests[1].url.path == "/execution/jobs/1/heartbeat"
+
+
+def test_unread_non_json_error_body_is_a_plain_status_error(make_client):
+    client, _ = make_client(
+        httpx.Response(
+            409, headers={"content-type": "text/html"}, stream=httpx.ByteStream(b"<html>proxy error</html>")
+        )
+    )
+
+    with pytest.raises(httpx.HTTPStatusError):
+        client.register_job(retry=False)
 
 
 def test_registration_identity_survives_response_loss_but_not_a_process_restart(make_client):
@@ -291,22 +304,11 @@ def test_renewal_cannot_replace_the_job(make_client):
     assert client.auth.token == make_job_token()
 
 
-@pytest.mark.parametrize(
-    "token",
-    [
-        "not-a-jwt",
-        make_job_token(scope="execution"),
-        make_job_token(job_id=2),
-        make_job_token(exp=0),
-        make_job_token(exp="not-a-timestamp"),
-        make_job_token(exp=float("inf")),
-        jwt.encode({"scope": "dag_processor"}, SECRET),
-    ],
-)
-def test_invalid_job_tokens_are_not_adopted(make_client, token):
-    client, _ = make_client(make_registration_response(token=token))
+@pytest.mark.parametrize("expires_in", [0, -1, "soon"])
+def test_invalid_job_token_lifetimes_are_not_adopted(make_client, expires_in):
+    client, _ = make_client(make_registration_response(expires_in=expires_in))
 
-    with pytest.raises(ValueError, match="invalid Dag processor Job token"):
+    with pytest.raises(ValueError, match="expires_in"):
         client.register_job()
 
     assert client.job_id is None
@@ -655,6 +657,8 @@ def test_control_contracts_do_not_require_new_sdk_models(monkeypatch, token_file
     for name in (
         "JobRegisterBody",
         "JobRegisterResponse",
+        "DagParseTokenBody",
+        "DagParseTokenResponse",
         "JobHeartbeatResponse",
         "JobCompleteBody",
         "TerminalJobState",
@@ -706,7 +710,7 @@ def make_parse_context(**kwargs):
     )
 
 
-def make_parse_token_response(**claims):
+def make_parse_token_response(*, expires_in=60, **claims):
     token = jwt.encode(
         {
             "scope": "dag_parse",
@@ -721,7 +725,7 @@ def make_parse_token_response(**claims):
         },
         SECRET,
     )
-    return httpx.Response(200, json={"token": token})
+    return httpx.Response(200, json={"token": token, "expires_in": expires_in})
 
 
 def test_parse_requests_exchange_once_and_restore_the_manager_credential(make_client):
@@ -918,25 +922,15 @@ def test_early_parse_renewal_does_not_hide_authorization_errors(make_client, clo
     assert len(requests) == 4
 
 
-@pytest.mark.parametrize(
-    "claims",
-    [
-        {"scope": "execution"},
-        {"sub": "another-attempt"},
-        {"job_id": 2},
-        {"dag_bundles": ["bundle-b"]},
-        {"relative_fileloc": "other.py"},
-        {"exp": 0},
-        {"exp": "not-a-time"},
-        {"exp": float("inf")},
-    ],
-)
-def test_invalid_exchanged_credentials_never_reach_a_runtime_endpoint(make_client, claims):
-    client, requests = make_client(make_registration_response(), make_parse_token_response(**claims))
+@pytest.mark.parametrize("expires_in", [0, -1, "soon"])
+def test_invalid_exchanged_lifetimes_never_reach_a_runtime_endpoint(make_client, expires_in):
+    client, requests = make_client(
+        make_registration_response(), make_parse_token_response(expires_in=expires_in)
+    )
     client.register_job()
     context = make_parse_context()
 
-    with client.use_parse(context), pytest.raises(ValueError, match="invalid Dag parsing token"):
+    with client.use_parse(context), pytest.raises(ValueError, match="expires_in"):
         client.get("variables/key")
 
     assert len(requests) == 2

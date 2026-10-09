@@ -31,9 +31,10 @@ from sqlalchemy import func, select, update
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
-    _get_configured_bundle_team_names,
     _guess_best_bundle_for_fileloc,
     _load_bundle_config_snapshot,
+    get_configured_bundle_names,
+    get_configured_bundle_team_names,
 )
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
@@ -170,15 +171,29 @@ def test_get_configured_bundle_team_names(load_examples):
             ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
         }
     ):
-        assert _get_configured_bundle_team_names() == {
+        assert get_configured_bundle_team_names() == {
             "team-bundle": "team-a",
             "unscoped-bundle": None,
         }
 
 
+@conf_vars(
+    {
+        ("core", "load_examples"): "False",
+        ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
+    }
+)
+def test_get_configured_bundle_names():
+    _load_bundle_config_snapshot.cache_clear()
+    try:
+        assert get_configured_bundle_names() == {"team-bundle", "unscoped-bundle"}
+    finally:
+        _load_bundle_config_snapshot.cache_clear()
+
+
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
 def test_get_configured_bundle_team_names_without_config():
-    assert _get_configured_bundle_team_names() == {}
+    assert get_configured_bundle_team_names() == {}
 
 
 def test_get_bundle():

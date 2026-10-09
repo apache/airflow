@@ -29,6 +29,7 @@ from sqlalchemy.sql.selectable import Select
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.execution_api.datamodels.token import DagParseToken, ExecutionToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComResponse,
     XComSequenceIndexResponse,
@@ -54,7 +55,7 @@ def has_xcom_access(
     xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
     session: SessionDep,
-    token=CurrentExecutionToken,
+    token: ExecutionToken = CurrentExecutionToken,
 ) -> bool:
     """
     Check whether the requesting task may access the XCom for ``dag_id``.
@@ -88,7 +89,7 @@ def has_xcom_access(
 
     if not conf.getboolean("core", "multi_team"):
         return True
-    if token.claims.scope == "dag_parse":
+    if isinstance(token, DagParseToken):
         # Its bundle grants, enforced by DagInGrantedBundle on the routes that admit it, replace team checks.
         return True
 

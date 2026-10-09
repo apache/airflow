@@ -114,7 +114,8 @@ async def get_variable_keys(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
-        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
+        status.HTTP_400_BAD_REQUEST: {"description": "A Dag processor token did not name its Dag bundle"},
+        status.HTTP_403_FORBIDDEN: {"description": "The caller does not have access to the variable"},
     },
 )
 def get_variable(
@@ -143,7 +144,7 @@ def get_variable(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
-        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
+        status.HTTP_403_FORBIDDEN: {"description": "The caller does not have access to the variable"},
     },
 )
 def put_variable(
@@ -163,7 +164,7 @@ def put_variable(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
-        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
+        status.HTTP_403_FORBIDDEN: {"description": "The caller does not have access to the variable"},
     },
 )
 def delete_variable(
