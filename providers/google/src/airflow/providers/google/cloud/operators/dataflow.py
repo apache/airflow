@@ -132,6 +132,9 @@ class DataflowConfiguration:
         :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
     :param service_account: Run the job as a specific service account, instead of the default GCE robot.
     :param max_num_workers: Maximum amount of workers that will be used for Dataflow job execution.
+        When set, it is forwarded as the ``maxNumWorkers`` pipeline option for Dataflow jobs.
+        An explicit ``max_num_workers`` or ``maxNumWorkers`` entry in the operator's
+        ``pipeline_options`` overrides this value.
     """
 
     template_fields: Sequence[str] = ("job_name", "location", "gcp_conn_id")
