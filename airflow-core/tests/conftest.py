@@ -163,6 +163,63 @@ if TYPE_CHECKING:
     def time_machine() -> TimeMachineFixture: ...
 
 
+@pytest.fixture
+def in_process_execution_api():
+    """
+    Provide an in-process Execution API server with its own async engine.
+
+    Pooled async connections are bound to the event loop that opened them. A fresh engine keeps the
+    server's loop from checking out connections that earlier tests opened on other loops.
+    """
+    import asyncio
+    from contextlib import asynccontextmanager
+
+    import httpx
+    from a2wsgi import ASGIMiddleware
+    from fastapi.testclient import TestClient
+
+    from airflow import settings
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    previous_engine, previous_session_factory = settings.async_engine, settings.AsyncSession
+    disposed = False
+    try:
+        api = InProcessExecutionAPI()
+        app = api.app
+        settings._configure_async_session()
+        engine = settings.async_engine
+        original_lifespan = app.router.lifespan_context
+
+        @asynccontextmanager
+        async def lifespan(app):
+            nonlocal disposed
+            try:
+                async with original_lifespan(app):
+                    yield
+            finally:
+                disposed = True
+                if engine is not None:
+                    await engine.dispose()
+
+        app.router.lifespan_context = lifespan
+        # TestClient owns the lifespan and loop, so cleanup cannot be delayed until transport collection.
+        with TestClient(app) as client:
+            assert client.portal is not None
+            loop = client.portal.call(asyncio.get_running_loop)
+            with httpx.WSGITransport(app=ASGIMiddleware(app, loop=loop)) as transport:
+                api.transport = transport
+                yield api
+    finally:
+        try:
+            if not disposed:
+                # Setup failed before the lifespan started; this engine has no loop-bound connections yet.
+                engine = settings.async_engine
+                if engine is not None and engine is not previous_engine:
+                    asyncio.run(engine.dispose())
+        finally:
+            settings.async_engine, settings.AsyncSession = previous_engine, previous_session_factory
+
+
 @pytest.fixture(autouse=True)
 def _clear_in_process_api_cache():
     """Clear the cached InProcessExecutionAPI after each test to prevent state leakage."""

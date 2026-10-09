@@ -161,6 +161,62 @@ section of ``airflow.cfg``.
 Additional arguments to your SecretsBackend can be configured in ``airflow.cfg`` by supplying a JSON string to ``backend_kwargs``, which will be passed to the ``__init__`` of your SecretsBackend.
 See :ref:`Configuration <secrets_backend_configuration>` for more details, and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.
 
+Async server-side reads
+^^^^^^^^^^^^^^^^^^^^^^^
+
+When the Execution API serves a Variable or Connection, it resolves the value with
+``airflow.secrets.resolver.resolve_variable`` or ``airflow.secrets.resolver.resolve_connection``.
+Both functions search the configured backends in the same order as synchronous reads. There is no
+separate async configuration.
+
+A backend can implement either or both of these optional methods:
+
+.. code-block:: python
+
+    async def aget_variable(self, key: str, team_name: str | None = None) -> str | None: ...
+
+
+    async def aget_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None: ...
+
+They take the same arguments and return the same values as ``get_variable`` and ``get_connection``.
+``aget_connection`` returns the core :py:class:`airflow.models.connection.Connection` or ``None``.
+
+The resolver calls these methods as follows:
+
+* **Precedence:** the resolver uses the async method when it is defined in the same class as its
+  synchronous counterpart, or in a subclass of that class. If a subclass overrides only the
+  synchronous method, the resolver uses that override. Existing custom backends therefore keep their
+  behavior when a parent class gains an async method.
+* **Fallback:** a backend without an async method needs no change. The resolver runs its synchronous
+  method in a worker thread.
+* **Errors:** the resolver doesn't retry a failing async method synchronously. It continues with the
+  next backend, as it does for synchronous methods. ``AirflowSecretsBackendAccessDenied`` ends the
+  search.
+* **Event loop:** async methods run on the event loop that serves the request. Create, use, and close
+  async clients on that loop. Don't create a loop-bound client in ``__init__``, and don't share it
+  with the synchronous method.
+* **Database session:** the metastore backend's async methods use the request's async database
+  session when the Execution API supplies one. Otherwise, they open and close their own. The resolver
+  never passes that session to another backend, and it doesn't commit or close it.
+* **Cancellation:** a cancelled request stops the backend search and the cache update. The resolver
+  can't interrupt a synchronous method that is already running in a worker thread. That method
+  finishes, and the resolver discards its result.
+
+The resolver runs these steps in worker threads because they can block:
+
+* Loading the backend list, which can import and construct a configured backend.
+* Calling synchronous backend methods.
+* Reading or writing an initialized secrets cache (``[secrets] use_cache``), which a separate manager
+  process holds.
+* Initializing the Fernet key, which can run ``fernet_key_cmd`` or read ``fernet_key_secret``.
+  Successful initialization is cached; failed loads can be retried.
+
+Masking, connection parsing, and response validation run on the event loop. Code in an async method
+must not block the event loop.
+
+Provider backends don't implement these methods, so they use the worker-thread fallback. Task
+processes read secrets through the Execution API.
+
 
 Adapt to non-Airflow compatible secret formats for connections
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

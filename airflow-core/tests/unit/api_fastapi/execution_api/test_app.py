@@ -32,6 +32,7 @@ from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
 from sqlalchemy import event, select, text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from airflow import settings
 from airflow.api_fastapi.execution_api.app import (
@@ -49,6 +50,96 @@ from airflow.utils.session import create_session_async
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.mark.parametrize("failure", [None, "startup", "shutdown", "dispose", "configure"])
+@mock.patch("airflow.api_fastapi.execution_api.app.InProcessExecutionAPI", autospec=True)
+def test_in_process_fixture_owns_engine_lifetime(mock_api, request, failure):
+    previous_engine, previous_factory = settings.async_engine, settings.AsyncSession
+    api = InProcessExecutionAPI()
+    mock_api.return_value = api
+    original_lifespan = api.app.router.lifespan_context
+    disposed = []
+    original_dispose = AsyncEngine.dispose
+    original_configure = settings._configure_async_session
+
+    @asynccontextmanager
+    async def lifespan(app):
+        async with original_lifespan(app):
+            if failure == "startup":
+                raise RuntimeError("startup failed")
+            yield
+            if failure == "shutdown":
+                raise RuntimeError("shutdown failed")
+
+    api.app.router.lifespan_context = lifespan
+
+    async def dispose(engine, *args, **kwargs):
+        disposed.append((engine, asyncio.get_running_loop()))
+        await original_dispose(engine, *args, **kwargs)
+        if engine is not previous_engine and failure == "dispose":
+            raise RuntimeError("dispose failed")
+
+    def configure():
+        original_configure()
+        if failure == "configure":
+            raise RuntimeError("configure failed")
+
+    async def query(factory):
+        async with factory() as session:
+            return await session.scalar(text("SELECT 1"))
+
+    @api.app.get("/fixture-db-read")
+    async def read():
+        return await query(settings.AsyncSession)
+
+    fixture = request._fixturemanager.getfixturedefs("in_process_execution_api", request.node)[-1].func
+    transport = None
+    generator = fixture()
+    previous_connections_closed = []
+
+    def record_close(connection, record):
+        previous_connections_closed.append(connection)
+
+    with TestClient(FastAPI()) as previous_client:
+        assert previous_client.portal.call(query, previous_factory) == 1
+        event.listen(previous_engine.sync_engine, "close", record_close)
+        with (
+            mock.patch.object(AsyncEngine, "dispose", autospec=True, side_effect=dispose),
+            mock.patch.object(settings, "_configure_async_session", autospec=True, side_effect=configure),
+        ):
+            try:
+                if failure in {"startup", "configure"}:
+                    with pytest.raises(RuntimeError, match=f"{failure} failed"):
+                        next(generator)
+                else:
+                    server = next(generator)
+                    transport = server.transport
+                    with httpx.Client(transport=transport, base_url="http://fixture") as client:
+                        assert client.get("/fixture-db-read").json() == 1
+                    del client
+                    if failure:
+                        with pytest.raises(RuntimeError, match=f"{failure} failed"):
+                            next(generator)
+                    else:
+                        with pytest.raises(StopIteration):
+                            next(generator)
+                assert settings.async_engine is previous_engine
+                assert settings.AsyncSession is previous_factory
+                # Collection after restoring globals must not dispose the previous pool.
+                api.transport = None
+                transport = None
+                gc.collect()
+                assert disposed
+                assert all(engine is not previous_engine for engine, _ in disposed)
+                assert all(loop.is_closed() for _, loop in disposed)
+                assert previous_client.portal.call(query, previous_factory) == 1
+                assert not previous_connections_closed
+            finally:
+                generator.close()
+                settings.async_engine, settings.AsyncSession = previous_engine, previous_factory
+                event.remove(previous_engine.sync_engine, "close", record_close)
+                previous_client.portal.call(previous_engine.dispose)
 
 
 def test_custom_openapi_includes_extra_schemas(client):
@@ -371,16 +462,24 @@ class TestTraceContextPropagation:
         [
             pytest.param("unsafe-always", "/health", False, True, 200, id="always-unauthenticated"),
             pytest.param("unsafe-always", "/variables/k", False, True, 401, id="always-auth-failure"),
-            pytest.param("unsafe-always", "/variables/k", True, True, None, id="always-authenticated"),
+            pytest.param("unsafe-always", "/variables/k", True, True, 200, id="always-authenticated"),
             pytest.param("only-authenticated", "/health", False, False, 200, id="onlyauth-unauthenticated"),
             pytest.param("only-authenticated", "/variables/k", False, False, 401, id="onlyauth-auth-failure"),
-            pytest.param("only-authenticated", "/variables/k", True, True, None, id="onlyauth-authenticated"),
+            pytest.param("only-authenticated", "/variables/k", True, True, 200, id="onlyauth-authenticated"),
             pytest.param("never", "/health", False, False, 200, id="never-unauthenticated"),
             pytest.param("never", "/variables/k", False, False, 401, id="never-auth-failure"),
-            pytest.param("never", "/variables/k", True, False, None, id="never-authenticated"),
+            pytest.param("never", "/variables/k", True, False, 200, id="never-authenticated"),
         ],
     )
-    def test_trace_context_extraction(self, mode, path, valid_auth, expect_extract, expect_status):
+    # The bare app's lifespan does not dispose the async engine, so keep the route off the database.
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.routes.variables.resolve_variable",
+        autospec=True,
+        return_value="value",
+    )
+    def test_trace_context_extraction(
+        self, resolve_variable, mode, path, valid_auth, expect_extract, expect_status
+    ):
         app = self._build_app(mode)
 
         if valid_auth:
@@ -402,8 +501,7 @@ class TestTraceContextPropagation:
             response = test_client.get(path, headers=headers)
 
         assert spy.called is expect_extract
-        if expect_status is not None:
-            assert response.status_code == expect_status
+        assert response.status_code == expect_status
 
     def test_trace_context_dep_cleans_up_on_route_exception(self):
         """Verify extract and cleanup run correctly when a route handler raises."""
@@ -421,7 +519,11 @@ class TestTraceContextPropagation:
         # where AsyncExitStack unwinds the generator in the correct asyncio context.
         with (
             mock.patch.object(otel_propagate, "extract", wraps=real_extract) as extract_spy,
-            mock.patch("airflow.models.variable.Variable.get", side_effect=RuntimeError("boom")),
+            mock.patch(
+                "airflow.api_fastapi.execution_api.routes.variables.resolve_variable",
+                autospec=True,
+                side_effect=RuntimeError("boom"),
+            ),
             TestClient(app, raise_server_exceptions=False) as test_client,
         ):
             response = test_client.get("/variables/k", headers={"Authorization": "Bearer fake"})
