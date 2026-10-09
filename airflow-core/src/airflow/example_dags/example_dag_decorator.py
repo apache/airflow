@@ -59,20 +59,24 @@ def example_dag_decorator(url: str = "https://httpbingo.org/get"):
     """
     get_ip = GetRequestOperator(task_id="get_ip", url=url)
 
-    @task(multiple_outputs=True)
-    def prepare_command(raw_json: dict[str, Any]) -> dict[str, str]:
+    @task
+    def get_external_ip(raw_json: dict[str, Any]) -> str:
         external_ip = raw_json["origin"]
         try:
-            ipaddress.ip_address(external_ip)
-            return {
-                "command": f"echo 'Seems like today your server executing Airflow is connected from IP {external_ip}'",
-            }
+            return str(ipaddress.ip_address(external_ip))
         except ValueError:
             raise ValueError(f"Invalid IP address: '{external_ip}'.")
 
-    command_info = prepare_command(get_ip.output)
+    external_ip = get_external_ip(get_ip.output)
 
-    BashOperator(task_id="echo_ip_info", bash_command=command_info["command"])
+    # Pass the value to the command through the environment rather than formatting it into the
+    # command text, so the shell never interprets it as part of the command.
+    BashOperator(
+        task_id="echo_ip_info",
+        bash_command='echo "Seems like today your server executing Airflow is connected from IP $EXTERNAL_IP"',
+        env={"EXTERNAL_IP": external_ip},
+        append_env=True,
+    )
 
 
 example_dag = example_dag_decorator()
