@@ -1,0 +1,1 @@
+The API server now respects the ``logging.colored_console_log`` setting, so colored console output can be disabled there as for other components.
