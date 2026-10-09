@@ -1325,6 +1325,52 @@ class TestGlueJobOperatorDurableExecution:
         glue = self._build()
         assert glue.is_job_succeeded(status) is expected_succeeded
 
+    @mock.patch("airflow.providers.amazon.aws.operators.glue.GlueJobOperator.log")
+    def test_find_previous_job_run_catches_client_error_and_logs_error(self, mock_log):
+        glue = self._build()
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_run.side_effect = ClientError({"Error": {"Code": "Unknown"}}, "GetJobRun")
+
+        mock_ti = mock.MagicMock()
+        mock_ti.xcom_pull.return_value = "jr_12345"
+        mock_context = {"ti": mock_ti}
+
+        glue._find_previous_job_run(mock_context, "test_task_uuid")
+
+        mock_log.exception.assert_called_with("Failed to get previous Glue job run state")
+
+    @mock.patch("airflow.providers.amazon.aws.operators.glue.GlueJobOperator.log")
+    def test_find_previous_job_run_fallback_catches_client_error(self, mock_log):
+        glue = self._build()
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = ClientError({"Error": {"Code": "Unknown"}}, "GetJobRuns")
+
+        mock_ti = mock.MagicMock()
+        mock_ti.xcom_pull.return_value = None
+        mock_context = {"ti": mock_ti}
+
+        glue._find_previous_job_run(mock_context, "test_task_uuid")
+
+        mock_log.exception.assert_called_with("Failed to find previous Glue job run by task UUID")
+
+    def test_find_job_run_id_by_task_uuid_exhausts_pages(self):
+        glue = self._build()
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = [
+            {
+                "JobRuns": [{"JobRunId": "jr_1", "Arguments": {}}],
+                "NextToken": "page2",
+            },
+            {
+                "JobRuns": [{"JobRunId": "jr_2", "Arguments": {}}],
+            },
+        ]
+
+        result = glue._find_job_run_id_by_task_uuid("test_task_uuid")
+
+        assert result is None
+        assert glue.hook.conn.get_job_runs.call_count == 2
+
 
 class TestGlueDataQualityOperator:
     RULE_SET_NAME = "TestRuleSet"
