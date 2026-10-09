@@ -29,6 +29,7 @@ import type {
   DeleteVariable,
   GetXCom,
   SetXCom,
+  DeleteXCom,
   GetConnection,
   SkipDownstreamTasks,
   TriggerDagRun,
@@ -74,7 +75,7 @@ export interface XComEntry {
 const XCOM_ABSENT: XComEntry = { found: false, value: null };
 
 /**
- * A task's {@link TaskClient} plus the reads only the runtime itself makes.
+ * A task's {@link TaskClient} plus the calls only the runtime itself makes.
  * Handlers are typed against `TaskClient`, so nothing added here is public API.
  */
 export interface CoordinatorClient extends TaskClient {
@@ -86,6 +87,16 @@ export interface CoordinatorClient extends TaskClient {
    * output fails the task, while one that pushed null binds null.
    */
   getXComEntry(opts: GetXComOpts): Promise<XComEntry>;
+
+  /**
+   * Delete the running task instance's XCom under `key`.
+   *
+   * Sends `map_index` as null for an unmapped task instance, as
+   * {@link TaskClient.setXCom} does. The supervisor then leaves `map_index` out
+   * of the Execution API call, and the API deletes the XCom stored under
+   * map_index -1.
+   */
+  deleteXCom(key: string): Promise<void>;
 
   /** Mark direct downstream tasks of the running task as skipped; none is a no-op. */
   skipDownstreamTasks(taskIds: readonly string[]): Promise<void>;
@@ -222,6 +233,20 @@ export function createCoordinatorClient(
         map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
       };
       await rpc("SetXCom", null, msg, () => undefined, "throw");
+    },
+
+    async deleteXCom(key: string): Promise<void> {
+      const msg: DeleteXCom = {
+        type: "DeleteXCom",
+        key,
+        dag_id: ctx.dagId,
+        task_id: ctx.taskId,
+        run_id: ctx.runId,
+        map_index: resolveWireMapIndex(undefined, ctx.mapIndex),
+      };
+      // The supervisor answers DeleteXCom with an empty frame, not with the
+      // OKResponse it sends for DeleteVariable.
+      await rpc("DeleteXCom", null, msg, () => undefined, "throw");
     },
 
     // ---- Control flow ----

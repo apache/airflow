@@ -82,8 +82,8 @@ type Responder = (
   body: Record<string, unknown>,
 ) => { body: unknown; error?: unknown } | null;
 
-function frameBytes(id: number, body: unknown, isResponse: boolean): Buffer {
-  const arr = isResponse ? [id, body, null] : [id, body];
+function frameBytes(id: number, body: unknown, isResponse: boolean, error: unknown = null): Buffer {
+  const arr = isResponse ? [id, body, error] : [id, body];
   const payload = Buffer.from(encode(arr));
   const header = Buffer.alloc(4);
   header.writeUInt32BE(payload.length, 0);
@@ -112,6 +112,7 @@ function makeStartupDetails(
   dagId = "test_dag",
   runId = "r1",
   tiContext: Record<string, unknown> = {},
+  mapIndex = -1,
 ): unknown {
   return {
     type: "StartupDetails",
@@ -122,7 +123,7 @@ function makeStartupDetails(
       dag_id: dagId,
       run_id: runId,
       try_number: 1,
-      map_index: -1,
+      map_index: mapIndex,
       hostname: "test-host",
       queue: "default",
     },
@@ -204,7 +205,7 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
           // runtime never hangs on auto-generated RPCs (e.g. the
           // return_value XCom push).
           { body: null };
-        commSock.write(frameBytes(f.id, reply.body, true));
+        commSock.write(frameBytes(f.id, reply.body, true, reply.error ?? null));
         continue;
       }
       // Arity-3: a response from the runtime. The terminal frame
@@ -1284,6 +1285,196 @@ describe("coordinator runtime integration", () => {
       expect(
         result.logRecords.some((r) => String(r["event"]).includes("Trigger failed:\nTraceback")),
       ).toBe(true);
+    });
+  });
+
+  describe("xcom_keys_to_clear", () => {
+    function deleteXCom(
+      key: string,
+      mapIndex: number | null = null,
+      { dagId = "py_dag", taskId = "extract" } = {},
+    ): Record<string, unknown> {
+      return {
+        type: "DeleteXCom",
+        key,
+        dag_id: dagId,
+        run_id: "r1",
+        task_id: taskId,
+        map_index: mapIndex,
+      };
+    }
+
+    // The supervisor reports a failed Execution API call with an empty body
+    // and an ErrorResponse in the response frame's error field.
+    const failDeletes: Responder = (msgType) =>
+      msgType === "DeleteXCom"
+        ? {
+            body: null,
+            error: {
+              type: "ErrorResponse",
+              error: "API_SERVER_ERROR",
+              detail: { status_code: 500, message: "Server error", detail: null },
+            },
+          }
+        : null;
+
+    it.each([
+      { label: "an unmapped task instance", mapIndex: -1, wireMapIndex: null },
+      { label: "map index 0", mapIndex: 0, wireMapIndex: 0 },
+      { label: "map index 2", mapIndex: 2, wireMapIndex: 2 },
+    ])(
+      "deletes each listed XCom before the task sends anything, for $label",
+      async ({ mapIndex, wireMapIndex }) => {
+        bundle.register(
+          new TaskHandler("py_dag", "extract", async () => {
+            await getClient().setXCom({ key: "progress", value: 1 });
+            return "rows";
+          }),
+        );
+
+        const result = await driveSupervisor(
+          makeStartupDetails(
+            "extract",
+            "py_dag",
+            "r1",
+            { xcom_keys_to_clear: ["return_value", "skipmixin_key"] },
+            mapIndex,
+          ),
+        );
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+        expect(result.runtimeRequests.map((r) => r.body)).toEqual([
+          deleteXCom("return_value", wireMapIndex),
+          deleteXCom("skipmixin_key", wireMapIndex),
+          expect.objectContaining({ type: "SetXCom", key: "progress" }),
+          expect.objectContaining({ type: "SetXCom", key: "return_value" }),
+        ]);
+      },
+    );
+
+    it("deletes nothing when ti_context lists no keys", async () => {
+      bundle.register(new TaskHandler("py_dag", "extract", async () => "rows"));
+
+      const result = await driveSupervisor(
+        makeStartupDetails("extract", "py_dag", "r1", { xcom_keys_to_clear: [] }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(result.runtimeRequests.map((r) => r.type)).toEqual(["SetXCom"]);
+    });
+
+    it.each([
+      {
+        shouldRetry: true,
+        terminal: { type: "RetryTask", retry_reason: "DeleteXCom failed: API_SERVER_ERROR" },
+      },
+      { shouldRetry: false, terminal: { type: "TaskState", state: "failed" } },
+    ])(
+      "fails the try without running the task when an XCom cannot be deleted (should_retry=$shouldRetry)",
+      async ({ shouldRetry, terminal }) => {
+        let ran = false;
+        bundle.register(
+          new TaskHandler("py_dag", "extract", async () => {
+            ran = true;
+          }),
+        );
+
+        const result = await driveSupervisor(
+          makeStartupDetails("extract", "py_dag", "r1", {
+            xcom_keys_to_clear: ["return_value", "skipmixin_key"],
+            should_retry: shouldRetry,
+          }),
+          failDeletes,
+        );
+
+        expect(ran).toBe(false);
+        expect(result.firstResponse!.body).toMatchObject(terminal);
+        // The first failed delete stops the rest.
+        expect(result.runtimeRequests.map((r) => r.body)).toEqual([deleteXCom("return_value")]);
+      },
+    );
+
+    it("deletes the listed XComs before binding arguments, so they are gone even when binding fails", async () => {
+      let ran = false;
+      bundle.register(
+        new TaskHandler("py_dag", "extract", async () => {
+          ran = true;
+        }),
+      );
+
+      const result = await driveSupervisor(
+        makeStartupDetails("extract", "py_dag", "r1", {
+          xcom_keys_to_clear: ["skipmixin_key"],
+          arg_bindings: [{ name: "region_code", kind: "bogus" }],
+          should_retry: true,
+        }),
+      );
+
+      expect(ran).toBe(false);
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: expect.stringContaining('has binding kind "bogus"'),
+      });
+      expect(result.runtimeRequests.map((r) => r.body)).toEqual([deleteXCom("skipmixin_key")]);
+    });
+
+    it("deletes nothing for a task the bundle has no handler for", async () => {
+      const result = await driveSupervisor(
+        makeStartupDetails("missing_task", "py_dag", "r1", {
+          xcom_keys_to_clear: ["return_value"],
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "removed" });
+      expect(result.runtimeRequests).toEqual([]);
+    });
+
+    it("deletes each listed XCom before a triggerDagRun task sends anything", async () => {
+      testDag.task(triggerDagRun({ dagId: "downstream", failWhenDagIsPaused: true }), {
+        taskId: "trigger",
+      })();
+      const replies: Record<string, unknown> = {
+        GetDag: { type: "DagResult", dag_id: "downstream", is_paused: false },
+        TriggerDagRun: { type: "OKResponse", ok: true },
+      };
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", {
+          xcom_keys_to_clear: ["trigger_run_id", "_link_TriggerDagRunLink"],
+        }),
+        (msgType) => (msgType in replies ? { body: replies[msgType] } : null),
+      );
+
+      const trigger = { dagId: "test_dag", taskId: "trigger" };
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(result.runtimeRequests.map((r) => r.body)).toEqual([
+        deleteXCom("trigger_run_id", null, trigger),
+        deleteXCom("_link_TriggerDagRunLink", null, trigger),
+        { type: "GetDag", dag_id: "downstream" },
+        expect.objectContaining({ type: "SetXCom", key: "_link_TriggerDagRunLink" }),
+        expect.objectContaining({ type: "TriggerDagRun", dag_id: "downstream" }),
+        expect.objectContaining({ type: "SetXCom", key: "trigger_run_id" }),
+      ]);
+    });
+
+    it("fails the try without triggering a run when a triggerDagRun task cannot delete an XCom", async () => {
+      testDag.task(triggerDagRun({ dagId: "downstream" }), { taskId: "trigger" })();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", {
+          xcom_keys_to_clear: ["trigger_run_id", "_link_TriggerDagRunLink"],
+          should_retry: true,
+        }),
+        failDeletes,
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "DeleteXCom failed: API_SERVER_ERROR",
+      });
+      expect(result.runtimeRequests.map((r) => r.body)).toEqual([
+        deleteXCom("trigger_run_id", null, { dagId: "test_dag", taskId: "trigger" }),
+      ]);
     });
   });
 });
