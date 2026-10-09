@@ -92,3 +92,15 @@ class TestCurrentContext:
 
         actual["dag_run"].dag_id = "changed"
         assert cloned["dag_run"].dag_id == "changed"
+
+    def test_clone_context_without_inlet_events_or_dag_run(self):
+        """Context is total=False: a context built outside the runner may lack both keys and still clones."""
+        actual = Context()
+        actual.update({"params": {"p": 1}, "outlet_events": [Asset(name="a")]})
+
+        cloned = clone_context(actual)
+
+        assert cloned["params"] == {"p": 1}
+        assert cloned["outlet_events"] is actual["outlet_events"]
+        assert "inlet_events" not in cloned
+        assert "dag_run" not in cloned

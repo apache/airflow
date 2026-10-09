@@ -156,11 +156,8 @@ def clone_context(context: Context) -> Context:
     templates_dict = cloned_context.get("templates_dict")
     if templates_dict is not None:
         cloned_context["templates_dict"] = copy.deepcopy(templates_dict)
-    cloned_context["inlet_events"] = context["inlet_events"]
-    # outlet_events is carried over as it is: IndexedTaskRunner.indexed_context swaps in the
-    # sub-task's own accessor, which is merged into the parent's once the sub-task succeeded.
-    # dag_run is intentionally NOT copied - it is shared, read-only runtime metadata.
-    cloned_context["dag_run"] = context["dag_run"]
+    # Everything else, dag_run and the event accessors included, came over by reference from
+    # update(); none of those keys has to be present.
     return cloned_context
 
 
