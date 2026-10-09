@@ -132,6 +132,7 @@ class TestGKEStartPodTrigger:
             "cluster_context": CLUSTER_CONTEXT,
             "in_cluster": IN_CLUSTER,
             "get_logs": GET_LOGS,
+            "init_container_logs": None,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
             "schedule_timeout": SCHEDULE_TIMEOUT_SECS,  # issue-66352: schedule_timeout properly serialized
             "trigger_start_time": TRIGGER_START_TIME,
