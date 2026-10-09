@@ -22,10 +22,10 @@ import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, Mock, create_autospec, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, call, create_autospec, patch
 
 try:
     # Python 3.11+
@@ -56,6 +56,7 @@ from airflow.sdk.definitions._internal.expandinput import (
 from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.iterableoperator import (
     Checkpoints,
+    IndexedTaskOutcomes,
     IterableOperator,
     IterationState,
     _fingerprint,
@@ -75,6 +76,7 @@ from airflow.sdk.execution_time.comms import DeadlockImminentError
 from airflow.sdk.execution_time.context import InletEventsAccessors, OutletEventAccessors
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor
 from airflow.sdk.execution_time.task_runner import (
+    IndexedTaskInstance,
     IndexedTaskRunner,
     IndexedTaskState,
     RuntimeTaskInstance,
@@ -1528,7 +1530,11 @@ class TestIterableOperator:
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
                     _, result, raised = await iterable_op._run_task(
-                        executor, context, task, trust_checkpoints=True
+                        executor,
+                        context,
+                        task,
+                        trust_checkpoints=True,
+                        outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
                     )
 
         assert result is None
@@ -1881,7 +1887,11 @@ class TestIterableOperator:
 
                 executor = mock.MagicMock()
                 _, result, raised = await iterable_op._run_task(
-                    executor, context, task, trust_checkpoints=True
+                    executor,
+                    context,
+                    task,
+                    trust_checkpoints=True,
+                    outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
                 )
 
                 assert result is None
@@ -1915,7 +1925,11 @@ class TestIterableOperator:
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
                     result_task, result, raised = await iterable_op._run_task(
-                        executor, context, task, trust_checkpoints=True
+                        executor,
+                        context,
+                        task,
+                        trust_checkpoints=True,
+                        outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
                     )
 
                 assert raised is None
@@ -1958,7 +1972,11 @@ class TestIterableOperator:
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
                     _, result, raised = await iterable_op._run_task(
-                        executor, context, task, trust_checkpoints=True
+                        executor,
+                        context,
+                        task,
+                        trust_checkpoints=True,
+                        outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
                     )
 
                 assert raised is None
@@ -2016,7 +2034,11 @@ class TestIterableOperator:
 
                 executor = mock.MagicMock()
                 _, result, raised = await iterable_op._run_task(
-                    executor, context, task, trust_checkpoints=True
+                    executor,
+                    context,
+                    task,
+                    trust_checkpoints=True,
+                    outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
                 )
 
         assert raised is None
@@ -2182,7 +2204,13 @@ class TestIterableOperator:
 
                 with event_loop() as loop, AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
                     _, _, raised = loop.run_until_complete(
-                        iterable_op._run_task(executor, context, task, trust_checkpoints=False)
+                        iterable_op._run_task(
+                            executor,
+                            context,
+                            task,
+                            trust_checkpoints=False,
+                            outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
+                        )
                     )
 
         assert raised is None
@@ -2284,7 +2312,13 @@ class TestIterableOperator:
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
                     with pytest.raises(asyncio.CancelledError):
-                        await iterable_op._run_task(executor, context, task, trust_checkpoints=False)
+                        await iterable_op._run_task(
+                            executor,
+                            context,
+                            task,
+                            trust_checkpoints=False,
+                            outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
+                        )
 
                 assert task.state_key not in context["task_state_store"]
 
@@ -2568,40 +2602,17 @@ class TestIterationState:
 
         state = IterationState()
         op = MockOperator(task_id="op")
-        runner, exc, decision = object(), ValueError("x"), object()
         state.register(op)
         state.request_stop()
-        state.note_failed(runner)  # type: ignore[arg-type]
-        state.keep_decision(exc, decision)  # type: ignore[arg-type]
 
         copied = copy.deepcopy(state)
 
         assert copied is not state
         assert op not in copied
         assert not copied.stop_requested()
-        assert copied.failed_runners == ()
         assert copied.resolved is None
-        assert copied.decision_for(exc) is None
         assert op in state
         assert state.stop_requested()
-        assert state.failed_runners == (runner,)
-        assert state.decision_for(exc) is decision
-
-    def test_failed_runners_are_kept_in_the_order_they_failed(self):
-        state = IterationState()
-        first, second = object(), object()
-        state.note_failed(first)  # type: ignore[arg-type]
-        state.note_failed(second)  # type: ignore[arg-type]
-        assert state.failed_runners == (first, second)
-
-    def test_the_kept_decision_is_for_one_exception_only(self):
-        """The runner gets one exception; only that object's decision is kept, not its type's."""
-        state = IterationState()
-        chosen, other, decision = ValueError("x"), ValueError("x"), object()
-        assert state.decision_for(chosen) is None
-        state.keep_decision(chosen, decision)  # type: ignore[arg-type]
-        assert state.decision_for(chosen) is decision
-        assert state.decision_for(other) is None
 
     def test_length_is_unknown_until_the_input_is_resolved(self):
         from airflow.sdk.definitions._internal.expandinput import Resolved
@@ -2617,11 +2628,155 @@ class TestIterationState:
 
     def test_a_fresh_state_remembers_nothing(self):
         state = IterationState()
-        assert state.failed_runners == ()
         assert state.resolved is None
         assert state.length is None
-        assert state.decision_for(ValueError("x")) is None
         assert state.take_in_flight() == []
+
+
+class TestIndexedTaskOutcomes:
+    """What the indexed tasks ended with, turned into the task's own outcome and its callbacks."""
+
+    @staticmethod
+    def _outcomes(retries: int = DEFAULT_RETRIES, state: IterationState | None = None) -> IndexedTaskOutcomes:
+        with DAG("test_dag") as dag:
+            op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{"arg1": "a"}]), task_id="it", retries=retries
+            )
+        context = {"ti": MagicMock(try_number=1, max_tries=3)}
+        return IndexedTaskOutcomes(op, state or IterationState(), context)  # type: ignore[arg-type]
+
+    @staticmethod
+    def _resolved(length: int) -> Resolved:
+        async def aget(index):
+            return {}
+
+        return Resolved(length, aget)
+
+    @staticmethod
+    def _task(index: int) -> IndexedTaskInstance:
+        return MagicMock(spec=IndexedTaskInstance, task_id="it", index=index)
+
+    def test_nothing_raised_is_counted_and_records_nothing_else(self):
+        outcomes = self._outcomes()
+        outcomes.record(self._task(0), None)
+        assert outcomes.total == 1
+        assert outcomes.exceptions == []
+        assert outcomes.skipped == {}
+
+    def test_a_skip_is_noted_under_its_index(self):
+        outcomes = self._outcomes()
+        skip = AirflowSkipException("odd")
+        outcomes.record(self._task(2), skip)
+        assert outcomes.skipped == {2: skip}
+        assert outcomes.exceptions == []
+
+    def test_a_failure_is_collected(self):
+        outcomes = self._outcomes()
+        raised = ValueError("boom")
+        outcomes.record(self._task(1), raised)
+        assert outcomes.exceptions == [raised]
+
+    @pytest.mark.parametrize(
+        ("raised", "match"),
+        [
+            (TaskDeferred(trigger=MagicMock(), method_name="x"), "attempted to defer"),
+            (AirflowRescheduleException(datetime.now(UTC)), "attempted to reschedule"),
+            (DownstreamTasksSkipped(tasks=["a"]), "raised DownstreamTasksSkipped"),
+            (DeadlockImminentError("sync call on the loop"), "made a synchronous SDK call"),
+            (KeyboardInterrupt(), "raised a non-Exception BaseException"),
+        ],
+    )
+    def test_an_outcome_the_iteration_cannot_carry_ends_the_task_at_once(self, raised, match):
+        """Every later indexed task would end the same way, so nothing is collected: it is raised."""
+        outcomes = self._outcomes()
+        with pytest.raises(AirflowFailException, match=rf"Sub-task it\[3\] {match}") as info:
+            outcomes.record(self._task(3), raised)
+        assert info.value.__cause__ is raised
+        assert outcomes.exceptions == []
+
+    def test_a_kill_concludes_as_terminated_whatever_else_happened(self):
+        state = IterationState()
+        state.resolved = self._resolved(5)
+        outcomes = self._outcomes(state=state)
+        outcomes.record(self._task(0), ValueError("a"))
+        outcomes.record(self._task(1), None)
+        state.request_stop()
+        with pytest.raises(AirflowTaskTerminated, match="2 of 5 items ran") as info:
+            outcomes.conclude()
+        assert isinstance(info.value.__cause__, BaseExceptionGroup)
+        assert info.value.__cause__.exceptions == (outcomes.exceptions[0],)
+
+    def test_a_kill_while_resolving_is_not_an_empty_input(self):
+        state = IterationState()
+        state.request_stop()
+        with pytest.raises(AirflowTaskTerminated, match="while its input was being resolved") as info:
+            self._outcomes(state=state).conclude()
+        assert info.value.__cause__ is None
+
+    def test_failures_conclude_on_the_exception_handed_to_the_runner(self):
+        outcomes = self._outcomes()
+        raised = ValueError("a")
+        outcomes.record(self._task(0), raised)
+        outcomes.record(self._task(1), None)
+        with pytest.raises(ValueError, match="a") as info:
+            outcomes.conclude()
+        assert info.value is raised
+
+    def test_an_empty_input_concludes_as_a_skip(self):
+        with pytest.raises(AirflowSkipException, match="empty"):
+            self._outcomes().conclude()
+
+    def test_every_indexed_task_skipped_skips_the_task(self):
+        outcomes = self._outcomes()
+        first = AirflowSkipException("first")
+        outcomes.record(self._task(0), first)
+        outcomes.record(self._task(1), AirflowSkipException("second"))
+        with pytest.raises(AirflowSkipException) as info:
+            outcomes.conclude()
+        assert info.value is first
+
+    def test_a_partial_skip_concludes_with_the_skipped_indices_in_order(self):
+        outcomes = self._outcomes()
+        outcomes.record(self._task(2), AirflowSkipException("c"))
+        outcomes.record(self._task(0), AirflowSkipException("a"))
+        outcomes.record(self._task(1), None)
+        assert outcomes.conclude() == [0, 2]
+
+    def test_failed_runners_are_kept_in_the_order_they_failed(self):
+        outcomes = self._outcomes()
+        first, second = object(), object()
+        outcomes.note_failed(first)  # type: ignore[arg-type]
+        outcomes.note_failed(second)  # type: ignore[arg-type]
+        assert outcomes.failed_runners == (first, second)
+
+    def test_the_failed_runners_report_the_tasks_fate_when_an_exception_leaves_the_block(self):
+        """A retry while attempts are left, a final failure for a fail-fast exception, in failure order."""
+        for raised, will_retry in [(ValueError("x"), True), (AirflowFailException("x"), False)]:
+            outcomes = self._outcomes(retries=2)
+            first, second = MagicMock(), MagicMock()
+            first.task_instance.is_eligible_to_retry = True
+            outcomes.note_failed(first)
+            outcomes.note_failed(second)
+            manager = Mock()
+            manager.attach_mock(first, "first")
+            manager.attach_mock(second, "second")
+
+            with pytest.raises(type(raised)), outcomes:
+                raise raised
+
+            assert manager.mock_calls == [
+                call.first.report_failure(task_will_retry=will_retry),
+                call.second.report_failure(task_will_retry=will_retry),
+            ]
+
+    def test_nothing_is_reported_when_the_block_ends_normally(self):
+        """No failure left the block, so no indexed task's callback is waiting on it."""
+        outcomes = self._outcomes()
+        runner = MagicMock()
+        outcomes.note_failed(runner)
+        with outcomes:
+            pass
+        runner.report_failure.assert_not_called()
 
 
 KILL_TARGET: list = []

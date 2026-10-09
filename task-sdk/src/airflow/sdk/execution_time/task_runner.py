@@ -931,7 +931,7 @@ class IndexedTaskState:
     outlet_events: list[dict[str, Any]] | None = None
     # Digest of the input the sub-task ran with. An index only means the same work while its input
     # is the same, so a checkpoint is honoured on a later attempt only when this still matches:
-    # after the upstream was cleared and produced other items, the sub-task runs again.
+    # after the upstream was cleared and produced other values, the sub-task runs again.
     fingerprint: str | None = None
     # The attempt that wrote the checkpoint. After a manual clear only the checkpoints written since
     # are resumed from (see Checkpoints), which this tells apart from those left by the run before.
@@ -1014,7 +1014,7 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         ``retries``: a manual clear raises it, and it is the parent Airflow retries. The parent's
         state store comes from the context, the same accessor the operator's
         checkpoints use. ``model_construct`` skips Pydantic validation on purpose: one instance is built per
-        item, and the parent was validated already, so only the index needs checking here.
+        indexed task, and the parent was validated already, so only the index needs checking here.
         """
         if index < 0:
             raise ValueError(f"IndexedTaskInstance requires index >= 0, got {index}")
@@ -1237,7 +1237,7 @@ class IndexedTaskRunner(LoggingMixin):
         indexed view of the task state store and its own outlet events, remembered on the runner and
         made the current context for the duration of the block. The same keys
         ``context_update_for_unmapped`` sets for a mapped task instance are swapped here, ``task``
-        included, so user code reads the item's unmapped operator under ``context["task"]``, not the
+        included, so user code reads the indexed task's unmapped operator under ``context["task"]``, not the
         IterableOperator. The parent's context is left untouched: ``context_update_for_unmapped``
         sets ``ti.task`` on whatever ``ti`` it finds, which must be this task's, not the parent's.
         """
@@ -2680,10 +2680,10 @@ def _run_execute_callable(
     so the operator's ``execute`` passes the safeguard check, while the copy keeps
     the change from leaking into the surrounding context.
 
-    ``enforce_timeout`` is False for the items of an iterated task: they run in worker
+    ``enforce_timeout`` is False for the indexed tasks of an iterated task: they run in worker
     threads, where ``TimeoutPosix`` cannot fire, under the parent's own limit, which the
-    parent already told the supervisor about; sending ``SetExecutionTimeout`` again per item
-    would move the supervisor's deadline to the last item started.
+    parent already told the supervisor about; sending ``SetExecutionTimeout`` again per indexed
+    task would move the supervisor's deadline to the last one started.
     """
     ctx = contextvars.copy_context()
     ctx.run(ExecutorSafeguard.tracker.set, task)
@@ -2773,7 +2773,7 @@ async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Lo
             # that is an ordinary failure of the operator, not a reason to call on_kill().
             if time.monotonic() - started >= timeout:
                 # Off the loop thread: a synchronous SDK call in on_kill (cancelling a remote job
-                # through a sync hook) would raise DeadlockImminentError here, and the item's
+                # through a sync hook) would raise DeadlockImminentError here, and the indexed task's
                 # timeout would become a failure without a retry, with the job left running.
                 await to_thread(task.on_kill)
             raise

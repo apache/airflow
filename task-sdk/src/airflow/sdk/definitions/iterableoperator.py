@@ -69,7 +69,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-    from airflow.sdk.types import OutletEventAccessorsProtocol
+    from airflow.sdk.types import Logger, OutletEventAccessorsProtocol
 
 
 # The trigger rules under which one skipped upstream task instance skips a task, whatever the other
@@ -80,11 +80,11 @@ SKIPPED_WITH_A_SKIPPED_UPSTREAM = frozenset(
 )
 
 
-# Raised by an item, these fail the task without a retry, as the runner does for a task that raises
+# Raised by an indexed task, these fail the task without a retry, as the runner does for a task that raises
 # them itself (see _run_task_and_map_outcome and _handle_handler_failure).
 FAIL_WITHOUT_RETRY = (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)
 
-# How strongly a retry policy decision speaks for the task when several items failed: one item the
+# How strongly a retry policy decision speaks for the task when several indexed tasks failed: one the
 # policy says must not be retried fails the task, one it says to retry makes it retry on its terms.
 _DECISION_WEIGHT = {RetryAction.FAIL: 2, RetryAction.RETRY: 1, RetryAction.DEFAULT: 0}
 
@@ -127,8 +127,8 @@ def _fingerprint(mapped_kwargs: Mapping[str, Any]) -> str | None:
     Digest one sub-task's input, stored on its checkpoint to tell whether the checkpoint still applies.
 
     A retry may run on another input than the attempt that wrote the checkpoints: the upstream was
-    cleared together with this task and produced other items. An index then no longer means the
-    same work, and replaying its result would hand downstream a value computed from the old item.
+    cleared together with this task and produced other values. An index then no longer means the
+    same work, and replaying its result would hand downstream a value computed from the old value.
     An input serde cannot serialize has no digest, and its checkpoint is honoured by index alone.
     """
     try:
@@ -145,7 +145,7 @@ def _partial_inputs_from_upstream(
     Collect the rendered values of the partial kwargs an upstream task provides.
 
     They belong in the fingerprint next to the iterated kwargs: clearing the upstream together with
-    this task can change them while the items stay the same, and a checkpoint written with the old
+    this task can change them while the input stays the same, and a checkpoint written with the old
     value must not be replayed. Only XComArg values count, read back from the unmapped operator
     once rendered, at the top level or inside a mapping such as a ``@task``'s ``op_kwargs``. Other
     templated values are left out on purpose: one like ``{{ ti.try_number }}`` changes with every
@@ -206,8 +206,8 @@ def _merge_outlet_events(target: OutletEventAccessorsProtocol, source: OutletEve
     ``context["outlet_events"]`` right after it succeeds, and to replay a checkpointed
     snapshot (via ``_replay_outlet_events``) for a sub-task skipped on retry.
 
-    A task instance sends one event per asset, so items that emit to the same asset end up in
-    that one event: ``extra`` keeps what the last item to finish wrote, while partition keys and
+    A task instance sends one event per asset, so indexed tasks that emit to the same asset end up
+    in that one event: ``extra`` keeps what the last one to finish wrote, while partition keys and
     alias events accumulate. ``.expand()`` sends one event per mapped task instance instead; the
     docs page says so in its comparison table.
     """
@@ -264,7 +264,7 @@ class Checkpoints:
     some iterations skipped, writes no marker, so a retry or a clear after it resumes: iterations
     that succeeded or skipped keep that outcome and only the others run again.
 
-    The checkpoints themselves are never deleted: one marker write costs the same whatever the item
+    The checkpoints themselves are never deleted: one marker write costs the same whatever the indexed task
     count, and the store is scoped to the parent task instance, so state a sub-task stored for itself
     is never touched. They expire with the store's default retention (``[state_store]
     default_retention_days``, 30 days unless configured, 0 disables expiry), which also bounds how
@@ -306,9 +306,8 @@ class IterationState:
 
     It holds what the run needs to remember while it is going: the sub-operators in flight and
     those already killed, so that :meth:`IterableOperator.on_kill` reaches each one once; the
-    stop flag a kill sets, which the executor consults before starting the next item; the
-    runners of the items that failed, whose callbacks wait for the task's fate; the resolved
-    input; and the retry policy's decision for the exception handed to the runner.
+    stop flag a kill sets, which the executor consults before starting the next indexed task;
+    and the resolved input. What the indexed tasks ended with is :class:`IndexedTaskOutcomes`.
 
     A deep copy of the operator (``dag.partial_subset``, ``prepare_for_execution``) is another
     task with nothing in flight and no kill pending, so copying the state gives a fresh one. The
@@ -324,8 +323,6 @@ class IterationState:
         # it first, and a sub-operator is killed once.
         self._killed: set[int] = set()
         self._stop_requested = threading.Event()
-        self._failed_runners: list[IndexedTaskRunner] = []
-        self._decision: tuple[BaseException, RetryDecision] | None = None
         #: The input resolved for this task instance, once ``aresolve`` returned.
         self.resolved: Resolved | None = None
 
@@ -363,27 +360,240 @@ class IterationState:
 
     @property
     def length(self) -> int | None:
-        """How many items the resolved input has, or None while it is still being resolved."""
+        """How many indexed tasks the resolved input gives, or None while it is still being resolved."""
         return self.resolved.length if self.resolved is not None else None
 
+
+class IndexedTaskOutcomes:
+    """
+    What the indexed tasks of one run ended with, and what the task ends with because of it.
+
+    Entered by ``IterableOperator._run_tasks`` around the loop that drives the indexed tasks.
+    :meth:`record` takes each outcome: a skip is noted, an outcome the iteration cannot carry
+    raises at once, any other failure is logged and collected. :meth:`conclude` turns what was
+    collected, and whether the run's :class:`IterationState` was asked to stop, into the task's
+    own outcome and raises it: killed, failed on the exception the runner judges, skipped over
+    an empty input or because every indexed task skipped. Whatever
+    exception leaves the block, those included, the failed indexed tasks' callbacks are reported
+    on exit with the task's fate, so they say what the runner then does: retry, or fail for good.
+    """
+
+    def __init__(self, operator: IterableOperator, state: IterationState, context: Context) -> None:
+        self._operator = operator
+        self._state = state
+        self._context = context
+        self.total = 0
+        self.exceptions: list[BaseException] = []
+        self.skipped: dict[int, AirflowSkipException] = {}
+        self._failed_runners: list[IndexedTaskRunner] = []
+        self._decision: tuple[BaseException, RetryDecision] | None = None
+
+    def __enter__(self) -> IndexedTaskOutcomes:
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        # Whatever the task ends with decides every failed indexed task's callback, so they agree.
+        if exc_value is not None and self._failed_runners:
+            self._report(exc_value)
+
     def note_failed(self, runner: IndexedTaskRunner) -> None:
-        """Remember a failed item's runner: its callback waits for the task's fate."""
+        """Remember a failed indexed task's runner: its callback waits for the task's fate."""
         self._failed_runners.append(runner)
 
     @property
+    def log(self) -> Logger:
+        """The operator's logger: the outcomes are logged under the task they belong to."""
+        return self._operator.log
+
+    @property
     def failed_runners(self) -> tuple[IndexedTaskRunner, ...]:
-        """The runners of the items that failed in this run, in the order they failed."""
+        """The runners of the indexed tasks that failed in this run, in the order they failed."""
         return tuple(self._failed_runners)
 
-    def keep_decision(self, exception: BaseException, decision: RetryDecision) -> None:
-        """Keep the retry policy's decision for the exception handed to the runner."""
-        self._decision = (exception, decision)
+    def record(self, task: IndexedTaskInstance, raised: BaseException | None) -> None:
+        """Take one indexed task's outcome: nothing, a skip, a failure to collect, or one that ends the task."""
+        self.total += 1
+        if raised is None:
+            return
+        if isinstance(raised, AirflowSkipException):
+            self.skipped[task.index] = raised
+            return
+        # An outcome the iteration cannot carry stops it at once: every later indexed task would
+        # end the same way.
+        if (fail_fast := self._fail_fast_for(task, raised)) is not None:
+            raise fail_fast from raised
+        self.log.exception(
+            "An exception occurred for task_id %s with index %s", task.task_id, task.index, exc_info=raised
+        )
+        self.exceptions.append(raised)
 
-    def decision_for(self, exception: BaseException) -> RetryDecision | None:
-        """Return the decision kept for ``exception``, if it is the one handed to the runner."""
-        if self._decision is not None and self._decision[0] is exception:
-            return self._decision[1]
+    def conclude(self) -> list[int]:
+        """
+        Raise the task's outcome from what was recorded, or return the skipped indices.
+
+        A kill comes first: with every killed indexed task returning normally there would be no
+        failure to raise, the completion marker would be written and a result returned over
+        XComs that do not exist, and a kill while the input resolves is not an empty input. The
+        task then fails without a retry, as the runner treats a terminated task, and no marker
+        is written, so a later clear resumes from the checkpoints of the indexed tasks that did
+        finish. Then the failures, handed to the runner as the exception it judges; then an empty
+        input, skipped as a mapped task over nothing is; then every indexed task skipped, which
+        skips the task too.
+        """
+        if self._state.stop_requested():
+            length = self._state.length
+            raise AirflowTaskTerminated(
+                f"The iterated task was killed: {self.total} of {length} items ran, the rest never started."
+                if length is not None
+                else "The iterated task was killed while its input was being resolved."
+            ) from (BaseExceptionGroup("Sub-task failures", self.exceptions) if self.exceptions else None)
+        if self.exceptions:
+            raise self._failure_for_the_runner()
+        if self.total == 0:
+            raise AirflowSkipException("The input to iterate over is empty.")
+        if self.skipped and len(self.skipped) == self.total:
+            raise next(iter(self.skipped.values()))
+        return sorted(self.skipped)
+
+    def _report(self, raised: BaseException) -> None:
+        """
+        Report each failed indexed task as what happens to the task: retried, or failed for good.
+
+        Their callbacks were held back until every indexed task had run, so the retry callback of
+        one no longer announces a retry a sibling's ``AirflowFailException`` then rules out. They
+        run one after another, on the thread that ran the iteration.
+        """
+        task_will_retry = self._task_will_retry(raised)
+        for runner in self._failed_runners:
+            runner.report_failure(task_will_retry=task_will_retry)
+
+    def _task_will_retry(self, raised: BaseException) -> bool:
+        """
+        Whether the runner retries the task for ``raised``, by the runner's own rules.
+
+        No retry for the fail-fast exceptions nor for what is not an ``Exception`` (other than the
+        parent's timeout), none when the retry policy decides FAIL, and otherwise a retry while the
+        parent has attempts left (``IndexedTaskInstance.is_eligible_to_retry``). The policy's
+        decision is the one :meth:`_failure_for_the_runner` took for ``raised`` when it chose it,
+        so the policy is not evaluated again for the callbacks: a policy that calls a model may
+        answer differently each time, and the callbacks must say what the exception handed over
+        says.
+        """
+        if isinstance(raised, FAIL_WITHOUT_RETRY) or not isinstance(raised, (Exception, AirflowTaskTimeout)):
+            return False
+        if not self._failed_runners[0].task_instance.is_eligible_to_retry:
+            return False
+        if (policy := self._operator.retry_policy) is not None:
+            if self._decision is not None and self._decision[0] is raised:
+                decision = self._decision[1]
+            else:
+                ti = self._context["ti"]
+                from_server = getattr(ti, "_ti_context_from_server", None)
+                max_tries = from_server.max_tries if from_server else ti.max_tries
+                try:
+                    decision = policy.evaluate(
+                        exception=raised, try_number=ti.try_number, max_tries=max_tries, context=self._context
+                    )
+                except Exception:
+                    return True
+            if decision.action == RetryAction.FAIL:
+                return False
+        return True
+
+    @staticmethod
+    def _fail_fast_for(task: IndexedTaskInstance, raised: BaseException) -> AirflowFailException | None:
+        """
+        Return the failure that ends the task at once for an outcome the iteration cannot carry.
+
+        An indexed task is not a task instance of its own: it cannot defer, reschedule, trigger a
+        DAG run or skip downstream tasks, and a ``BaseException`` that is no ``Exception``
+        (``DeadlockImminentError``, ``KeyboardInterrupt``, ``SystemExit``) must never be swallowed
+        into a retry. Each of these fails the whole task without a retry, with a message saying
+        why. Any other exception is the indexed task's own failure, which :meth:`record` collects.
+        """
+        sub_task = f"Sub-task {task.task_id}[{task.index}]"
+        if isinstance(raised, TaskDeferred):
+            return AirflowFailException(
+                f"{sub_task} attempted to defer. Deferrable operators are not supported inside IterableOperator."
+            )
+        if isinstance(raised, (DagRunTriggerException, DownstreamTasksSkipped)):
+            return AirflowFailException(
+                f"{sub_task} raised {type(raised).__name__}. Triggering DAG runs (TriggerDagRunOperator) and "
+                "skipping downstream tasks (ShortCircuitOperator and similar) are not supported inside "
+                "IterableOperator: the sub-task's index has no downstream tasks or DAG run of its own for "
+                "the effect to apply to."
+            )
+        if isinstance(raised, AirflowRescheduleException):
+            return AirflowFailException(
+                f"{sub_task} attempted to reschedule (raised AirflowRescheduleException). Reschedule-mode "
+                "sensors are not supported inside IterableOperator: the sub-task's index has no task "
+                "instance of its own to reschedule."
+            )
+        if isinstance(raised, DeadlockImminentError):
+            return AirflowFailException(
+                f"{sub_task} made a synchronous SDK call (e.g. Variable.get, BaseHook.get_connection/get_hook, "
+                "ti.xcom_pull) on the event loop thread while another sub-task's async SDK call was in "
+                "flight, which would deadlock the loop, so it is detected and raised eagerly instead. "
+                "Inside IterableOperator only async sub-tasks run on that thread: an async operator's "
+                "aexecute(), its pre_execute/post_execute and its callbacks. Use the async-safe "
+                "equivalents there (e.g. Variable.aget/aset, Hook.aget_connection/aget_hook, "
+                "ti.axcom_pull); sync sub-tasks and their callbacks run in worker threads, where the "
+                "same calls wait their turn."
+            )
+        if not isinstance(raised, Exception):
+            return AirflowFailException(
+                f"{sub_task} raised a non-Exception BaseException: {type(raised).__name__}: {raised}"
+            )
         return None
+
+    def _failure_for_the_runner(self) -> BaseException:
+        """
+        Pick the exception the runner decides the task's outcome on.
+
+        The runner classifies by exception type: a fail-fast exception fails without a retry, and a
+        ``retry_policy`` matches rules against the type. A ``BaseExceptionGroup`` defeats both, so
+        an indexed task's own exception is handed over whenever one decides: the first fail-fast
+        one, the only one, or the one whose policy decision weighs most. With several failures the
+        others stay attached as its cause, so every traceback reaches the log. Several failures no
+        policy decides between are raised as a group, which the task's own retries then apply to.
+        The policy is evaluated once per failure, and the decision for the chosen one is kept for
+        the callbacks (see :meth:`_task_will_retry`).
+        """
+        exceptions = self.exceptions
+        group = BaseExceptionGroup("Multiple sub-task failures", exceptions)
+        chosen: BaseException | None = next(
+            (exc for exc in exceptions if isinstance(exc, FAIL_WITHOUT_RETRY)), None
+        )
+        if chosen is None and len(exceptions) == 1:
+            return exceptions[0]
+        if chosen is None and (policy := self._operator.retry_policy) is not None:
+            ti = self._context["ti"]
+            from_server = getattr(ti, "_ti_context_from_server", None)
+            max_tries = from_server.max_tries if from_server else ti.max_tries
+            weights = []
+            decisions: list[RetryDecision | None] = []
+            for exc in exceptions:
+                try:
+                    decision = policy.evaluate(
+                        exception=exc, try_number=ti.try_number, max_tries=max_tries, context=self._context
+                    )
+                    weights.append(_DECISION_WEIGHT.get(decision.action, 0))
+                    decisions.append(decision)
+                except Exception:
+                    # As the runner does: a policy that fails to evaluate leaves the default.
+                    self.log.exception("Retry policy evaluation failed for a sub-task failure")
+                    weights.append(0)
+                    decisions.append(None)
+            if max(weights) > 0:
+                index = weights.index(max(weights))
+                chosen = exceptions[index]
+                if (kept := decisions[index]) is not None:
+                    self._decision = (chosen, kept)
+        if chosen is None:
+            return group
+        if len(exceptions) > 1:
+            chosen.__cause__ = group
+        return chosen
 
 
 class IterableOperator(BaseOperator):
@@ -415,17 +625,17 @@ class IterableOperator(BaseOperator):
     whether an index already succeeded. Once every index has succeeded, a completion marker is written
     so that a *subsequent* manual clear (which does not reset ``try_number``) re-runs every index from
     scratch instead of replaying the previous run's stale results (see :class:`Checkpoints`). A
-    checkpoint carries the item's full result (plus its extra XComs and outlet events) and lives in
+    checkpoint carries the indexed task's full result (plus its extra XComs and outlet events) and lives in
     the ``task_state_store`` table for the store's retention, unless a ``[state_store]
     state_store_backend`` is configured and only a reference is stored; a custom XCom backend alone
-    does not keep large item results out of the metadata database.
+    does not keep large results out of the metadata database.
 
     :param operator: The :class:`MappedOperator` to unmap and execute for
         each element of ``expand_input``. Each indexed runtime receives a
         deep copy/unmapped instance of this operator.
 
     :param expand_input: Provider of the values to iterate
-        over. Its ``aresolve(context)`` method gives the item count and the
+        over. Its ``aresolve(context)`` method gives the indexed task count and the
         per-index ``mapped_kwargs`` used to unmap the operator.
 
     :param kwargs: Additional keyword arguments forwarded to
@@ -484,15 +694,15 @@ class IterableOperator(BaseOperator):
         changes in place.
 
     .. note::
-        **Callbacks run per item, and a failed item's wait for the task's fate.**
+        **Callbacks run per indexed task, and a failed one's wait for the task's fate.**
 
-        ``on_success_callback`` and ``on_skipped_callback`` run as soon as an item succeeds or
-        skips, where the item ran: in its worker thread for a sync operator, on the event loop
-        for an async one. A failed item's ``on_failure_callback`` or ``on_retry_callback`` runs
-        once every item has run, on the thread that ran the iteration, and says what happens to
-        the task: retried or failed for good (see :meth:`_report_failed_items`). A failure no item
+        ``on_success_callback`` and ``on_skipped_callback`` run as soon as an indexed task succeeds
+        or skips, where it ran: in its worker thread for a sync operator, on the event loop
+        for an async one. A failed indexed task's ``on_failure_callback`` or ``on_retry_callback``
+        runs once every indexed task has run, on the thread that ran the iteration, and says what happens to
+        the task: retried or failed for good (see :class:`IndexedTaskOutcomes`). A failure no indexed task
         owns, such as an error resolving the input, fires no callback: the iterated task has none
-        of its own. Listeners fire once, for the task instance, as for any task; an item is not a
+        of its own. Listeners fire once, for the task instance, as for any task; an indexed task is not a
         task instance and fires none.
 
     .. note::
@@ -527,13 +737,13 @@ class IterableOperator(BaseOperator):
         on the entire task instance. The runner enforces it on the main thread exactly as for any
         other task, so an iteration that overruns fails with ``AirflowTaskTimeout`` and
         :meth:`on_kill` is propagated to every sub-task still in flight. Since ``.iterate()`` runs
-        all items in one task instance, this is the per-instance limit of ``.expand()`` applied to
-        the whole iteration rather than to each item.
+        all indexed tasks in one task instance, this is the per-instance limit of ``.expand()`` applied to
+        the whole iteration rather than to each indexed task.
 
-        Per item, only async sub-tasks (instances of :class:`~airflow.sdk.bases.operator.BaseAsyncOperator`)
+        Per indexed task, only async sub-tasks (instances of :class:`~airflow.sdk.bases.operator.BaseAsyncOperator`)
         are additionally limited, via ``asyncio.wait_for``. Sync sub-tasks run in worker threads and rely
         on :class:`~airflow.sdk.execution_time.timeout.TimeoutPosix`, which requires ``signal.SIGALRM`` and
-        only works in the main thread, so no per-item limit applies to them. Use
+        only works in the main thread, so no limit per indexed task applies to them. Use
         :class:`~airflow.sdk.bases.operator.BaseAsyncOperator` if per-sub-task time limits are required.
     """
 
@@ -585,7 +795,7 @@ class IterableOperator(BaseOperator):
                 "pool": operator.pool,
                 "pool_slots": operator.pool_slots,
                 # Kept as the wall-clock cap on the whole iteration, enforced by the runner (see the
-                # class docstring); per-item enforcement stays with the sub-tasks.
+                # class docstring); enforcement per indexed task stays with the sub-tasks.
                 "execution_timeout": operator.execution_timeout,
                 "trigger_rule": operator.trigger_rule,
                 "resources": operator.resources,
@@ -612,9 +822,9 @@ class IterableOperator(BaseOperator):
                 "task_display_name": operator.task_display_name,
                 "allow_nested_operators": operator.allow_nested_operators,
                 # The iterated task has no callbacks and no execute hooks of its own: they run per
-                # item, from the wrapped operator's partial kwargs. Passed explicitly, since
+                # indexed task, from the wrapped operator's partial kwargs. Passed explicitly, since
                 # _apply_defaults would otherwise fill them from the DAG's default_args and the
-                # runner would run them for the task on top of the items' own.
+                # runner would run them for the task on top of the indexed tasks' own.
                 "on_execute_callback": None,
                 "on_success_callback": None,
                 "on_failure_callback": None,
@@ -665,8 +875,8 @@ class IterableOperator(BaseOperator):
         # The default BaseOperator.on_kill() is a no-op, which would otherwise leave every
         # currently in-flight sub-task unaware that the IterableOperator itself was killed
         # (SIGTERM) or hit its execution_timeout: propagate to each active sub-operator instead.
-        # First stop the iteration from starting anything else: the killed items come back as
-        # failures and free their slots, which would otherwise be filled with the next items.
+        # First stop the iteration from starting anything else: the killed indexed tasks come back
+        # as failures and free their slots, which would otherwise be filled with the next ones.
         self._state.request_stop()
         active_operators = self._state.take_in_flight()
         if not active_operators:
@@ -748,234 +958,47 @@ class IterableOperator(BaseOperator):
         tasks: AsyncIterable[IndexedTaskInstance],
     ) -> tuple[bool, list[int]]:
         """Run ``tasks`` to completion; return whether they pushed results, and the skipped indices."""
-        exceptions: list[Exception] = []
-        skipped: dict[int, AirflowSkipException] = {}
-        total = 0
         do_xcom_push = True
 
         self._state = IterationState()
-        try:
-            self.log.info("Running tasks with %d workers", self.max_workers)
-
-            with Checkpoints(context) as checkpoints:
-                with event_loop() as loop:
-                    with AsyncAwareExecutor(loop=loop, max_workers=self.max_workers) as executor:
+        self.log.info("Running tasks with %d workers", self.max_workers)
+        with (
+            Checkpoints(context) as checkpoints,
+            IndexedTaskOutcomes(self, self._state, context) as outcomes,
+        ):
+            with event_loop() as loop:
+                with AsyncAwareExecutor(loop=loop, max_workers=self.max_workers) as executor:
+                    try:
+                        for task, _result, raised in executor.imap_unordered(
+                            partial(
+                                self._run_task,
+                                executor,
+                                context,
+                                trust_checkpoints=checkpoints.trust_checkpoints,
+                                since=checkpoints.since,
+                                outcomes=outcomes,
+                            ),
+                            tasks,
+                            stop=self._state.stop_requested,
+                        ):
+                            do_xcom_push = task.do_xcom_push
+                            outcomes.record(task, raised)
+                    except BaseException:
+                        # Whatever ends the loop early (the parent's execution_timeout, a failure that
+                        # stops the task) is followed by the executor cancelling the coroutines, which
+                        # would leave nothing registered for on_kill(); kill what is in flight first,
+                        # off the loop thread, so that a sub-operator's synchronous SDK call in on_kill
+                        # waits for the sub-tasks' calls in flight instead of raising. Awaited here,
+                        # unlike on_kill()'s own thread: the loop keeps running meanwhile.
+                        self._state.request_stop()
+                        in_flight = self._state.take_in_flight()
                         try:
-                            for task, _result, raised in executor.imap_unordered(
-                                partial(
-                                    self._run_task,
-                                    executor,
-                                    context,
-                                    trust_checkpoints=checkpoints.trust_checkpoints,
-                                    since=checkpoints.since,
-                                ),
-                                tasks,
-                                stop=self._state.stop_requested,
-                            ):
-                                total += 1
-                                do_xcom_push = task.do_xcom_push
-
-                                if raised is None:
-                                    continue
-
-                                if isinstance(raised, AirflowSkipException):
-                                    skipped[task.index] = raised
-                                    continue
-
-                                # An outcome the iteration cannot carry stops it at once: every later
-                                # item would end the same way.
-                                if (fail_fast := self._fail_fast_for(task, raised)) is not None:
-                                    raise fail_fast from raised
-
-                                self.log.exception(
-                                    "An exception occurred for task_id %s with index %s",
-                                    task.task_id,
-                                    task.index,
-                                    exc_info=raised,
-                                )
-                                exceptions.append(raised)
-                        except BaseException:
-                            # Whatever ends the loop early (the parent's execution_timeout, a failure that
-                            # stops the task) is followed by the executor cancelling the coroutines, which
-                            # would leave nothing registered for on_kill(); kill what is in flight first,
-                            # off the loop thread, so that a sub-operator's synchronous SDK call in on_kill
-                            # waits for the sub-tasks' calls in flight instead of raising. Awaited here,
-                            # unlike on_kill()'s own thread: the loop keeps running meanwhile.
-                            self._state.request_stop()
-                            in_flight = self._state.take_in_flight()
-                            try:
-                                loop.run_until_complete(asyncio.to_thread(self._kill, in_flight))
-                            except RuntimeError:
-                                self._kill(in_flight)
-                            raise
-
-                if self._state.stop_requested():
-                    # Killed: nothing started once on_kill() ran, and what was in flight has
-                    # finished one way or another. The task fails without a retry, as the runner
-                    # treats a terminated task; no completion marker is written, so a later clear
-                    # resumes from the checkpoints of the items that did finish. Checked before the
-                    # other outcomes: with every killed item returning normally there would be no
-                    # failure to raise, and a kill while the input resolves is not an empty input.
-                    length = self._state.length
-                    raise AirflowTaskTerminated(
-                        f"The iterated task was killed: {total} of {length} items ran, the rest never started."
-                        if length is not None
-                        else "The iterated task was killed while its input was being resolved."
-                    ) from (BaseExceptionGroup("Sub-task failures", exceptions) if exceptions else None)
-                if exceptions:
-                    raise self._failure_for_the_runner(context, exceptions)
-                # Nothing to iterate over is skipped, as a mapped task over an empty input is.
-                if total == 0:
-                    raise AirflowSkipException("The input to iterate over is empty.")
-                # If every sub-task was skipped, propagate a single AirflowSkipException so the runner
-                # marks the whole IterableOperator SKIPPED.
-                if skipped and len(skipped) == total:
-                    raise next(iter(skipped.values()))
-        except BaseException as raised:
-            # Whatever the task ends with decides every failed sub-task's callback, so they agree.
-            self._report_failed_items(context, raised)
-            raise
-        return do_xcom_push, sorted(skipped)
-
-    def _report_failed_items(self, context: Context, raised: BaseException) -> None:
-        """
-        Report each failed sub-task as what happens to the task: retried, or failed for good.
-
-        Their callbacks were held back until every sub-task had run, so the retry callback of one
-        item no longer announces a retry a sibling's ``AirflowFailException`` then rules out. They
-        run one after another, on the thread that ran the iteration.
-        """
-        if not self._state.failed_runners:
-            return
-        task_will_retry = self._task_will_retry(context, raised)
-        for runner in self._state.failed_runners:
-            runner.report_failure(task_will_retry=task_will_retry)
-
-    def _task_will_retry(self, context: Context, raised: BaseException) -> bool:
-        """
-        Whether the runner retries the task for ``raised``, by the runner's own rules.
-
-        No retry for the fail-fast exceptions nor for what is not an ``Exception`` (other than the
-        parent's timeout), none when the retry policy decides FAIL, and otherwise a retry while the
-        parent has attempts left (``IndexedTaskInstance.is_eligible_to_retry``). The policy's
-        decision is the one ``_failure_for_the_runner`` took for ``raised`` when it chose it, so
-        the policy is not evaluated again for the callbacks: a policy that calls a model may answer
-        differently each time, and the callbacks must say what the exception handed over says.
-        """
-        if isinstance(raised, FAIL_WITHOUT_RETRY) or not isinstance(raised, (Exception, AirflowTaskTimeout)):
-            return False
-        if not self._state.failed_runners[0].task_instance.is_eligible_to_retry:
-            return False
-        if (policy := self.retry_policy) is not None:
-            if (kept := self._state.decision_for(raised)) is not None:
-                decision = kept
-            else:
-                ti = context["ti"]
-                from_server = getattr(ti, "_ti_context_from_server", None)
-                max_tries = from_server.max_tries if from_server else ti.max_tries
-                try:
-                    decision = policy.evaluate(
-                        exception=raised, try_number=ti.try_number, max_tries=max_tries, context=context
-                    )
-                except Exception:
-                    return True
-            if decision.action == RetryAction.FAIL:
-                return False
-        return True
-
-    @staticmethod
-    def _fail_fast_for(task: IndexedTaskInstance, raised: BaseException) -> AirflowFailException | None:
-        """
-        Return the failure that ends the task at once for an item outcome the iteration cannot carry.
-
-        An item is not a task instance of its own: it cannot defer, reschedule, trigger a DAG run or
-        skip downstream tasks, and a ``BaseException`` that is no ``Exception`` (``DeadlockImminentError``,
-        ``KeyboardInterrupt``, ``SystemExit``) must never be swallowed into a retry. Each of these fails
-        the whole task without a retry, with a message saying why. Any other exception is the item's
-        own failure, which the caller collects.
-        """
-        item = f"Sub-task {task.task_id}[{task.index}]"
-        if isinstance(raised, TaskDeferred):
-            return AirflowFailException(
-                f"{item} attempted to defer. Deferrable operators are not supported inside IterableOperator."
-            )
-        if isinstance(raised, (DagRunTriggerException, DownstreamTasksSkipped)):
-            return AirflowFailException(
-                f"{item} raised {type(raised).__name__}. Triggering DAG runs (TriggerDagRunOperator) and "
-                "skipping downstream tasks (ShortCircuitOperator and similar) are not supported inside "
-                "IterableOperator: the sub-task's index has no downstream tasks or DAG run of its own for "
-                "the effect to apply to."
-            )
-        if isinstance(raised, AirflowRescheduleException):
-            return AirflowFailException(
-                f"{item} attempted to reschedule (raised AirflowRescheduleException). Reschedule-mode "
-                "sensors are not supported inside IterableOperator: the sub-task's index has no task "
-                "instance of its own to reschedule."
-            )
-        if isinstance(raised, DeadlockImminentError):
-            return AirflowFailException(
-                f"{item} made a synchronous SDK call (e.g. Variable.get, BaseHook.get_connection/get_hook, "
-                "ti.xcom_pull) on the event loop thread while another sub-task's async SDK call was in "
-                "flight, which would deadlock the loop, so it is detected and raised eagerly instead. "
-                "Inside IterableOperator only async sub-tasks run on that thread: an async operator's "
-                "aexecute(), its pre_execute/post_execute and its callbacks. Use the async-safe "
-                "equivalents there (e.g. Variable.aget/aset, Hook.aget_connection/aget_hook, "
-                "ti.axcom_pull); sync sub-tasks and their callbacks run in worker threads, where the "
-                "same calls wait their turn."
-            )
-        if not isinstance(raised, Exception):
-            return AirflowFailException(
-                f"{item} raised a non-Exception BaseException: {type(raised).__name__}: {raised}"
-            )
-        return None
-
-    def _failure_for_the_runner(self, context: Context, exceptions: list[Exception]) -> BaseException:
-        """
-        Pick the exception the runner decides the task's outcome on.
-
-        The runner classifies by exception type: a fail-fast exception fails without a retry, and a
-        ``retry_policy`` matches rules against the type. A ``BaseExceptionGroup`` defeats both, so
-        an item's own exception is handed over whenever one decides: the first fail-fast one, the
-        only one, or the one whose policy decision weighs most. With several failures the others
-        stay attached as its cause, so every traceback reaches the log. Several failures no policy
-        decides between are raised as a group, which the task's own retries then apply to. The
-        policy is evaluated once per failure, and the decision for the chosen one is kept for the
-        callbacks (see ``_task_will_retry``).
-        """
-        group = BaseExceptionGroup("Multiple sub-task failures", exceptions)
-        chosen: BaseException | None = next(
-            (exc for exc in exceptions if isinstance(exc, FAIL_WITHOUT_RETRY)), None
-        )
-        if chosen is None and len(exceptions) == 1:
-            return exceptions[0]
-        if chosen is None and (policy := self.retry_policy) is not None:
-            ti = context["ti"]
-            from_server = getattr(ti, "_ti_context_from_server", None)
-            max_tries = from_server.max_tries if from_server else ti.max_tries
-            weights = []
-            decisions: list[RetryDecision | None] = []
-            for exc in exceptions:
-                try:
-                    decision = policy.evaluate(
-                        exception=exc, try_number=ti.try_number, max_tries=max_tries, context=context
-                    )
-                    weights.append(_DECISION_WEIGHT.get(decision.action, 0))
-                    decisions.append(decision)
-                except Exception:
-                    # As the runner does: a policy that fails to evaluate leaves the default.
-                    self.log.exception("Retry policy evaluation failed for a sub-task failure")
-                    weights.append(0)
-                    decisions.append(None)
-            if max(weights) > 0:
-                index = weights.index(max(weights))
-                chosen = exceptions[index]
-                if (kept := decisions[index]) is not None:
-                    self._state.keep_decision(chosen, kept)
-        if chosen is None:
-            return group
-        if len(exceptions) > 1:
-            chosen.__cause__ = group
-        return chosen
+                            loop.run_until_complete(asyncio.to_thread(self._kill, in_flight))
+                        except RuntimeError:
+                            self._kill(in_flight)
+                        raise
+            skipped = outcomes.conclude()
+        return do_xcom_push, skipped
 
     def _skip_downstream_of_a_partial_skip(self, context: Context, result: XComIterable | None) -> None:
         """
@@ -1007,6 +1030,8 @@ class IterableOperator(BaseOperator):
         task: IndexedTaskInstance,
         trust_checkpoints: bool,
         since: int = 0,
+        *,
+        outcomes: IndexedTaskOutcomes,
     ) -> tuple[IndexedTaskInstance, Any | None, BaseException | None]:
         # See _run_tasks: checkpoints are consulted only on a retry that is not a rerun after a clear.
         indexed_task_state = await task.aget_state() if trust_checkpoints else None
@@ -1059,11 +1084,11 @@ class IterableOperator(BaseOperator):
                 # callbacks fired from the exit run there too: a synchronous SDK call made from them
                 # waits for the comms lock, where on the loop thread it would raise.
 
-                def run_item():
+                def run_indexed_task():
                     with indexed_task_runner:
                         return indexed_task_runner.run(context)
 
-                result = await executor.run_sync(run_item)
+                result = await executor.run_sync(run_indexed_task)
 
             indexed_task_state = IndexedTaskState(
                 status=TaskInstanceState.SUCCESS,
@@ -1097,7 +1122,7 @@ class IterableOperator(BaseOperator):
                 # so its exit must report nothing either (see IndexedTaskRunner.cancel).
                 indexed_task_runner.cancel()
             if indexed_task_runner.failure is not None:
-                self._state.note_failed(indexed_task_runner)
+                outcomes.note_failed(indexed_task_runner)
             raise
         except AirflowSkipException as e:
             await task.aset_state(
@@ -1110,7 +1135,7 @@ class IterableOperator(BaseOperator):
             return task, None, e
         except BaseException as e:
             if indexed_task_runner.failure is not None:
-                self._state.note_failed(indexed_task_runner)
+                outcomes.note_failed(indexed_task_runner)
             # Written with the input and the attempt, like the other outcomes, so the next attempt
             # tells a plain retry apart from a clear or a changed input and logs only the latter.
             await task.aset_state(
