@@ -362,6 +362,20 @@ class EmrServerlessHook(AwsBaseHook):
             params["configurationOverrides"] = configuration_overrides
         return self.conn.start_session(**params)["sessionId"]
 
+    def get_session_endpoint(self, application_id: str, session_id: str) -> dict:
+        """
+        Return the raw ``GetSessionEndpoint`` boto3 response for a session.
+
+        The response includes the Spark Connect ``endpoint`` URL, a short-lived ``authToken``
+        (valid for about one hour), and its ``authTokenExpiresAt`` timestamp. Callers should
+        fetch it immediately before connecting rather than caching it.
+
+        .. seealso::
+            - :external+boto3:py:meth:`EMRServerless.Client.get_session_endpoint`
+        """
+        self._check_interactive_session_support()
+        return self.conn.get_session_endpoint(applicationId=application_id, sessionId=session_id)
+
 
 def is_connection_being_updated_exception(exception: BaseException) -> bool:
     return (
