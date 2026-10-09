@@ -60,6 +60,7 @@ class GoogleDriveToGCSOperator(BaseOperator):
         "file_name",
         "drive_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(

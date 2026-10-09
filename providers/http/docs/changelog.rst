@@ -27,6 +27,53 @@
 Changelog
 ---------
 
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add http_conn_id to HttpOperator and HttpSensor template_fields (#72582)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix HttpAsyncHook crash on stream/cert/trust_env connection extras (#71524)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Make the SRV test fixture reset dns package attributes (#73659)``
+
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add SRV DNS record support to HTTP Operator (#70960)``
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Preserve DELETE request bodies in HttpAsyncHook (#72720)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
 6.1.0
 .....
 

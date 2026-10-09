@@ -137,7 +137,7 @@ class HelloCollectionResponse(BaseModel):
 
 class TestBaseOperations:
     def test_build_query_params_skips_none_and_serializes_datetime(self):
-        logical_date = datetime.datetime(2025, 1, 1, 12, 30, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2025, 1, 1, 12, 30, tzinfo=datetime.UTC)
 
         assert _build_query_params(
             logical_date=logical_date,
@@ -468,6 +468,8 @@ class TestAssetsOperations:
     def test_materialize(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/{self.asset_id}/materialize"
+            # The endpoint requires a request body, so the client must send one.
+            assert json.loads(request.content) == {}
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -634,30 +636,34 @@ class TestBackfillOperations:
         total_entries=1,
     )
 
-    def test_create(self):
-        expected_body = self.backfill_body.model_dump(mode="json", exclude_none=True)
+    @pytest.mark.parametrize(
+        ("operation", "path"), [("create", "backfills"), ("create_dry_run", "backfills/dry_run")]
+    )
+    @pytest.mark.parametrize(
+        ("request_fields", "expected_fields"),
+        [({}, {}), ({"drain_dag": False}, {}), ({"drain_dag": True}, {"drain_dag": True})],
+    )
+    def test_create(self, operation, path, request_fields, expected_fields):
+        expected_body = {
+            "dag_id": "dag_id",
+            "from_date": "2024-12-31T23:59:59",
+            "to_date": "2025-01-01T00:00:00",
+            "dag_run_conf": {},
+            "reprocess_behavior": "completed",
+            "max_active_runs": 1,
+            **expected_fields,
+        }
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v2/backfills"
+            assert request.url.path == f"/api/v2/{path}"
             assert request.headers.get("content-type", "").startswith("application/json")
             assert json.loads(request.content.decode()) == expected_body
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.backfills.create(backfill=self.backfill_body)
-        assert response == self.backfill_response
-
-    def test_create_dry_run(self):
-        expected_body = self.backfill_body.model_dump(mode="json", exclude_none=True)
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v2/backfills/dry_run"
-            assert request.headers.get("content-type", "").startswith("application/json")
-            assert json.loads(request.content.decode()) == expected_body
-            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
-
-        client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.backfills.create_dry_run(backfill=self.backfill_body)
+        response = getattr(client.backfills, operation)(
+            backfill=self.backfill_body.model_copy(update=request_fields)
+        )
         assert response == self.backfill_response
 
     def test_get(self):
@@ -1149,8 +1155,10 @@ class TestDagOperations:
         import_error_id=0,
         timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
         filename="filename",
+        source_reference=None,
         bundle_name="bundle_name",
         stack_trace="stack_trace",
+        file_token="file_token",
     )
 
     import_error_collection_response = ImportErrorCollectionResponse(
@@ -1357,13 +1365,25 @@ class TestDagOperations:
         response = client.dags.list_warning()
         assert response == self.dag_warning_collection_response
 
-    def test_trigger(self):
+    @pytest.mark.parametrize(
+        ("request_fields", "expected_fields"),
+        [
+            ({}, {}),
+            ({"drain_dag": False, "bundle_version": None}, {}),
+            ({"drain_dag": True}, {"drain_dag": True}),
+            ({"bundle_version": "version-1"}, {"bundle_version": "version-1"}),
+        ],
+    )
+    def test_trigger(self, request_fields, expected_fields):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
+            assert json.loads(request.content) == {"logical_date": None, "conf": {}, **expected_fields}
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dags.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
+        response = client.dags.trigger(
+            dag_id=self.dag_id, trigger_dag_run=TriggerDAGRunPostBody(logical_date=None, **request_fields)
+        )
         assert response == self.dag_run_response
 
 
@@ -1464,7 +1484,7 @@ class TestDagRunOperations:
         assert response == self.dag_run_collection_response
 
     def test_list_with_logical_date_filters_and_order(self):
-        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert dict(request.url.params) == {
@@ -1486,8 +1506,8 @@ class TestDagRunOperations:
         assert response == self.dag_run_collection_response
 
     def test_list_with_clear_filters(self):
-        logical_date_start = datetime.datetime(2025, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
-        logical_date_end = datetime.datetime(2025, 1, 2, 23, 59, 59, tzinfo=datetime.timezone.utc)
+        logical_date_start = datetime.datetime(2025, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
+        logical_date_end = datetime.datetime(2025, 1, 2, 23, 59, 59, tzinfo=datetime.UTC)
         partition_day_start = datetime.date(2025, 2, 1)
         partition_day_end = datetime.date(2025, 2, 4)
 
@@ -1857,7 +1877,7 @@ class TestTaskInstancesOperations:
         dag_id="dag_id",
         dag_run_id="dag_run_id",
         map_index=-1,
-        run_after=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+        run_after=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
         state=TaskInstanceState.SUCCESS,
         try_number=1,
         max_tries=0,
@@ -1997,7 +2017,7 @@ class TestTasksOperations:
     )
 
     def test_clear(self):
-        expected_body = self.clear_task_instances.model_dump(mode="json", exclude_none=True)
+        expected_body = self.clear_task_instances.model_dump(mode="json", exclude_defaults=True)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
@@ -2010,6 +2030,23 @@ class TestTasksOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.tasks.clear(self.dag_id, self.clear_task_instances)
         assert response == self.task_instance_collection_response
+
+    def test_clear_omits_default_valued_fields(self):
+        """A payload built entirely from field defaults must not send keep_task_state.
+
+        This covers cases like a server with 3.3.2 and earlier doesn't have this field and rejects unknown keys,
+        so sending it unconditionally would break every clear against those servers.
+        """
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content.decode())
+            assert "keep_task_state" not in body
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        client.tasks.clear(self.dag_id, ClearTaskInstancesBody())
 
 
 class TestVariablesOperations:

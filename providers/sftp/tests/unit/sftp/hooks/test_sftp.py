@@ -22,6 +22,7 @@ import json
 import os
 import shutil
 import stat
+from contextlib import nullcontext
 from io import BytesIO, StringIO
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, call, patch
@@ -33,6 +34,7 @@ from asyncssh.sftp import SFTPName
 from paramiko.client import SSHClient
 from paramiko.sftp_client import SFTPClient
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.hooks.sftp import CHUNK_SIZE, SFTPHook, SFTPHookAsync, SFTPOperation
@@ -97,7 +99,7 @@ class TestSFTPHook:
         """Define default connection during tests and create directory structure."""
         temp_dir = tmp_path_factory.mktemp("sftp-temp")
         self.old_login = self.update_connection(SFTP_CONNECTION_USER)
-        self.hook = SFTPHook()
+        self.hook = SFTPHook(no_host_key_check=True)
         os.makedirs(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR))
 
         for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
@@ -357,7 +359,7 @@ class TestSFTPHook:
         connection = Connection(login="login", host="host")
         get_connection.return_value = connection
         hook = SFTPHook()
-        assert hook.no_host_key_check is True
+        assert hook.no_host_key_check is False
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_enabled(self, get_connection):
@@ -393,10 +395,12 @@ class TestSFTPHook:
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_ignore(self, get_connection):
+        """``ignore_hostkey_verification`` is a deprecated alias for ``no_host_key_check``."""
         connection = Connection(login="login", host="host", extra='{"ignore_hostkey_verification": true}')
 
         get_connection.return_value = connection
-        hook = SFTPHook()
+        with pytest.warns(AirflowProviderDeprecationWarning, match="ignore_hostkey_verification"):
+            hook = SFTPHook()
         assert hook.no_host_key_check is True
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
@@ -634,6 +638,133 @@ class TestSFTPHook:
         )
         assert retrieved_dir_name in os.listdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
 
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    def test_build_worker_hook_inherits_parent_overrides(self, mock_get_connection):
+        """
+        Regression test for #73585.
+
+        SFTPHook._build_worker_hook() must copy the parent hook's *effective*
+        connection settings (constructor overrides merged with the connection)
+        onto the worker hook it builds for concurrent transfers, not just
+        ssh_conn_id / no_host_key_check.
+        """
+        mock_connection = MagicMock(spec=Connection)
+        mock_connection.login = "conn_user"
+        mock_connection.password = "conn_pass"
+        mock_connection.host = "conn.example.com"
+        mock_connection.port = 2222
+        mock_connection.extra = None
+        mock_get_connection.return_value = mock_connection
+
+        parent_hook = SFTPHook(
+            ssh_conn_id="sftp_default",
+            remote_host="override.example.com",
+            port=2022,
+            username="override_user",
+            password="override_pass",
+            key_file="/tmp/override_key",
+            conn_timeout=42,
+            host_proxy_cmd="ncat --proxy proxy_host:1234 %h %p",
+        )
+        # Simulate values that only ever come from the connection's `extra`
+        # field (no constructor parameter exists for these on SSHHook).
+        parent_hook.no_host_key_check = False
+        parent_hook.allow_host_key_change = True
+        parent_hook.look_for_keys = False
+
+        worker_hook = parent_hook._build_worker_hook()
+
+        assert worker_hook is not parent_hook
+        assert worker_hook.remote_host == "override.example.com"
+        assert worker_hook.port == 2022
+        assert worker_hook.username == "override_user"
+        assert worker_hook.password == "override_pass"
+        assert worker_hook.key_file == "/tmp/override_key"
+        assert worker_hook.conn_timeout == 42
+        assert worker_hook.host_proxy_cmd == "ncat --proxy proxy_host:1234 %h %p"
+        assert worker_hook.no_host_key_check is False
+        assert worker_hook.allow_host_key_change is True
+        assert worker_hook.look_for_keys is False
+
+    def test_store_and_retrieve_directory_concurrently_use_parent_overrides(self):
+        """
+        Regression test for #73585.
+
+        store_directory_concurrently() and retrieve_directory_concurrently() must build
+        every worker hook via self._build_worker_hook(), so each worker inherits the
+        parent hook's effective remote_host/port/username instead of falling back to
+        the connection's own defaults.
+        """
+        workers = 2
+        built_hooks = []
+        original_build = SFTPHook._build_worker_hook
+
+        def spy_build(hook_self):
+            worker_hook = original_build(hook_self)
+            built_hooks.append(worker_hook)
+            return worker_hook
+
+        with (
+            patch.object(SFTPHook, "_build_worker_hook", autospec=True, side_effect=spy_build) as mock_build,
+            patch.object(SFTPHook, "get_conn", return_value=MagicMock()),
+        ):
+            stored_dir_name = "stored_dir_override"
+            self.hook.store_directory_concurrently(
+                remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
+                local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR),
+                workers=workers,
+            )
+            # Value-level assertions (remote_host/port/username/etc.) are covered by
+            # test_build_worker_hook_inherits_parent_overrides; this test only checks
+            # that every worker hook is built via self._build_worker_hook().
+            assert mock_build.call_count == workers
+
+            built_hooks.clear()
+            mock_build.reset_mock()
+
+            retrieved_dir_name = "retrieved_dir_override"
+            self.hook.retrieve_directory_concurrently(
+                remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
+                local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, retrieved_dir_name),
+                workers=workers,
+            )
+            assert mock_build.call_count == workers
+
+    def test_concurrent_transfer_passes_effective_host_key_policy_to_worker(self, tmp_path):
+        connection = Connection(
+            conn_id="sftp_default",
+            conn_type="sftp",
+            host="connection.example.com",
+            login="user",
+            extra=json.dumps({"host_key": f"ssh-rsa {TEST_HOST_KEY}", "no_host_key_check": True}),
+        )
+        built_hooks = []
+        original_build = SFTPHook._build_worker_hook
+
+        def spy_build(hook_self):
+            worker_hook = original_build(hook_self)
+            built_hooks.append(worker_hook)
+            return worker_hook
+
+        with (
+            patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection", return_value=connection),
+            patch.object(SFTPHook, "get_managed_conn", return_value=nullcontext()),
+            patch.object(SFTPHook, "path_exists", return_value=False),
+            patch.object(SFTPHook, "create_directory"),
+            patch.object(SFTPHook, "get_conn", return_value=MagicMock(spec=SFTPClient)),
+            patch.object(SFTPHook, "_build_worker_hook", autospec=True, side_effect=spy_build) as mock_build,
+        ):
+            parent_hook = SFTPHook(ssh_conn_id="sftp_default", no_host_key_check=False)
+            parent_hook.store_directory_concurrently(
+                remote_full_path="/remote/target",
+                local_full_path=str(tmp_path),
+                workers=1,
+            )
+
+        mock_build.assert_called_once()
+        assert parent_hook.no_host_key_check is False
+        assert built_hooks[0].no_host_key_check is False
+
     def test_validate_within_directory_rejects_escape(self):
         base = os.path.join(self.temp_dir, "download")
         with pytest.raises(ValueError, match="outside the destination directory"):
@@ -730,6 +861,9 @@ class MockSSHClient:
         return MockSFTPClient()
 
 
+DEFAULT_KNOWN_HOSTS_PATH = os.path.expanduser("~/.ssh/known_hosts")
+
+
 class MockAirflowConnection:
     def __init__(self, known_hosts="~/.ssh/known_hosts"):
         self.host = "localhost"
@@ -789,6 +923,34 @@ class TestSFTPHookAsync:
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
     @pytest.mark.asyncio
+    async def test_explicit_known_hosts_constructor_arg_is_not_overridden_by_connection_extra(
+        self, mock_get_connection, mock_connect
+    ):
+        """
+        An explicit `known_hosts` passed to the constructor must win over the connection's
+        `known_hosts` extra. `_parse_extras` should only fall back to the extra when the
+        constructor was left at its default, mirroring `SSHHookAsync`.
+
+        `no_host_key_check` is pinned to `False` so that unrelated default-skip behavior
+        does not also overwrite `known_hosts`, which would mask what this test checks.
+        """
+        mock_get_connection.return_value = SimpleNamespace(
+            host="localhost",
+            port=22,
+            login="username",
+            password="password",
+            extra="{}",
+            extra_dejson={"known_hosts": "/connection/known_hosts", "no_host_key_check": False},
+        )
+
+        hook = SFTPHookAsync(known_hosts="/explicit/known_hosts")
+        await hook._get_conn()
+
+        assert mock_connect.call_args.kwargs["known_hosts"] == "/explicit/known_hosts"
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
     async def test_extra_dejson_fields_for_connection_building_known_hosts_none(
         self, mock_get_connection, mock_connect, caplog
     ):
@@ -822,13 +984,16 @@ class TestSFTPHookAsync:
                 22,
                 "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY user@host",
             ),
-            (2222, "AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),
+            (2222, TEST_HOST_KEY),
             (
                 2222,
                 "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBDDsXFe87LsBA1Hfi+mtw"
                 "/EoQkv8bXVtfOwdMP1ETpHVsYpm5QG/7tsLlKdE8h6EoV/OFw7XQtoibNZp/l5ABjE=",
             ),
         ],
+        # TEST_HOST_KEY is generated at import time, so explicit ids keep collection
+        # identical across pytest-xdist workers.
+        ids=["ed25519", "ed25519-with-comment", "bare-rsa", "ecdsa"],
     )
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("asyncssh.import_private_key")
@@ -854,8 +1019,76 @@ class TestSFTPHookAsync:
         await hook._get_conn()
 
         host_key_parts = mock_host_key.split()
-        expected_host_key = " ".join(host_key_parts[:2]) if len(host_key_parts) >= 2 else mock_host_key
+        # A bare key is RSA; asyncssh does not accept the two-field `host key` form.
+        expected_host_key = (
+            " ".join(host_key_parts[:2]) if len(host_key_parts) >= 2 else f"ssh-rsa {mock_host_key}"
+        )
         assert hook.known_hosts == f"localhost {expected_host_key}".encode()
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_no_host_key_check_defaults_to_false(self, mock_get_connection, mock_connect):
+        """A connection that omits ``no_host_key_check`` keeps host key verification enabled."""
+
+        class MockAirflowConnectionWithoutHostKeyExtras:
+            host = "localhost"
+            port = 22
+            login = "username"
+            password = "password"
+            extra = "{}"
+            extra_dejson: dict = {}
+
+        mock_get_connection.return_value = MockAirflowConnectionWithoutHostKeyExtras()
+
+        hook = SFTPHookAsync()
+        await hook._get_conn()
+
+        assert hook.known_hosts != "none"
+        assert str(hook.known_hosts).endswith(".ssh/known_hosts")
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_parse_extras_honours_deprecated_alias(self, mock_get_connection, mock_connect):
+        """``ignore_hostkey_verification`` keeps working on the async path too."""
+
+        class MockAirflowConnectionWithAlias:
+            host = "localhost"
+            port = 22
+            login = "username"
+            password = "password"
+            extra = '{"ignore_hostkey_verification": true}'
+            extra_dejson = {"ignore_hostkey_verification": True}
+
+        mock_get_connection.return_value = MockAirflowConnectionWithAlias()
+
+        hook = SFTPHookAsync()
+        with pytest.warns(AirflowProviderDeprecationWarning, match="ignore_hostkey_verification"):
+            await hook._get_conn()
+
+        assert hook.known_hosts == "none"
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_parse_extras_canonical_key_wins_over_alias(self, mock_get_connection, mock_connect):
+        """``no_host_key_check`` takes precedence over the deprecated alias."""
+
+        class MockAirflowConnectionWithBothKeys:
+            host = "localhost"
+            port = 22
+            login = "username"
+            password = "password"
+            extra = '{"no_host_key_check": false, "ignore_hostkey_verification": true}'
+            extra_dejson = {"no_host_key_check": False, "ignore_hostkey_verification": True}
+
+        mock_get_connection.return_value = MockAirflowConnectionWithBothKeys()
+
+        hook = SFTPHookAsync()
+        await hook._get_conn()
+
+        assert hook.known_hosts != "none"
 
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
@@ -888,6 +1121,74 @@ class TestSFTPHookAsync:
         hook = SFTPHookAsync()
         with pytest.raises(ValueError, match="Host key check was skipped, but `host_key` value was given"):
             await hook._get_conn()
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_constructor_no_host_key_check_applies_without_extras(
+        self, mock_get_connection, mock_connect
+    ):
+        """The constructor opt-out applies even when the connection has no extras at all."""
+        mock_get_connection.return_value = Connection(
+            conn_id="sftp_default", conn_type="sftp", host="localhost", login="username"
+        )
+
+        hook = SFTPHookAsync(no_host_key_check=True)
+        await hook._get_conn()
+
+        assert mock_connect.call_args.kwargs["known_hosts"] is None
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("asyncssh.import_private_key")
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_constructor_no_host_key_check_false_resolves_conflicting_extras(
+        self, mock_get_connection, mock_import_private_key, mock_connect
+    ):
+        """``no_host_key_check=False`` wins over the extra, so a connection's `host_key` is used."""
+        mock_get_connection.return_value = MockAirflowConnectionWithHostKey(
+            host_key=TEST_HOST_KEY, no_host_key_check=True
+        )
+
+        hook = SFTPHookAsync(no_host_key_check=False)
+        await hook._get_conn()
+
+        assert hook.known_hosts == f"localhost ssh-rsa {TEST_HOST_KEY}".encode()
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_constructor_no_host_key_check_true_with_host_key_raises(
+        self, mock_get_connection, mock_connect
+    ):
+        mock_get_connection.return_value = MockAirflowConnectionWithHostKey(
+            host_key=TEST_HOST_KEY, no_host_key_check=False
+        )
+
+        hook = SFTPHookAsync(no_host_key_check=True)
+        with pytest.raises(ValueError, match="Host key check was skipped, but `host_key` value was given"):
+            await hook._get_conn()
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("asyncssh.import_private_key")
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_host_key_entry_uses_host_override(
+        self, mock_get_connection, mock_import_private_key, mock_connect
+    ):
+        """The known_hosts entry names the host actually connected to, not the connection's host."""
+        mock_get_connection.return_value = MockAirflowConnectionWithHostKey(
+            host_key=f"ssh-rsa {TEST_HOST_KEY}", no_host_key_check=False
+        )
+
+        hook = SFTPHookAsync(host="override.example")
+        await hook._get_conn()
+
+        assert mock_connect.call_args.kwargs["host"] == "override.example"
+        assert (
+            mock_connect.call_args.kwargs["known_hosts"]
+            == f"override.example ssh-rsa {TEST_HOST_KEY}".encode()
+        )
 
     @patch("paramiko.SSHClient.connect")
     @patch("asyncssh.import_private_key")
@@ -924,7 +1225,7 @@ class TestSFTPHookAsync:
             "username": "username",
             "password": "password",
             "client_keys": "~/keys/my_key",
-            "known_hosts": None,
+            "known_hosts": "~/.ssh/known_hosts",
             "passphrase": "mypassphrase",
         }
 
@@ -953,16 +1254,16 @@ class TestSFTPHookAsync:
             "username": "username",
             "password": "password",
             "client_keys": ["test"],
-            "known_hosts": None,
             "passphrase": "mypassphrase",
         }
 
         mock_connect.assert_called_with(**expected_connection_details)
 
     @pytest.mark.asyncio
+    @patch("airflow.providers.sftp.hooks.sftp.os.path.isfile", return_value=False)
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
-    async def test_connection_port_default_to_22(self, mock_get_connection, mock_connect):
+    async def test_connection_port_default_to_22(self, mock_get_connection, mock_connect, mock_isfile):
         from unittest.mock import Mock, call
 
         mock_get_connection.return_value = Mock(
@@ -984,14 +1285,15 @@ class TestSFTPHookAsync:
                 port=22,
                 username="username",
                 password="password",
-                known_hosts=None,
             ),
         ]
+        mock_isfile.assert_called_once_with(DEFAULT_KNOWN_HOSTS_PATH)
 
     @pytest.mark.asyncio
+    @patch("airflow.providers.sftp.hooks.sftp.os.path.isfile", return_value=True)
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
-    async def test_init_argument_not_ignored(self, mock_get_connection, mock_connect):
+    async def test_init_argument_not_ignored(self, mock_get_connection, mock_connect, mock_isfile):
         from unittest.mock import Mock, call
 
         mock_get_connection.return_value = Mock(
@@ -1016,9 +1318,10 @@ class TestSFTPHookAsync:
                 port=25,
                 username="username-from-init",
                 password="password-from-init",
-                known_hosts=None,
+                known_hosts=DEFAULT_KNOWN_HOSTS_PATH,
             ),
         ]
+        mock_isfile.assert_called_once_with(DEFAULT_KNOWN_HOSTS_PATH)
 
     @pytest.mark.asyncio
     async def test_list_directory_path_does_not_exist(self, sftp_hook_mocked):

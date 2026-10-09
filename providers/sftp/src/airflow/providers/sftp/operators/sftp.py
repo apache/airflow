@@ -78,7 +78,7 @@ class SFTPOperator(BaseOperator):
         which provides true async multiplexing via a single event loop. (Default: False)
     """
 
-    template_fields: Sequence[str] = ("local_filepath", "remote_filepath", "remote_host")
+    template_fields: Sequence[str] = ("local_filepath", "remote_filepath", "remote_host", "ssh_conn_id")
 
     def __init__(
         self,
@@ -189,6 +189,7 @@ class SFTPOperator(BaseOperator):
                     remote_host=self.remote_host,
                     concurrency=self.concurrency,
                     prefetch=self.prefetch,
+                    no_host_key_check=self.sftp_hook.no_host_key_check,
                 ),
                 method_name="execute_complete",
             )

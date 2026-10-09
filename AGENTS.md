@@ -54,6 +54,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
 - **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual --skip compile-ui-assets-dev --skip view-skill-eval --skip run-skill-eval-codex` (the skipped hooks start long-running local servers or provision the opt-in Codex environment rather than run checks that complete)
 - **Build docs:** `breeze build-docs`
+- **List the local verification for your changes:** `breeze verify` (add `--full` for everything CI runs for the default matrix cell except static checks, `--json` for machine-readable output). It uses the same selective-checks logic as CI.
 - **Determine which tests to run based on changed files:** `breeze ci selective-check --commit-ref <commit_with_squashed_changes>`
 <!-- END generated-commands, please keep comment here to allow auto update -->
 
@@ -207,6 +208,10 @@ own agent harness. In Claude Code:
 
 `magpie@apache-magpie` installs every family at once; other families
 (`magpie-security`, `magpie-release-management`, …) install individually.
+`magpie-release-management` is in the project floor (`.apache-magpie.lock`):
+its `verify-rc` skill verifies a release candidate and, per
+[`.apache-magpie-overrides/release-verify-rc.md`](.apache-magpie-overrides/release-verify-rc.md),
+can test your own changes against a providers wave.
 The contributor-facing summary lives in the [Agent-assisted contribution
 section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
 

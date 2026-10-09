@@ -81,6 +81,11 @@ class LLMSchemaCompareOperator(LLMOperator):
     """
     Compare schemas across different database systems and detect drift using LLM reasoning.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The LLM handles complex cross-system type mapping that simple equality checks
     miss (e.g., ``varchar(255)`` vs ``string``, ``timestamp`` vs ``timestamptz``).
 
@@ -149,6 +154,10 @@ class LLMSchemaCompareOperator(LLMOperator):
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         **kwargs: Any,
     ) -> None:
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMSchemaCompareOperator does not accept 'output_type'; it always returns SchemaCompareResult."
+            )
         kwargs["output_type"] = SchemaCompareResult
         # execute() always returns a dict, so the approval resume path must too
         kwargs["serialize_output"] = True
@@ -340,7 +349,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             **self.agent_params,
         )
         self.log.info("Running LLM schema comparison...")
-        result = agent.run_sync(self.prompt, usage_limits=usage_limits)
+        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

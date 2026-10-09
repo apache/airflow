@@ -97,18 +97,20 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         to a string as shorthand for its description. The description travels in the
         output schema next to the option, so the model reads "here is an option, here is
         what it means" rather than guessing from the task ID; ``min_confidence`` on an
-        option is a bar for that branch alone. A downstream task without an entry is
-        presented by its ID alone and takes the policy's bar. A key that is not a
-        downstream task ID fails the task before the model is called. Descriptions
-        support Jinja templating.
+        option, which is experimental, is a bar for that branch alone. A downstream task
+        without an entry is presented by its ID alone and takes the policy's bar; some
+        decision-model servers refuse an option without a description, so describe every
+        branch when the connection is a decision model. A key that is not a downstream task
+        ID fails the task before the model is called. Descriptions support Jinja templating.
     :param allow_multiple_branches: When ``False`` (default) the LLM returns a
         single task ID. When ``True`` the LLM may return one or more task IDs.
-    :param decision_policy: A :class:`~airflow.providers.common.ai.utils.decision.DecisionPolicy`:
+    :param decision_policy: Experimental. A
+        :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`:
         the confidence a pick needs for the operator to branch on it without a person
         (``min_confidence``) and what happens under it (``on_uncertain``: ``"review"`` or
-        ``"fail"``). Confidence comes from models that report one, such as a classifier
-        model (TypeSafe's); a text model reports none, which counts as uncertain, so
-        swapping the connection does not silently switch off a control the author set.
+        ``"fail"``). Confidence comes from models that report one, such as a decision model;
+        a text model reports none, which counts as uncertain, so swapping the connection does
+        not silently switch off a control the author set.
         A branch's own ``min_confidence`` overrides the policy's for that pick; with
         ``allow_multiple_branches`` the strictest bar among the picked branches applies.
         ``require_approval=True`` still sends every pick to a person regardless.
@@ -158,7 +160,11 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         ignore_downstream_trigger_rules: bool = False,
         **kwargs: Any,
     ) -> None:
-        kwargs.pop("output_type", None)
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMBranchOperator does not accept 'output_type'; it builds the output type "
+                "itself from the downstream task IDs."
+            )
         super().__init__(**kwargs)
         self.branches = self._normalize_branches(branches)
         self.allow_multiple_branches = allow_multiple_branches
@@ -229,7 +235,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             instructions=self.system_prompt,
             **self.agent_params,
         )
-        result = agent.run_sync(self.prompt, usage_limits=usage_limits)
+        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

@@ -17,9 +17,9 @@
 """
 Confidence gating and the decision record shared by the LLM operators.
 
-A classifier model such as TypeSafe's reports a confidence per output field in
-``ModelResponse.provider_details`` (``{"confidence": {field: float}, "probabilities":
-{field: {option: float}}}``). A text model reports nothing there. These helpers read
+A decision model reports a confidence per output field in ``ModelResponse.provider_details``
+(``{"confidence": {field: float}, "probabilities": {field: {option: float}}}``).
+A text model reports nothing there. These helpers read
 that, decide whether an answer should go to a person before the operator acts on it,
 and shape the ``decision`` XCom record that says what was proposed, what was done, and
 why.
@@ -71,7 +71,7 @@ __all__ = [
 DECISION_XCOM_KEY = "decision"
 
 BARE_OUTPUT_FIELD = "response"
-"""The field name a classifier model reports a bare (non-object) output type's confidence under."""
+"""The field name a decision model reports a bare (non-object) output type's confidence under."""
 
 ReviewReason = Literal["require_approval", "below_threshold", "missing_confidence"]
 DecidedBy = Literal["model", "human", "timeout_default", "policy", "timeout"]
@@ -99,8 +99,9 @@ def _choice_types() -> tuple[Any, Any]:
                 Choices as loaded_choices,
             )
         except ImportError:  # pydantic-ai < 2.46.0: build the same schema from an Enum instead
-            loaded_choice = loaded_choices = None
-        Choice, Choices = loaded_choice, loaded_choices
+            Choice = Choices = None
+        else:
+            Choice, Choices = loaded_choice, loaded_choices
     return Choice, Choices
 
 
@@ -235,7 +236,7 @@ def check_uncertain_action(
         raise LowConfidenceError(
             f"min_confidence={threshold:.2f} is set for {what} but the model reported no confidence for "
             "its answer, and on_uncertain='fail'. A text model reports none; a bounded float field "
-            "reports none because the probability is the answer. Use a classifier model, remove the "
+            "reports none because the probability is the answer. Use a decision model, remove the "
             "bar, or set on_uncertain='review'."
         )
     raise LowConfidenceError(
@@ -310,7 +311,7 @@ def described_choices(name: str, options: Mapping[str, str | None]) -> type[Any]
 
     With a description on any option the schema renders as ``anyOf`` of ``{const, description}``
     instead of a bare ``enum`` list. That is the one JSON Schema shape that carries a description
-    per value, and it is what both a text model's tool schema and pydantic-ai's TypeSafe adapter
+    per value, and it is what both a text model's tool schema and pydantic-ai's decision models
     read an option's meaning from. On pydantic-ai 2.46+ the type is its ``Choices``; before that,
     an ``Enum`` whose schema hook emits the same shape. Either way the model has to answer with one
     of the keys, in the order given, and :func:`picked_key` returns that key whichever type answered.

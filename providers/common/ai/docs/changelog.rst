@@ -25,32 +25,145 @@
 Changelog
 ---------
 
+0.11.0
+......
+
 .. note::
-  ``LLMRetryPolicy`` now asks the model only which category a failure is; whether that
-  category is retried, and after how long, comes from the policy's ``categories`` table
-  (``ErrorCategory(description, retry, delay, min_confidence)``), not from the model.
-  ``ErrorClassification`` and its ``should_retry``, ``suggested_delay_seconds`` and
-  ``reasoning`` fields are removed, so a Dag file that imports the class fails to parse,
-  and with it every Dag in that file. The new public names are ``ErrorCategory`` and
-  ``DEFAULT_CATEGORIES``.
+  On Airflow >= 3.3, ``AgentOperator``'s ``usage_limits`` counts usage across every
+  attempt of the task instance combined -- initial run, every retry, and every HITL
+  regeneration add to one running total (including the implicit ``request_limit=50``
+  default), instead of each attempt starting fresh. Scale each limit by ``retries + 1``,
+  or set ``usage_limits=None``, to keep the old per-attempt headroom. On every Airflow
+  version, a regeneration shares its count with the run before it only when
+  ``usage_limits`` is set. A step replayed with ``durable=True`` no longer counts toward
+  ``usage_limits`` or the ``usage`` XCom, on any Airflow version. The ``usage`` XCom is
+  now also pushed on a failed attempt, reporting that attempt's own usage (not the
+  cross-attempt total). On Airflow < 3.3, or when ``usage_limits`` is ``None``, each
+  attempt is checked and counted on its own, unchanged. See :ref:`the cross-attempt usage
+  budget <agent-usage-budget>`.
 
-  A policy built with only ``llm_conn_id`` classifies into the same seven categories with
-  the same retry/fail split and the same 60s/10s/30s delays. The delays are now fixed by
-  the table rather than chosen by the model, so an error the model previously answered
-  with its own delay now waits the category's. Custom ``instructions`` that named a delay,
-  said "do NOT retry", or introduced category names outside the seven still parse but no
-  longer steer anything: the model is constrained to ``categories``, so a name of your own
-  is either mapped onto the nearest default or rejected by the schema and sent to the
-  fallback path. The 0.9.0 guide's Snowflake example asked for ``rate_limit`` after 120s
-  and now gets the default 60s. Move each such rule into an ``ErrorCategory`` entry and
-  keep ``instructions`` for teaching the model your error strings; passing custom
-  ``instructions`` without ``categories`` now raises a ``UserWarning`` at Dag parse time
-  saying so.
+.. note::
+  ``get_schema`` on ``SQLToolset`` and ``DataFusionToolset`` now returns a JSON object
+  ``{"columns": [{"name", "type"}, ...], "column_count": N}`` instead of a bare JSON array of
+  columns. The tool also accepts an optional ``name_contains`` substring filter, and on a table
+  with more columns than ``max_columns`` (default 100), or one whose serialized columns exceed
+  ``max_result_bytes``, it returns a bounded summary (``column_count``, a ``type_histogram`` and a
+  ``sample_columns`` preview, with ``truncated``, ``truncated_by`` and a ``hint``) in place of the
+  full list. Update any system prompt or direct ``call_tool("get_schema", ...)`` caller that read
+  the old top-level array: check ``truncated`` first, then read ``result["columns"]`` on a full
+  result or ``result["sample_columns"]`` on a summary. A summary carries no ``columns`` key, so
+  ``result["columns"]`` raises ``KeyError`` on any table wide enough to be summarized.
 
-  The ``retry_reason`` written on a retry is now a generated line
-  (``category=... confidence=... threshold=... action=... delay=...``) rather than the
-  model's prose, and a decision that came from ``fallback_rules`` has its reason prefixed
-  with ``LLM classification not applied (<why>);``. See :doc:`retry_policies`.
+.. note::
+  ``AgentOperator`` no longer accepts ``code_mode``. Pass the pydantic-ai-harness capability
+  instead: replace ``code_mode=True`` with ``capabilities=[CodeMode()]``, using
+  ``from pydantic_ai_harness import CodeMode``. The capability takes its own arguments, such
+  as ``max_tool_calls``. If the task also passes ``agent_params={"capabilities": [...]}``,
+  move those into ``capabilities=`` too, since the two cannot be combined. The import runs
+  when the Dag file is parsed, so the ``code-mode`` extra is now needed by the Dag processor
+  as well as the workers. The extra's floor is now ``pydantic-ai-harness>=0.24.0``, the first
+  release with ``max_tool_calls``. See :doc:`code_mode`.
+
+Features
+~~~~~~~~
+
+* ``Add 'max_retries' to 'AgentSkillsToolset' (#74381)``
+* ``Add 'include_traceback' to model-backed retry policies (#74308)``
+* ``Let the Modal sandbox backend read credentials from a modal connection (#74302)``
+* ``Include prompt cache token counts in AgentOperator's usage XCom (#74277)``
+* ``Bound get_schema results for very wide tables in the SQL toolsets (#74017)``
+* ``Support Airflow 2.11 in the Common AI provider (#73991)``
+* ``Cache repeated agent prompts by default in AgentOperator (#73994)``
+* ``Add a vendor-neutral managed-agent hook contract to Common AI (#73532)``
+* ``Export files an agent built in a sandbox to object storage (#73990)``
+* ``Add first-class 'capabilities' to Common AI 'AgentOperator' (#73984)``
+* ``Let Common AI toolsets use the agent's tool retry budget (#73957)``
+* ``Add embedding kwargs to common AI hooks and operators (#72002)``
+* ``Tell the model how many rows a Parquet or Avro file holds (#73925)``
+* ``Count and trace tool calls made by native agent frameworks (#73901)``
+* ``Let HookToolset pin arguments the model must not choose (#73900)``
+* ``Add 'ObjectStorageToolset' for reading files on object storage (#73899)``
+* ``Rework common.ai Strands support into a plugin and add Google ADK (#73898)``
+* ``Name the tools a durable agent retry will run again (#73873)``
+* ``Return an approved agent answer as 'output_type' after human review (#73904)``
+* ``Let the sandbox toolset attach to a sandbox another task provisioned (#73559)``
+* ``Add Strands Agents support for 'common.ai' toolsets (#73587)``
+* ``Add Modal provider with 'ModalHook' and connection type (#73418)``
+* ``Add OpenSandbox backend for sandbox tools (#71676)``
+* ``Let a person approve an agent's tool calls before they run (#73586)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Tell the model a pinned hook argument is fixed for every allowed method (#74380)``
+* ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+* ``Fix Common AI durable retries not replaying tools from a capability without an id (#74314)``
+* ``Fix Common AI durable retries and tool-approval resumes on pydantic-ai 2.50+ (#74313)``
+* ``Mask secrets in tool results before they reach the model (#73897)``
+* ``Account for AgentOperator spend on failed runs and across retries (#73706)``
+* ``Stop 'DataFusionToolset' from materializing full results for a capped query (#73384)``
+* ``Fix mypy error in common.ai decision helper with pydantic-ai 2.46 (#73652)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Remove Python 3.10 compatibility shims (#74153)``
+* ``Remove 'code_mode' from 'AgentOperator' in favor of the 'CodeMode' capability (#74312)``
+* ``Make 'execute_tool' the public method 'AirflowToolset' subclasses implement (#73938)``
+* ``Mark experimental 'common.ai' features ahead of 1.0 (#73896)``
+* ``Require 'common.sql' 2.2.0 for common.ai's SQL extras (#73867)``
+
+Doc-only
+~~~~~~~~
+
+* ``Explain unknown platform labels in managed-agent metrics (#72786)``
+* ``Add toolset overview and MCP tool filtering example to 'common.ai' docs (#74378)``
+* ``Link registry modules to the guide section that documents them (#71477)``
+* ``Add restricted-agent examples to common.ai toolset guides (#74379)``
+* ``Support PAT and key-pair auth in the Snowflake Cortex Agent hook (#73932)``
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Lead the 'common.ai' sandbox docs with when to use it and where each piece runs (#74297)``
+* ``Correct usage_limits=None docstring on AgentOperator and LLMOperator (#74307)``
+* ``Document decision models served over the System One API in common.ai (#74266)``
+* ``Add Azure Blob Storage support to the DataFusion object storage layer (#73374)``
+* ``Render the HITL review workflow as a Mermaid diagram (#74024)``
+* ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+* ``Document running your own Pydantic AI agent, and sandboxes in other frameworks (#73902)``
+* ``Surface the retry policy decision on task instances page (#73030)``
+* ``Update changelog to clarify new LLMBranchOperator "branches" feature (#73850)``
+* ``Add connections and agent-security entries to the common.ai sidebar (#73837)``
+* ``Persist 'retry_reason' not just for retries but even when a task fails (#73027)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``Add AIP-85 to the AIP progress tracker registry (#74304)``
+   * ``Fix flaky AgentOperator durable usage budget tests (#73996)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+0.10.0
+......
+
+.. note::
+  ``LLMBranchOperator`` and ``LLMOperator`` now push a ``decision`` XCom on every run, next to
+  ``return_value``, with the model's pick, the action taken, the confidence and probabilities
+  when the model reports them, and the ``decision_policy`` that applied. ``LLMBranchOperator``
+  also offers the downstream task IDs to the model in sorted order (it was set order, which
+  differed between workers), gained ``branches`` as a template field, and builds its option
+  type from pydantic-ai's ``Choices`` on 2.46+ or an equivalent enum whose member names are
+  generated; the option values are still the task IDs, so ``do_branch`` receives the same
+  strings as before.
+
+.. note::
+  ``execute_complete`` on ``LLMOperator``, ``LLMBranchOperator``, ``LLMSQLQueryOperator`` and
+  ``LLMSchemaCompareOperator`` gained a keyword argument, ``decision``. ``LLMOperator`` and
+  ``LLMBranchOperator`` pass it on resume, so a subclass of either that overrides
+  ``execute_complete`` with the old three-argument signature raises ``TypeError`` when the
+  reviewed task resumes; add ``decision=None`` to the override. The other two accept the
+  keyword but do not pass it yet. A review that was already pending when you upgraded
+  resumes without it and is unaffected.
 
 .. note::
   Configuring ``fallback_conn_ids`` on a connection (or the matching operator/decorator
@@ -72,6 +185,84 @@ Changelog
   every table is still the default, but only by omitting the argument: no value you can
   pass requests it, so a runtime lookup can never widen the allow-list by accident. Dags
   that passed ``allowed_tables=None`` explicitly should drop the argument.
+
+.. note::
+  The PydanticAI vendor connection types are renamed from ``pydanticai-azure``,
+  ``pydanticai-bedrock`` and ``pydanticai-vertex`` to ``pydanticai_azure``,
+  ``pydanticai_bedrock`` and ``pydanticai_vertex``. The hyphenated names could never be
+  expressed as a connection URI scheme, so a connection stored in a secrets backend or in
+  ``AIRFLOW_CONN_*`` never resolved. An existing connection created with a hyphenated
+  ``conn_type`` no longer matches its hook and the task fails to find it: re-create it with
+  the underscored type (in the UI, pick the same vendor again and save).
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Reject allowed_tables=None and allowed_tables=[] in SQLToolset so only omitting it allows every table (#73381, #73452)``
+* ``Add a decision policy so an LLM operator asks a person when the model is unsure (#73368)``
+* ``Fix PydanticAI vendor connections not resolving from secrets backends (#72853)``
+
+Features
+~~~~~~~~
+
+* ``Allow templated connection IDs in agent toolsets (#73578)``
+* ``Cancel the agent run when a common.ai LLM or agent task is killed (#73495)``
+* ``Add JSON Lines support for DocumentLoaderOperator (#72246)``
+* ``Add an address-layer egress allowlist for hosted sandboxes (#73534)``
+* ``Add ClassifierRetryPolicy for classifier models and keep LLMRetryPolicy as the text-model policy (#73450, #73501)``
+* ``Add a deferrable batch execution mode to common.ai (#72938)``
+* ``Add a Modal backend for the sandbox toolset (#72910)``
+* ``Add support for TypeSafe Jev classifier models (#73363)``
+* ``Add branches to LLMBranchOperator so the model reads what each branch means (#73367, #73368)``
+* ``Add connection-driven provider failover for common.ai LLM calls (#72156)``
+* ``Support assigned reviewers in LLM approval reviews (#72157)``
+* ``Stamp Airflow run identity onto agent runs and traces (#73275)``
+* ``Support notifiers in LLM approval reviews (#72159)``
+* ``Support timeout defaults in LLM approval reviews (#72155)``
+* ``Support per-run cost limits in common.ai LLM and Agent operators (#71403)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Reject non-string prompts in LLMFileAnalysisOperator before reading files (#71734)``
+* ``Reject durable replay and human-in-the-loop review when an agent holds a SandboxToolset (#73529)``
+* ``Fix LLMBranchOperator sending branch options in a different order on each worker (#73366)``
+* ``Fail LLMOperator approval at parse time on Airflow cores older than 3.1 (#73261)``
+* ``Fix 'DocumentLoaderOperator' validation errors naming the wrong argument (#73053)``
+* ``Report the Airflow version error first when human-in-the-loop review needs Airflow 3.1 or newer (#73052)``
+* ``Restore Dag-parse-time validation for common.ai operator arguments (#70628)``
+
+Misc
+~~~~
+
+* ``Require pydantic-ai-slim 2.33.0 or newer so Anthropic models work with the anthropic 1.x SDK (#73511)``
+* ``Replace the retired gemini-2.0-flash example model in the Vertex connection placeholders and docs (#73516)``
+* ``Update the Azure OpenAI connection placeholders and document when api_version must be omitted (#73024)``
+* ``Add TypedDict type hints for AirflowPlugin list fields (#69761)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document sandbox enforcement, teardown and cost-limit scope for agents (#73589)``
+* ``Add a guide to developing and testing Common AI tasks locally (#73602)``
+* ``Fix stale and duplicated content in the 'common.ai' provider docs (#73567)``
+* ``Lead the common.ai docs with a runnable quick start and a verifiable result (#73556)``
+* ``Nest the 'common.ai' docs sidebar and lead with features and providers (#73548)``
+* ``Add use-case pages to the common.ai provider docs (#73542)``
+* ``Rename the common.ai retry policies page to cover both policies (#73526)``
+* ``Reorganize 'common.ai' provider docs into topic-based navigation (#73523)``
+* ``Add a decision guide for choosing between common.ai toolsets (#72936)``
+* ``Document GCS data sources in the common.ai SQL toolset guides (#73370)``
+* ``Update the LLM schema-compare guide and example for plain database tables (#73273)``
+* ``Document how retry policies and durable execution work together (#73160)``
+* ``Document usage_limits on all common.ai LLM operators (#73283)``
+* ``Make LLM retry policy failure model documentation more accurate (#73158)``
+* ``Document what the LLM can and cannot do in retry policies (#72947)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
 
 0.9.0
 .....

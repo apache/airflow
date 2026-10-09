@@ -9,8 +9,9 @@ the parent [SKILL.md](../SKILL.md).
 
 ## Plural Forms
 
-Simplified Chinese **does not** distinguish between singular and plural forms.
-Use the **same translation** for both `_one` and `_other` suffixes:
+Simplified Chinese **does not** grammatically distinguish between singular and
+plural forms. For labels without a quantity, use the **same translation** for
+both `_one` and `_other` suffixes:
 
 **English source:**
 
@@ -24,6 +25,14 @@ Use the **same translation** for both `_one` and `_other` suffixes:
 ```json
 "dagRun_one": "Dag 执行",
 "dagRun_other": "Dag 执行"
+```
+
+For phrases that express a quantity with a measure word, use literal `1` in
+`_one` and `{{count}}` in `_other`, followed by the appropriate measure word:
+
+```json
+"showMoreAlerts_one": "+1 个警告",
+"showMoreAlerts_other": "+{{count}} 个警告"
 ```
 
 ## Spacing Rules
@@ -110,6 +119,10 @@ word order:
 ```
 
 ## Terminology Reference
+
+Translate `Provider` and `Providers` as `整合套件` in UI text. This overrides the
+parent skill's English-term default for zh-CN. Preserve literal package names
+and code identifiers.
 
 The established zh-CN translations are defined in the existing locale files.
 Before translating, **read the existing zh-CN JSON files** to learn the

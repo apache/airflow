@@ -28,6 +28,7 @@ import type {
   DagFileParseRequest,
   ErrorResponse,
   DagFileParsingResult,
+  DeferTask,
   RetryTask,
   SucceedTask,
   TaskState,
@@ -47,6 +48,7 @@ export type {
 
 export type {
   DagFileParsingResult,
+  DeferTask,
   RetryTask,
   SucceedTask,
   TaskState,
@@ -64,6 +66,17 @@ export type {
   GetXCom,
   SetXCom,
   GetConnection,
+  SkipDownstreamTasks,
+  TriggerDagRun,
+  GetDagRunState,
+  DagRunStateResult,
+  GetDag,
+  DagResult,
+  ClearTaskStateStore,
+  DeleteTaskStateStore,
+  GetTaskStateStore,
+  SetTaskStateStore,
+  TaskStateStoreResult,
 } from "../generated/supervisor.js";
 
 // -------- Frames from supervisor --------
@@ -81,6 +94,7 @@ export type MsgFromSupervisor =
 
 export type RuntimeTaskState = WithRequiredType<TaskState>;
 export type RuntimeRetryTask = WithRequiredType<RetryTask>;
+export type RuntimeDeferTask = WithRequiredType<DeferTask>;
 export type RuntimeSucceedTask = WithRequiredType<SucceedTask> & {
   task_outlets: NonNullable<SucceedTask["task_outlets"]>;
   outlet_events: NonNullable<SucceedTask["outlet_events"]>;

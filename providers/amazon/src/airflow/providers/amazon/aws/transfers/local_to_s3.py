@@ -65,7 +65,7 @@ class LocalFilesystemToS3Operator(BaseOperator):
         uploaded to the S3 bucket.
     """
 
-    template_fields: Sequence[str] = ("filename", "dest_key", "dest_bucket")
+    template_fields: Sequence[str] = ("filename", "dest_key", "dest_bucket", "aws_conn_id")
 
     def __init__(
         self,

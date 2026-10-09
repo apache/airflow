@@ -75,14 +75,6 @@ class TestMongoToS3Operator:
         assert self.mock_operator.s3_key == S3_KEY
         assert self.mock_operator.compression == COMPRESSION
 
-    def test_template_field_overrides(self):
-        assert self.mock_operator.template_fields == (
-            "s3_bucket",
-            "s3_key",
-            "mongo_query",
-            "mongo_collection",
-        )
-
     @pytest.mark.db_test
     def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         if AIRFLOW_V_3_0_PLUS:

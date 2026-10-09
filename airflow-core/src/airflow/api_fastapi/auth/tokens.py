@@ -279,7 +279,8 @@ class JWTValidator:
     )
     # By default, we just validate these
     required_claims: frozenset[str] = frozenset({"exp", "iat", "nbf"})
-    audience: str | Sequence[str]
+    # ``None`` is passed straight to ``jwt.decode`` and accepts only tokens without an ``aud`` claim.
+    audience: str | Sequence[str] | None
     algorithm: list[str] = attrs.field(
         factory=_conf_list_factory("api_auth", "jwt_algorithm", fallback="GUESS"), converter=_to_list
     )
@@ -352,13 +353,27 @@ class JWTValidator:
         return claims
 
     def revoke_token(self, token: str) -> None:
-        """Validate the token, extract jti and exp, and revoke it in the database."""
+        """
+        Validate the token, extract jti and exp, and revoke it in the database.
+
+        A token that does not validate is not revoked: it is already unusable, so this is logged as a
+        warning. A valid token whose revocation cannot be recorded is still usable until it expires,
+        so that failure is logged as an error rather than being reported the same way.
+        """
         try:
             claims = self.validated_claims(token)
-            if (jti := claims.get("jti")) and (exp := claims.get("exp")):
-                RevokedToken.revoke(jti, datetime.fromtimestamp(exp, tz=timezone.utc))
-        except (jwt.InvalidTokenError, Exception):
-            log.warning("Failed to revoke token", exc_info=True)
+        except Exception:
+            log.warning("Not revoking a token that does not validate", exc_info=True)
+            return
+        if not ((jti := claims.get("jti")) and (exp := claims.get("exp"))):
+            log.warning("Not revoking a token that carries no jti or exp claim")
+            return
+        try:
+            RevokedToken.revoke(jti, datetime.fromtimestamp(exp, tz=timezone.utc))
+        except Exception:
+            log.exception(
+                "Failed to record the revocation of token %s; it remains valid until it expires", jti
+            )
 
     def status(self):
         if self.jwks:

@@ -78,7 +78,7 @@ The possible states for a Task Instance are:
 * ``success``: The task finished running without errors
 * ``restarting``: The task was externally requested to restart when it was running
 * ``failed``: The task had an error during execution and failed to run
-* ``skipped``: The task was skipped due to branching, LatestOnly, or similar.
+* ``skipped``: The task was skipped due to branching, LatestOnly, or similar, or was :ref:`marked as skipped manually <concepts:task-mark-as-skipped>`.
 * ``upstream_failed``: An upstream task failed and the :ref:`Trigger Rule <concepts:trigger-rules>` says we needed it
 * ``up_for_retry``: The task failed, but has retry attempts left and will be rescheduled.
 * ``up_for_reschedule``: The task is a :doc:`Sensor <sensors>` that is in ``reschedule`` mode
@@ -89,6 +89,27 @@ The possible states for a Task Instance are:
 .. image:: /img/diagram_task_lifecycle.png
 
 Ideally, a task should flow from ``none``, to ``scheduled``, to ``queued``, to ``running``, and finally to ``success``.
+
+.. _concepts:task-mark-as-skipped:
+
+Marking a Task Instance as skipped
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+From the UI, an operator can mark a Task Instance as ``skipped`` to record that it was intentionally not
+run for a Dag Run, for example during incident recovery when an input it waits for is known to never
+arrive. Unlike marking it as ``success``, this does not suggest the task's work was done.
+
+Keep the following in mind:
+
+* Only Task Instances that have not started running can be marked as skipped: those with no state, or in
+  the ``scheduled``, ``up_for_retry`` or ``up_for_reschedule`` state.
+* Only the selected Task Instance is affected; upstream, downstream, past and future Task Instances are
+  not changed.
+* Marking a task as skipped does not bypass the Dag's dependencies. Downstream tasks are still evaluated
+  according to their :ref:`trigger rules <concepts:trigger-rules>`. With the default ``all_success`` rule,
+  the skip cascades and downstream tasks are skipped as well. For downstream tasks to still run, they need
+  a trigger rule that tolerates skipped upstream tasks, such as ``none_failed`` or
+  ``none_failed_min_one_success``.
 
 When any custom Task (Operator) is running, it will get a copy of the task instance passed to it; as well as being able to inspect task metadata, it also contains methods for things like :doc:`xcoms`.
 
@@ -119,7 +140,10 @@ Timeouts
 If you want a task to have a maximum runtime, set its ``execution_timeout`` attribute to a ``datetime.timedelta`` value
 that is the maximum permissible runtime. This applies to all Airflow tasks, including sensors. ``execution_timeout`` controls the
 maximum time allowed for every execution. If ``execution_timeout`` is breached, the task times out and
-``AirflowTaskTimeout`` is raised.
+``AirflowTaskTimeout`` is raised. For tasks executed by the Python task runner, the task supervisor enforces
+the timeout from outside the task process too: if the task has not stopped within ``[core] killed_task_cleanup_time``
+seconds after ``execution_timeout`` elapses (for example because it is blocked in native code that never returns
+control to Python), the supervisor sends it SIGTERM, and SIGKILL after the same period again.
 
 In addition, sensors have a ``timeout`` parameter. This only matters for sensors in ``reschedule`` mode. ``timeout`` controls the maximum
 time allowed for the sensor to succeed. If ``timeout`` is breached, ``AirflowSensorTimeout`` will be raised and the sensor fails immediately
@@ -251,19 +275,64 @@ Define a policy once and share it across DAGs via ``default_args`` or a shared m
 Mapped tasks
 ~~~~~~~~~~~~
 
-Policies work with dynamic task mapping via ``.partial()``. The policy applies
-per mapped task instance -- if instance 2 of 10 hits FAIL, the other 9 continue
-independently:
+Policies work with dynamic task mapping. The policy applies per mapped task
+instance -- if instance 2 of 10 hits FAIL, the other 9 continue independently:
 
 .. code-block:: python
 
-    @task.partial(retry_policy=my_policy).expand(input=[1, 2, 3])
+    @task(retry_policy=my_policy)
     def my_mapped_task(input): ...
 
-The policy is set at the task level via ``.partial()``; all mapped instances
-share one policy. Per-index variation is not supported on ``.expand()``, but the
-policy's ``evaluate()`` method receives the exception, ``try_number``, and full
-context, so per-index branching can be done inside the policy if needed.
+
+    my_mapped_task.expand(input=[1, 2, 3])
+
+For a classic operator, pass the policy to ``.partial()``:
+
+.. code-block:: python
+
+    BashOperator.partial(task_id="run", retry_policy=my_policy).expand(
+        bash_command=["echo 1", "echo 2", "echo 3"],
+    )
+
+The policy is set once on the task, in ``@task(...)`` or ``.partial()``; all
+mapped instances share one policy. Per-index variation is not supported on
+``.expand()``, but the policy's ``evaluate()`` method receives the exception,
+``try_number``, and full context, so per-index branching can be done inside the
+policy if needed.
+
+Chaining policies
+~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 3.4.0
+
+``ChainRetryPolicy`` consults policies in order. The first RETRY or FAIL wins; a
+policy that returns DEFAULT has nothing to add and the next one is asked. When every
+policy returns DEFAULT, the task's own ``retries`` and ``retry_delay`` apply. Every
+policy sees the original task exception.
+
+.. exampleinclude:: /../src/airflow/example_dags/example_retry_policy.py
+    :language: python
+    :start-after: [START retry_policy_chain]
+    :end-before: [END retry_policy_chain]
+
+This is how to put a cheap, deterministic policy in front of a slow or costly one, or
+to give a policy that can fail on its own (one that calls a model, for instance) a
+deterministic floor behind it. The policies need not know about each other, and they can
+come from different packages.
+
+Two consequences of "DEFAULT means next" to keep in mind:
+
+* A ``RetryRule`` with ``action=RetryAction.DEFAULT`` passes control on rather than
+  ending the chain. Its ``retry_delay`` is dropped, as it is on any DEFAULT.
+* An ``ExceptionRetryPolicy`` with ``default=RetryAction.FAIL`` fails every exception
+  its rules do not match, so it ends the chain wherever it sits.
+
+A policy that raises an ordinary exception, or returns something other than a
+``RetryDecision``, is logged and treated as DEFAULT, so one broken policy does not take the
+rules after it down with it. The winning decision's reason names the policy that decided and
+then what the earlier ones said (``HTTPStatusRetryPolicy: HTTP 503 (after ExceptionRetryPolicy:
+no decision)``). That string is the task's ``retry_reason`` on a FAIL as well as a RETRY; when
+no policy decided, it appears only in the task log as the ``Retry policy decision`` line.
 
 Custom retry policies
 ~~~~~~~~~~~~~~~~~~~~~
@@ -291,7 +360,7 @@ number, max tries, and the full Airflow context (``dag_run``, ``params``, etc.):
                 status = exception.response.status_code
                 if status == 429:  # rate limited -- honour Retry-After header
                     retry_after = int(exception.response.headers.get("Retry-After", 60))
-                    return RetryDecision.retry(retry_delay=timedelta(seconds=retry_after))
+                    return RetryDecision.retry(delay=timedelta(seconds=retry_after))
                 if 500 <= status < 600:  # server error -- worth retrying
                     return RetryDecision.retry()
                 if 400 <= status < 500:  # client error -- not retryable

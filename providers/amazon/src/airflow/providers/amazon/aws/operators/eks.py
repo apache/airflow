@@ -886,7 +886,9 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
 
-        if validated_event["status"] == "success":
+        # EksDeleteClusterTrigger yields status "deleted" when the cluster is gone.
+        # Also accept "success" so a future transition to the usual event keeps working.
+        if validated_event["status"] in ("deleted", "success"):
             self.log.info("Cluster deleted successfully.")
 
 
@@ -1187,7 +1189,7 @@ class EksPodOperator(KubernetesPodOperator):
                 connection_extras = conn.extra_dejson
                 self.log.info("Successfully resolved connection extras for deferral.")
 
-        trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
+        trigger_start_time = datetime.datetime.now(tz=datetime.UTC)
 
         if self.pod is None or self.pod.metadata is None:
             raise RuntimeError("Pod must be created with metadata before deferring")

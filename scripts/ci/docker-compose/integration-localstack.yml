@@ -20,6 +20,8 @@ services:
     container_name: "${LOCALSTACK_DOCKER_NAME:-localstack-main}"
     image: localstack/localstack:4.7
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration that emulates AWS services locally."
     ports:
       - "4566:4566"            # LocalStack Gateway
@@ -38,6 +40,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+      start_interval: 1s
 
   airflow:
     environment:

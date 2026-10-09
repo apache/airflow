@@ -24,7 +24,7 @@ license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 # Supporting new Python releases typically takes 4-7 months due to all our provider dependencies.
 # We proactively limit the version to allow time for all dependencies to update.
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
@@ -40,7 +40,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -123,13 +122,12 @@ YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [build-system]
 requires = [
-    "hatchling==1.32.0",
+    "hatchling==1.32.4",
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
     "tomlkit==0.15.1",
-    "trove-classifiers==2026.6.1.19",
+    "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
 
@@ -256,7 +254,7 @@ enum-field-as-literal='one' # When a single enum member, make it output a `Liter
 input-file-type='openapi'
 output-model-type='pydantic_v2.BaseModel'
 output-datetime-class='AwareDatetime'
-target-python-version='3.10'
+target-python-version='3.11'
 use-annotated=true
 use-default=true
 use-double-quotes=true
@@ -264,6 +262,7 @@ use-schema-description=true  # Desc becomes class doc comment
 use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # annotations, not `Union[]`
+use-specialized-enum=false # (str, Enum), not StrEnum: str() and format() keep returning `Class.MEMBER`
 custom-formatters = ['datamodel_code_formatter']
 
 url = 'http://0.0.0.0:8080/execution/openapi.json'

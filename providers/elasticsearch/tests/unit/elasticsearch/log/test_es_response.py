@@ -65,6 +65,12 @@ class TestAttributeList:
         assert attr_list[1].key1 == "value1"
         assert attr_list[2] == 3
 
+    def test_slice_access_returns_attribute_list(self):
+        result = AttributeList([1, 2, 3, 4])[1:3]
+
+        assert isinstance(result, AttributeList)
+        assert list(result) == [2, 3]
+
     def test_iteration(self):
         test_list = [1, {"key": "value"}, 3]
         attr_list = AttributeList(test_list)
@@ -173,6 +179,13 @@ class TestHitAndHitMetaAndElasticSearchResponse:
         # Test meta attribute
         assert isinstance(hit.meta, HitMeta)
         assert hit.to_dict() == self.HIT_DOCUMENT["_source"]
+
+    def test_hit_does_not_mutate_source_when_merging_fields(self):
+        source = {"a": 1}
+        hit = Hit({"_source": source, "fields": {"b": 2}})
+
+        assert hit.to_dict() == {"a": 1, "b": 2}
+        assert source == {"a": 1}
 
     def test_hitmeta_initialization_and_to_dict(self):
         hitmeta = HitMeta(self.HIT_DOCUMENT)

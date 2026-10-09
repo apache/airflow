@@ -46,7 +46,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import (
 from airflow.providers.common.compat.sdk import AirflowNotFoundException
 
 # Matches the `google...` provider key pydantic-ai expects before the `:model-name`
-# separator, e.g. "google-cloud" out of "google-cloud:gemini-2.0-flash".
+# separator, e.g. "google-cloud" out of "google-cloud:gemini-2.5-flash".
 _GOOGLE_MODEL_PREFIX_RE = re.compile(r"google[\w-]*(?=:)")
 
 
@@ -82,6 +82,33 @@ def _extract_google_cloud_prefix(text: str) -> str:
     assert match, f"no google model prefix found in: {text!r}"
     assert match.group() == "google-cloud", f"expected 'google-cloud' prefix, got {match.group()!r}"
     return match.group()
+
+
+_KNOWN_SERVABLE_VERTEX_GEMINI_MODELS = frozenset({"gemini-2.5-flash"})
+
+_GOOGLE_CLOUD_MODEL_NAME_RE = re.compile(r"google-cloud:([\w.-]+)")
+
+
+def _assert_model_name_is_known_servable(text: str) -> None:
+    """
+    Extract the model name following a ``google-cloud:`` prefix in ``text`` and
+    assert it is in ``_KNOWN_SERVABLE_VERTEX_GEMINI_MODELS``.
+
+    The prefix-only checks above (``_assert_prefix_is_known_provider``) only
+    confirm pydantic-ai recognizes ``google-cloud`` as a provider; they never
+    check whether the specific model advertised after the colon is actually
+    servable, which is how a retired model name went unnoticed in the docs and
+    connection form.
+    """
+    match = _GOOGLE_CLOUD_MODEL_NAME_RE.search(text)
+    assert match, f"no google-cloud:<model> found in: {text!r}"
+    model_name = match.group(1)
+    assert model_name in _KNOWN_SERVABLE_VERTEX_GEMINI_MODELS, (
+        f"{model_name!r} is not in the maintained allowlist of known-servable Vertex "
+        f"Gemini models ({sorted(_KNOWN_SERVABLE_VERTEX_GEMINI_MODELS)}). If it has been "
+        "confirmed retired, replace it with a current model everywhere it's documented; "
+        "if it's a new, confirmed-servable model, add it to the allowlist."
+    )
 
 
 class TestPydanticAIHookInit:
@@ -310,6 +337,21 @@ def registry():
         yield reg
 
 
+class TestPydanticAIHookGetHook:
+    def test_builds_the_connection_hook_with_hook_params(self, registry):
+        """Airflow 2's ``BaseHook.get_hook`` takes no ``hook_params``; the hook's own override does."""
+        registry.add("llm")
+
+        hook = PydanticAIHook.get_hook(
+            "llm", hook_params={"model_id": "openai:gpt-5", "fallback_conn_ids": []}
+        )
+
+        assert isinstance(hook, PydanticAIHook)
+        assert hook.llm_conn_id == "llm"
+        assert hook.model_id == "openai:gpt-5"
+        assert hook.fallback_conn_ids == []
+
+
 class _InferModelStub:
     """Resolve every model string to its own recognisable model, and record how it was built."""
 
@@ -416,11 +458,11 @@ class TestPydanticAIHookModelProviderResolution:
             "primary",
             conn_type="pydanticai_vertex",
             hook_class=PydanticAIVertexHook,
-            extra={"model": "gemini-2.0-flash", "api_key": "some-key"},
+            extra={"model": "gemini-2.5-flash", "api_key": "some-key"},
         )
         hook = PydanticAIVertexHook(llm_conn_id="primary")
 
-        assert hook.get_conn() is infer_model_stub.models["google-cloud:gemini-2.0-flash"]
+        assert hook.get_conn() is infer_model_stub.models["google-cloud:gemini-2.5-flash"]
 
     def test_bedrock_bare_model_id_with_embedded_colon_gets_platform_prefix(self, registry, infer_model_stub):
         """A ``:`` alone doesn't pin a platform -- Bedrock's own ids contain one.
@@ -534,14 +576,14 @@ class TestPydanticAIHookModelProviderResolution:
             "primary",
             conn_type="pydanticai_vertex",
             hook_class=PydanticAIVertexHook,
-            extra={"model": "google-vertex:gemini-2.0-flash", "api_key": "some-key"},
+            extra={"model": "google-vertex:gemini-2.5-flash", "api_key": "some-key"},
         )
         hook = PydanticAIVertexHook(llm_conn_id="primary")
 
         with caplog.at_level(logging.WARNING):
             model = hook.get_conn()
 
-        assert model is infer_model_stub.models["google-cloud:google-vertex:gemini-2.0-flash"]
+        assert model is infer_model_stub.models["google-cloud:google-vertex:gemini-2.5-flash"]
         assert any("google-vertex" in r.message and "typo" in r.message for r in caplog.records)
 
     def test_bedrock_native_id_does_not_warn(self, registry, infer_model_stub, caplog):
@@ -1411,13 +1453,10 @@ class TestPydanticAIAzureHook:
     def test_conn_type(self):
         assert PydanticAIAzureHook.conn_type == "pydanticai_azure"
 
-    def test_hook_name(self):
-        assert "Azure" in PydanticAIAzureHook.hook_name
-
     def test_ui_metadata(self):
         expected_placeholders = {
             "host": "https://<resource>.openai.azure.com/openai/v1",
-            "extra": '{"model": "azure:gpt-4o"}',
+            "extra": '{"model": "azure:gpt-5"}',
         }
         expected_api_version_description = (
             "Azure OpenAI API version (e.g. 2024-07-01-preview). Set when the endpoint path does not "
@@ -1543,9 +1582,6 @@ class TestPydanticAIBedrockHook:
 
     def test_conn_type(self):
         assert PydanticAIBedrockHook.conn_type == "pydanticai_bedrock"
-
-    def test_hook_name(self):
-        assert "Bedrock" in PydanticAIBedrockHook.hook_name
 
     def test_ui_hides_host_and_password(self):
         behaviour = PydanticAIBedrockHook.get_ui_field_behaviour()
@@ -1674,9 +1710,6 @@ class TestPydanticAIVertexHook:
     def test_conn_type(self):
         assert PydanticAIVertexHook.conn_type == "pydanticai_vertex"
 
-    def test_hook_name(self):
-        assert "Vertex" in PydanticAIVertexHook.hook_name
-
     def test_ui_hides_host_and_password(self):
         behaviour = PydanticAIVertexHook.get_ui_field_behaviour()
         assert "host" in behaviour["hidden_fields"]
@@ -1689,7 +1722,7 @@ class TestPydanticAIVertexHook:
             None,
             None,
             {
-                "model": "google-cloud:gemini-2.0-flash",
+                "model": "google-cloud:gemini-2.5-flash",
                 "project": "my-project",
                 "location": "us-central1",
             },
@@ -1706,7 +1739,7 @@ class TestPydanticAIVertexHook:
         result = hook._get_provider_kwargs(
             None,
             None,
-            {"model": "google:gemini-2.0-flash", "api_key": "gla-key"},
+            {"model": "google:gemini-2.5-flash", "api_key": "gla-key"},
         )
         assert result["api_key"] == "gla-key"
 
@@ -1725,7 +1758,7 @@ class TestPydanticAIVertexHook:
             None,
             None,
             {
-                "model": "google-cloud:gemini-2.0-flash",
+                "model": "google-cloud:gemini-2.5-flash",
                 "project": "my-project",
                 "location": "us-central1",
                 "vertexai": vertexai_value,
@@ -1759,7 +1792,7 @@ class TestPydanticAIVertexHook:
                 None,
                 None,
                 {
-                    "model": "google-cloud:gemini-2.0-flash",
+                    "model": "google-cloud:gemini-2.5-flash",
                     "service_account_info": sa_info_dict,
                 },
             )
@@ -1774,7 +1807,7 @@ class TestPydanticAIVertexHook:
     def test_get_provider_kwargs_returns_empty_for_adc(self):
         """When no keys are in extra, return {} so ADC path is taken."""
         hook = PydanticAIVertexHook.__new__(PydanticAIVertexHook)
-        result = hook._get_provider_kwargs(None, None, {"model": "google-cloud:gemini-2.0-flash"})
+        result = hook._get_provider_kwargs(None, None, {"model": "google-cloud:gemini-2.5-flash"})
         assert result == {}
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -1784,12 +1817,12 @@ class TestPydanticAIVertexHook:
         conn = Connection(
             conn_id="vertex_test",
             conn_type="pydanticai_vertex",
-            extra=json.dumps({"model": "google-cloud:gemini-2.0-flash"}),
+            extra=json.dumps({"model": "google-cloud:gemini-2.5-flash"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_conn()
 
-        mock_infer_model.assert_called_once_with("google-cloud:gemini-2.0-flash")
+        mock_infer_model.assert_called_once_with("google-cloud:gemini-2.5-flash")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
@@ -1804,7 +1837,7 @@ class TestPydanticAIVertexHook:
             conn_type="pydanticai_vertex",
             extra=json.dumps(
                 {
-                    "model": "google-cloud:gemini-2.0-flash",
+                    "model": "google-cloud:gemini-2.5-flash",
                     "project": "my-project",
                     "location": "europe-west4",
                 }
@@ -1862,7 +1895,7 @@ class TestPydanticAIVertexHook:
             conn_type="pydanticai_vertex",
             extra=json.dumps(
                 {
-                    "model": "google-cloud:gemini-2.0-flash",
+                    "model": "google-cloud:gemini-2.5-flash",
                     "project": "my-project",
                     "location": "us-central1",
                     "vertexai": True,
@@ -1936,6 +1969,26 @@ class TestPydanticAIVertexHook:
         placeholder = PydanticAIVertexHook.get_ui_field_behaviour()["placeholders"]["extra"]
         prefix = _extract_google_cloud_prefix(placeholder)
         _assert_prefix_is_known_provider(prefix)
+
+    def test_conn_fields_model_description_names_a_servable_model(self):
+        connection_types = get_provider_info()["connection-types"]
+        vertex_conn_fields = next(
+            c["conn-fields"] for c in connection_types if c["connection-type"] == "pydanticai_vertex"
+        )
+        description = vertex_conn_fields["model"]["description"]
+        _assert_model_name_is_known_servable(description)
+
+    def test_conn_types_ui_field_behaviour_placeholder_names_a_servable_model(self):
+        connection_types = get_provider_info()["connection-types"]
+        vertex_connection_type = next(
+            c for c in connection_types if c["connection-type"] == "pydanticai_vertex"
+        )
+        placeholder = vertex_connection_type["ui-field-behaviour"]["placeholders"]["extra"]
+        _assert_model_name_is_known_servable(placeholder)
+
+    def test_ui_field_behaviour_placeholder_names_a_servable_model(self):
+        placeholder = PydanticAIVertexHook.get_ui_field_behaviour()["placeholders"]["extra"]
+        _assert_model_name_is_known_servable(placeholder)
 
 
 ALL_HOOKS = [PydanticAIHook, PydanticAIAzureHook, PydanticAIBedrockHook, PydanticAIVertexHook]

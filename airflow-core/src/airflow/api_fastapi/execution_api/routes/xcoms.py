@@ -19,22 +19,25 @@ from __future__ import annotations
 
 import logging
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
-from sqlalchemy import delete
+from sqlalchemy import select
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
-from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import XComModel
+from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.utils.db import get_query_count
 
 
@@ -123,14 +126,14 @@ async def xcom_query(
     key: str,
     map_index: Annotated[int | None, Query()] = None,
 ) -> Select:
-    query = XComModel.get_many(
+    xcom_read = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
         map_indexes=map_index,
     )
-    return query
+    return xcom_read
 
 
 @router.get(
@@ -145,17 +148,19 @@ def get_mapped_xcom_by_index(
     offset: int,
     session: SessionDep,
 ) -> XComSequenceIndexResponse:
-    xcom_query = XComModel.get_many(
+    xcom_read = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
     )
+    entity = xcom_entity(xcom_read)
+    xcom_query = xcom_read
     xcom_query = xcom_query.order_by(None)
     if offset >= 0:
-        xcom_query = xcom_query.order_by(XComModel.map_index.asc()).offset(offset)
+        xcom_query = xcom_query.order_by(entity.map_index.asc()).offset(offset)
     else:
-        xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - offset)
+        xcom_query = xcom_query.order_by(entity.map_index.desc()).offset(-1 - offset)
 
     result: tuple[XComModel] | None
     if (result := session.scalars(xcom_query.limit(1)).first()) is None:
@@ -196,13 +201,15 @@ def get_mapped_xcom_by_slice(
     params: Annotated[GetXComSliceFilterParams, Query()],
     session: SessionDep,
 ) -> XComSequenceSliceResponse:
-    query = XComModel.get_many(
+    xcom_read = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
         include_prior_dates=params.include_prior_dates,
     )
+    entity = xcom_entity(xcom_read)
+    query = xcom_read
     query = query.order_by(None)
 
     step = params.step or 1
@@ -213,25 +220,25 @@ def get_mapped_xcom_by_slice(
     if (start := params.start) is None:
         if (stop := params.stop) is None:
             if step >= 0:
-                query = query.order_by(XComModel.map_index.asc())
+                query = query.order_by(entity.map_index.asc())
             else:
-                query = query.order_by(XComModel.map_index.desc())
+                query = query.order_by(entity.map_index.desc())
                 step = -step
         elif stop >= 0:
-            query = query.order_by(XComModel.map_index.asc())
+            query = query.order_by(entity.map_index.asc())
             if step >= 0:
                 query = query.limit(stop)
             else:
                 query = query.offset(stop + 1)
         else:
-            query = query.order_by(XComModel.map_index.desc())
+            query = query.order_by(entity.map_index.desc())
             step = -step
             if step > 0:
                 query = query.limit(-stop - 1)
             else:
                 query = query.offset(-stop)
     elif start >= 0:
-        query = query.order_by(XComModel.map_index.asc())
+        query = query.order_by(entity.map_index.asc())
         if (stop := params.stop) is None:
             if step >= 0:
                 query = query.offset(start)
@@ -245,7 +252,7 @@ def get_mapped_xcom_by_slice(
             else:
                 query = _get_sliced_query_or_empty(query, stop + 1, start + 1)
     else:
-        query = query.order_by(XComModel.map_index.desc())
+        query = query.order_by(entity.map_index.desc())
         step = -step
         if (stop := params.stop) is None:
             if step > 0:
@@ -260,7 +267,7 @@ def get_mapped_xcom_by_slice(
             else:
                 query = _get_sliced_query_or_empty(query, -stop, -start)
 
-    values = [row.value for row in session.execute(query.with_only_columns(XComModel.value)).all()]
+    values = [row.value for row in session.execute(query.with_only_columns(entity.value)).all()]
     if step != 1:
         values = values[::step]
     return XComSequenceSliceResponse(values)
@@ -269,6 +276,9 @@ def get_mapped_xcom_by_slice(
 @router.head(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     responses={
+        **create_openapi_http_exception_doc(
+            [(status.HTTP_400_BAD_REQUEST, "map_index cannot be specified in a HEAD request")]
+        ),
         status.HTTP_200_OK: {
             "description": "Metadata about the number of matching XCom values",
             "headers": {
@@ -319,23 +329,56 @@ def get_xcom(
     key: Annotated[str, Path(min_length=1)],
     session: SessionDep,
     params: Annotated[GetXcomFilterParams, Query()],
+    token=CurrentTIToken,
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
-    xcom_query = XComModel.get_many(
+    owner = session.execute(
+        select(TaskInstance.id, TaskInstance.working_set)
+        .where(
+            TaskInstance.id == token.id,
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.task_id == task_id,
+            TaskInstance.map_index == params.map_index,
+        )
+        .limit(1)
+        .execution_options(include_all_attempts=True)
+    ).first()
+    if (
+        owner is not None
+        and owner.working_set is None
+        and not params.include_prior_dates
+        and params.offset is None
+    ):
+        identify_archived = IdentifyArchivedTaskStateUpdates.is_applied
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE if identify_archived else status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": (
+                    "Task Instance not found in the working set; its attempt has been archived"
+                    if identify_archived
+                    else "Task Instance not found"
+                ),
+            },
+        )
+    xcom_read = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
         include_prior_dates=params.include_prior_dates,
     )
+    entity = xcom_entity(xcom_read)
+    xcom_query = xcom_read
     if params.offset is not None:
-        xcom_query = xcom_query.where(XComModel.value.is_not(None)).order_by(None)
+        xcom_query = xcom_query.where(entity.value.is_not(None)).order_by(None)
         if params.offset >= 0:
-            xcom_query = xcom_query.order_by(XComModel.map_index.asc()).offset(params.offset)
+            xcom_query = xcom_query.order_by(entity.map_index.asc()).offset(params.offset)
         else:
-            xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - params.offset)
+            xcom_query = xcom_query.order_by(entity.map_index.desc()).offset(-1 - params.offset)
     else:
-        xcom_query = xcom_query.where(XComModel.map_index == params.map_index)
+        xcom_query = xcom_query.where(entity.map_index == params.map_index)
 
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
@@ -367,6 +410,14 @@ def get_xcom(
 @router.post(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc(
+        [
+            (
+                status.HTTP_400_BAD_REQUEST,
+                "The key is empty, the value is too large to map, or is unserializable",
+            )
+        ]
+    ),
 )
 def set_xcom(
     dag_id: str,
@@ -397,8 +448,9 @@ def set_xcom(
     map_index: Annotated[int, Query()] = -1,
     dag_result: Annotated[bool, Query(description="Whether this XCom is a dag result")] = False,
     mapped_length: Annotated[
-        int | None, Query(description="Number of mapped tasks this value expands into")
+        int | None, Query(ge=0, description="Number of mapped tasks this value expands into")
     ] = None,
+    token=CurrentTIToken,
 ):
     """Set an Airflow XCom."""
     from airflow.configuration import conf
@@ -415,16 +467,17 @@ def set_xcom(
         )
 
     if mapped_length is not None:
-        task_map = TaskMap(
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-            length=mapped_length,
-            keys=None,
-        )
+        # The scheduler only ever reads a length off the return value, so any other key is write-only.
+        if key != XCOM_RETURN_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "reason": "invalid_mapped_length_key",
+                    "message": f"mapped_length is only valid for the {XCOM_RETURN_KEY!r} key.",
+                },
+            )
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
-        if task_map.length > max_map_length:
+        if mapped_length > max_map_length:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -432,7 +485,6 @@ def set_xcom(
                     "message": "pushed value is too large to map as a downstream's dependency",
                 },
             )
-        session.merge(task_map)
 
     # else:
     # TODO: Can/should we check if a client _hasn't_ provided this for an upstream of a mapped task? That
@@ -440,15 +492,15 @@ def set_xcom(
     # (the mapped task would fail in a moment as it can't be expanded anyway.)
     try:
         # We expect serialised value from the caller - sdk, do not serialise in here
-        XComModel.set(
+        XComModel.set_for_attempt(
             key=key,
             value=value,
-            run_id=run_id,
-            task_id=task_id,
-            dag_id=dag_id,
-            map_index=map_index,
+            task_instance_id=_get_writer_id(
+                token.id, dag_id=dag_id, run_id=run_id, task_id=task_id, map_index=map_index, session=session
+            ),
             serialize=False,
             dag_result=dag_result,
+            mapped_length=mapped_length,
             session=session,
         )
     except ValueError as e:
@@ -477,14 +529,50 @@ def delete_xcom(
     task_id: str,
     key: Annotated[str, Path(min_length=1)],
     map_index: Annotated[int, Query()] = -1,
+    token=CurrentTIToken,
 ):
     """Delete a single XCom Value."""
-    query = delete(XComModel).where(
-        XComModel.key == key,
-        XComModel.run_id == run_id,
-        XComModel.task_id == task_id,
-        XComModel.dag_id == dag_id,
-        XComModel.map_index == map_index,
+    owner = _find_writer_id(
+        token.id, dag_id=dag_id, run_id=run_id, task_id=task_id, map_index=map_index, session=session
     )
-    session.execute(query)
+    if owner is not None:
+        XComModel.delete_for_attempts(
+            producer_ids=select(TaskInstance.id).where(TaskInstance.id == owner),
+            key=key,
+            session=session,
+        )
     return {"message": f"XCom with key: {key} successfully deleted."}
+
+
+def _find_writer_id(
+    attempt_id: UUID, *, dag_id: str, run_id: str, task_id: str, map_index: int, session: SessionDep
+) -> UUID | None:
+    """Resolve the attempt a write targets: the caller's own, or the live attempt of another task."""
+    coordinates = (
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.task_id == task_id,
+        TaskInstance.map_index == map_index,
+    )
+    own = session.scalar(
+        select(TaskInstance.id)
+        .where(TaskInstance.id == attempt_id, *coordinates)
+        .execution_options(include_all_attempts=True)
+    )
+    if own is not None:
+        return own
+    return session.scalar(select(TaskInstance.id).where(*coordinates))
+
+
+def _get_writer_id(
+    attempt_id: UUID, *, dag_id: str, run_id: str, task_id: str, map_index: int, session: SessionDep
+) -> UUID:
+    owner = _find_writer_id(
+        attempt_id, dag_id=dag_id, run_id=run_id, task_id=task_id, map_index=map_index, session=session
+    )
+    if owner is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": f"Task Instance {task_id!r} not found in {run_id!r}"},
+        )
+    return owner

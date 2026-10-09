@@ -69,10 +69,10 @@ const ClearTaskInstanceConfirmationDialog = ({
     },
     requestBody: {
       dag_run_id: dagDetails?.dagRunId ?? "",
-      include_downstream: useExplicitTaskIds ? false : dagDetails?.downstream,
+      include_downstream: !useExplicitTaskIds && dagDetails?.downstream,
       include_future: dagDetails?.future,
       include_past: dagDetails?.past,
-      include_upstream: useExplicitTaskIds ? false : dagDetails?.upstream,
+      include_upstream: !useExplicitTaskIds && dagDetails?.upstream,
       only_failed: dagDetails?.onlyFailed,
       task_ids: useExplicitTaskIds
         ? dagDetails.taskIds
@@ -141,9 +141,7 @@ const ClearTaskInstanceConfirmationDialog = ({
               </VStack>
             </Dialog.Header>
             <Dialog.Footer>
-              <Button colorPalette="blue" onClick={onClose}>
-                {translate("common:modal.confirm")}
-              </Button>
+              <Button onClick={onClose}>{translate("common:modal.confirm")}</Button>
             </Dialog.Footer>
           </>
         ) : null}

@@ -47,6 +47,8 @@ class TeradataToTeradataOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "sql",
         "sql_params",
+        "dest_teradata_conn_id",
+        "source_teradata_conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql", "sql_params": "py"}

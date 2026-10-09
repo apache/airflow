@@ -18,6 +18,7 @@
 package binding
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -29,7 +30,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/apache/airflow/go-sdk/airflow"
+	"github.com/apache/airflow/go-sdk/internal/contexttest"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -108,34 +109,51 @@ func analyze(s *BindingSuite, fn any) *Plan {
 }
 
 func (s *BindingSuite) resolve(fn any, args []Arg, client sdk.Client) ([]reflect.Value, error) {
+	values, _, err := s.resolveWithLogs(fn, args, client)
+	return values, err
+}
+
+// resolveWithLogs is resolve with the logger's output captured, for the checks
+// that warn rather than fail.
+func (s *BindingSuite) resolveWithLogs(
+	fn any,
+	args []Arg,
+	client sdk.Client,
+) ([]reflect.Value, string, error) {
+	var logs bytes.Buffer
 	plan := analyze(s, fn)
-	values, err := plan.Resolve(runtimeCtx(), slog.Default(), client, args)
+	values, err := plan.Resolve(
+		runtimeCtx(),
+		slog.New(slog.NewTextHandler(&logs, nil)),
+		client,
+		args,
+	)
 	if err != nil {
-		return nil, err
+		return nil, logs.String(), err
 	}
 	s.Require().True(values[0].IsValid(), "parameter 0 must be bound")
-	s.Require().IsType(airflow.Context{}, values[0].Interface())
-	return values[1:], nil
+	s.Require().IsType(contexttest.Context{}, values[0].Interface())
+	return values[1:], logs.String(), nil
 }
 
 func (s *BindingSuite) TestAnalyzeClassification() {
 	plan := analyze(
 		s,
-		func(actx airflow.Context, country string, extracted map[string]any) error { return nil },
+		func(actx contexttest.Context, country string, extracted map[string]any) error { return nil },
 	)
 	s.Equal(2, plan.numData, "every parameter after the leading airflow.Context is data")
 
-	s.Zero(analyze(s, func(actx airflow.Context) error { return nil }).numData)
+	s.Zero(analyze(s, func(actx contexttest.Context) error { return nil }).numData)
 	s.Equal(
 		1,
-		analyze(s, func(actx airflow.Context, x any) error { return nil }).numData,
+		analyze(s, func(actx contexttest.Context, x any) error { return nil }).numData,
 		"an `any` parameter is a data parameter",
 	)
 }
 
 func (s *BindingSuite) TestAnalyzeRequiresLeadingAirflowContext() {
-	type namedContext airflow.Context
-	type embedsContext struct{ airflow.Context }
+	type namedContext contexttest.Context
+	type embedsContext struct{ contexttest.Context }
 
 	cases := map[string]struct {
 		fn          any
@@ -146,7 +164,7 @@ func (s *BindingSuite) TestAnalyzeRequiresLeadingAirflowContext() {
 			"takes no parameters, but the first parameter must be airflow.Context",
 		},
 		"data-first": {
-			func(country string, actx airflow.Context) error { return nil },
+			func(country string, actx contexttest.Context) error { return nil },
 			"parameter 0 is string, but the first parameter must be airflow.Context",
 		},
 		"plain-context-first": {
@@ -162,8 +180,8 @@ func (s *BindingSuite) TestAnalyzeRequiresLeadingAirflowContext() {
 			"parameter 0 is *slog.Logger, but the first parameter must be airflow.Context",
 		},
 		"context-by-pointer": {
-			func(actx *airflow.Context) error { return nil },
-			"parameter 0 is *airflow.Context, but airflow.Context is taken by value",
+			func(actx *contexttest.Context) error { return nil },
+			"parameter 0 is *contexttest.Context, but airflow.Context is taken by value",
 		},
 		"named-context-type": {
 			func(actx namedContext) error { return nil },
@@ -185,7 +203,7 @@ func (s *BindingSuite) TestAnalyzeRequiresLeadingAirflowContext() {
 }
 
 func (s *BindingSuite) TestAirflowContextInjection() {
-	plan := analyze(s, func(actx airflow.Context) error { return nil })
+	plan := analyze(s, func(actx contexttest.Context) error { return nil })
 	s.Zero(plan.numData)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -194,28 +212,23 @@ func (s *BindingSuite) TestAirflowContextInjection() {
 	s.Require().NoError(err)
 	s.Require().Len(values, 1)
 
-	actx, ok := values[0].Interface().(airflow.Context)
+	actx, ok := values[0].Interface().(contexttest.Context)
 	s.Require().True(ok, "parameter 0 must be bound to an airflow.Context")
 	s.Same(logger, actx.Logger())
 	s.Same(client, actx.Client())
 	s.Equal("dag1", actx.TaskInstance().DagID)
 	s.Equal("transform", actx.TaskInstance().TaskID)
 	s.Equal("run1", actx.DagRun().RunID)
-
-	// A helper taking a plain context.Context gets the same surface back.
-	recovered, ok := airflow.FromContext(context.Context(actx))
-	s.Require().True(ok)
-	s.Equal(actx.TaskInstance(), recovered.TaskInstance())
 }
 
 // The Context is bound to the live task context, not a placeholder.
 func (s *BindingSuite) TestAirflowContextTracksTaskCancellation() {
-	plan := analyze(s, func(actx airflow.Context) error { return nil })
+	plan := analyze(s, func(actx contexttest.Context) error { return nil })
 
 	ctx, cancel := context.WithCancel(runtimeCtx())
 	values, err := plan.Resolve(ctx, slog.Default(), &fakeXComClient{}, nil)
 	s.Require().NoError(err)
-	actx, ok := values[0].Interface().(airflow.Context)
+	actx, ok := values[0].Interface().(contexttest.Context)
 	s.Require().True(ok)
 
 	s.Require().NoError(actx.Err())
@@ -229,27 +242,27 @@ func (s *BindingSuite) TestAnalyzeRejections() {
 		rejected string
 	}{
 		"func-param": {
-			func(actx airflow.Context, cb func()) error { return nil },
+			func(actx contexttest.Context, cb func()) error { return nil },
 			"parameter 1: type func()",
 		},
 		"chan-param": {
-			func(actx airflow.Context, ch chan int) error { return nil },
+			func(actx contexttest.Context, ch chan int) error { return nil },
 			"parameter 1: type chan int",
 		},
 		"pointer-to-func-param": {
-			func(actx airflow.Context, cb *func()) error { return nil },
+			func(actx contexttest.Context, cb *func()) error { return nil },
 			"parameter 1: type *func()",
 		},
 		"slice-of-func-param": {
-			func(actx airflow.Context, cbs []func()) error { return nil },
+			func(actx contexttest.Context, cbs []func()) error { return nil },
 			"parameter 1: type []func()",
 		},
 		"map-with-chan-value-param": {
-			func(actx airflow.Context, m map[string]chan int) error { return nil },
+			func(actx contexttest.Context, m map[string]chan int) error { return nil },
 			"parameter 1: type map[string]chan int",
 		},
 		"chan-param-after-data": {
-			func(actx airflow.Context, country string, ch chan int) error { return nil },
+			func(actx contexttest.Context, country string, ch chan int) error { return nil },
 			"parameter 2: type chan int",
 		},
 	}
@@ -277,47 +290,47 @@ func (s *BindingSuite) TestAnalyzeRejectsAirflowSuppliedParams() {
 		reason   string
 	}{
 		"logger": {
-			func(actx airflow.Context, log *slog.Logger) error { return nil },
+			func(actx contexttest.Context, log *slog.Logger) error { return nil },
 			"parameter 1: *slog.Logger",
 			loggerReason,
 		},
 		"defined-logger-type": {
-			func(actx airflow.Context, log definedLogger) error { return nil },
+			func(actx contexttest.Context, log definedLogger) error { return nil },
 			"parameter 1: binding.definedLogger",
 			loggerReason,
 		},
 		"logger-after-data": {
-			func(actx airflow.Context, country string, log *slog.Logger) error { return nil },
+			func(actx contexttest.Context, country string, log *slog.Logger) error { return nil },
 			"parameter 2: *slog.Logger",
 			loggerReason,
 		},
 		"client": {
-			func(actx airflow.Context, client sdk.Client) error { return nil },
+			func(actx contexttest.Context, client sdk.Client) error { return nil },
 			"parameter 1: sdk.Client",
 			interfaceReason,
 		},
 		"narrow-client": {
-			func(actx airflow.Context, client sdk.VariableClient) error { return nil },
+			func(actx contexttest.Context, client sdk.VariableClient) error { return nil },
 			"parameter 1: sdk.VariableClient",
 			interfaceReason,
 		},
 		"client-after-data": {
-			func(actx airflow.Context, country string, client sdk.Client) error { return nil },
+			func(actx contexttest.Context, country string, client sdk.Client) error { return nil },
 			"parameter 2: sdk.Client",
 			interfaceReason,
 		},
 		"plain-context": {
-			func(actx airflow.Context, ctx context.Context) error { return nil },
+			func(actx contexttest.Context, ctx context.Context) error { return nil },
 			"parameter 1: context.Context",
 			interfaceReason,
 		},
 		"ti-run-context": {
-			func(actx airflow.Context, ctx sdk.TIRunContext) error { return nil },
+			func(actx contexttest.Context, ctx sdk.TIRunContext) error { return nil },
 			"parameter 1: sdk.TIRunContext",
 			interfaceReason,
 		},
 		"other-interface": {
-			func(actx airflow.Context, x interface{ NotAClientMethod() }) error { return nil },
+			func(actx contexttest.Context, x interface{ NotAClientMethod() }) error { return nil },
 			"parameter 1: interface { NotAClientMethod() }",
 			interfaceReason,
 		},
@@ -348,15 +361,15 @@ type recursiveNode struct {
 
 func (s *BindingSuite) TestAnalyzeAcceptsSelfDecodingAndRecursiveTypes() {
 	for name, fn := range map[string]any{
-		"time.Time":     func(actx airflow.Context, when time.Time) error { return nil },
-		"slice-of-time": func(actx airflow.Context, when []time.Time) error { return nil },
+		"time.Time":     func(actx contexttest.Context, when time.Time) error { return nil },
+		"slice-of-time": func(actx contexttest.Context, when []time.Time) error { return nil },
 		"self-decoding": func(
-			actx airflow.Context, name string, n selfDecodingNode,
+			actx contexttest.Context, name string, n selfDecodingNode,
 		) error {
 			return nil
 		},
-		"self-decoding-sole": func(actx airflow.Context, n selfDecodingNode) error { return nil },
-		"recursive-struct":   func(actx airflow.Context, n recursiveNode) error { return nil },
+		"self-decoding-sole": func(actx contexttest.Context, n selfDecodingNode) error { return nil },
+		"recursive-struct":   func(actx contexttest.Context, n recursiveNode) error { return nil },
 	} {
 		s.Run(name, func() {
 			_, err := Analyze(reflect.TypeOf(fn), "testFn")
@@ -366,7 +379,7 @@ func (s *BindingSuite) TestAnalyzeAcceptsSelfDecodingAndRecursiveTypes() {
 }
 
 func (s *BindingSuite) TestResolveArityMismatch() {
-	fn := func(actx airflow.Context, country string) error { return nil }
+	fn := func(actx contexttest.Context, country string) error { return nil }
 	_, err := s.resolve(fn, nil, &fakeXComClient{})
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "argument count mismatch")
@@ -375,7 +388,7 @@ func (s *BindingSuite) TestResolveArityMismatch() {
 	}
 
 	_, err = s.resolve(
-		func(actx airflow.Context) error { return nil },
+		func(actx contexttest.Context) error { return nil },
 		[]Arg{LiteralArg{Value: "uk"}},
 		&fakeXComClient{},
 	)
@@ -386,7 +399,7 @@ func (s *BindingSuite) TestResolveArityMismatch() {
 
 func (s *BindingSuite) TestResolveLiterals() {
 	fn := func(
-		actx airflow.Context,
+		actx contexttest.Context,
 		country string, count int, ratio float64, on bool, tags []string, meta map[string]any,
 	) error {
 		return nil
@@ -409,7 +422,7 @@ func (s *BindingSuite) TestResolveLiterals() {
 }
 
 func (s *BindingSuite) TestResolveSelfDecodingLiterals() {
-	fn := func(actx airflow.Context, when time.Time, id uuid.UUID, ratio float64) error { return nil }
+	fn := func(actx contexttest.Context, when time.Time, id uuid.UUID, ratio float64) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{
 			Value:       "2024-01-02T03:04:05Z",
@@ -428,7 +441,7 @@ func (s *BindingSuite) TestResolveSelfDecodingLiterals() {
 }
 
 func (s *BindingSuite) TestResolveTypedMapParam() {
-	fn := func(actx airflow.Context, labels map[string]string) error { return nil }
+	fn := func(actx contexttest.Context, labels map[string]string) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{
 			Name:        "labels",
@@ -528,7 +541,7 @@ func (s *BindingSuite) TestCheckValueTypeMatrix() {
 }
 
 func (s *BindingSuite) TestResolveTypeMismatchFailsLoudly() {
-	fn := func(actx airflow.Context, count int) error { return nil }
+	fn := func(actx contexttest.Context, count int) error { return nil }
 	_, err := s.resolve(
 		fn,
 		[]Arg{LiteralArg{Value: "uk", ValueSchema: argSchema("string")}},
@@ -544,7 +557,7 @@ func (s *BindingSuite) TestResolveTypeMismatchFailsLoudly() {
 }
 
 func (s *BindingSuite) TestResolveLiteralDecodeFailure() {
-	fn := func(actx airflow.Context, count int) error { return nil }
+	fn := func(actx contexttest.Context, count int) error { return nil }
 	_, err := s.resolve(fn, []Arg{LiteralArg{Value: "uk"}}, &fakeXComClient{})
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "decoding literal value into int")
@@ -586,7 +599,7 @@ func (s *BindingSuite) TestResolveXComArgs() {
 		"probe/return_value":   "probe-value",
 	}}
 
-	fn := func(actx airflow.Context, res extractResult, probe string) error { return nil }
+	fn := func(actx contexttest.Context, res extractResult, probe string) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		XComArg{TaskID: "extract", ValueSchema: argSchema("object")},
 		XComArg{TaskID: "probe", ValueSchema: argSchema("string")},
@@ -616,7 +629,7 @@ func (s *BindingSuite) TestResolveXComStrictStructDecode() {
 	client := &fakeXComClient{values: map[string]any{
 		"extract/return_value": map[string]any{"go_version": "go1.24", "renamed_field": 1},
 	}}
-	fn := func(actx airflow.Context, res extractResult) error { return nil }
+	fn := func(actx contexttest.Context, res extractResult) error { return nil }
 	_, err := s.resolve(fn, []Arg{XComArg{TaskID: "extract"}}, client)
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), `decoding xcom from task "extract"`)
@@ -626,7 +639,7 @@ func (s *BindingSuite) TestResolveXComStrictStructDecode() {
 
 func (s *BindingSuite) TestResolveXComPullFailure() {
 	client := &fakeXComClient{err: sdk.XComNotFound}
-	fn := func(actx airflow.Context, res map[string]any) error { return nil }
+	fn := func(actx contexttest.Context, res map[string]any) error { return nil }
 	_, err := s.resolve(fn, []Arg{XComArg{TaskID: "extract"}}, client)
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), `pulling xcom from task "extract"`)
@@ -635,7 +648,7 @@ func (s *BindingSuite) TestResolveXComPullFailure() {
 
 func (s *BindingSuite) TestResolveMultipleXComPullFailures() {
 	client := &fakeXComClient{err: sdk.XComNotFound}
-	fn := func(actx airflow.Context, a, b, c map[string]any) error { return nil }
+	fn := func(actx contexttest.Context, a, b, c map[string]any) error { return nil }
 	_, err := s.resolve(fn, []Arg{
 		XComArg{TaskID: "extract_a"},
 		XComArg{TaskID: "extract_b"},
@@ -655,7 +668,7 @@ func (s *BindingSuite) TestResolveWholeStructFromXCom() {
 			"region":      "eu-west-1",
 		},
 	}}
-	fn := func(actx airflow.Context, cfg wholeConfig) error { return nil }
+	fn := func(actx contexttest.Context, cfg wholeConfig) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		XComArg{Name: "cfg", TaskID: "make_config", ValueSchema: argSchema("object")},
 	}, client)
@@ -668,7 +681,7 @@ func (s *BindingSuite) TestResolveWholeStructFromXCom() {
 }
 
 func (s *BindingSuite) TestResolveXComWithoutRuntimeContext() {
-	plan := analyze(s, func(actx airflow.Context, res map[string]any) error { return nil })
+	plan := analyze(s, func(actx contexttest.Context, res map[string]any) error { return nil })
 	_, err := plan.Resolve(
 		context.Background(), slog.Default(), &fakeXComClient{},
 		[]Arg{XComArg{TaskID: "extract"}},
@@ -679,7 +692,7 @@ func (s *BindingSuite) TestResolveXComWithoutRuntimeContext() {
 }
 
 func (s *BindingSuite) TestResolveNullHandling() {
-	fn := func(actx airflow.Context, meta map[string]any) error { return nil }
+	fn := func(actx contexttest.Context, meta map[string]any) error { return nil }
 	got, err := s.resolve(
 		fn,
 		[]Arg{LiteralArg{Value: nil, ValueSchema: argSchema("object")}},
@@ -688,7 +701,7 @@ func (s *BindingSuite) TestResolveNullHandling() {
 	s.Require().NoError(err)
 	s.Nil(got[0].Interface())
 
-	fnStr := func(actx airflow.Context, country string) error { return nil }
+	fnStr := func(actx contexttest.Context, country string) error { return nil }
 	_, err = s.resolve(fnStr, []Arg{LiteralArg{Value: nil}}, &fakeXComClient{})
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "not nilable")
@@ -703,7 +716,7 @@ func (fakeArg) Schema() *genmodels.ArgValueSchema { return nil }
 func (fakeArg) sealedArg()                        {}
 
 func (s *BindingSuite) TestResolveUnsupportedVariant() {
-	fn := func(actx airflow.Context, country string) error { return nil }
+	fn := func(actx contexttest.Context, country string) error { return nil }
 	_, err := s.resolve(fn, []Arg{fakeArg{}}, &fakeXComClient{})
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "unsupported argument binding binding.fakeArg")
@@ -711,7 +724,7 @@ func (s *BindingSuite) TestResolveUnsupportedVariant() {
 }
 
 func (s *BindingSuite) TestResolveNilArg() {
-	fn := func(actx airflow.Context, country string) error { return nil }
+	fn := func(actx contexttest.Context, country string) error { return nil }
 	_, err := s.resolve(fn, []Arg{nil}, &fakeXComClient{})
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "nil argument binding")
@@ -719,30 +732,57 @@ func (s *BindingSuite) TestResolveNilArg() {
 }
 
 func (s *BindingSuite) TestAnalyzeLoneStructClassification() {
-	plan := analyze(s, func(actx airflow.Context, input simpleInput) error { return nil })
+	plan := analyze(s, func(actx contexttest.Context, input simpleInput) error { return nil })
 	s.True(plan.loneStruct, "a sole struct data parameter is resolved by name at execution")
 	s.Zero(plan.numData)
 
-	ptrPlan := analyze(s, func(actx airflow.Context, input *simpleInput) error { return nil })
+	ptrPlan := analyze(s, func(actx contexttest.Context, input *simpleInput) error { return nil })
 	s.True(ptrPlan.loneStruct, "a pointer to a sole struct is detected the same way")
 	s.Zero(ptrPlan.numData)
 
 	flatPlan := analyze(
 		s,
-		func(actx airflow.Context, prefix string, cfg wholeConfig) error { return nil },
+		func(actx contexttest.Context, prefix string, cfg wholeConfig) error { return nil },
 	)
 	s.False(flatPlan.loneStruct, "a struct alongside another data parameter is a flat slot")
 	s.Equal(2, flatPlan.numData)
 
-	scalarPlan := analyze(s, func(actx airflow.Context, name string) error { return nil })
+	scalarPlan := analyze(s, func(actx contexttest.Context, name string) error { return nil })
 	s.False(scalarPlan.loneStruct, "a sole non-struct data parameter is plain positional")
 	s.Equal(1, scalarPlan.numData)
+}
+
+func (s *BindingSuite) TestAnalyzePositionalBindsWholeValues() {
+	resolve := func(fn any, args ...Arg) []reflect.Value {
+		plan, err := AnalyzePositional(reflect.TypeOf(fn), "testFn")
+		s.Require().NoError(err)
+		values, err := plan.Resolve(runtimeCtx(), slog.Default(), &fakeXComClient{}, args)
+		s.Require().NoError(err)
+		return values[1:]
+	}
+
+	// The argument has the same name as the arg tag of Region, so a plan from Analyze would
+	// decode the whole value into that one field.
+	values := resolve(
+		func(contexttest.Context, reportInput) error { return nil },
+		LiteralArg{Name: "region", Value: map[string]any{"Ratio": 0.5, "Region": "eu"}},
+	)
+	s.Equal(reportInput{Ratio: 0.5, Region: "eu"}, values[0].Interface())
+
+	// Analyze rejects a struct with arg tags next to another data parameter.
+	values = resolve(
+		func(contexttest.Context, combineInput, string) error { return nil },
+		LiteralArg{Name: "input", Value: map[string]any{"Name": "widget", "Count": 2}},
+		LiteralArg{Name: "label", Value: "daily"},
+	)
+	s.Equal(combineInput{Name: "widget", Count: 2}, values[0].Interface())
+	s.Equal("daily", values[1].Interface())
 }
 
 func (s *BindingSuite) TestAnalyzeMultipleStructsAreFlat() {
 	plan := analyze(
 		s,
-		func(actx airflow.Context, a wholeConfig, b wholeConfig) error { return nil },
+		func(actx contexttest.Context, a wholeConfig, b wholeConfig) error { return nil },
 	)
 	s.False(plan.loneStruct)
 	s.Equal(2, plan.numData)
@@ -757,7 +797,8 @@ func (s *BindingSuite) TestAnalyzeStructValidation() {
 		Bad chan int `arg:"bad"`
 	}
 	type foldedDuplicateArgNames struct {
-		RegionCode  string
+		RegionCode string
+		//lint:ignore ST1003 the test needs a field that differs from RegionCode only by an underscore
 		Region_code string
 	}
 
@@ -766,23 +807,23 @@ func (s *BindingSuite) TestAnalyzeStructValidation() {
 		errContains string
 	}{
 		"duplicate-arg-names": {
-			func(actx airflow.Context, input duplicateArgNames) error { return nil },
+			func(actx contexttest.Context, input duplicateArgNames) error { return nil },
 			`fields A and B both bind arg name "A"`,
 		},
 		"folded-duplicate-arg-names": {
-			func(actx airflow.Context, input foldedDuplicateArgNames) error { return nil },
+			func(actx contexttest.Context, input foldedDuplicateArgNames) error { return nil },
 			"differ only in case or underscores",
 		},
 		"tagged-non-decodable-field": {
-			func(actx airflow.Context, input taggedNonDecodableField) error { return nil },
+			func(actx contexttest.Context, input taggedNonDecodableField) error { return nil },
 			"cannot receive a task argument",
 		},
 		"tagged-struct-not-sole": {
-			func(actx airflow.Context, prefix string, input combineInput) error { return nil },
+			func(actx contexttest.Context, prefix string, input combineInput) error { return nil },
 			"must be the function's only data parameter",
 		},
 		"tagged-struct-trailing": {
-			func(actx airflow.Context, input combineInput, suffix string) error { return nil },
+			func(actx contexttest.Context, input combineInput, suffix string) error { return nil },
 			"must be the function's only data parameter",
 		},
 	}
@@ -797,7 +838,7 @@ func (s *BindingSuite) TestAnalyzeStructValidation() {
 }
 
 func (s *BindingSuite) TestResolveStructAllFields() {
-	fn := func(actx airflow.Context, input combineInput) error { return nil }
+	fn := func(actx contexttest.Context, input combineInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 		LiteralArg{Name: "count", Value: 7, ValueSchema: argSchema("integer")},
@@ -810,7 +851,7 @@ func (s *BindingSuite) TestResolveStructAllFields() {
 }
 
 func (s *BindingSuite) TestResolveStructXComArg() {
-	fn := func(actx airflow.Context, input reportInput) error { return nil }
+	fn := func(actx contexttest.Context, input reportInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		XComArg{Name: "region", TaskID: "make_region", ValueSchema: argSchema("string")},
 		LiteralArg{Name: "Ratio", Value: 0.5, ValueSchema: argSchema("number")},
@@ -823,7 +864,7 @@ func (s *BindingSuite) TestResolveStructXComArg() {
 }
 
 func (s *BindingSuite) TestResolveStructSingleClaimedArgBindsByName() {
-	fn := func(actx airflow.Context, input simpleInput) error { return nil }
+	fn := func(actx contexttest.Context, input simpleInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
@@ -832,7 +873,7 @@ func (s *BindingSuite) TestResolveStructSingleClaimedArgBindsByName() {
 }
 
 func (s *BindingSuite) TestResolveStructPointer() {
-	fn := func(actx airflow.Context, input *simpleInput) error { return nil }
+	fn := func(actx contexttest.Context, input *simpleInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
@@ -843,7 +884,7 @@ func (s *BindingSuite) TestResolveStructPointer() {
 }
 
 func (s *BindingSuite) TestResolveLoneStructBothModes() {
-	fn := func(actx airflow.Context, cfg wholeConfig) error { return nil }
+	fn := func(actx contexttest.Context, cfg wholeConfig) error { return nil }
 	want := wholeConfig{Environment: "production", Region: "eu-west-1"}
 
 	named, err := s.resolve(fn, []Arg{
@@ -869,29 +910,36 @@ type taggedRegionInput struct {
 }
 
 func (s *BindingSuite) TestResolveTaggedStructNeverFallsBackToWholeValue() {
-	fn := func(actx airflow.Context, input taggedRegionInput) error { return nil }
-	_, err := s.resolve(fn, []Arg{
+	fn := func(actx contexttest.Context, input taggedRegionInput) error { return nil }
+	got, logs, err := s.resolveWithLogs(fn, []Arg{
 		LiteralArg{Name: "region_code", Value: "eu-west-1", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
-	if s.Assert().Error(err) {
-		s.Contains(err.Error(), `not claimed by any struct field: "region_code"`)
-	}
+	s.Require().NoError(err)
+	s.Equal(
+		"",
+		got[0].Interface().(taggedRegionInput).Region,
+		"no whole-value fallback for a tagged struct",
+	)
+	// A typo'd tag shows up from both sides at once, which is what names it.
+	s.Contains(logs, `Region (argument \"regon_code\")`)
+	s.Contains(logs, "the task handler does not declare")
 }
 
-func (s *BindingSuite) TestResolveStructUnclaimedArgFailsLoudly() {
-	fn := func(actx airflow.Context, input combineInput) error { return nil }
-	_, err := s.resolve(fn, []Arg{
+func (s *BindingSuite) TestResolveStructUnclaimedArgWarns() {
+	fn := func(actx contexttest.Context, input simpleInput) error { return nil }
+	got, logs, err := s.resolveWithLogs(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 		LiteralArg{Name: "typo", Value: "x", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
-	if s.Assert().Error(err) {
-		s.Contains(err.Error(), `not claimed by any struct field: "typo"`)
-	}
+	s.Require().NoError(err, "an argument no field claims changes nothing the handler reads")
+	s.Equal("widget", got[0].Interface().(simpleInput).Name)
+	s.Contains(logs, "the task handler does not declare")
+	s.Contains(logs, "typo")
 }
 
-func (s *BindingSuite) TestResolveStructUnclaimedFromDefaultAllowed() {
-	fn := func(actx airflow.Context, input combineInput) error { return nil }
-	got, err := s.resolve(fn, []Arg{
+func (s *BindingSuite) TestResolveStructUnclaimedFromDefaultStaysSilent() {
+	fn := func(actx contexttest.Context, input simpleInput) error { return nil }
+	got, logs, err := s.resolveWithLogs(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 		LiteralArg{
 			Name:        "threshold",
@@ -901,24 +949,28 @@ func (s *BindingSuite) TestResolveStructUnclaimedFromDefaultAllowed() {
 		},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
-	s.Equal("widget", got[0].Interface().(combineInput).Name)
+	s.Equal("widget", got[0].Interface().(simpleInput).Name)
+	s.NotContains(logs, "the task handler does not declare")
 }
 
-func (s *BindingSuite) TestResolveStructEmptySpecFailsLoudly() {
-	fn := func(actx airflow.Context, input simpleInput) error { return nil }
+func (s *BindingSuite) TestResolveStructEmptySpecWarns() {
+	// An argless call sends no spec at all, so this is the ordinary shape of a
+	// stub called as `my_task()`, not a sign of an Airflow that cannot send one.
+	fn := func(actx contexttest.Context, input simpleInput) error { return nil }
 	for name, args := range map[string][]Arg{"nil-spec": nil, "empty-spec": {}} {
 		s.Run(name, func() {
-			_, err := s.resolve(fn, args, &fakeXComClient{})
-			if s.Assert().Error(err) {
-				s.Contains(err.Error(), "no TaskFlow arg bindings arrived")
-			}
+			got, logs, err := s.resolveWithLogs(fn, args, &fakeXComClient{})
+			s.Require().NoError(err)
+			s.Equal("", got[0].Interface().(simpleInput).Name, "every field keeps its zero value")
+			s.Contains(logs, "the Dag's call did not pass")
+			s.Contains(logs, "passed=[]")
 		})
 	}
 }
 
 func (s *BindingSuite) TestResolveStructOnlyDefaultsZeroValues() {
-	fn := func(actx airflow.Context, input twoFieldInput) error { return nil }
-	got, err := s.resolve(fn, []Arg{
+	fn := func(actx contexttest.Context, input twoFieldInput) error { return nil }
+	got, logs, err := s.resolveWithLogs(fn, []Arg{
 		LiteralArg{
 			Name:        "threshold",
 			Value:       0.75,
@@ -930,21 +982,41 @@ func (s *BindingSuite) TestResolveStructOnlyDefaultsZeroValues() {
 	input := got[0].Interface().(twoFieldInput)
 	s.Equal("", input.Name, "no explicit entry arrived; fields keep kwarg-style zero values")
 	s.Equal("", input.Missing)
+	s.Contains(logs, "the Dag's call did not pass")
 }
 
-func (s *BindingSuite) TestResolveStructUnmatchedFieldZeroValued() {
-	fn := func(actx airflow.Context, input twoFieldInput) error { return nil }
-	got, err := s.resolve(fn, []Arg{
+func (s *BindingSuite) TestResolveStructUnmatchedFieldWarns() {
+	fn := func(actx contexttest.Context, input twoFieldInput) error { return nil }
+	got, logs, err := s.resolveWithLogs(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
-	s.Require().NoError(err)
+	s.Require().NoError(err, "a struct binds by name, so an unfilled field is not fatal")
 	input := got[0].Interface().(twoFieldInput)
 	s.Equal("widget", input.Name, "the matched field binds normally")
-	s.Equal("", input.Missing, "the unmatched field is left at its Go zero value, not an error")
+	s.Equal("", input.Missing, "the unmatched field keeps its Go zero value")
+	s.Contains(logs, "the Dag's call did not pass")
+	s.Contains(logs, `Missing (argument \"missing\")`)
+	s.NotContains(logs, "the task handler does not declare", "every argument was claimed")
+}
+
+func (s *BindingSuite) TestResolveStructWarnsInEachDirectionAtOnce() {
+	// A call can be wrong both ways at the same time, so each direction is its
+	// own message rather than one line a reader has to untangle.
+	fn := func(actx contexttest.Context, input twoFieldInput) error { return nil }
+	got, logs, err := s.resolveWithLogs(fn, []Arg{
+		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
+		LiteralArg{Name: "typo", Value: "x", ValueSchema: argSchema("string")},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal("widget", got[0].Interface().(twoFieldInput).Name)
+	s.Contains(logs, "the Dag's call did not pass")
+	s.Contains(logs, `declared_not_passed="[Missing (argument \"missing\")]"`)
+	s.Contains(logs, "the task handler does not declare")
+	s.Contains(logs, "passed_not_declared=[typo]")
 }
 
 func (s *BindingSuite) TestResolveFlatParamsToleratesCapturedDefaults() {
-	fn := func(actx airflow.Context, country string) error { return nil }
+	fn := func(actx contexttest.Context, country string) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "country", Value: "uk", ValueSchema: argSchema("string")},
 		LiteralArg{
@@ -959,7 +1031,7 @@ func (s *BindingSuite) TestResolveFlatParamsToleratesCapturedDefaults() {
 }
 
 func (s *BindingSuite) TestResolveFlatParamsBindsDefaultsWhenDeclared() {
-	fn := func(actx airflow.Context, country string, verbose bool) error { return nil }
+	fn := func(actx contexttest.Context, country string, verbose bool) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "country", Value: "uk", ValueSchema: argSchema("string")},
 		LiteralArg{
@@ -975,7 +1047,7 @@ func (s *BindingSuite) TestResolveFlatParamsBindsDefaultsWhenDeclared() {
 }
 
 func (s *BindingSuite) TestResolveWholeStructIgnoresCapturedDefaults() {
-	fn := func(actx airflow.Context, config wholeConfig) error { return nil }
+	fn := func(actx contexttest.Context, config wholeConfig) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{
 			Name:        "config",
@@ -999,7 +1071,7 @@ type snakeCaseInput struct {
 }
 
 func (s *BindingSuite) TestResolveUntaggedFieldsBindSnakeCaseArguments() {
-	fn := func(actx airflow.Context, input snakeCaseInput) error { return nil }
+	fn := func(actx contexttest.Context, input snakeCaseInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "region_code", Value: "eu-west-1", ValueSchema: argSchema("string")},
 		LiteralArg{Name: "threshold", Value: 0.75, ValueSchema: argSchema("number")},
@@ -1018,7 +1090,7 @@ type embeddedInput struct {
 }
 
 func (s *BindingSuite) TestResolveEmbeddedStructFields() {
-	fn := func(actx airflow.Context, input embeddedInput) error { return nil }
+	fn := func(actx contexttest.Context, input embeddedInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "region", Value: "eu-west-1", ValueSchema: argSchema("string")},
 		LiteralArg{Name: "threshold", Value: 0.75, ValueSchema: argSchema("number")},
@@ -1036,7 +1108,7 @@ type money struct {
 func (m *money) UnmarshalJSON([]byte) error { m.Amount = "decoded"; return nil }
 
 func (s *BindingSuite) TestResolveSelfDecodingTypeAgainstStringSchema() {
-	fn := func(actx airflow.Context, price money) error { return nil }
+	fn := func(actx contexttest.Context, price money) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "price", Value: "12.34", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
@@ -1050,7 +1122,7 @@ type callbackConfig struct {
 }
 
 func (s *BindingSuite) TestResolveStructWithNonBindableField() {
-	fn := func(actx airflow.Context, config callbackConfig) error { return nil }
+	fn := func(actx contexttest.Context, config callbackConfig) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{
 			Name:        "config",
@@ -1065,7 +1137,7 @@ func (s *BindingSuite) TestResolveStructWithNonBindableField() {
 }
 
 func (s *BindingSuite) TestResolveEmptyInterfaceDataParam() {
-	fn := func(actx airflow.Context, payload any) error { return nil }
+	fn := func(actx contexttest.Context, payload any) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{
 			Name:        "payload",
@@ -1075,4 +1147,24 @@ func (s *BindingSuite) TestResolveEmptyInterfaceDataParam() {
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal(map[string]any{"k": "v"}, got[0].Interface())
+}
+
+func (s *BindingSuite) TestDecodeLiteralDecodesAsResolveDoes() {
+	type row struct {
+		Name string `json:"name"`
+	}
+
+	got, err := DecodeLiteral(map[string]any{"name": "a"}, reflect.TypeFor[row]())
+	s.Require().NoError(err)
+	s.Equal(row{Name: "a"}, got.Interface())
+
+	got, err = DecodeLiteral(nil, reflect.TypeFor[*row]())
+	s.Require().NoError(err)
+	s.True(got.IsNil())
+
+	_, err = DecodeLiteral(nil, reflect.TypeFor[string]())
+	s.EqualError(err, "value is null but the parameter type string is not nilable")
+
+	_, err = DecodeLiteral(map[string]any{"other": 1}, reflect.TypeFor[row]())
+	s.EqualError(err, `json: unknown field "other"`)
 }
