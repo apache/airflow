@@ -25,7 +25,7 @@ import warnings
 from datetime import UTC, datetime
 from enum import Enum
 from fnmatch import fnmatch
-from functools import lru_cache
+from functools import lru_cache, partial
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -59,14 +59,6 @@ TOPIC_CONFIG_MAP = {
     EventProducerKafkaTopic.DAG_RUN: "dagrun_topic",
     EventProducerKafkaTopic.TASK_INSTANCE: "task_instance_topic",
 }
-
-
-def _on_delivery_dag_run(err, msg):
-    return _on_delivery(EventProducerKafkaTopic.DAG_RUN, err, msg)
-
-
-def _on_delivery_task_instance(err, msg):
-    return _on_delivery(EventProducerKafkaTopic.TASK_INSTANCE, err, msg)
 
 
 @lru_cache(maxsize=1)
@@ -193,10 +185,6 @@ def _task_instance_event_allowed(dag_id: str, task_id: str) -> bool:
 _producer: Producer | None = None
 _topic_check_retry_after: float = 0.0
 _topic_existence_map = {EventProducerKafkaTopic.DAG_RUN: False, EventProducerKafkaTopic.TASK_INSTANCE: False}
-_on_delivery_map = {
-    EventProducerKafkaTopic.DAG_RUN: _on_delivery_dag_run,
-    EventProducerKafkaTopic.TASK_INSTANCE: _on_delivery_task_instance,
-}
 
 
 def _reset_state_after_fork() -> None:
@@ -420,7 +408,7 @@ def _produce_message(
             _get_topic(topic_type),
             key=key,
             value=json.dumps(body, default=str).encode("utf-8"),
-            on_delivery=_on_delivery_map[topic_type],
+            on_delivery=partial(_on_delivery, topic_type),
         )
         producer.poll(0)
     except Exception as ex:
