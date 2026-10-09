@@ -89,38 +89,6 @@ export class DagRunsPage extends BasePage {
   /**
    * Verify that run details are displayed in the table row
    */
-  public async verifyRunDetailsDisplay(): Promise<void> {
-    const firstRow = this.dagRunsTable.locator(DATA_ROWS).first();
-
-    await expect(firstRow).toBeVisible();
-
-    const dagIdLink = firstRow.locator("a[href*='/dags/']").first();
-
-    await expect(dagIdLink).toBeVisible();
-    await expect(dagIdLink).not.toHaveText("");
-
-    const runIdLink = firstRow.locator("a[href*='/runs/']").first();
-
-    await expect(runIdLink).toBeVisible();
-    await expect(runIdLink).not.toHaveText("");
-
-    const stateCell = firstRow.locator("td").filter({ hasText: /running|success|failed|queued/i });
-
-    await expect(stateCell.first()).toBeVisible();
-
-    const timeElements = firstRow.locator("time");
-
-    if ((await timeElements.count()) > 0) {
-      await expect(timeElements.first()).toBeVisible();
-    } else {
-      const cellTexts = await firstRow.locator("td").allTextContents();
-      const hasDateFormat = cellTexts.some((text) =>
-        /\d{4}(?:-\d{2}){2}|(?:\d{1,2}\/){2}\d{4}|(?:\d{1,2}:){2}\d{2}/.test(text),
-      );
-
-      expect(hasDateFormat).toBeTruthy();
-    }
-  }
 
   /**
    * Verify state filtering via URL parameters

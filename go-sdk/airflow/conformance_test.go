@@ -289,6 +289,13 @@ func conformanceTriggerDagRun(
 				key,
 			)
 		}
+		if moment, ok := target.(*time.Time); ok {
+			// The value is spelled as Python's str(datetime), such as "2026-09-30 00:00:00+00:00".
+			parsed, err := time.Parse("2006-01-02 15:04:05Z07:00", value.Value)
+			require.NoError(t, err, "%s: %s", label, key)
+			*moment = parsed
+			continue
+		}
 		require.NoError(t, value.Decode(target), "%s: %s", label, key)
 	}
 	return spec

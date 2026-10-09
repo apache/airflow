@@ -248,6 +248,17 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: check-applies-to-roots-in-sync
+        name: Check plugin applies_to destination tables stay in sync
+        description: "The UI mirrors plugins_manager's destination -> record map; drift silently widens plugin scope"
+        entry: ./scripts/ci/prek/check_applies_to_roots_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/plugins_manager\.py$|
+          ^airflow-core/src/airflow/ui/src/utils/pluginAppliesTo\.ts$
+        pass_filenames: false
+        require_serial: true
       - id: check-ci-workflows-in-sync
         name: Check ci-arm.yml and ci-amd.yml stay in sync
         entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
@@ -450,7 +461,7 @@ repos:
           ^java-sdk/scripts/ci/prek/check_serialization_conformance\.py$|
           ^java-sdk/sdk/schema/dag-schema\.json$|
           ^java-sdk/sdk/build\.gradle\.kts$|
-          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(Bundle|DagDef|Deps|Arg|TaskGroupRef)\.kt$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(Switch|Bundle|Condition|DagDef|Decider|Deps|Arg|TaskGroupRef|TriggerDagRun)\.kt$|
           ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/execution/Serde\.kt$|
           ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/internal/(Refs|Fields)\.kt$|
           ^java-sdk/sdk/src/test/kotlin/org/apache/airflow/sdk/conformance/.*$|

@@ -486,7 +486,7 @@ class TestAgentOperatorToolsetTemplating:
         with caplog.at_level("INFO"):
             op.render_template_fields(self.CONTEXT)
 
-        assert "Rendered toolset sql-tenant_acme" in caplog.text
+        assert "Rendered toolset sql-tenant_acme" in caplog.messages
 
     def test_rendering_twice_logs_once(self, caplog):
         """@task.agent renders a second time; by then the id no longer changes."""
@@ -501,7 +501,7 @@ class TestAgentOperatorToolsetTemplating:
             op.render_template_fields(self.CONTEXT)
             op.render_template_fields(self.CONTEXT)
 
-        assert caplog.text.count("Rendered toolset sql-tenant_acme") == 1
+        assert caplog.messages.count("Rendered toolset sql-tenant_acme") == 1
 
     def test_toolset_without_template_fields_is_left_as_is(self):
         toolset = FunctionToolset()
@@ -1665,13 +1665,17 @@ class TestAgentOperatorDurable:
             op._log_durable_summary(counter)
 
         assert (
-            "replayed 0 cached steps (0 model, 0 tool), cached 3 new steps (2 model, 1 tool)" in caplog.text
+            "Durable: replayed 0 cached steps (0 model, 0 tool), cached 3 new steps (2 model, 1 tool)"
+            in caplog.messages
         )
         assert (
-            "3 tool results were not cached, and a retry runs them again: run_query (x2), get_schema"
-            in caplog.text
+            "Durable: 3 tool results were not cached, and a retry runs them again: run_query (x2), get_schema"
+            in caplog.messages
         )
-        assert "1 model responses were not cached, and a retry re-runs them" in caplog.text
+        assert (
+            "Durable: 1 model responses were not cached, and a retry re-runs them and every step after "
+            "the first of them"
+        ) in caplog.messages
 
     def test_durable_summary_has_no_warning_when_everything_was_cached(self, caplog):
         counter = DurableStepCounter()
@@ -1681,7 +1685,10 @@ class TestAgentOperatorDurable:
         with caplog.at_level("INFO"):
             op._log_durable_summary(counter)
 
-        assert "cached 1 new steps (1 model, 0 tool)" in caplog.text
+        assert (
+            "Durable: replayed 0 cached steps (0 model, 0 tool), cached 1 new steps (1 model, 0 tool)"
+            in caplog.messages
+        )
         assert not [r for r in caplog.records if r.levelname == "WARNING"]
 
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator._build_durable_storage")
@@ -1716,8 +1723,14 @@ class TestAgentOperatorDurable:
         with caplog.at_level("INFO"), pytest.raises(RuntimeError, match="downstream failure"):
             op.execute(context=_make_context())
 
-        assert "cached 2 new steps (2 model, 0 tool)" in caplog.text
-        assert "1 tool results were not cached, and a retry runs them again: send_email" in caplog.text
+        assert (
+            "Durable: replayed 0 cached steps (0 model, 0 tool), cached 2 new steps (2 model, 0 tool)"
+            in caplog.messages
+        )
+        assert (
+            "Durable: 1 tool results were not cached, and a retry runs them again: send_email"
+            in caplog.messages
+        )
 
     @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
     @patch("pydantic_ai.models.infer_model", autospec=True)

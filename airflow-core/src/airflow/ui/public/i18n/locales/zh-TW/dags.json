@@ -39,6 +39,12 @@
     "title": "資料夾"
   },
   "ownerLink": "擁有者 {{owner}} 的連結",
+  "recentTaskStateCounts": {
+    "description": "顯示所有執行中 Dag 執行的任務狀態；若沒有執行中的 Dag 執行，則顯示最近一次執行的任務狀態。您可以在使用者設定中關閉此功能。",
+    "label": "近期任務",
+    "loading": "正在載入近期任務狀態數量",
+    "tooltip": "{{state}}：{{formattedCount}} — 點擊以篩選任務"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "找不到任務。",
@@ -78,6 +84,7 @@
         "failed": "按下 shift+f 標記為失敗",
         "success": "按下 shift+s 標記為成功"
       },
+      "skippedInfo": "將任務實例標記為已跳過，表示該任務實例是刻意不執行的。下游任務仍會依其觸發規則進行評估：在預設的 \"all_success\" 規則下，下游任務也會被跳過。只有尚未開始執行的任務實例可以被跳過，且僅影響此任務實例。",
       "title": "標記為 {{type}} 為 {{state}}"
     },
     "options": {

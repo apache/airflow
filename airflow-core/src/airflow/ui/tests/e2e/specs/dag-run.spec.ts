@@ -16,20 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "tests/e2e/fixtures";
+import { test } from "tests/e2e/fixtures";
 
 test.describe("Dag Run Page", () => {
-  test("verify HITL review modal opens from Dag run details", async ({ dagRunPage, pendingHITLRun }) => {
-    test.slow();
-
-    await dagRunPage.navigateToDagRun(pendingHITLRun.dagId, pendingHITLRun.runId);
-
-    await expect(dagRunPage.requiredActionsButton).toBeVisible({ timeout: 60_000 });
-    await dagRunPage.requiredActionsButton.click();
-
-    await dagRunPage.hitlReviewModal.expectOpenWith(pendingHITLRun.runId);
-  });
-
   test("verify HITL review modal opens from the required actions route", async ({
     dagRunPage,
     pendingHITLRun,

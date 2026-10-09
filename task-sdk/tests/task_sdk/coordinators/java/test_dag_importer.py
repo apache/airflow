@@ -228,6 +228,25 @@ class TestGetSourceCode:
             assert _find_source_entry(zf, dag_id).filename == f"META-INF/airflow/sources/{expected}"
 
     @pytest.mark.parametrize(
+        ("dag_id", "expected"),
+        [
+            pytest.param("reports", "class Reports", id="mapped"),
+            pytest.param("orders", "class Dags", id="unmapped"),
+            pytest.param(None, "class Dags", id="no-dag-id"),
+        ],
+    )
+    def test_get_source_code_reads_the_source_of_the_dag(self, tmp_path, dag_id, expected):
+        jar = self._jar(
+            tmp_path,
+            index={"entrypoint_path": ENTRYPOINT, "dag_source_paths": {"reports": REPORTS}},
+            files={ENTRYPOINT: "class Dags", REPORTS: "class Reports"},
+        )
+
+        result = _importer().get_source_code(_definition(jar), dag_id)
+
+        assert result.source_code == expected
+
+    @pytest.mark.parametrize(
         ("attributes", "index", "files"),
         [
             pytest.param(

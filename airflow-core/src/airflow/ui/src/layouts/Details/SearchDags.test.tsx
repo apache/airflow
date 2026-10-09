@@ -103,7 +103,7 @@ const renderSearch = ({
   render(
     <BaseWrapper>
       <MemoryRouter initialEntries={[initialEntry]}>
-        <SearchDags onClose={onClose} />
+        <SearchDags dags={[]} onClose={onClose} />
         <LocationDisplay />
       </MemoryRouter>
     </BaseWrapper>,

@@ -20,8 +20,15 @@
 import type { CommChannel } from "./comm-channel.js";
 import type { LogChannel } from "./log-channel.js";
 import type { TaskContext } from "../sdk/task.js";
-import type { TaskClient } from "../sdk/client.js";
-import type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "../sdk/client-types.js";
+import type { TaskClient, TaskStateStore } from "../sdk/client.js";
+import type {
+  ConnectionResult,
+  GetXComOpts,
+  JsonValue,
+  SetXComOpts,
+  TaskStateStoreSetOpts,
+} from "../sdk/client-types.js";
+import { NEVER_EXPIRE } from "../sdk/client-types.js";
 import { ConnectionNotFoundError, VariableNotFoundError } from "../sdk/client.js";
 import type {
   GetVariable,
@@ -34,12 +41,21 @@ import type {
   TriggerDagRun,
   GetDagRunState,
   GetDag,
+  ClearTaskStateStore,
+  DeleteTaskStateStore,
+  GetTaskStateStore,
+  SetTaskStateStore,
   ConnectionResult as WireConnectionResult,
 } from "./protocol.js";
 
-/** What a supervisor "row is absent" error means for an operation: only a lookup
- *  can return `null`; for a `void` call a swallowed error would read as success. */
-type AbsentRowPolicy = "null" | "throw";
+/**
+ * What a supervisor "row is absent" error means for an operation.
+ *
+ * `"throw"` always throws (a swallowed error on a `void` call would read as
+ * success); otherwise, the `ErrorType` codes that mean "absent" plus whether
+ * a wrapped API server 404 also counts (see `isAbsent`).
+ */
+type AbsentRowPolicy = "throw" | { codes: readonly string[]; apiServer404: boolean };
 
 function resolveWireMapIndex(
   requestedMapIndex: number | null | undefined,
@@ -101,9 +117,91 @@ export interface CoordinatorClient extends TaskClient {
   isDagPaused(dagId: string): Promise<boolean>;
 }
 
+const VARIABLE_ABSENT_POLICY: AbsentRowPolicy = {
+  codes: ["VARIABLE_NOT_FOUND"],
+  apiServer404: true,
+};
+const XCOM_ABSENT_POLICY: AbsentRowPolicy = { codes: ["XCOM_NOT_FOUND"], apiServer404: true };
+const CONNECTION_ABSENT_POLICY: AbsentRowPolicy = {
+  codes: ["CONNECTION_NOT_FOUND"],
+  apiServer404: true,
+};
+const TASK_STATE_STORE_ABSENT_POLICY: AbsentRowPolicy = {
+  codes: ["TASK_STORE_NOT_FOUND"],
+  apiServer404: false,
+};
+
+// A language SDK runtime cannot read Airflow config, so the coordinator passes
+// `[state_store] default_retention_days` at launch
+// (task-sdk/src/airflow/sdk/coordinators/_subprocess.py).
+const RETENTION_DAYS_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function assertKey(key: string): void {
+  if (typeof key !== "string") {
+    throw new TypeError(`task state store key must be a string, got ${typeof key}`);
+  }
+  if (key === "") {
+    throw new RangeError("task state store key must not be empty");
+  }
+}
+
+// Python's `datetime` (and the wire format it parses) cannot represent a year
+// past 9999, and the supervisor silently drops a frame it cannot decode
+// rather than replying with an error, so the task would hang instead of
+// failing fast. Route both retention paths through this check.
+function toExpiresAt(ms: number): string {
+  const at = new Date(Date.now() + ms);
+  if (Number.isNaN(at.getTime()) || at.getUTCFullYear() > 9999) {
+    throw new RangeError(
+      `retention of ${ms}ms overflows the wire timestamp; use NEVER_EXPIRE instead`,
+    );
+  }
+  return at.toISOString();
+}
+
+/** Resolve `retentionMs` (or the deployment default) to a wire `expires_at`. */
+function resolveExpiresAt(retentionMs: number | typeof NEVER_EXPIRE | undefined): string | null {
+  if (retentionMs === undefined) {
+    return resolveDefaultExpiresAt();
+  }
+  if (retentionMs === NEVER_EXPIRE) {
+    return null;
+  }
+  if (!Number.isFinite(retentionMs) || retentionMs < 0) {
+    throw new RangeError(`retentionMs must be >= 0 or NEVER_EXPIRE, got ${String(retentionMs)}`);
+  }
+  return toExpiresAt(retentionMs);
+}
+
+// The coordinator always passes the setting, so an absent or malformed value is
+// a misconfiguration and fails the write rather than silently retaining the key
+// for a period nobody configured.
+function resolveDefaultExpiresAt(): string | null {
+  const raw = process.env[RETENTION_DAYS_ENV_VAR];
+  if (raw === undefined) {
+    throw new Error(
+      `${RETENTION_DAYS_ENV_VAR} is not set, so the default retention is unknown. It carries ` +
+        "[state_store] default_retention_days to the runtime; pass retentionMs or NEVER_EXPIRE to " +
+        "set the expiry explicitly.",
+    );
+  }
+  const days = Number(raw);
+  if (raw.trim() === "" || !Number.isInteger(days)) {
+    throw new RangeError(`[state_store] default_retention_days must be a whole number, got ${raw}`);
+  }
+  if (days < 0) {
+    throw new RangeError(
+      `[state_store] default_retention_days must be >= 0, got ${raw}. Set to 0 to disable expiry.`,
+    );
+  }
+  return days === 0 ? null : toExpiresAt(days * MS_PER_DAY);
+}
+
 export function createCoordinatorClient(
   comm: CommChannel,
   ctx: TaskContext,
+  tiId: string,
   logs: LogChannel | null = null,
 ): CoordinatorClient {
   async function rpc<T>(
@@ -122,7 +220,7 @@ export function createCoordinatorClient(
         logs?.debug(`${op} answered ${err.code}`);
         return null;
       }
-      if (absent === "null" && isNotFound(err)) {
+      if (absent !== "throw" && isAbsent(err, absent)) {
         logs?.debug(`${op} not found`, { error: err.code });
         return null;
       }
@@ -141,6 +239,57 @@ export function createCoordinatorClient(
     return extract(body);
   }
 
+  const taskStateStore: TaskStateStore = {
+    async get<T = unknown>(key: string): Promise<T | null> {
+      assertKey(key);
+      const msg: GetTaskStateStore = { type: "GetTaskStateStore", ti_id: tiId, key };
+      return rpc(
+        "GetTaskStateStore",
+        "TaskStateStoreResult",
+        msg,
+        (body) => body!.value as T,
+        TASK_STATE_STORE_ABSENT_POLICY,
+      );
+    },
+
+    async set(
+      key: string,
+      value: NonNullable<JsonValue>,
+      opts: TaskStateStoreSetOpts = {},
+    ): Promise<void> {
+      assertKey(key);
+      if (
+        value === null ||
+        value === undefined ||
+        (typeof value === "number" && !Number.isFinite(value))
+      ) {
+        throw new TypeError("task state store value must not be null, NaN, or Infinity");
+      }
+      // TODO: warn when the serialized value exceeds the deployment's
+      // [state_store] max_value_storage_bytes, as Python's task store setter
+      // does, once the coordinator passes that setting to the runtime.
+      const msg: SetTaskStateStore = {
+        type: "SetTaskStateStore",
+        ti_id: tiId,
+        key,
+        value,
+        expires_at: resolveExpiresAt(opts.retentionMs),
+      };
+      await rpc("SetTaskStateStore", "OKResponse", msg, () => undefined, "throw");
+    },
+
+    async delete(key: string): Promise<void> {
+      assertKey(key);
+      const msg: DeleteTaskStateStore = { type: "DeleteTaskStateStore", ti_id: tiId, key };
+      await rpc("DeleteTaskStateStore", "OKResponse", msg, () => undefined, "throw");
+    },
+
+    async clear(): Promise<void> {
+      const msg: ClearTaskStateStore = { type: "ClearTaskStateStore", ti_id: tiId };
+      await rpc("ClearTaskStateStore", "OKResponse", msg, () => undefined, "throw");
+    },
+  };
+
   const client: CoordinatorClient = {
     // ---- Variables ----
 
@@ -151,7 +300,7 @@ export function createCoordinatorClient(
         "VariableResult",
         msg,
         (body) => (body!.value as string) ?? null,
-        "null",
+        VARIABLE_ABSENT_POLICY,
       );
     },
 
@@ -200,7 +349,7 @@ export function createCoordinatorClient(
           // result frame decides `found` rather than the value.
           value: (body!.value ?? null) as JsonValue,
         }),
-        "null",
+        XCOM_ABSENT_POLICY,
       );
       // `rpc` answers null for the supervisor's XCOM_NOT_FOUND.
       return entry ?? XCOM_ABSENT;
@@ -271,6 +420,10 @@ export function createCoordinatorClient(
       return paused!;
     },
 
+    // ---- Task state store ----
+
+    taskStateStore,
+
     // ---- Connections ----
 
     async getConnection(connId: string): Promise<ConnectionResult | null> {
@@ -280,7 +433,7 @@ export function createCoordinatorClient(
         "ConnectionResult",
         msg,
         (body) => fromWireConnection(body as unknown as WireConnectionResult),
-        "null",
+        CONNECTION_ABSENT_POLICY,
       );
     },
 
@@ -296,8 +449,8 @@ export function createCoordinatorClient(
 // -------- Error handling (two functions) --------
 //
 // parseFrameError: extract a structured error from the frame (once).
-// isNotFound: decide if the error means "absent" (a lookup returns null)
-//             or "failed" (throw).
+// isAbsent: decide, per operation policy, if the error means "absent" (a
+//           lookup returns null) or "failed" (throw).
 
 interface FrameError {
   code: string;
@@ -327,18 +480,13 @@ function parseFrameError(frame: { body: unknown; error?: unknown }): FrameError 
   return null;
 }
 
-// Exact supervisor ErrorType codes that mean "absent", not "failed".
-const NOT_FOUND_CODES = new Set(["VARIABLE_NOT_FOUND", "XCOM_NOT_FOUND", "CONNECTION_NOT_FOUND"]);
-
-/** Is this error a "not found" (caller should get null, not a throw)?
- *  Covers both dedicated NOT_FOUND codes and API_SERVER_ERROR with 404. */
-function isNotFound(err: FrameError): boolean {
-  if (NOT_FOUND_CODES.has(err.code)) return true;
-  // The supervisor wraps API server 404s as API_SERVER_ERROR with
-  // detail.status_code=404 (supervisor.py: WatchedSubprocess.handle_requests).
-  // Dag / Dag run lookups hit this path.
-  // TODO: If the TS client adds lookups beyond variables, XCom, and connections,
-  // make not-found handling operation-specific instead of treating every
-  // API_SERVER_ERROR 404 as null.
-  return err.code === "API_SERVER_ERROR" && err.statusCode === 404;
+/** Is this error "absent" for `policy` (caller should get null, not a throw)?
+ *  The supervisor wraps API server 404s as API_SERVER_ERROR with
+ *  detail.status_code=404 (supervisor.py: WatchedSubprocess.handle_requests). */
+function isAbsent(
+  err: FrameError,
+  policy: { codes: readonly string[]; apiServer404: boolean },
+): boolean {
+  if (policy.codes.includes(err.code)) return true;
+  return policy.apiServer404 && err.code === "API_SERVER_ERROR" && err.statusCode === 404;
 }
