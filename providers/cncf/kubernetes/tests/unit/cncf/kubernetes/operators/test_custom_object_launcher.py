@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from copy import deepcopy
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -191,6 +192,33 @@ class TestSparkResources:
         assert spark_resources.executor["cpu"]["limit"] == "4"
         assert spark_resources.driver["gpu"]["quantity"] == 1
         assert spark_resources.executor["gpu"]["quantity"] == 2
+
+    @pytest.mark.parametrize(
+        ("memory_limit", "expected_limit"),
+        [
+            ("2Gi", "1462m"),
+            ("2G", "1462m"),
+            ("1.5g", "1097m"),
+            ("512m", "365m"),
+            ("512Mi", "365m"),
+            ("512M", "365m"),
+            ("1048576Ki", "731m"),
+        ],
+    )
+    def test_spark_resources_memory_units(self, memory_limit, expected_limit):
+        resources = {"gpu": {}, "cpu": {}, "memory": {"limit": memory_limit}}
+        spark_resources = SparkResources(driver=deepcopy(resources), executor=deepcopy(resources))
+
+        assert spark_resources.driver["memory"]["limit"] == expected_limit
+        assert spark_resources.executor["memory"]["limit"] == expected_limit
+
+    @pytest.mark.parametrize("memory_limit", ["1024", "2 GB", "lots"])
+    def test_spark_resources_invalid_memory(self, memory_limit):
+        with pytest.raises(ValueError, match="Invalid memory value"):
+            SparkResources(
+                driver={"gpu": {}, "cpu": {}, "memory": {"limit": memory_limit}},
+                executor={"gpu": {}, "cpu": {}, "memory": {}},
+            )
 
 
 class TestCustomObjectLauncher:
