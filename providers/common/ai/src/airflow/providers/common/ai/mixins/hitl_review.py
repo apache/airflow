@@ -289,11 +289,11 @@ class HITLReviewMixin:
     def _to_string(output: Any) -> str:
         """Serialize an output for review as JSON, or ``str()`` when pydantic cannot."""
         if isinstance(output, BaseModel):
-            return output.model_dump_json()
+            return output.model_dump_json(by_alias=True)
         if isinstance(output, str):
             return output
-        # JSON, not repr, so an unedited approval validates back into ``output_type``.
+        # JSON by alias, so an unedited approval validates back into ``output_type``.
         try:
-            return TypeAdapter(type(output)).dump_json(output).decode()
+            return TypeAdapter(type(output)).dump_json(output, by_alias=True).decode()
         except (PydanticSchemaGenerationError, PydanticSerializationError):
             return str(output)

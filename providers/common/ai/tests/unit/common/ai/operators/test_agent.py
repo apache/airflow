@@ -1605,6 +1605,21 @@ class TestAgentOperatorRegenerateWithFeedback:
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_regenerate_with_feedback_serializes_list_output_as_json(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        mock_result = make_mock_run_result(["a", "b"])
+        mock_result.all_messages.return_value = []
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm", output_type=list[str])
+        output, _ = op.regenerate_with_feedback(feedback="Expand", message_history=[])
+
+        assert output == '["a","b"]'
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_regenerate_with_feedback_serializes_base_model_output(self, mock_hook_cls, make_mock_run_result):
         """regenerate_with_feedback returns JSON string for BaseModel output."""
         mock_result = make_mock_run_result(Summary(text="Revised"))
