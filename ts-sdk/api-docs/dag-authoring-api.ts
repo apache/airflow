@@ -20,17 +20,27 @@
 /** @module Authoring */
 
 export {
+  approval,
   Bundle,
   Dag,
   getClient,
   getContext,
+  humanInput,
   NEVER_EXPIRE,
   TaskHandler,
+  triggerDagRun,
   withArgNames,
 } from "../src/index.js";
 export type {
+  ApprovalSpec,
   ArgNameMap,
   DagSpec,
+  HITLUser,
+  HumanInputResult,
+  HumanInputSpec,
+  HumanInputTask,
+  HumanInputText,
+  OnReject,
   Registerable,
   TaskClient,
   TaskContext,

@@ -175,6 +175,57 @@ bundle the coordinator's `task_handler_bundle_name` names. See the guide for all
 See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for a working project that serves
 both a Dag declared in TypeScript and the tasks of two Python Dags from one bundle.
 
+## Human-in-the-loop tasks
+
+A Dag declared in TypeScript can wait for a person, as `HITLOperator` and `ApprovalOperator` do in
+Python. `approval(...)` and `humanInput(...)` are passed to `dag.task` in place of a handler:
+
+```ts
+import { approval, Bundle, Dag, humanInput } from "apache-airflow-ts-sdk";
+
+const dag = new Dag("release", { queue: "typescript" });
+const report = dag.task("build_report", async () => ({ version: "1.4" }))();
+
+const signOff = dag.task(
+  "sign_off",
+  approval({
+    subject: ({ report }: { report: { version: string } }) => `Ship ${report.version}?`,
+    responseTimeout: 4 * 60 * 60, // seconds
+    defaults: "Reject", // the answer given when the timeout passes
+  }),
+)({ report });
+signOff.before(dag.task("publish", async () => {})());
+
+await new Bundle(dag).serve();
+```
+
+The task's first run writes the request and parks the task in `awaiting_input`; its Node process
+exits, so no worker slot is held while it waits. Once someone responds on the Required Actions page,
+or the timeout passes, the task resumes in a new process. It does not write the request again or run
+`subject` or `body` again.
+
+- `subject` and `body` (Markdown) are a string, or a function of the task's inputs, run once.
+- `responseTimeout` is in whole **seconds**. With `defaults`, the defaults are applied when it passes;
+  without, the task fails, and its retries apply.
+- `assignees: [{ id, name }]` limits who can respond, by the auth manager's user id.
+- The task returns the response, which downstream tasks receive and XCom stores under
+  `return_value`: `{ chosen_options, params_input, responded_at, responded_by_user, timedout }`.
+  These are the keys of Python's `HITLOperator` result plus `timedout`; `responded_at` is an
+  ISO-8601 string, and `responded_by_user` is `null` when the timeout defaults were applied.
+
+**On "Reject", an approval succeeds and skips the tasks directly downstream by default**, as
+`ApprovalOperator` does. The run then shows as successful, with the guarded tasks skipped. Set
+`onReject: "fail"` to fail the approval instead, or `"skipAll"` to skip every task downstream.
+`humanInput(...)` offers any `options`, with `multiple` for several, and never skips or fails on
+what is chosen, even an option named "Reject".
+
+When the task resumes, it reads its options and its `onReject` from the Dag it runs from, as
+`HITLOperator` does. A versioned Dag bundle resumes it from the same version it started on; with an
+unversioned bundle, a bundle deployed while the request waits is what the response is read against.
+Clearing the task starts a new attempt, which writes a fresh request.
+
+Forms (`params`), branching on the response, and notifiers are not supported yet.
+
 ## TaskClient
 
 `getClient()` returns a `TaskClient` for task-time Airflow data access, for as long as a handler is running:
@@ -217,7 +268,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
 | state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
 | state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
-| state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
+| state: `awaiting_input` | MAY | ✓ | 3.4 | approval() / humanInput() in a native Dag |
 | state: `removed` | MAY | ✓ | 3.4 |  |
 | **Runtime capabilities** |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4 | @task.stub |

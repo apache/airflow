@@ -19,7 +19,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { serializeDag } from "../../src/coordinator/serde.js";
-import { Bundle, finalizeBundleDags, getBundleTrigger } from "../../src/sdk/bundle.js";
+import { Bundle, finalizeBundleDags, getBundleTask } from "../../src/sdk/bundle.js";
 import {
   Dag,
   finalizeDag,
@@ -82,7 +82,10 @@ describe("triggerDagRun", () => {
     });
     const bundle = new Bundle(dag);
     expect(bundle.getTaskHandler("d", "trigger_downstream")).toBeUndefined();
-    expect(getBundleTrigger(bundle, "d", "trigger_downstream")).toBe(record.trigger);
+    expect(getBundleTask(bundle, "d", "trigger_downstream")).toEqual({
+      kind: "triggerDagRun",
+      trigger: record.trigger,
+    });
   });
 
   it("falls back on the default for empty allowedStates, not for empty failedStates", () => {

@@ -32,6 +32,7 @@ import {
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import type { JsonValue } from "./client-types.js";
 import { getCurrentModuleSource } from "./module-source.js";
+import { isHumanInputTask, type HumanInputResult, type HumanInputTask } from "./human-input.js";
 import { isTriggerDagRunTask, type TriggerDagRunTask } from "./trigger-dag-run.js";
 import { getClient, type TaskFunction } from "./task.js";
 
@@ -229,6 +230,16 @@ export interface TaskGroupRef extends Node {
     handler: (args: TArgs) => TReturn | Promise<TReturn>,
     options?: TaskOptions,
   ): TaskFactory<TArgs, TReturn>;
+  /** Declare a `humanInput(...)` or `approval(...)` task in this group, prefixed the same way. */
+  task<TArgs extends object | void = void>(
+    taskId: string,
+    humanInput: HumanInputTask<TArgs>,
+    options?: TaskOptions,
+  ): TaskFactory<TArgs, HumanInputResult>;
+  task<TArgs extends object | void = void>(
+    humanInput: HumanInputTask<TArgs>,
+    options: TaskOptions,
+  ): TaskFactory<TArgs, HumanInputResult>;
   /** Declare a `triggerDagRun(...)` task in this group, prefixed the same way. */
   task(taskId: string, trigger: TriggerDagRunTask, options?: TaskOptions): () => TaskRef<void>;
   task(trigger: TriggerDagRunTask, options: TaskOptions): () => TaskRef<void>;
@@ -452,16 +463,22 @@ export interface Branch extends Node {
   after(...upstream: readonly Node[]): Branch;
 }
 
+/** An operator the runtime runs itself, passed to `dag.task` in place of a handler. */
+type OperatorTask = TriggerDagRunTask | HumanInputTask<never>;
+
 /** Per-task record a Dag retains: the reference, what runs it, and its spec. */
 export type TaskRecord = {
   readonly task: TaskRef;
   readonly spec: TaskSpec;
   /** Whether this task decides which of its downstream tasks to skip. */
   readonly canSkipDownstream?: boolean;
-} & (
-  | { readonly fn: TaskFunction; readonly trigger?: never }
-  | { readonly fn?: never; readonly trigger: TriggerDagRunTask }
-);
+} & TaskBody;
+
+/** What a task runs: the author's handler, or the options of an operator the runtime runs. */
+type TaskBody =
+  | { readonly fn: TaskFunction; readonly trigger?: never; readonly humanInput?: never }
+  | { readonly fn?: never; readonly trigger: TriggerDagRunTask; readonly humanInput?: never }
+  | { readonly fn?: never; readonly trigger?: never; readonly humanInput: HumanInputTask<never> };
 
 interface ConditionRecord {
   whenTrue?: TaskRef;
@@ -471,6 +488,18 @@ interface ConditionRecord {
 // Mirrors `SkipMixin.skip` in `task-sdk/src/airflow/sdk/bases/skipmixin.py`.
 const SKIPMIXIN_XCOM_KEY = "skipmixin_key";
 const SKIPMIXIN_SKIPPED = "skipped";
+
+/**
+ * Internal: skip `taskIds` of the running task's Dag run, as `SkipMixin.skip` does. The skipped
+ * IDs are written first, so a downstream task that is cleared later is skipped again.
+ */
+export async function skipTasks(
+  client: CoordinatorClient,
+  taskIds: readonly string[],
+): Promise<void> {
+  await client.setXCom({ key: SKIPMIXIN_XCOM_KEY, value: { [SKIPMIXIN_SKIPPED]: [...taskIds] } });
+  await client.skipDownstreamTasks(taskIds);
+}
 
 /**
  * Internal: what one call to a task factory recorded, by argument name.
@@ -604,10 +633,23 @@ export class Dag {
    */
   task(taskId: string, trigger: TriggerDagRunTask, options?: TaskOptions): () => TaskRef<void>;
   task(trigger: TriggerDagRunTask, options: TaskOptions): () => TaskRef<void>;
+  /**
+   * Declare a task that waits for a human, from `humanInput(spec)` or `approval(spec)`. Its
+   * inputs reach the spec's `subject` and `body` functions, and it returns the response.
+   * It has no handler to take an id from, so the id is required.
+   */
+  task<TArgs extends object | void = void>(
+    taskId: string,
+    humanInput: HumanInputTask<TArgs>,
+    options?: TaskOptions,
+  ): TaskFactory<TArgs, HumanInputResult>;
+  task<TArgs extends object | void = void>(
+    humanInput: HumanInputTask<TArgs>,
+    options: TaskOptions,
+  ): TaskFactory<TArgs, HumanInputResult>;
   task<TArgs extends object | void = void, TReturn = unknown>(
-    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask,
-    handlerOrOptions?:
-      ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask | TaskOptions,
+    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorTask,
+    handlerOrOptions?: ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorTask | TaskOptions,
     maybeOptions?: TaskOptions,
   ): TaskFactory<TArgs, TReturn> {
     return this.#addTask(undefined, taskIdOrHandler, handlerOrOptions, maybeOptions);
@@ -709,12 +751,7 @@ export class Dag {
     const inner = fn!;
     const wrapped: TaskFunction = async (args) => {
       const { skip, result } = await decide(await inner(args as never));
-      if (skip.length > 0) {
-        const client = getClient() as CoordinatorClient;
-        // Written before the skip so a cleared downstream is re-skipped, as SkipMixin does.
-        await client.setXCom({ key: SKIPMIXIN_XCOM_KEY, value: { [SKIPMIXIN_SKIPPED]: skip } });
-        await client.skipDownstreamTasks(skip);
-      }
+      if (skip.length > 0) await skipTasks(getClient() as CoordinatorClient, skip);
       return result;
     };
     this.#tasks.set(taskId, { task, spec, canSkipDownstream: true, fn: wrapped });
@@ -808,14 +845,14 @@ export class Dag {
 
   #addTask<TArgs extends object | void, TReturn>(
     groupId: string | undefined,
-    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask,
-    handlerOrOptions?:
-      ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask | TaskOptions,
+    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorTask,
+    handlerOrOptions?: ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorTask | TaskOptions,
     maybeOptions?: TaskOptions,
   ): TaskFactory<TArgs, TReturn> {
     const idGiven = typeof taskIdOrHandler === "string";
     const body = idGiven ? handlerOrOptions : taskIdOrHandler;
     const trigger = isTriggerDagRunTask(body) ? body : undefined;
+    const humanInput = isHumanInputTask(body) ? body : undefined;
     const handler = body as (args: TArgs) => TReturn | Promise<TReturn>;
     const given = idGiven ? maybeOptions : (handlerOrOptions as TaskOptions | undefined);
     // Defaulted only when absent: an explicit `null` is a bad spec, not an
@@ -837,6 +874,12 @@ export class Dag {
       throw new Error(
         `A triggerDagRun task of Dag "${this.dagId}" has no taskId; name it with ` +
           'dag.task(triggerDagRun({ dagId: "..." }), { taskId: "trigger_downstream" })',
+      );
+    }
+    if (declared === undefined && humanInput !== undefined) {
+      throw new Error(
+        `A human-input task of Dag "${this.dagId}" has no taskId; name it with ` +
+          'dag.task("sign_off", approval({ subject: "..." }))',
       );
     }
     if (declared === undefined) {
@@ -865,12 +908,13 @@ export class Dag {
       );
     }
     const taskId = this.#childId(groupId, declared);
-    if (trigger === undefined && typeof handler !== "function") {
+    const operator = trigger !== undefined || humanInput !== undefined;
+    if (!operator && typeof handler !== "function") {
       throw new Error(`handler for Dag "${this.dagId}" task "${taskId}" must be a function`);
     }
     // TypeScript already says so, but a plain-JavaScript author lands here
     // with the argument list Python would take.
-    if (trigger === undefined && handler.length > 1) {
+    if (!operator && handler.length > 1) {
       throw new Error(
         `Handler for Dag "${this.dagId}" task "${taskId}" declares ${handler.length} parameters; ` +
           "a handler takes one object of named arguments — async ({ rows, region }) => ...",
@@ -888,11 +932,20 @@ export class Dag {
     this.#reserveNodeId(taskId, "Task");
     const task = this.#createTaskRef(taskId);
     if (groupId !== undefined) this.#groups.get(groupId)!.taskIds.push(taskId);
-    this.#tasks.set(taskId, {
-      task,
+    let runs: TaskBody & { readonly canSkipDownstream?: boolean };
+    if (trigger) {
+      runs = { trigger };
+    } else if (humanInput) {
+      // An approval skips what follows it on "Reject".
+      runs = { humanInput, canSkipDownstream: humanInput.kind === "approval" };
+    } else {
       // The runtime dispatches every handler through one instantiation, as it
       // does a registered TaskHandler.
-      ...(trigger ? { trigger } : { fn: handler as unknown as TaskFunction }),
+      runs = { fn: handler as unknown as TaskFunction };
+    }
+    this.#tasks.set(taskId, {
+      task,
+      ...runs,
       spec: freezeSpec(spec, () => `The spec for Dag "${this.dagId}" task "${taskId}"`),
     });
     return ((...inputs: unknown[]) => {
@@ -1030,9 +1083,9 @@ export class Dag {
       dagId: this.dagId,
       groupId,
       task: <TArgs extends object | void, TReturn>(
-        taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask,
+        taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorTask,
         handlerOrOptions?:
-          ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask | TaskOptions,
+          ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorTask | TaskOptions,
         maybeOptions?: TaskOptions,
       ) => this.#addTask<TArgs, TReturn>(groupId, taskIdOrHandler, handlerOrOptions, maybeOptions),
       taskGroup: (childId: string, options?: TaskGroupOptions) =>

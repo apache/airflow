@@ -6,7 +6,8 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "airflow-ts-pack src/main.ts --outdir dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:hitl": "airflow-ts-pack src/hitl.ts --outfile dist/hitl.min.mjs"
   },
   "dependencies": {
     "apache-airflow-ts-sdk": "file:.."

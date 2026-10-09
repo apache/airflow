@@ -226,6 +226,11 @@ function serializeTask(
     is_stub: true,
   };
   const label = `task "${taskId}" of Dag "${dagId}"`;
+  if (record.humanInput) {
+    // Names the provider operator it mirrors, so the UI labels it as one.
+    data["_operator_name"] =
+      record.humanInput.kind === "approval" ? "ApprovalOperator" : "HITLOperator";
+  }
   if (record.trigger) {
     if (record.trigger.conf !== undefined) {
       toPlainJson(record.trigger.conf, `conf of ${label}`);
@@ -291,6 +296,14 @@ function toPlainJson(value: unknown, label: string): SerializedValue {
     `${label} holds ${describeType(value)}, which JSON cannot carry; pass a string, a finite ` +
       "number, a boolean, null, an array or a plain object",
   );
+}
+
+/**
+ * Each task's direct downstream task IDs, with every group endpoint expanded, as
+ * `downstream_task_ids` of the serialized Dag records them.
+ */
+export function getDagDownstreamTaskIds(dag: Dag): ReadonlyMap<string, ReadonlySet<string>> {
+  return buildDagGraph(dag).downstreamTaskIds;
 }
 
 /**

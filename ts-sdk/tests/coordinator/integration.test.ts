@@ -37,6 +37,7 @@ import {
 } from "../../src/coordinator/runtime.js";
 import { Dag } from "../../src/sdk/dag.js";
 import { triggerDagRun } from "../../src/sdk/trigger-dag-run.js";
+import { approval, humanInput } from "../../src/sdk/human-input.js";
 import { Bundle } from "../../src/sdk/bundle.js";
 import { withArgNames } from "../../src/sdk/arg-names.js";
 import { TaskHandler } from "../../src/sdk/task-handler.js";
@@ -162,6 +163,11 @@ function isFrameWithBodyType(chunk: unknown, type: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** The bodies of the runtime's requests of one type, in the order it sent them. */
+function requestsOf(result: MockResult, type: string): Record<string, unknown>[] {
+  return result.runtimeRequests.filter((r) => r.type === type).map((r) => r.body);
 }
 
 async function driveSupervisor(initialFrame: unknown, responder?: Responder): Promise<MockResult> {
@@ -975,10 +981,6 @@ describe("coordinator runtime integration", () => {
       return (msgType) => queued[msgType]?.shift() ?? { body: null };
     }
 
-    function requestsOf(result: MockResult, type: string) {
-      return result.runtimeRequests.filter((r) => r.type === type).map((r) => r.body);
-    }
-
     afterEach(() => {
       vi.unstubAllEnvs();
     });
@@ -1307,6 +1309,350 @@ describe("coordinator runtime integration", () => {
       expect(
         result.logRecords.some((r) => String(r["event"]).includes("Trigger failed:\nTraceback")),
       ).toBe(true);
+    });
+  });
+  describe("human input", () => {
+    const CREATED = { body: { type: "HITLDetailRequestResult", ti_id: "ti-1" } };
+    // What `handle_event_submit` stores: what the task parked with, plus the response as `event`,
+    // with `responded_at` in serde's datetime encoding.
+    const RESPONDED_AT = {
+      __classname__: "pendulum.datetime.DateTime",
+      __version__: 2,
+      __data__: {
+        timestamp: 1791462615.123456,
+        tz: {
+          __classname__: "builtins.tuple",
+          __version__: 1,
+          __data__: ["UTC", "pendulum.tz.timezone.Timezone", 1, true],
+        },
+      },
+    };
+
+    function parkedWith(taskId: string, tiContext: Record<string, unknown> = {}) {
+      return driveSupervisor(
+        makeStartupDetails(taskId, "test_dag", "r1", tiContext),
+        (msgType, body) => {
+          if (msgType === "CreateHITLDetailPayload") return CREATED;
+          if (msgType === "GetXCom") {
+            return { body: { type: "XComResult", key: body["key"], value: { version: "1.4" } } };
+          }
+          return null;
+        },
+      );
+    }
+
+    /** The task parks with empty `next_kwargs`, so a resume carries only the response. */
+    function resumedWith(taskId: string, event: unknown, tiContext: Record<string, unknown> = {}) {
+      return driveSupervisor(
+        makeStartupDetails(taskId, "test_dag", "r1", {
+          next_method: "execute_complete",
+          next_kwargs: { event },
+          ...tiContext,
+        }),
+      );
+    }
+
+    function answer(chosen: string[], user: unknown = { id: "1", name: "Ada" }) {
+      return {
+        chosen_options: chosen,
+        params_input: {},
+        responded_at: RESPONDED_AT,
+        responded_by_user: user,
+        timedout: user === null,
+      };
+    }
+
+    function requestTypes(result: MockResult) {
+      return result.runtimeRequests.map((r) => r.type);
+    }
+
+    it("writes the request with rendered text and parks in awaiting_input", async () => {
+      const build = testDag.task("build", async () => ({ version: "1.4" }));
+      testDag.task(
+        "sign_off",
+        approval({
+          subject: ({ report }: { report: { version: string } }) => `Ship ${report.version}?`,
+          body: async ({ report }: { report: { version: string } }) => `**${report.version}**`,
+          assignees: [{ id: "ada", name: "Ada" }],
+          responseTimeout: 3600,
+        }),
+      )({ report: build() });
+
+      const result = await parkedWith("sign_off", {
+        arg_bindings: [{ name: "report", kind: "xcom", task_id: "build" }],
+      });
+
+      const [created] = requestsOf(result, "CreateHITLDetailPayload");
+      expect(created).toEqual({
+        type: "CreateHITLDetailPayload",
+        ti_id: "ti-1",
+        options: ["Approve", "Reject"],
+        subject: "Ship 1.4?",
+        body: "**1.4**",
+        defaults: null,
+        multiple: false,
+        params: {},
+        assigned_users: [{ id: "ada", name: "Ada" }],
+      });
+      expect(result.firstResponse!.body).toEqual({
+        type: "AwaitInputTask",
+        state: "awaiting_input",
+        timeout: "PT3600S",
+        next_method: "execute_complete",
+        next_kwargs: {},
+      });
+      expect(requestsOf(result, "SetXCom")).toEqual([]);
+    });
+
+    it("sends its defaults and multiple, with no body and no timeout as null", async () => {
+      testDag.task(
+        "choose",
+        humanInput({
+          subject: "Pick",
+          options: ["us", "eu"],
+          defaults: ["us", "eu"],
+          multiple: true,
+        }),
+      )();
+
+      const result = await parkedWith("choose");
+
+      expect(requestsOf(result, "CreateHITLDetailPayload")[0]).toMatchObject({
+        body: null,
+        defaults: ["us", "eu"],
+        multiple: true,
+      });
+      expect(result.firstResponse!.body).toMatchObject({ type: "AwaitInputTask", timeout: null });
+    });
+
+    it.each<[string, () => unknown, string]>([
+      [
+        "throws",
+        () => {
+          throw new Error("no report");
+        },
+        "no report",
+      ],
+      [
+        "returns an empty string",
+        () => "",
+        'The subject of task "sign_off" has to be a non-empty string',
+      ],
+      ["returns a number", () => 7, 'The subject of task "sign_off" has to be a non-empty string'],
+    ])(
+      "fails without writing the request when its subject function %s",
+      async (_label, subject, reason) => {
+        testDag.task("sign_off", approval({ subject: subject as () => string }))();
+
+        const result = await parkedWith("sign_off", { should_retry: true });
+
+        expect(requestsOf(result, "CreateHITLDetailPayload")).toEqual([]);
+        expect(result.firstResponse!.body).toMatchObject({
+          type: "RetryTask",
+          retry_reason: reason,
+        });
+      },
+    );
+
+    it("resumes with the response without writing the request again", async () => {
+      let rendered = 0;
+      testDag.task(
+        "choose",
+        humanInput({
+          subject: () => `Pick ${++rendered}`,
+          options: ["us", "eu", "apac"],
+          multiple: true,
+        }),
+      )();
+      const parked = await parkedWith("choose");
+      const { next_kwargs } = parked.firstResponse!.body as {
+        next_kwargs: Record<string, unknown>;
+      };
+
+      const result = await driveSupervisor(
+        makeStartupDetails("choose", "test_dag", "r1", {
+          next_method: "execute_complete",
+          next_kwargs: { ...next_kwargs, event: answer(["eu", "apac"]) },
+        }),
+      );
+
+      expect(rendered).toBe(1);
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestTypes(result)).toEqual(["SetXCom"]);
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+        key: "return_value",
+        task_id: "choose",
+        value: {
+          chosen_options: ["eu", "apac"],
+          params_input: {},
+          responded_at: "2026-10-08T12:30:15.123Z",
+          responded_by_user: { id: "1", name: "Ada" },
+          timedout: false,
+        },
+      });
+    });
+
+    it.each([
+      ["an approval answered Approve", approval({ subject: "Go?" }), "Approve"],
+      [
+        "a generic choice answered Reject",
+        humanInput({ subject: "?", options: ["Approve", "Reject"] }),
+        "Reject",
+      ],
+    ])("skips nothing for %s and pushes the response", async (_label, operator, chosen) => {
+      testDag
+        .task("decide", operator)()
+        .before(testDag.task("publish", async () => {})());
+
+      const result = await resumedWith("decide", answer([chosen]));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestTypes(result)).toEqual(["SetXCom"]);
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({ key: "return_value" });
+    });
+
+    it("on Reject skips the tasks directly downstream and, as SkipMixin does, pushes no response", async () => {
+      const decide = testDag.task("decide", approval({ subject: "Go?" }))();
+      const publish = testDag.task("publish", async () => {})();
+      decide.before(publish);
+      publish.before(testDag.task("announce", async () => {})());
+
+      const result = await resumedWith("decide", answer(["Reject"]));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestTypes(result)).toEqual(["SetXCom", "SkipDownstreamTasks"]);
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+        key: "skipmixin_key",
+        value: { skipped: ["publish"] },
+      });
+      expect(requestsOf(result, "SkipDownstreamTasks")[0]).toMatchObject({ tasks: ["publish"] });
+    });
+
+    it("on Reject skips a task group directly downstream by its first tasks", async () => {
+      const decide = testDag.task("decide", approval({ subject: "Go?" }))();
+      const stage = testDag.taskGroup("stage");
+      const publish = stage.task("publish", async () => {})();
+      publish.before(stage.task("announce", async () => {})());
+      decide.before(stage);
+
+      const result = await resumedWith("decide", answer(["Reject"]));
+
+      expect(requestsOf(result, "SkipDownstreamTasks")[0]).toMatchObject({
+        tasks: ["stage.publish"],
+      });
+    });
+
+    it("on Reject with skipAll skips every task downstream", async () => {
+      const decide = testDag.task("decide", approval({ subject: "Go?", onReject: "skipAll" }))();
+      const publish = testDag.task("publish", async () => {})();
+      decide.before(publish);
+      publish.before(testDag.task("announce", async () => {})());
+
+      const result = await resumedWith("decide", answer(["Reject"]));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestTypes(result)).toEqual(["SetXCom", "SkipDownstreamTasks"]);
+      expect(requestsOf(result, "SkipDownstreamTasks")[0]).toMatchObject({
+        tasks: ["announce", "publish"],
+      });
+    });
+
+    it("on Reject with nothing downstream pushes the response", async () => {
+      testDag.task("decide", approval({ subject: "Go?" }))();
+
+      const result = await resumedWith("decide", answer(["Reject"]));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestsOf(result, "SetXCom")).toEqual([
+        expect.objectContaining({
+          key: "return_value",
+          value: expect.objectContaining({ chosen_options: ["Reject"] }),
+        }),
+      ]);
+    });
+
+    it("on Reject fails when told to, before pushing anything", async () => {
+      testDag.task("decide", approval({ subject: "Go?", onReject: "fail" }))();
+
+      const result = await resumedWith("decide", answer(["Reject"]));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(result.runtimeRequests).toEqual([]);
+    });
+
+    it("succeeds with the defaults applied on timeout", async () => {
+      testDag.task(
+        "decide",
+        approval({ subject: "Go?", defaults: "Approve", responseTimeout: 60 }),
+      )();
+
+      const result = await resumedWith("decide", answer(["Approve"], null));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+        value: { responded_by_user: null, timedout: true },
+      });
+    });
+
+    it.each([
+      ["retries", true, { type: "RetryTask", retry_reason: "Response timed out: no response" }],
+      ["fails", false, { type: "TaskState", state: "failed" }],
+    ])("%s when the timeout passes without defaults", async (_label, shouldRetry, outcome) => {
+      testDag.task("decide", approval({ subject: "Go?", responseTimeout: 60 }))();
+
+      const result = await resumedWith(
+        "decide",
+        { error: "no response", error_type: "timeout" },
+        { should_retry: shouldRetry },
+      );
+
+      expect(result.firstResponse!.body).toMatchObject(outcome);
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ["an option it never offered", { event: answer(["Maybe"]) }],
+      ["an unreadable response time", { event: { ...answer(["Approve"]), responded_at: "soon" } }],
+      ["an unreadable responder", { event: answer(["Approve"], { id: 1 }) }],
+      ["no event", {}],
+    ])("fails on resume with %s", async (_label, nextKwargs) => {
+      testDag.task("decide", approval({ subject: "Go?" }))();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("decide", "test_dag", "r1", {
+          next_method: "execute_complete",
+          next_kwargs: nextKwargs,
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(result.runtimeRequests).toEqual([]);
+    });
+
+    it("fails on resume with a next_method it does not know", async () => {
+      testDag.task("decide", approval({ subject: "Go?" }))();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("decide", "test_dag", "r1", {
+          next_method: "something_else",
+          next_kwargs: { event: answer(["Approve"]) },
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(result.runtimeRequests).toEqual([]);
+    });
+
+    it("fails on resume through __fail__", async () => {
+      testDag.task("decide", approval({ subject: "Go?" }))();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("decide", "test_dag", "r1", {
+          next_method: "__fail__",
+          next_kwargs: { error: "Could not resume the task" },
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
     });
   });
 });

@@ -37,7 +37,7 @@
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
 import { resolveArgs, type BoundArgs } from "./arg-binding.js";
-import { createCoordinatorClient } from "./client.js";
+import { createCoordinatorClient, type CoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
 import {
@@ -48,6 +48,7 @@ import {
 import {
   asMsgFromSupervisor,
   SUPERVISOR_API_VERSION,
+  type RuntimeAwaitInputTask,
   type RuntimeDagFileParsingResult,
   type RuntimeDeferTask,
   type RuntimeRetryTask,
@@ -56,12 +57,13 @@ import {
   type StartupDetails,
 } from "./protocol.js";
 import { getArgNames } from "../sdk/arg-names.js";
-import { bundleDags, bundleDagTaskIds, getBundleTrigger, type Bundle } from "../sdk/bundle.js";
+import { bundleDags, bundleDagTaskIds, getBundleTask, type Bundle } from "../sdk/bundle.js";
 import { finalizeDag } from "../sdk/dag.js";
 import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
 import { computeRelativeFileloc, serializeDag } from "./serde.js";
+import { runHumanInput } from "./human-input-runner.js";
 import { runTriggerDagRun } from "./trigger-runner.js";
-import { runInTaskScope, type TaskContext } from "../sdk/task.js";
+import { runInTaskScope, type TaskContext, type TaskFunction } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const ABORT_GRACE_PERIOD_MS = 30_000;
@@ -199,6 +201,8 @@ export async function startCoordinator(
         runtimeLogs.info("Task succeeded", { task_id: body.ti.task_id });
       } else if (response.type === "DeferTask") {
         runtimeLogs.info("Task deferred", { task_id: body.ti.task_id });
+      } else if (response.type === "AwaitInputTask") {
+        runtimeLogs.info("Task awaiting input", { task_id: body.ti.task_id });
       }
     } else {
       const errMsg = `First frame must be DagFileParseRequest or StartupDetails, got ${body.type}`;
@@ -342,25 +346,17 @@ async function handleTask(
   logs: LogChannel,
   clientLogs: LogChannel,
   signal: AbortSignal,
-): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState | RuntimeDeferTask> {
+): Promise<
+  | RuntimeSucceedTask
+  | RuntimeRetryTask
+  | RuntimeTaskState
+  | RuntimeDeferTask
+  | RuntimeAwaitInputTask
+> {
   const ti = details.ti;
-  const trigger = getBundleTrigger(bundle, ti.dag_id, ti.task_id);
-  if (trigger) {
-    const ctx = buildContext(details, signal);
-    const client = createCoordinatorClient(comm, ctx, ti.id, clientLogs);
-    const fail = (message: string) => {
-      logs.error("Task failed", { task_id: ctx.taskId, error: message });
-      return buildFailureResponse(details, message);
-    };
-    try {
-      return await runTriggerDagRun(details, trigger, client, logs, ctx.signal, fail);
-    } catch (err) {
-      return fail((err as Error).message ?? String(err));
-    }
-  }
-  const handler = bundle.getTaskHandler(ti.dag_id, ti.task_id);
+  const task = getBundleTask(bundle, ti.dag_id, ti.task_id);
 
-  if (!handler) {
+  if (!task) {
     logs.warning("No handler registered for task", {
       dag_id: ti.dag_id,
       task_id: ti.task_id,
@@ -378,7 +374,45 @@ async function handleTask(
 
   const ctx = buildContext(details, signal);
   const client = createCoordinatorClient(comm, ctx, ti.id, clientLogs);
+  if (task.kind === "handler") {
+    return runHandler(details, task.fn, ctx, client, logs);
+  }
 
+  // How an operator ends the task as a failure: log the reason, then report the task
+  // as failed (or for retry, if it has retries left). Each operator gets this, and the
+  // catch below uses it for any error an operator throws.
+  const fail = (message: string) => {
+    logs.error("Task failed", { task_id: ctx.taskId, error: message });
+    return buildFailureResponse(details, message);
+  };
+  try {
+    switch (task.kind) {
+      case "triggerDagRun":
+        return await runTriggerDagRun(details, task.trigger, client, logs, ctx.signal, fail);
+      case "humanInput":
+        return await runHumanInput({
+          details,
+          dag: task.dag,
+          task: task.task,
+          client,
+          ctx,
+          logs,
+          fail,
+        });
+    }
+  } catch (err) {
+    return fail((err as Error).message ?? String(err));
+  }
+}
+
+/** Run the author's handler: bind its arguments, call it, push what it returns. */
+async function runHandler(
+  details: StartupDetails,
+  handler: TaskFunction,
+  ctx: TaskContext,
+  client: CoordinatorClient,
+  logs: LogChannel,
+): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
   let bound: BoundArgs;
   try {
     bound = await resolveArgs(details.ti_context?.arg_bindings, {
