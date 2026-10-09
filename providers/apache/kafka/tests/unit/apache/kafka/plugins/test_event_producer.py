@@ -111,9 +111,11 @@ def pytest_generate_tests(metafunc):
             indirect=True,
         )
 
+
 @pytest.fixture
 def separate_topics(request) -> bool:
     return request.param
+
 
 @pytest.fixture
 def dagrun_topic(separate_topics):
@@ -121,11 +123,13 @@ def dagrun_topic(separate_topics):
         return _DAGRUN_TOPIC
     return _KAFKA_TOPIC
 
+
 @pytest.fixture
 def task_instance_topic(separate_topics):
     if separate_topics:
         return _TASK_INSTANCE_TOPIC
     return _KAFKA_TOPIC
+
 
 @pytest.fixture
 def dr_mock():
@@ -160,7 +164,7 @@ def kafka_producer_mock():
         yield mock
 
 
-def _assert_common_message_fields(kafka_producer_mock, topic, expected_event: str) -> dict:
+def _assert_common_message_fields(kafka_producer_mock, topic: str, expected_event: str) -> dict:
     kafka_producer_mock.list_topics.assert_called_once()
     kafka_producer_mock.produce.assert_called_once()
 
@@ -519,7 +523,13 @@ class TestCheckTopicExists:
 
 
 @pytest.mark.parametrize(
-    ("topic", "dagrun_topic_setting", "task_instance_topic_setting", "dagrun_expected", "task_instance_expected"),
+    (
+        "topic",
+        "dagrun_topic_setting",
+        "task_instance_topic_setting",
+        "dagrun_expected",
+        "task_instance_expected"
+    ),
     [
         pytest.param(
             "airflow.events",
@@ -536,7 +546,9 @@ class TestCheckTopicExists:
         pytest.param("airflow.foo", None, None, "airflow.foo", "airflow.foo", id="old_setting"),
     ],
 )
-def test_get_topic(topic, dagrun_topic_setting, task_instance_topic_setting, dagrun_expected, task_instance_expected):
+def test_get_topic(
+    topic, dagrun_topic_setting, task_instance_topic_setting, dagrun_expected, task_instance_expected
+):
     # Check that ``topic`` is properly deprecated
     ctxt = (
         pytest.raises(
