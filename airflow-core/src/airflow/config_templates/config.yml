@@ -2048,7 +2048,7 @@ api:
       default: ~
     client_use_public_certs:
       description: |
-        Enable loading of public CA certificates from certifi into the client SSL context.
+        Enable trusting public CA certificates from the system trust store in the client SSL context.
       version_added: ~
       type: boolean
       example: ~
