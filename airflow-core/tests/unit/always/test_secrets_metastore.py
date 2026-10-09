@@ -23,6 +23,7 @@ from airflow.models.connection import Connection
 from airflow.models.variable import Variable
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import prohibit_commit
 
 from tests_common.test_utils.db import clear_db_connections, clear_db_variables
 
@@ -108,3 +109,36 @@ class TestMetastoreBackendSessionSafety:
         # Attributes should still be accessible
         assert conn.conn_id == "test_conn"
         assert conn.host == "localhost"
+
+    def test_get_connection_survives_prohibit_commit_without_explicit_session(self):
+        """Regression test for https://github.com/apache/airflow/issues/39646.
+
+        A dag_run listener hook (on_dag_run_running/on_dag_run_success/on_dag_run_failed) runs
+        on the scheduler's own thread while the scheduler's scoped session is held under
+        `prohibit_commit` (see SchedulerJobRunner._do_scheduling). A hook calling the public,
+        session-less BaseHook.get_connection() reaches this method with no session argument.
+        Before this fix, @provide_session resolved that call to the SAME guarded scoped session,
+        and the implicit commit on exit raised RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK
+        HA LOCKS!"), corrupting the scheduler's in-flight transaction instead of returning the
+        connection.
+        """
+        with create_session() as session:
+            session.add(Connection(conn_id="listener_conn", conn_type="http", host="example.com"))
+            session.commit()
+
+        with create_session() as session:
+            with prohibit_commit(session):
+                conn = MetastoreBackend().get_connection("listener_conn")
+
+        assert conn is not None
+        assert conn.conn_id == "listener_conn"
+
+    def test_get_variable_survives_prohibit_commit_without_explicit_session(self):
+        """Variable counterpart of test_get_connection_survives_prohibit_commit_without_explicit_session."""
+        Variable.set(key="listener_var", value="hello")
+
+        with create_session() as session:
+            with prohibit_commit(session):
+                value = MetastoreBackend().get_variable("listener_var")
+
+        assert value == "hello"
