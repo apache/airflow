@@ -380,7 +380,7 @@ class LLMSchemaCompareOperator(LLMOperator):
         decision: dict[str, Any] | None = None,
     ) -> Any:
         output = super().execute_complete(context, generated_output, event, decision)
-        if isinstance(output, dict):
+        if output is None or isinstance(output, dict):
             return output
         try:
             return SchemaCompareResult.model_validate_json(output).model_dump()

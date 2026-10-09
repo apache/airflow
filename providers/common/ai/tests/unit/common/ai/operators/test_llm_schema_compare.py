@@ -683,6 +683,22 @@ class TestLLMSchemaCompareOperatorApproval:
 
         assert resumed == result.model_dump()
 
+    @mock.patch.object(LLMSchemaCompareOperator, "skip")
+    def test_execute_complete_reject_without_fail_on_reject_returns_none(self, mock_skip):
+        op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS, fail_on_reject=False)
+        task = MagicMock()
+        task.get_direct_relatives.return_value = []
+        ctx = MagicMock(**{"__getitem__": lambda self, key: {"task": task, "ti": MagicMock()}[key]})
+
+        assert (
+            op.execute_complete(
+                ctx,
+                generated_output="{}",
+                event={"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "admin"}},
+            )
+            is None
+        )
+
     @pytest.mark.parametrize(
         "modified",
         ['{"compatible": true, "mismatches": []}', "looks fine to me"],

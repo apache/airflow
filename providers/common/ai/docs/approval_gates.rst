@@ -41,11 +41,9 @@ surfaces as a task failure -- still before the model is called.
 When ``approval_timeout`` expires without a review, the task fails by default.
 Set ``on_approval_timeout="approve"`` to return the generated output instead, so
 an unattended pipeline keeps moving.  ``"reject"`` answers the review with a
-rejection, which still fails this operator; only
-:class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
-turns a rejection into a downstream skip.  The chosen option is also
-pre-highlighted as the default in the review form, so ``"reject"`` makes
-Reject the primary button:
+rejection, which fails the task unless ``fail_on_reject=False``.  The chosen
+option is also pre-highlighted as the default in the review form, so
+``"reject"`` makes Reject the primary button:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
