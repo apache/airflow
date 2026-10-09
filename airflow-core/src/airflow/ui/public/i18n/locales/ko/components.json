@@ -129,6 +129,17 @@
     "hide": "값 숨기기",
     "show": "값 보기"
   },
+  "pausedDag": {
+    "drain": "완료 후 일시 중지",
+    "drainDescription": "완료되지 않은 실행은 계속되지만, 스케줄에 따른 새 실행은 생성되지 않습니다. 일시 중지된 백필은 일시 중지 상태로 유지됩니다. 이 실행들이 모두 끝나면 Dag가 다시 일시 중지됩니다.",
+    "keepPaused": "일시 중지 유지",
+    "keepPausedDescription": "새 실행과 완료되지 않은 실행은 Dag의 일시 중지가 해제될 때까지 대기합니다.",
+    "title": "Dag가 일시 중지됨",
+    "unfinishedRunsWillRun_one": "완료되지 않은 Dag 실행 1개가 시작되거나 재개됩니다.",
+    "unfinishedRunsWillRun_other": "완료되지 않은 Dag 실행 {{count}}개가 시작되거나 재개됩니다.",
+    "unpause": "일시 중지 해제",
+    "unpauseDescription": "Dag가 활성화됩니다. 완료되지 않은 실행은 계속되고 스케줄이 재개됩니다. 일시 중지된 백필은 일시 중지 상태로 유지됩니다."
+  },
   "reparseDag": "Dag 재구문 분석",
   "slowestTaskInstances": {
     "empty": "이 범위에 완료된 태스크 인스턴스가 없습니다",
@@ -154,6 +165,7 @@
     "dataInterval": "데이터 구간",
     "dataIntervalAuto": "논리적 날짜와 시간표에서 자동 추론",
     "dataIntervalManual": "수동 지정",
+    "editConfigAndTrigger": "구성 편집 후 트리거",
     "intervalEnd": "종료",
     "intervalStart": "시작",
     "loading": "Dag 정보 로드 중...",
@@ -173,7 +185,8 @@
         "title": "Dag 트리거에 성공했습니다."
       }
     },
-    "triggerAgainWithConfig": "현재 구성으로 다시 트리거"
+    "triggerAgainWithConfig": "현재 구성으로 다시 트리거",
+    "triggerOptions": "트리거 옵션"
   },
   "trimText": {
     "details": "세부 정보",
@@ -190,6 +203,7 @@
   "versionSelect": {
     "allVersions": "전체 버전",
     "dagVersion": "Dag 버전",
+    "placeholder": "버전 선택",
     "versionCode": "v{{versionCode}}"
   }
 }

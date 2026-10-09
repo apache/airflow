@@ -199,6 +199,7 @@
     "plugins": "플러그인",
     "security": "보안"
   },
+  "no": "아니요",
   "noItemsFound": "{{modelName}}을(를) 찾을 수 없음",
   "note": {
     "add": "메모 추가",
@@ -271,6 +272,10 @@
   "selected": "선택됨",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "태스크 인스턴스를 지울 때 태스크 상태 저장소 항목을 삭제하지 않고 기본으로 유지합니다.",
+        "label": "지울 때 태스크 상태 유지"
+      },
       "preventRunningTask": {
         "helper": "태스크 인스턴스를 지울 때 현재 실행 중인 태스크를 건너뜁니다.",
         "label": "실행 중인 태스크 지우기 방지"
@@ -314,6 +319,13 @@
         "label": "상태 표시 기본 선택"
       },
       "title": "상태 표시"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) 각 검색창에서 따로 선택한 설정과 공유 링크에 담긴 설정이 우선 적용됩니다.",
+        "label": "기본으로 부분 일치 사용"
+      },
+      "title": "검색"
     },
     "taskInstance": {
       "defaultTab": {
@@ -454,6 +466,11 @@
     "queuedWhen": "대기열에 추가된 시간",
     "renderedMapIndex": "렌더링된 맵 인덱스",
     "scheduledWhen": "예정된 시간",
+    "stateReason": "상태 이유",
+    "stateReasonSummary": {
+      "failed": "{{totalTries}}회 중 {{tryNumber}}번째 시도에서 중단됨",
+      "upForRetry": "{{totalTries}}회 중 {{tryNumber}}번째 시도 후 재시도 중"
+    },
     "trigger": "트리거",
     "triggerer": {
       "assigned": "할당된 트리거",
@@ -475,10 +492,15 @@
     "title": "팀"
   },
   "timeRange": {
-    "last12Hours": "지난 12 시간",
-    "last24Hours": "지난 24 시간",
+    "anyTime": "전체 기간",
+    "in": "기간",
+    "last7Days": "지난 7일",
+    "last12Hours": "지난 12시간",
+    "last24Hours": "지난 24시간",
+    "last30Days": "지난 30일",
     "lastHour": "지난 1시간",
-    "pastWeek": "지난 주"
+    "latestRun": "최근 실행",
+    "pastWeek": "지난주"
   },
   "timestamp": {
     "hide": "타임스탬프 숨기기",
@@ -570,5 +592,6 @@
     "tooltip": "{{hotkey}}를 눌러 텍스트 줄바꿈 토글",
     "unwrap": "줄바꿈 해제",
     "wrap": "줄바꿈"
-  }
+  },
+  "yes": "예"
 }
