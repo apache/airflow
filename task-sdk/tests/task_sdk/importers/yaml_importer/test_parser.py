@@ -212,6 +212,25 @@ def test_schema_required():
         list(parse_documents("dag_id: d\ntasks: []"))
 
 
+def test_unquoted_date_schema_is_coerced_to_url():
+    # An unquoted date loads as datetime.date; accept it and normalise to the canonical schema URL.
+    doc = next(iter(parse_documents("$schema: 2026-10-30\ndag_id: d\ntasks: []")))
+    assert doc.schema_ == HEAD_SCHEMA
+
+
+@pytest.mark.parametrize(
+    "schema_value",
+    [
+        pytest.param("123", id="int"),
+        pytest.param("[a, b]", id="list"),
+    ],
+)
+def test_schema_must_be_a_string_or_date(schema_value):
+    # Other non-string $schema values are a parse error, not an unhandled TypeError.
+    with pytest.raises(YamlDagParseError, match="must be a string or a date"):
+        list(parse_documents(f"$schema: {schema_value}\ndag_id: d\ntasks: []"))
+
+
 def test_unknown_schema_version_is_rejected():
     # Strict exact match (mirroring the supervisor migrator): any version that is not published --
     # newer, ancient, or unreadable -- is rejected rather than guessed.

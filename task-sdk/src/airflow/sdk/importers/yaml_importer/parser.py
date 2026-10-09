@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import collections.abc
+import datetime
 from typing import TYPE_CHECKING, Any
 
 import yaml
@@ -41,8 +42,14 @@ def _resolve_and_migrate(raw: dict[str, Any], *, source: str) -> dict[str, Any]:
     """Resolve the ``$schema`` version and migrate to the head shape."""
     if not isinstance(raw, collections.abc.Mapping):
         raise YamlDagParseError(f"{source}: a DAG document must be a mapping, got {type(raw).__name__}")
-    if not raw.get("$schema"):
+    if not (schema := raw.get("$schema")):
         raise YamlDagParseError(f"{source}: missing required key '$schema'")
+    if isinstance(schema, datetime.date):  # Smartly treat an unquoted date as version.
+        raw = {**raw, "$schema": migrator.schema_url(schema.strftime(r"%Y-%m-%d"))}
+    elif not isinstance(schema, str):
+        raise YamlDagParseError(
+            f"{source}: '$schema' must be a string, got {type(schema).__name__} ({schema!r})"
+        )
     try:
         return migrator.get_migrator().resolve_and_migrate(raw)
     except ValueError as exc:  # unresolvable $schema version; bundle-config errors are not ValueError
