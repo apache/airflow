@@ -538,7 +538,7 @@ Task state store
 The task state store is a per-task-instance key/value store, scoped to ``dagId``, ``runId``, ``taskId``,
 and ``mapIndex`` (but not ``tryNumber``), so a value written by one attempt is still readable by the next.
 It survives worker crashes and task retries within the same Dag run, which makes it a good place to record
-external job IDs, intra-task checkpoints, and progress metadata. See :doc:`/core-concepts/task-state-store`
+external job IDs, checkpoints within a task, and progress metadata. See :doc:`/core-concepts/task-state-store`
 for the full concept, including the equivalent Python API.
 
 .. code-block:: typescript
