@@ -106,6 +106,9 @@
     "pauseNow": "Pausar ara",
     "pauseSelected": "Pausar / Drenar"
   },
+  "schedulingBanner": {
+    "message": "Aquest DAG s'està drenant. Es posarà en pausa quan acabin les execucions del DAG que estan en curs."
+  },
   "schedulingState": {
     "active": "Actiu",
     "draining": "Drenant",

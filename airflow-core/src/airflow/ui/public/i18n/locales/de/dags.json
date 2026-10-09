@@ -106,6 +106,9 @@
     "pauseNow": "Jetzt pausieren",
     "pauseSelected": "Pausieren / Auslaufen"
   },
+  "schedulingBanner": {
+    "message": "Dieses Dag läuft aus. Es wird pausieren sobald aktive Läufe komplett sind."
+  },
   "schedulingState": {
     "active": "Aktiv",
     "draining": "Auslaufend",

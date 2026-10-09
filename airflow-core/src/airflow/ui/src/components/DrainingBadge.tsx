@@ -56,7 +56,7 @@ export const DrainingBadge = ({ dagId, ...props }: Props) => {
         <Popover.Body>
           <Stack gap={2}>
             <Text data-testid="draining-explanation" fontSize="sm">
-              {translate("schedulingState.drainingBadgeTooltip")}
+              {translate("schedulingBanner.message")}
             </Text>
             {dagId === undefined ? undefined : (
               <HStack gap={2}>

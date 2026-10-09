@@ -95,6 +95,9 @@
     "drainPrompt": "Ten Dag ma trwające wykonania. Wygaszanie pozwoli im się zakończyć, zanim Dag zostanie wstrzymany; wstrzymanie teraz natychmiast zatrzyma planowanie, bez czekania na nie.",
     "pauseNow": "Wstrzymaj teraz"
   },
+  "schedulingBanner": {
+    "message": "Ten Dag jest wygaszany. Zostanie wstrzymany, gdy zakończą się jego trwające wykonania."
+  },
   "schedulingState": {
     "active": "Aktywne",
     "draining": "Wygaszane",
