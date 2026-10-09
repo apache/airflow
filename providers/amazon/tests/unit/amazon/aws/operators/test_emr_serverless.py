@@ -21,7 +21,7 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from botocore.exceptions import WaiterError
+from botocore.exceptions import BotoCoreError, ClientError, WaiterError
 
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.operators.emr import (
@@ -649,49 +649,83 @@ class TestEmrServerlessStartJobOperator:
         operator.defer.assert_called_once()
         mock_conn.cancel_job_run.assert_not_called()
 
-    @mock.patch("time.sleep", return_value=None)
-    @mock.patch.object(EmrServerlessHook, "get_waiter")
-    @mock.patch.object(EmrServerlessHook, "conn")
-    def test_execute_complete_deferrable_failure_triggers_cancel(
-        self, mock_conn, mock_get_waiter, sleep_mock
-    ):
-        application_id = "test-app-id"
-        job_run_id = "test-job-id"
-        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
-        mock_conn.start_job_run.return_value = {
-            "jobRunId": job_run_id,
-            "ResponseMetadata": {"HTTPStatusCode": 200},
-        }
-        operator = EmrServerlessStartJobOperator(
+    def _deferrable_operator(self):
+        return EmrServerlessStartJobOperator(
             task_id="test_task",
-            application_id=application_id,
-            execution_role_arn="arn:aws:iam::123456789012:role/test-role",
-            job_driver={"sparkSubmit": {"entryPoint": "s3://bucket/script.py"}},
-            client_request_token="token",
-            configuration_overrides={},
-            waiter_delay=1,
-            waiter_max_attempts=3,
-            wait_for_completion=True,
+            application_id="app-id",
+            execution_role_arn="arn",
+            job_driver={"sparkSubmit": {"entryPoint": "s3://x"}},
             deferrable=True,
         )
-        operator.job_id = job_run_id
-        failed_event = {
-            "status": "error",
-            "job_details": {"application_id": application_id, "job_id": job_run_id},
-        }
 
-        mock_context = mock.MagicMock()
-        with mock.patch.object(operator.log, "info") as mock_log:
-            with pytest.raises(
-                AirflowException, match="EMR Serverless job failed or timed out in deferrable mode"
-            ):
-                operator.execute_complete(mock_context, failed_event)
-            mock_conn.cancel_job_run.assert_called_once_with(
-                applicationId=application_id,
-                jobRunId=job_run_id,
-            )
-            log_msgs = [call.args[0] for call in mock_log.call_args_list]
-            assert any("Cancelling EMR Serverless job" in msg for msg in log_msgs)
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_complete_timeout_cancels_job(self, mock_conn):
+        """On a poll timeout the run may still be active, so it is cancelled and reported as timed out."""
+        operator = self._deferrable_operator()
+        timeout_event = {
+            "status": "failure",
+            "failure_type": "timeout",
+            "message": "Waiter error: max attempts reached",
+            "job_details": {"application_id": "app-id", "job_id": "job-id"},
+        }
+        with pytest.raises(
+            RuntimeError, match="timed out in deferrable mode: Waiter error: max attempts reached"
+        ):
+            operator.execute_complete(mock.MagicMock(), timeout_event)
+        mock_conn.cancel_job_run.assert_called_once_with(applicationId="app-id", jobRunId="job-id")
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_complete_terminal_failure_surfaces_reason_without_cancel(self, mock_conn):
+        """A terminal job failure is already done, so it is not cancelled and the real reason surfaces."""
+        operator = self._deferrable_operator()
+        failed_event = {
+            "status": "failure",
+            "failure_type": "terminal",
+            "message": "Serverless Job failed: boom",
+            "job_details": {"application_id": "app-id", "job_id": "job-id"},
+        }
+        with pytest.raises(RuntimeError, match="failed in deferrable mode: Serverless Job failed: boom"):
+            operator.execute_complete(mock.MagicMock(), failed_event)
+        mock_conn.cancel_job_run.assert_not_called()
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_complete_failure_without_job_details_does_not_keyerror(self, mock_conn):
+        """A failure event without job_details must surface the reason, not raise KeyError."""
+        operator = self._deferrable_operator()
+        failed_event = {
+            "status": "failure",
+            "failure_type": "error",
+            "message": "Serverless Job failed: boom",
+        }
+        with pytest.raises(RuntimeError, match="failed in deferrable mode: Serverless Job failed: boom"):
+            operator.execute_complete(mock.MagicMock(), failed_event)
+        mock_conn.cancel_job_run.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "cancel_error",
+        [
+            ClientError(
+                {"Error": {"Code": "ValidationException", "Message": "run is not in a cancellable state"}},
+                "CancelJobRun",
+            ),
+            BotoCoreError(),
+        ],
+    )
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_complete_timeout_cancel_error_does_not_mask_reason(self, mock_conn, cancel_error):
+        mock_conn.cancel_job_run.side_effect = cancel_error
+        operator = self._deferrable_operator()
+        timeout_event = {
+            "status": "failure",
+            "failure_type": "timeout",
+            "message": "Waiter error: max attempts reached",
+            "job_details": {"application_id": "app-id", "job_id": "job-id"},
+        }
+        with pytest.raises(
+            RuntimeError, match="timed out in deferrable mode: Waiter error: max attempts reached"
+        ):
+            operator.execute_complete(mock.MagicMock(), timeout_event)
+        mock_conn.cancel_job_run.assert_called_once_with(applicationId="app-id", jobRunId="job-id")
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
