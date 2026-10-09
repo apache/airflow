@@ -3201,6 +3201,149 @@ class TestSchedulerJob:
 
         session.rollback()
 
+    @pytest.fixture
+    def interleaved_blocked_and_runnable_tis(self, dag_maker, session):
+        """
+        Create SCHEDULED TIs ordered so each 3-row candidate page holds one runnable TI until the last.
+
+        Candidate order: blocked_0, runnable_0, blocked_1 | blocked_2, runnable_1, blocked_3 |
+        blocked_4, runnable_2, runnable_3. Blocked TIs are at their ``max_active_tis_per_dag`` limit.
+        """
+        with dag_maker(dag_id="interleaved_blocked_and_runnable", session=session):
+            blocked_tasks = [
+                EmptyOperator(task_id=f"blocked_{index}", priority_weight=weight, max_active_tis_per_dag=1)
+                for index, weight in enumerate((9, 7, 6, 4, 3))
+            ]
+            runnable_tasks = [
+                EmptyOperator(task_id=f"runnable_{index}", priority_weight=weight)
+                for index, weight in enumerate((8, 5, 2, 1))
+            ]
+        first_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        second_run = dag_maker.create_dagrun_after(first_run, run_type=DagRunType.SCHEDULED)
+        for blocked_task in blocked_tasks:
+            first_run.get_task_instance(blocked_task.task_id, session=session).state = State.RUNNING
+            second_run.get_task_instance(blocked_task.task_id, session=session).state = State.SCHEDULED
+        for runnable_task in runnable_tasks:
+            first_run.get_task_instance(runnable_task.task_id, session=session).state = State.SCHEDULED
+        session.flush()
+
+    @pytest.mark.usefixtures("interleaved_blocked_and_runnable_tis")
+    @pytest.mark.parametrize(
+        ("executor_slots", "expected_task_ids"),
+        [
+            pytest.param(8, ["runnable_0", "runnable_1", "runnable_2"], id="fills_batch_up_to_max_tis"),
+            pytest.param(2, ["runnable_0", "runnable_1"], id="executor_slots_shared_across_queries"),
+        ],
+    )
+    def test_select_task_instances_to_queue_refills_batch_after_concurrency_rejection(
+        self, mock_executors, session, executor_slots, expected_task_ids
+    ):
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner.executor.slots_available = executor_slots
+
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            3, make_pool_stats(), set(), session=session
+        )
+
+        assert [ti.task_id for ti in queued_tis] == expected_task_ids
+
+    @pytest.mark.usefixtures("interleaved_blocked_and_runnable_tis")
+    @mock.patch("airflow.jobs.scheduler_job_runner.MAX_TI_REFILL_QUERIES_PER_LOOP", 1)
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_select_task_instances_to_queue_stops_at_refill_query_limit(self, mock_get_backend, session):
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            3, make_pool_stats(), set(), session=session
+        )
+
+        assert [ti.task_id for ti in queued_tis] == ["runnable_0", "runnable_1"]
+        mock_stats.incr.assert_any_call("scheduler.critical_section_refill_limit_reached")
+
+    def test_select_task_instances_to_queue_finds_runnable_hidden_by_max_active_tasks_window(
+        self, dag_maker, session
+    ):
+        """Blocked TIs filling a run's ``max_active_tasks`` window must not hide its runnable TIs."""
+        self.job_runner = SchedulerJobRunner(job=Job())
+        with dag_maker(
+            dag_id="blocked_tis_fill_max_active_tasks_window", max_active_tasks=2, session=session
+        ):
+            blocked_tasks = [
+                EmptyOperator(task_id=f"blocked_{index}", priority_weight=weight, max_active_tis_per_dag=1)
+                for index, weight in enumerate((3, 2))
+            ]
+            runnable_task = EmptyOperator(task_id="runnable", priority_weight=1)
+        first_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        second_run = dag_maker.create_dagrun_after(first_run, run_type=DagRunType.SCHEDULED)
+        for blocked_task in blocked_tasks:
+            first_run.get_task_instance(blocked_task.task_id, session=session).state = State.RUNNING
+            second_run.get_task_instance(blocked_task.task_id, session=session).state = State.SCHEDULED
+        runnable_ti = second_run.get_task_instance(runnable_task.task_id, session=session)
+        runnable_ti.state = State.SCHEDULED
+        session.flush()
+
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
+
+        assert [ti.key for ti in queued_tis] == [runnable_ti.key]
+
+    def test_select_task_instances_to_queue_preserves_priority_across_dag_runs(
+        self, dag_maker, mock_executors, session
+    ):
+        with dag_maker(dag_id="multiple_runs", max_active_tasks=2, session=session):
+            EmptyOperator(task_id="running")
+            EmptyOperator(task_id="fills_run", priority_weight=100)
+            EmptyOperator(task_id="blocked_in_run", priority_weight=99)
+            EmptyOperator(task_id="other_run", priority_weight=98)
+        first_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        second_run = dag_maker.create_dagrun_after(first_run, run_type=DagRunType.SCHEDULED)
+
+        with dag_maker(dag_id="lower_priority", session=session):
+            EmptyOperator(task_id="competitor", priority_weight=1)
+        competing_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        first_run.get_task_instance("running", session=session).state = State.RUNNING
+        fills_run_ti = first_run.get_task_instance("fills_run", session=session)
+        fills_run_ti.state = State.SCHEDULED
+        first_run.get_task_instance("blocked_in_run", session=session).state = State.SCHEDULED
+        other_run_ti = second_run.get_task_instance("other_run", session=session)
+        other_run_ti.state = State.SCHEDULED
+        competing_run.get_task_instance("competitor", session=session).state = State.SCHEDULED
+        session.flush()
+
+        expected_keys = [fills_run_ti.key, other_run_ti.key]
+        pools = make_pool_stats(total=3, running=1)
+        self.job_runner = SchedulerJobRunner(job=Job())
+        queued_tis = []
+        # Allow another pass so this checks priority, not whether one pass fills the batch.
+        for _ in range(2):
+            max_tis = int(pools["default_pool"]["open"])
+            if not max_tis:
+                break
+            queued_tis.extend(
+                self.job_runner._select_task_instances_to_queue(max_tis, pools, set(), session=session)
+            )
+
+        assert [ti.key for ti in queued_tis] == expected_keys
+
+    def test_build_schedulable_tis_query_excludes_only_starved_dag_run(self, dag_maker, session):
+        with dag_maker(dag_id="starved_run", session=session):
+            EmptyOperator(task_id="task")
+        first_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        second_run = dag_maker.create_dagrun_after(first_run, run_type=DagRunType.SCHEDULED)
+        for dag_run in (first_run, second_run):
+            dag_run.get_task_instance("task", session=session).state = State.SCHEDULED
+        session.flush()
+
+        query = SchedulerJobRunner(job=Job())._build_schedulable_tis_query(
+            set(), {("starved_run", first_run.run_id)}, set(), set(), 32
+        )
+
+        assert [ti.run_id for ti in session.scalars(query)] == [second_run.run_id]
+
     def test_find_executable_task_instances_task_concurrency_per_dagrun_for_first(self, dag_maker):
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
