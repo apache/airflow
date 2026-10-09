@@ -18,9 +18,13 @@
  */
 import { describe, expect, it } from "vitest";
 
-import type { DAGRunResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type {
+  DAGRunResponse,
+  DAGWithLatestDagRunsResponse,
+  TaskInstanceResponse,
+} from "openapi/requests/types.gen";
 
-import { buildDagOption, buildDagRunOption } from "./searchOptions";
+import { buildDagOption, buildDagRunOption, buildMapIndexOption } from "./searchOptions";
 
 const dagRun = { dag_run_id: "run_1", state: "success" } as DAGRunResponse;
 const dag = {
@@ -28,6 +32,12 @@ const dag = {
   dag_id: "my_dag",
   latest_dag_runs: [],
 } as unknown as DAGWithLatestDagRunsResponse;
+
+const mappedInstance = {
+  map_index: 0,
+  rendered_map_index: "alpha",
+  state: "success",
+} as TaskInstanceResponse;
 
 describe("searchOptions", () => {
   // react-select keeps keyboard focus only while the focused option is still in `options` by
@@ -39,6 +49,16 @@ describe("searchOptions", () => {
 
   it("gives a Dag row the same option object every time", () => {
     expect(buildDagOption(dag)).toBe(buildDagOption(dag));
+  });
+
+  it("gives a mapped instance the same option object every time", () => {
+    expect(buildMapIndexOption(mappedInstance)).toBe(buildMapIndexOption(mappedInstance));
+  });
+
+  it("falls back to the map index itself when nothing is rendered", () => {
+    const unrendered = { map_index: 4, rendered_map_index: null, state: null } as TaskInstanceResponse;
+
+    expect(buildMapIndexOption(unrendered)).toEqual({ label: "4", state: null, value: "4" });
   });
 
   it("builds a fresh option for a row that changed", () => {

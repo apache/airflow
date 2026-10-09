@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ReactNode } from "react";
+import { type ReactNode, createContext, use } from "react";
 
 import { Box, Field } from "@chakra-ui/react";
 import type {
@@ -29,9 +29,15 @@ import type {
 import { AsyncSelect, chakraComponents } from "chakra-react-select";
 import { FiSearch } from "react-icons/fi";
 
+// react-select builds its components from a stable map, so anything a caller wants inside the
+// control has to reach it some other way than a prop: rebuilding the control to close over one
+// would remount the input on every render and drop focus mid-keystroke.
+const ControlEndContext = createContext<ReactNode>(undefined);
+
 /**
- * Leads the input with the search affordance. react-select only renders indicators after the value
- * container, so an icon on the start side has to come from the control itself.
+ * Leads the input with the search affordance and closes it with whatever the caller put at the end.
+ * react-select only renders indicators after the value container, so an icon on the start side has
+ * to come from the control itself.
  */
 const SearchControl = <Option,>({ children, ...props }: ControlProps<Option, false>) => (
   <chakraComponents.Control {...props}>
@@ -39,6 +45,7 @@ const SearchControl = <Option,>({ children, ...props }: ControlProps<Option, fal
       <FiSearch />
     </Box>
     {children}
+    {use(ControlEndContext)}
   </chakraComponents.Control>
 );
 
@@ -46,6 +53,8 @@ const SearchControl = <Option,>({ children, ...props }: ControlProps<Option, fal
 const NoIndicator = () => null;
 
 type Props<Option> = {
+  /** Rendered at the end of the input, where an addon sits on a search field elsewhere. */
+  readonly controlEnd?: ReactNode;
   /**
    * The options to list before anything is typed. Always an array, never `true`: `true` makes
    * react-select call `loadOptions` from a mount effect and start out `isLoading`, so every open
@@ -72,6 +81,7 @@ type Props<Option> = {
  * since the panel exists only to show them.
  */
 export const SearchSelect = <Option,>({
+  controlEnd,
   defaultOptions,
   formatOptionLabel,
   loadingMessage,
@@ -94,24 +104,26 @@ export const SearchSelect = <Option,>({
   };
 
   return (
-    <Field.Root>
-      <AsyncSelect<Option>
-        backspaceRemovesValue={true}
-        chakraStyles={chakraStyles}
-        // No spinner: the listed options are in hand before the panel opens, and a search
-        // replaces them once it answers. Only the window where react-select empties the list
-        // itself gets an affordance, and a line of text is enough for it.
-        components={{ Control: SearchControl, DropdownIndicator: null, LoadingIndicator: NoIndicator }}
-        defaultOptions={defaultOptions}
-        filterOption={undefined}
-        formatOptionLabel={formatOptionLabel}
-        loadingMessage={() => loadingMessage}
-        loadOptions={loadOptions}
-        menuIsOpen
-        onChange={onChange}
-        placeholder={placeholder}
-        value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
-      />
-    </Field.Root>
+    <ControlEndContext value={controlEnd}>
+      <Field.Root>
+        <AsyncSelect<Option>
+          backspaceRemovesValue={true}
+          chakraStyles={chakraStyles}
+          // No spinner: the listed options are in hand before the panel opens, and a search
+          // replaces them once it answers. Only the window where react-select empties the list
+          // itself gets an affordance, and a line of text is enough for it.
+          components={{ Control: SearchControl, DropdownIndicator: null, LoadingIndicator: NoIndicator }}
+          defaultOptions={defaultOptions}
+          filterOption={undefined}
+          formatOptionLabel={formatOptionLabel}
+          loadingMessage={() => loadingMessage}
+          loadOptions={loadOptions}
+          menuIsOpen
+          onChange={onChange}
+          placeholder={placeholder}
+          value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
+        />
+      </Field.Root>
+    </ControlEndContext>
   );
 };

@@ -27,14 +27,22 @@ import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
 import type { DAGWithLatestDagRunsCollectionResponse } from "openapi/requests/types.gen";
 
+import { AdvancedSearchToggle } from "src/components/AdvancedSearchToggle";
 import { SearchSelect } from "src/components/SearchSelect";
 import { StateBadge } from "src/components/StateBadge";
 
 import { TabEntity } from "src/constants/tab";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import type { DagSearchOption } from "src/utils/option";
 import { getTabPath } from "src/utils/tab";
 
 import { SEARCH_LIMIT, buildDagOption } from "./searchOptions";
+
+const ADVANCED_SEARCH_KEY = "breadcrumb-dags";
+
+/** Match anywhere in the name, or only at the start — the same choice the Dags list offers. */
+const buildNameArg = (value: string, matchAnywhere: boolean) =>
+  matchAnywhere ? { dagDisplayNamePattern: value } : { dagDisplayNamePrefixPattern: value };
 
 const formatOptionLabel = (option: DagSearchOption) => (
   <Flex alignItems="center" gap={2} minW={0}>
@@ -52,6 +60,9 @@ export const SearchDags = ({
   readonly onClose: () => void;
 }) => {
   const { t: translate } = useTranslation(["dags", "common"]);
+  // Its own key rather than the Dags list's: toggling here should not quietly change what that
+  // page does. A user who wants it everywhere has the global default setting for that.
+  const { enabled: matchAnywhere, onToggle } = useAdvancedSearch(ADVANCED_SEARCH_KEY);
   const queryClient = useQueryClient();
   const matches = useMatches();
   const navigate = useNavigate();
@@ -74,7 +85,7 @@ export const SearchDags = ({
       void queryClient.fetchQuery({
         queryFn: () =>
           DagService.getDagsUi({
-            dagDisplayNamePrefixPattern: inputValue,
+            ...buildNameArg(inputValue, matchAnywhere),
             dagRunsLimit: 1,
             limit: SEARCH_LIMIT,
           }).then((found: DAGWithLatestDagRunsCollectionResponse) => {
@@ -85,7 +96,7 @@ export const SearchDags = ({
             return options;
           }),
         queryKey: UseDagServiceGetDagsUiKeyFn({
-          dagDisplayNamePrefixPattern: inputValue,
+          ...buildNameArg(inputValue, matchAnywhere),
           dagRunsLimit: 1,
         }),
         staleTime: 0,
@@ -96,6 +107,7 @@ export const SearchDags = ({
 
   return (
     <SearchSelect
+      controlEnd={<AdvancedSearchToggle enabled={matchAnywhere} onToggle={onToggle} size="2xs" />}
       defaultOptions={dags}
       formatOptionLabel={formatOptionLabel}
       loadingMessage={translate("common:loading")}

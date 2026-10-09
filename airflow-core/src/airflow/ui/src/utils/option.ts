@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DagRunState } from "openapi/requests/types.gen";
+import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
 
 export type Option = {
   readonly disabled?: boolean;
@@ -26,6 +26,10 @@ export type Option = {
 
 export type DagRunSearchOption = {
   readonly state: DagRunState;
+} & Option;
+
+export type MapIndexSearchOption = {
+  readonly state: TaskInstanceState | null;
 } & Option;
 
 export type DagSearchOption = {

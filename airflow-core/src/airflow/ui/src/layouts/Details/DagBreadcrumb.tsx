@@ -39,6 +39,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { DagRunSwitcherButton } from "./DagRunSwitcherButton";
 import { DagSwitcherButton } from "./DagSwitcherButton";
 import { IterationSwitcherButton } from "./IterationSwitcherButton";
+import { MapIndexSwitcherButton } from "./MapIndexSwitcherButton";
 
 /** Levels that stand for a Dag run — both offer the run search. */
 const RUN_LEVEL_KEYS = new Set(["allRuns", "dagRun"]);
@@ -101,6 +102,14 @@ const BreadcrumbItem = ({
       <DagRunSwitcherButton dagId={dagId} isMapped={isMapped} shape={shape} to={crumb.to}>
         {content}
       </DagRunSwitcherButton>
+    );
+  }
+
+  if (crumb.key === "mapIndex" && crumb.to !== undefined) {
+    return (
+      <MapIndexSwitcherButton dagId={dagId} shape={shape} to={crumb.to}>
+        {content}
+      </MapIndexSwitcherButton>
     );
   }
 
@@ -276,6 +285,7 @@ export const DagBreadcrumb = () => {
       hasState: true,
       key: "mapIndex",
       state: mappedTaskInstance?.state,
+      to: `/dags/${dagId}/runs/${runId ?? ""}/tasks/${taskId ?? ""}/mapped/${mapIndex}`,
       value: mappedTaskInstance?.rendered_map_index ?? mapIndex,
     });
   }

@@ -16,14 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DAGRunResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type {
+  DAGRunResponse,
+  DAGWithLatestDagRunsResponse,
+  TaskInstanceResponse,
+} from "openapi/requests/types.gen";
 
-import type { DagRunSearchOption, DagSearchOption } from "src/utils/option";
+import type { DagRunSearchOption, DagSearchOption, MapIndexSearchOption } from "src/utils/option";
 
 /** How many Dags or runs a breadcrumb search offers before anything is typed, and finds per search. */
 export const SEARCH_LIMIT = 10;
 
 export const NEWEST_FIRST = ["-run_after"];
+export const BY_MAP_INDEX = ["map_index"];
 
 // react-select keeps keyboard focus only while the focused option is still in `options` by
 // reference, so rebuilding every option on each poll would drop the user back to the first row
@@ -31,6 +36,7 @@ export const NEWEST_FIRST = ["-run_after"];
 // caching against that object keeps the options for unchanged rows stable too.
 const dagOptions = new WeakMap<DAGWithLatestDagRunsResponse, DagSearchOption>();
 const dagRunOptions = new WeakMap<DAGRunResponse, DagRunSearchOption>();
+const mapIndexOptions = new WeakMap<TaskInstanceResponse, MapIndexSearchOption>();
 
 export const buildDagOption = (dag: DAGWithLatestDagRunsResponse): DagSearchOption => {
   const cached = dagOptions.get(dag);
@@ -61,6 +67,25 @@ export const buildDagRunOption = (dagRun: DAGRunResponse): DagRunSearchOption =>
   const option = { label: dagRun.dag_run_id, state: dagRun.state, value: dagRun.dag_run_id };
 
   dagRunOptions.set(dagRun, option);
+
+  return option;
+};
+
+export const buildMapIndexOption = (taskInstance: TaskInstanceResponse): MapIndexSearchOption => {
+  const cached = mapIndexOptions.get(taskInstance);
+
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const option = {
+    // An unrendered index still has to be nameable, and its own number is what the URL carries.
+    label: taskInstance.rendered_map_index ?? String(taskInstance.map_index),
+    state: taskInstance.state,
+    value: String(taskInstance.map_index),
+  };
+
+  mapIndexOptions.set(taskInstance, option);
 
   return option;
 };

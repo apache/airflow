@@ -132,6 +132,33 @@ describe("SearchDags", () => {
     vi.restoreAllMocks();
   });
 
+  it("matches the start of the name by default", async () => {
+    const getDagsUi = vi.spyOn(DagService, "getDagsUi").mockResolvedValue({ dags: [], total_entries: 0 });
+
+    renderSearch({ initialEntry: "/dags/old_dag" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Load Dags" }));
+
+    await waitFor(() =>
+      expect(getDagsUi).toHaveBeenCalledWith(expect.objectContaining({ dagDisplayNamePrefixPattern: "" })),
+    );
+    expect(getDagsUi.mock.calls[0]?.[0]).not.toHaveProperty("dagDisplayNamePattern");
+  });
+
+  it("matches anywhere in the name once the option is on", async () => {
+    const getDagsUi = vi.spyOn(DagService, "getDagsUi").mockResolvedValue({ dags: [], total_entries: 0 });
+
+    // The toggle mirrors its choice into the URL, which is also how a shared link carries it.
+    renderSearch({ initialEntry: "/dags/old_dag?advanced_search=breadcrumb-dags" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Load Dags" }));
+
+    await waitFor(() =>
+      expect(getDagsUi).toHaveBeenCalledWith(expect.objectContaining({ dagDisplayNamePattern: "" })),
+    );
+    expect(getDagsUi.mock.calls[0]?.[0]).not.toHaveProperty("dagDisplayNamePrefixPattern");
+  });
+
   it("preserves the selected Dag tab when switching Dags", () => {
     const onClose = renderSearch({ initialEntry: "/dags/old_dag/details" });
 

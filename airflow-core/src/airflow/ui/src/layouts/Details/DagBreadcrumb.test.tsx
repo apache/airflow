@@ -208,6 +208,17 @@ describe("DagBreadcrumb", () => {
     );
   });
 
+  it("offers the instance search at the map index level", async () => {
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/task_1/mapped/0`,
+        "/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
+      ),
+    });
+
+    expect(await screen.findByTestId("switch-map-index")).toBeInTheDocument();
+  });
+
   it("renders one level per URL segment, with only the current one unlinked", async () => {
     render(<DagBreadcrumb />, {
       wrapper: createWrapper(
@@ -234,9 +245,11 @@ describe("DagBreadcrumb", () => {
       "href",
       `/dags/${DAG_ID}/runs/run_1/tasks/task_1/mapped`,
     );
-    // The map index is the page's own level, so it is text rather than a link.
-    expect(screen.queryByRole("link", { name: "0" })).not.toBeInTheDocument();
-    expect(screen.getByText("0")).toBeInTheDocument();
+    // The map index is a switcher like the Dag and run levels, so its own half links to itself.
+    expect(screen.getByRole("link", { name: /^mapIndex ?0$/u })).toHaveAttribute(
+      "href",
+      `/dags/${DAG_ID}/runs/run_1/tasks/task_1/mapped/0`,
+    );
   });
 
   it("resolves the task instance by the region coordinates in the URL", async () => {
