@@ -72,6 +72,14 @@ export type {
   DagRunStateResult,
   GetDag,
   DagResult,
+  GetAssetStateStoreByName,
+  GetAssetStateStoreByUri,
+  SetAssetStateStoreByName,
+  SetAssetStateStoreByUri,
+  DeleteAssetStateStoreByName,
+  DeleteAssetStateStoreByUri,
+  ClearAssetStateStoreByName,
+  ClearAssetStateStoreByUri,
 } from "../generated/supervisor.js";
 
 // -------- Frames from supervisor --------

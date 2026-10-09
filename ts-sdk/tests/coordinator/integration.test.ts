@@ -35,6 +35,7 @@ import {
   COORDINATOR_RESPONSE_TIMEOUT_MS,
   startCoordinator,
 } from "../../src/coordinator/runtime.js";
+import { Asset } from "../../src/sdk/asset.js";
 import { Dag } from "../../src/sdk/dag.js";
 import { triggerDagRun } from "../../src/sdk/trigger-dag-run.js";
 import { Bundle } from "../../src/sdk/bundle.js";
@@ -781,6 +782,29 @@ describe("coordinator runtime integration", () => {
     const result = await driveSupervisor(makeStartupDetails("missing_variable"), responder);
     expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
     expect(observed).toBeNull();
+  });
+
+  it("reads an asset state store value through the comm channel", async () => {
+    let observed: unknown = "<unset>";
+    testDag.task("asset_state", async () => {
+      observed = await getClient()
+        .assetStateStore.forAsset(Asset.ref({ name: "orders" }))
+        .get("watermark");
+    })();
+
+    const responder: Responder = (msgType) =>
+      msgType === "GetAssetStateStoreByName"
+        ? { body: { type: "AssetStateStoreResult", value: { at: "2026-10-08" } } }
+        : null;
+
+    const result = await driveSupervisor(makeStartupDetails("asset_state"), responder);
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(result.runtimeRequests[0]).toEqual({
+      type: "GetAssetStateStoreByName",
+      body: { type: "GetAssetStateStoreByName", name: "orders", key: "watermark" },
+    });
+    expect(observed).toEqual({ at: "2026-10-08" });
   });
 
   it("looks up handlers by exact Dag and task id", async () => {

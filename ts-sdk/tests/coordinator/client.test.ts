@@ -18,10 +18,11 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { Asset, type AssetRef } from "../../src/sdk/asset.js";
 import { ConnectionNotFoundError } from "../../src/sdk/client.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
-import type { TaskClient } from "../../src/sdk/client.js";
+import type { AssetStateStore, TaskClient } from "../../src/sdk/client.js";
 import type { TaskContext } from "../../src/sdk/task.js";
 
 function fakeComm(frames: { body: unknown; error?: unknown }[]): CommChannel {
@@ -375,5 +376,121 @@ describe("getConnectionOrThrow", () => {
   it("propagates non-not-found errors instead of ConnectionNotFoundError", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "API_SERVER_ERROR" } }]);
     await expect(c.getConnectionOrThrow("warehouse")).rejects.toThrow(/API_SERVER_ERROR/);
+  });
+});
+
+describe("assetStateStore", () => {
+  const OK = { type: "OKResponse", ok: true };
+  const byName = new Asset({ name: "orders", uri: "s3://warehouse/orders" });
+  const nameRef = Asset.ref({ name: "orders" });
+  const uriRef = Asset.ref({ uri: "s3://warehouse/orders" });
+  const NAME = { name: "orders" };
+  const URI = { uri: "s3://warehouse/orders" };
+
+  it.each([
+    [
+      "get by Asset",
+      byName,
+      { type: "AssetStateStoreResult", value: { at: "2026-10-08", rows: [1, 2] } },
+      (s: AssetStateStore) => s.get("watermark"),
+      { type: "GetAssetStateStoreByName", ...NAME, key: "watermark" },
+      { at: "2026-10-08", rows: [1, 2] },
+    ],
+    [
+      "get by uri reference",
+      uriRef,
+      { type: "AssetStateStoreResult", value: "v" },
+      (s: AssetStateStore) => s.get("watermark"),
+      { type: "GetAssetStateStoreByUri", ...URI, key: "watermark" },
+      "v",
+    ],
+    [
+      "set by name reference",
+      nameRef,
+      OK,
+      (s: AssetStateStore) => s.set("watermark", 3),
+      { type: "SetAssetStateStoreByName", ...NAME, key: "watermark", value: 3 },
+      undefined,
+    ],
+    [
+      "set by uri reference",
+      uriRef,
+      OK,
+      (s: AssetStateStore) => s.set("watermark", false),
+      { type: "SetAssetStateStoreByUri", ...URI, key: "watermark", value: false },
+      undefined,
+    ],
+    [
+      "delete by Asset",
+      byName,
+      OK,
+      (s: AssetStateStore) => s.delete("watermark"),
+      { type: "DeleteAssetStateStoreByName", ...NAME, key: "watermark" },
+      undefined,
+    ],
+    [
+      "delete by uri reference",
+      uriRef,
+      OK,
+      (s: AssetStateStore) => s.delete("watermark"),
+      { type: "DeleteAssetStateStoreByUri", ...URI, key: "watermark" },
+      undefined,
+    ],
+    [
+      "clear by name reference",
+      nameRef,
+      OK,
+      (s: AssetStateStore) => s.clear(),
+      { type: "ClearAssetStateStoreByName", ...NAME },
+      undefined,
+    ],
+    [
+      "clear by uri reference",
+      uriRef,
+      OK,
+      (s: AssetStateStore) => s.clear(),
+      { type: "ClearAssetStateStoreByUri", ...URI },
+      undefined,
+    ],
+  ])(
+    "%s sends the matching supervisor message",
+    async (_label, asset, reply, call, msg, result) => {
+      const { client: c, sent } = recordingClient(reply);
+
+      await expect(call(c.assetStateStore.forAsset(asset as Asset | AssetRef))).resolves.toEqual(
+        result,
+      );
+
+      expect(sent).toEqual([msg]);
+    },
+  );
+
+  it("get returns null for ASSET_STORE_NOT_FOUND", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "ASSET_STORE_NOT_FOUND" } }]);
+    expect(await c.assetStateStore.forAsset(nameRef).get("watermark")).toBeNull();
+  });
+
+  it("rejects a mutation the supervisor answers with an error", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "ASSET_STORE_NOT_FOUND" } }]);
+    await expect(c.assetStateStore.forAsset(uriRef).set("watermark", 1)).rejects.toThrow(
+      "SetAssetStateStoreByUri failed: ASSET_STORE_NOT_FOUND",
+    );
+  });
+
+  it.each([
+    ["an empty key", (s: AssetStateStore) => s.get("")],
+    ["a non-string key", (s: AssetStateStore) => s.delete(1 as unknown as string)],
+    ["a null value", (s: AssetStateStore) => s.set("k", null as unknown as string)],
+  ])("rejects %s before sending anything", async (_label, call) => {
+    const { client: c, sent } = recordingClient(OK);
+    await expect(call(c.assetStateStore.forAsset(byName))).rejects.toThrow(TypeError);
+    expect(sent).toEqual([]);
+  });
+
+  it("forAsset rejects a plain object standing in for an Asset", () => {
+    const { client: c } = recordingClient();
+    expect(() => c.assetStateStore.forAsset({ name: "orders" } as unknown as AssetRef)).toThrow(
+      /forAsset\(\) expects an Asset or a reference from Asset\.ref\(\)/,
+    );
   });
 });

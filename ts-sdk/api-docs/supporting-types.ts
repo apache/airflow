@@ -19,4 +19,14 @@
 
 /** @module Types */
 
-export type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "../src/index.js";
+export type {
+  AssetNameRef,
+  AssetRef,
+  AssetRefSpec,
+  AssetSpec,
+  AssetUriRef,
+  ConnectionResult,
+  GetXComOpts,
+  JsonValue,
+  SetXComOpts,
+} from "../src/index.js";

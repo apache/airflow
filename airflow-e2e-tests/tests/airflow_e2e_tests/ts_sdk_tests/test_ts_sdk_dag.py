@@ -25,7 +25,8 @@ Two Dags mix Python tasks with ``@task.stub`` TypeScript tasks, both served by t
 ``airflow-ts-pack`` bundle, and each is triggered once via a module-scoped fixture.
 
 ``typescript_example`` covers the runtime: Variable reads and writes, Connection reads,
-Python <-> TypeScript XCom round-trips, and task logs reaching the log store.
+Python <-> TypeScript XCom round-trips, asset state store reads and writes by name and by URI,
+and task logs reaching the log store.
 
 ``typescript_taskflow_example`` covers TaskFlow arguments, including an upstream output pulled before
 the handler runs and a ``withArgNames`` rename on its ``report`` task, and shares a ``build_message``
@@ -59,6 +60,8 @@ _TASKFLOW_DAG_ID = "typescript_taskflow_example"
 _LAST_RUN_VARIABLE = "typescript_example_last_run"
 _LAST_RUN_DESCRIPTION = "Run id of the last typescript_example run"
 _SCRATCH_VARIABLE = "typescript_example_scratch"
+_ASSET_STATE_STORE_TASK_ID = "use_asset_state_store"
+_ORDERS_ASSET_NAME = "typescript_example_orders"
 
 
 @dataclass
@@ -121,6 +124,7 @@ def test_task_states(completed_run: _CompletedRun):
         "build_message": "success",
         "read_connection": "success",
         "write_and_delete_variable": "success",
+        _ASSET_STATE_STORE_TASK_ID: "success",
     }
     for task_id, want in expected.items():
         assert completed_run.ti_states.get(task_id) == want, (
@@ -169,6 +173,40 @@ def test_scratch_variable_deleted_by_typescript_task_is_gone(completed_run: _Com
         completed_run.client.get_variable(_SCRATCH_VARIABLE)
     assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND, (
         f"{_SCRATCH_VARIABLE} should have been deleted by the TypeScript task, "
+        f"got HTTP {excinfo.value.response.status_code}"
+    )
+
+
+def test_asset_state_written_by_typescript_task_is_readable(completed_run: _CompletedRun):
+    """``use_asset_state_store`` leaves only ``summary``, written in this run by the TypeScript task.
+
+    The task clears the asset first, so the single remaining key and its run id also prove an
+    earlier run's state was not inherited.
+    """
+    body = completed_run.client.get_asset_state_store(_ORDERS_ASSET_NAME)
+    assert [entry["key"] for entry in body["asset_state_store"]] == ["summary"], (
+        f"expected only the summary key to remain on {_ORDERS_ASSET_NAME}, got {body!r}"
+    )
+
+    entry = completed_run.client.get_asset_state_store(_ORDERS_ASSET_NAME, key="summary")
+    assert entry["value"] == {"runId": completed_run.run_id, "rows": [1, 2, 3]}, (
+        f"summary should hold the value the TypeScript task stored in this run, got {entry!r}"
+    )
+    assert entry["last_updated_by"] == {
+        "kind": "task",
+        "dag_id": _DAG_ID,
+        "run_id": completed_run.run_id,
+        "task_id": _ASSET_STATE_STORE_TASK_ID,
+        "map_index": -1,
+    }, f"summary should be attributed to the TypeScript task, got {entry!r}"
+
+
+def test_asset_state_deleted_by_typescript_task_is_gone(completed_run: _CompletedRun):
+    """A key written by URI and deleted by name from TypeScript no longer exists."""
+    with pytest.raises(requests.HTTPError) as excinfo:
+        completed_run.client.get_asset_state_store(_ORDERS_ASSET_NAME, key="deleted")
+    assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND, (
+        f"the 'deleted' key should have been deleted by the TypeScript task, "
         f"got HTTP {excinfo.value.response.status_code}"
     )
 
