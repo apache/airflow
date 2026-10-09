@@ -466,3 +466,43 @@ def test_seed_without_jitter_round_trips_to_an_equal_timetable():
     restored = CronTriggerTimetable.deserialize(timetable.serialize())
     assert restored == timetable
     assert hash(restored) == hash(timetable)
+
+
+def test_disabling_jitter_returns_to_plain_schedule_without_duplicate_runs():
+    """Off, on, off again: one run per day throughout, and the last runs are back on the plain cron ticks."""
+    restriction = TimeRestriction(earliest=START_DATE, latest=None, catchup=True)
+    plain_days = [START_DATE + timedelta(days=i) for i in range(6)]
+
+    def phases(cls):
+        plain = cls(CRON, timezone=utc)
+        jittered = cls(CRON, timezone=utc, seed=SEED, max_jitter=MAX_JITTER)
+        return [plain, plain, jittered, jittered, plain, plain], jittered._offset
+
+    trigger_runs = []
+    last = None
+    timetables, offset = phases(CronTriggerTimetable)
+    for timetable in timetables:
+        info = timetable.next_dagrun_info(last_automated_data_interval=last, restriction=restriction)
+        trigger_runs.append(info.run_after)
+        last = DataInterval.exact(info.run_after)
+    assert trigger_runs == [
+        day + (offset if i in (2, 3) else timedelta()) for i, day in enumerate(plain_days)
+    ]
+
+    partition_keys = []
+    last_info = None
+    timetables, _ = phases(CronPartitionTimetable)
+    for timetable in timetables:
+        last_info = timetable.next_dagrun_info_v2(last_dagrun_info=last_info, restriction=restriction)
+        partition_keys.append(last_info.partition_key)
+    assert partition_keys == [day.strftime("%Y-%m-%dT%H:%M:%S") for day in plain_days]
+
+    interval_starts = []
+    last = None
+    timetables, _ = phases(CronDataIntervalTimetable)
+    for timetable in timetables:
+        info = timetable.next_dagrun_info(last_automated_data_interval=last, restriction=restriction)
+        interval_starts.append(info.data_interval.start)
+        last = info.data_interval
+    assert interval_starts == sorted(set(interval_starts)), "a run was repeated or went backwards"
+    assert interval_starts[-2:] == plain_days[-2:]
