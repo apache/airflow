@@ -30,17 +30,9 @@ import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDr
 import { useDurationFormat } from "src/utils";
 
 type Props = {
-  readonly dagDetails?: {
+  readonly dryRun?: {
     dagId: string;
-    dagRunId: string;
-    downstream?: boolean;
-    future?: boolean;
-    mapIndex?: number;
-    onlyFailed?: boolean;
-    past?: boolean;
-    taskId: string;
-    taskIds?: ClearTaskInstancesBody["task_ids"];
-    upstream?: boolean;
+    requestBody: ClearTaskInstancesBody;
   };
   readonly onClose: () => void;
   readonly onConfirm?: () => void;
@@ -49,7 +41,7 @@ type Props = {
 };
 
 const ClearTaskInstanceConfirmationDialog = ({
-  dagDetails,
+  dryRun,
   onClose,
   onConfirm,
   open,
@@ -57,29 +49,16 @@ const ClearTaskInstanceConfirmationDialog = ({
 }: Props) => {
   const { t: translate } = useTranslation();
   const { formatRelative } = useDurationFormat();
-  const useExplicitTaskIds = dagDetails?.taskIds !== undefined;
   const { data, isFetching } = useClearTaskInstancesDryRun({
-    dagId: dagDetails?.dagId ?? "",
+    dagId: dryRun?.dagId ?? "",
     options: {
-      enabled: open && Boolean(dagDetails),
+      enabled: open && Boolean(dryRun),
       gcTime: 0,
       refetchOnMount: "always",
       refetchOnWindowFocus: false,
       staleTime: 0,
     },
-    requestBody: {
-      dag_run_id: dagDetails?.dagRunId ?? "",
-      include_downstream: !useExplicitTaskIds && dagDetails?.downstream,
-      include_future: dagDetails?.future,
-      include_past: dagDetails?.past,
-      include_upstream: !useExplicitTaskIds && dagDetails?.upstream,
-      only_failed: dagDetails?.onlyFailed,
-      task_ids: useExplicitTaskIds
-        ? dagDetails.taskIds
-        : dagDetails?.mapIndex === undefined
-          ? [dagDetails?.taskId ?? ""]
-          : [[dagDetails.taskId, dagDetails.mapIndex]],
-    },
+    requestBody: dryRun?.requestBody ?? {},
   });
 
   const [isReady, setIsReady] = useState(false);

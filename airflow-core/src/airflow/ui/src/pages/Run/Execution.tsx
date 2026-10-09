@@ -27,7 +27,7 @@ import type { ExecutionRegionResponse, ExecutionTaskResponse } from "openapi/req
 
 import { Checkbox, Pagination, ProgressBar } from "src/system-components";
 
-import { ClearExecutionDialog } from "src/components/Clear/TaskInstance/ClearExecutionDialog";
+import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 
@@ -43,25 +43,29 @@ type Group = {
   tasks: Array<ExecutionTaskResponse>;
 };
 
+type SelectedExecution = { in_loop: boolean } & ExecutionTaskResponse;
+
 const getExecutionCoordinates = (task: ExecutionTaskResponse) =>
   JSON.stringify([task.dag_run_id, task.task_id, task.map_index, task.region_id, task.region_index]);
+
+const locateExecution = (task: ExecutionTaskResponse, byRegion: Map<string, ExecutionRegionResponse>) => {
+  const region = task.region_id === undefined ? undefined : byRegion.get(task.region_id);
+  const mapped = region?.node_id === task.task_id;
+  const parentId = region?.parent_region_id;
+  const parent = parentId === undefined || parentId === null ? undefined : byRegion.get(parentId);
+  const nodeId = mapped ? parent?.node_id : region?.node_id;
+  const index =
+    nodeId === undefined ? undefined : mapped ? (region.parent_region_index ?? undefined) : task.region_index;
+
+  return { index, nodeId };
+};
 
 const groupExecutions = (tasks: Array<ExecutionTaskResponse>, regions: Array<ExecutionRegionResponse>) => {
   const byRegion = new Map(regions.map((region) => [region.id, region]));
   const groups = new Map<string, Group>();
 
   for (const task of tasks) {
-    const region = task.region_id === undefined ? undefined : byRegion.get(task.region_id);
-    const mapped = region?.node_id === task.task_id;
-    const parentId = region?.parent_region_id;
-    const parent = parentId === undefined || parentId === null ? undefined : byRegion.get(parentId);
-    const nodeId = mapped ? parent?.node_id : region?.node_id;
-    const index =
-      nodeId === undefined
-        ? undefined
-        : mapped
-          ? (region.parent_region_index ?? undefined)
-          : task.region_index;
+    const { index, nodeId } = locateExecution(task, byRegion);
     const key = JSON.stringify([nodeId, index]);
     const group = groups.get(key) ?? { index, nodeId, tasks: [] };
 
@@ -74,6 +78,11 @@ const groupExecutions = (tasks: Array<ExecutionTaskResponse>, regions: Array<Exe
       (first.nodeId ?? "").localeCompare(second.nodeId ?? "") || (first.index ?? -1) - (second.index ?? -1),
   );
 };
+
+const toSelectedExecution = (
+  task: ExecutionTaskResponse,
+  byRegion: Map<string, ExecutionRegionResponse>,
+): SelectedExecution => ({ ...task, in_loop: locateExecution(task, byRegion).nodeId !== undefined });
 
 const executionLink = (task: ExecutionTaskResponse) => {
   const path = getTaskInstanceLink(
@@ -160,18 +169,21 @@ const ExecutionView = () => {
     }
   }, [data, offset, setSearchParams, totalEntries]);
   const [expanded, setExpanded] = useState(new Set<string>());
-  const [selected, setSelected] = useState(new Map<string, ExecutionTaskResponse>());
+  const [selected, setSelected] = useState(new Map<string, SelectedExecution>());
   const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     if (data === undefined) {
       return;
     }
-    const current = new Map(data.task_instances.map((task) => [getExecutionCoordinates(task), task]));
+    const byRegion = new Map(data.regions.map((region) => [region.id, region]));
+    const current = new Map(
+      data.task_instances.map((task) => [getExecutionCoordinates(task), toSelectedExecution(task, byRegion)]),
+    );
 
     setSelected((previous) => {
       let replaced = false;
-      const next = new Map<string, ExecutionTaskResponse>();
+      const next = new Map<string, SelectedExecution>();
 
       for (const [id, task] of previous) {
         const replacement = current.get(getExecutionCoordinates(task));
@@ -187,6 +199,7 @@ const ExecutionView = () => {
       return replaced ? next : previous;
     });
   }, [data]);
+  const regionsById = new Map((data?.regions ?? []).map((region) => [region.id, region]));
   const row = (task: ExecutionTaskResponse) => (
     <TaskRow
       key={task.id}
@@ -197,7 +210,7 @@ const ExecutionView = () => {
           if (updated.has(task.id)) {
             updated.delete(task.id);
           } else {
-            updated.set(task.id, task);
+            updated.set(task.id, toSelectedExecution(task, regionsById));
           }
 
           return updated;
@@ -225,13 +238,11 @@ const ExecutionView = () => {
         {translate("execution.clearSelected")}
       </Button>
       {clearing ? (
-        <ClearExecutionDialog
-          dagId={dagId}
-          executions={[...selected.values()]}
+        <ClearTaskInstanceDialog
           onCleared={() => setSelected(new Map())}
           onClose={() => setClearing(false)}
           open
-          runId={runId}
+          taskInstances={[...selected.values()]}
         />
       ) : undefined}
       <ErrorAlert error={error} />

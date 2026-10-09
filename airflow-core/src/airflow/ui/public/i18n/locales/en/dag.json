@@ -69,7 +69,6 @@
     "upcomingCount_other": "{{count}} Upcoming Deadlines"
   },
   "execution": {
-    "clearDownstream": "Clear downstream tasks",
     "clearLater": "Clear later loop iterations",
     "clearSelected": "Clear selected executions",
     "clearWhole": "Clear whole mapped expansions",

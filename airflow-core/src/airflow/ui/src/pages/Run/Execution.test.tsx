@@ -28,6 +28,7 @@ import type {
   ExecutionCollectionResponse,
   ExecutionRegionResponse,
   ExecutionTaskResponse,
+  TaskInstanceResponse,
 } from "openapi/requests/types.gen";
 
 import i18n from "src/i18n/config";
@@ -39,6 +40,28 @@ import dagTranslations from "../../../public/i18n/locales/en/dag.json";
 import { Execution } from "./Execution";
 
 vi.mock("src/router", () => ({ taskInstanceRoutes: [] }));
+
+// The running-task gate opens a second dialog that jsdom dismisses before its dry run settles.
+vi.mock("src/components/Clear/TaskInstance/ClearTaskInstanceConfirmationDialog", async () => {
+  const { useEffect } = await import("react");
+
+  const ConfirmImmediately = ({
+    onClose,
+    onConfirm,
+  }: {
+    readonly onClose: () => void;
+    readonly onConfirm?: () => void;
+  }) => {
+    useEffect(() => {
+      onConfirm?.();
+      onClose();
+    }, [onClose, onConfirm]);
+
+    return undefined;
+  };
+
+  return { default: ConfirmImmediately };
+});
 
 beforeAll(() => {
   i18n.addResourceBundle("en", "dag", dagTranslations, true, true);
@@ -84,6 +107,17 @@ const task = (id: string, changes: Partial<ExecutionTaskResponse> = {}): Executi
   try_number: 1,
   ...changes,
 });
+
+const affectedTask = {
+  dag_id: "dag",
+  dag_run_id: "run",
+  id: "work",
+  map_index: -1,
+  region_id: ROOT,
+  region_index: 0,
+  state: "success",
+  task_id: "work",
+} as TaskInstanceResponse;
 
 const renderExecution = (search = "") =>
   render(
@@ -340,7 +374,7 @@ describe("Run Execution", () => {
     });
     const clear = vi
       .spyOn(TaskInstanceService, "postClearTaskInstances")
-      .mockResolvedValue({ task_instances: [], total_entries: 1 });
+      .mockResolvedValue({ task_instances: [affectedTask], total_entries: 1 });
 
     vi.spyOn(DagService, "getDagDetails").mockResolvedValue({ dag_id: "dag" } as DAGDetailsResponse);
     mockRun("success");
@@ -356,8 +390,7 @@ describe("Run Execution", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Clear selected executions" }));
     await screen.findByRole("button", { name: "Cancel" });
-    const confirm = () =>
-      screen.getAllByRole("button", { name: "Clear selected executions" }).at(-1) as HTMLElement;
+    const confirm = () => screen.getByRole("button", { name: "Confirm" });
 
     await waitFor(() => expect(confirm()).toBeEnabled());
     fireEvent.click(confirm());
@@ -365,6 +398,59 @@ describe("Run Execution", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Clear selected executions" })).toBeDisabled(),
     );
+  });
+
+  it("offers the loop options for a selected loop execution and addresses it by id", async () => {
+    vi.spyOn(DagRunService, "getExecution").mockResolvedValue({
+      regions: [region(ROOT)],
+      task_instances: [task("work")],
+      total_entries: 1,
+    });
+    const clear = vi
+      .spyOn(TaskInstanceService, "postClearTaskInstances")
+      .mockResolvedValue({ task_instances: [affectedTask], total_entries: 1 });
+
+    renderExecution();
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select work" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Clear selected executions" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Clear selected executions" }));
+
+    expect(await screen.findByRole("checkbox", { name: "Clear later loop iterations" })).toBeChecked();
+    await waitFor(() =>
+      expect(clear.mock.lastCall?.[0].requestBody).toMatchObject({
+        include_later_loop_iterations: true,
+        task_instance_ids: ["work"],
+      }),
+    );
+  });
+
+  it("clears a plain mapped execution by task and map index without loop options", async () => {
+    vi.spyOn(DagRunService, "getExecution").mockResolvedValue({
+      regions: [region(MAPPING, { node_id: "plain" })],
+      task_instances: [
+        task("plain-0", { map_index: 0, region_id: MAPPING, region_index: 0, task_id: "plain" }),
+      ],
+      total_entries: 1,
+    });
+    const clear = vi
+      .spyOn(TaskInstanceService, "postClearTaskInstances")
+      .mockResolvedValue({ task_instances: [affectedTask], total_entries: 1 });
+
+    renderExecution();
+    fireEvent.click(await screen.findByRole("button", { name: "plain-0 (1 mapped task on this page)" }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select plain-0" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Clear selected executions" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Clear selected executions" }));
+
+    await waitFor(() =>
+      expect(clear.mock.lastCall?.[0].requestBody).toMatchObject({ task_ids: [["plain", 0]] }),
+    );
+    expect(clear.mock.lastCall?.[0].requestBody).not.toHaveProperty("task_instance_ids");
+    expect(screen.queryByRole("checkbox", { name: "Clear later loop iterations" })).not.toBeInTheDocument();
   });
 
   it("selects the current execution once a selected one has been retried", async () => {
