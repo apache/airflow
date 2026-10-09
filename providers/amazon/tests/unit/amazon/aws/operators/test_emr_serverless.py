@@ -1786,3 +1786,173 @@ class TestEmrServerlessStartJobOperatorOpenLineageInjection:
         props = config_overrides["applicationConfiguration"][0]["properties"]
         assert props["spark.openlineage.parentJobNamespace"] == "ns"
         assert props["spark.driver.memory"] == "8G"
+
+
+class _FakeTaskStateStore:
+    """Minimal stand-in for the Airflow 3.3+ ``task_state_store`` accessor."""
+
+    def __init__(self, initial: dict | None = None):
+        self._store = dict(initial or {})
+
+    def get(self, key, default=None):
+        return self._store.get(key, default)
+
+    def set(self, key, value, **kwargs):
+        self._store[key] = value
+
+
+class TestEmrServerlessStartJobOperatorDurable:
+    """Tests for ``durable`` reconnection via ``task_state_store`` (Airflow 3.3+)."""
+
+    key = EmrServerlessStartJobOperator.external_id_key
+
+    def _operator(self, **overrides):
+        params = dict(
+            task_id="test_task",
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=spark_job_driver,
+            client_request_token=client_request_token,
+            wait_for_completion=False,
+            durable=True,
+        )
+        params.update(overrides)
+        return EmrServerlessStartJobOperator(**params)
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_reconnects_to_in_flight_run(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": "RUNNING"}}
+        store = _FakeTaskStateStore({self.key: "existing-run"})
+
+        operator = self._operator()
+        result = operator.execute({"task_state_store": store})
+
+        assert result == "existing-run"
+        assert operator.job_id == "existing-run"
+        mock_conn.start_job_run.assert_not_called()
+        mock_conn.get_job_run.assert_called_once_with(applicationId=application_id, jobRunId="existing-run")
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_reconnects_to_already_succeeded_run(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": "SUCCESS"}}
+        store = _FakeTaskStateStore({self.key: "done-run"})
+
+        result = self._operator().execute({"task_state_store": store})
+
+        assert result == "done-run"
+        mock_conn.start_job_run.assert_not_called()
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_resubmits_when_prior_run_terminal(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": "FAILED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": "fresh-run",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        store = _FakeTaskStateStore({self.key: "stale-run"})
+
+        result = self._operator().execute({"task_state_store": store})
+
+        assert result == "fresh-run"
+        mock_conn.start_job_run.assert_called_once()
+        assert store.get(self.key) == "fresh-run"
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_fresh_submit_persists_job_id(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        store = _FakeTaskStateStore()
+
+        result = self._operator().execute({"task_state_store": store})
+
+        assert result == job_run_id
+        mock_conn.get_job_run.assert_not_called()
+        assert store.get(self.key) == job_run_id
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_without_task_state_store_submits_fresh(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        result = self._operator().execute({})
+
+        assert result == job_run_id
+        mock_conn.start_job_run.assert_called_once()
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_durable_disabled_ignores_task_state_store(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        store = _FakeTaskStateStore({self.key: "existing-run"})
+
+        result = self._operator(durable=False).execute({"task_state_store": store})
+
+        assert result == job_run_id
+        mock_conn.get_job_run.assert_not_called()
+        mock_conn.start_job_run.assert_called_once()
+        assert store.get(self.key) == "existing-run"
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_deferrable_reconnect_defers_on_existing_job(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": "RUNNING"}}
+        store = _FakeTaskStateStore({self.key: "existing-run"})
+
+        operator = self._operator(wait_for_completion=True, deferrable=True)
+        operator.defer = mock.MagicMock()
+        operator.execute({"task_state_store": store})
+
+        mock_conn.start_job_run.assert_not_called()
+        operator.defer.assert_called_once()
+        assert operator.defer.call_args.kwargs["trigger"].job_id == "existing-run"
+
+    def test_durable_with_cancel_on_kill_true_raises_in_deferrable(self):
+        with pytest.raises(ValueError, match="incompatible with durable=True in deferrable mode"):
+            EmrServerlessStartJobOperator(
+                task_id="test_task",
+                application_id=application_id,
+                execution_role_arn=execution_role_arn,
+                job_driver=spark_job_driver,
+                deferrable=True,
+                durable=True,
+                cancel_on_kill=True,
+            )
+
+    def test_durable_forces_cancel_on_kill_off_in_deferrable(self):
+        operator = self._operator(deferrable=True)  # durable=True, cancel_on_kill unset
+        assert operator.cancel_on_kill is False
+
+    def test_sync_durable_with_cancel_on_kill_allowed(self):
+        """cancel_on_kill only applies to the deferrable trigger, so the combination is fine in sync."""
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=spark_job_driver,
+            deferrable=False,
+            durable=True,
+            cancel_on_kill=True,
+        )
+        assert operator.cancel_on_kill is True
+
+    def test_cancel_on_kill_defaults_true_without_durable(self):
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=spark_job_driver,
+            durable=False,
+        )
+        assert operator.cancel_on_kill is True
