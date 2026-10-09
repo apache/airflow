@@ -229,10 +229,7 @@ export interface TaskGroupRef extends Node {
     handler: (args: TArgs) => TReturn | Promise<TReturn>,
     options?: TaskOptions,
   ): TaskFactory<TArgs, TReturn>;
-  /**
-   * Declare a `triggerDagRun(...)`, `humanInput(...)` or `approval(...)` task in this group,
-   * prefixed the same way.
-   */
+  /** Declare a task an operator runs, such as `triggerDagRun(...)`, prefixed the same way. */
   task<TArgs extends object | void = void, TResult = unknown>(
     taskId: string,
     operator: Operator<TArgs, TResult>,
@@ -623,9 +620,8 @@ export class Dag {
     options?: TaskOptions,
   ): TaskFactory<TArgs, TReturn>;
   /**
-   * Declare a task an operator runs, from `triggerDagRun(spec)`, `humanInput(spec)` or
-   * `approval(spec)`. Its inputs and result are the operator's own. It has no handler to take an
-   * id from, so the id is required.
+   * Declare a task an operator runs, such as `triggerDagRun(spec)`. Its inputs and result are the
+   * operator's own. It has no handler to take an id from, so the id is required.
    */
   task<TArgs extends object | void = void, TResult = unknown>(
     taskId: string,
@@ -914,6 +910,16 @@ export class Dag {
       );
     }
     const spec = this.#taskSpecOf(taskId, options);
+    if (
+      operator?.executionTimeoutAlternative !== undefined &&
+      spec.executionTimeout !== undefined
+    ) {
+      throw new Error(
+        `Task "${taskId}" of Dag "${this.dagId}" is a ${operator.label ?? operator.operatorName} ` +
+          "task, which does not enforce executionTimeout; use " +
+          `${operator.executionTimeoutAlternative} instead`,
+      );
+    }
     this.#reserveNodeId(taskId, "Task");
     const task = this.#createTaskRef(taskId);
     if (groupId !== undefined) this.#groups.get(groupId)!.taskIds.push(taskId);

@@ -23,13 +23,14 @@
 //
 //     airflow-ts-pack src/hitl.ts --outfile dist/hitl.min.mjs
 //
-// A human-input task's first run creates a request and parks the task in `awaiting_input`; its
+// A HITL task's first run creates a request and parks the task in `awaiting_input`; its
 // Node process exits, so no worker is held while it waits. Answer the request on the Required
 // Actions page in the Airflow UI (or through the REST API), and the task resumes in a new process
 // with the answer.
 
-import { approval, Bundle, Dag, humanInput } from "apache-airflow-ts-sdk";
-import type { HumanInputResult } from "apache-airflow-ts-sdk";
+import { Bundle, Dag } from "apache-airflow-ts-sdk";
+import { approval, hitl } from "apache-airflow-ts-sdk/hitl";
+import type { HITLResult } from "apache-airflow-ts-sdk/hitl";
 
 /** The queue the deployment's `[sdk] queue_to_coordinator` routes to the Node coordinator. */
 const QUEUE = "typescript";
@@ -65,13 +66,13 @@ signOff.before(release.task("publish", async () => "published")());
 const regions = new Dag("ts_hitl_regions", { queue: QUEUE, tags: ["typescript", "hitl"] });
 const picked = regions.task(
   "choose_regions",
-  humanInput({
+  hitl({
     subject: "Which regions should the rollout reach?",
     options: ["us", "eu", "apac"],
     multiple: true,
   }),
 )();
-regions.task("deploy", async ({ choice }: { choice: HumanInputResult }) => ({
+regions.task("deploy", async ({ choice }: { choice: HITLResult }) => ({
   deployedTo: choice.chosen_options,
   // `null` when no one answered and the defaults were applied.
   by: choice.responded_by_user?.name ?? "the timeout default",
@@ -90,10 +91,10 @@ autoApproved.before(nightly.task("load", async () => "loaded")());
 
 // 4. Fail the run on "Reject".
 //
-// With `onReject: "fail"`, a rejection fails `gate`, so the run shows as failed and `after_gate`
-// does not run. The default, `"skip"`, would succeed and skip `after_gate` instead.
+// With `failOnReject`, a rejection fails `gate`, so the run shows as failed and `after_gate`
+// does not run. Without it, `gate` would succeed and skip `after_gate` instead.
 const strict = new Dag("ts_hitl_strict", { queue: QUEUE, tags: ["typescript", "hitl"] });
-const gate = strict.task("gate", approval({ subject: "Proceed?", onReject: "fail" }))();
+const gate = strict.task("gate", approval({ subject: "Proceed?", failOnReject: true }))();
 gate.before(strict.task("after_gate", async () => "ran")());
 
 // 5. Let only one user answer.
@@ -103,7 +104,36 @@ gate.before(strict.task("after_gate", async () => "ran")());
 const assigned = new Dag("ts_hitl_assigned", { queue: QUEUE, tags: ["typescript", "hitl"] });
 assigned.task(
   "assigned_review",
-  approval({ subject: "Approve the payroll export?", assignees: [{ id: "op", name: "Operator" }] }),
+  approval({
+    subject: "Approve the payroll export?",
+    assignedUsers: [{ id: "op", name: "Operator" }],
+  }),
 )();
 
-await new Bundle(release, regions, nightly, strict, assigned).serve();
+// 6. Ask for form fields along with the choice.
+//
+// Each param is a field on the Required Actions page. `value` pre-fills it, and is what the task
+// receives when the timeout passes with `defaults` set. The reviewer's answers arrive as
+// `params_input`, keyed by the param names.
+const form = new Dag("ts_hitl_form", { queue: QUEUE, tags: ["typescript", "hitl"] });
+const sized = form.task(
+  "size_rollout",
+  hitl({
+    subject: "Approve the rollout?",
+    options: ["Approve", "Reject"],
+    params: {
+      replicas: {
+        value: 3,
+        description: "How many replicas to start",
+        schema: { type: "integer", minimum: 1, maximum: 10 },
+      },
+      note: { value: "", description: "Why", schema: { type: "string", maxLength: 200 } },
+    },
+  }),
+)();
+form.task("rollout", async ({ answer }: { answer: HITLResult }) => ({
+  choice: answer.chosen_options[0],
+  replicas: answer.params_input["replicas"],
+}))({ answer: sized });
+
+await new Bundle(release, regions, nightly, strict, assigned, form).serve();

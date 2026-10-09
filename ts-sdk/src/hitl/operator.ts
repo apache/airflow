@@ -23,35 +23,51 @@
 // The task runs twice, in two processes. The first run writes the request and parks; the
 // second starts with `next_method` set and the response in `next_kwargs.event`.
 //
-// As `HITLOperator` does, the second run reads the options and the reject policy from the task
-// it is started for, and works out what a rejection skips from that task's Dag; nothing is
-// carried over from the first run. A versioned Dag bundle starts both runs from the same
+// As `HITLOperator` does, the second run reads the options, the params and the reject policy from
+// the task it is started for, and works out what a rejection skips from that task's Dag; nothing
+// is carried over from the first run. A versioned Dag bundle starts both runs from the same
 // version. With an unversioned bundle, a bundle deployed while the task waits is the one the
 // response is read against, as it is for any task that runs after a deployment.
 
-import { getArgNames } from "./arg-names.js";
-import type { JsonValue } from "./client-types.js";
-import { isPlainRecord, type Dag } from "./dag.js";
-import {
-  REJECT,
-  type HITLUser,
-  type HumanInputResult,
-  type HumanInputTask,
-  type HumanInputText,
-} from "./human-input.js";
-import type { OperatorContext, OperatorOutcome } from "./operator.js";
-import { runInTaskScope } from "./task.js";
+import type { JsonValue } from "../sdk/client-types.js";
+import { isPlainRecord, type Dag } from "../sdk/dag.js";
+import { getDagDownstreamTaskIds } from "../sdk/dag-graph.js";
+import { brandOperator, type OperatorContext, type OperatorOutcome } from "../sdk/operator.js";
+import { runInTaskScope } from "../sdk/task.js";
+import type { HITLResult, HITLTask, HITLTaskFields, HITLText, HITLUser } from "./spec.js";
+
+export const APPROVE = "Approve";
+export const REJECT = "Reject";
+
+/** Build the operator for a task whose options `spec.ts` has checked. */
+export function createHITLTask<TArgs extends object | void>(
+  fields: HITLTaskFields,
+): HITLTask<TArgs> {
+  const isApproval = fields.kind === "approval";
+  const task: HITLTask<never> = {
+    ...fields,
+    operatorName: isApproval ? "ApprovalOperator" : "HITLOperator",
+    // An approval skips what follows it on "Reject".
+    canSkipDownstream: isApproval,
+    requiresTaskId: true,
+    label: "human-in-the-loop",
+    taskIdExample: isApproval
+      ? 'dag.task("sign_off", approval({ subject: "..." }))'
+      : 'dag.task("choose", hitl({ subject: "...", options: ["..."] }))',
+    executionTimeoutAlternative: "responseTimeout",
+    execute: (op) => executeHITL(task, op),
+    executeComplete: (op, event) => resumeHITL(task, op, event),
+  };
+  return brandOperator(task) as HITLTask<TArgs>;
+}
 
 /** The first run: write the request, then park the task until a response arrives. */
-export async function executeHumanInput(
-  task: HumanInputTask<never>,
-  op: OperatorContext,
-): Promise<OperatorOutcome> {
+async function executeHITL(task: HITLTask<never>, op: OperatorContext): Promise<OperatorOutcome> {
   const { details, ctx, client, logs } = op;
   // The inputs are read here only, for the text: the resumed run must not depend on upstream
   // XComs still being there.
-  const args = await op.resolveArgs(textArgNames(task));
-  const render = (text: HumanInputText<never, string | null>) =>
+  const args = await op.resolveArgs(task.argNames);
+  const render = (text: HITLText<never, string | null>) =>
     runInTaskScope({ ctx, client }, () => renderText(text, args));
   const subject = await render(task.subject);
   const body = task.body === undefined ? null : await render(task.body);
@@ -64,7 +80,7 @@ export async function executeHumanInput(
 
   const options = task.options as [string, ...string[]];
   const defaults = task.defaults === undefined ? null : [...task.defaults];
-  const assignedUsers = task.assignees.map((user) => ({ id: user.id, name: user.name }));
+  const assignedUsers = task.assignedUsers.map((user) => ({ id: user.id, name: user.name }));
   await client.createHITLDetail({
     ti_id: details.ti.id,
     options,
@@ -72,7 +88,7 @@ export async function executeHumanInput(
     body: body ?? null,
     defaults,
     multiple: task.multiple,
-    params: {},
+    params: serializeParams(task.params),
     assigned_users: assignedUsers,
   });
 
@@ -80,9 +96,22 @@ export async function executeHumanInput(
   return op.awaitInput({ timeoutSeconds: task.responseTimeout });
 }
 
+/**
+ * The params as `Param.serialize()` writes them. The source is always "task":
+ * `HITLOperator` drops the params that come from the Dag before it sends them.
+ */
+function serializeParams(params: HITLTask<never>["params"]): Record<string, JsonValue> {
+  return Object.fromEntries(
+    Object.entries(params).map(([name, { value, description, schema }]) => [
+      name,
+      { value, description: description ?? null, schema: schema ?? {}, source: "task" },
+    ]),
+  );
+}
+
 /** The second run: read the response against the task's options, then finish. */
-export async function resumeHumanInput(
-  task: HumanInputTask<never>,
+async function resumeHITL(
+  task: HITLTask<never>,
   op: OperatorContext,
   event: unknown,
 ): Promise<OperatorOutcome> {
@@ -92,11 +121,10 @@ export async function resumeHumanInput(
   const responder = result.responded_by_user?.name ?? "the response timeout default";
   logs.info("Received response", { chosen_options: result.chosen_options, responder });
 
-  // `ApprovalOperator.execute_complete`: on "Reject", fail, or skip what follows. Only an approval
-  // has a reject policy.
-  if (task.onReject !== undefined && result.chosen_options[0] === REJECT) {
-    if (task.onReject === "fail") return op.fail(`Rejected by ${responder}`);
-    const skipped = await getSkipTargets(dag, ctx.taskId, task.onReject);
+  // `ApprovalOperator.execute_complete`: on "Reject", fail, or skip what follows.
+  if (task.kind === "approval" && result.chosen_options[0] === REJECT) {
+    if (task.failOnReject) return op.fail(`Rejected by ${responder}`);
+    const skipped = getSkipTargets(dag, ctx.taskId, task.ignoreDownstreamTriggerRules);
     if (skipped.length > 0) {
       // `SkipMixin.skip` ends the task as soon as it skips, so Python pushes no response then.
       logs.info("Skipping downstream tasks", { task_ids: skipped });
@@ -104,7 +132,7 @@ export async function resumeHumanInput(
       return op.succeed();
     }
     logs.info("No downstream tasks; nothing to do.");
-  } else if (task.onReject !== undefined) {
+  } else if (task.kind === "approval") {
     logs.info("Approved. Proceeding with downstream tasks...");
   }
   return op.succeed(result as unknown as JsonValue);
@@ -112,7 +140,7 @@ export async function resumeHumanInput(
 
 /**
  * Turn the answer Airflow resumed the task with into the result downstream tasks get, or throw
- * the reason the task fails. It only reads and checks; `resumeHumanInput` acts on what it returns.
+ * the reason the task fails. It only reads and checks; `resumeHITL` acts on what it returns.
  *
  * For an approval, for example:
  * - admin picked "Approve": the result `["Approve"]`, answered by admin.
@@ -120,8 +148,10 @@ export async function resumeHumanInput(
  *   one, `timedout: true`.
  * - the timeout passed, with no defaults: throws "Response timed out: ...".
  * - `["Maybe"]`, an option it does not offer: throws, as `HITLOperator.validate_chosen_options` does.
+ * - a params input that does not match the task's params: throws, as
+ *   `HITLOperator.validate_params_input` does.
  */
-function readAnswer(event: unknown, task: HumanInputTask<never>): HumanInputResult {
+function readAnswer(event: unknown, task: HITLTask<never>): HITLResult {
   if (!isPlainRecord(event)) {
     throw new Error(`Task resumed with an event it cannot read: ${JSON.stringify(event)}`);
   }
@@ -141,11 +171,18 @@ function readAnswer(event: unknown, task: HumanInputTask<never>): HumanInputResu
   const notAllowed = checkChoice(chosen, task);
   if (notAllowed !== undefined) throw new Error(notAllowed);
 
-  // 4. The result downstream tasks receive.
-  const paramsInput = isPlainRecord(event["params_input"]) ? event["params_input"] : {};
+  // 4. Check the params input is the form the task asked for.
+  const paramsInput = (isPlainRecord(event["params_input"]) ? event["params_input"] : {}) as Record<
+    string,
+    JsonValue
+  >;
+  const mismatch = checkParamsInput(paramsInput, Object.keys(task.params));
+  if (mismatch !== undefined) throw new Error(mismatch);
+
+  // 5. The result downstream tasks receive.
   return {
     chosen_options: chosen,
-    params_input: paramsInput as Record<string, JsonValue>,
+    params_input: paramsInput,
     responded_at: respondedAt.toISOString(),
     responded_by_user: respondedBy,
     timedout: event["timedout"] === true,
@@ -169,7 +206,7 @@ function readUser(value: unknown): HITLUser | null | undefined {
  * options were chosen is not checked again: Airflow checked that against the request when the
  * answer was given.
  */
-function checkChoice(chosen: string[], task: HumanInputTask<never>): string | undefined {
+function checkChoice(chosen: string[], task: HITLTask<never>): string | undefined {
   const unknown = chosen.filter((option) => !task.options.includes(option));
   if (unknown.length > 0) {
     return `Responses ${JSON.stringify(unknown)} not in ${JSON.stringify(task.options)}`;
@@ -177,18 +214,27 @@ function checkChoice(chosen: string[], task: HumanInputTask<never>): string | un
   return undefined;
 }
 
+/**
+ * `HITLOperator.validate_params_input`: why the params input is not the form the task asked for,
+ * or undefined. An input for no param, or a task with no params, is not checked.
+ */
+function checkParamsInput(
+  given: Record<string, JsonValue>,
+  declared: readonly string[],
+): string | undefined {
+  const received = Object.keys(given);
+  if (declared.length === 0 || received.length === 0) return undefined;
+  if (received.length === declared.length && declared.every((key) => Object.hasOwn(given, key))) {
+    return undefined;
+  }
+  return `params_input ${JSON.stringify(received)} does not match params ${JSON.stringify(declared)}`;
+}
+
 /** The tasks a rejection skips: the direct downstream, or every task downstream. */
-async function getSkipTargets(
-  dag: Dag,
-  taskId: string,
-  onReject: "skip" | "skipAll",
-): Promise<string[]> {
-  // Loaded here, as `Bundle.serve` loads the coordinator: a static import would make the
-  // authoring surface depend on it.
-  const { getDagDownstreamTaskIds } = await import("../coordinator/serde.js");
+function getSkipTargets(dag: Dag, taskId: string, ignoreDownstreamTriggerRules: boolean): string[] {
   const downstream = getDagDownstreamTaskIds(dag);
   const found = new Set(downstream.get(taskId) ?? []);
-  if (onReject === "skipAll") {
+  if (ignoreDownstreamTriggerRules) {
     const pending = [...found];
     while (pending.length > 0) {
       for (const next of downstream.get(pending.pop()!) ?? []) {
@@ -217,17 +263,8 @@ export function decodeDatetime(value: unknown): Date | undefined {
   return new Date(Math.floor(seconds * 1000));
 }
 
-/** The `withArgNames` renames the task's text function declares; a fixed text declares none. */
-function textArgNames(task: HumanInputTask<never>) {
-  const textFunction = [task.subject, task.body].find((text) => typeof text === "function");
-  return getArgNames((textFunction ?? (() => undefined)) as never);
-}
-
 /** The text, calling it first when it is a function; the caller checks what it returns. */
-async function renderText(
-  text: HumanInputText<never, string | null>,
-  args: object,
-): Promise<unknown> {
+async function renderText(text: HITLText<never, string | null>, args: object): Promise<unknown> {
   return typeof text === "function" ? await text(args as never) : text;
 }
 

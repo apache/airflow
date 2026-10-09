@@ -178,10 +178,13 @@ both a Dag declared in TypeScript and the tasks of two Python Dags from one bund
 ## Human-in-the-loop tasks
 
 A Dag declared in TypeScript can wait for a person, as `HITLOperator` and `ApprovalOperator` do in
-Python. `approval(...)` and `humanInput(...)` are passed to `dag.task` in place of a handler:
+Python. `approval(...)` and `hitl(...)` come from the `apache-airflow-ts-sdk/hitl` subpath and are
+passed to `dag.task` in place of a handler. Each is named after its Python operator without
+"Operator", and each option is the Python keyword argument in camelCase:
 
 ```ts
-import { approval, Bundle, Dag, humanInput } from "apache-airflow-ts-sdk";
+import { Bundle, Dag } from "apache-airflow-ts-sdk";
+import { approval } from "apache-airflow-ts-sdk/hitl";
 
 const dag = new Dag("release", { queue: "typescript" });
 const report = dag.task("build_report", async () => ({ version: "1.4" }))();
@@ -204,10 +207,12 @@ exits, so no worker slot is held while it waits. Once someone responds on the Re
 or the timeout passes, the task resumes in a new process. It does not write the request again or run
 `subject` or `body` again.
 
-- `subject` and `body` (Markdown) are a string, or a function of the task's inputs, run once.
+- `subject` and `body` (Markdown) are a string, or a function of the task's inputs, run once. They
+  may read different inputs, and the task takes both.
 - `responseTimeout` is in whole **seconds**. With `defaults`, the defaults are applied when it passes;
-  without, the task fails, and its retries apply.
-- `assignees: [{ id, name }]` limits who can respond, by the auth manager's user id.
+  without, the task fails, and its retries apply. A HITL task does not enforce `executionTimeout`, so
+  `dag.task` rejects it and asks for `responseTimeout` instead.
+- `assignedUsers: [{ id, name }]` limits who can respond, by the auth manager's user id.
 - The task returns the response, which downstream tasks receive and XCom stores under
   `return_value`: `{ chosen_options, params_input, responded_at, responded_by_user, timedout }`.
   These are the keys of Python's `HITLOperator` result plus `timedout`; `responded_at` is an
@@ -215,16 +220,48 @@ or the timeout passes, the task resumes in a new process. It does not write the 
 
 **On "Reject", an approval succeeds and skips the tasks directly downstream by default**, as
 `ApprovalOperator` does. The run then shows as successful, with the guarded tasks skipped. Set
-`onReject: "fail"` to fail the approval instead, or `"skipAll"` to skip every task downstream.
-`humanInput(...)` offers any `options`, with `multiple` for several, and never skips or fails on
-what is chosen, even an option named "Reject".
+`failOnReject: true` to fail the approval instead, or `ignoreDownstreamTriggerRules: true` to skip
+every task downstream. `hitl(...)` offers any `options`, with `multiple` for several, and never
+skips or fails on what is chosen, even an option named "Reject".
 
-When the task resumes, it reads its options and its `onReject` from the Dag it runs from, as
-`HITLOperator` does. A versioned Dag bundle resumes it from the same version it started on; with an
-unversioned bundle, a bundle deployed while the request waits is what the response is read against.
-Clearing the task starts a new attempt, which writes a fresh request.
+A failed resume retries, and the retry writes a fresh request, so `approval({ failOnReject: true })`
+with `retries` asks the reviewer again on each attempt.
 
-Forms (`params`), branching on the response, and notifiers are not supported yet.
+When the task resumes, it reads its options, its `params` and its reject options from the Dag it
+runs from, as `HITLOperator` does. A versioned Dag bundle resumes it from the same version it
+started on; with an unversioned bundle, a bundle deployed while the request waits is what the
+response is read against. Clearing the task starts a new attempt, which writes a fresh request.
+
+### Forms
+
+`params` adds form fields to the request, as `HITLOperator`'s `params` does. Each field is a `value`
+that pre-fills it, an optional `description`, and an optional JSON Schema that the form renders:
+
+```ts
+import { hitl } from "apache-airflow-ts-sdk/hitl";
+
+const rollout = dag.task(
+  "size_rollout",
+  hitl({
+    subject: "Approve the rollout?",
+    options: ["Approve", "Reject"],
+    defaults: ["Reject"],
+    params: {
+      replicas: {
+        value: 3,
+        description: "How many replicas to start",
+        schema: { type: "integer", minimum: 1, maximum: 10 },
+      },
+    },
+  }),
+)();
+```
+
+The answers arrive as `params_input`, keyed by the param names. When the timeout applies `defaults`,
+each param's `value` is recorded as its answer. A response whose `params_input` names some params
+but not exactly the declared ones fails the task, as `HITLOperator` does.
+
+Branching on the response and notifiers are not supported yet.
 
 ## TaskClient
 
@@ -268,7 +305,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
 | state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
 | state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
-| state: `awaiting_input` | MAY | ✓ | 3.4 | approval() / humanInput() in a native Dag |
+| state: `awaiting_input` | MAY | ✓ | 3.4 | approval() / hitl() in a native Dag |
 | state: `removed` | MAY | ✓ | 3.4 |  |
 | **Runtime capabilities** |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4 | @task.stub |

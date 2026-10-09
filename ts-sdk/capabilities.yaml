@@ -48,7 +48,7 @@ states:
   awaiting_input:
     supported: true
     since: "3.4"
-    note: "approval() / humanInput() in a native Dag"
+    note: "approval() / hitl() in a native Dag"
   removed:
     supported: true
     since: "3.4"

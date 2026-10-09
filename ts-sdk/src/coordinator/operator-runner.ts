@@ -69,7 +69,8 @@ export async function runOperator(
 /** Airflow could not resume the task (`__fail__`), so it fails with Airflow's reason. */
 function failedToResume(op: OperatorContext, kwargs: Record<string, unknown>) {
   const traceback = kwargs["traceback"];
-  if (Array.isArray(traceback)) op.logs.error(`Trigger failed:\n${traceback.join("\n")}`);
+  if (Array.isArray(traceback))
+    op.logs.error(`Task could not be resumed:\n${traceback.join("\n")}`);
   return op.fail(String(kwargs["error"] ?? "Unknown"));
 }
 

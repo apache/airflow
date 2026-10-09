@@ -97,7 +97,7 @@ describe("runOperator", () => {
 
     await runOperator(operator, op);
 
-    expect(error).toHaveBeenCalledWith("Trigger failed:\nTraceback\nTimeoutError");
+    expect(error).toHaveBeenCalledWith("Task could not be resumed:\nTraceback\nTimeoutError");
     expect(fail).toHaveBeenCalledWith("Trigger timeout");
     expect(execute).not.toHaveBeenCalled();
     expect(executeComplete).not.toHaveBeenCalled();

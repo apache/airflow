@@ -19,7 +19,6 @@
 
 export { Dag } from "./sdk/dag.js";
 export { triggerDagRun } from "./sdk/trigger-dag-run.js";
-export { approval, humanInput } from "./sdk/human-input.js";
 export { Bundle } from "./sdk/bundle.js";
 export { TaskHandler } from "./sdk/task-handler.js";
 export { withArgNames } from "./sdk/arg-names.js";
@@ -30,15 +29,6 @@ export { SUPERVISOR_API_VERSION } from "./coordinator/index.js";
 export type { ArgNameMap } from "./sdk/arg-names.js";
 export type { Registerable } from "./sdk/bundle.js";
 export type { DagRunState, TriggerDagRunSpec, TriggerDagRunTask } from "./sdk/trigger-dag-run.js";
-export type {
-  ApprovalSpec,
-  HITLUser,
-  HumanInputResult,
-  HumanInputSpec,
-  HumanInputTask,
-  HumanInputText,
-  OnReject,
-} from "./sdk/human-input.js";
 export type {
   Branch,
   Condition,

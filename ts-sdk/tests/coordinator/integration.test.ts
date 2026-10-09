@@ -37,7 +37,7 @@ import {
 } from "../../src/coordinator/runtime.js";
 import { Dag } from "../../src/sdk/dag.js";
 import { triggerDagRun } from "../../src/sdk/trigger-dag-run.js";
-import { approval, humanInput } from "../../src/sdk/human-input.js";
+import { approval, hitl } from "../../src/hitl/index.js";
 import { Bundle } from "../../src/sdk/bundle.js";
 import { withArgNames } from "../../src/sdk/arg-names.js";
 import { TaskHandler } from "../../src/sdk/task-handler.js";
@@ -1307,11 +1307,13 @@ describe("coordinator runtime integration", () => {
         retry_reason: "Trigger timeout",
       });
       expect(
-        result.logRecords.some((r) => String(r["event"]).includes("Trigger failed:\nTraceback")),
+        result.logRecords.some((r) =>
+          String(r["event"]).includes("Task could not be resumed:\nTraceback"),
+        ),
       ).toBe(true);
     });
   });
-  describe("human input", () => {
+  describe("human-in-the-loop", () => {
     const CREATED = { body: { type: "HITLDetailRequestResult", ti_id: "ti-1" } };
     // What `handle_event_submit` stores: what the task parked with, plus the response as `event`,
     // with `responded_at` in serde's datetime encoding.
@@ -1352,10 +1354,14 @@ describe("coordinator runtime integration", () => {
       );
     }
 
-    function answer(chosen: string[], user: unknown = { id: "1", name: "Ada" }) {
+    function answer(
+      chosen: string[],
+      user: unknown = { id: "1", name: "Ada" },
+      paramsInput: Record<string, unknown> = {},
+    ) {
       return {
         chosen_options: chosen,
-        params_input: {},
+        params_input: paramsInput,
         responded_at: RESPONDED_AT,
         responded_by_user: user,
         timedout: user === null,
@@ -1373,7 +1379,7 @@ describe("coordinator runtime integration", () => {
         approval({
           subject: ({ report }: { report: { version: string } }) => `Ship ${report.version}?`,
           body: async ({ report }: { report: { version: string } }) => `**${report.version}**`,
-          assignees: [{ id: "ada", name: "Ada" }],
+          assignedUsers: [{ id: "ada", name: "Ada" }],
           responseTimeout: 3600,
         }),
       )({ report: build() });
@@ -1407,7 +1413,7 @@ describe("coordinator runtime integration", () => {
     it("sends its defaults and multiple, with no body and no timeout as null", async () => {
       testDag.task(
         "choose",
-        humanInput({
+        hitl({
           subject: "Pick",
           options: ["us", "eu"],
           defaults: ["us", "eu"],
@@ -1423,6 +1429,67 @@ describe("coordinator runtime integration", () => {
         multiple: true,
       });
       expect(result.firstResponse!.body).toMatchObject({ type: "AwaitInputTask", timeout: null });
+    });
+
+    it("writes its params as Param.serialize does, with the source always task", async () => {
+      testDag.task(
+        "choose",
+        hitl({
+          subject: "Pick",
+          options: ["go"],
+          params: {
+            region: {
+              value: "us",
+              description: "Where to ship",
+              schema: { type: "string", enum: ["us", "eu"] },
+            },
+            retries: { value: 3 },
+          },
+        }),
+      )();
+
+      const result = await parkedWith("choose");
+
+      expect(requestsOf(result, "CreateHITLDetailPayload")[0]).toMatchObject({
+        params: {
+          region: {
+            value: "us",
+            description: "Where to ship",
+            schema: { type: "string", enum: ["us", "eu"] },
+            source: "task",
+          },
+          retries: { value: 3, description: null, schema: {}, source: "task" },
+        },
+      });
+    });
+
+    it("renders the subject and the body with the renames of both", async () => {
+      testDag.task(
+        "choose",
+        hitl({
+          subject: withArgNames(
+            { version: "release_version" },
+            ({ version }: { version: string }) => `Ship ${version}?`,
+          ),
+          body: withArgNames(
+            { notes: "release_notes" },
+            ({ notes }: { notes: string }) => `Notes: ${notes}`,
+          ),
+          options: ["go"],
+        }),
+      )({ version: "1.4", notes: "Faster" });
+
+      const result = await parkedWith("choose", {
+        arg_bindings: [
+          { name: "release_version", kind: "literal", value: "1.4" },
+          { name: "release_notes", kind: "literal", value: "Faster" },
+        ],
+      });
+
+      expect(requestsOf(result, "CreateHITLDetailPayload")[0]).toMatchObject({
+        subject: "Ship 1.4?",
+        body: "Notes: Faster",
+      });
     });
 
     it.each<[string, () => unknown, string]>([
@@ -1458,7 +1525,7 @@ describe("coordinator runtime integration", () => {
       let rendered = 0;
       testDag.task(
         "choose",
-        humanInput({
+        hitl({
           subject: () => `Pick ${++rendered}`,
           options: ["us", "eu", "apac"],
           multiple: true,
@@ -1496,7 +1563,7 @@ describe("coordinator runtime integration", () => {
       ["an approval answered Approve", approval({ subject: "Go?" }), "Approve"],
       [
         "a generic choice answered Reject",
-        humanInput({ subject: "?", options: ["Approve", "Reject"] }),
+        hitl({ subject: "?", options: ["Approve", "Reject"] }),
         "Reject",
       ],
     ])("skips nothing for %s and pushes the response", async (_label, operator, chosen) => {
@@ -1542,8 +1609,11 @@ describe("coordinator runtime integration", () => {
       });
     });
 
-    it("on Reject with skipAll skips every task downstream", async () => {
-      const decide = testDag.task("decide", approval({ subject: "Go?", onReject: "skipAll" }))();
+    it("on Reject with ignoreDownstreamTriggerRules skips every task downstream", async () => {
+      const decide = testDag.task(
+        "decide",
+        approval({ subject: "Go?", ignoreDownstreamTriggerRules: true }),
+      )();
       const publish = testDag.task("publish", async () => {})();
       decide.before(publish);
       publish.before(testDag.task("announce", async () => {})());
@@ -1571,8 +1641,8 @@ describe("coordinator runtime integration", () => {
       ]);
     });
 
-    it("on Reject fails when told to, before pushing anything", async () => {
-      testDag.task("decide", approval({ subject: "Go?", onReject: "fail" }))();
+    it("on Reject fails with failOnReject, before pushing anything", async () => {
+      testDag.task("decide", approval({ subject: "Go?", failOnReject: true }))();
 
       const result = await resumedWith("decide", answer(["Reject"]));
 
@@ -1628,6 +1698,72 @@ describe("coordinator runtime integration", () => {
       expect(result.runtimeRequests).toEqual([]);
     });
 
+    describe("params input", () => {
+      const withParams = () =>
+        hitl({
+          subject: "Pick",
+          options: ["go"],
+          params: { region: { value: "us" }, retries: { value: 3 } },
+        });
+
+      it("is pushed with the response when it answers every param", async () => {
+        testDag.task("choose", withParams())();
+
+        const result = await resumedWith(
+          "choose",
+          answer(["go"], undefined, { region: "eu", retries: 5 }),
+        );
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+        expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+          key: "return_value",
+          value: { chosen_options: ["go"], params_input: { region: "eu", retries: 5 } },
+        });
+      });
+
+      it.each<[string, Record<string, unknown>]>([
+        ["only the timeout defaults", { region: "us", retries: 3 }],
+        ["no answers when the form was not filled in", {}],
+      ])("is accepted with %s", async (_label, paramsInput) => {
+        testDag.task("choose", withParams())();
+
+        const result = await resumedWith("choose", answer(["go"], undefined, paramsInput));
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      });
+
+      it("is not checked for a task that declares no params", async () => {
+        testDag.task("choose", hitl({ subject: "Pick", options: ["go"] }))();
+
+        const result = await resumedWith("choose", answer(["go"], undefined, { region: "eu" }));
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+        expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+          value: { params_input: { region: "eu" } },
+        });
+      });
+
+      it.each<[string, Record<string, unknown>, string]>([
+        ["a param the task never declared", { region: "eu", other: 1 }, "region,other"],
+        ["only some of the params", { region: "eu" }, "region"],
+        ["other names than the params", { zone: "eu", retries: 5 }, "zone,retries"],
+      ])("fails the task with %s", async (_label, paramsInput, received) => {
+        testDag.task("choose", withParams())();
+
+        const result = await resumedWith("choose", answer(["go"], undefined, paramsInput), {
+          should_retry: true,
+        });
+
+        expect(result.firstResponse!.body).toMatchObject({
+          type: "RetryTask",
+          retry_reason:
+            `params_input ${JSON.stringify(received.split(","))} does not match params ` +
+            '["region","retries"]',
+        });
+        expect(result.runtimeRequests).toEqual([]);
+      });
+    });
+
     it("fails on resume with a next_method it does not know", async () => {
       testDag.task("decide", approval({ subject: "Go?" }))();
 
@@ -1648,11 +1784,19 @@ describe("coordinator runtime integration", () => {
       const result = await driveSupervisor(
         makeStartupDetails("decide", "test_dag", "r1", {
           next_method: "__fail__",
-          next_kwargs: { error: "Could not resume the task" },
+          next_kwargs: { error: "Could not resume the task", traceback: ["Traceback", "Boom"] },
         }),
       );
 
       expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(
+        result.logRecords.some((r) =>
+          String(r["event"]).includes("Task could not be resumed:\nTraceback\nBoom"),
+        ),
+      ).toBe(true);
+      expect(result.logRecords.some((r) => String(r["event"]).includes("Trigger failed"))).toBe(
+        false,
+      );
     });
   });
 });

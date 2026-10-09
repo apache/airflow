@@ -111,6 +111,11 @@ export interface Operator<TArgs extends object | void = void, TResult = unknown>
   /** Whether the task's factory must be called without inputs. */
   readonly takesNoInputs?: boolean;
   /**
+   * The option that bounds how long it waits, which `dag.task` names when it rejects an
+   * `executionTimeout`: the operator does not enforce that one.
+   */
+  readonly executionTimeoutAlternative?: string;
+  /**
    * Extra fields merged into the task's serialized record. `label` names the task, for an error
    * about a value it holds.
    */
