@@ -99,7 +99,8 @@ Environment-variable equivalents:
     AIRFLOW__KAFKA_EVENT_PRODUCER__DAG_RUN_EVENTS_ENABLED=True
     AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_EVENTS_ENABLED=True
     AIRFLOW__KAFKA_EVENT_PRODUCER__KAFKA_CONFIG_ID=kafka_events
-    AIRFLOW__KAFKA_EVENT_PRODUCER__TOPIC=airflow.events
+    AIRFLOW__KAFKA_EVENT_PRODUCER__DAGRUN_TOPIC=airflow.dagrun
+    AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_TOPIC=airflow.task_instance
 
 The two event flags are independent, users can opt-in to get only DagRun
 event messages or only TaskInstance event messages or both.
