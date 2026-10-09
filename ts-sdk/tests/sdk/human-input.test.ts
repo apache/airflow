@@ -18,7 +18,6 @@
  */
 
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { decodeDatetime } from "../../src/coordinator/human-input-runner.js";
 import { serializeDag } from "../../src/coordinator/serde.js";
 import { Bundle, finalizeBundleDags, getBundleTask } from "../../src/sdk/bundle.js";
 import { Dag, type TaskRef } from "../../src/sdk/dag.js";
@@ -28,6 +27,7 @@ import {
   type HumanInputResult,
   type HumanInputSpec,
 } from "../../src/sdk/human-input.js";
+import { decodeDatetime } from "../../src/sdk/human-input-execute.js";
 
 type Json = Record<string, unknown>;
 
@@ -192,9 +192,9 @@ describe("a human-input task in a Dag", () => {
     const bundle = new Bundle(dag);
     expect(bundle.getTaskHandler("d", "decide")).toBeUndefined();
     expect(getBundleTask(bundle, "d", "decide")).toMatchObject({
-      kind: "humanInput",
+      kind: "operator",
       dag,
-      task: { kind: "approval", options: ["Approve", "Reject"] },
+      operator: { kind: "approval", options: ["Approve", "Reject"] },
     });
     expect(() => finalizeBundleDags(bundle)).not.toThrow();
   });

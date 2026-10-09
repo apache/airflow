@@ -45,13 +45,13 @@ import {
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
-  isPlainRecord,
   isTaskRef,
   type Dag,
   type RecordedInputs,
   type TaskGroupRecord,
   type TaskRecord,
 } from "../sdk/dag.js";
+import { describeType, toPlainJson } from "../sdk/plain-json.js";
 
 /** A serialized Dag: JSON, by the time it reaches the supervisor as msgpack. */
 type SerializedValue = JsonValue;
@@ -84,28 +84,22 @@ const TASK_MODULE = "airflow.sdk.coordinators.node";
  */
 const TASK_LANGUAGE = "typescript";
 
-/** The Dags this one triggers, for the UI dependency graph. */
+/** The Dags this one's tasks depend on, for the UI dependency graph. */
 function serializeDagDependencies(dag: Dag): SerializedValue {
   const dependencies: SerializedValue[] = [];
   for (const [taskId, record] of getDagTaskRecords(dag)) {
-    if (!record.trigger) continue;
-    dependencies.push({
-      source: dag.dagId,
-      target: record.trigger.dagId,
-      label: taskId,
-      dependency_type: "trigger",
-      dependency_id: taskId,
-    });
+    for (const dependency of record.operator?.getDagDependencies?.() ?? []) {
+      dependencies.push({
+        source: dag.dagId,
+        target: dependency.target,
+        label: taskId,
+        dependency_type: dependency.dependencyType,
+        dependency_id: taskId,
+      });
+    }
   }
   return dependencies;
 }
-
-/** Makes the UI draw a trigger task as `TriggerDagRunOperator` with its link. */
-const TRIGGER_DAG_RUN_FIELDS: Readonly<Record<string, SerializedValue>> = {
-  _operator_name: "TriggerDagRunOperator",
-  ui_color: "#ffefeb",
-  _operator_extra_links: { "Triggered DAG": "_link_TriggerDagRunLink" },
-};
 
 /** How one set of authoring fields is written into a serialized object. */
 interface FieldRules {
@@ -226,16 +220,10 @@ function serializeTask(
     is_stub: true,
   };
   const label = `task "${taskId}" of Dag "${dagId}"`;
-  if (record.humanInput) {
+  if (record.operator) {
     // Names the provider operator it mirrors, so the UI labels it as one.
-    data["_operator_name"] =
-      record.humanInput.kind === "approval" ? "ApprovalOperator" : "HITLOperator";
-  }
-  if (record.trigger) {
-    if (record.trigger.conf !== undefined) {
-      toPlainJson(record.trigger.conf, `conf of ${label}`);
-    }
-    Object.assign(data, structuredClone(TRIGGER_DAG_RUN_FIELDS));
+    data["_operator_name"] = record.operator.operatorName;
+    Object.assign(data, record.operator.serialize?.(label));
   }
   const bindings = serializeArgBindings(inputs, label);
   if (bindings) data["_arg_bindings"] = bindings;
@@ -271,30 +259,6 @@ function serializeArgBindings(
     isTaskRef(value)
       ? { name, kind: "xcom", task_id: value.taskId }
       : { name, kind: "literal", value: toPlainJson(value, `Input "${name}" of ${label}`) },
-  );
-}
-
-/**
- * Copy a literal argument as plain JSON, without {@link serializeValue}'s
- * `{__type, __var}` wrapper: Python writes a literal as it is, and the runtime
- * hands it to the handler undecoded.
- *
- * A value JSON cannot carry, such as a `Date` or a `Map`, is rejected rather
- * than reaching the handler as something else.
- */
-function toPlainJson(value: unknown, label: string): SerializedValue {
-  if (value === null || value === undefined) return null;
-  if (typeof value === "string" || typeof value === "boolean") return value;
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (Array.isArray(value)) return value.map((item) => toPlainJson(item, label));
-  if (isPlainRecord(value)) {
-    const copy: Record<string, SerializedValue> = {};
-    for (const [key, item] of Object.entries(value)) copy[key] = toPlainJson(item, label);
-    return copy;
-  }
-  throw new Error(
-    `${label} holds ${describeType(value)}, which JSON cannot carry; pass a string, a finite ` +
-      "number, a boolean, null, an array or a plain object",
   );
 }
 
@@ -715,20 +679,6 @@ function encodeField(field: SchemaField, value: unknown, label: string): Seriali
 
 function typeError(label: string, expected: string, value: unknown): Error {
   return new Error(`${label} must be ${expected}, not ${describeType(value)}`);
-}
-
-function describeType(value: unknown): string {
-  if (value === null) return "null";
-  if (Array.isArray(value)) return "an array";
-  if (typeof value === "number" && !Number.isFinite(value)) return String(value);
-  const noun =
-    typeof value === "object" && !isPlainRecord(value) ? getClassName(value) : typeof value;
-  return `${/^[aeiou]/i.test(noun) ? "an" : "a"} ${noun}`;
-}
-
-function getClassName(value: object): string {
-  const prototype = Object.getPrototypeOf(value) as { constructor?: { name?: string } } | null;
-  return prototype?.constructor?.name || "object";
 }
 
 /**

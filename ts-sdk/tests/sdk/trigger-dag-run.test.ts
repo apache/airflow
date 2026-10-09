@@ -66,7 +66,8 @@ describe("triggerDagRun", () => {
 
     const record = getDagTaskRecords(dag).get("trigger_downstream")!;
     expect(record.fn).toBeUndefined();
-    expect(record.trigger).toEqual({
+    expect(record.operator).toMatchObject({
+      operatorName: "TriggerDagRunOperator",
       dagId: "downstream_etl",
       runId: undefined,
       conf: undefined,
@@ -83,15 +84,16 @@ describe("triggerDagRun", () => {
     const bundle = new Bundle(dag);
     expect(bundle.getTaskHandler("d", "trigger_downstream")).toBeUndefined();
     expect(getBundleTask(bundle, "d", "trigger_downstream")).toEqual({
-      kind: "triggerDagRun",
-      trigger: record.trigger,
+      kind: "operator",
+      operator: record.operator,
+      dag,
     });
   });
 
   it("falls back on the default for empty allowedStates, not for empty failedStates", () => {
     const { dag } = triggered({ allowedStates: [], failedStates: [] });
 
-    expect(getDagTaskRecords(dag).get("trigger_downstream")!.trigger).toMatchObject({
+    expect(getDagTaskRecords(dag).get("trigger_downstream")!.operator).toMatchObject({
       allowedStates: ["success"],
       failedStates: [],
     });
@@ -109,7 +111,7 @@ describe("triggerDagRun", () => {
 
       const { dag } = triggered(spec);
 
-      expect(getDagTaskRecords(dag).get("trigger_downstream")!.trigger).toMatchObject({
+      expect(getDagTaskRecords(dag).get("trigger_downstream")!.operator).toMatchObject({
         deferrable,
       });
     },
@@ -121,14 +123,14 @@ describe("triggerDagRun", () => {
     expect(() => finalizeBundleDags(new Bundle(dag))).not.toThrow();
   });
 
-  it("keeps a task record to either a handler or a trigger", () => {
+  it("keeps a task record to either a handler or an operator", () => {
     const { dag } = triggered();
     const record = getDagTaskRecords(dag).get("trigger_downstream")!;
 
-    // @ts-expect-error -- a record cannot carry both a handler and a trigger.
+    // @ts-expect-error -- a record cannot carry both a handler and an operator.
     const both: TaskRecord = { ...record, fn: async () => undefined };
 
-    expect(both.trigger).toBe(record.trigger);
+    expect(both.operator).toBe(record.operator);
   });
 
   it("takes its id positionally too", () => {

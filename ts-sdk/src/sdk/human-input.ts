@@ -20,9 +20,10 @@
 // Human-in-the-loop tasks: `humanInput(...)` and `approval(...)`, which mirror
 // `HITLOperator` and `ApprovalOperator` in the standard provider.
 
-import { brand, hasBrand } from "./brand.js";
-import { isPlainRecord } from "./dag.js";
 import type { JsonValue } from "./client-types.js";
+import { isPlainRecord } from "./dag.js";
+import { executeHumanInput, resumeHumanInput } from "./human-input-execute.js";
+import { brandOperator, type Operator } from "./operator.js";
 
 /** A user allowed to respond, as Airflow's auth manager identifies them. */
 export interface HITLUser {
@@ -94,7 +95,10 @@ export interface HumanInputResult {
 
 /** What `humanInput(...)` and `approval(...)` return, to pass to `dag.task(...)`: the options,
  *  checked and with their defaults applied. */
-export interface HumanInputTask<TArgs extends object | void = void> {
+export interface HumanInputTask<TArgs extends object | void = void> extends Operator<
+  TArgs,
+  HumanInputResult
+> {
   readonly kind: "choice" | "approval";
   readonly subject: HumanInputText<TArgs>;
   readonly body: HumanInputText<TArgs, string | null> | undefined;
@@ -109,11 +113,6 @@ export interface HumanInputTask<TArgs extends object | void = void> {
 
 export const APPROVE = "Approve";
 export const REJECT = "Reject";
-
-/** Internal: whether `value` is a human-input task built by any copy of this package. */
-export function isHumanInputTask(value: unknown): value is HumanInputTask<never> {
-  return hasBrand(value, "HumanInputTask");
-}
 
 const SHARED_OPTION_NAMES = ["subject", "body", "defaults", "assignees", "responseTimeout"];
 const CHOICE_OPTION_NAMES: ReadonlySet<string> = new Set([
@@ -197,9 +196,21 @@ export function approval<TArgs extends object | void = void>(
   });
 }
 
-function seal<TArgs extends object | void>(task: HumanInputTask<never>): HumanInputTask<TArgs> {
-  brand(task, "HumanInputTask");
-  return Object.freeze(task) as HumanInputTask<TArgs>;
+function seal<TArgs extends object | void>(
+  fields: Omit<HumanInputTask<never>, keyof Operator<never, HumanInputResult>>,
+): HumanInputTask<TArgs> {
+  const task: HumanInputTask<never> = {
+    ...fields,
+    operatorName: fields.kind === "approval" ? "ApprovalOperator" : "HITLOperator",
+    // An approval skips what follows it on "Reject".
+    canSkipDownstream: fields.kind === "approval",
+    requiresTaskId: true,
+    label: "human-input",
+    taskIdExample: 'dag.task("sign_off", approval({ subject: "..." }))',
+    execute: (op) => executeHumanInput(task, op),
+    executeComplete: (op, event) => resumeHumanInput(task, op, event),
+  };
+  return brandOperator(task) as HumanInputTask<TArgs>;
 }
 
 // One checker per option. Each returns the option's value, or throws naming what is wrong.

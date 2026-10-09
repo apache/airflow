@@ -48,9 +48,7 @@ import {
 import {
   asMsgFromSupervisor,
   SUPERVISOR_API_VERSION,
-  type RuntimeAwaitInputTask,
   type RuntimeDagFileParsingResult,
-  type RuntimeDeferTask,
   type RuntimeRetryTask,
   type RuntimeSucceedTask,
   type RuntimeTaskState,
@@ -61,8 +59,8 @@ import { bundleDags, bundleDagTaskIds, getBundleTask, type Bundle } from "../sdk
 import { finalizeDag } from "../sdk/dag.js";
 import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
 import { computeRelativeFileloc, serializeDag } from "./serde.js";
-import { runHumanInput } from "./human-input-runner.js";
-import { runTriggerDagRun } from "./trigger-runner.js";
+import { buildOperatorContext, runOperator } from "./operator-runner.js";
+import type { OperatorOutcome } from "../sdk/operator.js";
 import { runInTaskScope, type TaskContext, type TaskFunction } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
@@ -346,13 +344,7 @@ async function handleTask(
   logs: LogChannel,
   clientLogs: LogChannel,
   signal: AbortSignal,
-): Promise<
-  | RuntimeSucceedTask
-  | RuntimeRetryTask
-  | RuntimeTaskState
-  | RuntimeDeferTask
-  | RuntimeAwaitInputTask
-> {
+): Promise<OperatorOutcome> {
   const ti = details.ti;
   const task = getBundleTask(bundle, ti.dag_id, ti.task_id);
 
@@ -387,18 +379,11 @@ async function handleTask(
   };
   try {
     switch (task.kind) {
-      case "triggerDagRun":
-        return await runTriggerDagRun(details, task.trigger, client, logs, ctx.signal, fail);
-      case "humanInput":
-        return await runHumanInput({
-          details,
-          dag: task.dag,
-          task: task.task,
-          client,
-          ctx,
-          logs,
-          fail,
-        });
+      case "operator":
+        return await runOperator(
+          task.operator,
+          buildOperatorContext({ details, dag: task.dag, ctx, client, logs, fail }),
+        );
     }
   } catch (err) {
     return fail((err as Error).message ?? String(err));

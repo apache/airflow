@@ -22,9 +22,8 @@
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import { Dag, finalizeDag, getDagTaskRecords, isDag } from "./dag.js";
 import { getTaskHandlerFunction, isTaskHandler, TaskHandler } from "./task-handler.js";
+import type { Operator } from "./operator.js";
 import type { TaskFunction } from "./task.js";
-import type { HumanInputTask } from "./human-input.js";
-import type { TriggerDagRunTask } from "./trigger-dag-run.js";
 
 // Assigned inside Bundle's static block, as Dag does for its tasks.
 let dagsOf: (bundle: Bundle) => ReadonlyMap<string, Dag>;
@@ -216,14 +215,12 @@ export function validateOwnBundle(value: unknown, accessor: string): asserts val
 /**
  * Internal: what kind of task the runtime is to run, and what it needs to run it.
  *
- * A `handler` runs the author's function. The other kinds are operators the SDK
- * runs itself, with no handler: their options come from the factory the task was
- * declared with.
+ * A `handler` runs the author's function. An `operator` is one the SDK runs itself,
+ * with no handler: its options come from the factory the task was declared with.
  */
 export type BundleTask =
   | { readonly kind: "handler"; readonly fn: TaskFunction }
-  | { readonly kind: "triggerDagRun"; readonly trigger: TriggerDagRunTask }
-  | { readonly kind: "humanInput"; readonly dag: Dag; readonly task: HumanInputTask<never> };
+  | { readonly kind: "operator"; readonly operator: Operator<never, unknown>; readonly dag: Dag };
 
 /** Internal: the task `taskId` of Dag `dagId`, or `undefined` when this bundle does not provide it. */
 export function getBundleTask(
@@ -240,8 +237,7 @@ export function getBundleTask(
   // A Dag declared in TypeScript: the task's record says what runs it.
   const record = getDagTaskRecords(dag).get(taskId);
   if (record === undefined) return undefined;
-  if (record.trigger) return { kind: "triggerDagRun", trigger: record.trigger };
-  if (record.humanInput) return { kind: "humanInput", dag, task: record.humanInput };
+  if (record.operator) return { kind: "operator", operator: record.operator, dag };
   return { kind: "handler", fn: record.fn };
 }
 

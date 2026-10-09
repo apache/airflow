@@ -29,73 +29,37 @@
 // version. With an unversioned bundle, a bundle deployed while the task waits is the one the
 // response is read against, as it is for any task that runs after a deployment.
 
-import { resolveArgs } from "./arg-binding.js";
-import type { CoordinatorClient } from "./client.js";
-import type { LogChannel } from "./log-channel.js";
-import type {
-  RuntimeAwaitInputTask,
-  RuntimeRetryTask,
-  RuntimeSucceedTask,
-  RuntimeTaskState,
-  StartupDetails,
-} from "./protocol.js";
-import { getDagDownstreamTaskIds } from "./serde.js";
-import { getArgNames } from "../sdk/arg-names.js";
-import type { JsonValue } from "../sdk/client-types.js";
-import { isPlainRecord, skipTasks, type Dag } from "../sdk/dag.js";
+import { getArgNames } from "./arg-names.js";
+import type { JsonValue } from "./client-types.js";
+import { isPlainRecord, type Dag } from "./dag.js";
 import {
   REJECT,
   type HITLUser,
   type HumanInputResult,
   type HumanInputTask,
   type HumanInputText,
-} from "../sdk/human-input.js";
-import { runInTaskScope, type TaskContext } from "../sdk/task.js";
-
-/** How the task fails: for retry, or for good once its retries are spent. */
-type Failure = RuntimeRetryTask | RuntimeTaskState;
-export type HumanInputOutcome = RuntimeSucceedTask | Failure | RuntimeAwaitInputTask;
-
-/** The `next_method` the task parks with and resumes with, as `HITLOperator` names it. */
-const EXECUTE_COMPLETE = "execute_complete";
-/** `TRIGGER_FAIL_REPR`: the `next_method` of a task Airflow could not resume. */
-const TRIGGER_FAIL = "__fail__";
-
-export interface HumanInputRun {
-  readonly details: StartupDetails;
-  readonly dag: Dag;
-  readonly task: HumanInputTask<never>;
-  readonly client: CoordinatorClient;
-  readonly ctx: TaskContext;
-  readonly logs: LogChannel;
-  readonly fail: (message: string) => Failure;
-}
-
-export async function runHumanInput(run: HumanInputRun): Promise<HumanInputOutcome> {
-  const nextMethod = run.details.ti_context.next_method;
-  if (nextMethod) return resume(run, nextMethod, run.details.ti_context.next_kwargs);
-  return park(run);
-}
+} from "./human-input.js";
+import type { OperatorContext, OperatorOutcome } from "./operator.js";
+import { runInTaskScope } from "./task.js";
 
 /** The first run: write the request, then park the task until a response arrives. */
-async function park({ details, task, client, ctx, logs, fail }: HumanInputRun) {
+export async function executeHumanInput(
+  task: HumanInputTask<never>,
+  op: OperatorContext,
+): Promise<OperatorOutcome> {
+  const { details, ctx, client, logs } = op;
   // The inputs are read here only, for the text: the resumed run must not depend on upstream
   // XComs still being there.
-  const bound = await resolveArgs(details.ti_context?.arg_bindings, {
-    client,
-    signal: ctx.signal,
-    logs,
-    argNames: textArgNames(task),
-  });
+  const args = await op.resolveArgs(textArgNames(task));
   const render = (text: HumanInputText<never, string | null>) =>
-    runInTaskScope({ ctx, client }, () => renderText(text, bound.args));
+    runInTaskScope({ ctx, client }, () => renderText(text, args));
   const subject = await render(task.subject);
   const body = task.body === undefined ? null : await render(task.body);
   if (typeof subject !== "string" || subject.length === 0) {
-    return fail(`The subject of task "${ctx.taskId}" has to be a non-empty string`);
+    return op.fail(`The subject of task "${ctx.taskId}" has to be a non-empty string`);
   }
   if (body !== null && body !== undefined && typeof body !== "string") {
-    return fail(`The body of task "${ctx.taskId}" has to be a string or null`);
+    return op.fail(`The body of task "${ctx.taskId}" has to be a string or null`);
   }
 
   const options = task.options as [string, ...string[]];
@@ -112,65 +76,43 @@ async function park({ details, task, client, ctx, logs, fail }: HumanInputRun) {
     assigned_users: assignedUsers,
   });
 
-  // An ISO-8601 duration, which is how `AwaitInputTask.timeout` is sent.
-  const timeout = task.responseTimeout === undefined ? null : `PT${task.responseTimeout}S`;
   logs.info("Waiting for response", { task_id: ctx.taskId });
-  return {
-    type: "AwaitInputTask",
-    state: "awaiting_input",
-    timeout,
-    next_method: EXECUTE_COMPLETE,
-    next_kwargs: {},
-  } satisfies RuntimeAwaitInputTask;
+  return op.awaitInput({ timeoutSeconds: task.responseTimeout });
 }
 
 /** The second run: read the response against the task's options, then finish. */
-async function resume(
-  run: HumanInputRun,
-  nextMethod: string,
-  nextKwargs: unknown,
-): Promise<HumanInputOutcome> {
-  const { task, dag, ctx, client, logs, fail } = run;
-  const kwargs = isPlainRecord(nextKwargs) ? nextKwargs : {};
-  if (nextMethod === TRIGGER_FAIL) return failedToResume(run, kwargs);
-  if (nextMethod !== EXECUTE_COMPLETE) {
-    return fail(`Task cannot resume with next_method "${nextMethod}"`);
-  }
-
+export async function resumeHumanInput(
+  task: HumanInputTask<never>,
+  op: OperatorContext,
+  event: unknown,
+): Promise<OperatorOutcome> {
+  const { dag, ctx, logs } = op;
   // Throws, failing the task, when the answer cannot be read or is not allowed.
-  const result = readAnswer(kwargs["event"], task);
+  const result = readAnswer(event, task);
   const responder = result.responded_by_user?.name ?? "the response timeout default";
   logs.info("Received response", { chosen_options: result.chosen_options, responder });
 
   // `ApprovalOperator.execute_complete`: on "Reject", fail, or skip what follows. Only an approval
   // has a reject policy.
   if (task.onReject !== undefined && result.chosen_options[0] === REJECT) {
-    if (task.onReject === "fail") return fail(`Rejected by ${responder}`);
-    const skipped = skipTargets(dag, ctx.taskId, task.onReject);
+    if (task.onReject === "fail") return op.fail(`Rejected by ${responder}`);
+    const skipped = await getSkipTargets(dag, ctx.taskId, task.onReject);
     if (skipped.length > 0) {
       // `SkipMixin.skip` ends the task as soon as it skips, so Python pushes no response then.
       logs.info("Skipping downstream tasks", { task_ids: skipped });
-      await skipTasks(client, skipped);
-      return succeeded();
+      await op.skip(skipped);
+      return op.succeed();
     }
     logs.info("No downstream tasks; nothing to do.");
   } else if (task.onReject !== undefined) {
     logs.info("Approved. Proceeding with downstream tasks...");
   }
-  await client.setXCom({ key: "return_value", value: result as unknown as JsonValue });
-  return succeeded();
-}
-
-/** Airflow could not resume the task (`__fail__`), so it fails with Airflow's reason. */
-function failedToResume({ logs, fail }: HumanInputRun, kwargs: Record<string, unknown>) {
-  const traceback = kwargs["traceback"];
-  if (Array.isArray(traceback)) logs.error(`Task could not be resumed:\n${traceback.join("\n")}`);
-  return fail(String(kwargs["error"] ?? "Unknown"));
+  return op.succeed(result as unknown as JsonValue);
 }
 
 /**
  * Turn the answer Airflow resumed the task with into the result downstream tasks get, or throw
- * the reason the task fails. It only reads and checks; `resume` acts on what it returns.
+ * the reason the task fails. It only reads and checks; `resumeHumanInput` acts on what it returns.
  *
  * For an approval, for example:
  * - admin picked "Approve": the result `["Approve"]`, answered by admin.
@@ -236,7 +178,14 @@ function checkChoice(chosen: string[], task: HumanInputTask<never>): string | un
 }
 
 /** The tasks a rejection skips: the direct downstream, or every task downstream. */
-function skipTargets(dag: Dag, taskId: string, onReject: "skip" | "skipAll"): string[] {
+async function getSkipTargets(
+  dag: Dag,
+  taskId: string,
+  onReject: "skip" | "skipAll",
+): Promise<string[]> {
+  // Loaded here, as `Bundle.serve` loads the coordinator: a static import would make the
+  // authoring surface depend on it.
+  const { getDagDownstreamTaskIds } = await import("../coordinator/serde.js");
   const downstream = getDagDownstreamTaskIds(dag);
   const found = new Set(downstream.get(taskId) ?? []);
   if (onReject === "skipAll") {
@@ -290,13 +239,4 @@ function isUser(value: unknown): value is HITLUser {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
-function succeeded(): RuntimeSucceedTask {
-  return {
-    type: "SucceedTask",
-    end_date: new Date().toISOString(),
-    task_outlets: [],
-    outlet_events: [],
-  };
 }
