@@ -32,7 +32,6 @@ import { MarkTaskGroupAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 
 import { useLoopGroupNode } from "src/queries/useIsLoopGroup";
-import { useLoopSummary } from "src/queries/useLoopSummary";
 import { formatNumber, useDurationFormat } from "src/utils";
 
 import { useLoopOutcomeStats } from "./useLoopOutcomeStats";
@@ -42,9 +41,8 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
   const { formatElapsed } = useDurationFormat();
   const { dagId = "", groupId = "", runId = "" } = useParams();
   const outcomeStats = useLoopOutcomeStats({ dagId, groupId, runId });
-  const { data: loopSummary } = useLoopSummary({ dagId, groupId, runId });
   const groupNode = useLoopGroupNode(groupId);
-  const docMd = loopSummary === undefined ? groupNode?.doc_md : loopSummary.doc_md;
+  const docMd = groupNode?.doc_md;
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
 
   Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {

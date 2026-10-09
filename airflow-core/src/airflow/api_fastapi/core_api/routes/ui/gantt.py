@@ -107,10 +107,11 @@ def get_gantt_data(
             id=row.id,
             region_id=row.region_id,
             region_index=row.region_index,
-            loop_iterations=[
-                LoopIterationResponse(loop_id=loop_id, iteration=iteration)
-                for loop_id, iteration in resolver.loop_iterations(row)
-            ],
+            loop_iteration=(
+                None
+                if (position := resolver.get_loop_iteration(row)) is None
+                else LoopIterationResponse(loop_id=position[0], iteration=position[1])
+            ),
             map_index=row.map_index,
             task_id=row.task_id,
             task_display_name=row.task_display_name,

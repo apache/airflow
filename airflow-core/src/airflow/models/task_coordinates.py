@@ -165,6 +165,7 @@ class TaskCoordinateResolver:
     _regions: dict[tuple[str, str], dict[UUID, DynamicRegion]] = attrs.field(factory=dict, init=False)
     _region_nodes: dict[UUID, str | None] = attrs.field(factory=dict, init=False)
     _regional_tasks: dict[tuple[str, str | None, str], bool] = attrs.field(factory=dict, init=False)
+    _looped_tasks: dict[tuple[UUID, str], bool] = attrs.field(factory=dict, init=False)
 
     @classmethod
     def for_dag(cls, dag: SerializedDAG | None, session: Session) -> TaskCoordinateResolver:
@@ -180,14 +181,25 @@ class TaskCoordinateResolver:
     def prefetch_regions(self, tis: Iterable[TaskCoordinate]) -> None:
         wanted: dict[tuple[str, str], set[UUID]] = {}
         for ti in tis:
-            if ti.region_id != SENTINEL_REGION_ID and ti.region_id not in self._regions.get(
-                (ti.dag_id, ti.run_id), {}
+            if (
+                ti.region_id != SENTINEL_REGION_ID
+                and ti.region_id not in self._regions.get((ti.dag_id, ti.run_id), {})
+                and self._is_in_loop(ti)
             ):
                 wanted.setdefault((ti.dag_id, ti.run_id), set()).add(ti.region_id)
         for (dag_id, run_id), region_ids in wanted.items():
             self._regions.setdefault((dag_id, run_id), {}).update(
                 load_region_ancestry(region_ids, dag_id=dag_id, run_id=run_id, session=self.session)
             )
+
+    def _is_in_loop(self, ti: TaskCoordinate) -> bool:
+        if ti.dag_version_id is None:
+            return False
+        key = (ti.dag_version_id, ti.task_id)
+        if key not in self._looped_tasks:
+            task = self.find_task(ti)
+            self._looped_tasks[key] = task is not None and enclosing_loop(task) is not None
+        return self._looped_tasks[key]
 
     def loop_iterations(self, ti: TaskCoordinate) -> list[tuple[str, int]]:
         if ti.region_id == SENTINEL_REGION_ID:
@@ -217,6 +229,11 @@ class TaskCoordinateResolver:
             iterations.append((group.node_id, position[1]))
         return iterations
 
+    def get_loop_iteration(self, ti: TaskCoordinate) -> tuple[str, int] | None:
+        """Return the innermost enclosing loop and iteration of ``ti``, or None outside any loop."""
+        iterations = self.loop_iterations(ti)
+        return iterations[-1] if iterations else None
+
     def loop_context(self, ti: TaskCoordinate) -> tuple[SerializedLoopTaskGroup, int] | None:
         if ti.region_id == SENTINEL_REGION_ID:
             return None
@@ -242,7 +259,7 @@ class TaskCoordinateResolver:
             raise ValueError(f"Pinned Dag for {dag_id}/{run_id} not found")
         return dag.get_task(task_id)
 
-    def find_task(self, ti: TaskInstance) -> SerializedOperator | None:
+    def find_task(self, ti: TaskCoordinate) -> SerializedOperator | None:
         """Return the task of ``ti`` from its pinned Dag, or None when that Dag or the task is gone."""
         if ti.dag_version_id is None or (dag := self.get_dag(ti.dag_version_id)) is None:
             return None

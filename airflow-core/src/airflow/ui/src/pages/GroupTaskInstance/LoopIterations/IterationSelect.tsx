@@ -22,7 +22,7 @@ import { createListCollection, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
-import type { LoopIterationSummary, LoopSummaryResponse } from "openapi/requests/types.gen";
+import type { LoopSummaryResponse } from "openapi/requests/types.gen";
 
 import { Select } from "src/system-components";
 
@@ -31,7 +31,7 @@ import { StateBadge } from "src/components/StateBadge";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useDurationFormat } from "src/utils";
 
-import { buildResultTags, decisionLabel, ITERATION_ALL } from "./loopUtils";
+import { ITERATION_ALL } from "./loopUtils";
 
 type Props = {
   readonly summary: LoopSummaryResponse;
@@ -60,32 +60,16 @@ export const IterationSelect = ({ summary }: Props) => {
     ) {
       next.set(SearchParamsKeys.ITERATION, String(latest));
     }
-    if (regionId === null && summary.loop_region_id !== null && summary.loop_region_id !== undefined) {
-      next.set(SearchParamsKeys.LOOP_REGION_ID, summary.loop_region_id);
-    }
     if (next.toString() !== searchParams.toString()) {
       next.delete(SearchParamsKeys.CURSOR);
       setSearchParams(next, { replace: true });
     }
   }, [latest, searchParams, selected, selectedExists, setSearchParams, summary.loop_region_id]);
 
-  const describe = (iteration: LoopIterationSummary) => {
-    const { tags } = buildResultTags(iteration.criteria?.actual ?? iteration.result);
-    const duration = formatElapsed(iteration.start_date, iteration.end_date);
-
-    return [
-      decisionLabel(translate, iteration),
-      ...tags.slice(0, 2).map((tag) => (tag.label === undefined ? tag.value : `${tag.label}: ${tag.value}`)),
-      duration,
-    ]
-      .filter((part) => part !== undefined)
-      .join(" · ");
-  };
-
   const options = [
     { detail: undefined, label: translate("loop.filter.all"), state: undefined, value: ITERATION_ALL },
     ...summary.iterations.map((iteration) => ({
-      detail: describe(iteration),
+      detail: formatElapsed(iteration.start_date, iteration.end_date),
       label: translate("loop.iteration", { index: iteration.index }),
       state: iteration.state,
       value: String(iteration.index),
@@ -93,10 +77,8 @@ export const IterationSelect = ({ summary }: Props) => {
   ];
   const collection = createListCollection({ items: options });
   const invocations = createListCollection({
-    items: (summary.loop_regions ?? []).map((region) => ({
-      label:
-        region.parent_iterations.map((parent) => `${parent.loop_id}: ${parent.iteration}`).join(" / ") ||
-        summary.group_id,
+    items: (summary.loop_regions ?? []).map((region, index) => ({
+      label: `${summary.group_id} (${index + 1})`,
       value: region.region_id,
     })),
   });

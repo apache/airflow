@@ -18,6 +18,7 @@
  */
 import { useParams } from "react-router-dom";
 
+import { useIsLoopGroup } from "src/queries/useIsLoopGroup";
 import { useLoopSummary } from "src/queries/useLoopSummary";
 
 import { TaskInstances } from "../TaskInstances";
@@ -25,11 +26,13 @@ import { IterationSelect } from "./LoopIterations";
 
 export const GroupTaskInstances = () => {
   const { dagId = "", groupId = "", runId = "" } = useParams();
+  const isLoopGroup = useIsLoopGroup(groupId);
   const { data: summary } = useLoopSummary({ dagId, groupId, runId });
 
-  return summary === undefined ? (
-    <TaskInstances />
-  ) : (
-    <TaskInstances extraFilter={<IterationSelect summary={summary} />} loopGroupId={groupId} />
+  return (
+    <TaskInstances
+      extraFilter={summary === undefined ? undefined : <IterationSelect summary={summary} />}
+      loopGroupId={isLoopGroup ? groupId : undefined}
+    />
   );
 };

@@ -1395,9 +1395,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     @rendered_map_index.expression  # type: ignore[no-redef]
     def rendered_map_index(cls):
+        from airflow.models.task_coordinates import public_map_index_expression
+
         return case(
             (cls._rendered_map_index.isnot(None), cls._rendered_map_index),
-            (cls.region_index >= 0, cast(cls.region_index, String)),
+            (public_map_index_expression(cls) >= 0, cast(cls.region_index, String)),
             else_=None,
         )
 

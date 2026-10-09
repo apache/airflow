@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator, Iterable
+from itertools import chain
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
@@ -66,7 +67,9 @@ from airflow.api_fastapi.core_api.services.ui.grid import (
     _find_aggregates,
     _get_aggs_for_node,
     _merge_node_dicts,
+    load_loop_run_inputs,
     loop_run_summaries,
+    summarize_loop_run,
 )
 from airflow.api_fastapi.core_api.services.ui.task_group import (
     get_task_group_children_getter,
@@ -75,7 +78,7 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.deadline import Deadline
-from airflow.models.dynamic_region import load_region_ancestry, loop_position
+from airflow.models.dynamic_region import DynamicRegion, loop_position
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
@@ -417,10 +420,19 @@ def _build_ti_summaries(
     dag_bag: DBDagBag,
 ) -> dict[str, Any] | None:
     ti_details: dict[str, GridNodeAgg] = {}
-    task_instances = list(task_instances)
-    if not task_instances:
+    rows = iter(task_instances)
+    first = next(rows, None)
+    if first is None:
         return None
-    dag_version_id = next((ti.dag_version_id for ti in task_instances if ti.dag_version_id), None)
+    dag_version_id = first.dag_version_id or session.scalar(
+        select(TaskInstance.dag_version_id)
+        .where(
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.dag_version_id.is_not(None),
+        )
+        .limit(1)
+    )
     serdag = _get_serdag(dag_bag, dag_id, dag_version_id, session)
     if TYPE_CHECKING:
         assert serdag
@@ -429,32 +441,22 @@ def _build_ti_summaries(
         for group in serdag.task_group.get_task_group_dict().values()
         if isinstance(group, SerializedLoopTaskGroup)
     }
-    regions = (
-        load_region_ancestry(
-            {ti.region_id for ti in task_instances if getattr(ti, "region_id", None) is not None},
-            dag_id=dag_id,
-            run_id=run_id,
-            session=session,
-        )
-        if loop_ids
-        else {}
-    )
-    for ti in task_instances:
+    regions = DynamicRegion.load_for_run(dag_id, run_id, session=session) if loop_ids else {}
+    for ti in chain([first], rows):
         summary = ti_details.get(ti.task_id)
         if summary is None:
             summary = ti_details[ti.task_id] = GridNodeAgg()
+        loop_positions = {}
+        for loop_id in loop_ids:
+            if position := loop_position(regions, ti.region_id, ti.region_index, loop_id):
+                loop_positions[loop_id] = position
         summary.add_ti(
             state=ti.state,
             start_date=ti.start_date,
             end_date=ti.end_date,
             dag_version_number=getattr(ti, "version_number", None),
             has_note=bool(getattr(ti, "has_note", False)),
-            loop_positions={
-                loop_id: position
-                for loop_id in loop_ids
-                if getattr(ti, "region_id", None) is not None
-                and (position := loop_position(regions, ti.region_id, ti.region_index, loop_id)) is not None
-            },
+            loop_positions=loop_positions,
         )
 
     def get_node_summaries() -> Iterable[dict[str, Any]]:
@@ -631,10 +633,11 @@ def get_loop_history(
         .order_by(DagRun.run_after.desc(), DagRun.id.desc())
         .limit(limit)
     ).all()
+    inputs = load_loop_run_inputs(runs, group_id, session=session, dag_bag=dag_bag)
     history = []
     for run in reversed(runs):
         try:
-            summaries = loop_run_summaries(run, group_id, session=session, dag_bag=dag_bag)
+            summaries = summarize_loop_run(inputs[run.run_id], group_id)
         except HTTPException as error:
             if error.status_code in (404, 422):
                 continue

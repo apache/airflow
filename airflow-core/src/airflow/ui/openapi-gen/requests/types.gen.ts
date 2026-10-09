@@ -2167,6 +2167,7 @@ export type TaskInstanceHistoryResponse = {
     map_index: number;
     region_id?: string;
     region_index?: number;
+    loop_iteration?: LoopIterationResponse | null;
     start_date: string | null;
     end_date: string | null;
     duration: number | null;
@@ -2207,6 +2208,7 @@ export type TaskInstanceResponse = {
     map_index: number;
     region_id?: string;
     region_index?: number;
+    loop_iteration?: LoopIterationResponse | null;
     logical_date: string | null;
     run_after: string;
     start_date: string | null;
@@ -3026,6 +3028,7 @@ export type GanttTaskInstance = {
     id: string;
     region_id?: string;
     region_index?: number;
+    loop_iteration?: LoopIterationResponse | null;
     map_index: number;
     task_id: string;
     task_display_name: string;
@@ -3126,16 +3129,6 @@ export type LightGridTaskInstanceSummary = {
 };
 
 /**
- * Optional comparison details reported by a loop condition.
- */
-export type LoopCriteriaComparison = {
-    field: string;
-    op: string;
-    target?: unknown;
-    actual?: unknown;
-};
-
-/**
  * Loop invocations across recent DAG runs.
  */
 export type LoopHistoryResponse = {
@@ -3145,11 +3138,10 @@ export type LoopHistoryResponse = {
 };
 
 /**
- * An invocation and its enclosing loop iterations.
+ * One invocation of a loop in a Dag run.
  */
 export type LoopInvocationResponse = {
     region_id: string;
-    parent_iterations: Array<LoopIterationResponse>;
 };
 
 /**
@@ -3158,10 +3150,6 @@ export type LoopInvocationResponse = {
 export type LoopIterationSummary = {
     index: number;
     state?: TaskInstanceState | null;
-    decision?: 'stop' | 'continue' | null;
-    is_tail?: boolean;
-    result?: unknown;
-    criteria?: LoopCriteriaComparison | null;
     start_date?: string | null;
     end_date?: string | null;
 };
@@ -3176,7 +3164,7 @@ export type LoopRunSummary = {
     max_iterations: number;
     iterations_ran: number;
     status: 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
-    reason?: 'criteria_met' | 'cap_reached' | 'not_converged' | 'iteration_failed' | null;
+    reason?: 'cap_reached' | 'iteration_failed' | null;
     loop_region_id?: string | null;
 };
 
@@ -3189,7 +3177,6 @@ export type LoopSummaryResponse = {
     dag_id: string;
     run_id: string;
     group_id: string;
-    doc_md?: string | null;
     max_iterations: number;
     iterations_ran: number;
     status: 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
@@ -3198,7 +3185,7 @@ export type LoopSummaryResponse = {
     exit_task_id?: string | null;
     exit_criteria_doc?: string | null;
     exit_criteria_name?: string | null;
-    reason?: 'criteria_met' | 'cap_reached' | 'not_converged' | 'iteration_failed' | null;
+    reason?: 'cap_reached' | 'iteration_failed' | null;
     reason_task_id?: string | null;
     loop_region_id?: string | null;
     loop_regions?: Array<LoopInvocationResponse>;
@@ -4654,7 +4641,6 @@ export type GetTaskInstancesData = {
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
     loopId?: string | null;
-    loopRegionId?: string | null;
     mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;

@@ -4354,11 +4354,10 @@ components:
         region_index:
           type: integer
           title: Region Index
-        loop_iterations:
-          items:
-            $ref: '#/components/schemas/LoopIterationResponse'
-          type: array
-          title: Loop Iterations
+        loop_iteration:
+          anyOf:
+          - $ref: '#/components/schemas/LoopIterationResponse'
+          - type: 'null'
         map_index:
           type: integer
           title: Map Index
@@ -4881,24 +4880,6 @@ components:
       - max_end_date
       title: LightGridTaskInstanceSummary
       description: Task Instance Summary model for the Grid UI.
-    LoopCriteriaComparison:
-      properties:
-        field:
-          type: string
-          title: Field
-        op:
-          type: string
-          title: Op
-        target:
-          title: Target
-        actual:
-          title: Actual
-      type: object
-      required:
-      - field
-      - op
-      title: LoopCriteriaComparison
-      description: Optional comparison details reported by a loop condition.
     LoopHistoryResponse:
       properties:
         dag_id:
@@ -4925,17 +4906,11 @@ components:
           type: string
           format: uuid
           title: Region Id
-        parent_iterations:
-          items:
-            $ref: '#/components/schemas/LoopIterationResponse'
-          type: array
-          title: Parent Iterations
       type: object
       required:
       - region_id
-      - parent_iterations
       title: LoopInvocationResponse
-      description: An invocation and its enclosing loop iterations.
+      description: One invocation of a loop in a Dag run.
     LoopIterationResponse:
       properties:
         loop_id:
@@ -4958,24 +4933,6 @@ components:
         state:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
-          - type: 'null'
-        decision:
-          anyOf:
-          - type: string
-            enum:
-            - stop
-            - continue
-          - type: 'null'
-          title: Decision
-        is_tail:
-          type: boolean
-          title: Is Tail
-          default: false
-        result:
-          title: Result
-        criteria:
-          anyOf:
-          - $ref: '#/components/schemas/LoopCriteriaComparison'
           - type: 'null'
         start_date:
           anyOf:
@@ -5029,9 +4986,7 @@ components:
           anyOf:
           - type: string
             enum:
-            - criteria_met
             - cap_reached
-            - not_converged
             - iteration_failed
           - type: 'null'
           title: Reason
@@ -5061,11 +5016,6 @@ components:
         group_id:
           type: string
           title: Group Id
-        doc_md:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Doc Md
         max_iterations:
           type: integer
           title: Max Iterations
@@ -5111,9 +5061,7 @@ components:
           anyOf:
           - type: string
             enum:
-            - criteria_met
             - cap_reached
-            - not_converged
             - iteration_failed
           - type: 'null'
           title: Reason
@@ -5677,11 +5625,10 @@ components:
         region_index:
           type: integer
           title: Region Index
-        loop_iterations:
-          items:
-            $ref: '#/components/schemas/LoopIterationResponse'
-          type: array
-          title: Loop Iterations
+        loop_iteration:
+          anyOf:
+          - $ref: '#/components/schemas/LoopIterationResponse'
+          - type: 'null'
         logical_date:
           anyOf:
           - type: string

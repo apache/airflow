@@ -535,6 +535,30 @@ def test_previous_ti_for_loop_task_uses_requester_pass(client, two_run_loop_tis,
     assert response.json()["region_index"] == requester_pass
 
 
+def test_previous_ti_for_loop_task_finds_a_pass_beyond_the_scan_limit(client, session, two_run_loop_tis):
+    requester = two_run_loop_tis["current"][0]
+    old_pass = two_run_loop_tis["old"][0]
+    later_passes = [
+        TaskInstance(task=old_pass.task, run_id="old", dag_version_id=old_pass.dag_version_id)
+        for _ in range(task_instances_route._MAX_PREVIOUS_TIS_SCANNED + 2)
+    ]
+    for index, ti in enumerate(later_passes, start=2):
+        ti.region_id, ti.region_index, ti.state = old_pass.region_id, index, State.SUCCESS
+    session.add_all(later_passes)
+    session.commit()
+    exec_app = client.app.routes[-1].app
+    exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=requester.id, claims=TIClaims())
+
+    response = client.get(
+        f"/execution/task-instances/previous/{requester.dag_id}/{requester.task_id}",
+        params={"logical_date": "2025-01-02T00:00:00Z"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_id"] == "old"
+    assert response.json()["region_index"] == 0
+
+
 def test_previous_ti_for_other_loop_task_returns_latest_pass(client, two_run_loop_tis):
     requester = two_run_loop_tis["current_other"][0]
     exec_app = client.app.routes[-1].app

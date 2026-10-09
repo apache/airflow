@@ -24,7 +24,7 @@ import { FiRepeat } from "react-icons/fi";
 
 import { useLoopSummary } from "src/queries/useLoopSummary";
 
-import { finalCriteria, reasonSentence } from "./LoopIterations/loopUtils";
+import { reasonSentence } from "./LoopIterations/loopUtils";
 
 export const useLoopOutcomeStats = ({
   dagId,
@@ -41,8 +41,6 @@ export const useLoopOutcomeStats = ({
   if (summary === undefined) {
     return [];
   }
-
-  const comparison = finalCriteria(summary);
 
   return [
     {
@@ -72,19 +70,5 @@ export const useLoopOutcomeStats = ({
           ? translate("loop.rules.boundedFor")
           : translate("loop.rules.whileUntil", { criteria: summary.exit_criteria_name })),
     },
-    ...(comparison === undefined
-      ? []
-      : [
-          {
-            label: translate("loop.target"),
-            value: (
-              <Text fontFamily="mono" fontSize="sm">
-                {`${comparison.field} ${comparison.op} ${String(comparison.target)}`}
-                {" · "}
-                {translate("loop.reached", { actual: String(comparison.actual) })}
-              </Text>
-            ),
-          },
-        ]),
   ];
 };

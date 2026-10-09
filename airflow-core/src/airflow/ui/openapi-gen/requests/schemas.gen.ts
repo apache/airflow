@@ -7827,12 +7827,15 @@ export const $TaskInstanceHistoryResponse = {
             type: 'integer',
             title: 'Region Index'
         },
-        loop_iterations: {
-            items: {
-                '$ref': '#/components/schemas/LoopIterationResponse'
-            },
-            type: 'array',
-            title: 'Loop Iterations'
+        loop_iteration: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/LoopIterationResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         start_date: {
             anyOf: [
@@ -8091,12 +8094,15 @@ export const $TaskInstanceResponse = {
             type: 'integer',
             title: 'Region Index'
         },
-        loop_iterations: {
-            items: {
-                '$ref': '#/components/schemas/LoopIterationResponse'
-            },
-            type: 'array',
-            title: 'Loop Iterations'
+        loop_iteration: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/LoopIterationResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         logical_date: {
             anyOf: [
@@ -11621,12 +11627,15 @@ export const $GanttTaskInstance = {
             type: 'integer',
             title: 'Region Index'
         },
-        loop_iterations: {
-            items: {
-                '$ref': '#/components/schemas/LoopIterationResponse'
-            },
-            type: 'array',
-            title: 'Loop Iterations'
+        loop_iteration: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/LoopIterationResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         map_index: {
             type: 'integer',
@@ -12093,29 +12102,6 @@ export const $LightGridTaskInstanceSummary = {
     description: 'Task Instance Summary model for the Grid UI.'
 } as const;
 
-export const $LoopCriteriaComparison = {
-    properties: {
-        field: {
-            type: 'string',
-            title: 'Field'
-        },
-        op: {
-            type: 'string',
-            title: 'Op'
-        },
-        target: {
-            title: 'Target'
-        },
-        actual: {
-            title: 'Actual'
-        }
-    },
-    type: 'object',
-    required: ['field', 'op'],
-    title: 'LoopCriteriaComparison',
-    description: 'Optional comparison details reported by a loop condition.'
-} as const;
-
 export const $LoopHistoryResponse = {
     properties: {
         dag_id: {
@@ -12146,19 +12132,12 @@ export const $LoopInvocationResponse = {
             type: 'string',
             format: 'uuid',
             title: 'Region Id'
-        },
-        parent_iterations: {
-            items: {
-                '$ref': '#/components/schemas/LoopIterationResponse'
-            },
-            type: 'array',
-            title: 'Parent Iterations'
         }
     },
     type: 'object',
-    required: ['region_id', 'parent_iterations'],
+    required: ['region_id'],
     title: 'LoopInvocationResponse',
-    description: 'An invocation and its enclosing loop iterations.'
+    description: 'One invocation of a loop in a Dag run.'
 } as const;
 
 export const $LoopIterationSummary = {
@@ -12171,36 +12150,6 @@ export const $LoopIterationSummary = {
             anyOf: [
                 {
                     '$ref': '#/components/schemas/TaskInstanceState'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        decision: {
-            anyOf: [
-                {
-                    type: 'string',
-                    enum: ['stop', 'continue']
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Decision'
-        },
-        is_tail: {
-            type: 'boolean',
-            title: 'Is Tail',
-            default: false
-        },
-        result: {
-            title: 'Result'
-        },
-        criteria: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/LoopCriteriaComparison'
                 },
                 {
                     type: 'null'
@@ -12278,7 +12227,7 @@ export const $LoopRunSummary = {
             anyOf: [
                 {
                     type: 'string',
-                    enum: ['criteria_met', 'cap_reached', 'not_converged', 'iteration_failed']
+                    enum: ['cap_reached', 'iteration_failed']
                 },
                 {
                     type: 'null'
@@ -12318,17 +12267,6 @@ export const $LoopSummaryResponse = {
         group_id: {
             type: 'string',
             title: 'Group Id'
-        },
-        doc_md: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Doc Md'
         },
         max_iterations: {
             type: 'integer',
@@ -12402,7 +12340,7 @@ export const $LoopSummaryResponse = {
             anyOf: [
                 {
                     type: 'string',
-                    enum: ['criteria_met', 'cap_reached', 'not_converged', 'iteration_failed']
+                    enum: ['cap_reached', 'iteration_failed']
                 },
                 {
                     type: 'null'

@@ -67,7 +67,7 @@ class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
     map_index: int
     region_id: RegionId = None
     region_index: RegionIndex = None
-    loop_iterations: list[LoopIterationResponse] = Field(default_factory=list)
+    loop_iteration: LoopIterationResponse | None = None
     logical_date: datetime | None
     run_after: datetime
     start_date: datetime | None

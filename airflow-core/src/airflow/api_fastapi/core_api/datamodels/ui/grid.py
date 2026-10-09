@@ -18,11 +18,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 from uuid import UUID
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.api_fastapi.core_api.datamodels.task_instances import LoopIterationResponse
 from airflow.utils.state import TaskInstanceState
 
 
@@ -48,33 +47,19 @@ class GridTISummaries(BaseModel):
     task_instances: list[LightGridTaskInstanceSummary]
 
 
-class LoopCriteriaComparison(BaseModel):
-    """Optional comparison details reported by a loop condition."""
-
-    field: str
-    op: str
-    target: Any = None
-    actual: Any = None
-
-
 class LoopIterationSummary(BaseModel):
     """Execution state for one existing iteration."""
 
     index: int
     state: TaskInstanceState | None = None
-    decision: Literal["stop", "continue"] | None = None
-    is_tail: bool = False
-    result: Any = None
-    criteria: LoopCriteriaComparison | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
 
 
 class LoopInvocationResponse(BaseModel):
-    """An invocation and its enclosing loop iterations."""
+    """One invocation of a loop in a Dag run."""
 
     region_id: UUID
-    parent_iterations: list[LoopIterationResponse]
 
 
 class LoopSummaryResponse(BaseModel):
@@ -83,7 +68,6 @@ class LoopSummaryResponse(BaseModel):
     dag_id: str
     run_id: str
     group_id: str
-    doc_md: str | None = None
     max_iterations: int
     iterations_ran: int
     status: Literal["running", "stopped_early", "ran_to_cap", "failed", "skipped", "removed"]
@@ -92,7 +76,7 @@ class LoopSummaryResponse(BaseModel):
     exit_task_id: str | None = None
     exit_criteria_doc: str | None = None
     exit_criteria_name: str | None = None
-    reason: Literal["criteria_met", "cap_reached", "not_converged", "iteration_failed"] | None = None
+    reason: Literal["cap_reached", "iteration_failed"] | None = None
     reason_task_id: str | None = None
     loop_region_id: UUID | None = None
     loop_regions: list[LoopInvocationResponse] = []
@@ -108,7 +92,7 @@ class LoopRunSummary(BaseModel):
     max_iterations: int
     iterations_ran: int
     status: Literal["running", "stopped_early", "ran_to_cap", "failed", "skipped", "removed"]
-    reason: Literal["criteria_met", "cap_reached", "not_converged", "iteration_failed"] | None = None
+    reason: Literal["cap_reached", "iteration_failed"] | None = None
     loop_region_id: UUID | None = None
 
 

@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 from sqlalchemy import select
 
@@ -25,7 +27,7 @@ from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
-from airflow.models.dynamic_region import AmbiguousProducerError, DynamicRegion
+from airflow.models.dynamic_region import AmbiguousProducerError, DynamicRegion, load_region_ancestry
 from airflow.models.task_coordinates import (
     TaskCoordinateResolver,
     build_coordinate_filters,
@@ -102,6 +104,34 @@ def test_mapped_task_loop_iteration_is_separate_from_map_index(dag_maker, sessio
 
     assert resolver.loop_iterations(ti) == [("body", 3)]
     assert resolver.public_map_index(ti) == 1
+
+
+@mock.patch("airflow.models.task_coordinates.load_region_ancestry", autospec=True)
+def test_prefetch_regions_loads_ancestry_once_per_run_for_loop_tasks(mock_load, loop_coordinates, session):
+    mock_load.side_effect = load_region_ancestry
+    dr, producer, consumer, previous, outside = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    resolver.prefetch_regions([producer, consumer, previous, outside])
+
+    mock_load.assert_called_once_with(
+        {producer.region_id, consumer.region_id, previous.region_id},
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        session=session,
+    )
+
+
+@mock.patch("airflow.models.task_coordinates.load_region_ancestry", autospec=True)
+def test_prefetch_regions_skips_mapped_tasks_outside_loops(mock_load, dag_maker, session):
+    with dag_maker("mapped-only", serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+    dr = dag_maker.create_dagrun()
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    resolver.prefetch_regions(dr.task_instances)
+
+    mock_load.assert_not_called()
 
 
 def test_removed_task_coordinates_degrade_to_stored_region_data(dag_maker, session):

@@ -55,11 +55,7 @@ describe("loop locale keys", () => {
 
   it.each([
     { reason: "cap_reached" },
-    { reason: "criteria_met" },
-    { exit_criteria_name: null, reason: "criteria_met" },
     { reason: "iteration_failed" },
-    { reason: "not_converged" },
-    { exit_criteria_name: null, reason: "not_converged" },
     { status: "running" },
     { status: "stopped_early" },
     { status: "ran_to_cap" },
@@ -73,16 +69,10 @@ describe("loop locale keys", () => {
     expect(sentence).not.toContain("{{");
   });
 
-  it.each(["notRun", "failed", "stop", "continue"])("resolves the %s decision label", (name) => {
-    expect(i18n.exists(`dag:loop.decision.${name}`)).toBe(true);
-  });
-
   it.each([
     "dag:loop.outcome",
     "dag:loop.iterations",
     "dag:loop.iteration",
-    "dag:loop.target",
-    "dag:loop.reached",
     "dag:loop.rules.behaviour",
     "dag:loop.rules.boundedFor",
     "dag:loop.rules.whileUntil",
@@ -95,7 +85,6 @@ describe("loop locale keys", () => {
     "dag:loop.history.iterationsAxis",
     "dag:loop.history.capLabel",
     "dag:loop.history.stats.medianIterations",
-    "dag:loop.history.stats.converged",
     "dag:loop.history.stats.capHits",
     "common:taskInstance.loopIterations",
   ])("defines %s in the English bundle", (key) => {

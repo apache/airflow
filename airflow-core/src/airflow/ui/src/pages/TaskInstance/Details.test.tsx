@@ -142,7 +142,7 @@ describe("Details loop context", () => {
   });
 
   it("shows the loop iteration separately from the map index", () => {
-    renderDetails(buildTaskInstance({ loop_iterations: [{ iteration: 2, loop_id: "loop" }], map_index: 8 }));
+    renderDetails(buildTaskInstance({ loop_iteration: { iteration: 2, loop_id: "loop" }, map_index: 8 }));
 
     const iterationRow = screen.getByRole("row", {
       name: new RegExp(`^${i18n.t("common:taskInstance.iteration")} \\(loop\\)`, "u"),

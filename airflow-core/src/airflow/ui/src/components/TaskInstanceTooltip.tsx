@@ -34,7 +34,7 @@ import { formatNumber, sortStateEntries, useDurationFormat } from "src/utils";
 
 /** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */
 type LightGridTaskInstanceSummaryWithWhen = {
-  readonly loop_iterations?: GanttTaskInstance["loop_iterations"];
+  readonly loop_iteration?: GanttTaskInstance["loop_iteration"];
   readonly queued_when?: string | null;
   readonly scheduled_when?: string | null;
 } & LightGridTaskInstanceSummary;
@@ -90,13 +90,14 @@ const TaskInstanceTooltip = ({
                   {translate("runId")}: {"dag_run_id" in taskInstance ? taskInstance.dag_run_id : runId}
                 </Text>
               ) : undefined}
-              {"loop_iterations" in taskInstance
-                ? taskInstance.loop_iterations?.map((loop) => (
-                    <Text key={loop.loop_id}>
-                      {translate("taskInstance.iteration")}: {loop.iteration} ({loop.loop_id})
-                    </Text>
-                  ))
-                : undefined}
+              {"loop_iteration" in taskInstance &&
+              taskInstance.loop_iteration !== null &&
+              taskInstance.loop_iteration !== undefined ? (
+                <Text>
+                  {translate("taskInstance.iteration")}: {taskInstance.loop_iteration.iteration} (
+                  {taskInstance.loop_iteration.loop_id})
+                </Text>
+              ) : undefined}
               {"loop_iterations_count" in taskInstance &&
               taskInstance.loop_iterations_count !== null &&
               taskInstance.loop_iterations_count !== undefined ? (

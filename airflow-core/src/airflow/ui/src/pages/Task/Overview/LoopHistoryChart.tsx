@@ -47,8 +47,7 @@ export const LoopHistoryChart = ({ groupId }: { readonly groupId: string }) => {
     return undefined;
   }
 
-  const converged = runs.filter((run) => run.reason === "criteria_met");
-  const capHits = runs.filter((run) => run.iterations_ran === run.max_iterations);
+  const capHits = runs.filter((run) => run.status === "ran_to_cap");
   const cap = runs.at(-1)?.max_iterations ?? 0;
 
   return (
@@ -61,14 +60,6 @@ export const LoopHistoryChart = ({ groupId }: { readonly groupId: string }) => {
           <Stat.Label>{translate("loop.history.stats.medianIterations")}</Stat.Label>
           <Stat.ValueText>{median(runs.map((run) => run.iterations_ran))}</Stat.ValueText>
         </Stat.Root>
-        {converged.length > 0 ? (
-          <Stat.Root size="sm">
-            <Stat.Label>{translate("loop.history.stats.converged")}</Stat.Label>
-            <Stat.ValueText>
-              {converged.length}/{runs.length}
-            </Stat.ValueText>
-          </Stat.Root>
-        ) : undefined}
         <Stat.Root size="sm">
           <Stat.Label>{translate("loop.history.stats.capHits")}</Stat.Label>
           <Stat.ValueText>{capHits.length}</Stat.ValueText>

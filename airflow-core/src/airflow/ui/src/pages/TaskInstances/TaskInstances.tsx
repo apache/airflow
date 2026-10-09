@@ -184,9 +184,11 @@ const taskInstanceColumns = ({
     header: translate("mapIndex"),
   },
   {
-    accessorKey: "loop_iterations",
+    accessorKey: "loop_iteration",
     cell: ({ row: { original } }) =>
-      original.loop_iterations?.map((loop) => `${loop.loop_id}: ${loop.iteration}`).join(" / "),
+      original.loop_iteration === null || original.loop_iteration === undefined
+        ? undefined
+        : `${original.loop_iteration.loop_id}: ${original.loop_iteration.iteration}`,
     enableSorting: false,
     header: translate("taskInstance.iteration"),
   },
@@ -405,10 +407,6 @@ export const TaskInstances = ({ extraFilter, loopGroupId }: TaskInstancesProps =
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
       loopId: runId === undefined ? undefined : loopGroupId,
-      loopRegionId:
-        runId === undefined || loopGroupId === undefined
-          ? undefined
-          : (searchParams.get(SearchParamsKeys.LOOP_REGION_ID) ?? undefined),
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
       ...operatorNameArg,
       orderBy,

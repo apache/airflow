@@ -65,11 +65,10 @@ class TaskCoordinateView:
             return self.resolver.public_map_index(self.value)
         if name == "rendered_map_index" and self.resolver.public_map_index(self.value) < 0:
             return getattr(self.value, "_rendered_map_index", None)
-        if name == "loop_iterations":
-            return [
-                {"loop_id": loop_id, "iteration": iteration}
-                for loop_id, iteration in self.resolver.loop_iterations(self.value)
-            ]
+        if name == "loop_iteration":
+            if (position := self.resolver.get_loop_iteration(self.value)) is None:
+                return None
+            return {"loop_id": position[0], "iteration": position[1]}
         return getattr(self.value, name)
 
 
@@ -110,7 +109,6 @@ def loop_iteration_filter(
     run_id: str,
     loop_id: str,
     iteration: int | None,
-    loop_region_id: UUID | None,
     session: Session,
 ) -> ColumnElement[bool]:
     regions = {
@@ -123,7 +121,7 @@ def loop_iteration_filter(
     loop_node: list[UUID] = []
     for region in regions.values():
         position = loop_position(regions, region.id, -1, loop_id)
-        if position is None or (loop_region_id is not None and position[0] != loop_region_id):
+        if position is None:
             continue
         if iteration is not None and region.node_id == loop_id:
             loop_node.append(region.id)

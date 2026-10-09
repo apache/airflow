@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from datetime import timedelta
 from operator import attrgetter
+from unittest import mock
 from uuid import uuid4
 
 import pendulum
@@ -28,6 +29,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.core_api.routes.ui import grid as grid_route
+from airflow.api_fastapi.core_api.routes.ui.grid import _build_ti_summaries
+from airflow.api_fastapi.core_api.services.ui.task_group import loop_metadata
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -1356,9 +1360,8 @@ class TestGetLoopSummaryEndpoint:
         assert summary["exit_criteria_name"] is None
         assert summary["iterations_ran"] == 3
         assert [iteration["index"] for iteration in summary["iterations"]] == [0, 1, 2]
-        assert all(iteration["criteria"] is None for iteration in summary["iterations"])
         family = summary["loop_region_id"]
-        assert summary["loop_regions"] == [{"region_id": family, "parent_iterations": []}]
+        assert summary["loop_regions"] == [{"region_id": family}]
         assert test_client.get(path, params={"loop_region_id": str(uuid4())}).status_code == 404
 
         gate = session.scalar(
@@ -1411,7 +1414,7 @@ class TestGetLoopSummaryEndpoint:
         summary = test_client.get(path).json()
 
         assert summary["loop_region_id"] == family
-        assert summary["loop_regions"] == [{"region_id": family, "parent_iterations": []}]
+        assert summary["loop_regions"] == [{"region_id": family}]
         assert [iteration["index"] for iteration in summary["iterations"]] == [0, 1, 2]
         assert test_client.get(path, params={"loop_region_id": str(fork.id)}).status_code == 404
 
@@ -1450,6 +1453,186 @@ class TestGetLoopSummaryEndpoint:
         assert response.json()[0]["loop_max_iterations"] == 3
         assert response.json()[0].get("loop_exit_task_id") is None
 
+    def test_loop_metadata_reads_no_gate_for_a_fixed_count_loop(self, executed_fixed_loop, session):
+        run = executed_fixed_loop
+        dag = DBDagBag().get_dag(run.created_dag_version_id, session=session)
+        group = dag.task_group.get_task_group_dict()["body"]
+        del group.dag.task_dict[group.gate_task_id]
+
+        assert loop_metadata(group) == {
+            "is_loop": True,
+            "loop_max_iterations": 3,
+            "loop_exit_task_id": None,
+            "loop_exit_criteria_doc": None,
+        }
+
+    def test_ti_summaries_stream_rows_after_the_first(self, executed_fixed_loop, session):
+        run = executed_fixed_loop
+        rows = session.execute(
+            select(
+                TaskInstance.task_id,
+                TaskInstance.region_id,
+                TaskInstance.region_index,
+                TaskInstance.state,
+                TaskInstance.dag_version_id,
+                TaskInstance.start_date,
+                TaskInstance.end_date,
+            )
+            .where(TaskInstance.dag_id == run.dag_id, TaskInstance.run_id == run.run_id)
+            .order_by(TaskInstance.task_id)
+        ).all()
+        consumed = []
+        consumed_when_dag_loaded = []
+
+        def stream():
+            for row in rows:
+                consumed.append(row)
+                yield row
+
+        def record_consumed_rows(*args, **kwargs):
+            consumed_when_dag_loaded.append(len(consumed))
+            return real_get_serdag(*args, **kwargs)
+
+        real_get_serdag = grid_route._get_serdag
+        with mock.patch.object(grid_route, "_get_serdag", autospec=True, side_effect=record_consumed_rows):
+            summary = _build_ti_summaries(run.dag_id, run.run_id, stream(), session, dag_bag=DBDagBag())
+
+        assert consumed_when_dag_loaded == [1]
+        assert len(consumed) == len(rows)
+        body = next(ti for ti in summary["task_instances"] if ti["task_id"] == "body")
+        assert body["loop_iterations_count"] == 3
+
+    def test_grid_does_not_count_an_iteration_that_has_not_started(
+        self, test_client, executed_fixed_loop, session
+    ):
+        run = executed_fixed_loop
+        for ti in session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == run.dag_id,
+                TaskInstance.run_id == run.run_id,
+                TaskInstance.region_index == 2,
+            )
+        ):
+            ti.state = None
+            ti.start_date = None
+            ti.end_date = None
+        session.commit()
+
+        response = test_client.get(f"/grid/ti_summaries/{run.dag_id}", params={"run_ids": [run.run_id]})
+        tasks = json.loads(response.text)["task_instances"]
+        summary = test_client.get(f"/grid/loop/{run.dag_id}/{run.run_id}/body").json()
+
+        assert next(ti for ti in tasks if ti["task_id"] == "body")["loop_iterations_count"] == 2
+        assert summary["iterations_ran"] == 2
+
+    def test_loop_history_reads_runs_in_a_fixed_number_of_queries(self, test_client, dag_maker, session):
+        @task
+        def work():
+            return 1
+
+        @task_group
+        def body():
+            work()
+
+        with dag_maker(serialized=True) as dag:
+            body.loop(max_iterations=2)
+        runs = []
+        for index in range(3):
+            run = dag_maker.create_dagrun(
+                run_id=f"history_{index}", logical_date=timezone.datetime(2025, 1, 1 + index)
+            )
+            region = DynamicRegion.get_or_create(
+                dag_id=run.dag_id, run_id=run.run_id, node_id="body", session=session
+            )
+            session.add(region)
+            session.flush()
+            for ti in run.task_instances:
+                ti.region_id, ti.region_index, ti.state = region.id, 0, TaskInstanceState.SUCCESS
+                later = TaskInstance(
+                    task=dag.get_task(ti.task_id),
+                    run_id=run.run_id,
+                    dag_version_id=ti.dag_version_id,
+                    region_id=region.id,
+                    region_index=1,
+                    state=TaskInstanceState.FAILED
+                    if index == 1 and ti.task_id == "body.work"
+                    else TaskInstanceState.SUCCESS,
+                )
+                session.add(later)
+            runs.append(run)
+        session.commit()
+        path = f"/grid/loop-history/{dag.dag_id}/body"
+
+        with (
+            capture_orm_selects("task_instance") as one_run_tis,
+            capture_orm_selects("dynamic_region") as one_run_regions,
+        ):
+            test_client.get(path, params={"limit": 1})
+        with (
+            capture_orm_selects("task_instance") as all_runs_tis,
+            capture_orm_selects("dynamic_region") as all_runs_regions,
+        ):
+            response = test_client.get(path, params={"limit": 3})
+
+        assert len(all_runs_tis) == len(one_run_tis)
+        assert len(all_runs_regions) == len(one_run_regions)
+        assert [(run["run_id"], run["status"]) for run in response.json()["runs"]] == [
+            ("history_0", "ran_to_cap"),
+            ("history_1", "failed"),
+            ("history_2", "ran_to_cap"),
+        ]
+
+    def test_loop_blocked_by_an_upstream_failure_is_failed_without_a_failing_task(
+        self, test_client, dag_maker, session
+    ):
+        @task
+        def work():
+            return 1
+
+        @task_group
+        def body():
+            work()
+
+        with dag_maker():
+            body.loop(max_iterations=3)
+        run = dag_maker.create_dagrun()
+        for ti in run.get_task_instances(session=session):
+            ti.state = TaskInstanceState.UPSTREAM_FAILED
+        session.commit()
+
+        summary = test_client.get(f"/grid/loop/{run.dag_id}/{run.run_id}/body").json()
+
+        assert summary["status"] == "failed"
+        assert summary["iterations_ran"] == 0
+        assert summary["failed_at_iteration"] is None
+        assert summary["reason"] is None
+        assert summary["reason_task_id"] is None
+
+    def test_loop_failure_names_the_task_that_failed_not_its_upstream_failed_neighbour(
+        self, test_client, executed_fixed_loop, session
+    ):
+        run = executed_fixed_loop
+        for task_id, state in (
+            ("body.work", TaskInstanceState.FAILED),
+            ("body.__loop_gate", TaskInstanceState.UPSTREAM_FAILED),
+        ):
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.run_id == run.run_id,
+                    TaskInstance.task_id == task_id,
+                    TaskInstance.region_index == 1,
+                )
+            )
+            ti.state = state
+        session.commit()
+
+        summary = test_client.get(f"/grid/loop/{run.dag_id}/{run.run_id}/body").json()
+
+        assert summary["status"] == "failed"
+        assert summary["failed_at_iteration"] == 1
+        assert summary["reason"] == "iteration_failed"
+        assert summary["reason_task_id"] == "body.work"
+
     def test_loop_summary_missing_run(self, test_client):
         assert test_client.get("/grid/loop/absent/run/body").status_code == 404
 
@@ -1472,7 +1655,6 @@ class TestGetLoopSummaryEndpoint:
         assert response.status_code == 200, response.text
         assert response.json()["status"] == "stopped_early"
         assert response.json()["reason"] is None
-        assert response.json()["iterations"][0]["decision"] is None
 
     def test_loop_summary_and_grid_do_not_count_mapped_slots_as_iterations(self, test_client, dag_maker):
         @task
@@ -1525,7 +1707,6 @@ class TestGetLoopSummaryEndpoint:
         assert response.status_code == 200, response.text
         assert response.json()["status"] == "removed"
         assert response.json()["max_iterations"] == 3
-        assert response.json()["doc_md"] == "Repeat the work in this run's definition."
         assert [iteration["state"] for iteration in response.json()["iterations"]] == ["removed"] * 3
 
     def test_condition_docstring_reaches_loop_summary_and_structure(self, test_client, dag_maker):

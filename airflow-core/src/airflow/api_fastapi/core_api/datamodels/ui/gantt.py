@@ -20,8 +20,6 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import Field
-
 from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.task_instances import LoopIterationResponse
@@ -34,7 +32,7 @@ class GanttTaskInstance(OmitsMissingRegion, BaseModel):
     id: UUID
     region_id: RegionId = None
     region_index: RegionIndex = None
-    loop_iterations: list[LoopIterationResponse] = Field(default_factory=list)
+    loop_iteration: LoopIterationResponse | None = None
     map_index: int
     task_id: str
     task_display_name: str

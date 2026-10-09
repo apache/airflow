@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -46,35 +46,7 @@ vi.mock("react-chartjs-2", () => ({
 const Location = () => <output data-testid="location">{useLocation().search}</output>;
 
 describe("LoopHistoryChart", () => {
-  it("does not report zero convergence when successful gate decisions are unknown", () => {
-    vi.mocked(useLoopHistory).mockReturnValue({
-      data: {
-        dag_id: "dag",
-        group_id: "loop",
-        runs: [
-          {
-            iterations_ran: 2,
-            max_iterations: 5,
-            reason: null,
-            run_after: "2026-09-28T00:00:00Z",
-            run_id: "run",
-            status: "stopped_early",
-          },
-        ],
-      },
-    } as ReturnType<typeof useLoopHistory>);
-    render(
-      <BaseWrapper>
-        <MemoryRouter>
-          <LoopHistoryChart groupId="loop" />
-        </MemoryRouter>
-      </BaseWrapper>,
-    );
-    expect(screen.getByTestId("history-chart")).toBeInTheDocument();
-    expect(screen.queryByText("loop.history.stats.converged")).not.toBeInTheDocument();
-  });
-
-  it("counts runs that used every allowed iteration as cap hits whatever the recorded reason", () => {
+  it("counts only runs that ran to the cap as cap hits", () => {
     vi.mocked(useLoopHistory).mockReturnValue({
       data: {
         dag_id: "dag",
@@ -95,6 +67,22 @@ describe("LoopHistoryChart", () => {
             run_after: "2026-09-29T00:00:00Z",
             run_id: "early",
             status: "stopped_early",
+          },
+          {
+            iterations_ran: 3,
+            max_iterations: 3,
+            reason: "iteration_failed",
+            run_after: "2026-09-30T00:00:00Z",
+            run_id: "failed-on-last",
+            status: "failed",
+          },
+          {
+            iterations_ran: 3,
+            max_iterations: 3,
+            reason: null,
+            run_after: "2026-10-01T00:00:00Z",
+            run_id: "still-running",
+            status: "running",
           },
         ],
       },

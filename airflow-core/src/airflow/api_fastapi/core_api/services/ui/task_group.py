@@ -52,12 +52,12 @@ def _ui_colors(node) -> dict[str, str]:
 def loop_metadata(task_group) -> dict:
     if not isinstance(task_group, SerializedLoopTaskGroup):
         return {}
-    gate = task_group.dag.get_task(task_group.gate_task_id)
+    gate = task_group.dag.task_dict.get(task_group.gate_task_id) if task_group.has_until else None
     return {
         "is_loop": True,
         "loop_max_iterations": task_group.max_iterations,
-        "loop_exit_task_id": gate.task_id if task_group.has_until else None,
-        "loop_exit_criteria_doc": gate.doc_md if task_group.has_until else None,
+        "loop_exit_task_id": task_group.gate_task_id if gate is not None else None,
+        "loop_exit_criteria_doc": gate.doc_md if gate is not None else None,
     }
 
 

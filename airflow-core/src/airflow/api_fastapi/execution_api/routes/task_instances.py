@@ -1563,12 +1563,8 @@ def get_previous_task_instance(
         query = query.where(TI.state == state)
 
     resolver = TaskCoordinateResolver(dag_bag, session)
-    requester = session.get(TI, token.id)
-    iterations = (
-        resolver.loop_iterations(requester)
-        if requester is not None and (requester.dag_id, requester.task_id) == (dag_id, task_id)
-        else []
-    )
+    requester: TI | None = None
+    iterations: list[tuple[str, int]] | None = None
     before = logical_date
     while True:
         candidates = (query if before is None else query.where(DR.logical_date < before)).order_by(
@@ -1580,11 +1576,24 @@ def get_previous_task_instance(
         ti, public_index = row
         if ti.region_id == SENTINEL_REGION_ID:
             break
-        if iterations:
-            with contextlib.closing(
-                session.execute(candidates.limit(_MAX_PREVIOUS_TIS_SCANNED).execution_options(yield_per=50))
-            ) as rows:
-                row = next((r for r in rows if _has_loop_iterations(resolver, r[0], iterations)), None)
+        if iterations is None:
+            requester = session.get(TI, token.id)
+            iterations = (
+                resolver.loop_iterations(requester)
+                if requester is not None and (requester.dag_id, requester.task_id) == (dag_id, task_id)
+                else []
+            )
+        if iterations and requester is not None:
+            requester_task = resolver.get_task(
+                requester.dag_id, requester.run_id, requester.task_id, dag_version_id=requester.dag_version_id
+            )
+            if not requester_task.get_needs_expansion():
+                candidates = candidates.where(
+                    TI.region_id != SENTINEL_REGION_ID, TI.region_index == iterations[-1][1]
+                )
+            rows = session.execute(candidates.limit(_MAX_PREVIOUS_TIS_SCANNED)).all()
+            resolver.prefetch_regions([r[0] for r in rows])
+            row = next((r for r in rows if _has_loop_iterations(resolver, r[0], iterations)), None)
             if row is None:
                 return None
             ti, public_index = row

@@ -88,7 +88,7 @@ vi.mock("src/components/DataTable", () => ({
     const renderedColumns = columns.filter(
       (column) => column.accessorKey === "rendered_map_index" || column.accessorKey === "dag_run_id",
     );
-    const iterationColumn = columns.find((column) => column.accessorKey === "loop_iterations");
+    const iterationColumn = columns.find((column) => column.accessorKey === "loop_iteration");
 
     return (
       <table>
@@ -194,21 +194,18 @@ describe("TaskInstances", () => {
     );
   });
 
-  it("shows nested loop iterations separately from mapped slots", () => {
+  it("shows the loop iteration separately from mapped slots", () => {
     vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
       getTaskInstancesResponse([
         {
           ...mappedTaskInstance,
-          loop_iterations: [
-            { iteration: 2, loop_id: "outer" },
-            { iteration: 3, loop_id: "outer.inner" },
-          ],
+          loop_iteration: { iteration: 2, loop_id: "loop" },
         },
       ]),
     );
     render(<TaskInstances />, { wrapper: Wrapper });
     expect(screen.getByRole("link", { name: "1" })).toBeInTheDocument();
-    expect(screen.getByText("outer: 2 / outer.inner: 3")).toBeInTheDocument();
+    expect(screen.getByText("loop: 2")).toBeInTheDocument();
   });
 
   it("shows the stored rendered map index label of an unmapped task instance", () => {
@@ -221,14 +218,13 @@ describe("TaskInstances", () => {
 
   it("keeps loop iteration filters separate from mapped slot filters", () => {
     mockParams.groupId = "loop";
-    mockSearchParams = new URLSearchParams("iteration=3&map_index=1&loop_region_id=selected-region");
+    mockSearchParams = new URLSearchParams("iteration=3&map_index=1");
     vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
     render(<TaskInstances loopGroupId="loop" />, { wrapper: Wrapper });
     expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
       expect.objectContaining({
         iteration: 3,
         loopId: "loop",
-        loopRegionId: "selected-region",
         mapIndex: [1],
       }),
       undefined,
@@ -236,11 +232,11 @@ describe("TaskInstances", () => {
     );
   });
   it("ignores stale loop selectors outside a loop group", () => {
-    mockSearchParams = new URLSearchParams("iteration=3&loop_region_id=old-family");
+    mockSearchParams = new URLSearchParams("iteration=3");
     vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
     render(<TaskInstances />, { wrapper: Wrapper });
     expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
-      expect.objectContaining({ iteration: undefined, loopId: undefined, loopRegionId: undefined }),
+      expect.objectContaining({ iteration: undefined, loopId: undefined }),
       undefined,
       expect.any(Object),
     );

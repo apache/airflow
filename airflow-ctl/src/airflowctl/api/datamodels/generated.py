@@ -2645,7 +2645,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     map_index: Annotated[int, Field(title="Map Index")]
     region_id: Annotated[UUID | None, Field(title="Region Id")] = None
     region_index: Annotated[int | None, Field(title="Region Index")] = None
-    loop_iterations: Annotated[list[LoopIterationResponse] | None, Field(title="Loop Iterations")] = None
+    loop_iteration: LoopIterationResponse | None = None
     start_date: Annotated[datetime | None, Field(title="Start Date")]
     end_date: Annotated[datetime | None, Field(title="End Date")]
     duration: Annotated[float | None, Field(title="Duration")]
@@ -2690,7 +2690,7 @@ class TaskInstanceResponse(BaseModel):
     map_index: Annotated[int, Field(title="Map Index")]
     region_id: Annotated[UUID | None, Field(title="Region Id")] = None
     region_index: Annotated[int | None, Field(title="Region Index")] = None
-    loop_iterations: Annotated[list[LoopIterationResponse] | None, Field(title="Loop Iterations")] = None
+    loop_iteration: LoopIterationResponse | None = None
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     run_after: Annotated[datetime, Field(title="Run After")]
     start_date: Annotated[datetime | None, Field(title="Start Date")]

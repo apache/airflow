@@ -34,7 +34,7 @@ export type GanttDataItem = {
   end_when?: string | null;
   isGroup?: boolean | null;
   isMapped?: boolean | null;
-  loopIterations?: GanttTaskInstance["loop_iterations"];
+  loopIteration?: GanttTaskInstance["loop_iteration"];
   mapIndex?: number;
   /** Source try times for tooltips (matches TaskInstance `*_when` fields). */
   queued_when?: string | null;
@@ -148,7 +148,7 @@ export const transformGanttData = ({
               endDate ?? (hasTaskRunning && startDate !== null ? new Date().toISOString() : null);
 
             const tryMetadata = {
-              loopIterations: tryRow.loop_iterations,
+              loopIteration: tryRow.loop_iteration,
               mapIndex: tryRow.map_index,
               regionId: tryRow.region_id,
               regionIndex: tryRow.region_index,

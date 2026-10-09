@@ -9203,15 +9203,6 @@ paths:
             minimum: 0
           - type: 'null'
           title: Iteration
-      - name: loop_region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Loop Region Id
       - name: task_id
         in: query
         required: false
@@ -17768,11 +17759,10 @@ components:
         region_index:
           type: integer
           title: Region Index
-        loop_iterations:
-          items:
-            $ref: '#/components/schemas/LoopIterationResponse'
-          type: array
-          title: Loop Iterations
+        loop_iteration:
+          anyOf:
+          - $ref: '#/components/schemas/LoopIterationResponse'
+          - type: 'null'
         start_date:
           anyOf:
           - type: string
@@ -17941,11 +17931,10 @@ components:
         region_index:
           type: integer
           title: Region Index
-        loop_iterations:
-          items:
-            $ref: '#/components/schemas/LoopIterationResponse'
-          type: array
-          title: Loop Iterations
+        loop_iteration:
+          anyOf:
+          - $ref: '#/components/schemas/LoopIterationResponse'
+          - type: 'null'
         logical_date:
           anyOf:
           - type: string

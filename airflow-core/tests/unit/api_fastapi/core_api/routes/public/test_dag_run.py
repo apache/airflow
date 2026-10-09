@@ -2285,6 +2285,10 @@ class TestClearDagRun:
         work = [row for row in response.json()["task_instances"] if row["task_id"] == "body.work"]
         assert {row["region_index"] for row in work} == {0, 1}
         assert {row["map_index"] for row in work} == {-1}
+        assert all(
+            row["loop_iteration"] == {"loop_id": loop.group_id, "iteration": row["region_index"]}
+            for row in work
+        )
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run_dry_run_response_has_full_task_instance_fields(self, test_client):

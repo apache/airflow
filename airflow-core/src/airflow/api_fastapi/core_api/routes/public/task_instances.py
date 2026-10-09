@@ -642,7 +642,6 @@ def get_task_instances(
     ),
     loop_id: Annotated[str | None, Query()] = None,
     iteration: Annotated[int | None, Query(ge=0)] = None,
-    loop_region_id: Annotated[UUID | None, Query()] = None,
 ) -> TaskInstanceCollectionResponse:
     """
     Get list of task instances.
@@ -663,8 +662,8 @@ def get_task_instances(
     use_cursor = cursor is not None
     dag_run = None
     query = add_public_map_index(eager_load_task_instance_for_validation(select(TI)))
-    if loop_id is None and (iteration is not None or loop_region_id is not None):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "iteration and loop_region_id require loop_id")
+    if loop_id is None and iteration is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "iteration requires loop_id")
     if loop_id is not None:
         if dag_id == "~" or dag_run_id == "~":
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "loop_id requires a specific Dag run")
@@ -674,7 +673,6 @@ def get_task_instances(
                 run_id=dag_run_id,
                 loop_id=loop_id,
                 iteration=iteration,
-                loop_region_id=loop_region_id,
                 session=session,
             )
         )

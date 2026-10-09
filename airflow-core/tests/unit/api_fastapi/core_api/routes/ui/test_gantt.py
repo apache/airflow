@@ -52,7 +52,7 @@ TASK_DISPLAY_NAME_3 = "task3_display_name"
 MAPPED_TASK_ID = "mapped_task"
 
 GANTT_TASK_1 = {
-    "loop_iterations": [],
+    "loop_iteration": None,
     "id": ANY,
     "map_index": -1,
     "task_id": "task",
@@ -68,7 +68,7 @@ GANTT_TASK_1 = {
 }
 
 GANTT_TASK_2 = {
-    "loop_iterations": [],
+    "loop_iteration": None,
     "id": ANY,
     "map_index": -1,
     "task_id": "task2",
@@ -84,7 +84,7 @@ GANTT_TASK_2 = {
 }
 
 GANTT_TASK_3 = {
-    "loop_iterations": [],
+    "loop_iteration": None,
     "id": ANY,
     "map_index": -1,
     "task_id": "task3",
@@ -375,7 +375,7 @@ class TestGetGanttDataEndpoint:
         assert {row["region_id"] for row in rows} == {str(first.region_id)}
         assert {row["map_index"] for row in rows} == {-1}
         assert all(
-            row["loop_iterations"] == [{"loop_id": "body", "iteration": row["region_index"]}] for row in rows
+            row["loop_iteration"] == {"loop_id": "body", "iteration": row["region_index"]} for row in rows
         )
 
     def test_should_response_401(self, unauthenticated_test_client):

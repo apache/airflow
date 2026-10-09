@@ -48,7 +48,7 @@ class TaskInstanceHistoryResponse(OmitsMissingRegion, BaseModel):
     map_index: int
     region_id: RegionId = None
     region_index: RegionIndex = None
-    loop_iterations: list[LoopIterationResponse] = Field(default_factory=list)
+    loop_iteration: LoopIterationResponse | None = None
     start_date: datetime | None
     end_date: datetime | None
     duration: float | None
