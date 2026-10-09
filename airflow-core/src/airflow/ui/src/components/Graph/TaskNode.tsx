@@ -159,6 +159,7 @@ export const TaskNode = ({
                   isMapped={isMapped}
                   isOpen={isOpen}
                   label={displayLabel}
+                  loopIterationsRan={taskInstance?.loop_iterations_count}
                   loopMaxIterations={loopMaxIterations}
                   setupTeardownType={setupTeardownType}
                 />

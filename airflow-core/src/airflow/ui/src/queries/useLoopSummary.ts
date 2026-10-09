@@ -51,7 +51,7 @@ export const useLoopSummary = ({
     {
       dagId,
       groupId,
-      loopRegionId: searchParams.get(SearchParamsKeys.LOOP_REGION_ID) ?? undefined,
+      loopRegionId: searchParams.get(SearchParamsKeys.REGION_ID) ?? undefined,
       runId,
     },
     undefined,

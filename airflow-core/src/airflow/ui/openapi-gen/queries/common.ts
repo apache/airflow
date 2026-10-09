@@ -284,16 +284,17 @@ export const UseDagRunServiceGetDagRunStatsKeyFn = ({ dagId, dagRunId }: {
 export type DagRunServiceGetExecutionDefaultResponse = Awaited<ReturnType<typeof DagRunService.getExecution>>;
 export type DagRunServiceGetExecutionQueryResult<TData = DagRunServiceGetExecutionDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagRunServiceGetExecutionKey = "DagRunServiceGetExecution";
-export const UseDagRunServiceGetExecutionKeyFn = ({ dagId, dagRunId, limit, offset, regionId, regionIndex, taskId, tryNumber }: {
+export const UseDagRunServiceGetExecutionKeyFn = ({ dagId, dagRunId, limit, offset, orderBy, regionId, regionIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   limit?: number;
   offset?: number;
+  orderBy?: string[];
   regionId?: string;
   regionIndex?: number;
   taskId?: string;
   tryNumber?: number;
-}, queryKey?: Array<unknown>) => [useDagRunServiceGetExecutionKey, ...(queryKey ?? [{ dagId, dagRunId, limit, offset, regionId, regionIndex, taskId, tryNumber }])];
+}, queryKey?: Array<unknown>) => [useDagRunServiceGetExecutionKey, ...(queryKey ?? [{ dagId, dagRunId, limit, offset, orderBy, regionId, regionIndex, taskId, tryNumber }])];
 export type ExperimentalServiceWaitDagRunUntilFinishedDefaultResponse = Awaited<ReturnType<typeof ExperimentalService.waitDagRunUntilFinished>>;
 export type ExperimentalServiceWaitDagRunUntilFinishedQueryResult<TData = ExperimentalServiceWaitDagRunUntilFinishedDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useExperimentalServiceWaitDagRunUntilFinishedKey = "ExperimentalServiceWaitDagRunUntilFinished";

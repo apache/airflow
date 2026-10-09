@@ -339,9 +339,6 @@ export const getGanttSegmentTo = ({
   // Clone the pre-parsed params so mutations don't leak across segments.
   const searchParams = new URLSearchParams(baseSearchParams);
 
-  searchParams.delete(SearchParamsKeys.ITERATION);
-  searchParams.delete(SearchParamsKeys.LOOP_REGION_ID);
-
   if (item.regionId !== undefined && item.regionIndex !== undefined) {
     searchParams.set("region_id", item.regionId);
     searchParams.set("region_index", item.regionIndex.toString());

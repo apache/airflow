@@ -38,7 +38,6 @@ export const GroupTaskInstance = () => {
   const gridTISummaries = summariesByRunId.get(runId);
   const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === groupId);
 
-  // A looped group's iteration view lives on this same tab -- see GroupTaskInstances.
   const tabs = [{ icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" }];
 
   return (

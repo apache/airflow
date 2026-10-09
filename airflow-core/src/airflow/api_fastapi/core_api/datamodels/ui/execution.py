@@ -37,6 +37,7 @@ class ExecutionTaskResponse(OmitsMissingRegion, BaseModel):
     region_id: RegionId = None
     region_index: RegionIndex = None
     map_index: int
+    in_loop: bool = False
     try_number: int
     state: TaskInstanceState | None
     start_date: datetime | None

@@ -237,30 +237,4 @@ describe("TaskInstances", () => {
     render(<TaskInstances />, { wrapper: Wrapper });
     expect(screen.getByText("eu-west")).toBeInTheDocument();
   });
-
-  it("keeps loop iteration filters separate from mapped slot filters", () => {
-    mockParams.groupId = "loop";
-    mockSearchParams = new URLSearchParams("iteration=3&map_index=1");
-    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
-    render(<TaskInstances loopGroupId="loop" />, { wrapper: Wrapper });
-    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        iteration: 3,
-        loopId: "loop",
-        mapIndex: [1],
-      }),
-      undefined,
-      expect.any(Object),
-    );
-  });
-  it("ignores stale loop selectors outside a loop group", () => {
-    mockSearchParams = new URLSearchParams("iteration=3");
-    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
-    render(<TaskInstances />, { wrapper: Wrapper });
-    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
-      expect.objectContaining({ iteration: undefined, loopId: undefined }),
-      undefined,
-      expect.any(Object),
-    );
-  });
 });

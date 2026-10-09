@@ -21,6 +21,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 
+import { clearCoordinates } from "src/constants/regions";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 
 import { GridButton } from "./GridButton";
@@ -44,11 +45,7 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
   const [searchParams] = useSearchParams();
 
   const isSelected = runId === run.run_id;
-  const targetSearchParams = new URLSearchParams(searchParams);
-
-  for (const key of ["try_number", "region_id", "region_index", "iteration", "loop_region_id"]) {
-    targetSearchParams.delete(key);
-  }
+  const targetSearchParams = clearCoordinates(new URLSearchParams(searchParams));
   const search = targetSearchParams.toString();
 
   return (
