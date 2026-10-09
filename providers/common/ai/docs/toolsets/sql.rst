@@ -36,7 +36,9 @@ Curated toolset wrapping
      - Executes a SQL query and returns bounded, columnar JSON (see
        :ref:`bounded-query-results`)
    * - ``check_query``
-     - Validates SQL syntax without executing it
+     - Validates SQL syntax without executing it, with the same statement and
+       ``allowed_tables`` rules as ``query``, so it accepts writes only when
+       ``allow_writes=True``
 
 .. code-block:: python
 

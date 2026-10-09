@@ -23,8 +23,8 @@ min_airflow_version: "3.3"
 # JAR manifest. The render hook fails if the two disagree.
 supervisor_schema_version: "2026-10-30"
 
-# The runtime terminates a task with SucceedTask, RetryTask, or TaskState (failed/removed); it does
-# not yet emit skipped, DeferTask, RescheduleTask, or AwaitInputTask.
+# The runtime terminates a task with SucceedTask, RetryTask, DeferTask, or TaskState
+# (failed/skipped/removed); it does not yet emit RescheduleTask or AwaitInputTask.
 states:
   success:
     supported: true
@@ -37,11 +37,13 @@ states:
     since: "3.3"
     note: "RetryTask"
   skipped:
-    supported: false
-    note: "runtime does not emit TaskState skipped yet"
+    supported: true
+    since: "3.4"
+    note: "a TriggerDagRun task that skips an existing run"
   deferred:
-    supported: false
-    note: "runtime does not emit DeferTask yet"
+    supported: true
+    since: "3.4"
+    note: "a TriggerDagRun task that waits with deferrable"
   up_for_reschedule:
     supported: false
     note: "runtime does not emit RescheduleTask yet"
@@ -107,7 +109,9 @@ capabilities:
     supported: true
     since: "3.4"
   branching:
-    supported: false
+    supported: true
+    since: "3.4"
+    note: "DagDef.If and DagDef.Switch, or @Builder.If and @Builder.Switch"
   dag-test:
     supported: false
   task-group:

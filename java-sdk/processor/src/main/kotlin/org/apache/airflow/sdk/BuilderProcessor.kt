@@ -30,6 +30,7 @@ import com.squareup.javapoet.TypeName
 import com.squareup.javapoet.TypeSpec
 import com.squareup.javapoet.WildcardTypeName
 import org.apache.airflow.sdk.internal.ArgValues
+import org.apache.airflow.sdk.internal.DagSource
 import org.apache.airflow.sdk.internal.Field
 import org.apache.airflow.sdk.internal.FieldType
 import org.apache.airflow.sdk.internal.GROUP_ID
@@ -48,6 +49,7 @@ import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
 import javax.annotation.processing.SupportedSourceVersion
 import javax.lang.model.SourceVersion
+import javax.lang.model.element.AnnotationMirror
 import javax.lang.model.element.AnnotationValue
 import javax.lang.model.element.Element
 import javax.lang.model.element.ElementKind
@@ -55,8 +57,10 @@ import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
 import javax.lang.model.element.VariableElement
+import javax.lang.model.type.DeclaredType
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
+import javax.lang.model.type.WildcardType
 import javax.tools.Diagnostic
 import java.lang.reflect.Modifier as ReflectModifier
 import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
@@ -95,6 +99,8 @@ import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
 @SupportedAnnotationTypes(
   "org.apache.airflow.sdk.Builder.Dag",
   "org.apache.airflow.sdk.Builder.Task",
+  "org.apache.airflow.sdk.Builder.If",
+  "org.apache.airflow.sdk.Builder.Switch",
   "org.apache.airflow.sdk.Builder.TaskGroup",
   "org.apache.airflow.sdk.Builder.TaskHandler",
   "org.apache.airflow.sdk.Builder.Deps",
@@ -249,7 +255,13 @@ class BuilderProcessor : AbstractProcessor() {
         .methodBuilder("build")
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
         .returns(DAG_DEF_TYPE)
-        .addStatement($$"var dag = new $T($S)", DAG_DEF_TYPE, ann.id.ifBlank { el.simpleName })
+        .addStatement(
+          $$"var dag = $T.declaredBy(new $T($S), $T.class)",
+          DAG_SOURCE_TYPE,
+          DAG_DEF_TYPE,
+          ann.id.ifBlank { el.simpleName },
+          ClassName.get(el),
+        )
     explicitConfig(el, DAG_ANNOTATION, DAG_STRUCTURAL_ATTRIBUTES, SchemaFields.DAG).forEach { (key, value) ->
       buildMethod.addStatement($$"dag.config($S, $L)", key, value)
     }
@@ -266,7 +278,7 @@ class BuilderProcessor : AbstractProcessor() {
     )
     builderClass.addMethod(buildMethod.build())
 
-    declarations.forEach { builderClass.addType(buildTask(it)) }
+    declarations.filterNot { it.kind == TaskKind.TRIGGER }.forEach { builderClass.addType(buildTask(it)) }
     return builderClass.build()
   }
 
@@ -353,25 +365,39 @@ class BuilderProcessor : AbstractProcessor() {
       MethodSpec
         .methodBuilder(decl.method.simpleName.toString())
         .addModifiers(Modifier.PUBLIC, Modifier.DEFAULT)
-        .returns(ParameterizedTypeName.get(TASK_HANDLE_TYPE, TypeName.get(decl.method.returnType).boxIfPossible()))
+        .returns(
+          when {
+            decl.kind.refType != null -> decl.kind.refType
+            decl.kind == TaskKind.TRIGGER -> ParameterizedTypeName.get(TASK_HANDLE_TYPE, VOID_TYPE)
+            else -> ParameterizedTypeName.get(TASK_HANDLE_TYPE, TypeName.get(decl.method.returnType).boxIfPossible())
+          },
+        )
     decl.dataParams.forEach { method.addParameter(inType(it.type), it.name) }
     val def = taskDefCode(decl, CodeBlock.of($$"$T.$L", builderName, decl.className))
     // The view knows the group it belongs to, so the recorder is told where
     // the task goes instead of deriving it from the task's ID.
     val group = if (inGroup) CodeBlock.of("groupId()") else CodeBlock.of($$"$S", "")
+    val wrap = { call: CodeBlock ->
+      decl.kind.refType?.let { CodeBlock.of($$"$T.of($L)", it, call) } ?: call
+    }
     if (decl.dataParams.isEmpty()) {
-      method.addStatement($$"return $T.node($L, $L)", REFS_TYPE, group, def)
+      method.addStatement($$"return $L", wrap(CodeBlock.of($$"$T.node($L, $L)", REFS_TYPE, group, def)))
     } else {
       // The parameter names ride along so the serialized Dag can name each
       // argument, as the binding spec ADR-0007 defines requires.
       method.addStatement(
-        $$"return $T.call($L, $L, $T.of($L), $L)",
-        REFS_TYPE,
-        group,
-        def,
-        LIST_TYPE,
-        CodeBlock.join(decl.dataParams.map { CodeBlock.of($$"$S", it.name) }, ", "),
-        decl.dataParams.joinToString { it.name },
+        $$"return $L",
+        wrap(
+          CodeBlock.of(
+            $$"$T.call($L, $L, $T.of($L), $L)",
+            REFS_TYPE,
+            group,
+            def,
+            LIST_TYPE,
+            CodeBlock.join(decl.dataParams.map { CodeBlock.of($$"$S", it.name) }, ", "),
+            decl.dataParams.joinToString { it.name },
+          ),
+        ),
       )
     }
     return method.build()
@@ -388,8 +414,14 @@ class BuilderProcessor : AbstractProcessor() {
     val taskDef =
       CodeBlock
         .builder()
-        .add($$"new $T($S, $L.class)", TASK_DEF_TYPE, decl.id, classRef)
-    explicitConfig(decl.method, TASK_ANNOTATION, TASK_STRUCTURAL_ATTRIBUTES, SchemaFields.TASK).forEach { (key, value) ->
+        .apply {
+          if (decl.kind == TaskKind.TRIGGER) {
+            add($$"new $T($S, new $T().$L())", TASK_DEF_TYPE, decl.id, ClassName.get(decl.owner), decl.method.simpleName)
+          } else {
+            add($$"new $T($S, $L.class)", TASK_DEF_TYPE, decl.id, classRef)
+          }
+        }
+    explicitConfig(decl.method, decl.kind.annotation, TASK_STRUCTURAL_ATTRIBUTES, SchemaFields.TASK).forEach { (key, value) ->
       taskDef.add($$".config($S, $L)", key, value)
     }
     return taskDef.build()
@@ -414,16 +446,42 @@ class BuilderProcessor : AbstractProcessor() {
     val tasks = mutableListOf<TaskDeclaration>()
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
-      val ann = inner.getAnnotation(Builder.Task::class.java) ?: continue
+      val declared =
+        TaskKind.declaring.filter { kind -> inner.annotationMirrors.any { it.names(kind.annotation) } }
+      if (declared.isEmpty()) continue
+      val declaredKind =
+        declared.singleOrNull()
+          ?: throw IllegalArgumentException(
+            "Method '${inner.simpleName}' carries ${declared.joinToString { it.spelling }}; a task is " +
+              "declared by one of them alone",
+          )
+      // A task method that hands back a TriggerDagRun declares what to trigger
+      // rather than a body to run, so it is read when the Dag is built.
+      val triggers =
+        declaredKind == TaskKind.TASK && with(processingEnv) { isType(inner.returnType, TRIGGER_TYPE) }
+      val kind = if (triggers) TaskKind.TRIGGER else declaredKind
+      val annotated = declaredId(inner, kind)
       if (inner.isVarArgs) throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
-      val localId = ann.id.ifBlank { inner.simpleName.toString() }
+      checkDeciderReturn(kind, inner)
+      if (kind == TaskKind.TRIGGER) {
+        require(inner.parameters.isEmpty()) {
+          "@Builder.Task method '${inner.simpleName}' returns a TriggerDagRun, so it runs when the Dag " +
+            "is built rather than when the task runs; it takes no parameters"
+        }
+        val checked = inner.thrownTypes.filterNot { isUnchecked(it) }
+        require(checked.isEmpty()) {
+          "@Builder.Task method '${inner.simpleName}' returns a TriggerDagRun, so it runs when the Dag " +
+            "is built, where a checked exception cannot be thrown; it must not throw: ${checked.joinToString()}"
+        }
+      }
+      val localId = annotated.ifBlank { inner.simpleName.toString() }
       require(tasks.none { it.method.simpleName.contentEquals(inner.simpleName) }) {
         "Class ${el.simpleName} overloads task method '${inner.simpleName}'; a method's name is the " +
           "name of its generated task class and of its wiring-view method, so rename one and keep its " +
-          "task id with @Builder.Task(id = \"$localId\")"
+          "task id with ${kind.spelling}(id = \"$localId\")"
       }
       tasks +=
-        TaskDeclaration(inner, (path + localId).joinToString("."), collectDataParams(inner), el, classPath)
+        TaskDeclaration(inner, (path + localId).joinToString("."), collectDataParams(inner), el, classPath, kind)
     }
 
     val groups = mutableListOf<GroupDeclaration>()
@@ -539,7 +597,8 @@ class BuilderProcessor : AbstractProcessor() {
       }
     }
     val byClassName = mutableMapOf<String, TaskDeclaration>()
-    declarations.forEach { decl ->
+    // A task that triggers a Dag run has no generated class to collide with.
+    declarations.filterNot { it.kind == TaskKind.TRIGGER }.forEach { decl ->
       byClassName.put(decl.className, decl)?.let { first ->
         throw IllegalArgumentException(
           "Task methods '${first.id}' and '${decl.id}' both generate the task class " +
@@ -564,7 +623,7 @@ class BuilderProcessor : AbstractProcessor() {
       val name = decl.method.simpleName.toString()
       require(name !in reserved) {
         "Task method '$name' clashes with a member of the wiring view; rename the method and keep " +
-          "the task id with @Builder.Task(id = \"${decl.id.substringAfterLast('.')}\")"
+          "the task id with ${decl.kind.spelling}(id = \"${decl.id.substringAfterLast('.')}\")"
       }
     }
     val accessors = mutableMapOf<String, GroupDeclaration>()
@@ -661,6 +720,8 @@ class BuilderProcessor : AbstractProcessor() {
         parseTemporal(field, text) { OffsetDateTime.parse(text) }
         CodeBlock.of($$"$T.parse($S)", ClassName.get(OffsetDateTime::class.java), text)
       }
+      FieldType.DAG_RUN_STATES, FieldType.JSON_OBJECT ->
+        error("Field '${field.key}' is not an annotation attribute")
     }
 
   private fun parseTemporal(
@@ -675,14 +736,63 @@ class BuilderProcessor : AbstractProcessor() {
     }
   }
 
+  /**
+   * Checks what a decider hands back, which is what the SDK reads its decision
+   * from. A plain task may return anything, including nothing.
+   */
+  private fun checkDeciderReturn(
+    kind: TaskKind,
+    method: ExecutableElement,
+  ) {
+    val returns = method.returnType
+    when (kind) {
+      TaskKind.TASK, TaskKind.TRIGGER -> return
+      TaskKind.CONDITION ->
+        require(returns.kind == TypeKind.BOOLEAN || with(processingEnv) { isType(returns, BOXED_BOOLEAN_TYPE) }) {
+          "@Builder.If method '${method.simpleName}' returns $returns, but a condition returns boolean: " +
+            "true runs the task named by Then, false the one named by Else"
+        }
+      TaskKind.SWITCH ->
+        require(returnsTaskClass(returns)) {
+          "@Builder.Switch method '${method.simpleName}' returns $returns, but a switch returns the " +
+            "class of the task it chose, as Class<? extends Task>"
+        }
+    }
+  }
+
+  /** Whether [type] is `Class<T>` or `Class<? extends T>` for a [Task] type `T`. */
+  private fun returnsTaskClass(type: TypeMirror): Boolean {
+    val declared = type as? DeclaredType ?: return false
+    if (!(declared.asElement() as TypeElement).qualifiedName.contentEquals("java.lang.Class")) return false
+    val argument = declared.typeArguments.singleOrNull() ?: return false
+    val bound = if (argument is WildcardType) argument.extendsBound else argument
+    return bound != null &&
+      with(processingEnv) { typeUtils.isAssignable(bound, elementUtils.getTypeElement(TASK_TYPE.canonicalName()).asType()) }
+  }
+
+  /** The `id` the declaring annotation sets, empty when it leaves it out. */
+  private fun declaredId(
+    method: ExecutableElement,
+    kind: TaskKind,
+  ): String {
+    val mirror = method.annotationMirrors.first { it.names(kind.annotation) }
+    val id = mirror.elementValues.entries.firstOrNull { it.key.simpleName.contentEquals("id") }
+    return id?.value?.value as String? ?: ""
+  }
+
   private fun buildTask(decl: TaskDeclaration): TypeSpec {
     val executeSpec =
       MethodSpec
-        .methodBuilder("execute")
+        .methodBuilder(decl.kind.bodyMethod)
         .addAnnotation(Override::class.java)
         .addModifiers(Modifier.PUBLIC)
-        .returns(TypeName.VOID)
-        .addParameter(CONTEXT_TYPE, "context")
+        .returns(
+          when (decl.kind) {
+            TaskKind.TASK, TaskKind.TRIGGER -> TypeName.VOID
+            TaskKind.CONDITION -> TypeName.BOOLEAN
+            TaskKind.SWITCH -> TASK_CLASS_TYPE
+          },
+        ).addParameter(CONTEXT_TYPE, "context")
         .addParameter(CLIENT_TYPE, "client")
         .addException(Exception::class.java)
 
@@ -727,10 +837,11 @@ class BuilderProcessor : AbstractProcessor() {
       }
     }
 
-    if (inner.returnType.kind == TypeKind.VOID) {
-      $$"new $T().$L($L)"
-    } else {
-      $$"client.setXCom(new $T().$L($L))"
+    when {
+      // The SDK pushes a decider's choice itself, after it has skipped what the choice rules out.
+      decl.kind != TaskKind.TASK -> $$"return new $T().$L($L)"
+      inner.returnType.kind == TypeKind.VOID -> $$"new $T().$L($L)"
+      else -> $$"client.setXCom(new $T().$L($L))"
     }.also {
       executeSpec.addStatement(
         it,
@@ -742,7 +853,7 @@ class BuilderProcessor : AbstractProcessor() {
 
     return TypeSpec
       .classBuilder(decl.className)
-      .addSuperinterface(Task::class.java)
+      .addSuperinterface(decl.kind.taskInterface)
       .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
       .addMethod(executeSpec.build())
       .build()
@@ -886,6 +997,7 @@ private class TaskDeclaration(
   val dataParams: List<DataParam>,
   val owner: TypeElement,
   val classPath: List<String> = emptyList(),
+  val kind: TaskKind = TaskKind.TASK,
 ) {
   val className: String =
     (classPath + method.simpleName.toString().replaceFirstChar(Char::uppercase)).joinToString("_")
@@ -913,15 +1025,56 @@ private val TASK_INPUT_TYPE = ClassName.get(TaskInput::class.java)
 private val TASK_ARGS_TYPE = ClassName.get(TaskArgs::class.java)
 private val TYPE_REF_TYPE = ClassName.get(TypeRef::class.java)
 private val ARG_VALUES_TYPE = ClassName.get(ArgValues::class.java)
+private val DAG_SOURCE_TYPE = ClassName.get(DagSource::class.java)
 private val REFS_TYPE = ClassName.get(Refs::class.java)
 private val ARG_TYPE = ClassName.get(Arg::class.java)
 private val TASK_HANDLE_TYPE = ClassName.get(TaskRef::class.java)
+private val TASK_TYPE = ClassName.get(Task::class.java)
+private val CONDITION_TASK_TYPE = ClassName.get(ConditionTask::class.java)
+private val CONDITION_REF_TYPE = ClassName.get(ConditionRef::class.java)
+private val SWITCH_TASK_TYPE = ClassName.get(SwitchTask::class.java)
+private val SWITCH_REF_TYPE = ClassName.get(SwitchRef::class.java)
+private val TASK_CLASS_TYPE =
+  ParameterizedTypeName.get(ClassName.get(Class::class.java), WildcardTypeName.subtypeOf(TASK_TYPE))
+private val TRIGGER_TYPE = ClassName.get(TriggerDagRun::class.java)
+private val VOID_TYPE = ClassName.get("java.lang", "Void")
+private val BOXED_BOOLEAN_TYPE = ClassName.get("java.lang", "Boolean")
 private val DEPS_TYPE = ClassName.get(Deps::class.java)
 private val GROUP_TYPE = DEPS_TYPE.nestedClass("TaskGroup")
 private val LIST_TYPE = ClassName.get(List::class.java)
 
 private const val DAG_ANNOTATION = "org.apache.airflow.sdk.Builder.Dag"
-private const val TASK_ANNOTATION = "org.apache.airflow.sdk.Builder.Task"
+
+/**
+ * What a declared task is, and the annotation that declares it. A decider
+ * differs from a plain task in what it implements and in what its wiring-view
+ * method hands back, but carries the same configuration attributes.
+ */
+private enum class TaskKind(
+  val annotation: String,
+  val spelling: String,
+  /** Method the generated class implements, and the type its wiring view hands back. */
+  val bodyMethod: String,
+  val taskInterface: ClassName,
+  val refType: ClassName?,
+) {
+  TASK("org.apache.airflow.sdk.Builder.Task", "@Builder.Task", "execute", TASK_TYPE, null),
+  TRIGGER("org.apache.airflow.sdk.Builder.Task", "@Builder.Task", "execute", TASK_TYPE, null),
+  CONDITION("org.apache.airflow.sdk.Builder.If", "@Builder.If", "decide", CONDITION_TASK_TYPE, CONDITION_REF_TYPE),
+  SWITCH("org.apache.airflow.sdk.Builder.Switch", "@Builder.Switch", "choose", SWITCH_TASK_TYPE, SWITCH_REF_TYPE),
+  ;
+
+  companion object {
+    /**
+     * The kinds an annotation declares. TRIGGER is left out: it shares
+     * [TASK]'s annotation and is told apart by the method's return type.
+     */
+    val declaring = listOf(TASK, CONDITION, SWITCH)
+  }
+}
+
+/** Whether this annotation is the one [name] qualifies. */
+private fun AnnotationMirror.names(name: String): Boolean = (annotationType.asElement() as TypeElement).qualifiedName.contentEquals(name)
 
 private val RESERVED_VIEW_NAMES =
   setOf(
