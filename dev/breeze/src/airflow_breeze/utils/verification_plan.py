@@ -54,6 +54,7 @@ FLAG_COMMANDS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("unit", "cd java-sdk && ./gradlew test", "host"),
         ("docs", "breeze build-docs --sdk-docs-only --sdk=java", "breeze"),
     ),
+    "run_ts_sdk_tests": (("unit", "cd ts-sdk && pnpm install --frozen-lockfile && pnpm test", "host"),),
     "run_ts_sdk_docs": (("docs", "breeze build-docs --sdk-docs-only --sdk=typescript", "breeze"),),
     "run_agent_framework_tests": (
         (

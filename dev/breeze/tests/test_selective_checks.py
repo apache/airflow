@@ -1553,13 +1553,30 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("ts-sdk/src/sdk/client.ts",),
             {
+                "run-ts-sdk-tests": "true",
                 "run-ts-sdk-docs": "true",
             },
-            id="Build ts-sdk docs when the documented sources change",
+            id="Run ts-sdk unit tests and build docs when the documented sources change",
+        ),
+        pytest.param(
+            ("ts-sdk/pnpm-lock.yaml",),
+            {
+                "run-ts-sdk-tests": "true",
+                "run-ts-sdk-docs": "false",
+            },
+            id="Run ts-sdk unit tests when the lock file changes",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/package.json",),
+            {
+                "run-ts-sdk-tests": "false",
+            },
+            id="Skip ts-sdk unit tests when only the docs toolchain's package.json changes",
         ),
         pytest.param(
             ("ts-sdk/docs/index.md",),
             {
+                "run-ts-sdk-tests": "false",
                 "run-ts-sdk-docs": "true",
                 "run-ts-sdk-e2e-tests": "false",
             },
@@ -1568,6 +1585,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("ts-sdk/api-docs/dag-authoring-api.ts",),
             {
+                "run-ts-sdk-tests": "false",
                 "run-ts-sdk-docs": "true",
                 "run-ts-sdk-e2e-tests": "false",
                 "prod-image-build": "false",
@@ -1591,9 +1609,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("ts-sdk/README.md",),
             {
+                "run-ts-sdk-tests": "false",
                 "run-ts-sdk-docs": "false",
             },
-            id="Skip ts-sdk docs build for a ts-sdk README-only change",
+            id="Skip ts-sdk unit tests and docs build for a ts-sdk README-only change",
         ),
         pytest.param(
             ("airflow-e2e-tests/java-test-bundle/src/java/org/apache/airflow/e2e/TestBundleBuilder.java",),
