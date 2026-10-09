@@ -51,17 +51,14 @@ class TestLLMBranchOperator:
     def test_template_fields(self):
         assert set(LLMBranchOperator.template_fields) == {*LLMOperator.template_fields, "branches"}
 
-    def test_output_type_ignored(self):
-        """Passing output_type= doesn't break anything; it's silently dropped."""
-        op = LLMBranchOperator(
-            task_id="test",
-            prompt="pick a branch",
-            llm_conn_id="my_llm",
-            output_type=int,
-        )
-        # output_type is overridden to str (the LLMOperator default) since
-        # the real output_type is built dynamically from downstream_task_ids
-        assert op.output_type is str
+    def test_output_type_rejected(self):
+        with pytest.raises(TypeError, match="does not accept 'output_type'"):
+            LLMBranchOperator(
+                task_id="test",
+                prompt="pick a branch",
+                llm_conn_id="my_llm",
+                output_type=int,
+            )
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)

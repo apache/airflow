@@ -19,9 +19,11 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.DagSource
 import org.apache.airflow.sdk.internal.GROUP_ID
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.checkConfigValue
+import org.apache.airflow.sdk.internal.deriveTaskId
 import org.apache.airflow.sdk.internal.validateTaskInput
 import kotlin.Throws
 
@@ -56,6 +58,16 @@ class DagDef(
 
   /** Edges with a task group at either end, in the order drawn. */
   internal val groupEdges = linkedSetOf<Pair<Endpoint, Endpoint>>()
+
+  /**
+   * Whether a [Bundle] has taken this Dag. A decider checked when the Dag was
+   * registered cannot be changed afterwards, because nothing would check the
+   * change.
+   */
+  internal var registered: Boolean = false
+
+  /** Outermost class that declared this Dag, or `null` if it could not be told. */
+  internal var declaringClass: Class<*>? = DagSource.capture()
 
   /**
    * Sets one Dag-level configuration value.
@@ -147,6 +159,113 @@ class DagDef(
     task.owner = this
     return this
   }
+
+  /**
+   * Declares a task that starts a run of another Dag.
+   *
+   * ```java
+   * dag.task("trigger_downstream", new TriggerDagRun("downstream_etl"));
+   * ```
+   *
+   * The task runs no Java code and takes no arguments, so it has no ID to
+   * derive and names one here.
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param trigger What to trigger, and how.
+   * @return The handle representing this task.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  fun task(
+    id: String,
+    trigger: TriggerDagRun,
+  ): TaskRef<Void> {
+    val def = TaskDef(id, trigger)
+    addTask(def)
+    return TaskRef(def)
+  }
+
+  /**
+   * Declares a task whose boolean picks one of two tasks; the other is
+   * skipped.
+   *
+   * The task's ID is the class's simple name with its first character
+   * lowercased, so `HasRows.class` becomes `hasRows`. Use
+   * [If(id, definition)][If] to set it, and [ConditionRef.config] for the
+   * task's other settings:
+   *
+   * ```java
+   * dag.If(HasRows.class).config("retries", 2).Then(load).Else(reportEmpty);
+   * ```
+   *
+   * @param definition Class that implements [ConditionTask]. Must have a
+   *    public no-arg constructor.
+   * @return The condition, to name each side on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun If(definition: Class<out ConditionTask>): ConditionRef = If(deriveTaskId(definition), definition)
+
+  /**
+   * Declares a task whose boolean picks one of two tasks, under the task ID
+   * [id].
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param definition Class that implements [ConditionTask]. Must have a
+   *    public no-arg constructor.
+   * @return The condition, to name each side on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   *
+   * @see If
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun If(
+    id: String,
+    definition: Class<out ConditionTask>,
+  ): ConditionRef = ConditionRef.of(task(id, definition))
+
+  /**
+   * Declares a task that chooses one of several tasks to run; every other one
+   * is skipped.
+   *
+   * The task's ID is the class's simple name with its first character
+   * lowercased, so `PickPath.class` becomes `pickPath`. Use
+   * [Switch(id, definition)][Switch] to set it, and [SwitchRef.config] for the
+   * task's other settings:
+   *
+   * ```java
+   * dag.Switch(PickPath.class).Case(handleLong).Case(handleShort);
+   * ```
+   *
+   * @param definition Class that implements [SwitchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The switch, to list its cases on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Switch(definition: Class<out SwitchTask>): SwitchRef = Switch(deriveTaskId(definition), definition)
+
+  /**
+   * Declares a task that chooses one of several tasks to run, under the task
+   * ID [id].
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param definition Class that implements [SwitchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The switch, to list its cases on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   *
+   * @see Switch
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Switch(
+    id: String,
+    definition: Class<out SwitchTask>,
+  ): SwitchRef = SwitchRef.of(task<Any?>(id, definition))
 
   /**
    * Declares a task group of this Dag.
@@ -310,6 +429,21 @@ class TaskDef(
   val id: String,
   val definition: Class<out Task>,
 ) : Endpoint {
+  /**
+   * Declares a task that starts a run of another Dag instead of running Java
+   * code.
+   *
+   * [DagDef.task] is the spelling user code uses; this is what a generated
+   * wiring view calls.
+   *
+   * @param id Task identifier, unique within a [DagDef].
+   * @param trigger What to trigger, and how; settings made on it later do not
+   *    reach this task.
+   */
+  constructor(id: String, trigger: TriggerDagRun) : this(id, TriggerDagRunPlaceholder::class.java) {
+    this.trigger = trigger.snapshot()
+  }
+
   init {
     validateTaskInput(definition)
   }
@@ -321,6 +455,12 @@ class TaskDef(
   internal val inputNames = mutableListOf<String>()
   internal val upstreams = linkedSetOf<TaskDef>()
   internal var owner: DagDef? = null
+
+  /** What this task decides to run, for a condition or a switch; null otherwise. */
+  internal var decider: DeciderDef? = null
+
+  /** The Dag run this task starts, for a task declared from a [TriggerDagRun]; null otherwise. */
+  internal var trigger: TriggerDagRun? = null
 
   /**
    * Sets one task-level configuration value.
