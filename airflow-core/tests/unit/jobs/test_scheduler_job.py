@@ -6155,7 +6155,7 @@ class TestSchedulerJob:
             dag_run=run,
             session=session,
         )
-        assert mock_set_exceeds_max_active_runs.called == expected
+        assert mock_set_exceeds_max_active_runs.call_count == expected
 
     def test_create_dag_runs(self, dag_maker):
         """
