@@ -21,6 +21,7 @@ import datetime
 import logging
 import os
 import random
+import threading
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -441,6 +442,24 @@ def atexit_register_metrics_flush():
     atexit.register(flush_otel_metrics)
 
 
+class _ForkSafeMeterProvider(MeterProvider):
+    """
+    ``MeterProvider`` that survives ``os.fork()``.
+
+    Its ``after_in_child`` handler refreshes process-dependent resource attributes the same way
+    the ``TracerProvider`` one does, and can hang the child the same way -- see
+    ``airflow_shared.observability.traces._ForkSafeTracerProvider``. Only the locks are
+    refreshed here.
+    """
+
+    def _handle_fork(self) -> None:
+        self._lock = threading.Lock()
+        self._meter_lock = threading.Lock()
+        # Set on the base class so every provider in the child keeps sharing one lock for the
+        # class-level reader registry.
+        MeterProvider._all_metric_readers_lock = threading.Lock()
+
+
 def get_otel_logger(
     *,
     host: str | None = None,
@@ -527,7 +546,7 @@ def get_otel_logger(
         pass
 
     metrics.set_meter_provider(
-        MeterProvider(
+        _ForkSafeMeterProvider(
             resource=resource,
             metric_readers=readers,
             views=[
