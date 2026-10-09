@@ -25,6 +25,8 @@ from pydantic.errors import PydanticSchemaGenerationError
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 
+_MAX_SHOWN_CHARS = 200
+
 
 def rehydrate_pydantic_output(
     output_type: Any,
@@ -40,7 +42,7 @@ def rehydrate_pydantic_output(
     reviewer. ``str`` outputs pass through unchanged; any other ``output_type``
     (``BaseModel`` subclass, ``int``, ``list[str]``, ...) is validated with a
     pydantic ``TypeAdapter``, first as JSON and then as bare text.
-    An ``output_type`` pydantic has no schema for returns ``raw`` unchanged.
+    An ``output_type`` pydantic has no schema for, or an output function, returns ``raw`` unchanged.
 
     When ``serialize_output`` is ``True``, returns the model dumped to a
     ``dict`` -- matches the operator's ``serialize_output=True`` opt-in for
@@ -56,20 +58,27 @@ def rehydrate_pydantic_output(
     except PydanticSchemaGenerationError:
         # Nothing to validate against, so the reviewed text is all there is.
         return raw
+    if adapter.core_schema["type"] == "call":
+        # An output function: validating would treat the text as its arguments and call it again.
+        return raw
     try:
         rehydrated = adapter.validate_json(raw)
-    except (ValidationError, ValueError, TypeError) as exc:
+    except (ValidationError, ValueError, TypeError) as json_error:
         # Bare text is how a str-valued Literal, Enum or ``str | None`` output is carried through review.
         try:
             rehydrated = adapter.validate_python(raw)
-        except (ValidationError, ValueError, TypeError):
+        except (ValidationError, ValueError, TypeError) as text_error:
+            is_not_json = isinstance(json_error, ValidationError) and all(
+                error["type"] == "json_invalid" for error in json_error.errors()
+            )
             type_name = (
                 output_type if get_origin(output_type) else getattr(output_type, "__name__", output_type)
             )
+            shown = raw if len(raw) <= _MAX_SHOWN_CHARS else f"{raw[:_MAX_SHOWN_CHARS]}..."
             raise ReviewedOutputValidationError(
                 f"The reviewed output could not be converted to the output_type {type_name}. "
-                f"Received {raw!r}. {exc}"
-            ) from exc
+                f"Received {shown!r}. {text_error if is_not_json else json_error}"
+            ) from json_error
     if serialize_output and isinstance(rehydrated, BaseModel):
         return rehydrated.model_dump()
     return rehydrated

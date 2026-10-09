@@ -66,7 +66,30 @@ class TestRehydratePydanticOutput:
         ids=["literal", "optional-str", "str-enum"],
     )
     def test_accepts_bare_text_for_string_valued_types(self, output_type, raw, expected):
-        assert rehydrate_pydantic_output(output_type, raw, serialize_output=False) == expected
+        result = rehydrate_pydantic_output(output_type, raw, serialize_output=False)
+        assert result == expected
+        assert type(result) is type(expected)
+
+    def test_returns_raw_for_output_function_without_calling_it(self):
+        calls = []
+
+        def clean(text: str) -> str:
+            calls.append(text)
+            return text
+
+        assert rehydrate_pydantic_output(clean, "A", serialize_output=False) == "A"
+        assert calls == []
+
+    def test_error_reports_the_text_attempt_for_bare_text_types(self):
+        with pytest.raises(ReviewedOutputValidationError, match="Input should be 'a' or 'b'"):
+            rehydrate_pydantic_output(Literal["a", "b"], "c", serialize_output=False)
+
+    def test_error_truncates_long_received_text(self):
+        with pytest.raises(ReviewedOutputValidationError) as exc_info:
+            rehydrate_pydantic_output(int, "x" * 500, serialize_output=False)
+
+        assert "x" * 200 + "..." in str(exc_info.value)
+        assert "x" * 201 not in str(exc_info.value)
 
     @pytest.mark.parametrize(
         ("output_type", "raw", "type_name"),

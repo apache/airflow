@@ -1043,13 +1043,13 @@ class TestAgentOperatorExecute:
     )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_with_hitl_fails_on_edit_invalid_for_output_type(
+    def test_execute_with_hitl_fails_when_review_output_does_not_validate(
         self, mock_hook_cls, mock_run_hitl, make_mock_run_result
     ):
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(Summary(text="Draft", score=0.9))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        mock_run_hitl.return_value = "just some prose"
+        mock_run_hitl.return_value = '{"score": 0.5}'
 
         op = AgentOperator(
             task_id="test",
@@ -1060,7 +1060,7 @@ class TestAgentOperatorExecute:
             hitl_timeout=timedelta(minutes=5),
         )
 
-        with pytest.raises(ReviewedOutputValidationError, match="just some prose"):
+        with pytest.raises(ReviewedOutputValidationError, match="Field required"):
             op.execute(context=MagicMock())
 
     @requires_typed_xcom
@@ -1402,6 +1402,21 @@ class TestAgentOperatorRegenerateWithFeedback:
             cancellation_token=ANY,
             usage=ANY,
         )
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_regenerate_with_feedback_serializes_list_output_as_json(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        mock_result = make_mock_run_result(["a", "b"])
+        mock_result.all_messages.return_value = []
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm", output_type=list[str])
+        output, _ = op.regenerate_with_feedback(feedback="Expand", message_history=[])
+
+        assert output == '["a","b"]'
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_regenerate_with_feedback_serializes_base_model_output(self, mock_hook_cls, make_mock_run_result):
