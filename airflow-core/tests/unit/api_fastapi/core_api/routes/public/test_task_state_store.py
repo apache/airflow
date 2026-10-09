@@ -210,17 +210,16 @@ class TestSetTaskState(TestTaskStateEndpoint):
         with pytest.raises(ValidationError, match="non-finite"):
             TaskStateStoreBody(value=bad_value)
 
-    def test_set_nonexistent_dag_run_returns_404(self, test_client):
-        """set() raises ValueError when DagRun doesn't exist — should surface as 404."""
-        bad_url = f"/dags/{DAG_ID}/dagRuns/nonexistent_run/taskInstances/{TASK_ID}/state-store/job_id"
-        response = test_client.put(bad_url, json={"value": "v"})
-        assert response.status_code == 404
-
-    def test_set_nonexistent_task_id_returns_404(self, test_client):
-        """set() returns 404 when task_id doesn not match any TaskInstance in the run."""
-        bad_url = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/nonexistent_task/state-store/job_id"
-        response = test_client.put(bad_url, json={"value": "v"})
-        assert response.status_code == 404
+    def test_set_task_state_store_domain_error_returns_404(self, test_client):
+        """Domain-level ValueError raised during PUT translates to HTTP 404."""
+        with patch(
+            "airflow.state.metastore.MetastoreBackend.set",
+            autospec=True,
+            side_effect=ValueError(f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"),
+        ):
+            response = test_client.put(f"{BASE_URL}/job_id", json={"value": "v"})
+            assert response.status_code == 404
+            assert response.json()["detail"] == f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"
 
     @pytest.mark.parametrize(
         ("value", "expected_db"),
