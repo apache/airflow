@@ -297,6 +297,16 @@ class TestSetAssetState(TestAssetStateEndpoint):
             == 401
         )
 
+    @patch("airflow.api_fastapi.core_api.routes.public.asset_state_store._get_db_backend")
+    def test_set_asset_state_store_domain_error_returns_400(self, mock_backend, test_client):
+        mock_backend.return_value.set_asset_state_store.side_effect = ValueError("Invalid payload size")
+        response = test_client.put(
+            f"{self._base_url}/test_key",
+            json={"value": {"some": "data"}},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Invalid payload size"
+
 
 class TestDeleteAssetState(TestAssetStateEndpoint):
     def test_deletes_key(self, test_client):
@@ -328,6 +338,13 @@ class TestDeleteAssetState(TestAssetStateEndpoint):
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.delete(f"{self._base_url}/watermark").status_code == 401
+
+    @patch("airflow.api_fastapi.core_api.routes.public.asset_state_store._get_db_backend")
+    def test_delete_asset_state_store_domain_error_returns_400(self, mock_backend, test_client):
+        mock_backend.return_value.delete.side_effect = ValueError("Invalid scope")
+        response = test_client.delete(f"{self._base_url}/test_key")
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Invalid scope"
 
 
 class TestClearAssetState(TestAssetStateEndpoint):
@@ -364,6 +381,13 @@ class TestClearAssetState(TestAssetStateEndpoint):
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.delete(self._base_url).status_code == 401
+
+    @patch("airflow.api_fastapi.core_api.routes.public.asset_state_store._get_db_backend")
+    def test_clear_asset_state_store_domain_error_returns_400(self, mock_backend, test_client):
+        mock_backend.return_value.clear.side_effect = ValueError("Invalid scope")
+        response = test_client.delete(self._base_url)
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Invalid scope"
 
 
 class TestRoutesNeverCallCustomBackend(TestAssetStateEndpoint):
