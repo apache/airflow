@@ -191,9 +191,8 @@ Timeouts
 ``[scheduler] trigger_timeout_check_interval`` seconds (15 by default), so a review can
 stay open that long past its deadline. On Airflow 3.1 and 3.2 the triggerer enforces the
 deadline. ``on_approval_timeout="approve"`` returns the generated output when the
-timeout expires. ``"reject"`` still fails this operator; only
-:class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator` turns a
-rejection into a downstream skip. The chosen option is also pre-highlighted as the
+timeout expires. ``"reject"`` answers the review with a rejection, which fails the task
+unless ``fail_on_reject=False``. The chosen option is also pre-highlighted as the
 default in the review form, so ``"reject"`` makes Reject the primary button.
 
 This example approves the output if nobody answers within 24 hours, and logs each new

@@ -162,8 +162,8 @@ you; a timeout-driven rejection then skips downstream like any other rejection.
 returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
-Apart from ``fail_on_reject`` and ``ignore_downstream_trigger_rules``, which
-are specific to this operator, ``approval_timeout``, ``on_approval_timeout``,
+Apart from ``fail_on_reject``, which defaults to ``False`` here and to ``True``
+on other operators, ``approval_timeout``, ``on_approval_timeout``,
 ``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
 behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
 
