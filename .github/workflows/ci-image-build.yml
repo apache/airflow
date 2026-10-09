@@ -430,5 +430,6 @@ jobs:
           path: "${{ runner.temp }}/ci-image-snapshot-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst*"
           if-no-files-found: 'error'
           compression-level: '0'
-          retention-days: '2'
+          # Read only within this run; once it expires, consumers fall back to the stash.
+          retention-days: '1'
         if: steps.snapshot-export.outcome == 'success'
