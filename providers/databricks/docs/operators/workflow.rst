@@ -83,7 +83,8 @@ API on the existing run (continuing the repair chain via ``latest_repair_id``) a
 tasks, then clears the corresponding Airflow task instances and their downstream tasks so the run resumes
 without having to clear the whole Dag.
 
-On Airflow 3 the repair action is served by a FastAPI endpoint registered by the
-``DatabricksWorkflowPlugin``; the set of failed tasks is resolved from the live Databricks run state. On
-Airflow 2 it is served by the legacy Flask-AppBuilder view. In both cases the repair links are
-authorized with Dag-run edit access.
+On Airflow 3.1.1+ the repair action is served by a FastAPI endpoint registered by the
+``DatabricksWorkflowPlugin``; the set of failed tasks is resolved from the live Databricks run state. The
+links are stored when the tasks run, so they appear for runs executed after the provider is installed.
+Airflow 3.0 to 3.1.0 do not offer repair links. On Airflow 2 the repair action is served by the legacy
+Flask-AppBuilder view. In both cases the repair links are authorized with Dag-run edit access.
