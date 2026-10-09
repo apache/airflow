@@ -21,6 +21,8 @@ import pytest
 import yaml
 from chart_utils.helm_template_generator import render_chart
 
+METADATA_DB_VARS = {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", "AIRFLOW_CONN_AIRFLOW_DB"}
+
 
 class TestAirflowCommon:
     """
@@ -348,10 +350,13 @@ class TestAirflowCommon:
         expected_vars = [
             "AIRFLOW_HOME",
             "AIRFLOW__CORE__FERNET_KEY",
-            "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__CELERY__BROKER_URL",
+            "AIRFLOW_CONN_AIRFLOW_DB",
         ]
-        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
+        # Workers do not receive the metadata DB connection; they execute tasks via the API Server.
+        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + [
+            var for var in expected_vars if var not in METADATA_DB_VARS
+        ]
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
             variables = expected_vars_in_worker if component == "worker" else expected_vars
@@ -373,24 +378,26 @@ class TestAirflowCommon:
         expected_vars_with_jwt = [
             "AIRFLOW_HOME",
             "AIRFLOW__CORE__FERNET_KEY",
-            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
-            "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
             "AIRFLOW__CELERY__BROKER_URL",
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+            "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API_AUTH__JWT_SECRET",
         ]
         expected_vars_no_jwt = [
             "AIRFLOW_HOME",
             "AIRFLOW__CORE__FERNET_KEY",
-            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
-            "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
             "AIRFLOW__CELERY__BROKER_URL",
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+            "AIRFLOW_CONN_AIRFLOW_DB",
         ]
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
             expected = expected_vars_with_jwt if component == "scheduler" else expected_vars_no_jwt
-            expected_in_worker = ["DUMB_INIT_SETSID"] + expected
+            expected_in_worker = ["DUMB_INIT_SETSID"] + [
+                var for var in expected if var not in METADATA_DB_VARS
+            ]
             variables = expected_in_worker if component == "worker" else expected
             assert variables == jmespath.search("spec.template.spec.containers[0].env[*].name", doc), (
                 f"Wrong vars in {component}"
@@ -454,6 +461,39 @@ class TestAirflowCommon:
                 f"spec.template.spec.containers[?name=='{component}'].env[].name", doc
             )
             assert "AIRFLOW__API_AUTH__JWT_SECRET" not in env_names, f"Wrong vars in {component}"
+
+    def test_metadata_db_env_absent_in_workers_by_default(self):
+        """Celery workers accessing the DB via the API Server.
+
+        KEDA is the exception: its ScaledObject reads the connection from an env var on
+        this pod spec, so the variable has to stay when KEDA is doing the scaling.
+        """
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        names = set(jmespath.search("spec.template.spec.containers[].env[].name", docs[0]) or [])
+        assert not (names & METADATA_DB_VARS)
+
+    def test_worker_migration_init_container_has_metadata_db_env(self):
+        """The wait-for-migration init container queries the DB."""
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'].env[].name",
+            docs[0],
+        )
+
+    def test_metadata_db_env_in_all_required_components(self):
+        docs = render_chart(
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/api-server/api-server-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+        assert docs
+        for doc in docs:
+            component = doc["metadata"]["labels"]["component"]
+            names = jmespath.search("spec.template.spec.containers[0].env[*].name", doc)
+            assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in names, f"{component} lost its DB connection"
 
     def test_have_all_config_mounts_on_init_containers(self):
         docs = render_chart(
