@@ -257,8 +257,8 @@ OpenShell (self-hosted remote)
 :class:`~airflow.providers.common.ai.sandbox.openshell.OpenShellSandboxBackend`
 runs sandboxes through an `NVIDIA OpenShell <https://github.com/NVIDIA/OpenShell>`__
 gateway, which runs each one on Docker, Podman or Kubernetes. Inside the
-container the workload is confined by Landlock and seccomp and has no network
-interface of its own; a per-sandbox supervisor opens every outbound connection
+container the workload is confined by Landlock and seccomp and has only a
+loopback network interface; a per-sandbox supervisor opens every outbound connection
 on its behalf, against a policy the backend writes and reads back. Airflow workers
 only need gRPC access to the gateway.
 
@@ -359,9 +359,9 @@ reported, and the backend asks the gateway to delete the sandbox and logs a
 failure, for the reaper described below to clean up. Nothing crosses the stream
 until the command ends, so a proxy or load balancer in front of the gateway
 needs an idle timeout longer than the longest command budget plus 30 seconds. A
-gateway restart stops every process in its sandboxes and keeps their files; a
-command in flight is reported to the model as having an unknown outcome rather
-than retried.
+gateway restart stops every process in its sandboxes. If the gateway brings the
+sandbox back, its files are kept and a command in flight is reported to the model
+as having an unknown outcome rather than retried; if it does not, the task fails.
 
 **Files.** ``write_file`` sends content on stdin in chunks of 768 KiB, since the
 gateway limits one command argument to 32 KiB and one request to 1 MiB; a larger
@@ -407,7 +407,9 @@ Constructor parameters:
 The gateway host needs Linux with Landlock ABI 3 or later (kernel 6.2+) and
 seccomp user notification, and Docker 28 or later, Podman 5, or a Kubernetes
 cluster with the Agent Sandbox controller. OpenShell scopes its Docker driver to
-local development and single-machine gateways. The gateway sends anonymous
+local development and single-machine gateways. This backend has been verified with
+the Docker driver only; on Kubernetes, egress enforcement also depends on the
+cluster's CNI enforcing NetworkPolicy. The gateway sends anonymous
 telemetry unless it runs with ``OPENSHELL_TELEMETRY_ENABLED=false``.
 
 .. _sandbox-backend-sbx:
