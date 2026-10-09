@@ -115,7 +115,10 @@ class AwsEksExecutor(KubernetesExecutor):
     @staticmethod
     def _validate_eks_config() -> None:
         if not conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.CLUSTER_NAME, fallback=None):
-            raise ValueError(f"AwsEksExecutor requires [{CONFIG_GROUP_NAME}] cluster_name to be set")
+            raise ValueError(
+                f"AwsEksExecutor requires [{CONFIG_GROUP_NAME}] cluster_name to be set. "
+                "Set it in airflow.cfg or with AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME."
+            )
 
     def _ensure_client_factory(self) -> None:
         # cncf.kubernetes looks a team's factory up in the team's own config only, with no

@@ -130,7 +130,10 @@ class TestGetEksKubeClient:
     def test_unusable_cluster_status_raises(self, mock_aws, status):
         mock_aws["eks_hook"].conn.describe_cluster.return_value["cluster"]["status"] = status
 
-        with pytest.raises(ValueError, match=f"{CLUSTER_NAME} is {status}; .* ACTIVE or UPDATING"):
+        with pytest.raises(
+            ValueError,
+            match=f"{CLUSTER_NAME} is {status}; .* ACTIVE or UPDATING. Wait for it to become ACTIVE",
+        ):
             _get_eks_kube_client()
 
 
@@ -157,5 +160,8 @@ class TestGetEksAsyncKubeClient:
 
 def test_missing_cluster_name_raises():
     with conf_vars({("aws_eks_executor", "cluster_name"): None}):
-        with pytest.raises(ValueError, match=r"\[aws_eks_executor\] cluster_name is required"):
+        with pytest.raises(
+            ValueError,
+            match=r"\[aws_eks_executor\] cluster_name is required.*AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME",
+        ):
             _get_eks_kube_client()

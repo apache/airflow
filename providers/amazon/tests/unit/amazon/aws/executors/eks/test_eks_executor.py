@@ -62,7 +62,10 @@ class TestAwsEksExecutor:
 
     def test_missing_cluster_name_raises(self):
         with conf_vars({("aws_eks_executor", "cluster_name"): None}):
-            with pytest.raises(ValueError, match=r"\[aws_eks_executor\] cluster_name"):
+            with pytest.raises(
+                ValueError,
+                match=r"\[aws_eks_executor\] cluster_name.*AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME",
+            ):
                 AwsEksExecutor()
 
     @conf_vars({("aws_eks_executor", "cluster_name"): "test-eks-cluster"})

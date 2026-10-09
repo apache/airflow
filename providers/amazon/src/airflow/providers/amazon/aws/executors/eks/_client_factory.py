@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from kubernetes import client
     from kubernetes_asyncio import client as async_client
 
-# UPDATING still serves the Kubernetes API, so only creating, deleting and failed clusters are refused.
+# UPDATING still serves the Kubernetes API, so every other status is refused.
 _USABLE_CLUSTER_STATUSES = ("ACTIVE", "UPDATING")
 
 
@@ -81,7 +81,10 @@ def _configure_eks_auth(
 ) -> None:
     cluster_name = conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.CLUSTER_NAME, fallback=None)
     if not cluster_name:
-        raise ValueError(f"[{CONFIG_GROUP_NAME}] cluster_name is required to build an EKS client")
+        raise ValueError(
+            f"[{CONFIG_GROUP_NAME}] cluster_name is required to build an EKS client. "
+            "Set it in airflow.cfg or with AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME."
+        )
     region_name = conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.REGION_NAME, fallback=None)
     conn_id = conf.get(
         CONFIG_GROUP_NAME,
@@ -93,7 +96,9 @@ def _configure_eks_auth(
     cluster = eks_hook.conn.describe_cluster(name=cluster_name)["cluster"]
     if cluster["status"] not in _USABLE_CLUSTER_STATUSES:
         raise ValueError(
-            f"EKS cluster {cluster_name} is {cluster['status']}; the executor needs it to be ACTIVE or UPDATING"
+            f"EKS cluster {cluster_name} is {cluster['status']}; the executor needs it to be ACTIVE or "
+            f"UPDATING. Wait for it to become ACTIVE, or point [{CONFIG_GROUP_NAME}] cluster_name at a "
+            "usable cluster."
         )
     session = eks_hook.get_session()
 
