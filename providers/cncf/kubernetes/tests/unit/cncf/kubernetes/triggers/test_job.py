@@ -105,7 +105,7 @@ class TestKubernetesJobTrigger:
         event_actual = await trigger.run().asend(None)
 
         mock_hook.wait_until_job_complete.assert_called_once_with(
-            name=JOB_NAME, namespace=NAMESPACE, poll_interval=poll_interval
+            name=JOB_NAME, namespace=NAMESPACE, poll_interval=poll_interval, return_on_suspension=True
         )
         mock_job.to_dict.assert_called_once()
         mock_is_job_failed.assert_called_once_with(job=mock_job)
@@ -178,7 +178,7 @@ class TestKubernetesJobTrigger:
         event_actual = await trigger.run().asend(None)
 
         mock_hook.wait_until_job_complete.assert_called_once_with(
-            name=JOB_NAME, namespace=NAMESPACE, poll_interval=POLL_INTERVAL
+            name=JOB_NAME, namespace=NAMESPACE, poll_interval=POLL_INTERVAL, return_on_suspension=True
         )
         mock_job.to_dict.assert_called_once()
         mock_is_job_failed.assert_called_once_with(job=mock_job)
@@ -210,3 +210,47 @@ class TestKubernetesJobTrigger:
             cluster_context=CLUSTER_CONTEXT,
         )
         assert hook_actual == hook_expected
+
+    @pytest.mark.asyncio
+    @mock.patch(TRIGGER_PATH.format("AsyncKubernetesHook"))
+    @mock.patch("asyncio.sleep")
+    async def test_run_preemption_and_readmission(self, mock_sleep, mock_hook_cls, trigger):
+        mock_hook = mock_hook_cls.return_value
+        mock_wait_until_job_complete = mock.AsyncMock()
+        mock_get_job_status = mock.AsyncMock()
+        mock_hook.wait_until_job_complete = mock_wait_until_job_complete
+        mock_hook.get_job_status = mock_get_job_status
+        mock_hook.is_job_complete.return_value = False
+
+        job_suspended = mock.MagicMock(spec=k8s.V1Job)
+        job_suspended.metadata.name = JOB_NAME
+        job_suspended.metadata.namespace = NAMESPACE
+        job_suspended.spec.suspend = True
+        job_suspended.status.active = 0
+        job_suspended.status.succeeded = 0
+        job_suspended.status.failed = 0
+
+        job_readmitted = mock.MagicMock(spec=k8s.V1Job)
+        job_readmitted.metadata.name = JOB_NAME
+        job_readmitted.metadata.namespace = NAMESPACE
+        job_readmitted.spec.suspend = False
+        job_readmitted.status.active = 1
+
+        mock_wait_until_job_complete.return_value = job_suspended
+        mock_get_job_status.side_effect = [job_suspended, job_readmitted]
+
+        event = await trigger.run().asend(None)
+
+        mock_wait_until_job_complete.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE, poll_interval=trigger.poll_interval, return_on_suspension=True
+        )
+        assert mock_get_job_status.call_count == 2
+        mock_get_job_status.assert_called_with(name=JOB_NAME, namespace=NAMESPACE)
+        assert event == TriggerEvent(
+            {
+                "name": JOB_NAME,
+                "namespace": NAMESPACE,
+                "status": "readmitted",
+                "message": "Job preempted and readmitted",
+            }
+        )

@@ -862,6 +862,7 @@ class TestKubernetesJobOperator:
             job_name=mock_job_expected.metadata.name,
             namespace=mock_job_expected.metadata.namespace,
             job_poll_interval=POLL_INTERVAL,
+            return_on_suspension=True,
         )
         assert op.pods == mock_pods_expected
         with pytest.raises(AirflowProviderDeprecationWarning):
@@ -1789,3 +1790,79 @@ class TestKubernetesPatchJobOperator:
         op.execute(None)
 
         mock_patch_namespaced_job.assert_called()
+
+    @patch(HOOK_CLASS)
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._get_ti_pod_labels"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.pod_manager"), new_callable=mock.PropertyMock)
+    @patch("airflow.providers.cncf.kubernetes.operators.job.sleep")
+    def test_job_preemption_and_readmission(
+        self,
+        mock_sleep,
+        mock_pod_manager,
+        mock_get_ti_pod_labels,
+        mock_get_pods,
+        mock_create_job,
+        mock_hook_cls,
+    ):
+        mock_hook = mock_hook_cls.return_value
+        mock_get_ti_pod_labels.return_value = {}
+
+        job_suspended = mock.MagicMock(spec=k8s.V1Job)
+        job_suspended.metadata.name = JOB_NAME
+        job_suspended.metadata.namespace = JOB_NAMESPACE
+        job_suspended.spec.suspend = True
+        job_suspended.status.active = 0
+        mock_create_job.return_value = job_suspended
+
+        job_readmitted = mock.MagicMock(spec=k8s.V1Job)
+        job_readmitted.metadata.name = JOB_NAME
+        job_readmitted.metadata.namespace = JOB_NAMESPACE
+        job_readmitted.spec.suspend = False
+        job_readmitted.status.active = 1
+
+        job_completed = mock.MagicMock(spec=k8s.V1Job)
+        job_completed.metadata.name = JOB_NAME
+        job_completed.metadata.namespace = JOB_NAMESPACE
+        job_completed.spec.suspend = False
+        job_completed.status.active = 0
+        job_completed.status.succeeded = 1
+
+        mock_hook.wait_until_job_complete.side_effect = [job_suspended, job_completed]
+        mock_hook.get_namespace.return_value = JOB_NAMESPACE
+        mock_hook.is_job_complete.side_effect = [False, True]
+        mock_hook.is_job_failed.return_value = False
+        mock_hook.get_job_status.side_effect = [job_suspended, job_readmitted]
+
+        mock_pod_initial = mock.MagicMock()
+        mock_pod_final = mock.MagicMock()
+        mock_get_pods.side_effect = [[mock_pod_initial], [mock_pod_final], [mock_pod_final]]
+
+        op = KubernetesJobOperator(
+            task_id="test_preemption", wait_until_job_complete=True, job_poll_interval=10, get_logs=True
+        )
+        op.execute({"ti": mock.MagicMock()})
+
+        assert mock_hook.wait_until_job_complete.call_count == 2
+        mock_hook.wait_until_job_complete.assert_has_calls(
+            [
+                mock.call(
+                    job_name=JOB_NAME,
+                    namespace=JOB_NAMESPACE,
+                    job_poll_interval=10,
+                    return_on_suspension=True,
+                ),
+                mock.call(
+                    job_name=JOB_NAME,
+                    namespace=JOB_NAMESPACE,
+                    job_poll_interval=10,
+                    return_on_suspension=True,
+                ),
+            ]
+        )
+        assert mock_hook.get_job_status.call_count == 2
+        assert mock_get_pods.call_count == 3
+        mock_pod_manager.return_value.fetch_requested_container_logs.assert_called_once_with(
+            pod=mock_pod_final, containers=op.container_logs, follow_logs=True
+        )

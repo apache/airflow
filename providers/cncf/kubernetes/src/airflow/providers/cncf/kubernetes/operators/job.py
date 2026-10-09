@@ -26,6 +26,7 @@ import sys
 import warnings
 from collections.abc import Sequence
 from functools import cached_property
+from time import sleep
 from typing import TYPE_CHECKING, Any, Literal
 
 from kubernetes.client import BatchV1Api, Configuration, models as k8s
@@ -243,12 +244,38 @@ class KubernetesJobOperator(KubernetesPodOperator):
                         # still looping. So unlike KubernetesPodOperator, this path must
                         # fail loudly when the sidecar cannot be killed rather than hang.
                         xcom_result.append(self.extract_xcom(pod=pod, ignore_kill_failure=False))
-                self.job = self.hook.wait_until_job_complete(
-                    job_name=self.job.metadata.name,
-                    namespace=self.job.metadata.namespace,
-                    job_poll_interval=self.job_poll_interval,
-                )
+                while True:
+                    self.job = self.hook.wait_until_job_complete(
+                        job_name=self.job.metadata.name,
+                        namespace=self.job.metadata.namespace,
+                        job_poll_interval=self.job_poll_interval,
+                        return_on_suspension=True,
+                    )
+
+                    if self.hook.is_job_complete(job=self.job):
+                        break
+
+                    if getattr(self.job.spec, "suspend", False) and not (
+                        self.job.status and self.job.status.active
+                    ):
+                        self.log.info(
+                            "Job '%s' was preempted and is suspended. Going back to pod discovery.",
+                            self.job.metadata.name,
+                        )
+                        # Wait until it is readmitted before pod discovery
+                        while getattr(self.job.spec, "suspend", False) and not (
+                            self.job.status and self.job.status.active
+                        ):
+                            sleep(self.job_poll_interval)
+                            self.job = self.hook.get_job_status(
+                                job_name=self.job.metadata.name, namespace=self.job.metadata.namespace
+                            )
+                        self.pods = self.get_pods(pod_request_obj=self.pod_request_obj, context=context)
+                        continue
+
+                    break
                 if self.get_logs:
+                    self.pods = self.get_pods(pod_request_obj=self.pod_request_obj, context=context)
                     for pod in self.pods:
                         self.pod_manager.fetch_requested_container_logs(
                             pod=pod,
@@ -287,6 +314,15 @@ class KubernetesJobOperator(KubernetesPodOperator):
         )
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
+        if event.get("status") == "readmitted":
+            self.log.info("Job preempted but now readmitted. Re-deferring to restart pod discovery.")
+            self.job = self.hook.get_job_status(job_name=self.name, namespace=self.namespace)
+            self.job_request_obj = self.build_job_request_obj(context)
+            self.pod_request_obj = self.build_pod_request_obj(context)
+            self.pods = self.get_pods(pod_request_obj=self.pod_request_obj, context=context)
+            self.execute_deferrable()
+            return
+
         # Resolve monitoring pods up front so the log-retrieval path and the
         # cleanup path in the finally block share the same lookup (no double
         # ``hook.get_pod`` calls).
