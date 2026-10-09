@@ -26,6 +26,7 @@ import org.apache.airflow.sdk.execution.comm.DagResult
 import org.apache.airflow.sdk.execution.comm.DagRunStateResult
 import org.apache.airflow.sdk.execution.comm.DeleteTaskStateStore
 import org.apache.airflow.sdk.execution.comm.DeleteVariable
+import org.apache.airflow.sdk.execution.comm.DeleteXCom
 import org.apache.airflow.sdk.execution.comm.ErrorResponse
 import org.apache.airflow.sdk.execution.comm.GetConnection
 import org.apache.airflow.sdk.execution.comm.GetDag
@@ -83,6 +84,14 @@ interface Client {
   fun setXCom(
     key: String,
     value: Any,
+    dagId: String,
+    taskId: String,
+    runId: String,
+    mapIndex: Int,
+  )
+
+  fun deleteXCom(
+    key: String,
     dagId: String,
     taskId: String,
     runId: String,
@@ -223,6 +232,24 @@ class CoordinatorClient(
         it.includePriorDates = includePriorDates
       }
     return runBlocking { exec.communicate<XComResult>(message) }
+  }
+
+  override fun deleteXCom(
+    key: String,
+    dagId: String,
+    taskId: String,
+    runId: String,
+    mapIndex: Int,
+  ) {
+    val message =
+      DeleteXCom().also {
+        it.key = key
+        it.dagId = dagId
+        it.taskId = taskId
+        it.runId = runId
+        it.mapIndex = mapIndex
+      }
+    runBlocking { exec.communicate<Unit>(message) }
   }
 
   override fun getTaskStateStore(

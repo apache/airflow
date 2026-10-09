@@ -24,9 +24,11 @@ import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.InputTask
 import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
+import org.apache.airflow.sdk.TaskInput
 import org.apache.airflow.sdk.TriggerDagRun
 import org.apache.airflow.sdk.execution.comm.BundleInfo
 import org.apache.airflow.sdk.execution.comm.DagRun
@@ -54,12 +56,15 @@ class TaskTest {
   }
 
   @Test
-  @DisplayName("Should return removed when task is missing")
-  fun shouldReturnRemovedWhenTaskIsMissing() {
-    val result = runTask(bundleWith("other", SuccessTask::class.java), startupDetails(taskId = "missing"), noOpClient())
+  @DisplayName("Should return removed without deleting XComs when task is missing")
+  fun shouldReturnRemovedWithoutDeletingXComsWhenTaskIsMissing() {
+    val details = startupDetails(taskId = "missing", xcomKeysToClear = listOf("return_value"))
+    val transport = RecordingTransport()
+    val result = runTask(bundleWith("other", SuccessTask::class.java), details, Client(details, transport))
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
     Assertions.assertEquals(TaskState.State.REMOVED, (result as TaskState).state)
+    Assertions.assertEquals(emptyList<String>(), transport.events)
   }
 
   @Test
@@ -342,6 +347,60 @@ class TaskTest {
     return Bundle(listOf(dag))
   }
 
+  @Test
+  @DisplayName("Should delete XComs before instantiating the task class and binding its arguments")
+  fun shouldDeleteXComsBeforeInstantiatingTaskClassAndBindingArguments() {
+    val failures =
+      listOf(
+        ThrowingConstructorTask::class.java to null,
+        BindingTask::class.java to listOf(mapOf("kind" to "bogus", "name" to "region")),
+      )
+    for ((taskClass, argBindings) in failures) {
+      val details =
+        startupDetails(taskId = "early", xcomKeysToClear = listOf("return_value", "summary"), argBindings = argBindings)
+      val transport = RecordingTransport()
+      val result = runTask(bundleWith("early", taskClass), details, Client(details, transport))
+
+      Assertions.assertInstanceOf(TaskState::class.java, result) { "unexpected result for ${taskClass.simpleName}: $result" }
+      Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+      Assertions.assertEquals(listOf("delete:return_value", "delete:summary"), transport.events) {
+        "unexpected events for ${taskClass.simpleName}"
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("Should fail without running the task and log the key when an XCom cannot be deleted")
+  fun shouldFailAndLogTheKeyWhenAnXComCannotBeDeleted() {
+    for (error in listOf(IllegalStateException("database is down"), NoClassDefFoundError("simulated"))) {
+      LogSender.messages.clear()
+      val details = startupDetails(taskId = "success", xcomKeysToClear = listOf("return_value", "summary"))
+      val transport = RecordingTransport(deleteError = error)
+      val result = runTask(bundleWith("success", SuccessTask::class.java), details, Client(details, transport))
+
+      Assertions.assertInstanceOf(TaskState::class.java, result) { "unexpected result for $error: $result" }
+      Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+      Assertions.assertEquals(listOf("delete:return_value"), transport.events)
+      val message = LogSender.messages.single { it.level == Level.ERROR }
+      Assertions.assertEquals("Error clearing XCom", message.event)
+      Assertions.assertEquals("return_value", message.arguments["key"])
+      Assertions.assertSame(error, message.arguments["error"])
+    }
+  }
+
+  @Test
+  @DisplayName("Should delete XComs before a trigger task starts the Dag run")
+  fun shouldDeleteXComsBeforeTriggerTaskRuns() {
+    val details = startupDetails(taskId = "trigger", xcomKeysToClear = listOf("trigger_run_id"))
+    val transport = RecordingTransport()
+
+    val result = runTask(triggerBundle(), details, Client(details, transport))
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+    Assertions.assertEquals("delete:trigger_run_id", transport.events.first()) { "events: ${transport.events}" }
+    Assertions.assertEquals(listOf("downstream"), transport.triggered)
+  }
+
   private fun bundleWith(
     taskId: String,
     taskClass: Class<out Task>,
@@ -350,7 +409,11 @@ class TaskTest {
     return Bundle(listOf(dag))
   }
 
-  private fun startupDetails(taskId: String): StartupDetails =
+  private fun startupDetails(
+    taskId: String,
+    xcomKeysToClear: List<String> = emptyList(),
+    argBindings: List<Map<String, Any?>>? = null,
+  ): StartupDetails =
     StartupDetails().also {
       it.ti =
         TaskInstance().also { o ->
@@ -375,83 +438,91 @@ class TaskTest {
               dagId = "test_dag"
               runId = "manual__2026-03-31T00:00:00+00:00"
             }
+          this.xcomKeysToClear = xcomKeysToClear
+          this.argBindings = argBindings
         }
       it.sentryIntegration = ""
     }
 
-  private fun noOpClient() =
-    Client(
-      startupDetails(taskId = "unused"),
-      object : org.apache.airflow.sdk.execution.Client {
-        override fun getConnection(id: String) = throw UnsupportedOperationException("not used in test")
+  private fun noOpClient() = Client(startupDetails(taskId = "unused"), NoOpTransport)
 
-        override fun getVariable(key: String) = throw UnsupportedOperationException("not used in test")
+  private object NoOpTransport : org.apache.airflow.sdk.execution.Client {
+    override fun getConnection(id: String) = throw UnsupportedOperationException("not used in test")
 
-        override fun setVariable(
-          key: String,
-          value: String,
-          description: String?,
-        ): Unit = throw UnsupportedOperationException("not used in test")
+    override fun getVariable(key: String) = throw UnsupportedOperationException("not used in test")
 
-        override fun deleteVariable(key: String): Unit = throw UnsupportedOperationException("not used in test")
+    override fun setVariable(
+      key: String,
+      value: String,
+      description: String?,
+    ): Unit = throw UnsupportedOperationException("not used in test")
 
-        override fun getXCom(
-          key: String,
-          dagId: String,
-          taskId: String,
-          runId: String,
-          mapIndex: Int?,
-          includePriorDates: Boolean,
-        ) = throw UnsupportedOperationException("not used in test")
+    override fun deleteVariable(key: String): Unit = throw UnsupportedOperationException("not used in test")
 
-        override fun setXCom(
-          key: String,
-          value: Any,
-          dagId: String,
-          taskId: String,
-          runId: String,
-          mapIndex: Int,
-        ): Unit = throw UnsupportedOperationException("not used in test")
+    override fun getXCom(
+      key: String,
+      dagId: String,
+      taskId: String,
+      runId: String,
+      mapIndex: Int?,
+      includePriorDates: Boolean,
+    ) = throw UnsupportedOperationException("not used in test")
 
-        override fun getTaskStateStore(
-          tiId: UUID,
-          key: String,
-        ) = throw UnsupportedOperationException("not used in test")
+    override fun setXCom(
+      key: String,
+      value: Any,
+      dagId: String,
+      taskId: String,
+      runId: String,
+      mapIndex: Int,
+    ): Unit = throw UnsupportedOperationException("not used in test")
 
-        override fun setTaskStateStore(
-          tiId: UUID,
-          key: String,
-          value: Any,
-          expiresAt: OffsetDateTime?,
-        ): Unit = throw UnsupportedOperationException("not used in test")
+    override fun deleteXCom(
+      key: String,
+      dagId: String,
+      taskId: String,
+      runId: String,
+      mapIndex: Int,
+    ): Unit = throw UnsupportedOperationException("not used in test")
 
-        override fun deleteTaskStateStore(
-          tiId: UUID,
-          key: String,
-        ): Unit = throw UnsupportedOperationException("not used in test")
+    override fun getTaskStateStore(
+      tiId: UUID,
+      key: String,
+    ) = throw UnsupportedOperationException("not used in test")
 
-        override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
+    override fun setTaskStateStore(
+      tiId: UUID,
+      key: String,
+      value: Any,
+      expiresAt: OffsetDateTime?,
+    ): Unit = throw UnsupportedOperationException("not used in test")
 
-        override fun skipDownstreamTasks(taskIds: List<String>): Unit = throw UnsupportedOperationException("not used in test")
+    override fun deleteTaskStateStore(
+      tiId: UUID,
+      key: String,
+    ): Unit = throw UnsupportedOperationException("not used in test")
 
-        override fun triggerDagRun(
-          dagId: String,
-          runId: String,
-          logicalDate: OffsetDateTime?,
-          runAfter: OffsetDateTime?,
-          conf: Map<String, Any?>?,
-          resetDagRun: Boolean,
-          note: String?,
-        ): Boolean = throw UnsupportedOperationException("not used in test")
+    override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
 
-        override fun getDagRunState(
-          dagId: String,
-          runId: String,
-        ): String = throw UnsupportedOperationException("not used in test")
+    override fun skipDownstreamTasks(taskIds: List<String>): Unit = throw UnsupportedOperationException("not used in test")
 
-        override fun isDagPaused(dagId: String): Boolean = throw UnsupportedOperationException("not used in test")
-      },
-    )
+    override fun triggerDagRun(
+      dagId: String,
+      runId: String,
+      logicalDate: OffsetDateTime?,
+      runAfter: OffsetDateTime?,
+      conf: Map<String, Any?>?,
+      resetDagRun: Boolean,
+      note: String?,
+    ): Boolean = throw UnsupportedOperationException("not used in test")
+
+    override fun getDagRunState(
+      dagId: String,
+      runId: String,
+    ): String = throw UnsupportedOperationException("not used in test")
+
+    override fun isDagPaused(dagId: String): Boolean = throw UnsupportedOperationException("not used in test")
+  }
 
   /** Decides what [decision] holds; a null one throws, standing for a condition body that fails. */
   class TestCondition : ConditionTask {
@@ -507,7 +578,9 @@ class TaskTest {
   }
 
   /** Records what a deciding task pushed and asked to skip, and the order of the two. */
-  private class RecordingTransport : org.apache.airflow.sdk.execution.Client {
+  private class RecordingTransport(
+    private val deleteError: Throwable? = null,
+  ) : org.apache.airflow.sdk.execution.Client by NoOpTransport {
     val xComs = mutableListOf<Pair<String, Any>>()
     val skipped = mutableListOf<String>()
     val events = mutableListOf<String>()
@@ -526,50 +599,21 @@ class TaskTest {
       events += "xcom:$key"
     }
 
-    override fun skipDownstreamTasks(taskIds: List<String>) {
-      skipped += taskIds
-      events += "skip:$taskIds"
-    }
-
-    override fun getConnection(id: String) = throw UnsupportedOperationException("not used in test")
-
-    override fun getVariable(key: String) = throw UnsupportedOperationException("not used in test")
-
-    override fun setVariable(
-      key: String,
-      value: String,
-      description: String?,
-    ): Unit = throw UnsupportedOperationException("not used in test")
-
-    override fun deleteVariable(key: String): Unit = throw UnsupportedOperationException("not used in test")
-
-    override fun getXCom(
+    override fun deleteXCom(
       key: String,
       dagId: String,
       taskId: String,
       runId: String,
-      mapIndex: Int?,
-      includePriorDates: Boolean,
-    ) = throw UnsupportedOperationException("not used in test")
+      mapIndex: Int,
+    ) {
+      events += "delete:$key"
+      deleteError?.let { throw it }
+    }
 
-    override fun getTaskStateStore(
-      tiId: UUID,
-      key: String,
-    ) = throw UnsupportedOperationException("not used in test")
-
-    override fun setTaskStateStore(
-      tiId: UUID,
-      key: String,
-      value: Any,
-      expiresAt: OffsetDateTime?,
-    ): Unit = throw UnsupportedOperationException("not used in test")
-
-    override fun deleteTaskStateStore(
-      tiId: UUID,
-      key: String,
-    ): Unit = throw UnsupportedOperationException("not used in test")
-
-    override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
+    override fun skipDownstreamTasks(taskIds: List<String>) {
+      skipped += taskIds
+      events += "skip:$taskIds"
+    }
 
     override fun triggerDagRun(
       dagId: String,
@@ -584,13 +628,6 @@ class TaskTest {
       triggerFailure?.let { throw it }
       return false
     }
-
-    override fun getDagRunState(
-      dagId: String,
-      runId: String,
-    ): String = throw UnsupportedOperationException("not used in test")
-
-    override fun isDagPaused(dagId: String): Boolean = throw UnsupportedOperationException("not used in test")
   }
 
   class SuccessTask : Task {
@@ -658,6 +695,21 @@ class TaskTest {
       check(context.taskDef?.id == context.ti.taskId) {
         "expected the runner to thread the task definition into the context"
       }
+    }
+  }
+
+  class BindingInput : TaskInput {
+    @JvmField
+    var region: String? = null
+  }
+
+  class BindingTask : InputTask<BindingInput> {
+    override fun execute(
+      context: Context,
+      client: Client,
+      input: BindingInput,
+    ) {
+      client.setXCom(value = "ran")
     }
   }
 }

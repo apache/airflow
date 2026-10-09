@@ -102,6 +102,27 @@ internal object TaskRunner {
     val taskDef =
       bundle.taskDef(request.ti.dagId, request.ti.taskId)
         ?: return TaskResult.of(TaskState.State.REMOVED)
+    // When a try starts, the runtime has to delete the XComs in xcom_keys_to_clear, because Airflow
+    // does not delete them. The Python task runner deletes them before it renders templates. Here
+    // they are deleted before the task class is instantiated, so they are already gone if the
+    // constructor throws during this try.
+    for (key in request.tiContext.xcomKeysToClear.orEmpty()) {
+      try {
+        client.impl.deleteXCom(
+          key = key,
+          dagId = request.ti.dagId,
+          taskId = request.ti.taskId,
+          runId = request.ti.runId,
+          mapIndex = request.ti.mapIndex ?: -1,
+        )
+      } catch (e: Throwable) {
+        logger.error(
+          "Error clearing XCom",
+          mapOf("ti" to request.ti, "key" to key, "error" to e, "trace" to e.stackTraceToString()),
+        )
+        return TaskResult.failure(request.tiContext.shouldRetry)
+      }
+    }
     taskDef.trigger?.let { trigger ->
       return try {
         TriggerRunner.run(trigger, request, client)

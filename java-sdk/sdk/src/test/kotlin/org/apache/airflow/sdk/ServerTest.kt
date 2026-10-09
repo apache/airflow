@@ -69,6 +69,111 @@ class ServerTest {
     writeByteArray(payload)
   }
 
+  private fun errorResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packNil()
+      packer.packMapHeader(3)
+      packer.packString("type")
+      packer.packString("ErrorResponse")
+      packer.packString("error")
+      packer.packString("API_SERVER_ERROR")
+      packer.packString("detail")
+      packer.packMapHeader(1)
+      packer.packString("status_code")
+      packer.packInt(500)
+    }
+    return out.toByteArray()
+  }
+
+  private fun startupFrame(
+    mapIndex: Int?,
+    tiContext: Map<String, Any?>,
+  ): ByteArray {
+    val body =
+      mapOf(
+        "type" to "StartupDetails",
+        "ti" to
+          mapOf(
+            "id" to "4d828a62-a417-4936-a7a6-2b3fabacecab",
+            "task_id" to "extract",
+            "dag_id" to "dag1",
+            "run_id" to "run1",
+            "try_number" to 2,
+            "map_index" to mapIndex,
+            "dag_version_id" to "4d828a62-a417-4936-a7a6-2b3fabacecab",
+          ),
+        "ti_context" to mapOf("dag_run" to mapOf("dag_id" to "dag1", "run_id" to "run1"), "max_tries" to 1) + tiContext,
+        "dag_rel_path" to "/dev/null",
+        "bundle_info" to mapOf("name" to "any-name", "version" to "any-version"),
+        "start_date" to "2024-12-01T01:00:00Z",
+        "sentry_integration" to "",
+      )
+    return Frame.encodeRequest(0, body).fold(ByteArray(0)) { acc, buffer -> acc + buffer.toByteArray() }
+  }
+
+  /**
+   * Runs [taskClass] as task "extract" of Dag "dag1" through [CoordinatorServer.dispatchTask]. The
+   * fake supervisor first sends StartupDetails, with [mapIndex] as the map_index of the task
+   * instance and [tiContext] added to ti_context. Until the task reports its final state, [answer]
+   * builds the reply to each request from the request ID. Returns the bodies of those requests in
+   * arrival order, and the body of the final state.
+   */
+  private fun serveTask(
+    taskClass: Class<out Task>,
+    mapIndex: Int?,
+    tiContext: Map<String, Any?>,
+    answer: (Int) -> ByteArray = ::ackFrame,
+  ): Pair<List<Map<*, *>>, Map<*, *>> {
+    val toServer = ByteChannel(autoFlush = true)
+    val fromServer = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toServer, fromServer)
+    val server = CoordinatorServer(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
+    val bundle = Bundle(listOf(DagDef("dag1").addTask(TaskDef("extract", taskClass))))
+
+    val requests = mutableListOf<Map<*, *>>()
+    var terminal: Map<*, *>? = null
+    val supervisor =
+      Thread {
+        runBlocking {
+          toServer.writeFrame(startupFrame(mapIndex, tiContext))
+          while (terminal == null) {
+            val prefix = fromServer.readByteArray(4)
+            val payload = fromServer.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+            val request = Frame.decodeRaw(ArrayBufferInput(payload))
+            val body = request.rawBody as Map<*, *>
+            if (body["type"] in setOf("SucceedTask", "TaskState", "RetryTask")) {
+              terminal = body
+              toServer.writeFrame(ackFrame(request.id))
+            } else {
+              requests += body
+              toServer.writeFrame(answer(request.id))
+            }
+          }
+        }
+      }
+    supervisor.start()
+
+    runBlocking { server.dispatchTask(bundle, comm) }
+    supervisor.join()
+    comm.close()
+    return requests to checkNotNull(terminal)
+  }
+
+  private fun deleteXComRequest(
+    key: String,
+    mapIndex: Int,
+  ) = mapOf(
+    "type" to "DeleteXCom",
+    "key" to key,
+    "dag_id" to "dag1",
+    "run_id" to "run1",
+    "task_id" to "extract",
+    "map_index" to mapIndex.toLong(),
+  )
+
   @Test
   @DisplayName("Should run the task and report the result as a normal awaited request")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
@@ -173,6 +278,64 @@ class ServerTest {
       packer.packString("bundle_path").packString(bundlePath)
     }
     return out.toByteArray()
+  }
+
+  @Test
+  @DisplayName("Should delete each listed XCom before the task sends anything")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun deletesListedXComsBeforeTheTaskSendsAnything() {
+    val cases =
+      listOf(
+        Triple(-1, listOf("return_value", "summary"), -1),
+        Triple(0, listOf("return_value", "summary"), 0),
+        Triple(2, listOf("return_value", "summary"), 2),
+        Triple(null, listOf("return_value"), -1),
+        Triple(-1, emptyList(), -1),
+        Triple(-1, null, -1),
+      )
+    for ((mapIndex, keys, deletedMapIndex) in cases) {
+      val (requests, terminal) = serveTask(PushingTask::class.java, mapIndex, mapOf("xcom_keys_to_clear" to keys))
+
+      Assertions.assertEquals(keys.orEmpty().map { deleteXComRequest(it, deletedMapIndex) }, requests.dropLast(1)) {
+        "unexpected requests for map_index $mapIndex and keys $keys: $requests"
+      }
+      Assertions.assertEquals("SetXCom", requests.last()["type"])
+      Assertions.assertEquals("SucceedTask", terminal["type"])
+    }
+  }
+
+  @Test
+  @DisplayName("Should fail without running the task when an XCom cannot be deleted")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun failsWithoutRunningTheTaskWhenAnXComCannotBeDeleted() {
+    for (shouldRetry in listOf(true, false)) {
+      val (requests, terminal) =
+        serveTask(
+          PushingTask::class.java,
+          -1,
+          mapOf("xcom_keys_to_clear" to listOf("return_value", "summary"), "should_retry" to shouldRetry),
+          ::errorResponseFrame,
+        )
+
+      Assertions.assertEquals(listOf(deleteXComRequest("return_value", -1)), requests) {
+        "the runtime should stop at the first XCom it cannot delete and not run the task"
+      }
+      if (shouldRetry) {
+        Assertions.assertEquals("RetryTask", terminal["type"])
+      } else {
+        Assertions.assertEquals("TaskState", terminal["type"])
+        Assertions.assertEquals("failed", terminal["state"])
+      }
+    }
+  }
+
+  class PushingTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+      client.setXCom(value = "rows")
+    }
   }
 
   private companion object {
