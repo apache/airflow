@@ -27,6 +27,7 @@ import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
+import org.apache.airflow.sdk.TriggerDagRun
 import org.apache.airflow.sdk.execution.comm.BundleInfo
 import org.apache.airflow.sdk.execution.comm.DagRun
 import org.apache.airflow.sdk.execution.comm.RetryTask
@@ -294,6 +295,36 @@ class TaskTest {
     Assertions.assertEquals(emptyList<Pair<String, Any>>(), transport.xComs)
   }
 
+  @Test
+  @DisplayName("Should run a trigger task itself and push the ID of the run it started")
+  fun shouldRunTriggerTask() {
+    val transport = RecordingTransport()
+
+    val result = runTask(triggerBundle(), startupDetails(taskId = "trigger"), Client(startupDetails("trigger"), transport))
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+    Assertions.assertEquals(listOf("downstream"), transport.triggered)
+    Assertions.assertTrue("trigger_run_id" in transport.xComs.map { it.first }) { "pushed: ${transport.xComs}" }
+  }
+
+  @Test
+  @DisplayName("Should fail a trigger task whose client throws")
+  fun shouldFailTriggerTaskWhenClientThrows() {
+    val transport = RecordingTransport().also { it.triggerFailure = IllegalStateException("boom") }
+
+    val result = runTask(triggerBundle(), startupDetails(taskId = "trigger"), Client(startupDetails("trigger"), transport))
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+    Assertions.assertFalse("trigger_run_id" in transport.xComs.map { it.first })
+  }
+
+  private fun triggerBundle(): Bundle {
+    val dag = DagDef("test_dag")
+    dag.task("trigger", TriggerDagRun("downstream"))
+    return Bundle(listOf(dag))
+  }
+
   private fun switchBundle(): Bundle {
     val dag = DagDef("test_dag")
     val long = dag.task<Unit>("handle_long", HandleLongTask::class.java)
@@ -402,6 +433,23 @@ class TaskTest {
         override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
 
         override fun skipDownstreamTasks(taskIds: List<String>): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun triggerDagRun(
+          dagId: String,
+          runId: String,
+          logicalDate: OffsetDateTime?,
+          runAfter: OffsetDateTime?,
+          conf: Map<String, Any?>?,
+          resetDagRun: Boolean,
+          note: String?,
+        ): Boolean = throw UnsupportedOperationException("not used in test")
+
+        override fun getDagRunState(
+          dagId: String,
+          runId: String,
+        ): String = throw UnsupportedOperationException("not used in test")
+
+        override fun isDagPaused(dagId: String): Boolean = throw UnsupportedOperationException("not used in test")
       },
     )
 
@@ -463,6 +511,8 @@ class TaskTest {
     val xComs = mutableListOf<Pair<String, Any>>()
     val skipped = mutableListOf<String>()
     val events = mutableListOf<String>()
+    val triggered = mutableListOf<String>()
+    var triggerFailure: Throwable? = null
 
     override fun setXCom(
       key: String,
@@ -520,6 +570,27 @@ class TaskTest {
     ): Unit = throw UnsupportedOperationException("not used in test")
 
     override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
+
+    override fun triggerDagRun(
+      dagId: String,
+      runId: String,
+      logicalDate: OffsetDateTime?,
+      runAfter: OffsetDateTime?,
+      conf: Map<String, Any?>?,
+      resetDagRun: Boolean,
+      note: String?,
+    ): Boolean {
+      triggered += dagId
+      triggerFailure?.let { throw it }
+      return false
+    }
+
+    override fun getDagRunState(
+      dagId: String,
+      runId: String,
+    ): String = throw UnsupportedOperationException("not used in test")
+
+    override fun isDagPaused(dagId: String): Boolean = throw UnsupportedOperationException("not used in test")
   }
 
   class SuccessTask : Task {

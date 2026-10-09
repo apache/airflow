@@ -85,6 +85,13 @@ public class AnnotationExample {
         : AnnotationExampleBuilder.ReportShort.class;
   }
 
+  // A task that starts a run of another Dag. The method runs when this Dag is
+  // built, not when the task runs, so it takes no arguments.
+  @Builder.Task(id = "trigger_downstream")
+  public TriggerDagRun triggerDownstream() {
+    return new TriggerDagRun("java_native_target_example").config("note", "from the annotation example");
+  }
+
   // A task group: everything it declares is prefixed with its id, so this is
   // the task "checks.audit".
   @Builder.TaskGroup(id = "checks")
@@ -102,8 +109,10 @@ public class AnnotationExample {
     void depends() {
       var extracted = extract();
       var transformed = transform(extracted, lit(1.5));
-      hasRows(transformed).Then(load(transformed)).Else(loadEmpty());
+      var loaded = load(transformed);
+      hasRows(transformed).Then(loaded).Else(loadEmpty());
       pickReport(transformed).Case(reportLong()).Case(reportShort());
+      loaded.before(triggerDownstream());
       // Ordering-only edge: the checks group runs after extract, with no data
       // flowing.
       extracted.before(checks());

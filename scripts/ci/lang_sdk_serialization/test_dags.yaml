@@ -295,6 +295,9 @@ dags:
         group: checks
 
   # Tasks that trigger other Dags, one with every template field set and one with the defaults.
+  # logical_date is a template field, so Python writes whatever the author gave it. Spelling it the
+  # way Python spells a datetime keeps an SDK that takes a date-time and one that passes the field
+  # through as a string both writing what Python writes.
   - dag_id: conformance_trigger_dag_run
     requires: [trigger_dag_run]
     spec:
@@ -305,7 +308,7 @@ dags:
           trigger_dag_id: conformance_minimal
           trigger_run_id: "triggered_{{ run_id }}"
           conf: {rows: 2, ratio: 0.5, nested: {tags: [a, b]}}
-          logical_date: "{{ ds }}"
+          logical_date: "2026-09-30 00:00:00+00:00"
           wait_for_completion: true
           skip_when_already_exists: true
       - task_id: trigger_default

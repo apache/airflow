@@ -114,12 +114,18 @@ public class InterfaceExample {
 
     var reportLong = dag.task("report_long", ReportLong.class);
     var reportShort = dag.task("report_short", ReportShort.class);
+    // A task that starts a run of another Dag; it runs no Java code.
+    var trigger =
+        dag.task(
+            "trigger_downstream",
+            new TriggerDagRun("java_native_target_example").config("wait_for_completion", false));
 
     transform.after(extract);
     // With no task id given, a decider takes one from its class: "hasRows" and
     // "pickReport".
     dag.If(HasRows.class).after(transform).Then(load).Else(loadEmpty);
     dag.Switch(PickReport.class).after(transform).Case(reportLong).Case(reportShort);
+    load.before(trigger);
     return dag;
   }
 }

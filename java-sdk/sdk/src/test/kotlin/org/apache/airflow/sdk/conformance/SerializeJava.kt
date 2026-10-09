@@ -44,6 +44,7 @@ import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskGroupRef
 import org.apache.airflow.sdk.TaskRef
+import org.apache.airflow.sdk.TriggerDagRun
 import org.apache.airflow.sdk.execution.serializeDag
 import org.apache.airflow.sdk.internal.Field
 import org.apache.airflow.sdk.internal.FieldType
@@ -202,6 +203,7 @@ private fun buildDag(case: JsonNode): DagDef {
     val groupId = task.path("group").asText("")
     val localId = task.path("task_id").asText()
     val branch = task.path("branch")
+    val trigger = task.path("trigger_dag_run")
     val definition =
       when {
         branch.isMissingNode -> {
@@ -214,10 +216,13 @@ private fun buildDag(case: JsonNode): DagDef {
         else -> ConformanceCondition::class.java
       }
     val ref =
-      if (groupId.isEmpty()) {
-        dag.task<Any?>(localId, definition)
-      } else {
-        groups.getValue(groupId).task<Any?>(localId, definition)
+      when {
+        !trigger.isMissingNode ->
+          triggerDagRun(trigger).let {
+            if (groupId.isEmpty()) dag.task(localId, it) else groups.getValue(groupId).task(localId, it)
+          }
+        groupId.isEmpty() -> dag.task<Any?>(localId, definition)
+        else -> groups.getValue(groupId).task<Any?>(localId, definition)
       }
     if (!branch.isMissingNode) {
       deciders += (if (branch.has("cases")) SwitchRef.of(ref) else asCondition(ref)) to branch
@@ -253,6 +258,30 @@ private fun buildDag(case: JsonNode): DagDef {
   return dag
 }
 
+/** Reads the template fields of a TriggerDagRunOperator from a task of test_dags.yaml. */
+private fun triggerDagRun(node: JsonNode): TriggerDagRun {
+  val trigger = TriggerDagRun(node.path("trigger_dag_id").asText())
+  node.fields().forEach { (key, value) ->
+    when (key) {
+      "trigger_dag_id" -> Unit
+      "logical_date", "run_after" -> trigger.config(key, triggerDateTime(value.asText()))
+      "conf" -> trigger.config(key, toJsonValue(value) as Map<*, *>)
+      "wait_for_completion", "skip_when_already_exists", "reset_dag_run", "fail_when_dag_is_paused", "deferrable" ->
+        trigger.config(key, value.asBoolean())
+      "poke_interval" -> trigger.config(key, Duration.ofSeconds(value.asLong()))
+      "allowed_states", "failed_states" -> trigger.config(key, value.map { it.asText() })
+      else -> trigger.config(key, value.asText())
+    }
+  }
+  return trigger
+}
+
+/**
+ * A trigger task's `logical_date` or `run_after` from the fixture. The fixture spells one the way
+ * Python spells a datetime, with a space, so the separator is normalised before parsing.
+ */
+private fun triggerDateTime(text: String): OffsetDateTime = OffsetDateTime.parse(text.replaceFirst(" ", "T"))
+
 /** The handle of a task declared as a decider, whose type argument no caller reads. */
 @Suppress("UNCHECKED_CAST")
 private fun asCondition(ref: TaskRef<*>): ConditionRef = ConditionRef.of(ref as TaskRef<Boolean>)
@@ -271,7 +300,8 @@ private fun toValue(
     // `!datetime` is an ISO 8601 timestamp, and `!timedelta` a number of seconds.
     FieldType.DATETIME -> OffsetDateTime.parse(node.asText())
     FieldType.TIMEDELTA -> Duration.ofNanos((node.asText().toDouble() * 1e9).toLong())
-    FieldType.STRING_ARRAY -> node.map { it.asText() }
+    FieldType.STRING_ARRAY, FieldType.DAG_RUN_STATES -> node.map { it.asText() }
+    FieldType.JSON_OBJECT -> toJsonValue(node)!!
   }
 
 /** Reads a YAML literal as the plain value `Serde` writes out. */

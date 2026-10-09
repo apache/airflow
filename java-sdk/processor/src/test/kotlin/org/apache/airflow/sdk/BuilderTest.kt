@@ -2453,6 +2453,209 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("read a task that triggers a Dag run when the Dag is built")
+  fun generateTriggerDagRunTask() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TriggerDagRun;
+
+        @Builder.Dag(id = "etl")
+        public class TestExample {
+          @Builder.Task(id = "trigger_downstream", retries = 2)
+          public TriggerDagRun triggerDownstream() {
+            return new TriggerDagRun("downstream_etl").config("wait_for_completion", true);
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              triggerDownstream();
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.util.List;
+         import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.internal.DagSource;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         public final class TestExampleBuilder {
+           public static DagDef build() {
+             var dag = DagSource.declaredBy(new DagDef("etl"), TestExample.class);
+             return Refs.record(dag, List.of("trigger_downstream"), List.of(), new TestExample.Wiring()::depends);
+           }
+         }
+        """,
+      )
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleDeps")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleDeps",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Void;
+         import org.apache.airflow.sdk.Deps;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.TaskRef;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         public interface TestExampleDeps extends Deps {
+           default TaskRef<Void> triggerDownstream() {
+             return Refs.node("", new TaskDef("trigger_downstream", new TestExample().triggerDownstream()).config("retries", 2));
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("build a Dag that reuses one task handle as a condition side and as an upstream")
+  fun buildADagThatReusesATaskHandle() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TriggerDagRun;
+
+        @Builder.Dag(id = "etl")
+        public class TestExample {
+          @Builder.Task
+          public long extract() {
+            return 42L;
+          }
+
+          @Builder.Task
+          public void load(long rows) {}
+
+          @Builder.Task
+          public void loadEmpty() {}
+
+          @Builder.If(id = "has_rows")
+          public boolean hasRows(long rows) {
+            return rows > 0;
+          }
+
+          @Builder.Task(id = "trigger_downstream")
+          public TriggerDagRun triggerDownstream() {
+            return new TriggerDagRun("downstream_etl");
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              var extracted = extract();
+              var loaded = load(extracted);
+              hasRows(extracted).Then(loaded).Else(loadEmpty());
+              loaded.before(triggerDownstream());
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    // The wiring only runs when the Dag is built, so load it and build it.
+    val classes =
+      compilation
+        .generatedFiles()
+        .filter { it.kind == JavaFileObject.Kind.CLASS }
+        .associate {
+          it.name
+            .removePrefix("/CLASS_OUTPUT/")
+            .removeSuffix(".class")
+            .replace('/', '.') to it.openInputStream().readBytes()
+        }
+    val loader =
+      object : ClassLoader(javaClass.classLoader) {
+        override fun findClass(name: String): Class<*> {
+          val bytes = classes[name] ?: throw ClassNotFoundException(name)
+          return defineClass(name, bytes, 0, bytes.size)
+        }
+      }
+
+    Bundle().register(loader.loadClass("org.apache.airflow.example.TestExample"))
+  }
+
+  @Test
+  @DisplayName("reject a task that triggers a Dag run and takes parameters")
+  fun rejectTriggerDagRunWithParameters() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TriggerDagRun;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task
+          public TriggerDagRun triggerDownstream(long rows) {
+            return new TriggerDagRun("downstream_etl");
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.Task method 'triggerDownstream' returns a TriggerDagRun, so it runs when the Dag is " +
+        "built rather than when the task runs; it takes no parameters",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a task that triggers a Dag run and throws a checked exception")
+  fun rejectTriggerDagRunThrowingCheckedException() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TriggerDagRun;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task
+          public TriggerDagRun triggerDownstream() throws java.io.IOException {
+            return new TriggerDagRun("downstream_etl");
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.Task method 'triggerDownstream' returns a TriggerDagRun, so it runs when the Dag is " +
+        "built, where a checked exception cannot be thrown; it must not throw: java.io.IOException",
+    )
+  }
+
+  @Test
   @DisplayName("reject a switch that does not return the class of a task")
   fun rejectNonTaskClassSwitch() {
     val compilation =

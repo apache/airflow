@@ -77,6 +77,25 @@ class TaskGroupRef internal constructor(
   }
 
   /**
+   * Declares a task in this group that starts a run of another Dag, as
+   * [DagDef.task] does for the Dag.
+   *
+   * @param id Task ID within this group; the task's ID is `<group ID>.<id>`.
+   * @param trigger What to trigger, and how.
+   * @return The handle representing this task.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   */
+  fun task(
+    id: String,
+    trigger: TriggerDagRun,
+  ): TaskRef<Void> {
+    val def = TaskDef(qualify(id), trigger)
+    adopt(def)
+    return TaskRef(def)
+  }
+
+  /**
    * Declares a condition in this group, as [DagDef.If] does for the Dag.
    *
    * @param definition Class that implements [ConditionTask]. Must have a

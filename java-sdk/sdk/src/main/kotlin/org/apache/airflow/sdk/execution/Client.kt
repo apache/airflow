@@ -22,10 +22,14 @@ package org.apache.airflow.sdk.execution
 import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.execution.comm.ClearTaskStateStore
 import org.apache.airflow.sdk.execution.comm.ConnectionResult
+import org.apache.airflow.sdk.execution.comm.DagResult
+import org.apache.airflow.sdk.execution.comm.DagRunStateResult
 import org.apache.airflow.sdk.execution.comm.DeleteTaskStateStore
 import org.apache.airflow.sdk.execution.comm.DeleteVariable
 import org.apache.airflow.sdk.execution.comm.ErrorResponse
 import org.apache.airflow.sdk.execution.comm.GetConnection
+import org.apache.airflow.sdk.execution.comm.GetDag
+import org.apache.airflow.sdk.execution.comm.GetDagRunState
 import org.apache.airflow.sdk.execution.comm.GetTaskStateStore
 import org.apache.airflow.sdk.execution.comm.GetVariable
 import org.apache.airflow.sdk.execution.comm.GetXCom
@@ -35,6 +39,7 @@ import org.apache.airflow.sdk.execution.comm.SetTaskStateStore
 import org.apache.airflow.sdk.execution.comm.SetXCom
 import org.apache.airflow.sdk.execution.comm.SkipDownstreamTasks
 import org.apache.airflow.sdk.execution.comm.TaskStateStoreResult
+import org.apache.airflow.sdk.execution.comm.TriggerDagRun
 import org.apache.airflow.sdk.execution.comm.VariableResult
 import org.apache.airflow.sdk.execution.comm.XComResult
 import java.time.OffsetDateTime
@@ -110,6 +115,32 @@ interface Client {
    * succeeded or failed alone.
    */
   fun skipDownstreamTasks(taskIds: List<String>)
+
+  /**
+   * Starts a run of another Dag, as a task declared from a
+   * [org.apache.airflow.sdk.TriggerDagRun] does.
+   *
+   * @return True when a run with that ID already exists, which the task
+   *    decides what to do about, rather than an error.
+   */
+  fun triggerDagRun(
+    dagId: String,
+    runId: String,
+    logicalDate: OffsetDateTime?,
+    runAfter: OffsetDateTime?,
+    conf: Map<String, Any?>?,
+    resetDagRun: Boolean,
+    note: String?,
+  ): Boolean
+
+  /** State of one Dag run, which a task that waits polls. */
+  fun getDagRunState(
+    dagId: String,
+    runId: String,
+  ): String
+
+  /** Whether the Dag is paused, which a task may refuse to trigger. */
+  fun isDagPaused(dagId: String): Boolean
 }
 
 /**
@@ -245,4 +276,47 @@ class CoordinatorClient(
     val message = SkipDownstreamTasks().also { it.tasks = ArrayList<Any>(taskIds) }
     runBlocking { exec.communicate<Unit>(message) }
   }
+
+  override fun triggerDagRun(
+    dagId: String,
+    runId: String,
+    logicalDate: OffsetDateTime?,
+    runAfter: OffsetDateTime?,
+    conf: Map<String, Any?>?,
+    resetDagRun: Boolean,
+    note: String?,
+  ): Boolean {
+    val message =
+      TriggerDagRun().also {
+        it.dagId = dagId
+        it.runId = runId
+        it.logicalDate = logicalDate
+        it.runAfter = runAfter
+        it.conf = conf
+        it.resetDagRun = resetDagRun
+        it.note = note
+      }
+    // The supervisor answers a trigger with an OKResponse, and reports a run that already exists as
+    // the DAGRUN_ALREADY_EXISTS error, which the task decides what to do about.
+    val response =
+      runBlocking {
+        exec.communicateOrNullIf<OKResponse>(message, ErrorResponse.ErrorType.DAGRUN_ALREADY_EXISTS)
+      }
+    return response == null
+  }
+
+  override fun getDagRunState(
+    dagId: String,
+    runId: String,
+  ): String {
+    val message =
+      GetDagRunState().also {
+        it.dagId = dagId
+        it.runId = runId
+      }
+    return runBlocking { exec.communicate<DagRunStateResult>(message) }.state.toString()
+  }
+
+  override fun isDagPaused(dagId: String): Boolean =
+    runBlocking { exec.communicate<DagResult>(GetDag().also { it.dagId = dagId }) }.isPaused == true
 }

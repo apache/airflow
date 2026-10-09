@@ -134,7 +134,8 @@ class SwitchRef private constructor(
    * @param task Task of the same Dag.
    * @return This switch, for chaining.
    * @throws IllegalArgumentException if the task belongs to another Dag, is
-   *    already a case of this switch, or runs the same class as one.
+   *    already a case of this switch, triggers a Dag run, or runs the same class
+   *    as one.
    */
   @Suppress("ktlint:standard:function-naming")
   fun Case(task: TaskRef<*>): SwitchRef {
@@ -190,6 +191,11 @@ internal class SwitchDef : DeciderDef {
     requireSameDag(decider, case, "Switch")
     require(options.none { it === case }) {
       "Switch '${decider.id}' already chooses between '${case.id}' and others; name each case once"
+    }
+    require(case.trigger == null) {
+      "Switch '${decider.id}' cannot choose '${case.id}': a switch names its case by its class, and a " +
+        "task that triggers a Dag run has none. Put the trigger downstream of an ordinary task and " +
+        "let the switch choose that task, since Airflow skips the downstream of a skipped task"
     }
     // A switch names its case by class, so two cases sharing one would be
     // indistinguishable.

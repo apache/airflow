@@ -28,6 +28,7 @@ import org.apache.airflow.sdk.LiteralArg
 import org.apache.airflow.sdk.TaskDef
 import org.apache.airflow.sdk.TaskGroupRef
 import org.apache.airflow.sdk.TaskRef
+import org.apache.airflow.sdk.TriggerDagRun
 import org.apache.airflow.sdk.execution.comm.DagFileParseRequest
 import org.apache.airflow.sdk.internal.Field
 import org.apache.airflow.sdk.internal.SchemaFields
@@ -107,7 +108,7 @@ internal fun serializeDag(
       "timezone" to dagTimezone(dag.dagConfig),
       "timetable" to serializeTimetable(dag.id, dag.dagConfig),
       "tasks" to dag.tasks.map { (taskId, def) -> serializeTask(taskId, def, downstream[taskId]) },
-      "dag_dependencies" to emptyList<Any?>(),
+      "dag_dependencies" to serializeDagDependencies(dag),
       "task_group" to serializeTaskGroups(dag, expansion),
       "edge_info" to emptyMap<String, Any?>(),
       "params" to emptyList<Any?>(),
@@ -127,22 +128,24 @@ private fun serializeTask(
   def: TaskDef,
   downstream: List<String>?,
 ): Map<String, Any?> {
-  val data =
-    linkedMapOf<String, Any?>(
-      "task_id" to taskId,
-      "task_type" to def.definition.simpleName,
-      "_task_module" to def.definition.packageName,
-      "language" to "java",
-      // Python's operator serializer always emits template_fields (its list
-      // value never matches the tuple default it is compared against), so it
-      // is unconditional here too. Java tasks have no template fields.
-      "template_fields" to emptyList<Any?>(),
-      // What marks a task whose arguments Airflow resolves per instance for a
-      // runtime outside Python, as `@task.stub` does on the Python side.
-      // `get_arg_bindings` reads nothing without it.
-      "is_stub" to true,
-    )
-  argBindings(taskId, def)?.let { data["_arg_bindings"] = it }
+  val data = linkedMapOf<String, Any?>("task_id" to taskId)
+  val trigger = def.trigger
+  if (trigger != null) {
+    writeTriggerDagRun(data, trigger)
+  } else {
+    data["task_type"] = def.definition.simpleName
+    data["_task_module"] = def.definition.packageName
+    data["language"] = "java"
+    // Python's operator serializer always emits template_fields (its list
+    // value never matches the tuple default it is compared against), so it
+    // is unconditional here too. Java tasks have no template fields.
+    data["template_fields"] = emptyList<Any?>()
+    // What marks a task whose arguments Airflow resolves per instance for a
+    // runtime outside Python, as `@task.stub` does on the Python side.
+    // `get_arg_bindings` reads nothing without it.
+    data["is_stub"] = true
+    argBindings(taskId, def)?.let { data["_arg_bindings"] = it }
+  }
   // Lets NotPreviouslySkippedDep re-skip a cleared downstream, as Python's SkipMixin does.
   if (def.decider != null) data["_can_skip_downstream"] = true
   // Emit only config entries that differ from their schema default, mirroring
@@ -164,6 +167,96 @@ private fun serializeTask(
     "__var" to data,
   )
 }
+
+/** What Python's serializer writes for a `TriggerDagRunOperator`. */
+private const val TRIGGER_TASK_TYPE = "TriggerDagRunOperator"
+private const val TRIGGER_TASK_MODULE = "airflow.providers.standard.operators.trigger_dagrun"
+private const val TRIGGER_UI_COLOR = "#ffefeb"
+
+private val TRIGGER_TEMPLATE_FIELDS =
+  listOf(
+    "trigger_dag_id",
+    "trigger_run_id",
+    "logical_date",
+    "conf",
+    "wait_for_completion",
+    "skip_when_already_exists",
+  )
+
+/**
+ * Writes a task declared from a [TriggerDagRun] as Python writes a
+ * `TriggerDagRunOperator`, so the Airflow UI and the Dag dependency graph
+ * treat it as one.
+ *
+ * Python writes an operator's template fields and leaves its other parameters
+ * out, because a Python Dag file holds them. A Java Dag has no such file, so
+ * every setting the author made is written under the name Python's parameter
+ * carries. The runtime runs the task from the Dag in its own bundle and reads
+ * none of this back.
+ */
+private fun writeTriggerDagRun(
+  data: MutableMap<String, Any?>,
+  trigger: TriggerDagRun,
+) {
+  data["task_type"] = TRIGGER_TASK_TYPE
+  data["_task_module"] = TRIGGER_TASK_MODULE
+  data["ui_color"] = TRIGGER_UI_COLOR
+  data["template_fields"] = TRIGGER_TEMPLATE_FIELDS
+  data["template_fields_renderers"] = mapOf("conf" to "py")
+  data["_operator_extra_links"] = mapOf("Triggered DAG" to "_link_TriggerDagRunLink")
+  data["trigger_dag_id"] = trigger.dagId
+
+  val settings = trigger.settings
+  // Python's logical_date defaults to NOTSET, which lets the operator pick the
+  // trigger time, and writes that sentinel as its name. A template field holds
+  // a datetime as str(datetime), not as a {"__type": "datetime"} object.
+  data["logical_date"] = asOffsetDateTime(settings["logical_date"])?.let { pythonIsoformat(it, ' ') } ?: "NOTSET"
+  // Python writes these two template fields whatever they hold.
+  data["wait_for_completion"] = settings["wait_for_completion"] ?: false
+  data["skip_when_already_exists"] = settings["skip_when_already_exists"] ?: false
+  settings["trigger_run_id"]?.let { data["trigger_run_id"] = it }
+  settings["conf"]?.let { data["conf"] = it }
+  // A field that is not a template field is read back with
+  // BaseSerialization.deserialize, which returns a datetime only for the
+  // type-encoded form.
+  settings["run_after"]?.let { data["run_after"] = serializeValue(it) }
+  settings["reset_dag_run"]?.takeIf { it == true }?.let { data["reset_dag_run"] = true }
+  settings["poke_interval"]?.let { data["poke_interval"] = (it as Duration).seconds.toInt() }
+  settings["allowed_states"]?.let { data["allowed_states"] = it }
+  settings["failed_states"]?.let { data["failed_states"] = it }
+  settings["fail_when_dag_is_paused"]?.takeIf { it == true }?.let { data["fail_when_dag_is_paused"] = true }
+  settings["note"]?.let { data["note"] = it }
+  settings["deferrable"]?.let { data["deferrable"] = it }
+}
+
+/**
+ * The Dags this one triggers, which is what the UI draws the dependency graph
+ * between Dags from, sorted as Python sorts them.
+ */
+private fun serializeDagDependencies(dag: DagDef): List<Map<String, Any?>> =
+  dag.tasks
+    .filterValues { it.trigger != null }
+    .map { (taskId, def) ->
+      mapOf(
+        "source" to dag.id,
+        "target" to def.trigger!!.dagId,
+        // Python labels the dependency with the task's display name, which a Java task cannot set
+        // yet, and falls back to the task ID as this does.
+        "label" to taskId,
+        "dependency_type" to "trigger",
+        "dependency_id" to taskId,
+      )
+    }
+    // Python sorts DagDependency as the ordered dataclass it is, field by field.
+    .sortedWith(
+      compareBy(
+        { it["source"] as String },
+        { it["target"] as String },
+        { it["label"] as String },
+        { it["dependency_type"] as String },
+        { it["dependency_id"] as String },
+      ),
+    )
 
 /**
  * The task's arguments as the binding spec Airflow records, one entry per
