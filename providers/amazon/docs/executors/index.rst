@@ -43,7 +43,7 @@ Choosing an executor
     * - :doc:`EKS <eks-executor>`
       - A pod on an Amazon EKS cluster
       - You already run EKS, or want Kubernetes executor features such as pod templates
-        and per-task ``pod_override``. It does not support multi-team mode.
+        and per-task ``pod_override``.
     * - :doc:`Lambda <lambda-executor>` (experimental)
       - An asynchronous Lambda invocation
       - Tasks are short and light, and always finish within Lambda's 15 minute limit.

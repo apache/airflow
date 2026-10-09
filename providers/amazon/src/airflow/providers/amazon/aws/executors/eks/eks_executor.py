@@ -61,14 +61,15 @@ class AwsEksExecutor(KubernetesExecutor):
     KubernetesExecutor and its ``[kubernetes_executor]`` configuration.
     """
 
-    # The client factories read the un-prefixed [aws_eks_executor] section, so every team
-    # would land on the same cluster.
-    supports_multi_team: bool = False
+    # Like the KubernetesExecutor, teams share the cluster from the global config and get their
+    # own team-scoped [kubernetes_executor] settings.
+    supports_multi_team: bool = True
 
     def __init__(self, *args, **kwargs):
         self._validate_eks_config()
-        self._ensure_client_factory()
         super().__init__(*args, **kwargs)
+        # After super().__init__, which sets team_name; clients are only built later, in start().
+        self._ensure_client_factory()
 
     def start(self) -> None:
         """Call this when the Executor is run for the first time by the scheduler."""
@@ -116,13 +117,18 @@ class AwsEksExecutor(KubernetesExecutor):
         if not conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.CLUSTER_NAME, fallback=None):
             raise ValueError(f"AwsEksExecutor requires [{CONFIG_GROUP_NAME}] cluster_name to be set")
 
-    @staticmethod
-    def _ensure_client_factory() -> None:
+    def _ensure_client_factory(self) -> None:
+        # cncf.kubernetes looks a team's factory up in the team's own config only, with no
+        # fallback to the global section, so a team executor has to set the team-scoped one.
+        team_name = self.team_name
+        team_kwargs = {"team_name": team_name} if team_name else {}
+        # Team-scoped variables are named AIRFLOW__<TEAM>___<SECTION>__<KEY>.
+        env_var_prefix = f"AIRFLOW__{team_name.upper()}___" if team_name else "AIRFLOW__"
         for key, path in (
             ("client_factory", _CLIENT_FACTORY_PATH),
             ("async_client_factory", _ASYNC_CLIENT_FACTORY_PATH),
         ):
-            configured = conf.get("kubernetes_executor", key, fallback=None)
+            configured = conf.get("kubernetes_executor", key, fallback=None, **team_kwargs)
             if configured and configured != path:
                 raise ValueError(
                     f"AwsEksExecutor sets [kubernetes_executor] {key} itself, so leave it unset; "
@@ -132,4 +138,4 @@ class AwsEksExecutor(KubernetesExecutor):
                 # Environment variable rather than an in-memory conf.set so the setting also
                 # reaches the pod watcher subprocess, which re-reads configuration under the
                 # spawn start method.
-                os.environ[f"AIRFLOW__KUBERNETES_EXECUTOR__{key.upper()}"] = path
+                os.environ[f"{env_var_prefix}KUBERNETES_EXECUTOR__{key.upper()}"] = path

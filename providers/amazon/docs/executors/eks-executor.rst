@@ -210,9 +210,10 @@ in-cluster access grant for your IAM principal is the first thing to check.
 Multi-team deployments
 ----------------------
 
-The executor does not support :doc:`multi-team <apache-airflow:core-concepts/multi-team>`
-mode, so it cannot be configured as a team executor. Its Kubernetes client is built from
-the global ``[aws_eks_executor]`` section, so every team would share one cluster.
+The executor supports :doc:`multi-team <apache-airflow:core-concepts/multi-team>` mode
+the same way the Kubernetes executor does. Teams share the cluster set in the global
+``[aws_eks_executor]`` section, and each team gets its own team-scoped
+``[kubernetes_executor]`` settings, such as the namespace and pod template.
 
 Fault tolerance
 ---------------

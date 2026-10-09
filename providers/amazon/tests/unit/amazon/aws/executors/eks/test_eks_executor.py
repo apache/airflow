@@ -34,17 +34,25 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import Kube
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, conf
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 EKS_EXECUTOR_MODULE = "airflow.providers.amazon.aws.executors.eks.eks_executor"
 CLIENT_FACTORY_ENV_VAR = "AIRFLOW__KUBERNETES_EXECUTOR__CLIENT_FACTORY"
 ASYNC_CLIENT_FACTORY_ENV_VAR = "AIRFLOW__KUBERNETES_EXECUTOR__ASYNC_CLIENT_FACTORY"
+TEAM_CLIENT_FACTORY_ENV_VAR = "AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__CLIENT_FACTORY"
+TEAM_ASYNC_CLIENT_FACTORY_ENV_VAR = "AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__ASYNC_CLIENT_FACTORY"
 
 
 @pytest.fixture(autouse=True)
 def isolated_environ():
     with mock.patch.dict(os.environ):
-        os.environ.pop(CLIENT_FACTORY_ENV_VAR, None)
-        os.environ.pop(ASYNC_CLIENT_FACTORY_ENV_VAR, None)
+        for env_var in (
+            CLIENT_FACTORY_ENV_VAR,
+            ASYNC_CLIENT_FACTORY_ENV_VAR,
+            TEAM_CLIENT_FACTORY_ENV_VAR,
+            TEAM_ASYNC_CLIENT_FACTORY_ENV_VAR,
+        ):
+            os.environ.pop(env_var, None)
         yield
 
 
@@ -63,6 +71,7 @@ class TestAwsEksExecutor:
 
         assert os.environ[CLIENT_FACTORY_ENV_VAR] == _CLIENT_FACTORY_PATH
         assert os.environ[ASYNC_CLIENT_FACTORY_ENV_VAR] == _ASYNC_CLIENT_FACTORY_PATH
+        assert not [env_var for env_var in os.environ if "___KUBERNETES_EXECUTOR__" in env_var]
 
     @conf_vars({("aws_eks_executor", "cluster_name"): "test-eks-cluster"})
     def test_client_factory_paths_resolve_to_the_factories(self):
@@ -97,8 +106,59 @@ class TestAwsEksExecutor:
             with pytest.raises(ValueError, match=rf"{key} itself.*my_company.kubernetes.build_client"):
                 AwsEksExecutor()
 
-    def test_does_not_support_multi_team(self):
-        assert AwsEksExecutor.supports_multi_team is False
+    def test_supports_multi_team(self):
+        assert AwsEksExecutor.supports_multi_team is True
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    @conf_vars({("aws_eks_executor", "cluster_name"): "test-eks-cluster"})
+    def test_team_executor_sets_team_scoped_client_factories(self):
+        AwsEksExecutor(team_name="team_a")
+
+        assert os.environ[TEAM_CLIENT_FACTORY_ENV_VAR] == _CLIENT_FACTORY_PATH
+        assert os.environ[TEAM_ASYNC_CLIENT_FACTORY_ENV_VAR] == _ASYNC_CLIENT_FACTORY_PATH
+        assert CLIENT_FACTORY_ENV_VAR not in os.environ
+        assert ASYNC_CLIENT_FACTORY_ENV_VAR not in os.environ
+        # The lookup cncf.kubernetes makes when it builds the team's clients.
+        assert (
+            conf.getimport("kubernetes_executor", "client_factory", team_name="team_a")
+            is _client_factory._get_eks_kube_client
+        )
+        assert (
+            conf.getimport("kubernetes_executor", "async_client_factory", team_name="team_a")
+            is _client_factory._get_eks_async_kube_client
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    @conf_vars({("aws_eks_executor", "cluster_name"): "test-eks-cluster"})
+    def test_team_executor_keeps_existing_team_scoped_client_factory(self, monkeypatch):
+        monkeypatch.setenv(TEAM_CLIENT_FACTORY_ENV_VAR, _CLIENT_FACTORY_PATH)
+        monkeypatch.setenv(TEAM_ASYNC_CLIENT_FACTORY_ENV_VAR, _ASYNC_CLIENT_FACTORY_PATH)
+
+        before = dict(os.environ)
+
+        AwsEksExecutor(team_name="team_a")
+
+        assert dict(os.environ) == before
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    @conf_vars({("aws_eks_executor", "cluster_name"): "test-eks-cluster"})
+    def test_team_executor_ignores_global_client_factory(self, monkeypatch):
+        # A global setting does not reach a team, so the team still gets its own.
+        monkeypatch.setenv(CLIENT_FACTORY_ENV_VAR, "my_company.kubernetes.build_client")
+
+        AwsEksExecutor(team_name="team_a")
+
+        assert os.environ[TEAM_CLIENT_FACTORY_ENV_VAR] == _CLIENT_FACTORY_PATH
+        assert os.environ[CLIENT_FACTORY_ENV_VAR] == "my_company.kubernetes.build_client"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    @pytest.mark.parametrize("key", ["client_factory", "async_client_factory"])
+    @conf_vars({("aws_eks_executor", "cluster_name"): "test-eks-cluster"})
+    def test_team_executor_conflicting_team_scoped_client_factory_raises(self, monkeypatch, key):
+        monkeypatch.setenv(f"AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__{key.upper()}", "my_company.build")
+
+        with pytest.raises(ValueError, match=rf"{key} itself.*my_company.build"):
+            AwsEksExecutor(team_name="team_a")
 
     @conf_vars({("aws_eks_executor", "cluster_name"): "test-eks-cluster"})
     @mock.patch.object(KubernetesExecutor, "start", autospec=True)
