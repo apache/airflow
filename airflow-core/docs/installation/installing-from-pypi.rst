@@ -24,32 +24,25 @@ PyPI <https://pypi.org/project/apache-airflow/>`__.
 Installation via ``pipx`` or ``uv`` as tool
 '''''''''''''''''''''''''''''''''''''''''''
 
-To run Airflow locally for the first time, follow the :doc:`/start`.
-
 For a local development and testing environment, you can install and run Apache Airflow directly from PyPI.
-The ``airflow standalone`` command starts each component by running the ``airflow`` command, which comes from the
-``apache-airflow-core`` dependency, so the install has to put that command on your ``PATH``.
 
-With ``pipx``, ``--include-deps`` exposes ``airflow``, along with the commands of Airflow's other dependencies:
+If you use ``pipx`` you can run directly from PyPI with the command below:
 
 .. code-block:: bash
 
-    pipx install --include-deps "apache-airflow==|version|"
-    airflow standalone
+    pipx run "apache-airflow==|version|" standalone
 
-With Astral ``uv``, ``--with-executables-from`` exposes the ``airflow`` command:
+Via Astral ``uv`` it is possible to install from PyPI using:
+
+.. code-block:: bash
+
+    uv tool install "apache-airflow==|version|"
+
+Additionally to jump-start using it you can also use the shortcut via ``uvx`` command and directly run it without installing it first:
 
 .. code-block:: bash
 
-    uv tool install --with-executables-from apache-airflow-core "apache-airflow==|version|"
-    airflow standalone
-
-To run Airflow without installing it first, use ``uvx``:
-
-.. code-block:: bash
-    :substitutions:
-
-    uvx apache-airflow@|version| standalone
+    uvx apache-airflow standalone
 
 
 Installation in your environment

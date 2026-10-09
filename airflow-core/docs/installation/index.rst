@@ -68,8 +68,8 @@ tables once:
 
     airflow db migrate
 
-Then start each component in its own terminal, with the same virtual environment activated. Each command
-keeps running until you stop it, so run one command per terminal:
+Then start each component in its own terminal, with the same virtual environment activated and the same
+``AIRFLOW_HOME`` if you set one. Each command keeps running until you stop it:
 
 .. code-block:: bash
 
