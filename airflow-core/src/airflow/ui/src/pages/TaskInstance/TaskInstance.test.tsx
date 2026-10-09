@@ -236,45 +236,43 @@ describe("TaskInstance", () => {
       );
     },
   );
-  it.each(["11111111-1111-4111-8111-111111111111", "00000000-0000-0000-0000-000000000000"])(
-    "resolves coordinate %s and preserves it across task tabs",
-    async (regionId) => {
-      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-      const fetch = vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
-        ...buildTaskInstance(TASK_A, "success", 2),
-        region_id: regionId,
-        region_index: 3,
-      });
+  it("resolves a coordinate and preserves it across task tabs", async () => {
+    const regionId = "11111111-1111-4111-8111-111111111111";
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const fetch = vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
+      ...buildTaskInstance(TASK_A, "success", 2),
+      region_id: regionId,
+      region_index: 3,
+    });
 
-      vi.spyOn(TaskInstanceService, "getTaskInstanceTryDetails").mockResolvedValue({
-        ...buildTaskInstance(TASK_A, "success", 2),
-        region_id: regionId,
-        region_index: 3,
-      });
+    vi.spyOn(TaskInstanceService, "getTaskInstanceTryDetails").mockResolvedValue({
+      ...buildTaskInstance(TASK_A, "success", 2),
+      region_id: regionId,
+      region_index: 3,
+    });
 
-      render(
-        <MemoryRouter
-          initialEntries={[
-            `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/logs?region_id=${regionId}&region_index=3&try_number=2`,
-          ]}
-        >
-          <Location />
-          <Routes>
-            <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
-              <Route element={<div />} path="*" />
-            </Route>
-          </Routes>
-        </MemoryRouter>,
-        { wrapper: createWrapper(queryClient) },
-      );
-      expect(await screen.findByText(`${TASK_A}:success:2`)).toBeTruthy();
-      expect(fetch).toHaveBeenCalledWith(expect.objectContaining({ mapIndex: -1, regionId, regionIndex: 3 }));
-      expect(screen.getByRole("link", { name: "tabs.auditLog" })).toBeVisible();
-      fireEvent.click(screen.getByRole("link", { name: "tabs.details" }));
-      expect(screen.getByTestId("location").textContent).toContain(`region_id=${regionId}`);
-      expect(screen.getByTestId("location").textContent).toContain("region_index=3");
-    },
-  );
+    render(
+      <MemoryRouter
+        initialEntries={[
+          `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/logs?region_id=${regionId}&region_index=3&try_number=2`,
+        ]}
+      >
+        <Location />
+        <Routes>
+          <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+            <Route element={<div />} path="*" />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createWrapper(queryClient) },
+    );
+    expect(await screen.findByText(`${TASK_A}:success:2`)).toBeTruthy();
+    expect(fetch).toHaveBeenCalledWith(expect.objectContaining({ mapIndex: -1, regionId, regionIndex: 3 }));
+    expect(screen.getByRole("link", { name: "tabs.auditLog" })).toBeVisible();
+    fireEvent.click(screen.getByRole("link", { name: "tabs.details" }));
+    expect(screen.getByTestId("location").textContent).toContain(`region_id=${regionId}`);
+    expect(screen.getByTestId("location").textContent).toContain("region_index=3");
+  });
 
   it.each(["", "?try_number=1&log_level=error"])(
     "keeps the selected try across task tabs with %s",

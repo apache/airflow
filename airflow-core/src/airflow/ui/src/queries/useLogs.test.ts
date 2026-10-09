@@ -86,8 +86,8 @@ describe("parseLogs line links", () => {
 
   it.each([
     [
-      "omits region coordinates for the sentinel region",
-      { region_id: "00000000-0000-0000-0000-000000000000", region_index: -1 },
+      "omits region coordinates for a task instance outside any region",
+      {},
       "/dags/dag/runs/run/tasks/task/logs?try_number=1#0",
     ],
     [

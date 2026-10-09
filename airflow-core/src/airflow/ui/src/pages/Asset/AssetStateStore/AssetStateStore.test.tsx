@@ -45,14 +45,9 @@ afterEach(() => vi.restoreAllMocks());
 
 it.each([
   {
-    expected:
-      "/dags/dag/runs/run/tasks/work?region_id=00000000-0000-0000-0000-000000000000&region_index=-1&try_number=2",
-    identity: {
-      region_id: "00000000-0000-0000-0000-000000000000",
-      region_index: -1,
-      try_number: 2,
-    },
-    label: "retained sentinel writer",
+    expected: "/dags/dag/runs/run/tasks/work",
+    identity: { try_number: 2 },
+    label: "writer outside any region",
     mapIndex: -1,
   },
   {

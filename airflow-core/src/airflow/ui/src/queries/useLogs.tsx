@@ -133,7 +133,7 @@ export const parseLogs = ({
 
   const logSearch = new URLSearchParams({ try_number: String(tryNumber) });
 
-  if (taskInstance !== undefined && taskInstance.region_id !== "00000000-0000-0000-0000-000000000000") {
+  if (taskInstance?.region_id !== undefined) {
     logSearch.set("region_id", taskInstance.region_id);
     logSearch.set("region_index", String(taskInstance.region_index));
   }

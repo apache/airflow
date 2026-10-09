@@ -64,9 +64,7 @@ export const useBulkMarkAsDryRun = (
           dagRunId: ti.dag_run_id,
           mapIndex: ti.map_index,
           requestBody: {
-            ...(ti.region_id && ti.region_id !== "00000000-0000-0000-0000-000000000000"
-              ? { region_id: ti.region_id, region_index: ti.region_index }
-              : {}),
+            ...(ti.region_id === undefined ? {} : { region_id: ti.region_id, region_index: ti.region_index }),
             include_downstream: options.includeDownstream,
             include_future: options.includeFuture,
             include_past: options.includePast,

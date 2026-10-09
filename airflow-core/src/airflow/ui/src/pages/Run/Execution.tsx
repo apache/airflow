@@ -51,7 +51,7 @@ const groupExecutions = (tasks: Array<ExecutionTaskResponse>, regions: Array<Exe
   const groups = new Map<string, Group>();
 
   for (const task of tasks) {
-    const region = byRegion.get(task.region_id);
+    const region = task.region_id === undefined ? undefined : byRegion.get(task.region_id);
     const mapped = region?.node_id === task.task_id;
     const parentId = region?.parent_region_id;
     const parent = parentId === undefined || parentId === null ? undefined : byRegion.get(parentId);
@@ -80,11 +80,13 @@ const executionLink = (task: ExecutionTaskResponse) => {
     { dagId: task.dag_id, dagRunId: task.dag_run_id, mapIndex: task.map_index, taskId: task.task_id },
     "logs",
   );
-  const query = new URLSearchParams({
-    region_id: task.region_id,
-    region_index: String(task.region_index),
-    try_number: String(task.try_number),
-  });
+  const query = new URLSearchParams(
+    task.region_id === undefined
+      ? {}
+      : { region_id: task.region_id, region_index: String(task.region_index) },
+  );
+
+  query.set("try_number", String(task.try_number));
 
   return `${path}?${query}`;
 };

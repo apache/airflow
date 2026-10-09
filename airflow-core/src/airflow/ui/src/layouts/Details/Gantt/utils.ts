@@ -34,6 +34,7 @@ export type GanttDataItem = {
   end_when?: string | null;
   isGroup?: boolean | null;
   isMapped?: boolean | null;
+  mapIndex?: number;
   /** Source try times for tooltips (matches TaskInstance `*_when` fields). */
   queued_when?: string | null;
   regionId?: string;
@@ -146,6 +147,7 @@ export const transformGanttData = ({
               endDate ?? (hasTaskRunning && startDate !== null ? new Date().toISOString() : null);
 
             const tryMetadata = {
+              mapIndex: tryRow.map_index,
               regionId: tryRow.region_id,
               regionIndex: tryRow.region_index,
               taskInstanceId: tryRow.id,
@@ -290,10 +292,8 @@ export const computeGanttTimeRangeMs = ({
   };
 };
 
-const SENTINEL_REGION_ID = "00000000-0000-0000-0000-000000000000";
-
-const getGanttTryKey = ({ regionId, regionIndex, taskId }: GanttDataItem) =>
-  `${taskId}:${regionId ?? ""}:${regionIndex ?? -1}`;
+const getGanttTryKey = ({ mapIndex, regionId, regionIndex, taskId }: GanttDataItem) =>
+  `${taskId}:${regionId ?? ""}:${regionIndex ?? -1}:${mapIndex ?? -1}`;
 
 /**
  * Precompute the maximum try number for each task and region in O(n).
@@ -337,7 +337,7 @@ export const getGanttSegmentTo = ({
   // Clone the pre-parsed params so mutations don't leak across segments.
   const searchParams = new URLSearchParams(baseSearchParams);
 
-  if (item.regionId !== undefined && item.regionIndex !== undefined && item.regionId !== SENTINEL_REGION_ID) {
+  if (item.regionId !== undefined && item.regionIndex !== undefined) {
     searchParams.set("region_id", item.regionId);
     searchParams.set("region_index", item.regionIndex.toString());
   } else {

@@ -115,18 +115,7 @@ describe("GanttTimeline segment bars", () => {
   });
 
   it.each([
-    {
-      name: "ordinary task",
-      node: BASE_NODE,
-      regionId: "00000000-0000-0000-0000-000000000000",
-      regionIndex: -1,
-    },
-    {
-      name: "legacy mapped slot",
-      node: BASE_NODE,
-      regionId: "00000000-0000-0000-0000-000000000000",
-      regionIndex: 2,
-    },
+    { name: "ordinary task", node: BASE_NODE, regionId: undefined, regionIndex: undefined },
     {
       name: "mapped aggregate",
       node: { ...BASE_NODE, is_mapped: true },

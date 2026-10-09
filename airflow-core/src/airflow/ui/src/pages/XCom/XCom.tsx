@@ -128,10 +128,11 @@ const getColumns = ({
                   mapIndex: original.map_index,
                   taskId: original.task_id,
                 }),
-                search: new URLSearchParams({
-                  region_id: original.region_id,
-                  region_index: String(original.region_index),
-                }).toString(),
+                search: new URLSearchParams(
+                  original.region_id === undefined
+                    ? {}
+                    : { region_id: original.region_id, region_index: String(original.region_index) },
+                ).toString(),
               }}
             >
               <TruncatedText text={original.task_display_name} />

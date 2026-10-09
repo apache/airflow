@@ -36,8 +36,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 export const AssetEvents = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const coordinates = useTaskInstanceCoordinates();
-  const regional =
-    coordinates.regionId !== undefined && coordinates.regionId !== "00000000-0000-0000-0000-000000000000";
+  const regional = coordinates.regionId !== undefined;
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [searchParams, setSearchParams] = useSearchParams();
   const { t: translate } = useTranslation(["assets"]);

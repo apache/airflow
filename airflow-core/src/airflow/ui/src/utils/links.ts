@@ -43,7 +43,7 @@ export const getTaskInstanceLink = (
       tiOrParams.map_index >= 0 ? `/mapped/${tiOrParams.map_index}` : ""
     }${tabPath}`;
 
-    if (tiOrParams.region_id === "00000000-0000-0000-0000-000000000000") {
+    if (tiOrParams.region_id === undefined) {
       return path;
     }
     const query = new URLSearchParams({

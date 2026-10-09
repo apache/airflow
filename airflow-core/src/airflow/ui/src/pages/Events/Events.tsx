@@ -187,10 +187,7 @@ export const Events = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const { dagId, mapIndex = "-1", runId, taskId } = useParams();
   const coordinates = useTaskInstanceCoordinates();
-  const regional =
-    taskId !== undefined &&
-    coordinates.regionId !== undefined &&
-    coordinates.regionId !== "00000000-0000-0000-0000-000000000000";
+  const regional = taskId !== undefined && coordinates.regionId !== undefined;
   const { data: selectedTask } = useTaskInstanceServiceGetMappedTaskInstance(
     {
       ...coordinates,

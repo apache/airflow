@@ -113,13 +113,7 @@ export const ClearExecutionDialog = ({
     dagLevelConfig: dagDetails?.rerun_with_latest_version,
     fallback: dagVersionsDiffer,
   });
-  const mappedIds = executions
-    .filter(
-      (ti) =>
-        ti.map_index >= 0 ||
-        (ti.region_id !== "00000000-0000-0000-0000-000000000000" && ti.region_index === -1),
-    )
-    .map((ti) => ti.id);
+  const mappedIds = executions.filter((ti) => ti.map_index >= 0 || ti.region_index === -1).map((ti) => ti.id);
   const requestBody: ClearTaskInstancesBody = {
     dag_run_id: runId,
     include_downstream: downstream,

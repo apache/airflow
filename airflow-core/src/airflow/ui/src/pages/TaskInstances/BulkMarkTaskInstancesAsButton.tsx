@@ -137,7 +137,7 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
                     action: "update" as const,
                     action_on_non_existence: "skip",
                     entities: directlyAffected.map((ti) => ({
-                      ...(ti.region_id === "00000000-0000-0000-0000-000000000000"
+                      ...(ti.region_id === undefined
                         ? {}
                         : { region_id: ti.region_id, region_index: ti.region_index }),
                       dag_id: ti.dag_id,
