@@ -1374,21 +1374,25 @@ class DAG:
                 executor = ExecutorLoader.get_default_executor()
                 executor.start()
 
-            def is_marked_success(ti):
-                return (
-                    re.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
-                    if mark_success_pattern is not None
-                    else False
-                )
+            from airflow.sdk.definitions.mappedoperator import MappedOperator
 
-            # If a mapped TI is marked successful, pre-expand it to a single mapped index
-            # without waiting for the upstream XCom value.
-            # If the upstream dependencies later run and produce an XCom during this Dag run,
-            # _revise_map_indexes_if_mapped() will update the mapped TI count to match the
-            # upstream XCom length.
+            mark_success_re = re.compile(mark_success_pattern) if mark_success_pattern is not None else None
+
+            def is_marked_success(task_id: str) -> bool:
+                return mark_success_re is not None and mark_success_re.fullmatch(task_id) is not None
+
+            # A marked-success upstream pushes no XCom, so expanding a mapped task over it raises
+            # NotFullyPopulated and the scheduler marks the unexpanded TI UPSTREAM_FAILED.
+            # If the mapped task is marked success too, promote its TI to map_index 0 so it is
+            # marked success as a single TI instead.
             for ti in dr.get_task_instances(session=session):
                 task = self.task_dict[ti.task_id]
-                if task.is_mapped and is_marked_success(ti):
+                if (
+                    isinstance(task, MappedOperator)
+                    and ti.map_index < 0
+                    and is_marked_success(ti.task_id)
+                    and any(is_marked_success(dep.task_id) for dep in task.iter_mapped_dependencies())
+                ):
                     ti.map_index = 0
             session.commit()
 
@@ -1453,7 +1457,7 @@ class DAG:
                     else:
                         # Run the task locally
                         try:
-                            if is_marked_success(ti):
+                            if is_marked_success(ti.task_id):
                                 ti.set_state(TaskInstanceState.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", task, ti.logical_date)
                             else:
