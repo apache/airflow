@@ -350,8 +350,9 @@ leaves its contents alone: the same four tools run in the sandbox.
      - Your OpenSandbox server's Docker host or Kubernetes cluster, off the worker.
      - Ended by the OpenSandbox server at ``sandbox_timeout``.
    * - ``OpenShellSandboxBackend``
-     - A container confined by Landlock and seccomp, with only a loopback network
-       interface; egress goes through a per-sandbox supervisor.
+     - A container confined by Landlock and seccomp; egress goes through a
+       per-sandbox supervisor (on the Docker driver, the workload has only a
+       loopback network interface).
      - Your OpenShell gateway's Docker or Podman host or Kubernetes cluster, off the
        worker. Verified with the Docker driver only.
      - Left running. No server-side lifetime; sandboxes are labeled

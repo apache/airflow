@@ -257,9 +257,9 @@ OpenShell (self-hosted remote)
 :class:`~airflow.providers.common.ai.sandbox.openshell.OpenShellSandboxBackend`
 runs sandboxes through an `NVIDIA OpenShell <https://github.com/NVIDIA/OpenShell>`__
 gateway, which runs each one on Docker, Podman or Kubernetes. Inside the
-container the workload is confined by Landlock and seccomp and has only a
-loopback network interface; a per-sandbox supervisor opens every outbound connection
-on its behalf, against a policy the backend writes and reads back. Airflow workers
+container the workload is confined by Landlock and seccomp; on the Docker driver it
+has only a loopback network interface, and a per-sandbox supervisor opens every
+outbound connection on its behalf, against a policy the backend writes and reads back. Airflow workers
 only need gRPC access to the gateway.
 
 Install the SDK extra:
