@@ -110,6 +110,14 @@ def api_url(async_db_engine, api_requests, api_bind_host, api_secret):
                 ("execution_api", "jwt_expiration_time"): "300",
             }
         ),
+        # Real HTTP/DB responses can exceed the one-second renewal deadline on CI.
+        # Unit tests in dag_processing/test_api_client.py cover that deadline separately.
+        mock.patch.object(
+            DagProcessorAPIClient,
+            "_get_bounded_timeout",
+            autospec=True,
+            side_effect=lambda client: client.timeout,
+        ),
         socket.socket() as listener,
     ):
         listener.bind((api_bind_host, 0))

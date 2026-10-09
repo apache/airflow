@@ -254,20 +254,21 @@ Token structure (Execution API)
    * - ``aud``
      - Audience (from ``[execution_api] jwt_audience``, default: ``urn:airflow.apache.org:task``).
    * - ``sub``
-     - Task instance UUID — the identity of the workload.
+     - UUID identifying the task instance, callback, processor session, or parsing attempt, depending on the scope.
    * - ``scope``
-     - Token scope: ``"execution"`` or ``"workload"``.
+     - Token scope: ``"execution"``, ``"workload"``, ``"callback"``, ``"dag_processor_session"``,
+       ``"dag_processor"``, or ``"dag_parse"``.
    * - ``iat``
      - Issued-at timestamp.
    * - ``nbf``
      - Not-before timestamp.
    * - ``exp``
-     - Expiration timestamp (``iat + [execution_api] jwt_expiration_time``).
+     - Expiration timestamp, determined by the scope's lifetime and any parent credential's expiry.
 
 Token scopes (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Execution API defines two token scopes with different lifetimes:
+The Execution API uses the following token scopes. Each endpoint accepts only its declared scopes:
 
 **workload**
    A token embedded in the workload JSON payload when the Scheduler
@@ -281,11 +282,27 @@ The Execution API defines two token scopes with different lifetimes:
    backed-up queue before its workload token expires.
 
 **execution**
-   A short-lived token (default 10 minutes) accepted by all Execution API endpoints.
+   A short-lived token (default 10 minutes) accepted by endpoints that allow task or callback execution.
    This is the standard scope for worker communication during task execution. Issued
    by the server when the worker transitions to running via the ``/run`` endpoint.
    The ``JWTReissueMiddleware`` refreshes ``execution`` tokens transparently,
    so the worker maintains access for the duration of the task.
+
+**callback**
+   A single-use token exchanged at ``/callbacks/{callback_id}/run`` for an ``execution``
+   token when a queued callback starts.
+
+**dag_processor_session**
+   A provisioned credential accepted only by ``POST /jobs`` for Job registration and renewal.
+
+**dag_processor**
+   A Job credential for heartbeats, completion, Connection and Variable reads for granted bundles,
+   and parsing-token exchange.
+
+**dag_parse**
+   A credential for one parsing attempt, granting parse-time access within its signed bundle.
+
+See `Dag processor HTTP client credentials`_ for provisioning, lifetime limits, and authorization details.
 
 Tokens without a ``scope`` claim default to ``"execution"`` for backwards compatibility.
 
