@@ -528,7 +528,7 @@ class TestCheckTopicExists:
         "dagrun_topic_setting",
         "task_instance_topic_setting",
         "dagrun_expected",
-        "task_instance_expected"
+        "task_instance_expected",
     ),
     [
         pytest.param(
