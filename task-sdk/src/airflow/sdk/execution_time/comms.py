@@ -1135,6 +1135,7 @@ class SetExecutionTimeout(BaseModel):
 class TriggerDagRun(TriggerDAGRunPayload):
     dag_id: str
     run_id: Annotated[str, Field(title="Dag Run Id")]
+    only_failed_and_downstream: bool = False
     type: Literal["TriggerDagRun"] = "TriggerDagRun"
 
 

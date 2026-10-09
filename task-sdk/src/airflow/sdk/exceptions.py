@@ -303,6 +303,7 @@ class DagRunTriggerException(AirflowException):
         logical_date=None,
         run_after=None,
         reset_dag_run: bool,
+        only_failed_and_downstream: bool = False,
         skip_when_already_exists: bool,
         wait_for_completion: bool,
         allowed_states: list[str],
@@ -318,6 +319,7 @@ class DagRunTriggerException(AirflowException):
         self.logical_date = logical_date
         self.run_after = run_after
         self.reset_dag_run = reset_dag_run
+        self.only_failed_and_downstream = only_failed_and_downstream
         self.skip_when_already_exists = skip_when_already_exists
         self.wait_for_completion = wait_for_completion
         self.allowed_states = allowed_states
