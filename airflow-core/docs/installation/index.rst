@@ -52,43 +52,45 @@ also be kept updated when Airflow is upgraded.
 Local start for development and testing
 '''''''''''''''''''''''''''''''''''''''
 
-To try Apache Airflow locally without production complexity, follow the :doc:`/start`.
-It covers a one-command start with ``uvx`` or ``pipx``, installing into a virtual environment,
-and opening the UI. Standalone mode is not for production.
+To run Airflow on your machine for development and testing, follow the :doc:`/start`. It installs Airflow
+into a virtual environment and starts every component with ``airflow standalone``, which is not meant for
+production.
 
 .. _starting-components-separately:
 
 Starting components separately
-''''''''''''''''''''''''''''''
+""""""""""""""""""""""""""""""
 
-After a local install, ``airflow standalone`` starts every component for you. To run them yourself:
+The ``airflow standalone`` command starts every component for you. To run them yourself, create the database
+tables once:
 
 .. code-block:: bash
 
     airflow db migrate
 
+Then start each component in its own terminal, with the same virtual environment activated. Each command
+keeps running until you stop it, so run one command per terminal:
+
+.. code-block:: bash
+
     airflow api-server --port 8080
-
     airflow scheduler
-
     airflow dag-processor
-
     airflow triggerer
 
-.. note::
+With the default ``SimpleAuthManager``, the API server prints a generated password for the ``admin`` user on
+its first start and saves it in ``simple_auth_manager_passwords.json.generated`` under ``AIRFLOW_HOME``
+(``~/airflow`` unless you set it). If you use the :doc:`apache-airflow-providers-fab:auth-manager/index`
+instead, create an admin user with ``airflow users create``, which prompts for a password:
 
-    The default Airflow 3 auth manager is ``SimpleAuthManager``, which generates credentials during
-    standalone startup (see :doc:`/start`). ``airflow users create`` is only available when
-    :doc:`apache-airflow-providers-fab:auth-manager/index` is enabled:
+.. code-block:: bash
 
-    .. code-block:: bash
-
-        airflow users create \
-            --username admin \
-            --firstname Peter \
-            --lastname Parker \
-            --role Admin \
-            --email spiderman@superhero.org
+    airflow users create \
+        --username admin \
+        --firstname Peter \
+        --lastname Parker \
+        --role Admin \
+        --email spiderman@superhero.org
 
 Using released sources
 ''''''''''''''''''''''
