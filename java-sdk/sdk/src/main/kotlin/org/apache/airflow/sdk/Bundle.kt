@@ -66,8 +66,8 @@ class Bundle(
    * @return This bundle, for chaining.
    * @throws IllegalArgumentException if another Dag shares its ID, task
    *    handlers are already registered against it, a task depends on an
-   *    upstream not registered in the same Dag, or the dependencies contain a
-   *    cycle.
+   *    upstream not registered in the same Dag, a task that decides which task
+   *    runs is not declared with `If`, or the dependencies contain a cycle.
    * @throws IllegalStateException if [Server.serve] has already been called.
    */
   fun register(dag: DagDef): Bundle {
@@ -83,11 +83,30 @@ class Bundle(
             "that is not registered in the same Dag"
         }
       }
+      val decides = DECIDER_TYPES.any { it.isAssignableFrom(def.definition) }
+      require(decides == (def.decider != null)) {
+        if (decides) {
+          "Task '${def.id}' runs '${def.definition.name}', which decides which task runs, but nothing names " +
+            "what it chooses; declare it with If(...), in Dag '${dag.id}'"
+        } else {
+          "Task '${def.id}' chooses which task runs, but '${def.definition.name}' decides nothing, in Dag '${dag.id}'"
+        }
+      }
+      def.decider?.let { decider ->
+        decider.describe(def)?.let { throw IllegalArgumentException("$it, in Dag '${dag.id}'") }
+        for (case in decider.cases) {
+          require(dag.tasks[case.id] === case) {
+            "Task '$taskId' in Dag '${dag.id}' can run task '${case.id}' " +
+              "that is not registered in the same Dag"
+          }
+        }
+      }
     }
     checkNoCycle(dag)
     require(dags.putIfAbsent(dag.id, dag) == null) {
       "Dags in bundle have duplicate ID: ${dag.id}"
     }
+    dag.registered = true
     return this
   }
 
@@ -191,6 +210,9 @@ class Bundle(
 
   private fun checkOpen() = check(!served) { "Server.serve has already been called; register everything before serve" }
 }
+
+/** Task types the SDK runs through a decider, so each needs the sides it chooses between. */
+private val DECIDER_TYPES = listOf(ConditionTask::class.java)
 
 // Reject cycles produced by before and after at registration time. This is (non-tailrec-eligible)
 // recursive and could blow up with deep dependency chains. I kept the recursive implementation

@@ -2162,6 +2162,204 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("generate a condition task and a wiring view that names each side")
+  fun generateConditionTask() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+
+        import org.apache.airflow.sdk.Builder;
+
+        @Builder.Dag(id = "etl")
+        public class TestExample {
+          @Builder.If(id = "has_rows")
+          public boolean hasRows() {
+            return true;
+          }
+
+          @Builder.Task
+          public void load() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              hasRows().Then(load());
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Override;
+         import java.util.List;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.ConditionTask;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.DagSource;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         public final class TestExampleBuilder {
+           public static DagDef build() {
+             var dag = DagSource.declaredBy(new DagDef("etl"), TestExample.class);
+             return Refs.record(dag, List.of("has_rows", "load"), List.of(), new TestExample.Wiring()::depends);
+           }
+
+           public static final class HasRows implements ConditionTask {
+             @Override
+             public boolean decide(Context context, Client client) throws Exception {
+               return new TestExample().hasRows();
+             }
+           }
+
+           public static final class Load implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               new TestExample().load();
+             }
+           }
+         }
+        """,
+      )
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleDeps")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleDeps",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Void;
+         import org.apache.airflow.sdk.ConditionRef;
+         import org.apache.airflow.sdk.Deps;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.TaskRef;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         public interface TestExampleDeps extends Deps {
+           default ConditionRef hasRows() {
+             return ConditionRef.of(Refs.node("", new TaskDef("has_rows", TestExampleBuilder.HasRows.class)));
+           }
+
+           default TaskRef<Void> load() {
+             return Refs.node("", new TaskDef("load", TestExampleBuilder.Load.class));
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("let a wiring view name a condition's sides in more than one statement")
+  fun conditionNamedAcrossStatements() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+
+        import org.apache.airflow.sdk.Builder;
+
+        @Builder.Dag(id = "etl")
+        public class TestExample {
+          @Builder.Task
+          public void extract() {}
+
+          @Builder.If(id = "has_rows")
+          public boolean hasRows() {
+            return true;
+          }
+
+          @Builder.Task
+          public void load() {}
+
+          @Builder.Task
+          public void reportEmpty() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              extract().before(hasRows());
+              hasRows().Then(load());
+              hasRows().Else(reportEmpty());
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+  }
+
+  @Test
+  @DisplayName("reject a condition that does not return a boolean")
+  fun rejectNonBooleanCondition() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.If
+          public String hasRows() {
+            return "yes";
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.If method 'hasRows' returns java.lang.String, but a condition returns boolean",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a method that is both a task and a condition")
+  fun rejectTaskAndCondition() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task
+          @Builder.If
+          public boolean hasRows() {
+            return true;
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Method 'hasRows' carries both @Builder.Task and @Builder.If",
+    )
+  }
+
+  @Test
   @DisplayName("map the Dag to the annotated class, not its generated builder")
   fun dagDeclaredByAnnotatedClass() {
     val compilation =

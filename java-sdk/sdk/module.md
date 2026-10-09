@@ -60,7 +60,7 @@ meaning of each dimension is defined in the
 | capability: `task-args` | MUST † | ✓ | 3.4 |  |
 | capability: `dag-params` | MUST † | ✗ | – |  |
 | capability: `taskflow-dependencies` | MUST † | ✓ | 3.4 |  |
-| capability: `branching` | SHOULD † | ✗ | – |  |
+| capability: `branching` | SHOULD † | ✓ | 3.4 | DagDef.If / @Builder.If |
 | capability: `dag-test` | SHOULD † | ✗ | – |  |
 | capability: `task-group` | MAY † | ✓ | 3.4 |  |
 | capability: `dynamic-task-mapping` | MAY † | ✗ | – |  |

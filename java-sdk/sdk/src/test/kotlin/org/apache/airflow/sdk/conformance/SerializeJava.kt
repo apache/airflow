@@ -34,6 +34,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
 import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.ConditionRef
+import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.Deps
@@ -53,6 +55,13 @@ class ConformanceTask : Task {
     context: Context,
     client: Client,
   ) = Unit
+}
+
+class ConformanceCondition : ConditionTask {
+  override fun decide(
+    context: Context,
+    client: Client,
+  ) = true
 }
 
 fun main(args: Array<String>) {
@@ -80,16 +89,21 @@ private fun buildDag(case: JsonNode): DagDef {
     groups[groupId] = if (parentId.isEmpty()) dag.taskGroup(localId) else groups.getValue(parentId).taskGroup(localId)
   }
 
-  val tasks = linkedMapOf<String, TaskRef<Unit>>()
+  val tasks = linkedMapOf<String, TaskRef<*>>()
+  // A condition names tasks that may be declared after it, so the sides are wired once every task exists.
+  val conditions = mutableListOf<Pair<ConditionRef, JsonNode>>()
   case.path("tasks").forEach { task ->
     val groupId = task.path("group").asText("")
     val localId = task.path("task_id").asText()
+    val branch = task.path("branch")
+    val definition = if (branch.isMissingNode) ConformanceTask::class.java else ConformanceCondition::class.java
     val ref =
       if (groupId.isEmpty()) {
-        dag.task<Unit>(localId, ConformanceTask::class.java)
+        dag.task<Any?>(localId, definition)
       } else {
-        groups.getValue(groupId).task(localId, ConformanceTask::class.java)
+        groups.getValue(groupId).task<Any?>(localId, definition)
       }
+    if (!branch.isMissingNode) conditions += asCondition(ref) to branch
     task.path("spec").fields().forEach { (key, value) -> ref.config(key, toValue(SchemaFields.TASK, key, value)) }
     // A task's `upstream` handles and its `literals` are its call arguments, in that order, so the
     // Dag carries the binding spec a stub call would. Names are positional, as the Go SDK names
@@ -103,12 +117,21 @@ private fun buildDag(case: JsonNode): DagDef {
     tasks[ref.def.id] = ref
   }
 
+  conditions.forEach { (condition, branch) ->
+    condition.Then(tasks.getValue(branch.path("then").asText()))
+    branch.path("else").takeIf { !it.isMissingNode }?.let { condition.Else(tasks.getValue(it.asText())) }
+  }
+
   case.path("order_edges").forEach { edge ->
     val node = { id: String -> groups[id] as Deps.Flow? ?: tasks.getValue(id) }
     node(edge[0].asText()).before(node(edge[1].asText()))
   }
   return dag
 }
+
+/** The handle of a task declared as a decider, whose type argument no caller reads. */
+@Suppress("UNCHECKED_CAST")
+private fun asCondition(ref: TaskRef<*>): ConditionRef = ConditionRef.of(ref as TaskRef<Boolean>)
 
 /** Reads a YAML value as the Java type the config key takes. */
 private fun toValue(

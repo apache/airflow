@@ -104,6 +104,8 @@ private class FakeTransport(
   override fun clearTaskStateStore(tiId: UUID) {
     calls.add(StateStoreCall("clear", tiId))
   }
+
+  override fun skipDownstreamTasks(taskIds: List<String>) = Unit
 }
 
 class ClientTest {

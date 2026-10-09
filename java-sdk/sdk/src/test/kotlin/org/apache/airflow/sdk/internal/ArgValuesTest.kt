@@ -128,6 +128,8 @@ internal class ArgValuesTest {
         ): Unit = throw NotImplementedError()
 
         override fun clearTaskStateStore(tiId: UUID): Unit = throw NotImplementedError()
+
+        override fun skipDownstreamTasks(taskIds: List<String>): Unit = throw NotImplementedError()
       },
     )
 

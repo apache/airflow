@@ -143,6 +143,8 @@ private fun serializeTask(
       "is_stub" to true,
     )
   argBindings(taskId, def)?.let { data["_arg_bindings"] = it }
+  // Lets NotPreviouslySkippedDep re-skip a cleared downstream, as Python's SkipMixin does.
+  if (def.decider != null) data["_can_skip_downstream"] = true
   // Emit only config entries that differ from their schema default, mirroring
   // Python BaseSerialization's "omit hard-coded default" behavior, which the Go
   // and TypeScript SDKs mirror too. Operator fields are stored unwrapped, so the
