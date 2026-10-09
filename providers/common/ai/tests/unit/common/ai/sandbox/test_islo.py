@@ -814,7 +814,7 @@ class TestFileOperations:
 
         assert not isinstance(error.value, SandboxTerminalError)
         assert "(HTTP 500)." in str(error.value)
-        assert "directory or on a read-only filesystem" in str(error.value)
+        assert "directory or under a pseudo-filesystem such as /proc or /sys" in str(error.value)
         assert "internal error" not in str(error.value)
         client.sandboxes.get_sandbox.assert_called_once()
 

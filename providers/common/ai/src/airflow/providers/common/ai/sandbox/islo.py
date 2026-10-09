@@ -530,11 +530,12 @@ class IsloSandboxBackend(SandboxBackend):
 
         Measured against the file APIs: a missing file and a directory are both a
         404, a relative path is a 400 whose message names the problem, and writing
-        onto a directory or into a read-only mount is a bare 500. Each of those is
-        the model's to fix. A gone or stopped sandbox fails file calls too, and no
-        tool call can fix that, so the sandbox is checked before anything reaches
-        the model. No response at all, bad credentials, a rate limit and a 5xx
-        above 500 say nothing about the path and fail the task.
+        onto a directory or under a pseudo-filesystem such as ``/proc`` or ``/sys``
+        is a bare 500. Each of those is the model's to fix. A gone or stopped
+        sandbox fails file calls too, and no tool call can fix that, so the sandbox
+        is checked before anything reaches the model. No response at all, bad
+        credentials, a rate limit and a 5xx above 500 say nothing about the path and
+        fail the task.
         """
         from islo.core.api_error import ApiError
 
@@ -671,7 +672,10 @@ class IsloSandboxBackend(SandboxBackend):
                 path,
                 e,
                 operation="write",
-                hint="Islo answers this way when the path is a directory or on a read-only filesystem.",
+                hint=(
+                    "Islo answers this way when the path is a directory or under a"
+                    " pseudo-filesystem such as /proc or /sys."
+                ),
             )
 
     def list_directory(self, sandbox: str, path: str) -> list[tuple[str, bool]]:
