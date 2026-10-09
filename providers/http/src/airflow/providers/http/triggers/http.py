@@ -288,6 +288,9 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
 
     :param response_check_path: Path to the function that evaluates whether the API response
         passes the conditions set by the user to fire the trigger. The method must be asynchronous.
+        Optionally, it may accept an ``asset_state_store`` keyword argument (or ``**kwargs``)
+        to inspect or persist state across evaluations. Note that ``asset_state_store`` can be
+        ``None`` when running on Airflow < 3.3.0 or when the trigger is not associated with an asset watcher.
     :param http_conn_id: http connection id that has the base
         API url i.e https://www.google.com/ and optional authentication credentials. Default
         headers can also be specified in the Extra field in json format.
@@ -393,5 +396,14 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         response_check = await self._import_from_response_check_path()
         if not inspect.iscoroutinefunction(response_check):
             raise AirflowException("The response_check callable is not asynchronous.")
-        check = await response_check(response)
+        sig = inspect.signature(response_check)
+        param = sig.parameters.get("asset_state_store")
+        accepts_store = (param is not None and param.kind is not inspect.Parameter.POSITIONAL_ONLY) or any(
+            p.kind is inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+        )
+        store = getattr(self, "asset_state_store", None)
+        if accepts_store:
+            check = await response_check(response, asset_state_store=store)
+        else:
+            check = await response_check(response)
         return check
