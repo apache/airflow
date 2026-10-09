@@ -76,6 +76,9 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
+"common.ai" = [
+    "apache-airflow-providers-common-ai>=0.10.0",  # use next version
+]
 # pip install apache-airflow-providers-databricks[sdk]
 "avro" = [
     'fastavro>=1.9.0; python_version<"3.14"',
@@ -113,6 +116,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
+    "apache-airflow-providers-common-ai",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-google",
