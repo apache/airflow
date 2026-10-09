@@ -258,6 +258,39 @@ def test_in_process_execution_api_transport_lifecycle():
     assert not thread.is_alive()
 
 
+@pytest.mark.parametrize("task_id", ["Købsmoms", "タスク"])
+def test_in_process_execution_api_handles_non_ascii_path(task_id):
+    """Non-ASCII path segments (e.g. a non-ASCII task_id) must reach the app intact."""
+    app = FastAPI()
+
+    @app.get("/echo/{task_id}")
+    async def echo(task_id: str):
+        return task_id
+
+    api = InProcessExecutionAPI(app)
+    with httpx.Client(transport=api.transport) as client:
+        response = client.get(f"http://localhost/echo/{task_id}")
+    assert response.status_code == 200
+    assert response.json() == task_id
+
+
+@pytest.mark.parametrize("script_name", ["/Købsmoms", "/タスク"])
+def test_in_process_execution_api_handles_non_ascii_script_name(script_name):
+    """A non-ASCII ``SCRIPT_NAME`` must reach the app intact as the ASGI ``root_path``."""
+    app = FastAPI()
+
+    @app.get("/echo")
+    async def echo(request: Request):
+        return request.scope["root_path"]
+
+    api = InProcessExecutionAPI(app)
+    transport = httpx.WSGITransport(app=api.transport.app, script_name=script_name)
+    with httpx.Client(transport=transport) as client:
+        response = client.get("http://localhost/echo")
+    assert response.status_code == 200
+    assert response.json() == script_name
+
+
 @pytest.fixture
 def in_process_db_app():
     engine = settings.async_engine
