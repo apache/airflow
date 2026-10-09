@@ -450,6 +450,22 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, task_id,
+            map_index, state, try_number, start_date, end_date, duration`'
+          default:
+          - id
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, task_id, map_index,
+          state, try_number, start_date, end_date, duration`'
       responses:
         '200':
           description: Successful Response
@@ -4249,6 +4265,10 @@ components:
         map_index:
           type: integer
           title: Map Index
+        in_loop:
+          type: boolean
+          title: In Loop
+          default: false
         try_number:
           type: integer
           title: Try Number
@@ -4870,6 +4890,17 @@ components:
           - type: integer
           - type: 'null'
           title: Loop Iterations Count
+        latest_region_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Latest Region Id
+        latest_region_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Latest Region Index
       type: object
       required:
       - task_id
@@ -4930,6 +4961,10 @@ components:
         index:
           type: integer
           title: Index
+        task_count:
+          type: integer
+          title: Task Count
+          default: 0
         state:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'

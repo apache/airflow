@@ -1502,22 +1502,38 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             )
         session.commit()
         url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances"
-        params = {"loop_id": "body", "limit": 1}
+        params = {"region_id": str(root_id), "limit": 1}
         if cursor is not None:
             params["cursor"] = cursor
         response = test_client.get(url, params=params)
         assert response.status_code == 200, response.text
         assert response.json()["total_entries"] == 4
         assert len(response.json()["task_instances"]) == 1
-        response = test_client.get(url, params={**params, "iteration": 2, "limit": 100})
+        # region_index 2 spans the loop's own region at that index *and* the mapped expansion
+        # nested inside that pass, which sits at its own index.
+        response = test_client.get(url, params={**params, "region_index": 2, "limit": 100})
         assert response.status_code == 200, response.text
         assert response.json()["total_entries"] == 2
         assert {ti["region_index"] for ti in response.json()["task_instances"]} == {2, 7}
-        response = test_client.get(url, params={**params, "iteration": 0, "limit": 100})
+        response = test_client.get(url, params={**params, "region_index": 0, "limit": 100})
         assert response.json()["total_entries"] == 2
+        # A region that forked from the original resolves to the same family, so a coordinate
+        # captured before a clear keeps selecting the same work afterwards.
+        forked = test_client.get(
+            url, params={"region_id": str(replacement.id), "region_index": 2, "limit": 100}
+        )
+        assert forked.status_code == 200, forked.text
+        assert {ti["region_index"] for ti in forked.json()["task_instances"]} == {2, 7}
 
-    def test_iteration_filter_requires_loop(self, test_client):
-        response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"iteration": 1})
+    def test_region_index_requires_region_id(self, test_client):
+        response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"region_index": 1})
+        assert response.status_code == 400
+
+    def test_region_id_requires_a_specific_dag_run(self, test_client):
+        response = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"region_id": "00000000-0000-0000-0000-000000000000"},
+        )
         assert response.status_code == 400
 
     @pytest.mark.parametrize(

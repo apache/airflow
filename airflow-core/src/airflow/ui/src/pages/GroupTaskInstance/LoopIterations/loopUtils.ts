@@ -19,14 +19,12 @@
 import type { LoopSummaryResponse } from "openapi/requests/types.gen";
 
 /** Value of the iteration URL parameter that selects every iteration. */
-export const ITERATION_ALL = "all";
-
 export const reasonSentence = (
   translate: (key: string, options?: Record<string, unknown>) => string,
   summary: LoopSummaryResponse,
 ): string => {
   const options = {
-    index: summary.stopped_at_iteration ?? summary.failed_at_iteration ?? 0,
+    index: summary.stopped_at_iteration ?? summary.failed_at_iteration,
     max: summary.max_iterations,
     ran: summary.iterations_ran,
     taskId: summary.reason_task_id,

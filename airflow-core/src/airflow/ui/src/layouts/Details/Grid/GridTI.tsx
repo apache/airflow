@@ -24,6 +24,7 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
+import { clearCoordinates, setCoordinates } from "src/constants/regions";
 import { useColorMode } from "src/context/colorMode";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
@@ -71,11 +72,11 @@ export const GridTI = ({
       })
     : `/dags/${dagId}/tasks/${isGroup ? "group/" : ""}${taskId}`;
 
-  const redirectionParams = new URLSearchParams(searchParams);
-
-  for (const key of ["try_number", "region_id", "region_index", "iteration", "loop_region_id"]) {
-    redirectionParams.delete(key);
-  }
+  const redirectionParams = setCoordinates(
+    clearCoordinates(new URLSearchParams(searchParams)),
+    instance.latest_region_id,
+    instance.latest_region_index,
+  );
   const redirectionSearch = redirectionParams.toString();
 
   const isSelectedRow = selectedTaskId === taskId || selectedGroupId === taskId;

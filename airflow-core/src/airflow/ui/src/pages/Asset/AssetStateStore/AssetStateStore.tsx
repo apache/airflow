@@ -92,9 +92,7 @@ const getColumns = ({
         const search = new URLSearchParams();
 
         if (
-          writer.region_id !== null &&
           writer.region_id !== undefined &&
-          writer.region_index !== null &&
           writer.region_index !== undefined &&
           writer.try_number !== null &&
           writer.try_number !== undefined

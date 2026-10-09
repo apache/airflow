@@ -26,6 +26,7 @@ import { Tooltip } from "src/system-components";
 
 import Time from "src/components/Time";
 
+import { clearCoordinates } from "src/constants/regions";
 import { useDurationFormat } from "src/utils";
 
 type Props = {
@@ -53,11 +54,7 @@ export const GridButton = ({
 }: Props) => {
   const { t: translate } = useTranslation();
   const { renderDuration } = useDurationFormat();
-  const targetSearchParams = new URLSearchParams(searchParams);
-
-  for (const key of ["try_number", "region_id", "region_index", "iteration", "loop_region_id"]) {
-    targetSearchParams.delete(key);
-  }
+  const targetSearchParams = clearCoordinates(new URLSearchParams(searchParams));
 
   return (
     <Tooltip

@@ -22,7 +22,7 @@ import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom
 
 import { TaskName, type TaskNameProps } from "src/components/TaskName";
 
-import { SearchParamsKeys } from "src/constants/searchParams";
+import { clearCoordinates } from "src/constants/regions";
 import { taskNodeSeparator } from "src/utils/assetGraph";
 
 type Props = {
@@ -59,13 +59,7 @@ export const TaskLink = forwardRef<HTMLAnchorElement, Props>(
         ? ""
         : `/tasks/${taskId}${isMapped && urlTaskId !== taskId && includeRun ? "/mapped" : ""}`;
 
-    const targetSearchParams = new URLSearchParams(searchParams);
-
-    targetSearchParams.delete(SearchParamsKeys.TRY_NUMBER);
-    targetSearchParams.delete(SearchParamsKeys.REGION_ID);
-    targetSearchParams.delete(SearchParamsKeys.REGION_INDEX);
-    targetSearchParams.delete(SearchParamsKeys.ITERATION);
-    targetSearchParams.delete(SearchParamsKeys.LOOP_REGION_ID);
+    const targetSearchParams = clearCoordinates(new URLSearchParams(searchParams));
 
     return (
       <RouterLink ref={ref} to={{ pathname: basePath + taskPath, search: targetSearchParams.toString() }}>

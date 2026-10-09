@@ -20,7 +20,7 @@ import type { ReactNode } from "react";
 
 import { HStack, Icon, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiRepeat } from "react-icons/fi";
+import { MdLoop } from "react-icons/md";
 
 import { useLoopSummary } from "src/queries/useLoopSummary";
 
@@ -55,7 +55,7 @@ export const useLoopOutcomeStats = ({
       label: translate("loop.iterations"),
       value: (
         <HStack gap={1}>
-          <Icon aria-hidden as={FiRepeat} boxSize={3.5} />
+          <Icon aria-hidden as={MdLoop} boxSize={3.5} />
           <Text>
             {summary.iterations_ran}/{summary.max_iterations}
           </Text>

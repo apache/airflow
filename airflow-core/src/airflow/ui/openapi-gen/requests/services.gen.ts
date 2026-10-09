@@ -1521,6 +1521,7 @@ export class DagRunService {
      * @param data.tryNumber
      * @param data.limit
      * @param data.offset
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, task_id, map_index, state, try_number, start_date, end_date, duration`
      * @returns ExecutionCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1538,7 +1539,8 @@ export class DagRunService {
                 region_index: data.regionIndex,
                 try_number: data.tryNumber,
                 limit: data.limit,
-                offset: data.offset
+                offset: data.offset,
+                order_by: data.orderBy
             },
             errors: {
                 400: 'Bad Request',
@@ -3130,9 +3132,9 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.regionId
      * @param data.regionIndex
+     * @param data.loopId Task group id of a loop; matches every instance it produced.
+     * @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
      * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
-     * @param data.loopId
-     * @param data.iteration
      * @param data.taskId
      * @param data.runAfterGte
      * @param data.runAfterGt
@@ -3199,9 +3201,9 @@ export class TaskInstanceService {
             query: {
                 region_id: data.regionId,
                 region_index: data.regionIndex,
-                cursor: data.cursor,
                 loop_id: data.loopId,
                 iteration: data.iteration,
+                cursor: data.cursor,
                 task_id: data.taskId,
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,

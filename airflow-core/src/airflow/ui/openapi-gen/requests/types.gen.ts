@@ -2995,6 +2995,7 @@ export type ExecutionTaskResponse = {
     region_id?: string;
     region_index?: number;
     map_index: number;
+    in_loop?: boolean;
     try_number: number;
     state: TaskInstanceState | null;
     start_date: string | null;
@@ -3127,6 +3128,8 @@ export type LightGridTaskInstanceSummary = {
     dag_version_number?: number | null;
     has_note?: boolean;
     loop_iterations_count?: number | null;
+    latest_region_id?: string | null;
+    latest_region_index?: number | null;
 };
 
 /**
@@ -3150,6 +3153,7 @@ export type LoopInvocationResponse = {
  */
 export type LoopIterationSummary = {
     index: number;
+    task_count?: number;
     state?: TaskInstanceState | null;
     start_date?: string | null;
     end_date?: string | null;
@@ -4000,6 +4004,10 @@ export type GetExecutionData = {
     dagRunId: string;
     limit?: number;
     offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, task_id, map_index, state, try_number, start_date, end_date, duration`
+     */
+    orderBy?: Array<(string)>;
     regionId?: string | null;
     regionIndex?: number | null;
     taskId?: string | null;
@@ -4635,12 +4643,18 @@ export type GetTaskInstancesData = {
     endDateLt?: string | null;
     endDateLte?: string | null;
     executor?: Array<(string)>;
+    /**
+     * Narrow ``loop_id`` to a single pass of that loop.
+     */
     iteration?: number | null;
     limit?: number;
     logicalDateGt?: string | null;
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    /**
+     * Task group id of a loop; matches every instance it produced.
+     */
     loopId?: string | null;
     mapIndex?: Array<(number)>;
     offset?: number;

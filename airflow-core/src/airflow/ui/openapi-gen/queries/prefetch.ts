@@ -559,19 +559,21 @@ export const prefetchUseDagRunServiceGetDagRunStats = (queryClient: QueryClient,
 * @param data.tryNumber
 * @param data.limit
 * @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, task_id, map_index, state, try_number, start_date, end_date, duration`
 * @returns ExecutionCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDagRunServiceGetExecution = (queryClient: QueryClient, { dagId, dagRunId, limit, offset, regionId, regionIndex, taskId, tryNumber }: {
+export const prefetchUseDagRunServiceGetExecution = (queryClient: QueryClient, { dagId, dagRunId, limit, offset, orderBy, regionId, regionIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   limit?: number;
   offset?: number;
+  orderBy?: string[];
   regionId?: string;
   regionIndex?: number;
   taskId?: string;
   tryNumber?: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceGetExecutionKeyFn({ dagId, dagRunId, limit, offset, regionId, regionIndex, taskId, tryNumber }), queryFn: () => DagRunService.getExecution({ dagId, dagRunId, limit, offset, regionId, regionIndex, taskId, tryNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceGetExecutionKeyFn({ dagId, dagRunId, limit, offset, orderBy, regionId, regionIndex, taskId, tryNumber }), queryFn: () => DagRunService.getExecution({ dagId, dagRunId, limit, offset, orderBy, regionId, regionIndex, taskId, tryNumber }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.
@@ -1375,9 +1377,9 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (queryClient:
 * @param data.dagRunId
 * @param data.regionId
 * @param data.regionIndex
+* @param data.loopId Task group id of a loop; matches every instance it produced.
+* @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
 * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
-* @param data.loopId
-* @param data.iteration
 * @param data.taskId
 * @param data.runAfterGte
 * @param data.runAfterGt

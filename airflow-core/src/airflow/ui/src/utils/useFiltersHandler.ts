@@ -85,6 +85,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE
   | SearchParamsKeys.LOGICAL_DATE_RANGE
+  | SearchParamsKeys.LOOP
   | SearchParamsKeys.MAP_INDEX
   | SearchParamsKeys.MAX_ACTIVE_RUNS_GTE
   | SearchParamsKeys.MAX_ACTIVE_RUNS_LTE

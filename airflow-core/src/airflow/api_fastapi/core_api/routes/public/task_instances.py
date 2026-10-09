@@ -113,6 +113,7 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import (
     UnmappedTaskScopeDep,
     add_public_map_index,
     loop_iteration_filter,
+    region_scope_filter,
     task_coordinate_response,
     task_coordinate_responses,
 )
@@ -634,14 +635,20 @@ def get_task_instances(
     resolver: CoordinateResolverDep,
     region_id: Annotated[UUID | None, Query()] = None,
     region_index: Annotated[int | None, Query(ge=-1)] = None,
+    loop_id: Annotated[
+        str | None,
+        Query(description="Task group id of a loop; matches every instance it produced."),
+    ] = None,
+    iteration: Annotated[
+        int | None,
+        Query(ge=0, description="Narrow ``loop_id`` to a single pass of that loop."),
+    ] = None,
     cursor: str | None = Query(
         None,
         description="Cursor for keyset-based pagination. "
         "Pass an empty string for the first page, then use ``next_cursor`` from the response. "
         "When ``cursor`` is provided, ``offset`` is ignored.",
     ),
-    loop_id: Annotated[str | None, Query()] = None,
-    iteration: Annotated[int | None, Query(ge=0)] = None,
 ) -> TaskInstanceCollectionResponse:
     """
     Get list of task instances.
@@ -662,7 +669,7 @@ def get_task_instances(
     use_cursor = cursor is not None
     dag_run = None
     query = add_public_map_index(eager_load_task_instance_for_validation(select(TI)))
-    if loop_id is None and iteration is not None:
+    if iteration is not None and loop_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "iteration requires loop_id")
     if loop_id is not None:
         if dag_id == "~" or dag_run_id == "~":
@@ -679,9 +686,17 @@ def get_task_instances(
     if region_index is not None and region_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_index requires region_id")
     if region_id is not None:
-        query = query.where(TI.region_id == region_id)
-    if region_index is not None:
-        query = query.where(TI.region_index == region_index)
+        if dag_id == "~" or dag_run_id == "~":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_id requires a specific Dag run")
+        query = query.where(
+            region_scope_filter(
+                dag_id=dag_id,
+                run_id=dag_run_id,
+                region_id=region_id,
+                region_index=region_index,
+                session=session,
+            )
+        )
     if dag_run_id != "~":
         if dag_id == "~":
             raise HTTPException(

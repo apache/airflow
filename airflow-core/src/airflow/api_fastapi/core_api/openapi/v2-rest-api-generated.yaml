@@ -9172,6 +9172,27 @@ paths:
             minimum: -1
           - type: 'null'
           title: Region Index
+      - name: loop_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Task group id of a loop; matches every instance it produced.
+          title: Loop Id
+        description: Task group id of a loop; matches every instance it produced.
+      - name: iteration
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: 0
+          - type: 'null'
+          description: Narrow ``loop_id`` to a single pass of that loop.
+          title: Iteration
+        description: Narrow ``loop_id`` to a single pass of that loop.
       - name: cursor
         in: query
         required: false
@@ -9186,23 +9207,6 @@ paths:
         description: Cursor for keyset-based pagination. Pass an empty string for
           the first page, then use ``next_cursor`` from the response. When ``cursor``
           is provided, ``offset`` is ignored.
-      - name: loop_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Loop Id
-      - name: iteration
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: 0
-          - type: 'null'
-          title: Iteration
       - name: task_id
         in: query
         required: false

@@ -30,3 +30,21 @@ export const useLoopGroupNode = (groupId: string): GridNodeResponse | undefined 
 
 /** Whether the given Task Group is a looped group (``is_loop``), from the cached grid structure. */
 export const useIsLoopGroup = (groupId: string): boolean => Boolean(useLoopGroupNode(groupId)?.is_loop);
+
+/** Every loop declared in the Dag, so a filter can offer them by the name the author gave. */
+export const useLoopGroupIds = (): Array<string> => {
+  const { data } = useGridStructure({ limit: 1 });
+  const found: Array<string> = [];
+  const walk = (nodes: Array<GridNodeResponse> | undefined) => {
+    for (const node of nodes ?? []) {
+      if (node.is_loop === true) {
+        found.push(node.id);
+      }
+      walk(node.children ?? undefined);
+    }
+  };
+
+  walk(data);
+
+  return found;
+};

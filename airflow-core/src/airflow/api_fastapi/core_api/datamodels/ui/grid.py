@@ -37,6 +37,8 @@ class LightGridTaskInstanceSummary(BaseModel):
     dag_version_number: int | None = None
     has_note: bool = False
     loop_iterations_count: int | None = None
+    latest_region_id: UUID | None = None
+    latest_region_index: int | None = None
 
 
 class GridTISummaries(BaseModel):
@@ -51,6 +53,7 @@ class LoopIterationSummary(BaseModel):
     """Execution state for one existing iteration."""
 
     index: int
+    task_count: int = 0
     state: TaskInstanceState | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
