@@ -464,6 +464,7 @@ class DocumentLoaderOperator(BaseOperator):
         """
         try:
             from docx import Document
+            from docx.oxml.exceptions import InvalidXmlError
             from docx.table import Table
         except ImportError as e:
             raise AirflowOptionalProviderFeatureException(e)
@@ -474,9 +475,10 @@ class DocumentLoaderOperator(BaseOperator):
             if isinstance(block, Table):
                 try:
                     rows = self._get_docx_table_rows(block, Table)
-                except (ValueError, RecursionError) as e:
-                    # python-docx walks vertical merges up recursively: a malformed merge raises
-                    # ValueError and a merge spanning about 1000 rows raises RecursionError.
+                except (ValueError, InvalidXmlError, RecursionError) as e:
+                    # Malformed table XML raises ValueError (a vMerge with no cell above) or
+                    # InvalidXmlError (a missing required attribute). python-docx walks vertical
+                    # merges up recursively, so one spanning about 1000 rows raises RecursionError.
                     self.log.warning(
                         "Skipping a table in %s that python-docx could not read: %r", source_hint, e
                     )
@@ -490,18 +492,25 @@ class DocumentLoaderOperator(BaseOperator):
         return [{"text": text, "metadata": {}}]
 
     def _get_docx_table_rows(self, table: Table, table_cls: type[Table]) -> list[list[str]]:
+        # w:gridBefore, w:gridAfter and w:gridSpan come straight from the XML, so the empty
+        # cells added for them are capped at the table's column count.
+        column_count = len(table.columns)
+
         rows = []
         for row in table.rows:
-            cells: list[str] = [""] * row.grid_cols_before
+            cells: list[str] = [""] * min(row.grid_cols_before, column_count)
             previous_cell = None
             for cell in row.cells:
-                # python-docx repeats the same _Cell object for every grid column a
-                # horizontal merge spans. A vertical merge repeats on each row it spans.
+                # python-docx repeats the same _Cell object for every grid column a horizontal
+                # merge spans: keep its text once and leave the other columns empty so later
+                # cells stay under their headers. A vertical merge repeats on each row it spans.
                 if cell is previous_cell:
+                    if len(cells) < column_count:
+                        cells.append("")
                     continue
                 previous_cell = cell
                 cells.append(self._get_docx_cell_text(cell, table_cls))
-            cells.extend([""] * row.grid_cols_after)
+            cells.extend([""] * min(row.grid_cols_after, column_count))
             if any(cells):
                 rows.append(cells)
         return rows
