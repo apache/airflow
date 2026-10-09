@@ -830,25 +830,35 @@ class TestGKEStartKueueInsideClusterOperator:
 
 
 @mock.patch.dict("sys.modules", {"airflow.providers.cncf.kubernetes.operators.pod_exec": None})
-def test_missing_kubernetes_pod_exec_operator_reports_required_provider_version():
+def test_missing_kubernetes_pod_exec_operator_keeps_other_gke_operators_usable():
     operators = runpy.run_path(kubernetes_engine.__file__)
-    operators["GKECreateClusterOperator"](
+    create_cluster = operators["GKECreateClusterOperator"](
         task_id=TEST_TASK_ID,
         project_id=TEST_PROJECT_ID,
         location=TEST_LOCATION,
         body={"name": GKE_CLUSTER_NAME, "node_pools": [{"name": "pool", "initial_node_count": 1}]},
     )
-    operators["GKEStartPodOperator"](
+    start_pod = operators["GKEStartPodOperator"](
         task_id=TEST_TASK_ID,
         project_id=TEST_PROJECT_ID,
         location=TEST_LOCATION,
         cluster_name=GKE_CLUSTER_NAME,
         image=TEST_IMAGE,
     )
+
+    assert create_cluster.location == TEST_LOCATION
+    assert start_pod.cluster_name == GKE_CLUSTER_NAME
+    assert start_pod.image == TEST_IMAGE
+
+
+@mock.patch.dict("sys.modules", {"airflow.providers.cncf.kubernetes.operators.pod_exec": None})
+def test_missing_kubernetes_pod_exec_operator_reports_required_provider_version():
+    operators = runpy.run_path(kubernetes_engine.__file__)
+
     with pytest.raises(
         AirflowOptionalProviderFeatureException,
         match=r"GKEPodExecOperator requires apache-airflow-providers-cncf-kubernetes>=10\.22\.0",
-    ):
+    ) as exc_info:
         operators["GKEPodExecOperator"](
             task_id=TEST_TASK_ID,
             location=TEST_LOCATION,
@@ -856,6 +866,8 @@ def test_missing_kubernetes_pod_exec_operator_reports_required_provider_version(
             pod_name=K8S_POD_NAME,
             command=["echo", "hello"],
         )
+
+    assert isinstance(exc_info.value.__cause__, ImportError)
 
 
 class TestGKEPodExecOperator:
