@@ -87,7 +87,8 @@ class AirflowTools(Plugin):
     result passes through Airflow's secret masker first. A failure the model can
     correct, such as a query naming a missing column, reaches it as a Strands result
     with ``status="error"``, counted against the tool's retry limit once per model turn
-    and afresh on every run of the agent. A tool that is still failing once the limit is
+    and afresh each time the agent is given a new prompt; resuming from a checkpoint
+    keeps the count. A tool that is still failing once the limit is
     used up, or a failure the model cannot fix, such as a hook raising, fails the agent
     run, so the task fails and Airflow retries it. Strands on its own would hand that
     failure to the model and carry on. Tools a toolset marks sequential, such as the
@@ -116,8 +117,11 @@ class AirflowTools(Plugin):
 
     @hook
     def _start_a_run(self, event: BeforeInvocationEvent) -> None:
-        # Each call on the agent is a run of its own, with a fresh retry budget per tool.
-        self._run = object()
+        # Each call on the agent with a new prompt is a run of its own, with a fresh retry
+        # budget per tool. A call that brings no new messages carries on the run before it:
+        # resuming from a checkpoint or an interrupt, or calling the agent with no prompt.
+        if event.messages != []:
+            self._run = object()
 
     @hook
     def _fail_the_run_on_tool_call_error(self, event: AfterToolCallEvent) -> None:

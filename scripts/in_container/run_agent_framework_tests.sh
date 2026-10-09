@@ -20,9 +20,9 @@
 #
 # Strands Agents caps mcp, and Google ADK caps opentelemetry and websockets, below the versions
 # uv.lock resolves, so their adapter tests are skipped everywhere else in CI. This installs one
-# framework into the CI image and runs the tests of the framework-neutral tools and their adapters;
-# the other framework's tests skip themselves. One framework per invocation, so a bad release of
-# one cannot mask the other.
+# framework into the CI image and runs the tests of the framework-neutral tools and their adapters,
+# and of durable execution for Strands; the other framework's tests skip themselves. One framework
+# per invocation, so a bad release of one cannot mask the other.
 #
 # By default every package already in the image is held at its installed version with uv's
 # --override, so the framework is tested against the same dependencies as the rest of Airflow and
@@ -32,7 +32,11 @@
 # The newest framework release older than the repository's uv exclude-newer window is installed.
 set -euo pipefail
 
-TEST_PATH="providers/common/ai/tests/unit/common/ai/tools"
+TEST_PATHS=(
+    "providers/common/ai/tests/unit/common/ai/tools"
+    "providers/common/ai/tests/unit/common/ai/durable/test_strands.py"
+    "providers/common/ai/tests/unit/common/ai/durable/test_strands_storage.py"
+)
 
 framework="${1:-}"
 case "${framework}" in
@@ -87,4 +91,4 @@ uv pip freeze | grep -iE '^(strands-agents|google-adk|mcp|opentelemetry-(api|sdk
 python -c "${import_check}"
 
 # --skip-db-tests: the job runs with backend "none", which has no database to set up.
-pytest "${TEST_PATH}" --skip-db-tests -p no:cacheprovider --color=yes -ra
+pytest "${TEST_PATHS[@]}" --skip-db-tests -p no:cacheprovider --color=yes -ra
