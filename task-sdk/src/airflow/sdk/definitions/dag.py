@@ -348,7 +348,8 @@ class DAG:
         attempt to backfill. If this is not provided, backfilling must be done
         manually with an explicit time range.
     :param end_date: A date beyond which your DAG won't run, leave to None
-        for open-ended scheduling.
+        for open-ended scheduling. Like a task's ``end_date``, it only limits
+        scheduled runs, so manually triggered runs still run after it.
     :param template_searchpath: This list of folders (non-relative)
         defines where jinja will look for your templates. Order matters.
         Note that jinja/airflow includes the path of your DAG file by

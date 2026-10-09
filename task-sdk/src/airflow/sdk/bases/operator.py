@@ -726,7 +726,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         ``TimeSensor`` and ``TimeDeltaSensor``. We advise against using
         dynamic ``start_date`` and recommend using fixed ones. Read the
         FAQ entry about start_date for more information.
-    :param end_date: if specified, the scheduler won't go beyond this date
+        This date only limits scheduled runs. Manual runs, backfills, runs
+        created by ``TriggerDagRunOperator`` and asset materialization runs
+        ignore it.
+    :param end_date: if specified, the scheduler won't go beyond this date.
+        Like ``start_date``, it only limits scheduled runs.
     :param depends_on_past: when set to true, task instances will run
         sequentially and only if the previous instance has succeeded or has been skipped.
         The task instance for the start_date is allowed to run.

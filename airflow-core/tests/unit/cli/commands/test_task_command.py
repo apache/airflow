@@ -41,7 +41,6 @@ from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorPro
 from airflow.dag_processing.processor import DagFileParsingResult
 from airflow.exceptions import DagRunNotFound
 from airflow.models import DagModel, DagRun, TaskInstance
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
@@ -500,8 +499,7 @@ class TestCliTasks:
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
         )
-        dag_version = DagVersion.get_latest_version(dag2.dag_id)
-        ti2 = TaskInstance(task2, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+        ti2 = dagrun.get_task_instance(task2.task_id)
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date

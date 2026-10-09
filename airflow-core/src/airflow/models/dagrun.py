@@ -1896,8 +1896,10 @@ class DagRun(Base, LoggingMixin):
         )
 
         def task_filter(task: Operator) -> bool:
+            # Task start_date/end_date only bound what the scheduler creates. Runs created on
+            # request (manual, backfill, TriggerDagRunOperator, asset materialization) ignore them.
             return task.task_id not in task_ids and (
-                self.run_type == DagRunType.BACKFILL_JOB
+                self.run_type != DagRunType.SCHEDULED
                 or (
                     task.start_date is None
                     or self.logical_date is None
