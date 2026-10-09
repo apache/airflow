@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from copy import deepcopy
+from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import TaskDeferred
@@ -45,14 +46,43 @@ def execute_operator(operator: Operator) -> tuple[Any, Any]:
     return asyncio.run(deferrable_operator(context, operator))
 
 
+def start_from_trigger(context, operator) -> TaskDeferred:
+    """
+    Defer an operator which starts from the triggerer, as the scheduler and the triggerer do.
+
+    The trigger is built from the arguments the operator declared when it was created, so before
+    any of its templated fields got rendered, and the triggerer then renders the fields the
+    trigger shares with the operator.
+    """
+    start_trigger_args = operator.start_trigger_args
+    trigger_kwargs = start_trigger_args.trigger_kwargs or {}
+    module_name, _, class_name = start_trigger_args.trigger_cls.rpartition(".")
+    trigger = getattr(import_module(module_name), class_name)(**trigger_kwargs)
+    trigger.template_fields = tuple(
+        field for field in operator.template_fields if field in trigger_kwargs and hasattr(trigger, field)
+    )
+    trigger.render_template_fields(context=context)
+    return TaskDeferred(
+        trigger=trigger,
+        method_name=start_trigger_args.next_method,
+        kwargs=start_trigger_args.next_kwargs,
+        timeout=start_trigger_args.timeout,
+    )
+
+
 async def deferrable_operator(context, operator):
     result = None
     triggered_events = []
     try:
+        if getattr(operator, "start_from_trigger", False):
+            deferred = start_from_trigger(context, operator)
+            # The worker only gets involved once the trigger fired, and renders the operator then.
+            operator.render_template_fields(context=context)
+            raise deferred
         operator.render_template_fields(context=context)
         result = operator.execute(context=context)
     except TaskDeferred as deferred:
-        task = deferred
+        task: TaskDeferred | None = deferred
 
         while task:
             events = await run_tigger(task.trigger)

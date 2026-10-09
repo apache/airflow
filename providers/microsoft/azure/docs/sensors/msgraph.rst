@@ -33,6 +33,24 @@ Below is an example of using this sensor to poll the status of a PowerBI workspa
     :start-after: [START howto_sensor_powerbi_scan_status]
     :end-before: [END howto_sensor_powerbi_scan_status]
 
+Starting from the triggerer
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+With ``start_from_trigger=True`` the scheduler defers the sensor itself, so the first poll is done without
+a worker being involved. The ``timeout`` of the sensor also applies to that first poll. The requirements
+and limitations are the same as for the operator, see
+:ref:`howto/operator:MSGraphAsyncOperator:start_from_trigger`.
+
+.. code-block:: python
+
+    check_workspace_status_task = MSGraphSensor(
+        task_id="check_workspaces_status",
+        conn_id="powerbi",
+        url="myorg/admin/workspaces/scanStatus/{scanId}",
+        path_parameters={"scanId": "{{ params.scan_id }}"},
+        start_from_trigger=True,
+    )
+
 
 Reference
 ---------
