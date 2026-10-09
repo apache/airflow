@@ -2937,12 +2937,55 @@ class TestIndexedTaskRunner:
         executor = IndexedTaskRunner(task_instance=ti)
         assert executor.is_async is True
 
-    def test_indexed_context_is_the_parents_seen_from_the_indexed_task(self):
+    def test_context_for_swaps_the_keys_the_indexed_task_owns(self, make_indexed_ti):
+        """
+        ``ti``, ``task_instance``, ``task`` and ``task_state_store`` become the indexed task's on a
+        copy of the parent's context; the rest, outlet events included, comes over as it is.
+        """
+        ti = make_indexed_ti(index=3)
+        ti.parent_task_state_store = mock.MagicMock(name="parent_store")
+        parent_ti = mock.MagicMock(name="parent_ti")
+        parent_events = mock.MagicMock(name="parent_events")
+        parent = {
+            "ti": parent_ti,
+            "task_instance": parent_ti,
+            "task": parent_ti.task,
+            "task_state_store": parent_ti.task_state_store,
+            "outlet_events": parent_events,
+            "params": {"p": 1},
+        }
+
+        context = ti.context_for(parent)
+
+        assert context["ti"] is ti
+        assert context["task_instance"] is ti
+        assert context["task"] is ti.task
+        assert context["task_state_store"] is ti.task_state_store
+        assert context["outlet_events"] is parent_events
+        assert context["params"] == {"p": 1}
+        assert context["params"] is not parent["params"]
+        assert parent["ti"] is parent_ti
+
+    def test_context_for_swaps_the_outlet_events_when_given(self, make_indexed_ti):
+        ti = make_indexed_ti(index=3)
+        ti.parent_task_state_store = mock.MagicMock(name="parent_store")
+        own_events = OutletEventAccessors()
+        parent = {
+            "ti": mock.MagicMock(name="parent_ti"),
+            "outlet_events": mock.MagicMock(name="parent_events"),
+        }
+
+        context = ti.context_for(parent, outlet_events=own_events)
+
+        assert context["outlet_events"] is own_events
+
+    def test_indexed_context_is_the_parents_seen_from_the_indexed_task(self, make_indexed_ti):
         """
         Inside the block the indexed task has its own ti, state store view and outlet events on a
         copy of the parent's context, and that copy is the current context.
         """
-        ti = mock.MagicMock(name="indexed_ti")
+        ti = make_indexed_ti(index=3)
+        ti.parent_task_state_store = mock.MagicMock(name="parent_store")
         parent_ti = mock.MagicMock(name="parent_ti")
         parent = {
             "ti": parent_ti,

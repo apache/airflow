@@ -1093,13 +1093,10 @@ class IterableOperator(BaseOperator):
             operator=unmapped_task,
         )
 
-        # Render against a copy of the context whose `ti`/`task_instance` are the new sub-task's
-        # IndexedTaskInstance, not the parent IterableOperator's own (shared) ti — otherwise
-        # context_update_for_unmapped() would mutate the parent's ti.task in place (context.copy()
-        # is only a shallow copy).
-        self._render_unmapped_operator(
-            {**context, "ti": indexed_ti, "task_instance": indexed_ti}, unmapped_task, jinja_env
-        )
+        # Rendered against the context the indexed task will execute with (its own ti, task and
+        # store view), not the parent's: context_update_for_unmapped() sets ti.task in place, and a
+        # template must read the same task_state_store as execute() does.
+        self._render_unmapped_operator(indexed_ti.context_for(context), unmapped_task, jinja_env)
         # Taken once rendered, so the partial kwargs an upstream provides are in it with their value.
         indexed_ti.input_fingerprint = self._fingerprint(
             {**mapped_kwargs, **self._partial_inputs_from_upstream(unmapped_task)}

@@ -1183,6 +1183,30 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         """The parent's store seen from this iteration: keys are suffixed with the index."""
         return IndexedTaskStateStoreAccessor(self.parent_task_state_store, self.index)
 
+    def context_for(self, context: Context, *, outlet_events: OutletEventAccessors | None = None) -> Context:
+        """
+        The parent's context as this indexed task sees it.
+
+        A clone of ``context`` with this task instance under ``ti`` and ``task_instance``, its
+        unmapped operator under ``task`` and its indexed view of the store under
+        ``task_state_store``: the keys ``context_update_for_unmapped`` sets for a mapped task
+        instance, and the store next to them, so that a template and ``execute`` read the same
+        store. The one place these keys are listed: :meth:`IndexedTaskRunner.indexed_context`
+        builds the context the task runs in from it, and ``IterableOperator._create_task`` the
+        one its templates are rendered against. ``outlet_events`` is swapped when given, for the
+        run; before it, nothing is emitted and the parent's accessor stays.
+        """
+        indexed: Context = {
+            **clone_context(context),
+            "ti": self,
+            "task_instance": self,
+            "task": self.task,
+            "task_state_store": self.task_state_store,
+        }
+        if outlet_events is not None:
+            indexed["outlet_events"] = outlet_events
+        return indexed
+
     async def aget_state(self) -> IndexedTaskState | None:
         return IndexedTaskState.deserialize(await self.parent_task_state_store.aget(self.state_key))
 
@@ -1312,22 +1336,14 @@ class IndexedTaskRunner(LoggingMixin):
         """
         Enter the parent's context as this indexed task sees it.
 
-        Yields a copy of the parent's context with this task's own task instance and operator, its
-        indexed view of the task state store and its own outlet events, remembered on the runner and
-        made the current context for the duration of the block. The same keys
-        ``context_update_for_unmapped`` sets for a mapped task instance are swapped here, ``task``
-        included, so user code reads the indexed task's unmapped operator under ``context["task"]``, not the
-        IterableOperator. The parent's context is left untouched: ``context_update_for_unmapped``
-        sets ``ti.task`` on whatever ``ti`` it finds, which must be this task's, not the parent's.
+        Yields the task instance's :meth:`IndexedTaskInstance.context_for` view of the parent's
+        context with this runner's own outlet events, remembered on the runner and made the
+        current context for the duration of the block, so user code reads the indexed task's
+        unmapped operator under ``context["task"]``, not the IterableOperator. The parent's
+        context is left untouched: ``context_update_for_unmapped`` sets ``ti.task`` on whatever
+        ``ti`` it finds, which must be this task's, not the parent's.
         """
-        indexed_context: Context = {
-            **clone_context(context),
-            "ti": self.task_instance,
-            "task_instance": self.task_instance,
-            "task": self.task_instance.task,
-            "task_state_store": self.task_instance.task_state_store,
-            "outlet_events": self.outlet_events,
-        }
+        indexed_context = self.task_instance.context_for(context, outlet_events=self.outlet_events)
         self._context = indexed_context
         with set_indexed_context(indexed_context):
             yield indexed_context

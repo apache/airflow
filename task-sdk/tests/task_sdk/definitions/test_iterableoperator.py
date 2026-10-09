@@ -1179,6 +1179,27 @@ class TestIterableOperator:
 
         assert executed == []
 
+    def test_a_template_reads_the_indexed_tasks_own_state_store(self):
+        """A template field reads the same suffixed store as ``execute`` does, not the parent's key."""
+        template = "{{ task_state_store.get('offset') }}"
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"offset": template}, {"offset": template}])
+            iterable_op = create_iterable_operator(
+                dag, expand_input, task_id="template_store", operator_class=MockStateStoreOperator
+            )
+
+            with mock_context(task=iterable_op) as context:
+                context["task_state_store"].set("offset", "parents")
+                context["task_state_store"].set("offset_1", 7)
+                task = iterable_op._create_task(
+                    context=context,
+                    index=1,
+                    mapped_kwargs={"offset": template},
+                    jinja_env=iterable_op.get_template_env(dag=dag),
+                )
+
+        assert task.task.offset == "7"
+
     def test_execute_renders_template_fields_off_the_loop_thread(self):
         """
         Rendering a sub-task's template fields may call the supervisor synchronously: an XComArg in
