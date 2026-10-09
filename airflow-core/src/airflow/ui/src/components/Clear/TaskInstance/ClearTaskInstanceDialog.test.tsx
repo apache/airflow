@@ -157,4 +157,52 @@ describe("ClearTaskInstanceDialog", () => {
     expect(requestBody.task_instance_ids).toEqual(["pass-2"]);
     expect(requestBody.task_ids).toBeUndefined();
   });
+
+  it("keeps an unticked loop pass excluded when its retry comes back with a new execution id", async () => {
+    affectedTasks.task_instances = [loopPass("pass-0", 0), loopPass("pass-2", 2)];
+
+    const dialog = <ClearTaskInstanceDialog onClose={vi.fn()} open taskInstance={taskInstance} />;
+    const { rerender } = render(dialog, { wrapper: Wrapper });
+
+    const rows = await screen.findAllByRole("row");
+
+    fireEvent.click(within(rows[1] as HTMLElement).getByRole("checkbox"));
+
+    affectedTasks.task_instances = [loopPass("pass-0-retried", 0), loopPass("pass-2", 2)];
+    rerender(dialog);
+
+    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
+    const [{ requestBody }] = mutateMock.mock.calls[0] as [
+      { requestBody: { task_instance_ids?: Array<string> } },
+    ];
+
+    expect(requestBody.task_instance_ids).toEqual(["pass-2"]);
+  });
+
+  it.each([
+    { dialog: "execution", expected: "execution.clearDownstream", in_loop: true },
+    { dialog: "task instance", expected: "dags:runAndTaskActions.options.keepTaskState", in_loop: false },
+  ])(
+    "opens the $dialog clear dialog for a mapped task instance with in_loop=$in_loop",
+    async ({ expected, in_loop: inLoop }) => {
+      const mapped = {
+        ...taskInstance,
+        in_loop: inLoop,
+        map_index: 1,
+        region_id: "11111111-1111-4111-8111-111111111111",
+        region_index: 1,
+      };
+
+      render(<ClearTaskInstanceDialog onClose={vi.fn()} open taskInstance={mapped} />, {
+        wrapper: Wrapper,
+      });
+
+      expect(await screen.findByRole("checkbox", { name: new RegExp(expected, "u") })).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: inLoop ? /modal\.confirm/iu : /execution\.clearSelected/iu }),
+      ).not.toBeInTheDocument();
+    },
+  );
 });

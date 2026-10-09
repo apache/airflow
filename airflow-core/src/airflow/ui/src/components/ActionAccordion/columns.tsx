@@ -28,9 +28,7 @@ import type { MetaColumn } from "src/components/DataTable/types";
 import { StateBadge } from "src/components/StateBadge";
 
 export const taskInstanceKey = (ti: TaskInstanceResponse): string =>
-  ti.region_id === "00000000-0000-0000-0000-000000000000"
-    ? `${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`
-    : ti.id;
+  `${ti.dag_run_id}:${ti.task_id}:${ti.map_index}:${ti.region_id}:${ti.region_index}`;
 
 // When provided, rows render a leading checkbox so the user can exclude individual
 // task instances from the action. Excluded keys are tracked by the caller.

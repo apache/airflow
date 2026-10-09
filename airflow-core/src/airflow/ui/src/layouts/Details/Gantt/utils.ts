@@ -53,6 +53,8 @@ export type GanttDataItem = {
 type GanttSegmentLinkParams = {
   dagId: string;
   item: GanttDataItem;
+  /** Precomputed map from `getGanttTryKey` → max try number; build once with `buildMaxTryByKey`. */
+  maxTryByKey: Map<string, number>;
   /** `location.pathname` — hoisted out of the segment loop so it is read once per render. */
   pathname: string;
   runId: string;
@@ -288,9 +290,31 @@ export const computeGanttTimeRangeMs = ({
   };
 };
 
+const SENTINEL_REGION_ID = "00000000-0000-0000-0000-000000000000";
+
+const getGanttTryKey = ({ regionId, regionIndex, taskId }: GanttDataItem) =>
+  `${taskId}:${regionId ?? ""}:${regionIndex ?? -1}`;
+
+/**
+ * Precompute the maximum try number for each task and region in O(n).
+ * Pass the result to `getGanttSegmentTo` to avoid an O(n) scan per segment.
+ */
+export const buildMaxTryByKey = (ganttItems: Array<GanttDataItem>): Map<string, number> => {
+  const map = new Map<string, number>();
+
+  for (const item of ganttItems) {
+    const key = getGanttTryKey(item);
+
+    map.set(key, Math.max(map.get(key) ?? 0, item.tryNumber ?? 1));
+  }
+
+  return map;
+};
+
 export const getGanttSegmentTo = ({
   dagId,
   item,
+  maxTryByKey,
   pathname,
   runId,
   searchParams: baseSearchParams,
@@ -313,7 +337,7 @@ export const getGanttSegmentTo = ({
   // Clone the pre-parsed params so mutations don't leak across segments.
   const searchParams = new URLSearchParams(baseSearchParams);
 
-  if (item.regionId !== undefined && item.regionIndex !== undefined) {
+  if (item.regionId !== undefined && item.regionIndex !== undefined && item.regionId !== SENTINEL_REGION_ID) {
     searchParams.set("region_id", item.regionId);
     searchParams.set("region_index", item.regionIndex.toString());
   } else {
@@ -321,10 +345,10 @@ export const getGanttSegmentTo = ({
     searchParams.delete("region_index");
   }
 
-  if (tryNumber === undefined) {
-    searchParams.delete(SearchParamsKeys.TRY_NUMBER);
-  } else {
+  if (tryNumber !== undefined && tryNumber < (maxTryByKey.get(getGanttTryKey(item)) ?? 1)) {
     searchParams.set(SearchParamsKeys.TRY_NUMBER, tryNumber.toString());
+  } else {
+    searchParams.delete(SearchParamsKeys.TRY_NUMBER);
   }
 
   return {

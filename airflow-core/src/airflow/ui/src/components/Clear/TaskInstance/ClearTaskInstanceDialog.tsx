@@ -40,6 +40,7 @@ import {
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
+import { isLoopTaskInstance } from "src/utils/loopTaskInstance";
 
 import { ClearExecutionDialog } from "./ClearExecutionDialog";
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
@@ -408,11 +409,11 @@ const ScopedClearTaskInstanceDialog = (props: Props) => {
   }
   const { onClose, open, taskInstance } = props;
 
-  if (taskInstance.region_id !== "00000000-0000-0000-0000-000000000000") {
+  if (isLoopTaskInstance(taskInstance)) {
     return (
       <ClearExecutionDialog
         dagId={taskInstance.dag_id}
-        executions={[taskInstance]}
+        executions={[{ ...taskInstance, dag_version_id: taskInstance.dag_version?.id ?? null }]}
         onClose={onClose}
         open={open}
         runId={taskInstance.dag_run_id}

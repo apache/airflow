@@ -44,6 +44,7 @@ import { useDefaultTaskInstanceTab } from "src/hooks/useUserSettings";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 import { getDefaultTaskInstanceTabPath, getTaskInstanceLink } from "src/utils/links";
+import { isLoopTaskInstance } from "src/utils/loopTaskInstance";
 
 import { Header, HistoryHeader } from "./Header";
 
@@ -55,8 +56,7 @@ export const TaskInstance = () => {
   const coordinates = useTaskInstanceCoordinates();
   const { error, historical, historicalTaskInstance, isLoading, liveTaskInstance, taskInstance } =
     useTaskInstanceView();
-  const isRegional =
-    coordinates.regionId !== undefined && coordinates.regionId !== "00000000-0000-0000-0000-000000000000";
+  const isRegional = liveTaskInstance !== undefined && isLoopTaskInstance(liveTaskInstance);
   const tryNumber = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const coordinateSearch = new URLSearchParams();
 

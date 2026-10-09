@@ -43,6 +43,7 @@ import {
   type GanttDataItem,
   GANTT_TIME_AXIS_TICK_COUNT,
   buildGanttTimeAxisTicks,
+  buildMaxTryByKey,
   getGanttSegmentTo,
   gridSummariesToTaskIdMap,
 } from "./utils";
@@ -145,6 +146,7 @@ export const GanttTimeline = ({
   }, []);
 
   const summaryByTaskId = gridSummariesToTaskIdMap(gridSummaries);
+  const maxTryByKey = buildMaxTryByKey(rowSegments.flat());
   const spanMs = Math.max(1, maxMs - minMs);
 
   // Derive tick count from available width so labels never overlap.
@@ -325,6 +327,7 @@ export const GanttTimeline = ({
                     const to = getGanttSegmentTo({
                       dagId,
                       item: segment,
+                      maxTryByKey,
                       pathname,
                       runId,
                       searchParams: baseSearchParams,

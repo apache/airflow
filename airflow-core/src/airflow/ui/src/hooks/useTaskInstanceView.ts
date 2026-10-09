@@ -54,6 +54,7 @@ export const useTaskInstanceView = () => {
   const historical =
     exactTry &&
     history.data !== undefined &&
+    !live.isPending &&
     (live.data?.id !== history.data.id || live.data.try_number !== history.data.try_number);
 
   return {

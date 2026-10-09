@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import {
   useDagRunServiceGetExecutionKey,
   useTaskInstanceServiceGetMappedTaskInstanceKey,
-  UseTaskInstanceServiceGetTaskInstanceKeyFn,
+  useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
   useTaskInstanceServicePatchTaskInstance,
 } from "openapi/queries";
@@ -63,7 +63,7 @@ export const usePatchTaskInstance = ({
   const onSuccessFn = async () => {
     const queryKeys = [
       [useDagRunServiceGetExecutionKey, { dagId, dagRunId }],
-      UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
+      [useTaskInstanceServiceGetTaskInstanceKey, { dagId, dagRunId, taskId }],
       [useTaskInstanceServiceGetTaskInstancesKey],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
       [useClearTaskInstancesDryRunKey, dagId],

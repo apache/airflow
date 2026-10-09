@@ -27,6 +27,7 @@ import {
   type GanttDataItem,
   buildGanttRowSegments,
   buildGanttTimeAxisTicks,
+  buildMaxTryByKey,
   GANTT_TIME_AXIS_TICK_COUNT,
   gridSummariesToTaskIdMap,
   getGanttSegmentTo,
@@ -116,6 +117,7 @@ describe("transformGanttData", () => {
       getGanttSegmentTo({
         dagId: "dag",
         item: { isGroup: true, taskId: "body", x: [0, 1], y: "body" },
+        maxTryByKey: new Map(),
         pathname: "/dags/dag/runs/run",
         runId: "run",
         searchParams: new URLSearchParams("region_id=stale&region_index=2&try_number=4&view=graph"),
@@ -126,42 +128,62 @@ describe("transformGanttData", () => {
     });
   });
 
-  it("keeps colliding loop tries distinct and links their exact execution", () => {
-    const allTries = [0, 2].map((index) => ({
+  it.each([
+    {
+      name: "pins try_number only on the older try of a loop region",
+      regionId: "00000000-0000-0000-0000-000000000123",
+      search: {
+        "execution-0-1": "region_id=00000000-0000-0000-0000-000000000123&region_index=0&try_number=1",
+        "execution-0-2": "region_id=00000000-0000-0000-0000-000000000123&region_index=0",
+        "execution-2-1": "region_id=00000000-0000-0000-0000-000000000123&region_index=2",
+      },
+    },
+    {
+      name: "links the sentinel region without region or try selectors for the latest try",
+      regionId: "00000000-0000-0000-0000-000000000000",
+      search: { "execution-0-1": "try_number=1", "execution-0-2": "", "execution-2-1": "" },
+    },
+  ])("$name", ({ regionId, search }) => {
+    const allTries = [
+      { index: 0, tryNumber: 1 },
+      { index: 0, tryNumber: 2 },
+      { index: 2, tryNumber: 1 },
+    ].map(({ index, tryNumber }) => ({
       end_date: "2024-03-14T10:05:00Z",
-      id: `execution-${index}`,
+      id: `execution-${index}-${tryNumber}`,
       map_index: -1,
       queued_dttm: null,
-      region_id: "00000000-0000-0000-0000-000000000123",
+      region_id: regionId,
       region_index: index,
       scheduled_dttm: null,
       start_date: "2024-03-14T10:00:00Z",
       state: "success" as const,
       task_display_name: "work",
       task_id: "body.work",
-      try_number: 1,
+      try_number: tryNumber,
     }));
     const items = transformGanttData({
       allTries,
       flatNodes: [{ depth: 0, id: "body.work", is_mapped: false, label: "work" }],
       gridSummaries: [],
     });
+    const maxTryByKey = buildMaxTryByKey(items);
 
-    expect(items.map((item) => item.taskInstanceId)).toEqual(["execution-0", "execution-2"]);
-    for (const [index, item] of items.entries()) {
-      expect(
-        getGanttSegmentTo({
-          dagId: "dag",
-          item,
-          pathname: "/dags/dag/runs/run",
-          runId: "run",
-          searchParams: new URLSearchParams("region_id=stale&region_index=99"),
-        }),
-      ).toEqual({
-        pathname: "/dags/dag/runs/run/tasks/body.work",
-        search: `region_id=${allTries[index]?.region_id}&region_index=${allTries[index]?.region_index}&try_number=1`,
-      });
-    }
+    expect(
+      Object.fromEntries(
+        items.map((item) => [
+          item.taskInstanceId,
+          getGanttSegmentTo({
+            dagId: "dag",
+            item,
+            maxTryByKey,
+            pathname: "/dags/dag/runs/run",
+            runId: "run",
+            searchParams: new URLSearchParams("region_id=stale&region_index=99"),
+          })?.search,
+        ]),
+      ),
+    ).toEqual(search);
   });
 
   it("returns no segments when the try has no schedule, queue, or start time", () => {

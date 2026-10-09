@@ -32,6 +32,7 @@ import Time from "src/components/Time";
 import { useMarkTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
+import { isLoopTaskInstance } from "src/utils/loopTaskInstance";
 
 type Props = {
   readonly onClose: () => void;
@@ -45,8 +46,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const dagRunId = taskInstance.dag_run_id;
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
-  const isRegional =
-    Boolean(taskInstance.region_id) && taskInstance.region_id !== "00000000-0000-0000-0000-000000000000";
+  const isRegional = isLoopTaskInstance(taskInstance);
   const { t: translate } = useTranslation();
 
   const [markTaskInstanceDefaultOptions] = useMarkTaskInstanceDefaultOptions();

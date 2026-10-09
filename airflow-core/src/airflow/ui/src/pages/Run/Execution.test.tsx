@@ -21,8 +21,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { DagRunService, TaskInstanceService } from "openapi/requests";
+import { DagRunService, DagService, TaskInstanceService } from "openapi/requests";
 import type {
+  DAGDetailsResponse,
   DAGRunResponse,
   ExecutionCollectionResponse,
   ExecutionRegionResponse,
@@ -101,7 +102,16 @@ afterEach(() => {
 });
 
 const mockRun = (state: DAGRunResponse["state"]) =>
-  vi.spyOn(DagRunService, "getDagRun").mockResolvedValue({ dag_id: "dag", state } as DAGRunResponse);
+  vi.spyOn(DagRunService, "getDagRun").mockResolvedValue({
+    dag_id: "dag",
+    dag_versions: [{ id: "version", version_number: 1 }],
+    state,
+  } as DAGRunResponse);
+
+const sentRealClear = (clear: { mock: { calls: Array<Array<unknown>> } }) =>
+  (clear.mock.calls as Array<[{ requestBody: { dry_run?: boolean } }]>).some(
+    ([request]) => request.requestBody.dry_run === false,
+  );
 
 describe("Run Execution", () => {
   it("resets selected UUIDs when navigating to another run", async () => {
@@ -305,5 +315,96 @@ describe("Run Execution", () => {
     mockRun("running");
     renderExecution();
     await waitFor(() => expect(fetch.mock.calls.length).toBeGreaterThan(2));
+  });
+
+  it("keeps polling a finished run until its last pending task has settled", async () => {
+    refresh.interval = 20;
+    const fetch = vi.spyOn(DagRunService, "getExecution").mockResolvedValue({
+      regions: [region(ROOT)],
+      task_instances: [task("work", { state: "running" })],
+      total_entries: 1,
+    });
+
+    mockRun("success");
+    renderExecution();
+
+    await screen.findByRole("link", { name: "work" });
+    await waitFor(() => expect(fetch.mock.calls.length).toBeGreaterThan(2));
+  });
+
+  it("keeps the selection when the clear dialog is cancelled and drops it once the clear succeeds", async () => {
+    vi.spyOn(DagRunService, "getExecution").mockResolvedValue({
+      regions: [region(ROOT)],
+      task_instances: [task("work")],
+      total_entries: 1,
+    });
+    const clear = vi
+      .spyOn(TaskInstanceService, "postClearTaskInstances")
+      .mockResolvedValue({ task_instances: [], total_entries: 1 });
+
+    vi.spyOn(DagService, "getDagDetails").mockResolvedValue({ dag_id: "dag" } as DAGDetailsResponse);
+    mockRun("success");
+    renderExecution();
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select work" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Clear selected executions" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Clear selected executions" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Clear selected executions" })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear selected executions" }));
+    await screen.findByRole("button", { name: "Cancel" });
+    const confirm = () =>
+      screen.getAllByRole("button", { name: "Clear selected executions" }).at(-1) as HTMLElement;
+
+    await waitFor(() => expect(confirm()).toBeEnabled());
+    fireEvent.click(confirm());
+    await waitFor(() => expect(sentRealClear(clear)).toBe(true));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Clear selected executions" })).toBeDisabled(),
+    );
+  });
+
+  it("selects the current execution once a selected one has been retried", async () => {
+    refresh.interval = 20;
+    vi.spyOn(DagRunService, "getExecution")
+      .mockResolvedValueOnce({
+        regions: [region(ROOT)],
+        task_instances: [task("old-id", { state: "running", task_id: "work" })],
+        total_entries: 1,
+      })
+      .mockResolvedValue({
+        regions: [region(ROOT)],
+        task_instances: [task("new-id", { state: "running", task_id: "work" })],
+        total_entries: 1,
+      });
+    const clear = vi
+      .spyOn(TaskInstanceService, "postClearTaskInstances")
+      .mockResolvedValue({ task_instances: [], total_entries: 1 });
+
+    mockRun("running");
+    renderExecution();
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select old-id" }));
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "Select new-id" })).toBeChecked());
+    fireEvent.click(screen.getByRole("button", { name: "Clear selected executions" }));
+
+    await waitFor(() =>
+      expect(clear.mock.lastCall?.[0].requestBody).toMatchObject({ task_instance_ids: ["new-id"] }),
+    );
+  });
+
+  it("keeps a selection made on another page when this page does not list it", async () => {
+    vi.spyOn(DagRunService, "getExecution")
+      .mockResolvedValueOnce({ regions: [region(ROOT)], task_instances: [task("first")], total_entries: 101 })
+      .mockResolvedValue({ regions: [region(ROOT)], task_instances: [task("second")], total_entries: 101 });
+
+    renderExecution();
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select first" }));
+    fireEvent.click(screen.getByRole("button", { name: /next page/iu }));
+    expect(await screen.findByRole("checkbox", { name: "Select second" })).not.toBeChecked();
+
+    expect(screen.getByRole("button", { name: "Clear selected executions" })).toBeEnabled();
   });
 });

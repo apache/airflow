@@ -35,6 +35,7 @@ import { StateBadge } from "src/components/StateBadge";
 import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
 import { formatNumber } from "src/utils";
+import { isLoopTaskInstance } from "src/utils/loopTaskInstance";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
@@ -52,9 +53,7 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
     onSuccessConfirm: onClose,
   });
 
-  const hasRegional = selectedTaskInstances.some(
-    (ti) => ti.region_id !== "00000000-0000-0000-0000-000000000000",
-  );
+  const hasRegional = selectedTaskInstances.some(isLoopTaskInstance);
   const past = !hasRegional && selectedOptions.includes("past");
   const future = !hasRegional && selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");

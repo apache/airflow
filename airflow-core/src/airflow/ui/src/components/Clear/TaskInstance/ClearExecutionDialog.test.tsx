@@ -20,7 +20,12 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, expect, it, vi } from "vitest";
 
-import { TaskInstanceService } from "openapi/requests";
+import { DagRunService, DagService, TaskInstanceService } from "openapi/requests";
+import type {
+  DAGDetailsResponse,
+  DAGRunResponse,
+  TaskInstanceCollectionResponse,
+} from "openapi/requests/types.gen";
 
 import {
   CLEAR_KEEP_TASK_STATE_KEY,
@@ -52,6 +57,8 @@ const execution = {
   task_display_name: "work",
   task_id: "body.work",
 };
+
+const findNoteField = () => screen.findByRole("textbox", { hidden: true });
 
 const findClearRequest = (clear: { mock: { calls: Array<Array<unknown>> } }) =>
   (clear.mock.calls as Array<[{ requestBody: { dry_run?: boolean; note?: string | null } }]>)
@@ -184,7 +191,7 @@ it("sends the saved clear defaults in the dry run and the real request", async (
       prevent_running_task: true,
     }),
   );
-  expect(await screen.findByText("1 execution will be cleared.")).toBeVisible();
+  expect(await screen.findByText("Affected Tasks: 1")).toBeVisible();
   expect(screen.getByLabelText("Prevent rerun if task is running")).toBeChecked();
   expect(screen.getByLabelText("Keep task state and resume")).toBeChecked();
   fireEvent.click(screen.getByLabelText("Keep task state and resume"));
@@ -218,7 +225,7 @@ it("hides the affected count while the dry run is pending", async () => {
   });
 
   expect(await screen.findByLabelText("Clear downstream tasks")).toBeVisible();
-  expect(screen.queryByText(/executions? will be cleared/u)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Affected Tasks/u)).not.toBeInTheDocument();
 });
 
 it("seeds the note from the execution and only sends it when edited", async () => {
@@ -230,15 +237,127 @@ it("seeds the note from the execution and only sends it when edited", async () =
     wrapper: Wrapper,
   });
 
-  const note = await screen.findByLabelText("Reason for clearing (optional)");
-
-  expect(note).toHaveValue("existing note");
+  expect(await findNoteField()).toHaveValue("existing note");
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Clear selected executions" })).toBeEnabled(),
   );
   fireEvent.click(screen.getByRole("button", { name: "Clear selected executions" }));
   await waitFor(() => expect(findClearRequest(clear)).toBeDefined());
   expect(findClearRequest(clear)?.requestBody.note).toBeUndefined();
+});
+
+it("sends the note once the user edits it", async () => {
+  const clear = vi
+    .spyOn(TaskInstanceService, "postClearTaskInstances")
+    .mockResolvedValue({ task_instances: [], total_entries: 1 });
+
+  render(<ClearExecutionDialog dagId="dag" executions={[execution]} onClose={vi.fn()} open runId="run" />, {
+    wrapper: Wrapper,
+  });
+
+  fireEvent.change(await findNoteField(), { target: { value: "new reason" } });
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Clear selected executions" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Clear selected executions" }));
+  await waitFor(() => expect(findClearRequest(clear)).toBeDefined());
+  expect(findClearRequest(clear)?.requestBody.note).toBe("new reason");
+});
+
+it("lists the affected executions, including later loop passes", async () => {
+  const affected = (id: string, regionIndex: number) => ({
+    dag_run_id: "run",
+    id,
+    map_index: -1,
+    region_id: execution.region_id,
+    region_index: regionIndex,
+    state: "success" as const,
+    task_id: `body.work.${regionIndex}`,
+  });
+
+  vi.spyOn(TaskInstanceService, "postClearTaskInstances").mockResolvedValue({
+    task_instances: [affected("selected-uuid", 1), affected("later-uuid", 2)],
+    total_entries: 2,
+  } as unknown as TaskInstanceCollectionResponse);
+
+  render(<ClearExecutionDialog dagId="dag" executions={[execution]} onClose={vi.fn()} open runId="run" />, {
+    wrapper: Wrapper,
+  });
+
+  expect(await screen.findByText("Affected Tasks: 2")).toBeVisible();
+  expect(screen.getByText("body.work.1")).toBeVisible();
+  expect(screen.getByText("body.work.2")).toBeVisible();
+});
+
+it("offers the latest version for an outdated execution and sends the choice in both requests", async () => {
+  vi.spyOn(DagService, "getDagDetails").mockResolvedValue({
+    bundle_version: "bundle-2",
+    latest_dag_version: { version_number: 2 },
+    rerun_with_latest_version: null,
+  } as DAGDetailsResponse);
+  vi.spyOn(DagRunService, "getDagRun").mockResolvedValue({
+    dag_versions: [{ bundle_version: "bundle-1", id: "version-1", version_number: 1 }],
+  } as DAGRunResponse);
+  const clear = vi
+    .spyOn(TaskInstanceService, "postClearTaskInstances")
+    .mockResolvedValue({ task_instances: [], total_entries: 1 });
+
+  render(
+    <ClearExecutionDialog
+      dagId="dag"
+      executions={[{ ...execution, dag_version_id: "version-1" }]}
+      onClose={vi.fn()}
+      open
+      runId="run"
+    />,
+    { wrapper: Wrapper },
+  );
+
+  await waitFor(() => expect(screen.getByLabelText("Run with latest bundle version")).toBeChecked());
+  await waitFor(() =>
+    expect(clear.mock.lastCall?.[0].requestBody).toMatchObject({
+      dry_run: true,
+      run_on_latest_version: true,
+    }),
+  );
+  fireEvent.click(screen.getByLabelText("Run with latest bundle version"));
+  await waitFor(() => expect(screen.getByLabelText("Run with latest bundle version")).not.toBeChecked());
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Clear selected executions" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Clear selected executions" }));
+  await waitFor(() => expect(findClearRequest(clear)).toBeDefined());
+  expect(findClearRequest(clear)?.requestBody).toMatchObject({ run_on_latest_version: false });
+});
+
+it("does not offer the latest version when the execution already runs on it", async () => {
+  vi.spyOn(DagService, "getDagDetails").mockResolvedValue({
+    bundle_version: "bundle-2",
+    latest_dag_version: { version_number: 2 },
+    rerun_with_latest_version: null,
+  } as DAGDetailsResponse);
+  vi.spyOn(DagRunService, "getDagRun").mockResolvedValue({
+    dag_versions: [{ bundle_version: "bundle-2", id: "version-2", version_number: 2 }],
+  } as DAGRunResponse);
+  vi.spyOn(TaskInstanceService, "postClearTaskInstances").mockResolvedValue({
+    task_instances: [],
+    total_entries: 1,
+  });
+
+  render(
+    <ClearExecutionDialog
+      dagId="dag"
+      executions={[{ ...execution, dag_version_id: "version-2" }]}
+      onClose={vi.fn()}
+      open
+      runId="run"
+    />,
+    { wrapper: Wrapper },
+  );
+
+  expect(await screen.findByLabelText("Clear downstream tasks")).toBeVisible();
+  await waitFor(() => expect(DagRunService.getDagRun).toHaveBeenCalled());
+  expect(screen.queryByLabelText("Run with latest bundle version")).not.toBeInTheDocument();
 });
 
 it("does not send an empty note when the user erases the existing one", async () => {
@@ -250,7 +369,7 @@ it("does not send an empty note when the user erases the existing one", async ()
     wrapper: Wrapper,
   });
 
-  fireEvent.change(await screen.findByLabelText("Reason for clearing (optional)"), { target: { value: "" } });
+  fireEvent.change(await findNoteField(), { target: { value: "" } });
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Clear selected executions" })).toBeEnabled(),
   );
@@ -268,13 +387,13 @@ it("resets the dialog state once it closes", async () => {
   const { rerender } = render(<ClearExecutionDialog {...props} open />, { wrapper: Wrapper });
 
   fireEvent.click(await screen.findByLabelText("Clear later loop iterations"));
-  fireEvent.change(screen.getByLabelText("Reason for clearing (optional)"), { target: { value: "typed" } });
+  fireEvent.change(await findNoteField(), { target: { value: "typed" } });
   await waitFor(() => expect(screen.getByLabelText("Clear later loop iterations")).not.toBeChecked());
-  await waitFor(() => expect(screen.getByLabelText("Reason for clearing (optional)")).toHaveValue("typed"));
+  await waitFor(() => expect(screen.getByRole("textbox", { hidden: true })).toHaveValue("typed"));
   rerender(<ClearExecutionDialog {...props} open={false} />);
   await waitFor(() => expect(screen.queryByLabelText("Clear later loop iterations")).not.toBeInTheDocument());
   rerender(<ClearExecutionDialog {...props} open />);
 
   expect(await screen.findByLabelText("Clear later loop iterations")).toBeChecked();
-  expect(screen.getByLabelText("Reason for clearing (optional)")).toHaveValue("existing note");
+  expect(screen.getByRole("textbox", { hidden: true })).toHaveValue("existing note");
 });

@@ -108,6 +108,7 @@ describe("MarkTaskInstanceAsDialog", () => {
     mocks.defaultOptions = ["past", "future"];
     const regional = {
       ...taskInstance,
+      in_loop: true,
       map_index: -1,
       region_id: "11111111-1111-4111-8111-111111111111",
       region_index: 3,
@@ -135,6 +136,28 @@ describe("MarkTaskInstanceAsDialog", () => {
         region_index: 3,
       },
     });
+  });
+  it("marks a mapped expansion outside a loop by map index with the cross-run scope enabled", () => {
+    mocks.defaultOptions = ["past", "future"];
+    const mapped = {
+      ...taskInstance,
+      in_loop: false,
+      map_index: 2,
+      region_id: "11111111-1111-4111-8111-111111111111",
+      region_index: 2,
+    };
+
+    render(<MarkTaskInstanceAsDialog onClose={vi.fn()} open state="success" taskInstance={mapped} />, {
+      wrapper: Wrapper,
+    });
+    expect(screen.getByRole("button", { name: /past/iu })).toBeEnabled();
+    expect(mocks.dryRun.mock.lastCall?.[0]).toMatchObject({
+      mapIndex: 2,
+      requestBody: { include_future: true, include_past: true },
+    });
+    const [{ requestBody }] = mocks.dryRun.mock.lastCall as [{ requestBody: Record<string, unknown> }];
+
+    expect(requestBody.region_id).toBeUndefined();
   });
   it("does not select downstream by default", () => {
     render(<MarkTaskInstanceAsDialog onClose={vi.fn()} open state="success" taskInstance={taskInstance} />, {

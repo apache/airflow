@@ -18,13 +18,16 @@
  */
 import { useEffect, useState } from "react";
 
-import { Button, Stack, Text, Textarea } from "@chakra-ui/react";
+import { Button, Stack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
+import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
 import type { ClearTaskInstancesBody, ExecutionTaskResponse } from "openapi/requests/types.gen";
 
 import { Checkbox, Modal } from "src/system-components";
 
+import { ActionAccordion } from "src/components/ActionAccordion";
+import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 import {
@@ -35,20 +38,25 @@ import {
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 
-type SelectedExecution = Pick<
-  ExecutionTaskResponse,
-  "id" | "map_index" | "note" | "region_id" | "region_index" | "task_display_name" | "task_id"
->;
+import { getRunOnLatestVersionState } from "./runOnLatestVersion";
+
+type SelectedExecution = Partial<Pick<ExecutionTaskResponse, "dag_version_id">> &
+  Pick<
+    ExecutionTaskResponse,
+    "id" | "map_index" | "note" | "region_id" | "region_index" | "task_display_name" | "task_id"
+  >;
 
 export const ClearExecutionDialog = ({
   dagId,
   executions,
+  onCleared,
   onClose,
   open,
   runId,
 }: {
   readonly dagId: string;
   readonly executions: Array<SelectedExecution>;
+  readonly onCleared?: () => void;
   readonly onClose: () => void;
   readonly open: boolean;
   readonly runId: string;
@@ -76,6 +84,35 @@ export const ClearExecutionDialog = ({
       setNote(initialNote);
     }
   }, [open, defaultDownstream, preventRunningDefault, keepTaskStateDefault, initialNote]);
+  const { data: dagDetails } = useDagServiceGetDagDetails({ dagId }, undefined, { enabled: open });
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId }, undefined, {
+    enabled: open,
+  });
+  const runVersions = new Map((dagRun?.dag_versions ?? []).map((version) => [version.id, version]));
+  const selectedVersions = executions.flatMap((ti) => {
+    const version =
+      ti.dag_version_id === null || ti.dag_version_id === undefined
+        ? undefined
+        : runVersions.get(ti.dag_version_id);
+
+    return version === undefined ? [] : [version];
+  });
+  const selectedVersion =
+    selectedVersions.find(
+      (version) => version.version_number !== dagDetails?.latest_dag_version?.version_number,
+    ) ?? selectedVersions[0];
+  const { dagVersionsDiffer, runOnLatestVersionForced, shouldShowRunOnLatestOption } =
+    getRunOnLatestVersionState({
+      latestBundleVersion: dagDetails?.bundle_version,
+      latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+      selectedBundleVersion: selectedVersion?.bundle_version,
+      selectedDagVersionNumber: selectedVersion?.version_number,
+      selectedVersionMissing: dagRun?.dag_versions.length === 0,
+    });
+  const { setValue: setRunOnLatestVersion, value: runOnLatestVersion } = useRerunWithLatestVersion({
+    dagLevelConfig: dagDetails?.rerun_with_latest_version,
+    fallback: dagVersionsDiffer,
+  });
   const mappedIds = executions
     .filter(
       (ti) =>
@@ -90,6 +127,7 @@ export const ClearExecutionDialog = ({
     keep_task_state: keepTaskState,
     only_failed: false,
     prevent_running_task: preventRunning,
+    run_on_latest_version: runOnLatestVersion,
     task_instance_ids: executions.map((ti) => ti.id),
     whole_expansion_ids: whole ? mappedIds : [],
   };
@@ -98,7 +136,14 @@ export const ClearExecutionDialog = ({
     options: { enabled: open, retry: false },
     requestBody,
   });
-  const clear = useClearTaskInstances({ dagId, dagRunId: runId, onSuccessConfirm: onClose });
+  const clear = useClearTaskInstances({
+    dagId,
+    dagRunId: runId,
+    onSuccessConfirm: () => {
+      onCleared?.();
+      onClose();
+    },
+  });
 
   return (
     <Modal
@@ -153,16 +198,21 @@ export const ClearExecutionDialog = ({
         >
           {translate("dags:runAndTaskActions.options.keepTaskState")}
         </Checkbox>
-        {preview.data === undefined ? undefined : (
-          <Text>{translate("execution.clearAffected", { count: preview.data.total_entries })}</Text>
-        )}
-        <Textarea
-          aria-label={translate("execution.clearNote")}
-          maxLength={1000}
-          onChange={(event) => setNote(event.target.value)}
-          placeholder={translate("execution.clearNote")}
-          value={note}
-        />
+        {shouldShowRunOnLatestOption ? (
+          <Checkbox
+            checked={runOnLatestVersionForced || runOnLatestVersion}
+            disabled={runOnLatestVersionForced}
+            onCheckedChange={(details) => setRunOnLatestVersion(details.checked === true)}
+            title={
+              runOnLatestVersionForced
+                ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
+                : undefined
+            }
+          >
+            {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+          </Checkbox>
+        ) : undefined}
+        <ActionAccordion affectedTasks={preview.data} note={note} setNote={setNote} />
       </Stack>
     </Modal>
   );

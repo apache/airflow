@@ -43,6 +43,9 @@ type Group = {
   tasks: Array<ExecutionTaskResponse>;
 };
 
+const getExecutionCoordinates = (task: ExecutionTaskResponse) =>
+  JSON.stringify([task.dag_run_id, task.task_id, task.map_index, task.region_id, task.region_index]);
+
 const groupExecutions = (tasks: Array<ExecutionTaskResponse>, regions: Array<ExecutionRegionResponse>) => {
   const byRegion = new Map(regions.map((region) => [region.id, region]));
   const groups = new Map<string, Group>();
@@ -126,7 +129,12 @@ const ExecutionView = () => {
   const { data, error, isLoading } = useDagRunServiceGetExecution(
     { dagId, dagRunId: runId, limit: PAGE_SIZE, offset },
     undefined,
-    { refetchInterval: isStatePending(dagRun?.state) && refresh },
+    {
+      refetchInterval: (query) =>
+        (isStatePending(dagRun?.state) ||
+          Boolean(query.state.data?.task_instances.some((task) => isStatePending(task.state)))) &&
+        refresh,
+    },
   );
   const totalEntries = data?.total_entries ?? 0;
 
@@ -152,6 +160,31 @@ const ExecutionView = () => {
   const [expanded, setExpanded] = useState(new Set<string>());
   const [selected, setSelected] = useState(new Map<string, ExecutionTaskResponse>());
   const [clearing, setClearing] = useState(false);
+
+  useEffect(() => {
+    if (data === undefined) {
+      return;
+    }
+    const current = new Map(data.task_instances.map((task) => [getExecutionCoordinates(task), task]));
+
+    setSelected((previous) => {
+      let replaced = false;
+      const next = new Map<string, ExecutionTaskResponse>();
+
+      for (const [id, task] of previous) {
+        const replacement = current.get(getExecutionCoordinates(task));
+
+        if (replacement !== undefined && replacement.id !== id) {
+          replaced = true;
+          next.set(replacement.id, replacement);
+        } else {
+          next.set(id, task);
+        }
+      }
+
+      return replaced ? next : previous;
+    });
+  }, [data]);
   const row = (task: ExecutionTaskResponse) => (
     <TaskRow
       key={task.id}
@@ -193,10 +226,8 @@ const ExecutionView = () => {
         <ClearExecutionDialog
           dagId={dagId}
           executions={[...selected.values()]}
-          onClose={() => {
-            setClearing(false);
-            setSelected(new Map());
-          }}
+          onCleared={() => setSelected(new Map())}
+          onClose={() => setClearing(false)}
           open
           runId={runId}
         />

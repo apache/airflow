@@ -345,6 +345,43 @@ describe("TaskInstance", () => {
     expect(screen.getByTestId("location").textContent).toBe(`${path}/${destination}`);
   });
 
+  it.each([
+    { inLoop: false, visible: true },
+    { inLoop: true, visible: false },
+  ])(
+    "shows the mapped task instances tab only outside a loop (in_loop=$inLoop)",
+    async ({ inLoop, visible }) => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const regionId = "11111111-1111-4111-8111-111111111111";
+
+      vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
+        ...buildTaskInstance(TASK_A, "success", 1),
+        in_loop: inLoop,
+        map_index: 1,
+        region_id: regionId,
+        region_index: 1,
+      } as TaskInstanceResponse);
+
+      render(
+        <MemoryRouter
+          initialEntries={[
+            `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/mapped/1/logs?region_id=${regionId}&region_index=1`,
+          ]}
+        >
+          <Routes>
+            <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex">
+              <Route element={<div />} path="*" />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+        { wrapper: createWrapper(queryClient) },
+      );
+      expect(await screen.findByText(`${TASK_A}:success:1`)).toBeTruthy();
+
+      expect(screen.queryByRole("link", { name: "tabs.mappedTaskInstances_other" }) !== null).toBe(visible);
+    },
+  );
+
   it("refetches a cached task instance immediately when switching tasks", async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
