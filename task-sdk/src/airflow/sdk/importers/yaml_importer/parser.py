@@ -43,7 +43,10 @@ def _resolve_and_migrate(raw: dict[str, Any], *, source: str) -> dict[str, Any]:
         raise YamlDagParseError(f"{source}: a DAG document must be a mapping, got {type(raw).__name__}")
     if not raw.get("$schema"):
         raise YamlDagParseError(f"{source}: missing required key '$schema'")
-    return migrator.get_migrator().resolve_and_migrate(raw, source=source)
+    try:
+        return migrator.get_migrator().resolve_and_migrate(raw)
+    except ValueError as exc:  # unresolvable $schema version; bundle-config errors are not ValueError
+        raise YamlDagParseError(f"{source}: {exc}") from exc
 
 
 def parse_documents(stream: str | IO[str], *, source: str = "<string>") -> Iterator[DagDocument]:

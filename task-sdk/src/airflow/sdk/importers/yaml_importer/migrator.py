@@ -15,17 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-`$schema` version resolution and forward migration to the head shape.
+Schema version resolution and forward migration to the head shape.
 
-A document pinned to an older `$schema` version is migrated up to the current head shape
-*before* validation, by walking the Cadwyn version bundle and applying each `VersionChange`'s
-forward request converters (`@convert_request_to_next_version_for(DagDocument)`), oldest to
-newest. This mirrors the exec-API / supervisor-schema `SchemaVersionMigrator`, trimmed to the
-one direction a document format needs (author's version -> head), with the bundle and its
-version list encapsulated in the migrator rather than exposed as module-level helpers.
+A document with an older ``$schema`` is migrated to the head shape by walking
+the Cadwyn version bundle and applying each ``VersionChange``'s forward request
+converters (`@convert_request_to_next_version_for(DagDocument)`), oldest to
+newest.
 
-With a single published version there is nothing to migrate; the machinery is here so a future
-version bump only has to add a `VersionChange` carrying a converter — no parser changes.
+Only whole-document request converters keyed on `DagDocument` are applied; a
+bundle carrying any other cadwyn instruction is rejected at construction rather
+than migrating a document with half its changes applied. (See documentation on
+:meth:`DagDocumentMigrator._reject_unsupported_instructions` for rationale.)
 """
 
 from __future__ import annotations
@@ -33,7 +33,6 @@ from __future__ import annotations
 import copy
 import functools
 import re
-import warnings
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -74,46 +73,78 @@ class _RequestInfo:
     body: dict[str, Any]
 
 
+def _calculate_version_values(migrator: DagDocumentMigrator) -> frozenset[str]:
+    return frozenset(v.value for v in migrator._bundle.versions)
+
+
 @attrs.define
 class DagDocumentMigrator:
     """YAML Dag document migrator; pins each document to its ``$schema`` version."""
 
     _bundle: VersionBundle
+    _version_values: frozenset[str] = attrs.field(
+        init=False,
+        default=attrs.Factory(_calculate_version_values, takes_self=True),
+    )
 
-    def resolve_and_migrate(self, body: dict[str, Any], *, source: str) -> dict[str, Any]:
+    def __attrs_post_init__(self) -> None:
+        self._reject_unsupported_instructions()
+
+    def _reject_unsupported_instructions(self) -> None:
+        """
+        Fail if the bundle carries unsupported migrations.
+
+        Only forward request converters keyed on :class:`DagDocument` may run.
+        This is due to difficulties posed by things like templates and XCom,
+        which can present in nested locations inside task arguments. Technically
+        we could just ban model-level migration only for them, but that's
+        considered unnecessarily complicated since you can already do all
+        per-model-level changes on :class:`DagDocument`. We can relax this
+        restriction in the future if the ergonomics prove to be suboptimal.
+        """
+        unsupported = (
+            "alter_endpoint_instructions",
+            "alter_enum_instructions",
+            "alter_request_by_path_instructions",
+            "alter_response_by_path_instructions",
+            "alter_response_by_schema_instructions",
+            "alter_schema_instructions",
+        )
+        for version in self._bundle.versions:
+            for change in version.changes:
+                name = type(change).__name__
+                other_models = set(change.alter_request_by_schema_instructions) - {DagDocument}
+                if other_models:
+                    raise RuntimeError(
+                        f"{name}: request converters for {sorted(m.__name__ for m in other_models)} "
+                        f"are not applied; only whole-document {DagDocument.__name__} converters "
+                        f"are supported"
+                    )
+                if used := [b for b in unsupported if getattr(change, b, None)]:
+                    raise RuntimeError(
+                        f"{name}: unsupported cadwyn instructions {used}; only "
+                        f"{DagDocument.__name__} request converters are applied"
+                    )
+
+    def resolve_version(self, version: str | None) -> str:
+        """Validate *version* is a published version in the bundle."""
+        if version is None or version not in self._version_values:
+            raise ValueError(f"$schema version {version!r} is not valid")
+        return version
+
+    def resolve_and_migrate(self, body: dict[str, Any]) -> dict[str, Any]:
         """
         Resolve *body*'s ``$schema`` version and migrate it to the head shape.
 
-        The version token is read from the ``$schema`` URL (the host is ignored). It is an
-        exact pin: a known version uses its own ruleset; an unknown one (e.g. newer than this
-        importer) resolves to the latest ruleset with a warning, never a hard failure.
+        The version token is read from the ``$schema`` URL. Every valid
+        (published) version stays in the bundle and is migrated forward. An
+        unknown version is rejected.
 
+        :raises ValueError: if the ``$schema`` version is not valid.
         :return: The migrated result. If *body* is already at head, it is
             returned as-is; otherwise a migrated copy is returned.
         """
-        known = [v.value for v in self._bundle.versions]  # newest-first
-        date = version_from_schema(body["$schema"])
-        if date in known:
-            source_version = date
-        else:
-            source_version = known[0]  # unknown version -> latest ruleset we have
-            warnings.warn(
-                f"{source}: $schema version {date!r} is not a known version {known}; "
-                f"using the latest ruleset {source_version!r}",
-                stacklevel=2,
-            )
-        return self._migrate_to_head(body, source_version)
-
-    def _migrate_to_head(self, body: dict[str, Any], source_version: str) -> dict[str, Any]:
-        """
-        Migrate a raw document *body* from *source_version* to the head shape.
-
-        This applies the forward request converters for :class:`DagDocument`
-        from the version after *source_version* through head, in order.
-
-        :return: The migrated result. If *body* is already at head, it is
-            returned as-is; otherwise a migrated copy is returned.
-        """
+        source_version = self.resolve_version(version_from_schema(body["$schema"]))
         if source_version == self._bundle.versions[0].value:
             return body
         info = _RequestInfo(copy.deepcopy(dict(body)))
