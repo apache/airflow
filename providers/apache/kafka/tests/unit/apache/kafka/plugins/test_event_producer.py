@@ -42,6 +42,8 @@ _TASK_ID = "test_task1"
 _RUN_TYPE = "manual"
 
 _KAFKA_TOPIC = "airflow.events"
+_DAGRUN_TOPIC = "airflow.dagrun"
+_TASK_INSTANCE_TOPIC = "airflow.task_instance"
 _SOURCE = "af-dev-env"
 
 # The hook binds these names in its own namespace, so patch them there.
@@ -99,7 +101,28 @@ def pytest_generate_tests(metafunc):
             ],
             indirect=True,
         )
+    if "separate_topics" in metafunc.fixturenames:
+        metafunc.parametrize(
+            "separate_topics",
+            [pytest.param(True, id="separate_topics"), pytest.param(False, id="same_topic")],
+            indirect=True,
+        )
 
+@pytest.fixture
+def separate_topics(request) -> bool:
+    return request.param
+
+@pytest.fixture
+def dagrun_topic(separate_topics):
+    if separate_topics:
+        return _DAGRUN_TOPIC
+    return _KAFKA_TOPIC
+
+@pytest.fixture
+def task_instance_topic(separate_topics):
+    if separate_topics:
+        return _TASK_INSTANCE_TOPIC
+    return _KAFKA_TOPIC
 
 @pytest.fixture
 def dr_mock():
@@ -134,13 +157,13 @@ def kafka_producer_mock():
         yield mock
 
 
-def _assert_common_message_fields(kafka_producer_mock, expected_event: str) -> dict:
+def _assert_common_message_fields(kafka_producer_mock, dagrun_topic, task_instance_topic, expected_event: str) -> dict:
     kafka_producer_mock.list_topics.assert_called_once()
     kafka_producer_mock.produce.assert_called_once()
 
     args = kafka_producer_mock.produce.call_args.args
     kwargs = kafka_producer_mock.produce.call_args.kwargs
-    assert args == (_KAFKA_TOPIC,)
+    assert args == (dagrun_topic,) or args == (task_instance_topic,)
     assert kwargs["key"] == f"{_DAG_ID}/{_DAG_RUN_ID}".encode()
 
     body = json.loads(kwargs["value"].decode("utf-8"))
@@ -206,8 +229,7 @@ def test_get_enabled_listeners(configs, expected_listener_classes):
 @conf_vars(
     {
         ("kafka_event_producer", "dag_run_events_enabled"): "True",
-        ("kafka_event_producer", "dagrun_topic"): _KAFKA_TOPIC,
-        ("kafka_event_producer", "task_instance_topic"): _KAFKA_TOPIC,
+        ("kafka_event_producer", "dagrun_topic"): _DAGRUN_TOPIC,
         ("kafka_event_producer", "source"): _SOURCE,
     }
 )
@@ -244,8 +266,7 @@ def test_produce_dr_message(
 @conf_vars(
     {
         ("kafka_event_producer", "task_instance_events_enabled"): "True",
-        ("kafka_event_producer", "dagrun_topic"): _KAFKA_TOPIC,
-        ("kafka_event_producer", "task_instance_topic"): _KAFKA_TOPIC,
+        ("kafka_event_producer", "task_instance_topic"): _TASK_INSTANCE_TOPIC,
         ("kafka_event_producer", "source"): _SOURCE,
     }
 )
@@ -280,8 +301,13 @@ class TestGetProducer:
     """Tests for the lifecycle and caching behavior of `_get_producer`."""
 
     @pytest.fixture(autouse=True)
-    def _producer_conf(self):
-        with conf_vars({("kafka_event_producer", "topic"): _KAFKA_TOPIC}):
+    def _producer_conf(self, dagrun_topic, task_instance_topic):
+        with conf_vars(
+            {
+                ("kafka_event_producer", "dagrun_topic"): dagrun_topic,
+                ("kafka_event_producer", "task_instance_topic"): task_instance_topic,
+            }
+        ):
             yield
 
     def test_producer_cached_on_success(self):
@@ -351,11 +377,11 @@ class TestCheckTopicExists:
         return request.param
 
     @pytest.fixture(autouse=True)
-    def _topic_conf(self):
+    def _topic_conf(self, dagrun_topic, task_instance_topic):
         with conf_vars(
             {
-                ("kafka_event_producer", "dagrun_topic"): _KAFKA_TOPIC,
-                ("kafka_event_producer", "task_instance_topic"): _KAFKA_TOPIC,
+                ("kafka_event_producer", "dagrun_topic"): dagrun_topic,
+                ("kafka_event_producer", "task_instance_topic"): task_instance_topic,
             }
         ):
             yield
@@ -371,7 +397,7 @@ class TestCheckTopicExists:
 
         kafka_producer_mock.list_topics.assert_called_once()
 
-    def test_topic_doesnt_exist(self, monkeypatch, topic_type):
+    def test_topic_doesnt_exist(self, monkeypatch, topic_type, dagrun_topic, task_instance_topic):
         kafka_producer_mock = MagicMock()
         kafka_producer_mock.list_topics.return_value.topics.__contains__.return_value = False
 
@@ -385,7 +411,10 @@ class TestCheckTopicExists:
         # Format string + the two formatting args are passed positionally to log.warning.
         warning_format, topic_arg, retry_interval_arg = log_warning_mock.call_args.args
         assert "topic %r not found on the broker" in warning_format
-        assert topic_arg == _KAFKA_TOPIC
+        if topic_type == event_producer.EventProducerKafkaTopic.DAG_RUN:
+            assert topic_arg == dagrun_topic
+        elif topic_type == event_producer.EventProducerKafkaTopic.TASK_INSTANCE:
+            assert topic_arg == task_instance_topic
         assert retry_interval_arg == event_producer._get_topic_check_retry_interval()
 
     def test_list_topics_failure_warns_and_sets_cooldown(self, monkeypatch, topic_type):
@@ -487,7 +516,7 @@ class TestCheckTopicExists:
 
 
 @pytest.mark.parametrize(
-    ("topic", "dagrun_topic", "task_instance_topic", "dagrun_expected", "task_instance_expected"),
+    ("topic", "dagrun_topic_setting", "task_instance_topic_setting", "dagrun_expected", "task_instance_expected"),
     [
         pytest.param(
             "airflow.events",
@@ -504,7 +533,7 @@ class TestCheckTopicExists:
         pytest.param("airflow.foo", None, None, "airflow.foo", "airflow.foo", id="old_setting"),
     ],
 )
-def test_get_topic(topic, dagrun_topic, task_instance_topic, dagrun_expected, task_instance_expected):
+def test_get_topic(topic, dagrun_topic_setting, task_instance_topic_setting, dagrun_expected, task_instance_expected):
     # Check that ``topic`` is properly deprecated
     ctxt = (
         pytest.raises(
@@ -537,13 +566,13 @@ class TestFilters:
     """Tests for the allowlist/denylist behavior of both DagRun and TaskInstance events."""
 
     @pytest.fixture(autouse=True)
-    def _filters_conf(self):
+    def _filters_conf(self, dagrun_topic, task_instance_topic):
         with conf_vars(
             {
                 ("kafka_event_producer", "dag_run_events_enabled"): "True",
                 ("kafka_event_producer", "task_instance_events_enabled"): "True",
-                ("kafka_event_producer", "dagrun_topic"): _KAFKA_TOPIC,
-                ("kafka_event_producer", "task_instance_topic"): _KAFKA_TOPIC,
+                ("kafka_event_producer", "dagrun_topic"): dagrun_topic,
+                ("kafka_event_producer", "task_instance_topic"): task_instance_topic,
             }
         ):
             yield
