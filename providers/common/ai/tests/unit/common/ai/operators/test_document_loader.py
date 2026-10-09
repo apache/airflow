@@ -474,7 +474,7 @@ class TestDocxParser:
         table.cell(1, 1).merge(table.cell(2, 1)).text = "Shared"
 
         assert _load_docx_text(_get_docx_bytes(doc)) == (
-            "| Title | Note |\n| a | Shared | c |\n| d | Shared | f |"
+            "| Title |  | Note |\n| a | Shared | c |\n| d | Shared | f |"
         )
 
     def test_docx_grid_before_and_after_keep_columns(self):
@@ -491,20 +491,59 @@ class TestDocxParser:
             "| Product | Revenue | Cost |\n|  | 100 | 80 |\n| Widget | 5 |  |"
         )
 
-    def test_docx_unreadable_table_skipped_with_warning(self, caplog):
+    @pytest.mark.parametrize(
+        ("add_grid_element", "expected_row"),
+        [
+            pytest.param(
+                lambda tr: tr.get_or_add_trPr().get_or_add_gridBefore(), "|  |  | x |", id="grid-before"
+            ),
+            pytest.param(
+                lambda tr: tr.get_or_add_trPr().get_or_add_gridAfter(), "| x |  |  |", id="grid-after"
+            ),
+            pytest.param(
+                lambda tr: tr.tc_lst[0].get_or_add_tcPr().get_or_add_gridSpan(), "| x |  |", id="grid-span"
+            ),
+        ],
+    )
+    def test_docx_grid_values_capped_at_column_count(self, add_grid_element, expected_row):
+        doc = _create_docx()
+        table = doc.add_table(rows=2, cols=2)
+        _fill_docx_table(table, [["a", "b"], ["x", ""]])
+        row = table.rows[1]._tr
+        row.remove(row.tc_lst[1])
+        add_grid_element(row).val = 1000
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == f"| a | b |\n{expected_row}"
+
+    @pytest.mark.parametrize(
+        ("break_first_cell", "error"),
+        [
+            pytest.param(
+                # A vMerge continuation in the first row has no cell above it to continue.
+                lambda tc_pr: tc_pr.get_or_add_vMerge(),
+                "ValueError('no tr above topmost tr in w:tbl')",
+                id="first-row-vmerge-continuation",
+            ),
+            pytest.param(
+                lambda tc_pr: tc_pr.get_or_add_gridSpan(),
+                "InvalidXmlError(\"required 'w:val' attribute not present on element "
+                '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}gridSpan")',
+                id="gridspan-without-val",
+            ),
+        ],
+    )
+    def test_docx_unreadable_table_skipped_with_warning(self, break_first_cell, error, caplog):
         doc = _create_docx()
         doc.add_paragraph("Before")
         unreadable = doc.add_table(rows=2, cols=2)
-        # A vMerge continuation in the first row has no cell above it to continue.
-        unreadable.rows[0]._tr.tc_lst[0].get_or_add_tcPr().get_or_add_vMerge()
+        break_first_cell(unreadable.cell(0, 0)._tc.get_or_add_tcPr())
         doc.add_paragraph("After")
         _fill_docx_table(doc.add_table(rows=1, cols=2), [["Name", "Qty"]])
 
         assert _load_docx_text(_get_docx_bytes(doc)) == "Before\n\nAfter\n\n| Name | Qty |"
         assert (
-            "Skipping a table in <bytes:.docx> that python-docx could not read: "
-            "ValueError('no tr above topmost tr in w:tbl')"
-        ) in caplog.messages
+            f"Skipping a table in <bytes:.docx> that python-docx could not read: {error}" in caplog.messages
+        )
 
     @patch.object(
         DocumentLoaderOperator,
