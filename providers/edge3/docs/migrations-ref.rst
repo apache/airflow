@@ -34,7 +34,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-----------------+----------------------------------------------------------+
 | Revision ID             | Revises ID       | Edge3 Version   | Description                                              |
 +=========================+==================+=================+==========================================================+
-| ``f2a4b6c8d0e1`` (head) | ``c6b3c3d093fd`` | ``5.0.0``       | Add task instance identity to Edge jobs.                 |
+| ``cd96a0a0e458`` (head) | ``f2a4b6c8d0e1`` | ``5.0.0``       | Change edge_job.command to unbounded text.               |
++-------------------------+------------------+-----------------+----------------------------------------------------------+
+| ``f2a4b6c8d0e1``        | ``c6b3c3d093fd`` | ``5.0.0``       | Add task instance identity to Edge jobs.                 |
 +-------------------------+------------------+-----------------+----------------------------------------------------------+
 | ``c6b3c3d093fd``        | ``a09c3ee8e1d3`` | ``3.5.0``       | Replace individual counters with extended JSON based     |
 |                         |                  |                 | sysinfo.                                                 |

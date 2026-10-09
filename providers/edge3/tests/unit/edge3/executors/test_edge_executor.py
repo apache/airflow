@@ -1090,6 +1090,19 @@ class TestQueueWorkload(_WorkloadFactory):
             assert job.state == TaskInstanceState.QUEUED
             assert '"type":"ExecuteCallback"' in job.command or '"type": "ExecuteCallback"' in job.command
 
+    def test_queue_workload_stores_command_longer_than_2048_chars(self):
+        executor = EdgeExecutor()
+        workload = self._make_execute_callback()
+        workload.callback.data["kwargs"]["context"] = {"dag_run": {"conf": {"payload": "x" * 4096}}}
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+
+        with create_session() as session:
+            job = session.scalar(select(EdgeJobModel))
+            assert job is not None
+            assert job.command == workload.model_dump_json()
+
     def test_queue_workload_execute_callback_existing_job(self):
         executor = EdgeExecutor()
         workload = self._make_execute_callback()
