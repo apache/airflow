@@ -53,7 +53,10 @@ if TYPE_CHECKING:
     from airflow.executors.workloads.types import WorkloadKey, WorkloadState
     from airflow.models.taskinstance import TaskInstance
 
-    LocalResult = tuple[int, WorkloadKey, WorkloadState | None, Exception | None]
+    LocalResult = (
+        tuple[int, WorkloadKey, WorkloadState | None, Exception | None]
+        | tuple[int, WorkloadKey, WorkloadState | None, Exception | None, str | None]
+    )
 
 
 def _get_executor_process_title_prefix(team_name: str | None) -> str:
@@ -102,7 +105,7 @@ def _run_worker(
             unread_messages.value -= 1
 
         key = LocalExecutor.get_workload_key(workload)
-        output.put((os.getpid(), key, workload.running_state, None))
+        output.put((os.getpid(), key, workload.running_state, None, None))
 
         try:
             BaseExecutor.run_workload(
@@ -111,10 +114,12 @@ def _run_worker(
                 proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
                 subprocess_logs_to_stdout=True,
             )
-            output.put((os.getpid(), key, workload.success_state, None))
+            run_id = getattr(getattr(workload, "ti", None), "workload_run_id", None)
+            output.put((os.getpid(), key, workload.success_state, None, run_id))
         except Exception as e:
             log.exception("Workload execution failed.", workload_type=type(workload).__name__)
-            output.put((os.getpid(), key, workload.failure_state, e))
+            run_id = getattr(getattr(workload, "ti", None), "workload_run_id", None)
+            output.put((os.getpid(), key, workload.failure_state, e, run_id))
 
 
 class LocalExecutor(BaseExecutor):
@@ -264,7 +269,14 @@ class LocalExecutor(BaseExecutor):
     def _read_results(self):
         try:
             while not self.result_queue.empty():
-                pid, key, state, exc = self.result_queue.get()
+                result = self.result_queue.get()
+                # (pid, key, state, exc) from older tests, or
+                # (pid, key, state, exc, workload_run_id) from workers.
+                if len(result) == 4:
+                    pid, key, state, _exc = result
+                    workload_run_id = None
+                else:
+                    pid, key, state, _exc, workload_run_id = result
                 if pid not in self.workers or key not in self.running:
                     continue
                 if state is None or state == "running":
@@ -273,7 +285,7 @@ class LocalExecutor(BaseExecutor):
                         self.change_state(key, state, remove_running=False)
                 elif self._worker_tasks.get(pid) == key:
                     del self._worker_tasks[pid]
-                    self._finish_dispatch(key, state)
+                    self._finish_dispatch(key, state, workload_run_id=workload_run_id)
         except (OSError, EOFError):
             self.log.exception("Error reading from result queue")
 
@@ -347,12 +359,16 @@ class LocalExecutor(BaseExecutor):
             self._unread_messages.value += len(workload_list)
         self._check_workers()
 
-    def _finish_dispatch(self, key: WorkloadKey, state: WorkloadState) -> None:
+    def _finish_dispatch(
+        self, key: WorkloadKey, state: WorkloadState, workload_run_id: str | None = None
+    ) -> None:
         # A resumed attempt reuses its key, so the previous dispatch can finish while the next one is live.
         remaining = self._dispatch_counts.pop(key, 1) - 1
         if remaining > 0:
             self._dispatch_counts[key] = remaining
-        super().change_state(key, state, remove_running=remaining <= 0)
+        super().change_state(
+            key, state, remove_running=remaining <= 0, workload_run_id=workload_run_id
+        )
 
     def _forget_workload(self, key: WorkloadKey) -> None:
         self._dispatch_counts.pop(key, None)
@@ -360,10 +376,14 @@ class LocalExecutor(BaseExecutor):
             pid: task_key for pid, task_key in self._worker_tasks.items() if task_key != key
         }
 
-    def change_state(self, key, state, info=None, remove_running=True) -> None:
+    def change_state(
+        self, key, state, info=None, remove_running=True, workload_run_id: str | None = None
+    ) -> None:
         if remove_running:
             self._forget_workload(key)
-        super().change_state(key, state, info=info, remove_running=remove_running)
+        super().change_state(
+            key, state, info=info, remove_running=remove_running, workload_run_id=workload_run_id
+        )
 
     def fail_connection_test(self, key) -> None:
         self._forget_workload(key)

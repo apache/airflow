@@ -46,6 +46,7 @@ class TaskInstanceDTO(TaskInstance):
     priority_weight: int
 
     external_executor_id: str | None = Field(default=None, exclude=True)
+    workload_run_id: str | None = Field(default=None, exclude=True)
     executor_config: dict | None = Field(default=None, exclude=True)
 
     @property

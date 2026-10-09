@@ -74,6 +74,12 @@ if hasattr(BaseExecutor, "get_task_key"):
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
+
+def _event(state, info=None):
+    """Event buffer value shape depends on Airflow core (3.4+ adds workload_run_id)."""
+    return (state, info, None) if AIRFLOW_V_3_4_PLUS else (state, info)
+
+
 ARN1 = "arn1"
 ARN2 = "arn2"
 ARN3 = "arn3"
@@ -1332,6 +1338,8 @@ class TestAwsEcsExecutor:
             # ExecuteTask.make() sources version_data from the run's pinned version.
             task.dag_run.created_dag_version = mock.Mock(version_data=None)
             task.dag_run.context_carrier = {}
+            # Avoid MagicMock for TaskInstanceDTO.workload_run_id (str | None).
+            task.workload_run_id = None
 
             # Mock command generation based on Airflow version
             if not AIRFLOW_V_3_0_PLUS:
@@ -2189,10 +2197,7 @@ class TestTaskIdentity:
         }
         mock_executor.sync_running_workloads()
         assert mock_executor.get_event_buffer() == {
-            keys[0]: (
-                TaskInstanceState.SUCCESS if success else TaskInstanceState.FAILED,
-                None,
-            )
+            keys[0]: _event(TaskInstanceState.SUCCESS if success else TaskInstanceState.FAILED)
         }
         assert mock_executor.running == {keys[1]}
 

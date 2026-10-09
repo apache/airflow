@@ -109,9 +109,9 @@ def test_get_event_buffer():
             mock.Mock(spec=TaskInstance, id=key.id, key=TaskInstanceKey(dag_id, "task", date, try_number))
         )
     state = State.SUCCESS
-    executor.event_buffer[key1] = state, None
-    executor.event_buffer[key2] = state, None
-    executor.event_buffer[key3] = state, None
+    executor.event_buffer[key1] = state, None, None
+    executor.event_buffer[key2] = state, None, None
+    executor.event_buffer[key3] = state, None, None
 
     assert len(executor.get_event_buffer(("my_dag1",))) == 1
     assert len(executor.get_event_buffer()) == 2
@@ -129,8 +129,8 @@ def test_get_event_buffer_always_includes_callback_keys():
     )
     callback_key = CallbackKey(id="00000000-0000-0000-0000-000000000042")
 
-    executor.event_buffer[ti_key] = State.SUCCESS, None
-    executor.event_buffer[callback_key] = CallbackState.SUCCESS, None
+    executor.event_buffer[ti_key] = State.SUCCESS, None, None
+    executor.event_buffer[callback_key] = CallbackState.SUCCESS, None, None
 
     # Filter for a dag that doesn't match the TI key. Callback should still be included
     result = executor.get_event_buffer(("other_dag",))
@@ -141,10 +141,10 @@ def test_get_event_buffer_always_includes_callback_keys():
 def test_get_event_buffer_retains_unregistered_task_until_unfiltered_drain():
     executor = BaseExecutor()
     retired_id = TaskInstanceUuid(uuid4())
-    executor.event_buffer[retired_id] = TaskInstanceState.SUCCESS, None
+    executor.event_buffer[retired_id] = TaskInstanceState.SUCCESS, None, None
 
     assert executor.get_event_buffer(("some_dag",)) == {}
-    assert executor.get_event_buffer() == {retired_id: (TaskInstanceState.SUCCESS, None)}
+    assert executor.get_event_buffer() == {retired_id: (TaskInstanceState.SUCCESS, None, None)}
 
 
 def test_get_event_buffer_releases_metadata_for_discarded_tasks():
@@ -201,7 +201,7 @@ def test_state_methods_pick_callback_state_for_callback_key(method_name, expecte
 
     getattr(executor, method_name)(callback_key)
 
-    assert executor.event_buffer[callback_key] == (expected_state, None)
+    assert executor.event_buffer[callback_key] == (expected_state, None, None)
 
 
 def test_fail_and_success():
@@ -231,9 +231,9 @@ def test_same_uuid_routes_distinct_task_callback_and_connection_states():
     executor.fail(connection_key)
 
     assert executor.get_event_buffer() == {
-        task_key: (TaskInstanceState.FAILED, None),
-        callback_key: (CallbackState.FAILED, None),
-        connection_key: (ConnectionTestState.FAILED, None),
+        task_key: (TaskInstanceState.FAILED, None, None),
+        callback_key: (CallbackState.FAILED, None, None),
+        connection_key: (ConnectionTestState.FAILED, None, None),
     }
     with pytest.raises(TypeError, match="Unknown workload key type"):
         executor.fail(task_id)
@@ -297,7 +297,7 @@ def test_legacy_executor_dispatch_and_completion_keep_submitted_identity(
     getattr(executor, "success" if terminal_state == TaskInstanceState.SUCCESS else "fail")(submitted_key)
 
     assert executor._drain_events_with_task_ids() == (
-        {TaskInstanceUuid(submitted_id): (terminal_state, None)},
+        {TaskInstanceUuid(submitted_id): (terminal_state, None, None)},
         {TaskInstanceUuid(submitted_id): submitted_key},
     )
     assert not executor.running
@@ -316,7 +316,7 @@ def test_legacy_adoption_captures_identity_before_provider_emits_event(task_work
     assert executor.try_adopt_task_instances([task_workload.ti]) == []
     task_workload.ti.id = uuid4()
     assert executor._drain_events_with_task_ids() == (
-        {TaskInstanceUuid(adopted_id): (TaskInstanceState.SUCCESS, None)},
+        {TaskInstanceUuid(adopted_id): (TaskInstanceState.SUCCESS, None, None)},
         {TaskInstanceUuid(adopted_id): task_workload.ti.key},
     )
     assert not executor.running
@@ -347,7 +347,7 @@ def test_adoption_with_private_provider_tracking_survives_empty_event_drain(
     assert executor.slots_available == executor.parallelism - 1
     executor.success(executor.get_task_key(task_workload.ti))
     assert executor._drain_events_with_task_ids() == (
-        {TaskInstanceUuid(task_workload.ti.id): (TaskInstanceState.SUCCESS, None)},
+        {TaskInstanceUuid(task_workload.ti.id): (TaskInstanceState.SUCCESS, None, None)},
         {TaskInstanceUuid(task_workload.ti.id): task_workload.ti.key},
     )
     assert not executor.running
@@ -372,7 +372,7 @@ def test_legacy_event_dag_filter_retains_identity_until_consumed(task_workload):
     executor.success(task_workload.ti.key)
     assert executor._drain_events_with_task_ids(["other_dag"]) == ({}, {})
     assert executor._drain_events_with_task_ids(["dag"]) == (
-        {TaskInstanceUuid(task_workload.ti.id): (TaskInstanceState.SUCCESS, None)},
+        {TaskInstanceUuid(task_workload.ti.id): (TaskInstanceState.SUCCESS, None, None)},
         {TaskInstanceUuid(task_workload.ti.id): task_workload.ti.key},
     )
 
@@ -411,7 +411,9 @@ def test_task_workloads_with_matching_coordinates_keep_distinct_attempts(next_tr
     executor.running.update((TaskInstanceUuid(first.ti.id), TaskInstanceUuid(second.ti.id)))
     executor.success(TaskInstanceUuid(first.ti.id))
     assert executor.running == {TaskInstanceUuid(second.ti.id)}
-    assert executor.get_event_buffer() == {TaskInstanceUuid(first.ti.id): (TaskInstanceState.SUCCESS, None)}
+    assert executor.get_event_buffer() == {
+        TaskInstanceUuid(first.ti.id): (TaskInstanceState.SUCCESS, None, None)
+    }
     executor.executor_queues[WorkloadType.EXECUTE_TASK].clear()
     assert not executor.has_task(first.ti)
     assert executor.has_task(second.ti)
@@ -789,6 +791,20 @@ def test_running_retry_attempt_type(loop_duration, total_tries):
     assert a.tries_after_min == 1
 
 
+def test_success_consumes_queued_workload_run_id_fifo():
+    """Re-enqueue of the same key keeps earlier run ids for stale events."""
+    executor = BaseExecutor()
+    key = TaskInstanceKey("my_dag1", "my_task1", "run1", 1)
+    executor._workload_run_ids[key].append("run-a")
+    executor._workload_run_ids[key].append("run-b")
+
+    executor.success(key)
+    assert executor.event_buffer[key] == (TaskInstanceState.SUCCESS, None, "run-a")
+
+    executor.success(key)
+    assert executor.event_buffer[key] == (TaskInstanceState.SUCCESS, None, "run-b")
+
+
 def test_state_fail():
     executor = BaseExecutor()
     key = TaskInstanceUuid(uuid4())
@@ -796,7 +812,7 @@ def test_state_fail():
     info = "info"
     executor.fail(key, info=info)
     assert not executor.running
-    assert executor.event_buffer[key] == (TaskInstanceState.FAILED, info)
+    assert executor.event_buffer[key] == (TaskInstanceState.FAILED, info, None)
 
 
 def test_state_success():
@@ -806,7 +822,7 @@ def test_state_success():
     info = "info"
     executor.success(key, info=info)
     assert not executor.running
-    assert executor.event_buffer[key] == (TaskInstanceState.SUCCESS, info)
+    assert executor.event_buffer[key] == (TaskInstanceState.SUCCESS, info, None)
 
 
 def test_state_queued():
@@ -816,7 +832,7 @@ def test_state_queued():
     info = "info"
     executor.queued(key, info=info)
     assert not executor.running
-    assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info)
+    assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info, None)
 
 
 def test_state_running():
@@ -827,7 +843,7 @@ def test_state_running():
     executor.running_state(key, info=info)
     # Running state should not remove a command as running
     assert executor.running
-    assert executor.event_buffer[key] == (TaskInstanceState.RUNNING, info)
+    assert executor.event_buffer[key] == (TaskInstanceState.RUNNING, info, None)
 
 
 def test_repr():

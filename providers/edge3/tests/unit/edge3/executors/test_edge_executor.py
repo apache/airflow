@@ -45,7 +45,7 @@ from airflow.utils.state import TaskInstanceState
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
     from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
@@ -838,6 +838,11 @@ class TestEdgeExecutorMultiTeam:
 
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteTypeBody union requires Airflow 3.3+")
 class _WorkloadFactory:
+    @staticmethod
+    def _event(state):
+        """Event buffer value shape depends on Airflow core (3.4+ adds workload_run_id)."""
+        return (state, None, None) if AIRFLOW_V_3_4_PLUS else (state, None)
+
     @pytest.fixture(autouse=True)
     def setup(self):
         with create_session() as session:
@@ -945,7 +950,7 @@ class TestQueueWorkload(_WorkloadFactory):
         executor.sync()
 
         reported_states = TaskInstanceState if isinstance(workload, ExecuteTask) else CallbackState
-        assert executor.get_event_buffer() == {workload.key: (reported_states(reported_state), None)}
+        assert executor.get_event_buffer() == {workload.key: self._event(reported_states(reported_state))}
 
     def test_sync_keeps_slot_while_worker_claims_job(self):
         executor = EdgeExecutor()
@@ -970,7 +975,7 @@ class TestQueueWorkload(_WorkloadFactory):
             session.commit()
         executor.sync()
 
-        assert executor.get_event_buffer() == {workload.ti.key: (TaskInstanceState.RUNNING, None)}
+        assert executor.get_event_buffer() == {workload.ti.key: self._event(TaskInstanceState.RUNNING)}
 
     def test_sync_reports_job_that_finishes_after_being_marked_removed(self):
         executor = EdgeExecutor()
@@ -987,7 +992,7 @@ class TestQueueWorkload(_WorkloadFactory):
                 session.commit()
             executor.sync()
 
-        assert executor.get_event_buffer() == {workload.key: (CallbackState.SUCCESS, None)}
+        assert executor.get_event_buffer() == {workload.key: self._event(CallbackState.SUCCESS)}
 
     @pytest.mark.parametrize(
         "unhandled_state",
@@ -1026,7 +1031,7 @@ class TestQueueWorkload(_WorkloadFactory):
             session.commit()
         executor.sync()
 
-        assert executor.get_event_buffer() == {workload.key: (TaskInstanceState.RUNNING, None)}
+        assert executor.get_event_buffer() == {workload.key: self._event(TaskInstanceState.RUNNING)}
 
     @pytest.mark.parametrize(
         "finished_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.REMOVED]
@@ -1152,7 +1157,9 @@ class TestUUIDTaskIdentity(_WorkloadFactory):
                 str(sibling.ti.id): TaskInstanceState.QUEUED,
             }
             executor._purge_jobs(session)
-        assert executor.get_event_buffer(dag_ids={target.ti.dag_id}) == {target_key: (terminal_state, None)}
+        assert executor.get_event_buffer(dag_ids={target.ti.dag_id}) == {
+            target_key: self._event(terminal_state)
+        }
         assert executor.running == {sibling_key}
 
     def test_adoption_and_revocation_match_uuid(self):
@@ -1196,7 +1203,7 @@ class TestUUIDTaskIdentity(_WorkloadFactory):
             session.flush()
             adopter._purge_jobs(session)
         assert adopter.get_event_buffer() == {
-            adopter.get_task_key(first.ti): (TaskInstanceState.SUCCESS, None)
+            adopter.get_task_key(first.ti): self._event(TaskInstanceState.SUCCESS)
         }
         assert adopter.running == {adopter.get_task_key(second.ti)}
 
@@ -1286,7 +1293,7 @@ class TestUUIDTaskIdentity(_WorkloadFactory):
         assert executor._update_orphaned_jobs(session)
         assert job.state == state
         executor._purge_jobs(session)
-        assert executor.get_event_buffer(dag_ids={ti.dag_id}) == {key: (state, None)}
+        assert executor.get_event_buffer(dag_ids={ti.dag_id}) == {key: self._event(state)}
         assert executor.running == ({key} if state == TaskInstanceState.RUNNING else set())
 
     @pytest.mark.parametrize("legacy_job", [False, True])

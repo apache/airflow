@@ -84,6 +84,11 @@ else:
 pytestmark = pytest.mark.db_test
 
 
+def _event(state, info=None):
+    """Event buffer value shape depends on Airflow core (3.4+ adds workload_run_id)."""
+    return (state, info, None) if AIRFLOW_V_3_4_PLUS else (state, info)
+
+
 @pytest.fixture(autouse=True)
 def clear_cached_workload_celery_apps():
     celery_executor_utils._get_celery_app_for_workload.cache_clear()
@@ -1763,7 +1768,7 @@ def test_task_identity_survives_celery_dispatch_and_completion(
     assert executor.running == {key}
     assert executor.workloads == {key: result}
     assert not executor.queued_tasks
-    assert executor.get_event_buffer() == {key: (State.QUEUED, "celery-a")}
+    assert executor.get_event_buffer() == {key: _event(State.QUEUED, "celery-a")}
     assert sender.call_args.args[0][0][0] == key
 
     mocker.patch.object(
@@ -1772,7 +1777,7 @@ def test_task_identity_survives_celery_dispatch_and_completion(
     executor.sync()
     assert not executor.running
     assert not executor.workloads
-    assert executor.get_event_buffer() == {key: (State.SUCCESS if state == "SUCCESS" else State.FAILED, None)}
+    assert executor.get_event_buffer() == {key: _event(State.SUCCESS if state == "SUCCESS" else State.FAILED)}
 
 
 @pytest.mark.skipif(not hasattr(BaseExecutor, "get_task_key"), reason="Requires UUID executor contract")
@@ -1805,7 +1810,7 @@ def test_same_coordinate_tasks_keep_distinct_celery_results(identity_executor, i
         return_value={"celery-a": ("SUCCESS", None), "celery-b": ("PENDING", None)},
     )
     executor.sync()
-    assert executor.get_event_buffer() == {TaskInstanceUuid(first.ti.id): (State.SUCCESS, None)}
+    assert executor.get_event_buffer() == {TaskInstanceUuid(first.ti.id): _event(State.SUCCESS)}
     assert executor.running == {TaskInstanceUuid(second.ti.id)}
     assert executor.workloads == {TaskInstanceUuid(second.ti.id): results["celery-b"]}
 
@@ -1835,7 +1840,7 @@ def test_celery_adoption_keeps_original_task_identity(
         assert not executor.running
         assert not executor.workloads
         assert executor.get_event_buffer() == {
-            key: (State.SUCCESS if state == "SUCCESS" else State.FAILED, None)
+            key: _event(State.SUCCESS if state == "SUCCESS" else State.FAILED)
         }
 
 
