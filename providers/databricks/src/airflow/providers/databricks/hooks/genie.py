@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,27 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Databricks Genie hook."""
+"""Hook for Databricks Genie conversations."""
 
 from __future__ import annotations
 
-import asyncio
+import json
 import time
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
+from urllib.parse import quote, urlsplit
 
-from requests import exceptions as requests_exceptions
+import requests
+from requests.auth import HTTPBasicAuth
+from tenacity import RetryError
 
-from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
-from airflow.providers.databricks.exceptions import DatabricksApiError
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+)
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    from airflow.providers.common.ai.exceptions import (
-        ManagedAgentInvocationError,
-        ManagedAgentRejected,
-    )
     from airflow.providers.common.ai.managed_agents.base import (
         BaseManagedAgentHook,
         ManagedAgentCapabilities,
@@ -45,424 +43,410 @@ if TYPE_CHECKING:
     )
 else:
     try:
-        from airflow.providers.common.ai.exceptions import (
-            ManagedAgentInvocationError,
-            ManagedAgentRejected,
-        )
         from airflow.providers.common.ai.managed_agents.base import (
             BaseManagedAgentHook,
             ManagedAgentCapabilities,
             ManagedAgentRef,
+            ManagedAgentRequest,
             ManagedAgentResponse,
         )
     except ImportError:
-        # The common.ai provider is optional. This module imports without it,
-        # and managed-agent entry points on DatabricksGenieHook report what is missing.
+
         def _needs_common_ai(*args: Any, **kwargs: Any) -> Any:
             raise AirflowOptionalProviderFeatureException(
-                "Consulting a Databricks Genie space as a managed agent needs the 'common.ai' extra of the "
-                "databricks provider: pip install 'apache-airflow-providers-databricks[common.ai]'."
+                "Databricks Genie managed-agent integration needs the 'common.ai' extra of the "
+                "Databricks provider: pip install 'apache-airflow-providers-databricks[common.ai]'."
             )
 
         class BaseManagedAgentHook:
-            """Stand-in for the Common AI contract base; ``agent()`` names the missing extra."""
+            """Stand-in for the optional Common AI contract."""
 
             agent = _needs_common_ai
 
-        ManagedAgentCapabilities = ManagedAgentRef = ManagedAgentResponse = _needs_common_ai
-        ManagedAgentInvocationError = ManagedAgentRejected = _needs_common_ai
+        ManagedAgentCapabilities = ManagedAgentRef = ManagedAgentRequest = ManagedAgentResponse = (
+            _needs_common_ai
+        )
 
-_RESERVED_OPTIONS = frozenset({"prompt", "messages", "session_id", "timeout"})
-TERMINAL_STATUSES = frozenset({"COMPLETED", "FAILED", "CANCELLED"})
+
+_MAX_RESPONSE_BYTES = 1024 * 1024
+_MAX_RESULT_BYTES = 48 * 1024
+_MAX_RESULT_ROWS = 100
+_POLL_INTERVAL_SECONDS = 1.0
+_PENDING_STATUSES = frozenset(
+    {
+        "FETCHING_METADATA",
+        "FILTERING_CONTEXT",
+        "ASKING_AI",
+        "PENDING_WAREHOUSE",
+        "EXECUTING_QUERY",
+        "SUBMITTED",
+    }
+)
+
+
+class DatabricksGenieError(AirflowException):
+    """A Genie request failed or returned a result that could not be used."""
+
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class DatabricksGenieHook(BaseDatabricksHook, BaseManagedAgentHook):
     """
-    Interact with the Databricks Genie API.
+    Consult a Genie space using the Databricks Workspace REST API.
 
-    Provides methods to start conversations, send follow-up messages, poll message status,
-    and retrieve query results from Databricks Genie spaces.
-
-    With the ``common.ai`` extra installed, this hook adopts the Common AI managed-agent
-    contract, allowing ``hook.agent(space_id)`` to be handed to a ``ManagedAgentToolset``:
-
-    .. code-block:: python
-
-        from airflow.providers.common.ai.toolsets import ManagedAgentToolset
-        from airflow.providers.databricks.hooks.genie import DatabricksGenieHook
-
-        hook = DatabricksGenieHook(databricks_conn_id="databricks_default")
-        sales_analyst = hook.agent("01ef8392-4f3b-1234-9abc-1234567890ab")
-        toolset = ManagedAgentToolset(
-            sales_analyst,
-            tool_name="ask_sales_analyst",
-            description="Consults Databricks Genie for sales, revenue, and pipeline data.",
-        )
-
-    :param databricks_conn_id: Reference to the Databricks connection.
-    :param timeout_seconds: Timeout in seconds for HTTP requests.
-    :param retry_limit: Number of times to retry failed requests.
-    :param retry_delay: Wait in seconds between retries.
-    :param retry_args: Optional dictionary with arguments passed to tenacity Retrying.
-    :param caller: Name of the caller for user agent logging.
+    The Databricks connection supplies authentication. Genie start/send requests are sent once:
+    their outcome may be unknown after a timeout or server error, so the hook never retries them.
+    Message and query-result reads use the hook's configured retry policy.
     """
 
-    agent_platform: ClassVar[str] = "databricks.genie"
+    agent_platform = "databricks.genie"
 
-    def __init__(
-        self,
-        databricks_conn_id: str = "databricks_default",
-        timeout_seconds: int = 180,
-        retry_limit: int = 3,
-        retry_delay: float = 1.0,
-        retry_args: dict[Any, Any] | None = None,
-        caller: str = "DatabricksGenieHook",
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(
-            databricks_conn_id=databricks_conn_id,
-            timeout_seconds=timeout_seconds,
-            retry_limit=retry_limit,
-            retry_delay=retry_delay,
-            retry_args=retry_args,
-            caller=caller,
-            **kwargs,
-        )
-
-    # -------------------------------------------------------------------------
-    # Public Databricks Genie API methods (Synchronous)
-    # -------------------------------------------------------------------------
-
-    def start_conversation(self, space_id: str, content: str) -> dict[str, Any]:
-        """
-        Start a new conversation thread in a Databricks Genie Space.
-
-        :param space_id: The unique identifier of the Genie space.
-        :param content: The natural-language prompt or question.
-        :return: Initial message object containing conversation_id, id, and status.
-        """
-        endpoint = ("POST", f"2.0/genie/spaces/{space_id}/start-conversation")
-        return self._do_api_call(endpoint, json={"content": content})
-
-    def create_message(self, space_id: str, conversation_id: str, content: str) -> dict[str, Any]:
-        """
-        Send a follow-up message in an existing conversation thread.
-
-        :param space_id: The unique identifier of the Genie space.
-        :param conversation_id: The conversation ID to continue.
-        :param content: The follow-up question or instruction.
-        :return: Message object containing id and status.
-        """
-        endpoint = ("POST", f"2.0/genie/spaces/{space_id}/conversations/{conversation_id}/messages")
-        return self._do_api_call(endpoint, json={"content": content})
-
-    def get_message(self, space_id: str, conversation_id: str, message_id: str) -> dict[str, Any]:
-        """
-        Retrieve a message and its execution status within a conversation.
-
-        :param space_id: The unique identifier of the Genie space.
-        :param conversation_id: The conversation ID.
-        :param message_id: The message ID to fetch.
-        :return: Message object including status, content, attachments, and errors if any.
-        """
-        endpoint = (
-            "GET",
-            f"2.0/genie/spaces/{space_id}/conversations/{conversation_id}/messages/{message_id}",
-        )
-        return self._do_api_call(endpoint)
-
-    def get_query_result(
-        self, space_id: str, conversation_id: str, message_id: str
-    ) -> dict[str, Any]:
-        """
-        Retrieve query result data associated with a completed message.
-
-        :param space_id: The unique identifier of the Genie space.
-        :param conversation_id: The conversation ID.
-        :param message_id: The message ID.
-        :return: Query result object including schema and data rows.
-        """
-        endpoint = (
-            "GET",
-            f"2.0/genie/spaces/{space_id}/conversations/{conversation_id}/messages/{message_id}/query-result",
-        )
-        return self._do_api_call(endpoint)
-
-    def wait_for_message(
-        self,
-        space_id: str,
-        conversation_id: str,
-        message_id: str,
-        poll_interval: float = 2.0,
-        timeout: float | None = None,
-    ) -> dict[str, Any]:
-        """
-        Poll a message until it reaches a terminal status (COMPLETED, FAILED, CANCELLED).
-
-        :param space_id: The unique identifier of the Genie space.
-        :param conversation_id: The conversation ID.
-        :param message_id: The message ID.
-        :param poll_interval: Polling frequency in seconds.
-        :param timeout: Maximum seconds to wait before raising TimeoutError.
-        :return: Terminal message object.
-        """
-        start_time = time.time()
-        while True:
-            msg = self.get_message(space_id, conversation_id, message_id)
-            status = msg.get("status")
-            if status in TERMINAL_STATUSES:
-                return msg
-            if timeout is not None and time.time() - start_time > timeout:
-                raise AirflowException(
-                    f"Timed out waiting for Genie message {message_id} in conversation {conversation_id} "
-                    f"after {timeout} seconds."
-                )
-            time.sleep(poll_interval)
-
-    # -------------------------------------------------------------------------
-    # Public Databricks Genie API methods (Asynchronous)
-    # -------------------------------------------------------------------------
-
-    async def a_start_conversation(self, space_id: str, content: str) -> dict[str, Any]:
-        """Asynchronously start a new conversation thread in a Databricks Genie Space."""
-        endpoint = ("POST", f"2.0/genie/spaces/{space_id}/start-conversation")
-        return await self._a_do_api_call(endpoint, json={"content": content})
-
-    async def a_create_message(
-        self, space_id: str, conversation_id: str, content: str
-    ) -> dict[str, Any]:
-        """Asynchronously send a follow-up message in an existing conversation thread."""
-        endpoint = ("POST", f"2.0/genie/spaces/{space_id}/conversations/{conversation_id}/messages")
-        return await self._a_do_api_call(endpoint, json={"content": content})
-
-    async def a_get_message(
-        self, space_id: str, conversation_id: str, message_id: str
-    ) -> dict[str, Any]:
-        """Asynchronously retrieve a message and its execution status."""
-        endpoint = (
-            "GET",
-            f"2.0/genie/spaces/{space_id}/conversations/{conversation_id}/messages/{message_id}",
-        )
-        return await self._a_do_api_call(endpoint)
-
-    async def a_get_query_result(
-        self, space_id: str, conversation_id: str, message_id: str
-    ) -> dict[str, Any]:
-        """Asynchronously retrieve query result data associated with a message."""
-        endpoint = (
-            "GET",
-            f"2.0/genie/spaces/{space_id}/conversations/{conversation_id}/messages/{message_id}/query-result",
-        )
-        return await self._a_do_api_call(endpoint)
-
-    async def a_wait_for_message(
-        self,
-        space_id: str,
-        conversation_id: str,
-        message_id: str,
-        poll_interval: float = 2.0,
-        timeout: float | None = None,
-    ) -> dict[str, Any]:
-        """Asynchronously poll a message until it reaches a terminal status."""
-        start_time = time.time()
-        while True:
-            msg = await self.a_get_message(space_id, conversation_id, message_id)
-            status = msg.get("status")
-            if status in TERMINAL_STATUSES:
-                return msg
-            if timeout is not None and time.time() - start_time > timeout:
-                raise AirflowException(
-                    f"Timed out waiting for Genie message {message_id} in conversation {conversation_id} "
-                    f"after {timeout} seconds."
-                )
-            await asyncio.sleep(poll_interval)
-
-    # -------------------------------------------------------------------------
-    # BaseManagedAgentHook Contract Implementation
-    # -------------------------------------------------------------------------
+    def __init__(self, *args: Any, poll_interval: float = _POLL_INTERVAL_SECONDS, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if poll_interval <= 0:
+            raise ValueError("poll_interval must be greater than zero")
+        self.poll_interval = poll_interval
 
     def resolve_agent(self, agent: str) -> ManagedAgentRef:
-        """
-        Normalize ``agent`` (Genie Space ID) into a platform-qualified reference.
-
-        :param agent: The Genie Space ID.
-        """
-        if not agent or not isinstance(agent, str) or not agent.strip():
-            raise ValueError(f"A Databricks Genie agent identifier must be a non-empty space ID, got {agent!r}.")
-        return ManagedAgentRef(platform=self.agent_platform, name=agent.strip())
+        if not isinstance(agent, str) or not agent.strip():
+            raise ValueError("A Databricks Genie space ID must be a non-empty string.")
+        return ManagedAgentRef(platform=self.agent_platform, name=agent)
 
     def get_agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
-        """Report capabilities for a Genie Space (multi-turn sessions, structured responses, and tracing)."""
         self.resolve_agent(agent)
-        return ManagedAgentCapabilities(
-            sessions=True,
-            structured_output=True,
-            usage=False,
-            trace=True,
-        )
+        return ManagedAgentCapabilities(sessions=True, structured_output=True)
 
     def invoke_agent(self, agent: str, request: ManagedAgentRequest) -> ManagedAgentResponse:
-        """
-        Send a request to a Databricks Genie Space and return its answer.
-
-        :param agent: The Genie Space ID.
-        :param request: The managed agent request.
-        """
-        ref = self.resolve_agent(agent)
-        space_id = ref.name
-
-        if reserved := _RESERVED_OPTIONS.intersection(request.vendor_options):
-            raise ValueError(f"vendor_options cannot override contract fields: {sorted(reserved)}")
-
-        prompt = self._extract_prompt(request)
-        poll_interval = float(request.vendor_options.get("poll_interval", 2.0))
-        include_query_result = bool(request.vendor_options.get("include_query_result", False))
-
-        conversation_id: str | None = request.session_id
-        message_id: str | None = None
-
-        try:
-            if conversation_id:
-                initial_msg = self.create_message(
-                    space_id=space_id,
-                    conversation_id=conversation_id,
-                    content=prompt,
-                )
-            else:
-                initial_msg = self.start_conversation(space_id=space_id, content=prompt)
-                conversation_id = initial_msg.get("conversation_id", "")
-
-            message_id = initial_msg.get("id") or initial_msg.get("message_id")
-            if not message_id:
-                raise ManagedAgentInvocationError(
-                    f"{self._describe_call(space_id)} returned an initial response without a message id: {initial_msg}"
-                )
-
-            final_msg = self.wait_for_message(
-                space_id=space_id,
-                conversation_id=conversation_id,
-                message_id=message_id,
-                poll_interval=poll_interval,
-                timeout=request.timeout,
+        self.resolve_agent(agent)
+        if request.vendor_options:
+            raise ValueError(
+                f"Databricks Genie does not support vendor_options: {sorted(request.vendor_options)}"
             )
-        except DatabricksApiError as exc:
-            self._handle_api_error(space_id, conversation_id, exc)
-            raise
-        except requests_exceptions.HTTPError as exc:
-            self._handle_http_error(space_id, conversation_id, exc)
-            raise
-
-        status = final_msg.get("status")
-        if status == "FAILED":
-            err_info = final_msg.get("error") or {}
-            err_msg = err_info.get("message") or f"Databricks Genie message {message_id} failed."
-            err_code = err_info.get("error_code") or ""
-            if err_code in ("INVALID_PARAMETER_VALUE", "BAD_REQUEST", "QUERY_COMPILATION_ERROR"):
-                raise ManagedAgentRejected(f"{self._describe_call(space_id)}: {err_msg}")
-            raise ManagedAgentInvocationError(f"{self._describe_call(space_id)}: {err_msg}")
-
-        if status == "CANCELLED":
-            raise ManagedAgentInvocationError(
-                f"{self._describe_call(space_id)}: Message {message_id} was cancelled."
-            )
-
-        attachments = final_msg.get("attachments") or []
-        query_result = None
-        if include_query_result:
-            try:
-                query_result = self.get_query_result(space_id, conversation_id, message_id)
-            except Exception as exc:
-                self.log.warning("Could not fetch Genie query result for message %s: %s", message_id, exc)
-
-        response_text = self._extract_response_text(final_msg)
-
-        structured_output = {
-            "attachments": attachments,
-            **({"query_result": query_result} if query_result is not None else {}),
-        }
-
+        prompt = request.prompt if request.prompt is not None else _messages_to_prompt(request.as_messages())
+        timeout = request.timeout if request.timeout is not None else self.timeout_seconds
+        result = self.consult(agent, prompt, conversation_id=request.session_id, timeout=timeout)
         return ManagedAgentResponse(
-            text=response_text,
-            raw=final_msg,
-            structured=structured_output if structured_output else None,
-            session_id=conversation_id,
-            trace_ref=message_id,
+            text=json.dumps(result, ensure_ascii=False, separators=(",", ":")),
+            raw=result,
+            structured=result,
+            session_id=result["conversation_id"],
+            trace_ref=result["message_id"],
         )
 
-    # -------------------------------------------------------------------------
-    # Internal Helpers
-    # -------------------------------------------------------------------------
+    def consult(
+        self,
+        space_id: str,
+        prompt: str,
+        *,
+        conversation_id: str | None = None,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        """Submit one question and return a bounded, structured Genie result."""
+        self.resolve_agent(space_id)
+        if not prompt.strip():
+            raise ValueError("A Genie question must not be empty.")
+        if timeout is not None and timeout <= 0:
+            raise ValueError("timeout must be greater than zero")
+        if conversation_id is not None and not conversation_id.strip():
+            raise ValueError("conversation_id must not be empty")
 
-    def _describe_call(self, space_id: str) -> str:
-        return f"Genie space {space_id} via connection {self.databricks_conn_id!r}"
+        deadline = time.monotonic() + (timeout if timeout is not None else self.timeout_seconds)
+        space = quote(space_id, safe="")
+        if conversation_id is None:
+            endpoint = f"spaces/{space}/start-conversation"
+            body = {"content": prompt, "enable_visualization": False}
+        else:
+            conversation = quote(conversation_id, safe="")
+            endpoint = f"spaces/{space}/conversations/{conversation}/messages"
+            body = {"content": prompt, "enable_visualization": False}
 
-    @staticmethod
-    def _extract_prompt(request: ManagedAgentRequest) -> str:
-        if request.prompt is not None:
-            return request.prompt
-        if request.messages:
-            last_msg = request.messages[-1]
-            content = last_msg.get("content", "")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list):
-                parts = [
-                    item.get("text", "")
-                    for item in content
-                    if isinstance(item, dict) and item.get("type") == "text"
-                ]
-                return " ".join(parts) if parts else str(content)
-            return str(content)
-        raise ValueError("ManagedAgentRequest requires either prompt or messages.")
+        created = self._request("POST", endpoint, body=body, retry_read=False, deadline=deadline)
+        resolved_conversation_id = created.get("conversation_id")
+        message_id = created.get("message_id") or created.get("id")
+        if not isinstance(resolved_conversation_id, str) or not isinstance(message_id, str):
+            raise DatabricksGenieError(
+                "Genie accepted the consultation but returned no conversation or message ID; "
+                "the request will not be repeated."
+            )
 
-    @staticmethod
-    def _extract_response_text(message: dict[str, Any]) -> str:
-        text_lines: list[str] = []
+        while True:
+            message = self._request(
+                "GET",
+                f"spaces/{space}/conversations/{quote(resolved_conversation_id, safe='')}/messages/"
+                f"{quote(message_id, safe='')}",
+                retry_read=True,
+                deadline=deadline,
+            )
+            status = message.get("status")
+            if status == "COMPLETED":
+                break
+            if status == "FAILED":
+                error = message.get("error") or {}
+                detail = error.get("error") if isinstance(error, dict) else str(error)
+                raise DatabricksGenieError(
+                    f"Genie could not answer the question: {detail or 'unknown error'}"
+                )
+            if status in {"CANCELLED", "QUERY_RESULT_EXPIRED"}:
+                raise DatabricksGenieError(f"Genie consultation ended with status {status}.")
+            if status not in _PENDING_STATUSES:
+                raise DatabricksGenieError(f"Genie returned an unknown message status: {status!r}.")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise DatabricksGenieError(
+                    f"Timed out waiting for Genie message {message_id}; "
+                    f"conversation {resolved_conversation_id} "
+                    "is available to inspect."
+                )
+            time.sleep(min(self.poll_interval, remaining))
+
+        structured = self._summarize_result(
+            space_id, space, resolved_conversation_id, message_id, message, deadline
+        )
+        return _truncate_result(structured)
+
+    def _summarize_result(
+        self,
+        space_id: str,
+        space_path: str,
+        conversation_id: str,
+        message_id: str,
+        message: dict[str, Any],
+        deadline: float,
+    ) -> dict[str, Any]:
         attachments = message.get("attachments") or []
-        for att in attachments:
-            if not isinstance(att, dict):
+        answers: list[str] = []
+        queries: list[dict[str, Any]] = []
+        query_results: list[dict[str, Any]] = []
+        for attachment in attachments:
+            if not isinstance(attachment, dict):
                 continue
-            if "text" in att and isinstance(att["text"], dict):
-                if content := att["text"].get("content"):
-                    text_lines.append(content)
-            elif "query" in att and isinstance(att["query"], dict):
-                if query_sql := att["query"].get("query"):
-                    text_lines.append(f"```sql\n{query_sql}\n```")
+            text_attachment = attachment.get("text")
+            if isinstance(text_attachment, dict) and isinstance(text_attachment.get("content"), str):
+                answers.append(text_attachment["content"])
+            query = attachment.get("query")
+            if isinstance(query, dict):
+                queries.append(
+                    {
+                        key: query[key]
+                        for key in ("title", "query", "description", "query_result_metadata")
+                        if key in query
+                    }
+                )
+                attachment_id = attachment.get("attachment_id")
+                if isinstance(attachment_id, str) and attachment_id:
+                    response = self._request(
+                        "GET",
+                        f"spaces/{space_path}/conversations/"
+                        f"{quote(conversation_id, safe='')}/messages/"
+                        f"{quote(message_id, safe='')}/attachments/"
+                        f"{quote(attachment_id, safe='')}/query-result",
+                        retry_read=True,
+                        deadline=deadline,
+                    )
+                    query_results.append(_summarize_query_result(response))
+        result: dict[str, Any] = {
+            "space_id": space_id,
+            "conversation_id": conversation_id,
+            "message_id": message_id,
+            "status": message.get("status"),
+            "answer": "\n\n".join(answers),
+        }
+        if queries:
+            result["queries"] = queries
+        if query_results:
+            result["query_results"] = query_results
+        return result
 
-        if text_lines:
-            return "\n\n".join(text_lines)
-        return message.get("content") or ""
+    def _request(
+        self,
+        method: str,
+        endpoint: str,
+        *,
+        body: dict[str, Any] | None = None,
+        retry_read: bool,
+        deadline: float | None = None,
+    ) -> dict[str, Any]:
+        """Call one Genie endpoint; only GET requests are eligible for transport retries."""
+        url = self._endpoint_url(f"api/2.0/genie/{endpoint}")
+        parsed_url = urlsplit(url)
+        is_loopback = parsed_url.hostname in {"localhost", "127.0.0.1", "::1"}
+        if parsed_url.scheme != "https" and not is_loopback:
+            raise DatabricksGenieError(
+                "Databricks Genie requires HTTPS so connection credentials are not sent in cleartext."
+            )
+        headers = {**self.user_agent_header, **self._get_aad_headers()}
+        token = self._get_token()
+        auth = None
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        else:
+            auth = HTTPBasicAuth(self._get_connection_attr("login"), self.databricks_conn.password)
 
-    def _handle_api_error(
-        self, space_id: str, conversation_id: str | None, exc: DatabricksApiError
-    ) -> None:
-        status_code = exc.http_status_code
-        if status_code in (401, 403):
-            raise ManagedAgentInvocationError(
-                f"Authentication or permission denied for {self._describe_call(space_id)}: {exc}"
-            ) from exc
-        if status_code == 404:
-            raise ManagedAgentInvocationError(
-                f"Genie space {space_id} or conversation {conversation_id!r} not found: {exc}"
-            ) from exc
-        if status_code == 400:
-            raise ManagedAgentRejected(
-                f"Databricks Genie rejected request for space {space_id}: {exc}"
-            ) from exc
+        def send() -> dict[str, Any]:
+            response = requests.request(
+                method,
+                url,
+                json=body if method == "POST" else None,
+                auth=auth,
+                headers=headers,
+                timeout=self._bounded_timeout(deadline),
+                stream=True,
+                **self._get_requests_kwargs(),
+            )
+            try:
+                if not response.ok:
+                    if (
+                        method == "GET"
+                        and retry_read
+                        and (response.status_code >= 500 or response.status_code == 429)
+                    ):
+                        response.raise_for_status()
+                    raise self._http_error(response.status_code)
+                payload = bytearray()
+                for chunk in response.iter_content(16 * 1024):
+                    payload.extend(chunk)
+                    if len(payload) > _MAX_RESPONSE_BYTES:
+                        raise DatabricksGenieError(
+                            f"Genie response exceeded the {_MAX_RESPONSE_BYTES}-byte safety limit."
+                        )
+                if not payload:
+                    return {}
+                try:
+                    decoded = json.loads(payload)
+                except json.JSONDecodeError as exc:
+                    raise DatabricksGenieError("Databricks Genie returned invalid JSON.") from exc
+                if not isinstance(decoded, dict):
+                    raise DatabricksGenieError("Genie returned a non-object response.")
+                return decoded
+            finally:
+                response.close()
 
-    def _handle_http_error(
-        self, space_id: str, conversation_id: str | None, exc: requests_exceptions.HTTPError
-    ) -> None:
-        status_code = getattr(exc.response, "status_code", None)
-        if status_code in (401, 403):
-            raise ManagedAgentInvocationError(
-                f"Authentication or permission denied for {self._describe_call(space_id)}: {exc}"
+        if not retry_read:
+            try:
+                return send()
+            except (requests.exceptions.RequestException, TimeoutError) as exc:
+                raise DatabricksGenieError(
+                    "The Genie request may have been accepted, but Databricks did not confirm its "
+                    "result. The hook did not retry it; inspect the Genie conversation before "
+                    "submitting again."
+                ) from exc
+            except DatabricksGenieError as exc:
+                if exc.status_code is None or exc.status_code >= 500:
+                    raise DatabricksGenieError(
+                        f"{exc} The request may have been accepted; its outcome is unknown "
+                        "and the hook did not retry it."
+                    ) from exc
+                raise
+
+        try:
+            for attempt in self._get_retry_object():
+                with attempt:
+                    if deadline is not None and time.monotonic() >= deadline:
+                        raise DatabricksGenieError("Timed out waiting for a Genie read request.")
+                    return send()
+        except RetryError as exc:
+            last_error = exc.last_attempt.exception()
+            response = getattr(last_error, "response", None)
+            if response is not None:
+                raise self._http_error(response.status_code) from exc
+            raise DatabricksGenieError(
+                f"A Genie read request failed after {self.retry_limit} attempts."
             ) from exc
-        if status_code == 404:
-            raise ManagedAgentInvocationError(
-                f"Genie space {space_id} or conversation {conversation_id!r} not found: {exc}"
-            ) from exc
-        if status_code == 400:
-            raise ManagedAgentRejected(
-                f"Databricks Genie rejected request for space {space_id}: {exc}"
-            ) from exc
+        except requests.exceptions.HTTPError as exc:
+            response = exc.response
+            if response is not None:
+                raise self._http_error(response.status_code) from exc
+            raise
+        raise AssertionError("retry loop must return or raise")
+
+    def _bounded_timeout(self, deadline: float | None) -> float:
+        if deadline is None:
+            return self.timeout_seconds
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise DatabricksGenieError("Timed out waiting for a Genie read request.")
+        return min(float(self.timeout_seconds), remaining)
+
+    @staticmethod
+    def _http_error(status_code: int) -> DatabricksGenieError:
+        if status_code == 401:
+            message = (
+                "Databricks authentication failed (HTTP 401); check the Databricks connection credentials."
+            )
+        elif status_code == 403:
+            message = (
+                "Databricks denied access to the Genie space or conversation (HTTP 403). "
+                "Genie may also return 403 when a resource does not exist; "
+                "verify the ID and permissions."
+            )
+        elif status_code == 404:
+            message = "The Genie space, conversation, message, or result was not found (HTTP 404)."
+        elif status_code == 429:
+            message = "Databricks rate-limited the Genie request (HTTP 429); retry after the task delay."
+        else:
+            message = f"Databricks Genie returned HTTP {status_code}."
+        return DatabricksGenieError(message, status_code=status_code)
+
+
+def _messages_to_prompt(messages: list[dict[str, Any]]) -> str:
+    parts: list[str] = []
+    for message in messages:
+        content = message.get("content", "")
+        if isinstance(content, str):
+            parts.append(content)
+        elif isinstance(content, list):
+            for item in content:
+                if (
+                    isinstance(item, dict)
+                    and item.get("type") == "text"
+                    and isinstance(item.get("text"), str)
+                ):
+                    parts.append(item["text"])
+    prompt = "\n".join(parts).strip()
+    if not prompt:
+        raise ValueError("Genie consultations require a text prompt.")
+    return prompt
+
+
+def _summarize_query_result(response: dict[str, Any]) -> dict[str, Any]:
+    statement = response.get("statement_response", response)
+    if not isinstance(statement, dict):
+        return {"result": "unavailable"}
+    manifest = statement.get("manifest") or {}
+    result = statement.get("result") or {}
+    columns = [
+        column.get("name") for column in manifest.get("schema", {}).get("columns", []) if column.get("name")
+    ]
+    rows = result.get("data_array") or []
+    return {
+        "columns": columns[:100],
+        "rows": rows[:_MAX_RESULT_ROWS],
+        "total_row_count": manifest.get("total_row_count", len(rows)),
+        "truncated": len(rows) > _MAX_RESULT_ROWS or bool(manifest.get("truncated")),
+    }
+
+
+def _truncate_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Bound tool output while keeping valid JSON and the consultation identifiers."""
+    encoded = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+    if len(encoded.encode("utf-8")) <= _MAX_RESULT_BYTES:
+        return result
+    bounded = dict(result)
+    bounded["truncated"] = True
+    for key in ("query_results", "queries"):
+        if key in bounded:
+            bounded[key] = [{"truncated": True} for _ in bounded[key]]
+    answer = bounded.get("answer", "")
+    low, high = 0, len(answer)
+    while low < high:
+        middle = (low + high + 1) // 2
+        bounded["answer"] = answer[:middle]
+        encoded_size = len(json.dumps(bounded, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+        if encoded_size <= _MAX_RESULT_BYTES:
+            low = middle
+        else:
+            high = middle - 1
+    bounded["answer"] = answer[:low]
+    return bounded

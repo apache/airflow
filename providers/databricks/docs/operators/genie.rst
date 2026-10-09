@@ -1,83 +1,66 @@
-.. Licensed to the Apache Software Foundation (ASF) under one
-   or more contributor license agreements.  See the NOTICE file
-   distributed with this work for additional information
-   regarding copyright ownership.  The ASF licenses this file
-   to you under the Apache License, Version 2.0 (the
-   "License"); you may not use this file except in compliance
-   with the License.  You may obtain a copy of the License at
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-..   http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-.. Unless required by applicable law or agreed to in writing,
-   software distributed under the License is distributed on an
-   "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-   KIND, either express or implied.  See the License for the
-   specific language governing permissions and limitations
-   under the License.
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
-Databricks Genie Integration
-============================
+.. _howto/databricks-genie:
 
-Databricks Genie is an AI/BI conversational assistant powered by Unity Catalog metadata, schemas,
-and analytical models. A Genie Space (`space_id`) enables natural-language data querying, automatic
-SQL generation, execution against SQL warehouses, and data visualization.
+Databricks Genie consultations
+==============================
 
-The Databricks provider integrates with Databricks Genie via :class:`~airflow.providers.databricks.hooks.genie.DatabricksGenieHook`.
+The ``DatabricksGenieHook`` submits a question to a Genie space, waits for the message to finish,
+and returns a bounded result with the space, conversation, and message IDs. It uses the
+credentials in an Airflow ``databricks`` connection and implements Common AI's public
+``BaseManagedAgentHook`` contract.
 
-Unity Gateway MCP vs. Native Genie API
---------------------------------------
+Install the optional Common AI integration when using its toolset adapter:
 
-* **Unity Gateway MCP (Model Context Protocol)**:
-  Exposes discrete Unity Catalog functions and tools as callable endpoints. Use MCP when an Airflow-managed LLM (e.g. via ``pydantic-ai``) needs to execute individual tools or run raw SQL queries under its own reasoning loop.
-* **Native Genie API**:
-  Integrates directly with a managed Databricks Genie Space that retains stateful multi-turn conversations, domain-specific semantic instructions, curated SQL queries, and benchmark questions. Use Genie when delegating high-level analytical questions to Databricks' autonomous data reasoning agent.
+.. code-block:: bash
 
-Using DatabricksGenieHook Directly
-----------------------------------
-
-You can interact directly with Genie spaces using :class:`~airflow.providers.databricks.hooks.genie.DatabricksGenieHook`:
+    pip install 'apache-airflow-providers-databricks[common.ai]'
 
 .. code-block:: python
 
     from airflow.providers.databricks.hooks.genie import DatabricksGenieHook
+    from airflow.providers.databricks.toolsets.genie import DatabricksGenieToolset
 
-    hook = DatabricksGenieHook(databricks_conn_id="databricks_default")
-    space_id = "01ef8392-4f3b-1234-9abc-1234567890ab"
-
-    # Start a new conversation
-    message = hook.start_conversation(space_id=space_id, content="What was total revenue last quarter?")
-    conversation_id = message["conversation_id"]
-    message_id = message["id"]
-
-    # Poll until completed
-    completed_msg = hook.wait_for_message(
-        space_id=space_id,
-        conversation_id=conversation_id,
-        message_id=message_id,
-        timeout=300,
+    hook = DatabricksGenieHook(databricks_conn_id="databricks_analytics")
+    toolset = DatabricksGenieToolset(
+        hook,
+        space_id="your-genie-space-id",
+        tool_name="ask_analytics_genie",
+        description="Answers questions about the analytics tables in this Genie space.",
     )
 
-    print("Genie answer:", completed_msg.get("content"))
-
-Using Databricks Genie with Common AI Managed Agents
-----------------------------------------------------
-
-With the ``common.ai`` extra installed (``pip install 'apache-airflow-providers-databricks[common.ai]'``),
-:class:`~airflow.providers.databricks.hooks.genie.DatabricksGenieHook` adopts the
-:class:`~airflow.providers.common.ai.managed_agents.base.BaseManagedAgentHook` contract.
-
-This allows Airflow AI agents to consult a Genie space via :class:`~airflow.providers.common.ai.toolsets.ManagedAgentToolset`:
+The hook can also be called directly without Common AI:
 
 .. code-block:: python
 
-    from airflow.providers.common.ai.toolsets import ManagedAgentToolset
-    from airflow.providers.databricks.hooks.genie import DatabricksGenieHook
+    result = hook.consult("your-genie-space-id", "How many orders were placed last week?")
 
-    hook = DatabricksGenieHook(databricks_conn_id="databricks_default")
-    genie_space = hook.agent("01ef8392-4f3b-1234-9abc-1234567890ab")
+The result contains IDs and structured answer, generated query, and query-result fields. Large
+responses are capped. A request that starts a conversation or posts a message is sent once; after
+a timeout or server failure its outcome may be unknown, so inspect the conversation before
+submitting again. Message and query-result reads may be retried. A 403 can mean either that access
+was denied or that the resource is missing, because Genie may conceal missing resources this way.
 
-    toolset = ManagedAgentToolset(
-        genie_space,
-        tool_name="consult_sales_genie",
-        description="Consults Databricks Genie for sales, revenue, and pipeline analytics.",
-    )
+Genie MCP through Unity Gateway is enough when an external model or MCP client should discover and
+call Genie directly through the organization's governed MCP endpoint. The native Databricks API
+integration is useful when an Airflow-managed agent needs Genie as a typed tool backed by an Airflow
+Databricks connection, and when the caller needs the Genie space/conversation/message IDs and
+bounded query results in its response. Both paths still enforce Genie and Unity Catalog permissions.
+
+This hook handles consultations only. Resuming a consultation through a standalone Airflow task
+across worker failure is a separate feature and is not provided here.

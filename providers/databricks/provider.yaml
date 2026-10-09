@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1790023613
+source-date-epoch: 1791328846
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 7.22.0
   - 7.21.0
   - 7.20.0
   - 7.19.0
@@ -121,6 +122,7 @@ integrations:
       - /docs/apache-airflow-providers-databricks/operators/submit_run.rst
       - /docs/apache-airflow-providers-databricks/operators/run_now.rst
       - /docs/apache-airflow-providers-databricks/operators/task.rst
+      - /docs/apache-airflow-providers-databricks/operators/genie.rst
     logo: /docs/integration-logos/Databricks.png
     tags: [service]
   - integration-name: Databricks SQL
