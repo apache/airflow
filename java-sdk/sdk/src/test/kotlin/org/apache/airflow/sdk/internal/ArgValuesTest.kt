@@ -32,6 +32,8 @@ import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
 import org.apache.airflow.sdk.TaskInstance
 import org.apache.airflow.sdk.TaskRef
+import org.apache.airflow.sdk.execution.AssetRef
+import org.apache.airflow.sdk.execution.comm.AssetStateStoreResult
 import org.apache.airflow.sdk.execution.comm.ConnectionResult
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.TaskStateStoreResult
@@ -128,6 +130,24 @@ internal class ArgValuesTest {
         ): Unit = throw NotImplementedError()
 
         override fun clearTaskStateStore(tiId: UUID): Unit = throw NotImplementedError()
+
+        override fun getAssetStateStore(
+          asset: AssetRef,
+          key: String,
+        ): AssetStateStoreResult? = throw NotImplementedError()
+
+        override fun setAssetStateStore(
+          asset: AssetRef,
+          key: String,
+          value: Any,
+        ): Unit = throw NotImplementedError()
+
+        override fun deleteAssetStateStore(
+          asset: AssetRef,
+          key: String,
+        ): Unit = throw NotImplementedError()
+
+        override fun clearAssetStateStore(asset: AssetRef): Unit = throw NotImplementedError()
       },
     )
 

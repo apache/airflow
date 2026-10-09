@@ -606,4 +606,189 @@ class CommsTest {
     )
     comm.close()
   }
+
+  private fun assetStateStoreResultFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(2)
+      packer.packString("type")
+      packer.packString("AssetStateStoreResult")
+      packer.packString("value")
+      packer.packString("2026-10-01T00:00:00Z")
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  // The supervisor's handler returns this ErrorResponse as its result, so it arrives in the body slot.
+  private fun assetStoreNotFoundFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(3)
+      packer.packString("type")
+      packer.packString("ErrorResponse")
+      packer.packString("error")
+      packer.packString("ASSET_STORE_NOT_FOUND")
+      packer.packString("detail")
+      packer.packMapHeader(1)
+      packer.packString("key")
+      packer.packString("watermark")
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  // The supervisor reports a failed Execution API call in the error slot.
+  private fun apiServerErrorFrame(
+    id: Int,
+    statusCode: Int,
+  ): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packNil()
+      packer.packMapHeader(3)
+      packer.packString("type")
+      packer.packString("ErrorResponse")
+      packer.packString("error")
+      packer.packString("API_SERVER_ERROR")
+      packer.packString("detail")
+      packer.packMapHeader(1)
+      packer.packString("status_code")
+      packer.packInt(statusCode)
+    }
+    return out.toByteArray()
+  }
+
+  @Test
+  @DisplayName("assetStateStore.get sends the asset name or URI with the key and unwraps the stored value")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun assetStateStoreGetUnwrapsResult() {
+    var byName: Any? = null
+    val (byNameBody, byNameFailure) =
+      roundTrip(::assetStateStoreResultFrame) { byName = it.assetStateStore.byName("orders").get("watermark") }
+    var byUri: Any? = null
+    val (byUriBody, byUriFailure) =
+      roundTrip(::assetStateStoreResultFrame) { byUri = it.assetStateStore.byUri("s3://bucket/orders").get("watermark") }
+
+    Assertions.assertNull(byNameFailure, "get should return normally on AssetStateStoreResult, got $byNameFailure")
+    Assertions.assertEquals(
+      mapOf("type" to "GetAssetStateStoreByName", "name" to "orders", "key" to "watermark"),
+      byNameBody,
+    )
+    Assertions.assertEquals("2026-10-01T00:00:00Z", byName)
+
+    Assertions.assertNull(byUriFailure, "get should return normally on AssetStateStoreResult, got $byUriFailure")
+    Assertions.assertEquals(
+      mapOf("type" to "GetAssetStateStoreByUri", "uri" to "s3://bucket/orders", "key" to "watermark"),
+      byUriBody,
+    )
+    Assertions.assertEquals("2026-10-01T00:00:00Z", byUri)
+  }
+
+  @Test
+  @DisplayName("assetStateStore.get returns null on ASSET_STORE_NOT_FOUND instead of raising")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun assetStateStoreGetReturnsNullWhenNotFound() {
+    var value: Any? = "unset"
+    val (_, failure) = roundTrip(::assetStoreNotFoundFrame) { value = it.assetStateStore.byName("orders").get("watermark") }
+
+    Assertions.assertNull(failure, "get should return normally on ASSET_STORE_NOT_FOUND, got $failure")
+    Assertions.assertNull(value)
+  }
+
+  @Test
+  @DisplayName("assetStateStore.get raises ApiError instead of returning null when the API server fails")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun assetStateStoreGetRaisesApiErrorOnOtherErrors() {
+    val (_, failure) =
+      roundTrip({ apiServerErrorFrame(it, 503) }) { it.assetStateStore.byName("orders").get("watermark") }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
+    Assertions.assertTrue(failure!!.message!!.startsWith("[API_SERVER_ERROR]"), "unexpected message: ${failure.message}")
+  }
+
+  @Test
+  @DisplayName("assetStateStore.set sends the asset name or URI, key and value and accepts the supervisor's OK response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun assetStateStoreSetAcceptsOkResponse() {
+    val (byNameBody, byNameFailure) =
+      roundTrip(::okResponseFrame) { it.assetStateStore.byName("orders").set("watermark", "2026-10-01T00:00:00Z") }
+    val (byUriBody, byUriFailure) =
+      roundTrip(::okResponseFrame) {
+        it.assetStateStore.byUri("s3://bucket/orders").set("summary", mapOf("rows" to 3, "region" to "emea"))
+      }
+
+    Assertions.assertNull(byNameFailure, "set should return normally on OKResponse, got $byNameFailure")
+    Assertions.assertEquals(
+      mapOf(
+        "type" to "SetAssetStateStoreByName",
+        "name" to "orders",
+        "key" to "watermark",
+        "value" to "2026-10-01T00:00:00Z",
+      ),
+      byNameBody,
+    )
+
+    Assertions.assertNull(byUriFailure, "set should return normally on OKResponse, got $byUriFailure")
+    Assertions.assertEquals(
+      mapOf(
+        "type" to "SetAssetStateStoreByUri",
+        "uri" to "s3://bucket/orders",
+        "key" to "summary",
+        // The msgpack decoder yields Long for wire integers.
+        "value" to mapOf("rows" to 3L, "region" to "emea"),
+      ),
+      byUriBody,
+    )
+  }
+
+  @Test
+  @DisplayName("assetStateStore.delete and clear send the asset name or URI and accept the supervisor's OK response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun assetStateStoreDeleteAndClearAcceptOkResponse() {
+    val sent =
+      listOf<(PublicClient) -> Unit>(
+        { it.assetStateStore.byName("orders").delete("watermark") },
+        { it.assetStateStore.byUri("s3://bucket/orders").delete("watermark") },
+        { it.assetStateStore.byName("orders").clear() },
+        { it.assetStateStore.byUri("s3://bucket/orders").clear() },
+      ).map { call ->
+        val (body, failure) = roundTrip(::okResponseFrame, call = call)
+        Assertions.assertNull(failure, "the call should return normally on OKResponse, got $failure")
+        body
+      }
+
+    Assertions.assertEquals(
+      listOf(
+        mapOf("type" to "DeleteAssetStateStoreByName", "name" to "orders", "key" to "watermark"),
+        mapOf("type" to "DeleteAssetStateStoreByUri", "uri" to "s3://bucket/orders", "key" to "watermark"),
+        mapOf("type" to "ClearAssetStateStoreByName", "name" to "orders"),
+        mapOf("type" to "ClearAssetStateStoreByUri", "uri" to "s3://bucket/orders"),
+      ),
+      sent,
+    )
+  }
+
+  @Test
+  @DisplayName("assetStateStore.set, delete and clear raise ApiError when the supervisor reports an error")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun assetStateStoreWritesRaiseApiErrorOnErrorResponse() {
+    val calls =
+      listOf<(PublicClient) -> Unit>(
+        { it.assetStateStore.byName("orders").set("watermark", "2026-10-01T00:00:00Z") },
+        { it.assetStateStore.byName("orders").delete("watermark") },
+        { it.assetStateStore.byName("orders").clear() },
+      )
+
+    for (call in calls) {
+      val (_, failure) = roundTrip({ apiServerErrorFrame(it, 404) }, call = call)
+      Assertions.assertInstanceOf(ApiError::class.java, failure)
+    }
+  }
 }

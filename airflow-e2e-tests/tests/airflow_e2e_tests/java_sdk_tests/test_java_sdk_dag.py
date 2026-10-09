@@ -95,6 +95,9 @@ _XCOM_CASTING_DAG_ID = "java_xcom_casting_example"
 _SCALA_SPARK_DAG_ID = "scala_spark_example"
 _VARIABLE_WRITE_DAG_ID = "java_variable_write"
 _VARIABLE_WRITE_DESCRIPTION = "written by the Java SDK e2e test"
+_ASSET_STATE_STORE_DAG_ID = "java_asset_state_store"
+_ASSET_STATE_STORE_TASK_ID = "use_asset_state_store"
+_ASSET_STATE_STORE_ASSET_NAME = "java_e2e_orders"
 
 
 @dataclass
@@ -203,6 +206,12 @@ def scala_spark_example_run() -> _CompletedRun:
 def variable_write_run() -> _CompletedRun:
     """Trigger the variable write Dag once for all of its assertions."""
     return _trigger_and_wait_for_dag(_VARIABLE_WRITE_DAG_ID, _JAVA_TASK_TIMEOUT)
+
+
+@pytest.fixture(scope="module")
+def asset_state_store_run() -> _CompletedRun:
+    """Trigger the asset state store Dag once for all of its assertions."""
+    return _trigger_and_wait_for_dag(_ASSET_STATE_STORE_DAG_ID, _JAVA_TASK_TIMEOUT)
 
 
 class TestJavaSDKAnnotationExample:
@@ -402,6 +411,56 @@ class TestJavaSDKVariableWrite:
             variable_write_run.client.get_variable("java_e2e_scratch")
         assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND, (
             f"java_e2e_scratch should have been deleted by the Java task, "
+            f"got HTTP {excinfo.value.response.status_code}"
+        )
+
+
+class TestJavaSDKAssetStateStore:
+    """Verify a Java task can read and write the state store of an asset.
+
+    The task lives in the java-test-bundle fixture project (served on the
+    dedicated "java-test" queue). It looks up the ``java_e2e_orders`` asset both
+    by name and by URI and calls every asset state store method. Each step
+    changes the state through one lookup and checks it through the other, so the
+    task fails unless both lookups reach the same asset. It leaves the
+    ``summary`` key behind for the REST API to read.
+    """
+
+    def _assert_task_succeeded(self, run: _CompletedRun) -> None:
+        ti = run.get_task_instance(_ASSET_STATE_STORE_TASK_ID)
+        assert ti.get("state") == "success", (
+            f"Java {_ASSET_STATE_STORE_TASK_ID!r} task did not succeed.\n"
+            f"  task state : {ti.get('state')!r}\n"
+            f"  dag state  : {run.state!r}\n"
+            f"  all tasks  : {run.ti_states}"
+        )
+
+    def test_value_written_by_java_task_is_readable(self, asset_state_store_run: _CompletedRun):
+        """The value set from Java is stored on the asset and attributed to the Java task."""
+        self._assert_task_succeeded(asset_state_store_run)
+
+        entry = asset_state_store_run.client.get_asset_state_store_entry(
+            _ASSET_STATE_STORE_ASSET_NAME, "summary"
+        )
+        assert entry["value"] == {"run_id": asset_state_store_run.run_id, "rows": 3}, (
+            f"summary should hold the map the Java task stored in this run, got {entry!r}"
+        )
+        assert entry["last_updated_by"] == {
+            "kind": "task",
+            "dag_id": _ASSET_STATE_STORE_DAG_ID,
+            "run_id": asset_state_store_run.run_id,
+            "task_id": _ASSET_STATE_STORE_TASK_ID,
+            "map_index": -1,
+        }, f"summary should be attributed to the Java task, got {entry!r}"
+
+    def test_key_deleted_by_java_task_is_gone(self, asset_state_store_run: _CompletedRun):
+        """A key written and then deleted from Java no longer exists."""
+        self._assert_task_succeeded(asset_state_store_run)
+
+        with pytest.raises(requests.HTTPError) as excinfo:
+            asset_state_store_run.client.get_asset_state_store_entry(_ASSET_STATE_STORE_ASSET_NAME, "deleted")
+        assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND, (
+            f"the 'deleted' key should have been deleted by the Java task, "
             f"got HTTP {excinfo.value.response.status_code}"
         )
 

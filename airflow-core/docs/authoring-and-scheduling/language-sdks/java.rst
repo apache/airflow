@@ -1099,6 +1099,59 @@ structured data (for example to JSON) before storing it.
    takes precedence over the stored value when the Variable is read back. Calling ``setVariable``
    without a description clears any existing description.
 
+.. _java-sdk/asset-state-store:
+
+Asset state store
+-----------------
+
+``client.getAssetStateStore()`` reads and writes the :doc:`asset state store </core-concepts/asset-state-store>`,
+a key-value store that belongs to an asset rather than to a Dag run. A value that one run stores, such as an
+incremental-load watermark, is still there in later runs.
+
+The Java SDK does not receive the inlets and outlets declared on the ``@task.stub``. The task therefore looks
+up the asset itself, by name with ``byName`` or by URI with ``byUri``. Airflow keeps state only for assets
+that a Dag references, so also declare the asset as an inlet of the stub:
+
+.. code-block:: python
+
+    orders = Asset(name="orders", uri="s3://warehouse/orders")
+
+
+    @task.stub(queue="java", inlets=[orders])
+    def load_orders(): ...
+
+.. code-block:: java
+
+    @Builder.TaskHandler(dag = "orders_pipeline", task = "load_orders")
+    public void loadOrders(Client client) {
+      var orders = client.getAssetStateStore().byName("orders");
+      var watermark = (String) orders.get("watermark"); // null on the first run
+      // Your own code: load the rows created after the watermark and return the newest creation time.
+      String newest = loadRowsCreatedAfter(watermark);
+      orders.set("watermark", newest);
+    }
+
+``get`` returns ``null`` when the key is not set. ``set`` replaces any existing value. Entries do not expire.
+``delete`` removes one key, and ``clear`` removes every key of the asset.
+
+``set`` sends the value as JSON. Store strings, booleans, integers that fit in a ``long``, finite ``double``
+values, lists, and maps with string keys. Jackson converts other objects first. A bean becomes a map of its
+properties, and an ``Instant`` or a ``UUID`` becomes a string. ``null``, ``BigDecimal``, and ``Duration``
+fail with an exception before anything is sent. Never store a ``byte[]``. The supervisor cannot decode it and
+never answers, so the task hangs. Encode binary data as a string instead, for example with Base64.
+
+``get`` returns the Java types listed in :ref:`java-sdk/types`. For example, a value stored as an ``Integer``
+comes back as a ``Long``.
+
+If no Dag references an asset with the name or URI that the task passed, ``get`` returns ``null`` and the
+other methods throw ``ApiError``. Airflow normalizes asset URIs when it parses a Dag, so pass ``byUri`` the
+normalized form. For example, ``s3://warehouse/orders/`` is stored as ``s3://warehouse/orders``.
+
+The Java SDK does not apply a ``[workers] state_store_backend``. It sends each value to Airflow as-is. A key
+that a Python task stored through such a backend comes back to Java as a map that holds only the reference
+under ``__airflow_state_ref__``, not the stored value. Deleting or clearing such a key from Java removes only
+that reference, and the stored value stays in the backend.
+
 .. _java-sdk/build:
 
 Building and packaging
