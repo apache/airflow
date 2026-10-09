@@ -88,7 +88,10 @@ def _clear_cached_values():
         event_producer.EventProducerKafkaTopic.DAG_RUN: False,
         event_producer.EventProducerKafkaTopic.TASK_INSTANCE: False,
     }
-    event_producer._topic_check_retry_after = 0.0
+    event_producer._topic_check_retry_after = {
+        event_producer.EventProducerKafkaTopic.DAG_RUN: 0.0,
+        event_producer.EventProducerKafkaTopic.TASK_INSTANCE: 0.0,
+    }
 
 
 def pytest_generate_tests(metafunc):
@@ -157,13 +160,13 @@ def kafka_producer_mock():
         yield mock
 
 
-def _assert_common_message_fields(kafka_producer_mock, dagrun_topic, task_instance_topic, expected_event: str) -> dict:
+def _assert_common_message_fields(kafka_producer_mock, topic, expected_event: str) -> dict:
     kafka_producer_mock.list_topics.assert_called_once()
     kafka_producer_mock.produce.assert_called_once()
 
     args = kafka_producer_mock.produce.call_args.args
     kwargs = kafka_producer_mock.produce.call_args.kwargs
-    assert args == (dagrun_topic,) or args == (task_instance_topic,)
+    assert args == (topic,)
     assert kwargs["key"] == f"{_DAG_ID}/{_DAG_RUN_ID}".encode()
 
     body = json.loads(kwargs["value"].decode("utf-8"))
@@ -241,7 +244,7 @@ def test_produce_dr_message(
 ):
     dr_event_function(DagRunListener(), dag_run=dr_mock, msg=None)
 
-    body = _assert_common_message_fields(kafka_producer_mock, expected_event)
+    body = _assert_common_message_fields(kafka_producer_mock, _DAGRUN_TOPIC, expected_event)
     assert body["run_type"] == _RUN_TYPE
     assert body["logical_date"] == ""
     assert body["start_date"] == ""
@@ -285,7 +288,7 @@ def test_produce_ti_message(
         **_TI_SESSION_KWARG,
     )
 
-    body = _assert_common_message_fields(kafka_producer_mock, expected_event)
+    body = _assert_common_message_fields(kafka_producer_mock, _TASK_INSTANCE_TOPIC, expected_event)
     assert body["task_id"] == _TASK_ID
     assert body["try_number"] == 2
     assert body["map_index"] == -1
@@ -548,8 +551,8 @@ def test_get_topic(topic, dagrun_topic_setting, task_instance_topic_setting, dag
         conf_vars(
             {
                 (event_producer.CONFIG_SECTION, "topic"): topic,
-                (event_producer.CONFIG_SECTION, "dagrun_topic"): dagrun_topic,
-                (event_producer.CONFIG_SECTION, "task_instance_topic"): task_instance_topic,
+                (event_producer.CONFIG_SECTION, "dagrun_topic"): dagrun_topic_setting,
+                (event_producer.CONFIG_SECTION, "task_instance_topic"): task_instance_topic_setting,
             }
         ),
         ctxt,
