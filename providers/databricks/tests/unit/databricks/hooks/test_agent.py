@@ -156,7 +156,7 @@ async def test_async_get(get_connection, session, token, hook, status, cached_co
         del hook.databricks_conn
     response = mock.Mock(spec=aiohttp.ClientResponse)
     response.status = status
-    response.json = mock.AsyncMock(return_value={"status": "completed"})
+    response.json = mock.AsyncMock(spec=aiohttp.ClientResponse.json, return_value={"status": "completed"})
     if status >= 400:
         response.raise_for_status.side_effect = aiohttp.ClientResponseError(
             mock.Mock(spec=aiohttp.RequestInfo), (), status=status
@@ -489,7 +489,7 @@ def test_retry_recomputes_request_budget(request, token, clock, hook):
 async def test_async_retries_disconnect(session, token, hook, error):
     response = mock.Mock(spec=aiohttp.ClientResponse)
     response.status = 200
-    response.json = mock.AsyncMock(return_value={"status": "completed"})
+    response.json = mock.AsyncMock(spec=aiohttp.ClientResponse.json, return_value={"status": "completed"})
     session.return_value.get.return_value.__aenter__.side_effect = [error, response]
     async with hook:
         assert await hook.a_get_invocation(INVOCATION_ID) == {"status": "completed"}
