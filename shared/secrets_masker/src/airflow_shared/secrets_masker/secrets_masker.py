@@ -356,10 +356,12 @@ class SecretsMasker(logging.Filter):
         self, item: Redactable, name: str | None, depth: int, max_depth: int, replacement: str = "***"
     ) -> Redacted:
         try:
-            # Key-name-based redaction is unbounded by depth — sensitive keys
-            # must fail closed at any nesting level. The depth cutoff below is
-            # only used to bound the work of pattern-based string masking and
-            # to terminate recursion through self-referential iterables.
+            # Both key-name-based and pattern-based redaction apply at any
+            # nesting depth: a registered secret or a sensitive key must fail
+            # closed wherever it sits in the structure. ``max_depth`` only bounds
+            # the fail-closed walk of a value already known to be sensitive
+            # (``_redact_all``); self-referential structures are stopped by
+            # Python's recursion limit and the except clause below.
             if name and self.should_hide_value_for_key(name):
                 return self._redact_all(item, depth, max_depth, replacement=replacement)
             # Always walk dicts so deeper sensitive keys are still caught;
@@ -395,11 +397,6 @@ class SecretsMasker(logging.Filter):
                     )
                     for subval in item
                 ]
-            # The depth cutoff only bounds the work of pattern-based string
-            # masking below — key-name redaction (dicts and iterables above) is
-            # unbounded so sensitive keys fail closed at any depth.
-            if depth > max_depth:
-                return item
             if isinstance(item, Enum):
                 return self._redact(
                     item=item.value, name=name, depth=depth, max_depth=max_depth, replacement=replacement
