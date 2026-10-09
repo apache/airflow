@@ -1701,6 +1701,91 @@ class TestIterableOperator:
         assert runs == [1]
         assert pushed == [(1, None, None)]
 
+    def test_the_success_callback_waits_for_the_checkpoint(self):
+        """
+        An item's success callback fires once its SUCCESS checkpoint is written, not when execute returns.
+
+        With the checkpoint write failing, the item announces nothing: the attempt fails, the retry
+        runs the item again and reports it then, once. A plain task whose result cannot be pushed
+        fires no success callback either.
+        """
+        CALLBACKS.clear()
+        runs = []
+        original_execute = MockCallbackOperator.execute
+
+        def counting_execute(self, context):
+            runs.append(self.arg1)
+            return original_execute(self, context)
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": "a"}]),
+                task_id="checkpoint_fails",
+                retries=2,
+                operator_class=MockCallbackOperator,
+            )
+
+            with (
+                mock_context(task=iterable_op) as context,
+                patch.object(MockCallbackOperator, "execute", counting_execute),
+            ):
+                store = context["task_state_store"]
+                original_aset = store.aset
+                failed: list[str] = []
+
+                async def aset_failing_the_first_success(key, value, **kwargs):
+                    if value.get("status") == "success" and not failed:
+                        failed.append(key)
+                        raise RuntimeError("state store down")
+                    await original_aset(key, value, **kwargs)
+
+                store.aset = aset_failing_the_first_success
+                context["ti"].try_number = 1
+                with pytest.raises(RuntimeError, match="state store down"):
+                    iterable_op.execute(context=context)
+                fired_after_the_failed_write = list(CALLBACKS)
+
+                context["ti"].try_number = 2
+                iterable_op.execute(context=context)
+
+        assert fired_after_the_failed_write == []
+        assert runs == ["a", "a"]
+        assert CALLBACKS == [("success", "a")]
+
+    def test_a_failed_publish_fires_the_success_callback_once(self):
+        """
+        The checkpoint is written before the result is pushed, so a push that fails leaves work the
+        retry replays rather than runs again: the success callback fired with the checkpoint and
+        does not fire again on the replay.
+        """
+        CALLBACKS.clear()
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": "a"}]),
+                task_id="publish_fails",
+                retries=2,
+                operator_class=MockCallbackOperator,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = 1
+                with patch.object(
+                    IterableOperator, "axcom_push", side_effect=RuntimeError("xcom backend down")
+                ):
+                    with pytest.raises(RuntimeError, match="xcom backend down"):
+                        iterable_op.execute(context=context)
+                fired_after_the_failed_push = list(CALLBACKS)
+
+                context["ti"].try_number = 2
+                result = iterable_op.execute(context=context)
+                pushed = list(result)
+
+        assert fired_after_the_failed_push == [("success", "a")]
+        assert CALLBACKS == [("success", "a")]
+        assert pushed == ["a"]
+
     def test_extra_xcoms_are_checkpointed_once_and_pushed_again_when_a_retry_skips_the_item(self):
         """
         The runner deletes every XCom before a retry. An item skipped because it already succeeded

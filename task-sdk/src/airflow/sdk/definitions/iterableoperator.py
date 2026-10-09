@@ -570,14 +570,14 @@ class IterableOperator(BaseOperator):
     .. note::
         **Callbacks run per indexed task, and a failed one's wait for the task's fate.**
 
-        ``on_success_callback`` and ``on_skipped_callback`` run as soon as an indexed task succeeds
-        or skips, where it ran: in its worker thread for a sync operator, on the event loop
-        for an async one. A failed indexed task's ``on_failure_callback`` or ``on_retry_callback``
-        runs once every indexed task has run, on the thread that ran the iteration, and says what happens to
-        the task: retried or failed for good (see :class:`IndexedTaskOutcomes`). A failure no indexed task
-        owns, such as an error resolving the input, fires no callback: the iterated task has none
-        of its own. Listeners fire once, for the task instance, as for any task; an indexed task is not a
-        task instance and fires none.
+        ``on_success_callback`` and ``on_skipped_callback`` run once the indexed task's checkpoint is
+        written, so they speak for work a retry will not run again, where it ran: in its worker
+        thread for a sync operator, on the event loop for an async one. A failed indexed task's
+        ``on_failure_callback`` or ``on_retry_callback`` runs once every indexed task has run, on the
+        thread that ran the iteration, and says what happens to the task: retried or failed for good
+        (see :class:`IndexedTaskOutcomes`). A failure no indexed task owns, such as an error resolving
+        the input, fires no callback: the iterated task has none of its own. Listeners fire once, for
+        the task instance, as for any task; an indexed task is not a task instance and fires none.
 
     .. note::
         **Pools count the task instance, not its iterations.**
@@ -1001,9 +1001,8 @@ class IterableOperator(BaseOperator):
                 with indexed_task_runner:
                     result = await indexed_task_runner.arun(context)
             else:
-                # Entered and exited in the worker thread with execute, so the success and skip
-                # callbacks fired from the exit run there too: a synchronous SDK call made from them
-                # waits for the comms lock, where on the loop thread it would raise.
+                # Entered and exited in the worker thread with execute, so what the exit does runs
+                # there too, as the reports below do (see _report_item).
 
                 def run_indexed_task():
                     with indexed_task_runner:
@@ -1030,6 +1029,10 @@ class IterableOperator(BaseOperator):
             if task.pushed_xcoms:
                 indexed_task_state.xcoms = dict(task.pushed_xcoms)
             await task.aset_state(indexed_task_state)
+            # Reported once the checkpoint is written, not when execute returned: the callback then
+            # speaks for work a retry will not run again, and a checkpoint write that fails fires
+            # nothing, as a plain task whose result could not be pushed fires no success callback.
+            await self._report_item(executor, task, indexed_task_runner.report_success)
         except (asyncio.CancelledError, AirflowTaskTimeout) as stopped:
             # Not this sub-task's outcome: it is being stopped from outside, by the executor
             # cancelling it or by the parent's execution_timeout, whose signal handler raises on the
@@ -1051,6 +1054,7 @@ class IterableOperator(BaseOperator):
                     try_number=task.try_number,
                 )
             )
+            await self._report_item(executor, task, indexed_task_runner.report_skip)
             return task, None, e
         except BaseException as e:
             if indexed_task_runner.failure is not None:
@@ -1080,6 +1084,21 @@ class IterableOperator(BaseOperator):
         except BaseException as e:
             return task, None, e
         return task, result, None
+
+    @staticmethod
+    async def _report_item(
+        executor: AsyncAwareExecutor, task: IndexedTaskInstance, report: Callable[[], None]
+    ) -> None:
+        """
+        Run an indexed task's success or skip report where its code ran.
+
+        On the loop for an async operator, in a worker thread for a sync one, where a synchronous
+        SDK call made from the callback waits for the comms lock instead of raising.
+        """
+        if task.is_async:
+            report()
+        else:
+            await executor.run_sync(report)
 
     @staticmethod
     def _fingerprint(mapped_kwargs: Mapping[str, Any]) -> str | None:

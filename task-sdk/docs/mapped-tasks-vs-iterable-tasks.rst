@@ -333,7 +333,9 @@ Callbacks
 With IT the callbacks of the wrapped operator run per item, against the item's own context, but
 not all at the same moment:
 
-* ``on_success_callback`` and ``on_skipped_callback`` run as soon as the item succeeds or skips.
+* ``on_success_callback`` and ``on_skipped_callback`` run once the item's checkpoint is written, so they
+  speak for work a retry will not run again; a checkpoint write that fails fires nothing, and the
+  attempt that runs the item again reports it then.
 * ``on_failure_callback`` and ``on_retry_callback`` of a failed item wait until every item has run,
   because whether the task is retried depends on all of them: an ``AirflowFailException`` in one
   item fails the whole task without a retry. Once the task's fate is known, every failed item gets

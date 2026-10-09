@@ -1300,15 +1300,15 @@ class IndexedTaskRunner(LoggingMixin):
         """
         Note that the coroutine waiting for this sync indexed task was cancelled.
 
-        Its thread may go on, but the task gets no checkpoint from here on, so its exit records
-        no state and fires no callback; the next attempt runs it again and reports it then. Best
-        effort: a thread already past the check in its exit still reports.
+        Its thread may go on, but the task gets no checkpoint from here on, and no report either:
+        the next attempt runs it again and reports it then. Best effort: a thread already past the
+        check in its exit still notes a failure.
         """
         self._cancelled = True
 
     @property
     def cancelled(self) -> bool:
-        """Whether :meth:`cancel` was called: the indexed task's exit then reports nothing."""
+        """Whether :meth:`cancel` was called: the indexed task's exit then notes nothing."""
         return self._cancelled
 
     @property
@@ -1409,12 +1409,8 @@ class IndexedTaskRunner(LoggingMixin):
             # and no callback. The iteration that stopped the task reports its own outcome.
             if isinstance(exc_value, CancelledError):
                 raise exc_value
+            # A skip is reported by report_skip() once its checkpoint is written, like a success.
             if isinstance(exc_value, AirflowSkipException):
-                self.task_instance.state = TaskInstanceState.SKIPPED
-                if self._context is not None:
-                    _run_task_state_change_callbacks(
-                        self.task_instance.task, "on_skipped_callback", self._context, self.log
-                    )
                 raise exc_value
             # A failure is only noted here. Whether it is retried is the whole task's fate, which
             # the other iterations decide too (a sibling's AirflowFailException fails it without a
@@ -1430,11 +1426,7 @@ class IndexedTaskRunner(LoggingMixin):
             self.failure = exc_value
             raise exc_value
 
-        self.task_instance.state = TaskInstanceState.SUCCESS
-        if self._context is not None:
-            _run_task_state_change_callbacks(
-                self.task_instance.task, "on_success_callback", self._context, self.log
-            )
+        # The state and the success callback follow once the checkpoint is written: report_success().
         if self.log.isEnabledFor(logging.INFO):
             self.log.info(
                 "Task instance %s for %s finished successfully on attempt %s in %.2f seconds",
@@ -1442,6 +1434,32 @@ class IndexedTaskRunner(LoggingMixin):
                 self.task_instance.task_id,
                 self.task_instance.try_number,
                 elapsed,
+            )
+
+    def report_success(self) -> None:
+        """
+        Report this indexed task as succeeded: its state, ``end_date`` and ``on_success_callback``.
+
+        Called by ``IterableOperator._run_task`` once the SUCCESS checkpoint is written, where the
+        indexed task's code ran. The callback then speaks for work a retry will not run again: a
+        checkpoint write that fails fires nothing, and the attempt that runs the indexed task again
+        reports it then; a result push that fails after the checkpoint is replayed from it, so the
+        callback fires once.
+        """
+        self.task_instance.end_date = datetime.now(tz=UTC)
+        self.task_instance.state = TaskInstanceState.SUCCESS
+        if self._context is not None:
+            _run_task_state_change_callbacks(
+                self.task_instance.task, "on_success_callback", self._context, self.log
+            )
+
+    def report_skip(self) -> None:
+        """Report this indexed task as skipped: its state, ``end_date`` and ``on_skipped_callback``, once its SKIPPED checkpoint is written."""
+        self.task_instance.end_date = datetime.now(tz=UTC)
+        self.task_instance.state = TaskInstanceState.SKIPPED
+        if self._context is not None:
+            _run_task_state_change_callbacks(
+                self.task_instance.task, "on_skipped_callback", self._context, self.log
             )
 
     def report_failure(self, task_will_retry: bool) -> None:

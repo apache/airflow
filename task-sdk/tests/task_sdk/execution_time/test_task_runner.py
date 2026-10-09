@@ -3119,11 +3119,17 @@ class TestIndexedTaskRunner:
         with runner, runner.in_flight():
             pass  # should not raise
 
-    def test_exit_success_sets_state(self, make_indexed_ti):
-        """__exit__ without an exception marks the task instance as SUCCESS."""
+    def test_exit_success_leaves_the_state_to_report_success(self, make_indexed_ti):
+        """__exit__ without an exception changes no state; report_success() marks the task instance SUCCESS."""
         ti = make_indexed_ti()
-        with IndexedTaskRunner(task_instance=ti):
+        state_before = ti.state
+        runner = IndexedTaskRunner(task_instance=ti)
+        with runner:
             pass  # no exception
+        assert ti.state == state_before
+
+        runner.report_success()
+
         assert ti.state == TaskInstanceState.SUCCESS
 
     def test_exit_with_task_deferred_reraises(self, make_indexed_ti):
@@ -3193,16 +3199,22 @@ class TestIndexedTaskRunner:
         assert indexed_context["task_state_store"] is ti.task_state_store
         assert result == "async_result"
 
-    def test_exit_success_fires_on_success_callback(self, make_indexed_ti):
-        """on_success_callback must fire for each indexed sub-task that succeeds."""
+    def test_exit_success_reports_nothing_until_report_success(self, make_indexed_ti):
+        """
+        A success is reported once its checkpoint is written, by report_success(), not by the exit.
+
+        The callback then speaks for work a retry will not run again; it gets the state and an
+        ``end_date`` on the indexed task instance, as a plain task's callback does.
+        """
         fired: list[str] = []
         ti = make_indexed_ti()
         task = BaseOperator(
             task_id="cb_task",
-            on_success_callback=lambda ctx: fired.append("success"),
+            on_success_callback=lambda ctx: fired.append(("success", ti.state, ti.end_date)),
         )
         get_inline_dag("cb_dag", task)
         ti.task = task
+        state_before = ti.state
         context = mock_context(task)
         executor = IndexedTaskRunner(task_instance=ti)
         executor._context = context
@@ -3210,7 +3222,13 @@ class TestIndexedTaskRunner:
         with executor:
             pass
 
-        assert fired == ["success"]
+        assert fired == []
+        assert ti.state == state_before
+
+        executor.report_success()
+
+        assert fired == [("success", TaskInstanceState.SUCCESS, ti.end_date)]
+        assert ti.end_date is not None
 
     @pytest.mark.parametrize(
         "exception",
@@ -3292,8 +3310,13 @@ class TestIndexedTaskRunner:
         """The attempt numbers the parent really has (the first is 1) and ``try_number <= max_tries``."""
         assert make_indexed_ti(try_number=try_number, max_tries=max_tries).is_eligible_to_retry is eligible
 
-    def test_exit_skip_fires_on_skipped_callback_only(self, make_indexed_ti):
-        """A skipped iteration is neither a failure nor a retry, whatever budget is left."""
+    def test_exit_skip_reports_nothing_until_report_skip(self, make_indexed_ti):
+        """
+        A skipped iteration is neither a failure nor a retry, whatever budget is left.
+
+        The exit lets the skip through untouched; report_skip(), once the SKIPPED checkpoint is
+        written, sets the state and ``end_date`` and fires the skipped callback only.
+        """
         fired: list[str] = []
         ti = make_indexed_ti(try_number=1, max_tries=3)
         task = BaseOperator(
@@ -3304,6 +3327,7 @@ class TestIndexedTaskRunner:
         )
         get_inline_dag("cb_dag", task)
         ti.task = task
+        state_before = ti.state
         executor = IndexedTaskRunner(task_instance=ti)
         executor._context = mock_context(task)
 
@@ -3311,8 +3335,15 @@ class TestIndexedTaskRunner:
             with executor:
                 raise AirflowSkipException("nothing to do")
 
+        assert fired == []
+        assert ti.state == state_before
+        assert executor.failure is None
+
+        executor.report_skip()
+
         assert fired == ["skipped"]
         assert ti.state == TaskInstanceState.SKIPPED
+        assert ti.end_date is not None
 
     def test_exit_cancelled_iteration_gets_no_state_and_no_callback(self, make_indexed_ti):
         """Cancelled because the task is stopping: the iteration neither failed nor will be retried."""
@@ -3336,13 +3367,14 @@ class TestIndexedTaskRunner:
         assert fired == []
         assert ti.state == state_before
 
-    def test_exit_no_context_skips_callbacks(self, make_indexed_ti):
-        """When _context is not set (e.g. __exit__ called directly), callbacks must not fire."""
+    def test_report_without_a_context_skips_callbacks(self, make_indexed_ti):
+        """When _context is not set (the runner never entered its context), callbacks must not fire."""
         fired: list[str] = []
         ti = make_indexed_ti()
         task = BaseOperator(
             task_id="cb_task",
             on_success_callback=lambda ctx: fired.append("success"),
+            on_skipped_callback=lambda ctx: fired.append("skipped"),
         )
         get_inline_dag("cb_dag", task)
         ti.task = task
@@ -3351,6 +3383,8 @@ class TestIndexedTaskRunner:
 
         with executor:
             pass
+        executor.report_success()
+        executor.report_skip()
 
         assert fired == []
 
