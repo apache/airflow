@@ -480,6 +480,19 @@ class TestCli:
             with pytest.raises(SystemExit):
                 parser.parse_args([*cmd_args, "--help"])
 
+    def test_backfill_reprocess_behavior_help_uses_user_facing_names(self):
+        parser = cli_parser.get_parser()
+
+        with contextlib.redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
+            parser.parse_args(["backfill", "create", "--help"])
+
+        normalized_help = " ".join(stdout.getvalue().split())
+        assert "--reprocess-behavior {none,failed,completed}" in normalized_help
+        assert (
+            "'none' (Missing Runs), 'failed' (Missing and Errored Runs), or 'completed' (All Runs)"
+            in normalized_help
+        )
+
     def test_dag_cli_should_display_help(self):
         parser = cli_parser.get_parser(dag_parser=True)
 
