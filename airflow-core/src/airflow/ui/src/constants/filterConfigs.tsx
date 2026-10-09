@@ -504,6 +504,7 @@ export const useFilterConfigs = () => {
       label: translate("common:dagDetails.tags"),
       matchModeKey: SearchParamsKeys.TAGS_MATCH_MODE,
       placeholder: translate("common:table.tagPlaceholder"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.MULTISELECT,
     },
     [SearchParamsKeys.TASK_ID]: {
