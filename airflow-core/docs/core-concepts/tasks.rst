@@ -408,44 +408,6 @@ many reasons, including:
 * The system (for example, Kubernetes) scaled down and moved an Airflow worker from one node to another.
 
 
-Reproducing task instance heartbeat timeouts locally
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If you'd like to reproduce task instance heartbeat timeouts for development/testing processes, follow the steps below:
-
-1. Set the below environment variables for your local Airflow setup (alternatively you could tweak the corresponding config values in airflow.cfg)
-
-.. code-block:: bash
-
-    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_SEC=600
-    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT=2
-    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT_DETECTION_INTERVAL=5
-
-
-2. Have a Dag with a task that takes about 10 minutes to complete(i.e. a long-running task). For example, you could use the below Dag:
-
-.. code-block:: python
-
-    from airflow.sdk import dag
-    from airflow.providers.standard.operators.bash import BashOperator
-    from datetime import datetime
-
-
-    @dag(start_date=datetime(2021, 1, 1), schedule="@once", catchup=False)
-    def sleep_dag():
-        t1 = BashOperator(
-            task_id="sleep_10_minutes",
-            bash_command="sleep 600",
-        )
-
-
-    sleep_dag()
-
-
-Run the above Dag and wait for a while. The ``TaskInstance`` will be marked failed after <task_instance_heartbeat_timeout> seconds.
-
-
-
 Executor Configuration
 ----------------------
 
