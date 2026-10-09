@@ -210,7 +210,7 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         validated_event = validate_execute_complete_event(event)
         if validated_event["status"] != "success":
-            raise AirflowException("Error while running job: %s", validated_event)
+            raise AirflowException(f"Error while running job: {validated_event}")
 
         self.log.info("Comprehend pii entities detection job `%s` complete.", validated_event["job_id"])
         return validated_event["job_id"]
@@ -368,7 +368,7 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
         validated_event = validate_execute_complete_event(event)
         if validated_event["status"] != "success":
             raise AirflowException(
-                "Error while running comprehend create document classifier: %s", validated_event
+                f"Error while running comprehend create document classifier: {validated_event}"
             )
 
         self.hook.validate_document_classifier_training_status(

@@ -1064,9 +1064,9 @@ class KubernetesExecutor(BaseExecutor):
                 label_selector=selector,
             ).items
             if not pod_list:
-                raise RuntimeError("Cannot find pod for ti %s", ti)
+                raise RuntimeError(f"Cannot find pod for ti {ti}")
             if len(pod_list) > 1:
-                raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
+                raise RuntimeError(f"Found multiple pods for ti {ti}: {pod_list}")
             res = client.read_namespaced_pod_log(
                 name=pod_list[0].metadata.name,
                 namespace=namespace,

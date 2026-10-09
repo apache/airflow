@@ -1112,7 +1112,7 @@ class DataflowRunPipelineOperator(GoogleCloudBaseOperator):
             if e.resp.status == 404:
                 raise AirflowException("Pipeline with given name was not found.")
         except Exception as exc:
-            raise AirflowException("Error occurred when running Pipeline: %s", exc)
+            raise AirflowException(f"Error occurred when running Pipeline: {exc}")
 
         return self.job
 

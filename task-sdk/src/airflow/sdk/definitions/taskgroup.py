@@ -270,11 +270,7 @@ class TaskGroup(TaskGroupMixin, DAGNode):
         if isinstance(task, TaskGroup):
             if self.dag:
                 if task.dag is not None and self.dag is not task.dag:
-                    raise ValueError(
-                        "Cannot mix TaskGroups from different Dags: %s and %s",
-                        self.dag,
-                        task.dag,
-                    )
+                    raise ValueError(f"Cannot mix TaskGroups from different Dags: {self.dag} and {task.dag}")
                 task.dag = self.dag
             if task.children:
                 raise ValueError("Cannot add a non-empty TaskGroup")
