@@ -109,12 +109,12 @@ class TestEventProducer:
 
         cls._admin = KafkaAdminClientHook(kafka_config_id=cls.KAFKA_CONFIG_ID)
         # Tuple positions are (name, partition, replication).
-        cls._admin.create_topic([(cls.TOPIC, 1, 1)])
+        cls._admin.create_topic([(cls.DAGRUN_TOPIC, 1, 1), (cls.TASK_INSTANCE_TOPIC, 1, 1)])
 
     @classmethod
     def teardown_class(cls):
         try:
-            cls._admin.delete_topic([cls.TOPIC])
+            cls._admin.delete_topic([cls.DAGRUN_TOPIC, cls.TASK_INSTANCE_TOPIC])
             time.sleep(2)  # let the broker finish the async delete
         except Exception as exc:
             log.warning("teardown: failed to delete topic %r: %s", cls.TOPIC, exc)
@@ -132,7 +132,9 @@ class TestEventProducer:
 
     @pytest.mark.execution_timeout(90)
     def test_dag_run_produces_event_messages(self, start_components):
-        consumer = KafkaConsumerHook(topics=[self.TOPIC], kafka_config_id=self.KAFKA_CONFIG_ID).get_consumer()
+        consumer = KafkaConsumerHook(
+            topics=[self.DAGRUN_TOPIC, self.TASK_INSTANCE_TOPIC], kafka_config_id=self.KAFKA_CONFIG_ID
+        ).get_consumer()
         _wait_for_assignment(consumer)
 
         dag_id = "demo_dag"
