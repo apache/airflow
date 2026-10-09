@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable, Mapping
 from datetime import datetime
+from functools import cache
 from typing import Annotated, Any
 
 from pydantic import Field, field_validator, model_validator
@@ -28,6 +29,27 @@ from pydantic_core.core_schema import ValidationInfo
 from airflow._shared.secrets_masker import redact, should_hide_value_for_key
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
 from airflow.configuration import conf
+
+
+@cache
+def _sensitive_extra_fields() -> dict[str, frozenset[str]]:
+    """
+    Return, per connection type, the ``extra`` field names its provider declares sensitive.
+
+    Providers mark a connection field as a secret with ``format: password`` in their
+    ``conn-fields``. The name-based masking in ``redact`` cannot use that knowledge, because it
+    only sees the field name, and a name such as ``config`` is a secret for one connection type
+    and harmless for others. Read from provider metadata, without importing any hook.
+    """
+    from airflow.providers_manager import ProvidersManager
+
+    fields: dict[str, set[str]] = {}
+    for prefixed_name, widget in ProvidersManager()._connection_form_widgets_from_metadata.items():
+        if not widget.is_sensitive:
+            continue
+        conn_type = prefixed_name.removeprefix("extra__").removesuffix(f"__{widget.field_name}")
+        fields.setdefault(conn_type, set()).add(widget.field_name)
+    return {conn_type: frozenset(names) for conn_type, names in fields.items()}
 
 
 # Response Models
@@ -51,6 +73,24 @@ class ConnectionResponse(BaseModel):
         if v is None:
             return None
         return str(redact(v, field_info.field_name))
+
+    @model_validator(mode="after")
+    def redact_provider_sensitive_extra(self) -> ConnectionResponse:
+        """Mask the ``extra`` fields the connection type's provider declares sensitive."""
+        if not self.extra:
+            return self
+        sensitive = _sensitive_extra_fields().get(self.conn_type)
+        if not sensitive:
+            return self
+        extra = json.loads(self.extra)
+        if not isinstance(extra, dict):
+            return self
+        prefix = f"extra__{self.conn_type}__"
+        for key, value in extra.items():
+            if key.removeprefix(prefix) in sensitive and value not in (None, ""):
+                extra[key] = "***"
+        self.extra = json.dumps(extra)
+        return self
 
     @field_validator("extra", mode="before")
     @classmethod
