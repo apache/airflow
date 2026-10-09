@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 
 from airflow._shared.state import (
     AssetScope,
@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql.elements import ColumnElement
 
 
 log = structlog.get_logger(__name__)
@@ -110,6 +111,11 @@ def _build_asset_writer_fields(
     )
     update_fields = dict(value=value, updated_at=now, **(writer_info if kind is not None else {}))
     return writer_info, update_fields
+
+
+def _build_unexpired_filter(now: datetime) -> ColumnElement[bool]:
+    """Match task state rows that have not expired. A NULL ``expires_at`` means the key never expires."""
+    return or_(TaskStateStoreModel.expires_at.is_(None), TaskStateStoreModel.expires_at > now)
 
 
 class MetastoreBackend(BaseStoreBackend):
@@ -235,6 +241,7 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.task_id == scope.task_id,
                 TaskStateStoreModel.map_index == scope.map_index,
                 TaskStateStoreModel.key == key,
+                _build_unexpired_filter(timezone.utcnow()),
             )
         )
         return row.value if row is not None else None
@@ -436,6 +443,7 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.task_id == scope.task_id,
                 TaskStateStoreModel.map_index == scope.map_index,
                 TaskStateStoreModel.key == key,
+                _build_unexpired_filter(timezone.utcnow()),
             )
         )
         return row.value if row is not None else None

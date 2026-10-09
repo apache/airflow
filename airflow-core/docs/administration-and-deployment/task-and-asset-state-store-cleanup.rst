@@ -24,6 +24,8 @@ Task and Asset State Store Cleanup
 
 Airflow does not automatically purge task state store rows on a schedule. Cleanup (also known as "garbage collection") is the responsibility of the user (you) and must be triggered explicitly via the CLI. This page explains what gets cleaned up, how to run it, and how to integrate it into a recurring maintenance workflow.
 
+Cleanup reclaims disk space; it is not what makes a key expire. A key past its ``expires_at`` is already invisible to ``task_state_store.get()`` whether or not cleanup has run, so a deployment that runs cleanup infrequently does not serve stale values, it only carries dead rows for longer.
+
 
 What gets cleaned up
 --------------------
