@@ -387,6 +387,46 @@ class TestPatchPool(TestPoolsEndpoint):
                     "team_name": None,
                 },
             ),
+            # Partial body on another pool
+            (
+                POOL1_NAME,
+                {"update_mask": ["slots"]},
+                {"slots": 8},
+                200,
+                {
+                    "deferred_slots": 0,
+                    "description": None,
+                    "include_deferred": True,
+                    "name": POOL1_NAME,
+                    "occupied_slots": 0,
+                    "open_slots": 8,
+                    "queued_slots": 0,
+                    "running_slots": 0,
+                    "scheduled_slots": 0,
+                    "slots": 8,
+                    "team_name": "test",
+                },
+            ),
+            # Fields outside update_mask are ignored
+            (
+                POOL1_NAME,
+                {"update_mask": ["slots"]},
+                {"slots": 8, "include_deferred": None},
+                200,
+                {
+                    "deferred_slots": 0,
+                    "description": None,
+                    "include_deferred": True,
+                    "name": POOL1_NAME,
+                    "occupied_slots": 0,
+                    "open_slots": 8,
+                    "queued_slots": 0,
+                    "running_slots": 0,
+                    "scheduled_slots": 0,
+                    "slots": 8,
+                    "team_name": "test",
+                },
+            ),
             # Full body
             (
                 POOL1_NAME,
@@ -436,6 +476,14 @@ class TestPatchPool(TestPoolsEndpoint):
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(f"/pools/{POOL1_NAME}", params={}, json={})
         assert response.status_code == 401
+
+    def test_update_mask_still_validates_masked_fields(self, test_client):
+        self.create_pools()
+        response = test_client.patch(
+            f"/pools/{POOL1_NAME}", params={"update_mask": ["slots"]}, json={"slots": None}
+        )
+        assert response.status_code == 422
+        assert [error["loc"] for error in response.json()["detail"]] == [["slots"]]
 
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch(f"/pools/{POOL1_NAME}", params={}, json={})
@@ -1142,7 +1190,22 @@ class TestBulkPools(TestPoolsEndpoint):
             assert response_data[key] == value
         check_last_log(session, dag_id=None, event="bulk_pools", logical_date=None)
 
-    def test_update_mask_preserves_other_fields(self, test_client, session):
+    @pytest.mark.parametrize(
+        "entity",
+        [
+            pytest.param(
+                {
+                    "name": "pool1",
+                    "slots": 50,
+                    "description": "Should not be updated",
+                    "include_deferred": False,
+                },
+                id="full-entity",
+            ),
+            pytest.param({"name": "pool1", "slots": 50}, id="partial-entity"),
+        ],
+    )
+    def test_update_mask_preserves_other_fields(self, test_client, session, entity):
         # Arrange: create a pool with initial values
         self.create_pools()
 
@@ -1153,14 +1216,7 @@ class TestBulkPools(TestPoolsEndpoint):
                 "actions": [
                     {
                         "action": "update",
-                        "entities": [
-                            {
-                                "name": "pool1",
-                                "slots": 50,
-                                "description": "Should not be updated",
-                                "include_deferred": False,
-                            }
-                        ],
+                        "entities": [entity],
                         "update_mask": ["slots"],  # only slots should update
                         "action_on_non_existence": "fail",
                     }
