@@ -54,10 +54,10 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import selectors
 import socket
 import threading
 import warnings
-from select import select
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -135,6 +135,7 @@ class SSHTunnel:
         # Self-pipe for waking the select loop on shutdown
         self._shutdown_r: socket.socket | None = None
         self._shutdown_w: socket.socket | None = None
+        self._selector: selectors.BaseSelector | None = None
         self._running = False
 
         # Bind the listening socket eagerly so local_bind_port is available
@@ -248,31 +249,42 @@ class SSHTunnel:
         server_socket = self._server_socket
         shutdown_r = self._shutdown_r
         active_channels: list[tuple[socket.socket, paramiko.Channel]] = []
-        try:
-            while self._running:
-                read_fds: list[socket.socket | paramiko.Channel] = [server_socket, shutdown_r]
+        # select.select() rejects descriptors numbered FD_SETSIZE (1024) or above, which a task
+        # process can reach; DefaultSelector uses epoll/kqueue/poll where available.
+        with selectors.DefaultSelector() as selector:
+            self._selector = selector
+            for listening in (server_socket, shutdown_r):
+                selector.register(listening, selectors.EVENT_READ, data=listening)
+            try:
+                while self._running:
+                    try:
+                        events = selector.select(1.0)
+                    except (OSError, ValueError):
+                        break
+
+                    for key, _ in events:
+                        fd = key.data
+                        if fd is shutdown_r:
+                            return
+                        if fd is server_socket:
+                            self._accept_connection(active_channels)
+                        else:
+                            self._forward_data(fd, active_channels)
+
+                    # Drop pairs _close_pair already closed, and close those the remote end closed.
+                    still_open = []
+                    for local_sock, chan in active_channels:
+                        if local_sock.fileno() == -1:
+                            continue
+                        if chan.closed:
+                            self._close_pair(local_sock, chan)
+                            continue
+                        still_open.append((local_sock, chan))
+                    active_channels = still_open
+            finally:
                 for local_sock, chan in active_channels:
-                    read_fds.append(local_sock)
-                    read_fds.append(chan)
-
-                try:
-                    readable, _, _ = select(read_fds, [], [], 1.0)
-                except (OSError, ValueError):
-                    break
-
-                for fd in readable:
-                    if fd is shutdown_r:
-                        return
-                    if fd is server_socket:
-                        self._accept_connection(active_channels)
-                    else:
-                        self._forward_data(fd, active_channels)
-
-                # Clean up closed channels
-                active_channels = [(s, c) for s, c in active_channels if not (s.fileno() == -1 or c.closed)]
-        finally:
-            for local_sock, chan in active_channels:
-                self._close_pair(local_sock, chan)
+                    self._close_pair(local_sock, chan)
+                self._selector = None
 
     def _accept_connection(self, active_channels: list[tuple[socket.socket, paramiko.Channel]]) -> None:
         """Accept a new local connection and open an SSH channel for it."""
@@ -311,6 +323,9 @@ class SSHTunnel:
             return
 
         active_channels.append((client_sock, channel))
+        if self._selector is not None:
+            for fileobj in (client_sock, channel):
+                self._selector.register(fileobj, selectors.EVENT_READ, data=fileobj)
 
     def _forward_data(
         self,
@@ -348,9 +363,15 @@ class SSHTunnel:
                     self._close_pair(local_sock, chan)
                 return
 
-    @staticmethod
-    def _close_pair(local_sock: socket.socket, chan: paramiko.Channel) -> None:
-        """Close both ends of a forwarded connection."""
+    def _close_pair(self, local_sock: socket.socket, chan: paramiko.Channel) -> None:
+        """Unregister both ends of a forwarded connection from the selector, then close them."""
+        if self._selector is not None:
+            # Unregister by the descriptor recorded at registration: once closed, a socket has no
+            # descriptor, and Channel.fileno() would create a new pipe rather than return the old one.
+            registered = {id(key.data): key.fd for key in self._selector.get_map().values()}
+            for fileobj in (chan, local_sock):
+                if (fd := registered.get(id(fileobj))) is not None:
+                    self._selector.unregister(fd)
         for closeable in (chan, local_sock):
             with contextlib.suppress(OSError):
                 closeable.close()
