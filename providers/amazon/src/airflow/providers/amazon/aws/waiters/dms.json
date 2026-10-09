@@ -141,13 +141,13 @@
                     "matcher": "path",
                     "argument": "ReplicationTasks[0].Status",
                     "expected": "running",
-                    "state": "failure"
+                    "state": "retry"
                 },
                 {
                     "matcher": "path",
                     "argument": "ReplicationTasks[0].Status",
                     "expected": "stopping",
-                    "state": "failure"
+                    "state": "retry"
                 },
                 {
                     "matcher": "path",

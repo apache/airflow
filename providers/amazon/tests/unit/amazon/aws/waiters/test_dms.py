@@ -152,16 +152,29 @@ class TestCustomDmsWaiters:
             ]
         )
 
-    @pytest.mark.parametrize("status", ["stopped", "ready", "failed"])
-    def test_wait_for_replication_task_modified(self, mock_describe_replication_tasks, status):
-        mock_describe_replication_tasks.return_value = {
-            "ReplicationTasks": [
-                {
-                    "ReplicationTaskArn": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                    "Status": status,
-                }
-            ]
-        }
+    @pytest.mark.parametrize(
+        "statuses",
+        [
+            pytest.param(["stopped"], id="stopped"),
+            pytest.param(["ready"], id="ready"),
+            pytest.param(["failed"], id="failed"),
+            pytest.param(["modifying", "stopped"], id="modifying-then-stopped"),
+            pytest.param(["running", "stopped"], id="running-then-stopped"),
+            pytest.param(["stopping", "stopped"], id="stopping-then-stopped"),
+        ],
+    )
+    def test_wait_for_replication_task_modified(self, mock_describe_replication_tasks, statuses):
+        mock_describe_replication_tasks.side_effect = [
+            {
+                "ReplicationTasks": [
+                    {
+                        "ReplicationTaskArn": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                        "Status": status,
+                    }
+                ]
+            }
+            for status in statuses
+        ]
 
         hook = DmsHook(aws_conn_id=None)
         waiter = hook.get_waiter("replication_task_modified")
@@ -176,7 +189,8 @@ class TestCustomDmsWaiters:
             WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
         )
 
-        mock_describe_replication_tasks.assert_called_once_with(
+        assert mock_describe_replication_tasks.call_count == len(statuses)
+        mock_describe_replication_tasks.assert_called_with(
             Filters=[
                 {
                     "Name": "replication-task-arn",
