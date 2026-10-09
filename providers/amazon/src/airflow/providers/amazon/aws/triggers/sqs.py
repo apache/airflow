@@ -200,7 +200,10 @@ class SqsSensorTrigger(BaseEventTrigger):
                 if "Successful" not in response:
                     raise AirflowException(f"Delete SQS Messages failed {response} for messages {messages}")
 
-                self.log.debug("Successfully deleted %d messages", len(messages))
+                if failed_entries := response.get("Failed"):
+                    self.log.warning("SQS batch deletion failed", failed_entries=failed_entries)
+                else:
+                    self.log.debug("Successfully deleted %d messages", len(messages))
 
         if message_batch:
             self.log.info("Completed poke operation: collected %d total message(s)", len(message_batch))
