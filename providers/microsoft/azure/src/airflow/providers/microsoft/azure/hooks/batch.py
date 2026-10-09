@@ -44,6 +44,8 @@ class AzureBatchHook(BaseHook):
 
     :param azure_batch_conn_id: :ref:`Azure Batch connection id<howto/connection:azure_batch>`
         of a service principal which will be used to start the container instance.
+    :param retry_total: The total number of retries for Azure Batch requests.
+        If ``None``, the Azure SDK default is used.
     """
 
     conn_name_attr = "azure_batch_conn_id"
@@ -74,9 +76,14 @@ class AzureBatchHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
+    def __init__(
+        self,
+        azure_batch_conn_id: str = default_conn_name,
+        retry_total: int | None = None,
+    ) -> None:
         super().__init__()
         self.conn_id = azure_batch_conn_id
+        self.retry_total = retry_total
 
     def _get_field(self, extras, name):
         return get_field(
@@ -114,9 +121,12 @@ class AzureBatchHook(BaseHook):
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
+        client_kwargs = {} if self.retry_total is None else {"retry_total": self.retry_total}
+
         batch_client = BatchClient(
             endpoint=batch_account_url,
             credential=credential,
+            **client_kwargs,
         )
         return batch_client
 
