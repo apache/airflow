@@ -23,19 +23,20 @@ from uuid import UUID
 
 from pydantic import AliasPath, Field, field_validator
 
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
 
 
-class XComResponse(BaseModel):
+class XComResponse(OmitsMissingRegion, BaseModel):
     """Serializer for a xcom item."""
 
     key: str
     timestamp: datetime
     logical_date: datetime | None
     map_index: int
-    region_id: UUID
-    region_index: int
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     task_id: str
     dag_id: str
     run_id: str

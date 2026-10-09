@@ -66,3 +66,17 @@ def test_execution_projects_public_indexes_and_pages_distinct_loop_passes(test_c
     assert {ti["map_index"] for ti in mapped.json()["task_instances"]} == {0, 1}
     assert test_client.get(url, params={"region_index": 2}).status_code == 400
     assert test_client.get(url, params={"offset": -1}).status_code == 422
+
+
+def test_execution_omits_region_fields_for_a_task_instance_outside_any_region(test_client, dag_maker):
+    with dag_maker(serialized=True):
+        EmptyOperator(task_id="plain")
+    run = dag_maker.create_dagrun()
+
+    response = test_client.get(f"/dags/{run.dag_id}/dagRuns/{run.run_id}/execution")
+
+    assert response.status_code == 200, response.text
+    [task_instance] = response.json()["task_instances"]
+    assert task_instance["task_id"] == "plain"
+    assert "region_id" not in task_instance
+    assert "region_index" not in task_instance

@@ -2157,8 +2157,8 @@ export type TaskInstanceHistoryResponse = {
     dag_id: string;
     dag_run_id: string;
     map_index: number;
-    region_id: string;
-    region_index: number;
+    region_id?: string;
+    region_index?: number;
     start_date: string | null;
     end_date: string | null;
     duration: number | null;
@@ -2527,8 +2527,8 @@ export type XComResponse = {
     timestamp: string;
     logical_date: string | null;
     map_index: number;
-    region_id: string;
-    region_index: number;
+    region_id?: string;
+    region_index?: number;
     task_id: string;
     dag_id: string;
     run_id: string;
@@ -2546,8 +2546,8 @@ export type XComResponseNative = {
     timestamp: string;
     logical_date: string | null;
     map_index: number;
-    region_id: string;
-    region_index: number;
+    region_id?: string;
+    region_index?: number;
     task_id: string;
     dag_id: string;
     run_id: string;
@@ -2566,8 +2566,8 @@ export type XComResponseString = {
     timestamp: string;
     logical_date: string | null;
     map_index: number;
-    region_id: string;
-    region_index: number;
+    region_id?: string;
+    region_index?: number;
     task_id: string;
     dag_id: string;
     run_id: string;
@@ -2981,8 +2981,8 @@ export type ExecutionTaskResponse = {
     dag_run_id: string;
     task_id: string;
     task_display_name: string;
-    region_id: string;
-    region_index: number;
+    region_id?: string;
+    region_index?: number;
     map_index: number;
     try_number: number;
     state: TaskInstanceState | null;
@@ -3016,8 +3016,8 @@ export type GanttResponse = {
  */
 export type GanttTaskInstance = {
     id: string;
-    region_id: string;
-    region_index: number;
+    region_id?: string;
+    region_index?: number;
     map_index: number;
     task_id: string;
     task_display_name: string;

@@ -1578,8 +1578,8 @@ class XComResponse(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
-    region_id: Annotated[UUID, Field(title="Region Id")]
-    region_index: Annotated[int, Field(title="Region Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -1598,8 +1598,8 @@ class XComResponseNative(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
-    region_id: Annotated[UUID, Field(title="Region Id")]
-    region_index: Annotated[int, Field(title="Region Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -1619,8 +1619,8 @@ class XComResponseString(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
-    region_id: Annotated[UUID, Field(title="Region Id")]
-    region_index: Annotated[int, Field(title="Region Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -2634,8 +2634,8 @@ class TaskInstanceHistoryResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
-    region_id: Annotated[UUID, Field(title="Region Id")]
-    region_index: Annotated[int, Field(title="Region Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     start_date: Annotated[datetime | None, Field(title="Start Date")]
     end_date: Annotated[datetime | None, Field(title="End Date")]
     duration: Annotated[float | None, Field(title="Duration")]

@@ -50,8 +50,6 @@ MAPPED_TASK_ID = "mapped_task"
 
 GANTT_TASK_1 = {
     "id": ANY,
-    "region_id": "00000000-0000-0000-0000-000000000000",
-    "region_index": -1,
     "map_index": -1,
     "task_id": "task",
     "task_display_name": TASK_DISPLAY_NAME,
@@ -67,8 +65,6 @@ GANTT_TASK_1 = {
 
 GANTT_TASK_2 = {
     "id": ANY,
-    "region_id": "00000000-0000-0000-0000-000000000000",
-    "region_index": -1,
     "map_index": -1,
     "task_id": "task2",
     "task_display_name": TASK_DISPLAY_NAME_2,
@@ -84,8 +80,6 @@ GANTT_TASK_2 = {
 
 GANTT_TASK_3 = {
     "id": ANY,
-    "region_id": "00000000-0000-0000-0000-000000000000",
-    "region_index": -1,
     "map_index": -1,
     "task_id": "task3",
     "task_display_name": TASK_DISPLAY_NAME_3,

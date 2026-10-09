@@ -8030,7 +8030,7 @@ export const $TaskInstanceHistoryResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'region_id', 'region_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
+    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
 } as const;
@@ -9828,7 +9828,7 @@ export const $XComResponse = {
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'region_id', 'region_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after'],
     title: 'XComResponse',
     description: 'Serializer for a xcom item.'
 } as const;
@@ -9910,7 +9910,7 @@ export const $XComResponseNative = {
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'region_id', 'region_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
     title: 'XComResponseNative',
     description: 'XCom response serializer with native return type.'
 } as const;
@@ -10000,7 +10000,7 @@ export const $XComResponseString = {
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'region_id', 'region_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
     title: 'XComResponseString',
     description: 'XCom response serializer with string return type.'
 } as const;
@@ -11528,7 +11528,7 @@ export const $ExecutionTaskResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'dag_id', 'dag_run_id', 'task_id', 'task_display_name', 'region_id', 'region_index', 'map_index', 'try_number', 'state', 'start_date', 'end_date', 'duration', 'dag_version_id', 'operator'],
+    required: ['id', 'dag_id', 'dag_run_id', 'task_id', 'task_display_name', 'map_index', 'try_number', 'state', 'start_date', 'end_date', 'duration', 'dag_version_id', 'operator'],
     title: 'ExecutionTaskResponse',
     description: 'A task try together with the coordinates that address it exactly.'
 } as const;
@@ -11676,7 +11676,7 @@ export const $GanttTaskInstance = {
         }
     },
     type: 'object',
-    required: ['id', 'region_id', 'region_index', 'map_index', 'task_id', 'task_display_name', 'try_number', 'state', 'scheduled_dttm', 'queued_dttm', 'start_date', 'end_date'],
+    required: ['id', 'map_index', 'task_id', 'task_display_name', 'try_number', 'state', 'scheduled_dttm', 'queued_dttm', 'start_date', 'end_date'],
     title: 'GanttTaskInstance',
     description: 'Task instance data for Gantt chart.'
 } as const;

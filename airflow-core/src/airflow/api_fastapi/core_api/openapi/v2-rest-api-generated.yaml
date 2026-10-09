@@ -8706,12 +8706,7 @@ paths:
       description: 'Get list of task instances history.
 
 
-        Tries recorded before regions existed live under the sentinel region. Once
-        the task has
-
-        regions, those tries are only returned when `region_id` is
-
-        `00000000-0000-0000-0000-000000000000`.'
+        Tries recorded before the task had regions are not included once it has them.'
       operationId: get_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
@@ -8811,12 +8806,7 @@ paths:
       description: 'Get list of task instances history for a mapped task instance.
 
 
-        Tries recorded before regions existed live under the sentinel region. Once
-        the task has
-
-        regions, those tries are only returned when `region_id` is
-
-        `00000000-0000-0000-0000-000000000000`.'
+        Tries recorded before the task had regions are not included once it has them.'
       operationId: get_mapped_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
@@ -17857,8 +17847,6 @@ components:
       - dag_id
       - dag_run_id
       - map_index
-      - region_id
-      - region_index
       - start_date
       - end_date
       - duration
@@ -19012,8 +19000,6 @@ components:
       - timestamp
       - logical_date
       - map_index
-      - region_id
-      - region_index
       - task_id
       - dag_id
       - run_id
@@ -19079,8 +19065,6 @@ components:
       - timestamp
       - logical_date
       - map_index
-      - region_id
-      - region_index
       - task_id
       - dag_id
       - run_id
@@ -19150,8 +19134,6 @@ components:
       - timestamp
       - logical_date
       - map_index
-      - region_id
-      - region_index
       - task_id
       - dag_id
       - run_id

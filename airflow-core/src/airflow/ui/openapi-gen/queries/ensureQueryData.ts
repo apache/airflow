@@ -1291,9 +1291,7 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (quer
 * Get Task Instance Tries
 * Get list of task instances history.
 *
-* Tries recorded before regions existed live under the sentinel region. Once the task has
-* regions, those tries are only returned when `region_id` is
-* `00000000-0000-0000-0000-000000000000`.
+* Tries recorded before the task had regions are not included once it has them.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -1316,9 +1314,7 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceTriesData = (queryClient
 * Get Mapped Task Instance Tries
 * Get list of task instances history for a mapped task instance.
 *
-* Tries recorded before regions existed live under the sentinel region. Once the task has
-* regions, those tries are only returned when `region_id` is
-* `00000000-0000-0000-0000-000000000000`.
+* Tries recorded before the task had regions are not included once it has them.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId

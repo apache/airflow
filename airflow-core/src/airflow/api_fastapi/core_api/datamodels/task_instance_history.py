@@ -28,12 +28,13 @@ from pydantic import (
 )
 
 from airflow._shared.secrets_masker import redact
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.utils.state import TaskInstanceState
 
 
-class TaskInstanceHistoryResponse(BaseModel):
+class TaskInstanceHistoryResponse(OmitsMissingRegion, BaseModel):
     """TaskInstanceHistory serializer for responses."""
 
     id: UUID
@@ -44,8 +45,8 @@ class TaskInstanceHistoryResponse(BaseModel):
     run_id: str = Field(alias="dag_run_id")
 
     map_index: int
-    region_id: UUID
-    region_index: int
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     start_date: datetime | None
     end_date: datetime | None
     duration: float | None

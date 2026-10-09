@@ -21,11 +21,12 @@ from uuid import UUID
 
 from pydantic import Field
 
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import TaskInstanceState
 
 
-class ExecutionTaskResponse(BaseModel):
+class ExecutionTaskResponse(OmitsMissingRegion, BaseModel):
     """A task try together with the coordinates that address it exactly."""
 
     id: UUID
@@ -33,8 +34,8 @@ class ExecutionTaskResponse(BaseModel):
     run_id: str = Field(alias="dag_run_id")
     task_id: str
     task_display_name: str
-    region_id: UUID
-    region_index: int
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     map_index: int
     try_number: int
     state: TaskInstanceState | None

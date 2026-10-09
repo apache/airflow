@@ -437,9 +437,7 @@ def get_task_instance_tries(
     """
     Get list of task instances history.
 
-    Tries recorded before regions existed live under the sentinel region. Once the task has
-    regions, those tries are only returned when `region_id` is
-    `00000000-0000-0000-0000-000000000000`.
+    Tries recorded before the task had regions are not included once it has them.
     """
     query = (
         eager_load_task_instance_for_validation(
@@ -490,9 +488,7 @@ def get_mapped_task_instance_tries(
     """
     Get list of task instances history for a mapped task instance.
 
-    Tries recorded before regions existed live under the sentinel region. Once the task has
-    regions, those tries are only returned when `region_id` is
-    `00000000-0000-0000-0000-000000000000`.
+    Tries recorded before the task had regions are not included once it has them.
     """
     return get_task_instance_tries(
         dag_id=dag_id,

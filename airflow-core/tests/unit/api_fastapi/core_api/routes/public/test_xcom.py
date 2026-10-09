@@ -326,8 +326,6 @@ class TestGetXComEntry(TestXComEndpoint):
             "task_display_name": TEST_TASK_DISPLAY_NAME,
             "team_name": None,
             "map_index": -1,
-            "region_id": "00000000-0000-0000-0000-000000000000",
-            "region_index": -1,
             "timestamp": current_data["timestamp"],
             "value": json.dumps(TEST_XCOM_VALUE),
         }
@@ -462,8 +460,6 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": -1,
                 },
                 {
                     "dag_id": TEST_DAG_ID,
@@ -477,8 +473,6 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": -1,
                 },
             ],
             "total_entries": 2,
@@ -569,8 +563,6 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": -1,
                 },
                 {
                     "dag_id": TEST_DAG_ID,
@@ -584,8 +576,6 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": -1,
                 },
                 {
                     "dag_id": TEST_DAG_ID_2,
@@ -599,8 +589,6 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": -1,
                 },
                 {
                     "dag_id": TEST_DAG_ID_2,
@@ -614,8 +602,6 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": -1,
                 },
             ],
             "total_entries": 4,
@@ -648,8 +634,6 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": idx,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": idx,
                 }
                 for idx in range(2)
             ]
@@ -667,8 +651,6 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": map_index,
-                    "region_id": "00000000-0000-0000-0000-000000000000",
-                    "region_index": map_index,
                 }
             ]
         for xcom_entry in response_data["xcom_entries"]:
@@ -696,8 +678,6 @@ class TestGetXComEntries(TestXComEndpoint):
                         "team_name": None,
                         "timestamp": "TIMESTAMP",
                         "map_index": 0,
-                        "region_id": "00000000-0000-0000-0000-000000000000",
-                        "region_index": 0,
                     },
                     {
                         "dag_id": TEST_DAG_ID,
@@ -711,8 +691,6 @@ class TestGetXComEntries(TestXComEndpoint):
                         "team_name": None,
                         "timestamp": "TIMESTAMP",
                         "map_index": 1,
-                        "region_id": "00000000-0000-0000-0000-000000000000",
-                        "region_index": 1,
                     },
                 ],
             ),

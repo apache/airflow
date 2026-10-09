@@ -130,7 +130,9 @@ def test_loop_repeated_selective_clears_archive_only_replaced_task_instances(
     archived_ids = set()
     for index, keep_future in [(1, retain_later), (0, False)]:
         before = live_executions()
-        selected = next(ti for ti in before if ti["task_id"] == "body.work" and ti["region_index"] == index)
+        selected = next(
+            ti for ti in before if ti["task_id"] == "body.work" and ti.get("region_index") == index
+        )
         response = test_client.post(
             clear_url,
             json={
@@ -148,7 +150,7 @@ def test_loop_repeated_selective_clears_archive_only_replaced_task_instances(
         assert all(ti["state"] == "success" for ti in after)
         assert len(after) == len(initial)
         assert next(ti for ti in after if ti["task_id"] == "prepare")["id"] == prepared["id"]
-        old_suffix = {ti["id"] for ti in before if ti["region_index"] > index}
+        old_suffix = {ti["id"] for ti in before if ti.get("region_index", -1) > index}
         live_ids = {ti["id"] for ti in after}
         assert old_suffix <= live_ids if keep_future else old_suffix.isdisjoint(live_ids)
         assert selected["id"] not in live_ids
