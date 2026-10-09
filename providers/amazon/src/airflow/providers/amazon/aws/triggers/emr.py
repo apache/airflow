@@ -97,6 +97,8 @@ class EmrCreateJobFlowTrigger(AwsBaseWaiterTrigger):
     :param job_flow_id: The id of the job flow to wait for.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
+    :param waiter_name: The name of the waiter to use. ``job_flow_waiting`` (the default) waits for the
+        cluster to be running, ``job_flow_terminated`` waits for it to terminate.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param region_name: The AWS region where the resources to watch are.
     :param verify: Whether or not to verify SSL certificates.
@@ -119,7 +121,7 @@ class EmrCreateJobFlowTrigger(AwsBaseWaiterTrigger):
         botocore_config: dict | None = None,
     ):
         super().__init__(
-            serialized_fields={"job_flow_id": job_flow_id},
+            serialized_fields={"job_flow_id": job_flow_id, "waiter_name": waiter_name},
             waiter_name=waiter_name,
             waiter_args={"ClusterId": job_flow_id},
             failure_message="JobFlow creation failed",
