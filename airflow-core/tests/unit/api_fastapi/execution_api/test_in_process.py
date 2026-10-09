@@ -16,32 +16,36 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
+from textwrap import dedent
 
-import pytest
 
-
-@pytest.mark.parametrize(
-    "create_instance",
-    [
-        "from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI; "
-        "api = InProcessExecutionAPI(); ",
-        "from airflow.dag_processing.manager import DagFileProcessorManager; "
-        "manager = DagFileProcessorManager(max_runs=1); ",
-    ],
-    ids=["in_process_api", "dag_processor_manager"],
-)
-def test_construction_defers_execution_api_imports(create_instance):
+def test_construction_defers_execution_api_imports():
     result = subprocess.run(
         [
             sys.executable,
             "-c",
-            "import sys; " + create_instance + "modules = {'svcs', 'cadwyn', 'fastapi', 'aiohttp', "
-            "'airflow.api_fastapi.execution_api.app'}; "
-            "loaded = modules.intersection(sys.modules); "
-            "assert not loaded, f'{loaded} imported eagerly'",
+            dedent("""
+                import sys
+
+                modules = {'svcs', 'cadwyn', 'fastapi', 'aiohttp', 'airflow.api_fastapi.execution_api.app'}
+
+                from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
+
+                api = InProcessExecutionAPI()
+                loaded = modules.intersection(sys.modules)
+                assert not loaded, f'{loaded} imported eagerly by InProcessExecutionAPI'
+
+                from airflow.dag_processing.manager import DagFileProcessorManager
+
+                manager = DagFileProcessorManager(max_runs=1)
+                loaded = modules.intersection(sys.modules)
+                assert not loaded, f'{loaded} imported eagerly by DagFileProcessorManager'
+            """),
         ],
+        env={**os.environ, "_AIRFLOW__AS_LIBRARY": "1"},
         capture_output=True,
         text=True,
         check=False,
