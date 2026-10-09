@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h1>DAGs</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>DAG ID</th>
+        <th>Previous Run Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for dag in dags %}
+        <tr>
+          <td>{{ dag.dag_id }}</td>
+          <td>{{ previous_runs[loop.index0]['status'] }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
