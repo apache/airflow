@@ -94,6 +94,7 @@ const {
 
 type ColumnProps = {
   readonly dagId?: string;
+  readonly hasLoopIteration: boolean;
   readonly runId?: string;
   readonly taskId?: string;
   readonly translate: TFunction;
@@ -101,6 +102,7 @@ type ColumnProps = {
 
 const taskInstanceColumns = ({
   dagId,
+  hasLoopIteration,
   multiTeam,
   runId,
   taskId,
@@ -183,15 +185,16 @@ const taskInstanceColumns = ({
       ),
     header: translate("mapIndex"),
   },
-  {
-    accessorKey: "loop_iteration",
-    cell: ({ row: { original } }) =>
-      original.loop_iteration === null || original.loop_iteration === undefined
-        ? undefined
-        : `${original.loop_iteration.loop_id}: ${original.loop_iteration.iteration}`,
-    enableSorting: false,
-    header: translate("taskInstance.iteration"),
-  },
+  ...(hasLoopIteration
+    ? [
+        {
+          accessorKey: "loop_iteration",
+          cell: ({ row: { original } }: TaskInstanceRow) => original.loop_iteration?.iteration,
+          enableSorting: false,
+          header: translate("taskInstance.iteration"),
+        },
+      ]
+    : []),
   {
     accessorKey: "state",
     cell: ({
@@ -445,6 +448,9 @@ export const TaskInstances = ({ extraFilter, loopGroupId }: TaskInstancesProps =
 
   const columns = taskInstanceColumns({
     dagId,
+    hasLoopIteration: (data?.task_instances ?? []).some(
+      (ti) => ti.loop_iteration !== null && ti.loop_iteration !== undefined,
+    ),
     multiTeam: multiTeamEnabled,
     runId,
     taskId: Boolean(groupId) ? undefined : taskId,

@@ -82,6 +82,7 @@ vi.mock("src/components/DataTable", () => ({
     readonly columns: ReadonlyArray<{
       accessorKey?: string;
       cell?: (props: { row: { original: TaskInstanceResponse } }) => ReactNode;
+      header?: unknown;
     }>;
     readonly data: ReadonlyArray<TaskInstanceResponse>;
   }) => {
@@ -92,6 +93,11 @@ vi.mock("src/components/DataTable", () => ({
 
     return (
       <table>
+        <thead>
+          <tr>
+            {iterationColumn === undefined ? undefined : <th>{iterationColumn.header as ReactNode}</th>}
+          </tr>
+        </thead>
         <tbody>
           {data.map((taskInstance) => (
             <tr key={`${taskInstance.task_id}-${taskInstance.map_index}`}>
@@ -194,7 +200,7 @@ describe("TaskInstances", () => {
     );
   });
 
-  it("shows the loop iteration separately from mapped slots", () => {
+  it("shows the loop iteration number separately from mapped slots", () => {
     vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
       getTaskInstancesResponse([
         {
@@ -205,7 +211,23 @@ describe("TaskInstances", () => {
     );
     render(<TaskInstances />, { wrapper: Wrapper });
     expect(screen.getByRole("link", { name: "1" })).toBeInTheDocument();
-    expect(screen.getByText("loop: 2")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.queryByText("loop: 2")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { loopIteration: { iteration: 0, loop_id: "loop" }, shown: true },
+    { loopIteration: null, shown: false },
+    { loopIteration: undefined, shown: false },
+  ])("shows the iteration column only when a task instance has one: $shown", ({ loopIteration, shown }) => {
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
+      getTaskInstancesResponse([
+        { ...mappedTaskInstance, loop_iteration: undefined },
+        { ...mappedTaskInstance, loop_iteration: loopIteration, map_index: 2 },
+      ]),
+    );
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(screen.queryByText("taskInstance.iteration") !== null).toBe(shown);
   });
 
   it("shows the stored rendered map index label of an unmapped task instance", () => {

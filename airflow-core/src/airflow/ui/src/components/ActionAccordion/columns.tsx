@@ -63,6 +63,7 @@ const renderSelectAllHeader = (
 export const getColumns = (
   translate: TFunction,
   selection?: RowSelection,
+  hasLoopIteration = false,
 ): Array<MetaColumn<TaskInstanceResponse>> => [
   ...(selection
     ? [
@@ -107,6 +108,17 @@ export const getColumns = (
     accessorKey: "map_index",
     header: translate("mapIndex"),
   },
+  ...(hasLoopIteration
+    ? [
+        {
+          accessorKey: "loop_iteration",
+          cell: ({ row: { original } }: { row: { original: TaskInstanceResponse } }) =>
+            original.loop_iteration?.iteration,
+          enableSorting: false,
+          header: translate("taskInstance.iteration"),
+        } satisfies MetaColumn<TaskInstanceResponse>,
+      ]
+    : []),
   {
     accessorKey: "dag_run_id",
     header: translate("runId"),
