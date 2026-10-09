@@ -74,3 +74,43 @@ reloads the configuration. If ``[dag_processor] disable_bundle_versioning`` (or 
     to check out that commit unless the bundle's local storage is cleared first (for example, a
     fresh pod, or manually deleting the bundle's directory) — see
     `GH-71388 <https://github.com/apache/airflow/issues/71388>`_ for the underlying limitation.
+
+Skipping the fetch on start-up
+==============================
+
+``initialize()`` fetches from the remote every time the bundle is set up in a process. Where the
+bundle storage is a volume shared with a component that already keeps it fresh — ephemeral worker
+pods mounting the same volume the Dag processor refreshes — that fetch is pure start-up latency.
+``refresh_on_initialize: false`` makes such a component reuse whatever is already on disk:
+
+.. code-block:: bash
+
+    export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+     {
+         "name": "my-git-repo",
+         "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+         "kwargs": {
+             "repo_url": "https://github.com/org/repo.git",
+             "tracking_ref": "main",
+             "subdir": "dags",
+             "refresh_on_initialize": false
+         }
+     }
+    ]'
+
+The repository is still cloned when it is not present on disk, and an explicit ``refresh()`` still
+fetches, so a Dag processor configured this way keeps picking up new commits on its
+``refresh_interval``.
+
+.. warning::
+
+    Set this only on components that do **not** own the freshness of the bundle, and only where
+    they read storage some other component refreshes. A deployment whose workers each get their own
+    empty volume — the default for ``KubernetesExecutor`` without a shared ``ReadWriteMany``
+    volume — gains nothing, since there is never an existing repo to reuse. A deployment where
+    nothing else refreshes the storage will serve stale code indefinitely.
+
+    It is also only worth setting where workers resolve code from ``tracking_ref`` rather than from
+    a recorded bundle version, i.e. when ``[dag_processor] disable_bundle_versioning`` (or the
+    Dag-level ``disable_bundle_versioning``) is set. Version-pinned bundles already reuse the
+    on-disk repo without fetching.
