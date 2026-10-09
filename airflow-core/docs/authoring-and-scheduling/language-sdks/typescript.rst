@@ -243,6 +243,16 @@ the reference it was called on, so ``loaded.before(cleaned).before(notified)`` d
 Pass a value as an input when the downstream task needs it, and use ``before`` or ``after`` when it only needs
 to run in order.
 
+Wrap a reference in ``label`` to name the edge drawn to it, as Python's ``Label`` does:
+
+.. code-block:: typescript
+
+    import { label } from "apache-airflow-ts-sdk";
+
+    checked.before(label(processed, "rows found"), label(notified, "no rows"));
+
+Redrawing an existing edge, including one an input drew, labels it.
+
 Task groups
 ~~~~~~~~~~~
 
