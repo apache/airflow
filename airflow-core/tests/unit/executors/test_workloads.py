@@ -304,7 +304,7 @@ def test_callback_dto_key_returns_callback_key_instance():
 
 @pytest.mark.parametrize(
     "coordinates",
-    [{}, {"region_id": UUID(int=0), "region_index": -1}, {"region_id": uuid4(), "region_index": 7}],
+    [{}, {"region_id": uuid4(), "region_index": 7}],
 )
 def test_workload_ti_round_trips_through_sdk_generated_model(coordinates):
     """
@@ -331,6 +331,7 @@ def test_workload_ti_round_trips_through_sdk_generated_model(coordinates):
     dumped = ti.model_dump(mode="json")
     assert "external_executor_id" not in dumped
     assert "executor_config" not in dumped
+    assert ("region_id" in dumped) == ("region_index" in dumped) == bool(coordinates)
     # Executor-side scheduling fields stay on the workload wire (older workers
     # deserialize the workload with a model that requires them) but are not
     # part of the worker-facing schema.

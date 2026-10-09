@@ -4621,8 +4621,8 @@ class TestGetPreviousTI:
             params={"logical_date": "2025-01-02T00:00:00Z"},
         )
 
-        assert response.json()["region_id"] is None
-        assert response.json()["region_index"] is None
+        assert "region_id" not in response.json()
+        assert "region_index" not in response.json()
 
     def test_get_previous_ti_with_state_filter(self, client, session, create_task_instance):
         """Test get_previous_ti with state filter."""

@@ -37,7 +37,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 
 
 class AddTaskInstanceRegionCoordinates(VersionChange):
-    """Carry task execution coordinates independently of public mapped position."""
+    """Carry task execution coordinates independently of public mapped position, omitting them outside a region."""
 
     description = __doc__
     instructions_to_migrate_to_previous_version = (

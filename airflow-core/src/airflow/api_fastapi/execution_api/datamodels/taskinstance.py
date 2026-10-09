@@ -32,6 +32,7 @@ from pydantic import (
     model_validator,
 )
 
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
@@ -287,7 +288,7 @@ class TIHeartbeatInfo(StrictBaseModel):
 
 # This model is not used in the API, but it is included in generated OpenAPI schema
 # for use in the client SDKs.
-class TaskInstance(BaseModel):
+class TaskInstance(OmitsMissingRegion, BaseModel):
     """Schema for TaskInstance model with minimal required fields needed for Runtime."""
 
     id: uuid.UUID
@@ -298,8 +299,8 @@ class TaskInstance(BaseModel):
     try_number: int
     dag_version_id: uuid.UUID
     map_index: int = -1
-    region_id: uuid.UUID | None = None
-    region_index: int | None = None
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     hostname: str | None = None
     context_carrier: dict | None = None
     # The supervisor routes tasks to a coordinator by queue. The default keeps
@@ -496,7 +497,7 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: UtcDateTime | None = None
 
 
-class PreviousTIResponse(BaseModel):
+class PreviousTIResponse(OmitsMissingRegion, BaseModel):
     """Schema for response with previous TaskInstance information."""
 
     task_id: str
@@ -508,8 +509,8 @@ class PreviousTIResponse(BaseModel):
     state: str | None = None
     try_number: int
     map_index: int | None = -1
-    region_id: uuid.UUID | None = None
-    region_index: int | None = None
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     duration: float | None = None
 
 
