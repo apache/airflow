@@ -2040,6 +2040,76 @@ class TestDag:
         assert len(mapped_tis) == expected_mapped_tasks_num
         assert all(ti.state == TaskInstanceState.SUCCESS for ti in mapped_tis)
         mapped_callable.assert_not_called()
+
+    def test_dag_test_mark_success_pattern_literal_mapped_task(self, testing_dag_bundle):
+        mapped_callable = mock.MagicMock()
+
+        with DAG(dag_id="test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            PythonOperator.partial(
+                task_id="process_item",
+                python_callable=mapped_callable,
+            ).expand(op_args=[[1], [2], [3]])
+
+        sync_dag_to_db(dag)
+
+        dr = dag.test(mark_success_pattern="process_item")
+
+        assert dr.state == DagRunState.SUCCESS
+        mapped_tis = sorted(
+            (ti for ti in dr.get_task_instances() if ti.task_id == "process_item"),
+            key=lambda ti: ti.map_index,
+        )
+        assert [(ti.map_index, ti.state) for ti in mapped_tis] == [
+            (0, TaskInstanceState.SUCCESS),
+            (1, TaskInstanceState.SUCCESS),
+            (2, TaskInstanceState.SUCCESS),
+        ]
+        mapped_callable.assert_not_called()
+
+    def test_dag_test_mark_success_pattern_mapped_task_with_empty_upstream(self, testing_dag_bundle):
+        mapped_callable = mock.MagicMock()
+
+        @task_decorator
+        def make_items():
+            return []
+
+        with DAG(dag_id="test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            PythonOperator.partial(
+                task_id="process_item",
+                python_callable=mapped_callable,
+            ).expand(op_args=make_items())
+
+        sync_dag_to_db(dag)
+
+        dr = dag.test(mark_success_pattern="process_item")
+
+        assert dr.state == DagRunState.SUCCESS
+        mapped_tis = [ti for ti in dr.get_task_instances() if ti.task_id == "process_item"]
+        assert [(ti.map_index, ti.state) for ti in mapped_tis] == [(-1, TaskInstanceState.SKIPPED)]
+        mapped_callable.assert_not_called()
+
+    def test_dag_test_mark_success_pattern_upstream_only_fails_mapped_task(self, testing_dag_bundle):
+        mapped_callable = mock.MagicMock()
+
+        @task_decorator
+        def make_items():
+            return [1, 2, 3]
+
+        with DAG(dag_id="test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            PythonOperator.partial(
+                task_id="process_item",
+                python_callable=mapped_callable,
+            ).expand(op_args=make_items())
+
+        sync_dag_to_db(dag)
+
+        dr = dag.test(mark_success_pattern="make_items")
+
+        assert dr.state == DagRunState.FAILED
+        mapped_tis = [ti for ti in dr.get_task_instances() if ti.task_id == "process_item"]
+        assert [(ti.map_index, ti.state) for ti in mapped_tis] == [(-1, TaskInstanceState.UPSTREAM_FAILED)]
+        mapped_callable.assert_not_called()
+
     @staticmethod
     def _make_awaiting_input_dag(dag_id, resume_calls):
         """Build a Dag whose single task parks in AWAITING_INPUT (Human-in-the-loop)."""
