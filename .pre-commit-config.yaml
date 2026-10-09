@@ -781,7 +781,6 @@ repos:
           (?x)
           ^shared/listeners/src/airflow_shared/listeners/spec/taskinstance\.py$|
           ^shared/logging/src/airflow_shared/logging/remote\.py$|
-          ^shared/observability/src/airflow_shared/observability/metrics/stats\.py$|
           ^shared/secrets_backend/src/airflow_shared/secrets_backend/base\.py$
       - id: check-test-only-imports-in-src
         name: Check for test-only imports in production source
