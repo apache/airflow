@@ -30,8 +30,38 @@ from airflow.sdk.importers.yaml_importer import migrator
 from airflow.sdk.importers.yaml_importer.models import DagDocument
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Hashable, Iterator
     from typing import IO
+
+    from yaml.nodes import MappingNode
+
+
+class _UniqueKeySafeLoader(yaml.SafeLoader):
+    """
+    A ``SafeLoader`` that rejects duplicate mapping keys.
+
+    PyYAML keeps the last value for a repeated key, so a second ``tasks:`` block
+    or a second ``with:`` or ``needs:`` on a task would silently drop the first.
+    This can be a footgun for a hand-edited format, so we raise a
+    ``ConstructorError`` instead of silently shadowing.
+    """
+
+    def construct_mapping(self, node: MappingNode, deep: bool = False) -> dict[Hashable, Any]:
+        seen: set[Hashable] = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if not isinstance(key, collections.abc.Hashable):
+                continue
+            if key not in seen:
+                seen.add(key)
+                continue
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                f"found duplicate key {key!r}",
+                key_node.start_mark,
+            )
+        return super().construct_mapping(node, deep=deep)
 
 
 class YamlDagParseError(ValueError):
@@ -59,7 +89,7 @@ def _resolve_and_migrate(raw: dict[str, Any], *, source: str) -> dict[str, Any]:
 def parse_documents(stream: str | IO[str], *, source: str = "<string>") -> Iterator[DagDocument]:
     """Parse each document of *stream* into a :class:`DagDocument`."""
     try:
-        for pos, raw in enumerate(yaml.safe_load_all(stream)):
+        for pos, raw in enumerate(yaml.load_all(stream, _UniqueKeySafeLoader)):
             if raw is None:  # empty document between --- separators
                 continue
             where = source if pos == 0 else f"{source}[doc {pos}]"

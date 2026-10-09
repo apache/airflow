@@ -231,6 +231,21 @@ def test_schema_must_be_a_string_or_date(schema_value):
         list(parse_documents(f"$schema: {schema_value}\ndag_id: d\ntasks: []"))
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param("tasks: []\ntasks: []", id="dup-tasks-top-level"),
+        pytest.param("tasks:\n  - {id: a, uses: X, with: {x: 1}, with: {y: 2}}", id="dup-with-on-task"),
+        pytest.param("tasks:\n  - {id: a, run: {}, needs: [b], needs: [c]}", id="dup-needs-on-task"),
+    ],
+)
+def test_duplicate_keys_rejected(body):
+    # PyYAML keeps the last value for a repeated key; a hand-edited format should reject it instead
+    # of silently dropping the first. The loader raises a ConstructorError (a YAMLError).
+    with pytest.raises(YamlDagParseError, match="duplicate key"):
+        _one(body)
+
+
 def test_unknown_schema_version_is_rejected():
     # Strict exact match (mirroring the supervisor migrator): any version that is not published --
     # newer, ancient, or unreadable -- is rejected rather than guessed.
