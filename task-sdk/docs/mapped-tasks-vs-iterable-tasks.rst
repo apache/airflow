@@ -238,8 +238,9 @@ concurrent approach is dramatically faster — see the
     does ``task_state_store.set("foo", v)``, so iterations never overwrite each other's values.
     Reading them back follows the same rule: ``ti.xcom_pull(key="foo")`` in iteration 2, or with
     its own ``task_ids``, reads ``foo_2``, as ``task_state_store.get("foo")`` does; a pull from
-    another task keeps its key. To read another iteration's value, use ``XCom.get_one`` with the
-    suffixed key, or read every value downstream through the task's lazy sequence.
+    another task keeps its key. To read another iteration's value, use ``XCom.get_one``
+    (``XCom.aget_one`` in an async operator) with the suffixed key, or read every value downstream
+    through the task's lazy sequence.
     This holds in the iteration's own thread or coroutine. A ``threading.Thread`` the task starts,
     or ``loop.run_in_executor()``, does not inherit it: ``get_current_context()`` there returns
     the task's own context, whose ``ti`` and ``task_state_store`` add no index, so the iterations'
