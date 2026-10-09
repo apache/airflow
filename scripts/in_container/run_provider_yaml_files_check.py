@@ -84,9 +84,6 @@ KNOWN_DEPRECATED_CLASSES = [
 # check_all_provider_classes_are_registered's registration requirement. Contrast with
 # e.g. LoggingToolset, which is documented in the toolsets how-to guide and is registered.
 INTERNAL_UNREGISTERED_TOOLSET_CLASSES = {
-    # Wraps a toolset with per-step result caching for durable execution; applied
-    # automatically by AgentOperator, not part of the public toolsets how-to guide.
-    "airflow.providers.common.ai.durable.caching_toolset.CachingToolset",
     # Masks what a Dag author's toolset returns; applied automatically by AgentOperator.
     "airflow.providers.common.ai.utils.toolset_base.MaskingToolset",
 }

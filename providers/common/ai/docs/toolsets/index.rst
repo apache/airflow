@@ -291,10 +291,9 @@ there is no agent budget, so each tool gets one correction unless its toolset se
 Layering
 --------
 
-:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` and the
-durable-execution ``CachingToolset`` are not alternatives to anything above. Both
-are wrappers: they take a toolset and return a toolset, adding per-call logging
-or replay from a durable cache. Choose a route first, then decide whether to wrap
+:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is not an
+alternative to anything above. It is a wrapper: it takes a toolset and returns a
+toolset that logs each call. Choose a route first, then decide whether to wrap
 it. The same applies to
 :func:`~airflow.providers.common.ai.toolsets.langchain_bridge.airflow_toolset_to_langchain_tools`,
 which converts a chosen toolset for a different agent framework rather than
@@ -322,8 +321,9 @@ context.
 This approach gives you full control over the agent lifecycle -- you can call
 ``agent.run_sync()`` multiple times, swap models at runtime, or combine
 results from several agents in a single task. The tradeoff is that you lose
-the durable execution (step-level caching with retry replay), HITL review
-integration, and automatic tool call logging that ``AgentOperator`` provides.
+the HITL review integration and automatic tool call logging that
+``AgentOperator`` provides. Durable replay is still available: attach
+``AirflowDurability`` to the agent (see :doc:`../durable_execution`).
 
 Running the agent outside the data system
 -----------------------------------------

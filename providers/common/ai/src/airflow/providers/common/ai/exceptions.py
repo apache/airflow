@@ -53,6 +53,16 @@ class UnsupportedToolDeferralError(AirflowFailException):
     """
 
 
+class DurableJournalError(AirflowFailException):
+    """
+    Raised when durable execution cannot record or replay a step.
+
+    A step's result is not JSON-serializable, or the journal holds a result this version
+    cannot replay. The same step fails the same way on every attempt, so the task fails
+    without retrying.
+    """
+
+
 class LLMFileAnalysisError(ValueError):
     """Base class for file-analysis validation errors."""
 

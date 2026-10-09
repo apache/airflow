@@ -238,8 +238,10 @@ file, and ``system_prompt`` is added to the file's ``instructions``:
 Build the path from ``__file__``: a relative path resolves against the worker's
 working directory, not the Dag file.
 
-With ``durable=True``, tools from capabilities declared in the spec file are not
-replayed on retry; they run again. Pass tools you need replayed in ``toolsets=``.
+With ``durable=True``, the toolsets that spec-file capabilities contribute are replayed
+like any other, and need an id the same way (see :doc:`../durable_execution`). The
+operator cannot see inside a spec file when the Dag is parsed, so a missing id there
+fails the task when the agent is built rather than the Dag when it loads.
 
 Agent features
 --------------
@@ -421,20 +423,22 @@ Parameters
   regeneration shares the count of the run before it whenever ``usage_limits``
   is set, on every Airflow version; with ``usage_limits=None`` each
   regeneration starts a fresh count.
-- ``durable``: When ``True``, enables step-level caching of model responses and
-  tool results. On retry, cached steps are replayed instead of re-executing
-  expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no
-  configuration needed); on older Airflow versions it requires the ``[common.ai]
-  durable_cache_path`` config option to be set. Default ``False``. A replayed
+- ``durable``: When ``True``, records each step the agent completes (model
+  requests, tool calls, other capabilities' ``@durable_operation`` methods) in a
+  journal kept for the task instance, and replays the recorded steps on retry
+  instead of running them again. Every ``FunctionToolset``, ``MCPToolset`` and
+  ``DynamicToolset`` needs an ``id``. On Airflow >= 3.3 the journal uses the task
+  state store (no configuration needed); on older Airflow versions it requires the
+  ``[common.ai] durable_cache_path`` config option to be set. Default ``False``. A replayed
   step adds nothing to the usage counted against ``usage_limits`` or reported
   in the ``usage`` XCom -- not its request, tokens, cost, or tool calls -- so
   each attempt counts only the model and tool calls it actually makes, on
   every Airflow version. A step that re-runs live because the conversation
   changed since the previous attempt is counted like any other live call, and
   a retry whose cross-attempt total already sits at a limit can still start
-  when the steps it needs are cached. Clearing a failed task instance starts
-  a fresh budget but keeps the durable cache its attempts left behind, so what
-  the rerun replays from that cache is free there too.
+  when the steps it needs are recorded. Clearing a failed task instance starts
+  a fresh budget but keeps the journal its attempts left behind, so what the
+  rerun replays from it is free there too. See :doc:`../durable_execution`.
 - ``cache_prompt``: Ask the provider to cache the tool definitions, system prompt and
   conversation so later requests read them back at a discount. Default ``True``; a no-op for
   providers that cache on their own. See :ref:`agent-prompt-caching`.
