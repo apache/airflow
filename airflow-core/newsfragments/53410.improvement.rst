@@ -1,0 +1,1 @@
+Connection extra fields and Dag params whose key name is sensitive now render as masked inputs with a show/hide toggle in the UI, instead of only the extra fields a provider declares with ``format: "password"``. Set ``[core] hide_sensitive_var_conn_fields = False`` to disable.
