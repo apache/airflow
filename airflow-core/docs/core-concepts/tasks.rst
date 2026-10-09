@@ -417,7 +417,7 @@ If you'd like to reproduce task instance heartbeat timeouts for development/test
 
 .. code-block:: bash
 
-    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_SEC=600
+    export AIRFLOW__WORKERS__MIN_HEARTBEAT_INTERVAL=600
     export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT=2
     export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT_DETECTION_INTERVAL=5
 
