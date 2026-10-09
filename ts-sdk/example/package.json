@@ -7,7 +7,8 @@
   "scripts": {
     "build": "airflow-ts-pack src/main.ts --outdir dist",
     "typecheck": "tsc --noEmit",
-    "build:hitl": "airflow-ts-pack src/hitl.ts --outfile dist/hitl.min.mjs"
+    "build:hitl": "airflow-ts-pack src/hitl.ts --outfile dist/hitl.min.mjs",
+    "build:ai-approval": "airflow-ts-pack src/ai-approval.ts --outfile dist/ai-approval.min.mjs"
   },
   "dependencies": {
     "apache-airflow-ts-sdk": "file:.."

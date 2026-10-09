@@ -37,7 +37,7 @@ import {
 } from "../../src/coordinator/runtime.js";
 import { Dag } from "../../src/sdk/dag.js";
 import { triggerDagRun } from "../../src/sdk/trigger-dag-run.js";
-import { approval, hitl } from "../../src/hitl/index.js";
+import { approval, hitl, type HITLResult } from "../../src/hitl/index.js";
 import { Bundle } from "../../src/sdk/bundle.js";
 import { withArgNames } from "../../src/sdk/arg-names.js";
 import { TaskHandler } from "../../src/sdk/task-handler.js";
@@ -1797,6 +1797,267 @@ describe("coordinator runtime integration", () => {
       expect(result.logRecords.some((r) => String(r["event"]).includes("Trigger failed"))).toBe(
         false,
       );
+    });
+
+    // The agent-approval Dag of `example/src/ai-approval.ts`, run one task per process.
+    describe("agent approval", () => {
+      const DRAFTED_AMOUNT = 120;
+      const EDITED_AMOUNT = 80;
+
+      interface ToolCall {
+        type: "tool-call";
+        toolCallId: string;
+        toolName: string;
+        input: { orderId: string; amount: number };
+      }
+      interface ApprovalRequest {
+        type: "tool-approval-request";
+        approvalId: string;
+        toolCall: ToolCall;
+      }
+      interface ApprovalResponse {
+        type: "tool-approval-response";
+        approvalId: string;
+        approved: boolean;
+        reason?: string;
+      }
+      type ModelMessage =
+        | { role: "user"; content: string }
+        | { role: "assistant"; content: ApprovalRequest[] }
+        | { role: "tool"; content: ApprovalResponse[] };
+      interface AgentStep {
+        messages: ModelMessage[];
+        pending: { id: string; toolName: string; input: ToolCall["input"] }[];
+      }
+
+      let modelCalls: number;
+
+      async function generateText(opts: { messages: ModelMessage[] }) {
+        modelCalls += 1;
+        const response = opts.messages
+          .flatMap((message) => (message.role === "tool" ? message.content : []))
+          .at(-1);
+        if (response === undefined) {
+          const request: ApprovalRequest = {
+            type: "tool-approval-request",
+            approvalId: "approval-1",
+            toolCall: {
+              type: "tool-call",
+              toolCallId: "call-1",
+              toolName: "issue_refund",
+              input: { orderId: "ord_1042", amount: DRAFTED_AMOUNT },
+            },
+          };
+          const messages: ModelMessage[] = [{ role: "assistant", content: [request] }];
+          return { text: "", content: [request], response: { messages } };
+        }
+        const { toolCall } = opts.messages
+          .flatMap((message) => (message.role === "assistant" ? message.content : []))
+          .find((request) => request.approvalId === response.approvalId)!;
+        const text = `Refunded $${toolCall.input.amount} on order ${toolCall.input.orderId}.`;
+        return { text, content: [], response: { messages: [] } };
+      }
+
+      beforeEach(() => {
+        modelCalls = 0;
+        const agentStep = testDag.task("agent_step", async (): Promise<AgentStep> => {
+          const messages: ModelMessage[] = [{ role: "user", content: "Refund order ord_1042." }];
+          const result = await generateText({ messages });
+          return {
+            messages: [...messages, ...result.response.messages],
+            pending: result.content.map((request) => ({
+              id: request.approvalId,
+              toolName: request.toolCall.toolName,
+              input: request.toolCall.input,
+            })),
+          };
+        })();
+        const review = testDag.task(
+          "review",
+          hitl({
+            subject: ({ draft }: { draft: AgentStep }) => `Approve ${draft.pending[0]!.toolName}?`,
+            body: ({ draft }: { draft: AgentStep }) =>
+              [
+                `The agent wants to call \`${draft.pending[0]!.toolName}\` with:`,
+                "",
+                "```json",
+                JSON.stringify(draft.pending[0]!.input, null, 2),
+                "```",
+              ].join("\n"),
+            options: ["Approve", "Reject"],
+            params: {
+              amount: {
+                value: DRAFTED_AMOUNT,
+                description: "Amount to refund",
+                schema: { type: "number" },
+              },
+            },
+          }),
+        )({ draft: agentStep });
+        testDag.task(
+          "agent_continue",
+          async ({ draft, decision }: { draft: AgentStep; decision: HITLResult }) => {
+            const edited = decision.params_input["amount"];
+            const amount = typeof edited === "number" ? edited : draft.pending[0]!.input.amount;
+            const approvalId = draft.pending[0]!.id;
+            const messages: ModelMessage[] = [
+              ...draft.messages.map((message): ModelMessage => {
+                if (message.role !== "assistant") return message;
+                return {
+                  role: "assistant",
+                  content: message.content.map((request) =>
+                    request.approvalId === approvalId
+                      ? {
+                          ...request,
+                          toolCall: {
+                            ...request.toolCall,
+                            input: { ...request.toolCall.input, amount },
+                          },
+                        }
+                      : request,
+                  ),
+                };
+              }),
+              {
+                role: "tool",
+                content: [
+                  {
+                    type: "tool-approval-response",
+                    approvalId,
+                    approved: decision.chosen_options[0] === "Approve",
+                    reason: `Approved at $${amount}`,
+                  },
+                ],
+              },
+            ];
+            const result = await generateText({ messages });
+            return { text: result.text, modelCalls: 1, approvedAmount: amount };
+          },
+        )({ draft: agentStep, decision: review });
+      });
+
+      /** Answers each upstream pull with the output that task pushed. */
+      function upstream(outputs: Record<string, unknown>): Responder {
+        return (msgType, body) => {
+          if (msgType === "CreateHITLDetailPayload") return CREATED;
+          if (msgType !== "GetXCom") return null;
+          return {
+            body: {
+              type: "XComResult",
+              key: body["key"],
+              value: outputs[body["task_id"] as string],
+            },
+          };
+        };
+      }
+
+      it("parks the review, resumes it with the reviewer's edit and never re-runs the model", async () => {
+        // 1. The model drafts the refund; the tool call waits for approval.
+        const drafted = await driveSupervisor(makeStartupDetails("agent_step"));
+
+        expect(drafted.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+        const [draftPush] = requestsOf(drafted, "SetXCom");
+        const draft = draftPush!["value"] as AgentStep;
+        expect(draftPush).toMatchObject({ key: "return_value", task_id: "agent_step" });
+        expect(draft.pending).toEqual([
+          {
+            id: "approval-1",
+            toolName: "issue_refund",
+            input: { orderId: "ord_1042", amount: DRAFTED_AMOUNT },
+          },
+        ]);
+        expect(draft.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+        expect(modelCalls).toBe(1);
+
+        // 2. The review writes one request and parks.
+        const parked = await driveSupervisor(
+          makeStartupDetails("review", "test_dag", "r1", {
+            arg_bindings: [{ name: "draft", kind: "xcom", task_id: "agent_step" }],
+          }),
+          upstream({ agent_step: draft }),
+        );
+
+        const created = requestsOf(parked, "CreateHITLDetailPayload");
+        expect(created).toHaveLength(1);
+        expect(created[0]).toMatchObject({
+          subject: "Approve issue_refund?",
+          options: ["Approve", "Reject"],
+          params: {
+            amount: {
+              value: DRAFTED_AMOUNT,
+              description: "Amount to refund",
+              schema: { type: "number" },
+              source: "task",
+            },
+          },
+        });
+        expect(created[0]!["body"]).toContain("issue_refund");
+        expect(created[0]!["body"]).toContain(
+          [
+            "```json",
+            JSON.stringify({ orderId: "ord_1042", amount: DRAFTED_AMOUNT }, null, 2),
+          ].join("\n"),
+        );
+        expect(parked.firstResponse!.body).toMatchObject({
+          type: "AwaitInputTask",
+          state: "awaiting_input",
+          next_method: "execute_complete",
+        });
+        expect(requestsOf(parked, "SetXCom")).toEqual([]);
+        const { next_kwargs } = parked.firstResponse!.body as {
+          next_kwargs: Record<string, unknown>;
+        };
+
+        // 3. The reviewer approves with a different amount, and the review resumes.
+        // `arg_bindings` is set, as the scheduler sets it, so a resume that pulled its inputs
+        // again would show up as a `GetXCom`.
+        const resumed = await driveSupervisor(
+          makeStartupDetails("review", "test_dag", "r1", {
+            arg_bindings: [{ name: "draft", kind: "xcom", task_id: "agent_step" }],
+            next_method: "execute_complete",
+            next_kwargs: {
+              ...next_kwargs,
+              event: answer(["Approve"], undefined, { amount: EDITED_AMOUNT }),
+            },
+          }),
+          upstream({ agent_step: draft }),
+        );
+
+        expect(resumed.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+        expect(requestTypes(resumed)).toEqual(["SetXCom"]);
+        expect(requestTypes(resumed)).not.toContain("GetXCom");
+        expect(requestsOf(resumed, "CreateHITLDetailPayload")).toEqual([]);
+        const [decisionPush] = requestsOf(resumed, "SetXCom");
+        const decision = decisionPush!["value"] as HITLResult;
+        expect(decision).toMatchObject({
+          chosen_options: ["Approve"],
+          params_input: { amount: EDITED_AMOUNT },
+        });
+        expect(modelCalls).toBe(1);
+
+        // 4. The second model call sees the reviewer's amount, not the drafted one.
+        const continued = await driveSupervisor(
+          makeStartupDetails("agent_continue", "test_dag", "r1", {
+            arg_bindings: [
+              { name: "draft", kind: "xcom", task_id: "agent_step" },
+              { name: "decision", kind: "xcom", task_id: "review" },
+            ],
+          }),
+          upstream({ agent_step: draft, review: decision }),
+        );
+
+        expect(continued.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+        expect(requestsOf(continued, "SetXCom")[0]).toMatchObject({
+          key: "return_value",
+          task_id: "agent_continue",
+          value: {
+            text: `Refunded $${EDITED_AMOUNT} on order ord_1042.`,
+            modelCalls: 1,
+            approvedAmount: EDITED_AMOUNT,
+          },
+        });
+        expect(modelCalls).toBe(2);
+      });
     });
   });
 });
