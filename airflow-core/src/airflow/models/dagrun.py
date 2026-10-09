@@ -1479,8 +1479,6 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def task_instance_scheduling_decisions(self, *, session: Session = NEW_SESSION) -> TISchedulingDecision:
         tis = self.get_task_instances(session=session, state=State.task_states)
-        reconciled = self._reconcile_legacy_expansions(session=session)
-        tis = list({ti.id: ti for ti in (*tis, *reconciled)}.values())
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
 
         def _filter_tis_and_exclude_removed(dag: SerializedDAG, tis: list[TI]) -> Iterable[TI]:
@@ -1914,13 +1912,13 @@ class DagRun(Base, LoggingMixin):
             tags={**self.stats_tags, "dag_id": self.dag_id},
         )
 
-    def _reconcile_legacy_expansions(
-        self, *, session: Session, dag_version_id: UUID | None = None
-    ) -> list[TI]:
-        from airflow.models.task_coordinates import TaskCoordinateResolver
+    def reconcile_legacy_expansions(self, *, session: Session, dag_version_id: UUID | None = None) -> None:
+        """
+        Create the placeholder of a pre-region mapped expansion that a whole-task clear replaced.
 
-        if not self.get_dag().has_dynamic_nodes:
-            return []
+        Called where the replacement arises, once every pre-region row of the task has been archived.
+        """
+        from airflow.models.task_coordinates import TaskCoordinateResolver
 
         pending = (
             select(DynamicRegion)
@@ -1961,19 +1959,16 @@ class DagRun(Base, LoggingMixin):
         )
         regions = session.scalars(pending).all()
         if not regions:
-            return []
-        session.execute(
-            select(DagRun)
-            .where(DagRun.id == self.id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        ).scalar_one()
+            return
+        session.execute(select(DagRun.id).where(DagRun.id == self.id).with_for_update()).scalar_one()
         version_id = dag_version_id or self.created_dag_version_id
         if version_id is None:
-            return []
+            return
         dag = TaskCoordinateResolver.for_dag(self.dag, session).get_dag(version_id)
         if dag is None:
-            return []
+            return
+        if self.dag is None:
+            self.dag = dag
         live = list(
             session.scalars(
                 select(TI)
@@ -2004,9 +1999,7 @@ class DagRun(Base, LoggingMixin):
                 continue
             ti = TI(task, run_id=self.run_id, dag_version_id=version_id, region_id=region.id)
             _add_and_prime_mapped_ti(ti, task, self, session=session)
-            live.append(ti)
         session.flush()
-        return live
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION, dag_version_id: UUID) -> None:
@@ -2025,7 +2018,8 @@ class DagRun(Base, LoggingMixin):
         hook_is_noop: Literal[True, False] = getattr(task_instance_mutation_hook, "is_noop", False)
 
         dag = self.get_dag()
-        self._reconcile_legacy_expansions(session=session, dag_version_id=dag_version_id)
+        if dag.has_dynamic_nodes:
+            self.reconcile_legacy_expansions(session=session, dag_version_id=dag_version_id)
         task_ids = self._check_for_removed_or_restored_tasks(
             dag, task_instance_mutation_hook, session=session
         )
@@ -2926,39 +2920,37 @@ def clear_partition_runs(
 
     dag_runs_cleared = 0
     ti_buffer_run_ids: list[str] = []
-    ti_carry: list[TI] = []
     tis_cleared_total = 0
     dry_run_matched_ids: list[str] = []
 
-    def _flush_ti_buffer(*, drain: bool = False) -> int:
+    def _flush_ti_buffer() -> int:
+        if not ti_buffer_run_ids:
+            return 0
+        tis_by_run: dict[str, list[TI]] = defaultdict(list)
+        for ti in session.scalars(
+            select(TI).where(TI.dag_id == dag_id, TI.run_id.in_(ti_buffer_run_ids)).order_by(TI.run_id)
+        ):
+            tis_by_run[ti.run_id].append(ti)
+        ti_buffer_run_ids.clear()
         flushed = 0
-        if ti_buffer_run_ids:
-            chunk_tis = list(
-                session.scalars(
-                    select(TI).where(
-                        TI.dag_id == dag_id,
-                        TI.run_id.in_(ti_buffer_run_ids),
-                    )
-                )
-            )
-            ti_buffer_run_ids.clear()
-            ti_carry.extend(chunk_tis)
-        while len(ti_carry) >= _TI_CHUNK_SIZE:
-            slice_tis = ti_carry[:_TI_CHUNK_SIZE]
-            del ti_carry[:_TI_CHUNK_SIZE]
+        batch: list[TI] = []
+
+        def clear_batch() -> None:
+            nonlocal flushed
             clear_task_instances_for_runs(
-                slice_tis,
+                list(batch),
                 session=session,
-                whole_task_keys={(ti.dag_id, ti.run_id, ti.task_id) for ti in slice_tis},
+                whole_task_keys={(ti.dag_id, ti.run_id, ti.task_id) for ti in batch},
             )
-            flushed += len(slice_tis)
-        if drain and ti_carry:
-            clear_task_instances_for_runs(
-                ti_carry,
-                session=session,
-                whole_task_keys={(ti.dag_id, ti.run_id, ti.task_id) for ti in ti_carry},
-            )
-            flushed += len(ti_carry)
+            flushed += len(batch)
+            batch.clear()
+
+        for run_tis in tis_by_run.values():
+            batch.extend(run_tis)
+            if len(batch) >= _TI_CHUNK_SIZE:
+                clear_batch()
+        if batch:
+            clear_batch()
         return flushed
 
     for run in session.scalars(stmt).yield_per(100):
@@ -2981,7 +2973,7 @@ def clear_partition_runs(
                     tis_cleared_total += _flush_ti_buffer()
 
     if clear_tis and not dry_run:
-        tis_cleared_total += _flush_ti_buffer(drain=True)
+        tis_cleared_total += _flush_ti_buffer()
 
     if dry_run and clear_tis:
         if dry_run_matched_ids:

@@ -35,6 +35,7 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.core_api.services.public import task_instances as task_instances_service
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.jobs.job import Job
@@ -3337,6 +3338,76 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             == 2
         )
 
+    @pytest.mark.parametrize(
+        ("selection", "expected_task_ids"),
+        [
+            pytest.param({"task_ids": ["normal_t"]}, {"setup_t", "normal_t", "teardown_t"}, id="by-task"),
+            pytest.param({"task_ids": ["setup_t"]}, {"setup_t", "teardown_t"}, id="setup"),
+        ],
+    )
+    def test_clear_in_dag_with_loop_includes_setups_and_teardowns(
+        self, test_client, dag_maker, session, selection, expected_task_ids
+    ):
+        @task_group
+        def body():
+            MockOperator(task_id="work")
+
+        with dag_maker("clear_loop_setup_teardown", serialized=True):
+            create_loop(body, max_iterations=2)
+            setup_t = MockOperator(task_id="setup_t").as_setup()
+            normal_t = MockOperator(task_id="normal_t")
+            teardown_t = MockOperator(task_id="teardown_t").as_teardown(setups=setup_t)
+            setup_t >> normal_t >> teardown_t
+        dr = dag_maker.create_dagrun()
+
+        response = test_client.post(
+            f"/dags/{dr.dag_id}/clearTaskInstances",
+            json={"dag_run_id": dr.run_id, "dry_run": True, "only_failed": False, **selection},
+        )
+
+        assert response.status_code == 200, response.text
+        assert {ti["task_id"] for ti in response.json()["task_instances"]} == expected_task_ids
+
+    @pytest.mark.parametrize(
+        ("selection", "expected_task_ids"),
+        [
+            pytest.param(
+                {"task_ids": ["b"], "include_downstream": True}, {"b", "c"}, id="downstream-added-task"
+            ),
+            pytest.param({"task_group_id": "late_group"}, {"late_group.d"}, id="group-added-later"),
+        ],
+    )
+    def test_run_clear_uses_latest_dag_structure_for_unversioned_bundle(
+        self, test_client, dag_maker, session, selection, expected_task_ids
+    ):
+        with dag_maker("clear_unversioned_bundle", serialized=True):
+            MockOperator(task_id="a") >> MockOperator(task_id="b")
+        dr = dag_maker.create_dagrun()
+        dag_id, run_id = dr.dag_id, dr.run_id
+        with dag_maker(dag_id=dag_id, serialized=True, session=session):
+            MockOperator(task_id="a") >> MockOperator(task_id="b") >> MockOperator(task_id="c")
+            with TaskGroup("late_group"):
+                MockOperator(task_id="d")
+        version = DagVersion.get_latest_version(dag_id, session=session)
+        session.add_all(
+            TaskInstance(
+                task=dag_maker.serialized_dag.get_task(task_id),
+                run_id=run_id,
+                dag_version_id=version.id,
+                state=State.SUCCESS,
+            )
+            for task_id in ("c", "late_group.d")
+        )
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={"dag_run_id": run_id, "dry_run": True, "only_failed": False, **selection},
+        )
+
+        assert response.status_code == 200, response.text
+        assert {ti["task_id"] for ti in response.json()["task_instances"]} == expected_task_ids
+
     @pytest.mark.parametrize("exact", [False, True])
     def test_task_name_clear_refreshes_execution_after_waiting_for_dagrun_lock(
         self, test_client, dag_maker, session, mocker, exact
@@ -5688,6 +5759,28 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         else:
             assert all(live[ti_id] == State.SUCCESS for ti_id in ids)
 
+    def test_bulk_regional_entities_do_not_lock_their_run_again(self, test_client, loop_instances, mocker):
+        dr, loop, root, tis = loop_instances
+        lock_runs = mocker.spy(task_instances_service, "_lock_patch_runs")
+        entities = [
+            {
+                "task_id": "body.first",
+                "map_index": -1,
+                "region_id": str(root.id),
+                "region_index": index,
+                "new_state": "success",
+            }
+            for index in (0, 2)
+        ]
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances",
+            json={"actions": [{"action": "update", "entities": entities}]},
+        )
+
+        assert response.status_code == 200, response.text
+        lock_runs.assert_not_called()
+
     @pytest.mark.parametrize("dry_run", [False, True])
     def test_group_coordinates_select_one_loop_pass(self, test_client, session, loop_instances, dry_run):
         dr, loop, root, tis = loop_instances
@@ -6532,6 +6625,20 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         _check_task_instance_note(
             session, response_data["task_instances"][0]["id"], {"content": new_note_value, "user_id": "test"}
         )
+
+    def test_set_note_should_respond_200_for_unversioned_task_instance(self, test_client, session):
+        self.create_task_instances(session)
+        session.execute(update(TaskInstance).values(dag_version_id=None))
+        session.execute(update(DagRun).values(created_dag_version_id=None))
+        session.commit()
+
+        response = test_client.patch(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+            json={"note": "unversioned note"},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["task_instances"][0]["note"] == "unversioned note"
 
     def test_set_empty_note_removes_existing_note(self, test_client, session):
         self.create_task_instances(session)
@@ -8354,6 +8461,30 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     def test_should_respond_422(self, test_client):
         response = test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 422
+
+    def test_bulk_update_note_of_unversioned_task_instance(self, test_client, session):
+        self.create_task_instances(session, task_instances=[{"state": State.RUNNING}])
+        session.execute(update(TaskInstance).values(dag_version_id=None))
+        session.execute(update(DagRun).values(created_dag_version_id=None))
+        session.commit()
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"task_id": self.TASK_ID, "note": "unversioned note"}],
+                    }
+                ]
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["update"] == {
+            "success": [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"],
+            "errors": [],
+        }
 
     def test_bulk_update_listener_sees_note_when_note_and_state_both_patched(
         self, test_client, session, listener_manager

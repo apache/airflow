@@ -21,6 +21,7 @@ import datetime
 import random
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
+from unittest import mock
 
 import pytest
 from sqlalchemy import delete, event, func, select, update
@@ -61,6 +62,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.asserts import count_queries
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import run_task_instance
@@ -165,11 +167,107 @@ def test_partition_clear_archives_legacy_expansion_once_across_batches(dag_maker
     assert result == (1, 1200)
     assert session.scalar(select(func.count()).select_from(DynamicRegion)) == 1
     archived = session.scalars(
-        select(TI).where(TI.dag_id == dr.dag_id).execution_options(include_all_attempts=True)
+        select(TI)
+        .where(TI.dag_id == dr.dag_id, TI.working_set.is_(None))
+        .execution_options(include_all_attempts=True)
     ).all()
     assert len(archived) == 1200
     assert {ti.archived_reason for ti in archived} == {"superseded"}
-    assert {ti.working_set for ti in archived} == {None}
+    assert len(session.scalars(select(TI).where(TI.dag_id == dr.dag_id)).all()) == 1
+
+
+@mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", 4)
+def test_partition_clear_keeps_loop_runs_whole_across_batches(loop_run, session):
+    dr, dag, loop, root, tis, iteration = loop_run
+    dr.partition_key = "loop"
+    for ti in tis:
+        ti.state = State.SUCCESS
+    session.flush()
+    original = [(ti.id, ti.task_id, iteration(ti) or 0) for ti in tis]
+
+    result = clear_partition_runs(
+        dag=None,
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        partition_key=None,
+        partition_date_start=None,
+        partition_date_end=None,
+        clear_tis=True,
+        dry_run=False,
+        session=session,
+    )
+    session.flush()
+
+    assert result == (1, len(original))
+    for ti_id, task_id, pass_index in original:
+        archived = session.get(TaskInstance, ti_id)
+        later_pass = task_id != "outside" and pass_index >= 1
+        assert (archived.working_set, archived.archived_reason) == (
+            None,
+            "superseded" if later_pass else "retry",
+        ), (task_id, pass_index)
+
+
+def test_loop_clear_scope_adds_setups_and_teardowns_of_selected_tasks(dag_maker, session):
+    @task_group
+    def body():
+        EmptyOperator(task_id="work")
+
+    with dag_maker("loop_with_setup_teardown", serialized=True):
+        create_loop(body, max_iterations=2)
+        setup_t = EmptyOperator(task_id="setup_t").as_setup()
+        normal_t = EmptyOperator(task_id="normal_t")
+        teardown_t = EmptyOperator(task_id="teardown_t").as_teardown(setups=setup_t)
+        setup_t >> normal_t >> teardown_t
+    dr = dag_maker.create_dagrun()
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+
+    without = select_loop_clear_scope([tis["normal_t"]], downstream=False, session=session)
+    with_pairs = select_loop_clear_scope(
+        [tis["normal_t"]], downstream=False, include_setups_and_teardowns=True, session=session
+    )
+
+    assert without.retry_ids == {tis["normal_t"].id}
+    assert with_pairs.retry_ids == {tis[task_id].id for task_id in ("setup_t", "normal_t", "teardown_t")}
+
+
+@pytest.mark.parametrize("exclude_task_ids", [frozenset(), frozenset({"body.process"})])
+def test_dry_run_clear_lists_later_loop_passes_that_clearing_a_gate_archives(
+    loop_run, dag_maker, session, exclude_task_ids
+):
+    dr, dag, loop, root, tis, iteration = loop_run
+
+    listed = dag_maker.serialized_dag.clear(
+        task_ids=[loop.gate_task_id],
+        run_id=dr.run_id,
+        dry_run=True,
+        exclude_task_ids=exclude_task_ids,
+        session=session,
+    )
+
+    assert {ti.id for ti in listed} == {
+        ti.id
+        for ti in tis
+        if ti.task_id == loop.gate_task_id or (ti.task_id != "outside" and (iteration(ti) or 0) >= 1)
+    }
+    assert len(listed) == len({ti.id for ti in listed})
+
+
+def test_loop_clear_scope_query_count_does_not_grow_with_mapped_width(dag_maker, session):
+    def select_scope(width):
+        with dag_maker(f"scope_queries_{width}", serialized=True):
+            MockOperator.partial(task_id="mapped").expand(arg2=list(range(width))) >> EmptyOperator(
+                task_id="after"
+            )
+        dr = dag_maker.create_dagrun(run_id=f"scope_queries_run_{width}")
+        selected = [ti for ti in dr.get_task_instances(session=session) if ti.task_id == "mapped"]
+        assert len(selected) == width
+        with count_queries() as queries:
+            scope = select_loop_clear_scope(selected, session=session)
+        assert len(scope.retry_ids) == width + 1
+        return sum(queries.values())
+
+    assert select_scope(8) == select_scope(2)
 
 
 class TestClearTasks:

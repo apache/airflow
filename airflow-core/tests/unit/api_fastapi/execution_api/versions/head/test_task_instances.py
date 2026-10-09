@@ -43,6 +43,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
+from sqlalchemy.sql.selectable import Select
 
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.state import TaskScope
@@ -182,10 +183,7 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
     validator.avalidated_claims.assert_awaited()
 
 
-@pytest.mark.parametrize("ack_interleaving", ["before_reconciliation", "during_reconciliation"])
-def test_legacy_expansion_waits_for_all_cleared_workers_before_replacement(
-    client, dag_maker, session, ack_interleaving
-):
+def test_legacy_expansion_waits_for_all_cleared_workers_before_replacement(client, dag_maker, session):
     with dag_maker(serialized=True):
         PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
     dr = dag_maker.create_dagrun()
@@ -235,22 +233,8 @@ def test_legacy_expansion_waits_for_all_cleared_workers_before_replacement(
         "pid": 123,
     }
     for index, ti_id in enumerate(old_ids):
-        if index == 1 and ack_interleaving == "during_reconciliation":
-            reconcile = dr._reconcile_legacy_expansions
-
-            def acknowledge_then_reconcile(*, session, ti_id=ti_id, reconcile=reconcile):
-                response = client.patch(f"/execution/task-instances/{ti_id}/state", json=payload)
-                assert response.status_code == 204, response.text
-                return reconcile(session=session)
-
-            with mock.patch.object(
-                dr, "_reconcile_legacy_expansions", autospec=True, side_effect=acknowledge_then_reconcile
-            ):
-                dr.update_state(session=session)
-                assert dr.state == DagRunState.RUNNING
-        else:
-            response = client.patch(f"/execution/task-instances/{ti_id}/state", json=payload)
-            assert response.status_code == 204, response.text
+        response = client.patch(f"/execution/task-instances/{ti_id}/state", json=payload)
+        assert response.status_code == 204, response.text
         session.expire_all()
         archived = session.get(TaskInstance, ti_id)
         assert (archived.working_set, archived.archived_reason) == (None, "superseded")
@@ -263,6 +247,9 @@ def test_legacy_expansion_waits_for_all_cleared_workers_before_replacement(
             session.commit()
         assert client.patch(f"/execution/task-instances/{ti_id}/state", json=payload).status_code == 204
 
+    session.expire_all()
+    placeholders = session.scalars(select(TaskInstance).where(TaskInstance.region_id == region.id)).all()
+    assert [ti.region_index for ti in placeholders] == [-1]
     dr.dag = dag_maker.serialized_dag
     dr.update_state(session=session)
     assert dr.state == DagRunState.RUNNING

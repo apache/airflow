@@ -584,7 +584,7 @@ def test_public_lookups_use_the_task_instance_unique_key(dag_maker, session):
         assert not any("ANY(" in plan for plan in plans), (name, plans)
 
     with capture_orm_selects("task_instance") as statements:
-        dr._reconcile_legacy_expansions(session=session)
+        dr.reconcile_legacy_expansions(session=session)
     plans = _ti_search_plans(session, statements)
     assert plans, statements
     assert all("(dag_id=?" in plan for plan in plans), (statements, plans)

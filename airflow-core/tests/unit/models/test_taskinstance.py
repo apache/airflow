@@ -275,7 +275,8 @@ def test_legacy_width_one_clear_distinguishes_whole_task(dag_maker, session, leg
         assert len(regions) == 1
         assert regions[0].node_id == "mapped"
         assert regions[0].forked_from_region_id is None
-        assert not session.scalars(live_query).all()
+        placeholder = session.scalars(live_query).one()
+        assert (placeholder.region_id, placeholder.region_index) == (regions[0].id, -1)
         dr.task_instance_scheduling_decisions(session=session)
         dr.task_instance_scheduling_decisions(session=session)
         live = session.scalars(live_query).one()
@@ -307,6 +308,51 @@ def test_legacy_whole_clear_archives_pending_execution_in_place(dag_maker, sessi
     assert (archived.start_date, archived.end_date) == (None, None)
 
 
+def test_legacy_whole_clear_on_latest_version_keeps_run_reset(dag_maker, session, legacy_mapped_ti):
+    dr, _ = legacy_mapped_ti
+    dr.state = DagRunState.SUCCESS
+    session.flush()
+
+    dag_maker.serialized_dag.clear(
+        task_ids=["mapped"], run_id=dr.run_id, run_on_latest_version=True, session=session
+    )
+    session.flush()
+
+    assert dr.state == DagRunState.QUEUED
+    assert dr.clear_number == 1
+
+
+@pytest.mark.parametrize("width", [1, 2])
+def test_legacy_whole_clear_continues_try_numbers_of_archived_rows(dag_maker, session, width):
+    with dag_maker("legacy_try_numbers", serialized=True):
+        MockOperator.partial(task_id="mapped").expand(arg2=list(range(width)))
+    dr = dag_maker.create_dagrun()
+    session.execute(delete(TI).where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id))
+    session.execute(delete(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
+    session.add_all(
+        TI(
+            dag_maker.serialized_dag.get_task("mapped"),
+            run_id=dr.run_id,
+            dag_version_id=dr.created_dag_version_id,
+            region_index=index,
+            state=TaskInstanceState.SUCCESS,
+        )
+        for index in range(width)
+    )
+    session.flush()
+    for legacy in session.scalars(select(TI).where(TI.dag_id == dr.dag_id)):
+        legacy.try_number = 1
+    session.flush()
+
+    dag_maker.serialized_dag.clear(task_ids=["mapped"], run_id=dr.run_id, session=session)
+    session.flush()
+    dr.task_instance_scheduling_decisions(session=session)
+    dr.task_instance_scheduling_decisions(session=session)
+
+    live = session.scalars(select(TI).where(TI.dag_id == dr.dag_id, TI.working_set.is_(True))).all()
+    assert sorted((ti.region_index, ti.try_number) for ti in live) == [(index, 2) for index in range(width)]
+
+
 @pytest.mark.parametrize("replacement_task_id", ["mapped", "different"])
 def test_legacy_reconciliation_does_not_revive_removed_mapping(
     dag_maker, session, legacy_mapped_ti, replacement_task_id
@@ -327,7 +373,8 @@ def test_legacy_reconciliation_does_not_revive_removed_mapping(
     dr.verify_integrity(dag_version_id=version.id, session=session)
     dr.task_instance_scheduling_decisions(session=session)
 
-    assert not session.scalars(select(TI).where(TI.region_id == region.id)).all()
+    region_tis = session.scalars(select(TI).where(TI.region_id == region.id)).all()
+    assert {ti.state for ti in region_tis} <= {TaskInstanceState.REMOVED}
     assert session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all() == [region]
 
 

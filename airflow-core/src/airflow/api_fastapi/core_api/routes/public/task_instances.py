@@ -36,6 +36,7 @@ from airflow.api_fastapi.common.cursors import (
 )
 from airflow.api_fastapi.common.dagbag import (
     DagBagDep,
+    get_dag_for_run,
     get_dag_for_run_or_latest_version,
     get_latest_version_of_dag,
     resolve_run_on_latest_version,
@@ -913,7 +914,7 @@ def post_clear_task_instances(
             error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
         # Get the specific dag version:
-        dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
+        dag = get_dag_for_run(dag_bag, dag_run, session)
         if (past or future) and dag_run.logical_date is None:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
@@ -1078,6 +1079,7 @@ def post_clear_task_instances(
                     downstream=body.include_downstream,
                     later_loop_iterations=body.include_later_loop_iterations
                     and not (body.only_failed or body.only_running),
+                    include_setups_and_teardowns=body.task_instance_ids is None,
                     session=session,
                 )
                 if body.only_failed or body.only_running:

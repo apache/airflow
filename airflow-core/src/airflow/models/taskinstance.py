@@ -623,6 +623,12 @@ def clear_task_instances(
         if ti.working_set is True:
             ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
     session.flush()
+    if legacy_keys:
+        legacy_run_keys = {(dag_id, run_id) for dag_id, run_id, _ in legacy_keys}
+        for legacy_run in session.scalars(
+            select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(legacy_run_keys))
+        ):
+            legacy_run.reconcile_legacy_expansions(session=session)
     return cleared
 
 
@@ -634,6 +640,14 @@ class LoopClearScope:
     archive_ids: frozenset[UUID]
 
 
+def _get_setup_teardown_pairs(task: Operator) -> list[Operator]:
+    if task.is_setup:
+        return [relative for relative in task.downstream_list if relative.is_teardown]
+    if task.is_teardown:
+        return []
+    return list(task.get_upstreams_only_setups_and_teardowns())
+
+
 def select_loop_clear_scope(
     selected: Collection[TaskInstance],
     *,
@@ -641,9 +655,15 @@ def select_loop_clear_scope(
     upstream: bool = False,
     downstream: bool = True,
     later_loop_iterations: bool = True,
+    include_setups_and_teardowns: bool = False,
     session: Session,
 ) -> LoopClearScope:
-    """Select loop clear executions; mutation callers must hold the DagRun lock."""
+    """
+    Select loop clear executions; mutation callers must hold the DagRun lock.
+
+    With ``include_setups_and_teardowns`` the setups and teardowns of every selected task are
+    retried as well, as a clear by task id does outside loops.
+    """
     from airflow.models.dagbag import DBDagBag
     from airflow.models.task_coordinates import TaskCoordinateResolver, enclosing_loop
     from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
@@ -688,33 +708,46 @@ def select_loop_clear_scope(
                 (other.id, other)
                 for other in resolver.resolve(dag_id=dag_id, run_id=run_id, task_id=ti.task_id, caller=ti)
             )
-    for is_upstream, enabled in ((True, upstream), (False, downstream)):
-        if not enabled:
-            continue
-        for ti in tuple(retry.values()):
-            task = resolver.get_task(dag_id, run_id, ti.task_id, dag_version_id=ti.dag_version_id)
-            contexts = resolver.producer_contexts(ti)
-            count = (
-                get_mapped_ti_count(task, run_id, session=session, producer_contexts=contexts)
-                if task.get_needs_expansion() and ti.region_index >= 0
-                else None
-            )
-            for relative in task.get_flat_relatives(upstream=is_upstream):
-                indexes = _get_relevant_map_indexes(
-                    task=task,
-                    run_id=run_id,
-                    map_index=resolver.public_map_index(ti),
-                    relative=relative,
-                    ti_count=count,
-                    session=session,
-                    producer_contexts=contexts,
+    mapped_counts: dict[tuple[UUID | None, str, frozenset], int | None] = {}
+    matched_relatives: dict[tuple, tuple[TaskInstance, ...]] = {}
+
+    def add_relatives(ti: TaskInstance, relatives: Iterable[Operator]) -> None:
+        task = resolver.get_task(dag_id, run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+        contexts = resolver.producer_contexts(ti)
+        count = None
+        if task.get_needs_expansion() and ti.region_index >= 0:
+            count_key = (ti.dag_version_id, ti.task_id, frozenset(contexts.items()))
+            if count_key not in mapped_counts:
+                mapped_counts[count_key] = get_mapped_ti_count(
+                    task, run_id, session=session, producer_contexts=contexts
                 )
-                relative_loop = enclosing_loop(relative)
-                task_loop = enclosing_loop(task)
+            count = mapped_counts[count_key]
+        task_loop = enclosing_loop(task)
+        map_index = resolver.public_map_index(ti)
+        for relative in relatives:
+            indexes = _get_relevant_map_indexes(
+                task=task,
+                run_id=run_id,
+                map_index=map_index,
+                relative=relative,
+                ti_count=count,
+                session=session,
+                producer_contexts=contexts,
+            )
+            relative_loop = enclosing_loop(relative)
+            in_other_loop = relative_loop is not None and (
+                task_loop is None or task_loop.group_id != relative_loop.group_id
+            )
+            key = (
+                relative.task_id,
+                indexes,
+                in_other_loop,
+                ti.dag_version_id,
+                (ti.region_id, ti.region_index) if relative_loop is not None and not in_other_loop else None,
+            )
+            if key not in matched_relatives:
                 matches: Collection[TaskInstance]
-                if relative_loop is not None and (
-                    task_loop is None or task_loop.group_id != relative_loop.group_id
-                ):
+                if in_other_loop:
                     matches = [
                         other
                         for other in live.values()
@@ -733,7 +766,19 @@ def select_loop_clear_scope(
                         caller=ti,
                         map_indexes=indexes,
                     )
-                retry.update((other.id, other) for other in matches)
+                matched_relatives[key] = tuple(matches)
+            retry.update((other.id, other) for other in matched_relatives[key])
+
+    for is_upstream, enabled in ((True, upstream), (False, downstream)):
+        if not enabled:
+            continue
+        for ti in tuple(retry.values()):
+            task = resolver.get_task(dag_id, run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+            add_relatives(ti, task.get_flat_relatives(upstream=is_upstream))
+    if include_setups_and_teardowns:
+        for ti in tuple(retry.values()):
+            task = resolver.get_task(dag_id, run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+            add_relatives(ti, _get_setup_teardown_pairs(task))
     archived: set[UUID] = set()
     if later_loop_iterations:
         for ti in retry.values():
@@ -1631,7 +1676,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         region_id: UUID = SENTINEL_REGION_ID,
         session: Session,
     ) -> dict[int, int]:
-        """Return the highest try number per map index across current and historical task instances."""
+        """
+        Return the highest try number per map index across current and historical task instances.
+
+        Pre-region rows of the same task are included, since a region minted by a whole-task clear
+        renders the same log paths as the sentinel rows it replaces.
+        """
         if map_indexes is not None and not map_indexes:
             return {}
         statement = (
@@ -1640,7 +1690,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 cls.dag_id == dag_id,
                 cls.task_id == task_id,
                 cls.run_id == run_id,
-                cls.region_id == region_id,
+                cls.region_id.in_({region_id, SENTINEL_REGION_ID}),
             )
             .group_by(cls.region_index)
             .execution_options(include_all_attempts=True)
@@ -1698,6 +1748,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             if terminal_outcome is not None:
                 self.set_state(terminal_outcome, session=session)
             self.archive(reason="superseded", session=session)
+            if self.region_id == SENTINEL_REGION_ID:
+                self.dag_run.reconcile_legacy_expansions(session=session)
             return self
         if terminal_outcome is not None:
             raise ValueError("A terminal archival outcome requires a superseded execution")

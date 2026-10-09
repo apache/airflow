@@ -244,6 +244,7 @@ def _patch_ti_validate_request(
                 TI.dag_id == dag_id,
                 TI.run_id == dag_run_id,
                 TI.task_id == task_id,
+                TI.dag_version_id.is_not(None),
             )
             .distinct()
         ):
@@ -854,6 +855,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                     self.session,
                     map_index,
                     getattr(action, "update_mask", None),
+                    lock=False,
                 )
                 if deleting:
                     for ti in tis:

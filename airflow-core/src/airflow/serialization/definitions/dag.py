@@ -1231,13 +1231,19 @@ class SerializedDAG:
         :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
         :param session: The sqlalchemy session to use
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
-            tuples that should not be cleared
+            tuples that should not be cleared. A task excluded here is still archived when it sits in
+            a later pass of a loop whose gate is cleared.
         :param exclude_run_ids: A set of ``run_id`` or (``run_id``)
+
+        A dry run also lists the task instances of later loop passes that clearing a gate archives.
         """
+        from airflow.models.task_coordinates import LOOP_GATE_OPERATOR
         from airflow.models.taskinstance import (
+            TaskInstance,
             _get_new_task_ids,
             _update_dagrun_to_latest_version,
             clear_task_instances_for_runs,
+            select_loop_clear_scope,
         )
 
         if only_new:
@@ -1291,7 +1297,24 @@ class SerializedDAG:
         )
 
         if dry_run:
-            return list(tis_result)
+            dry_run_tis = list(tis_result)
+            if only_failed or only_running:
+                return dry_run_tis
+            listed_ids = {ti.id for ti in dry_run_tis}
+            archive_ids: set[UUID] = set()
+            gate_runs = {(ti.dag_id, ti.run_id) for ti in dry_run_tis if ti.operator == LOOP_GATE_OPERATOR}
+            for gate_run in sorted(gate_runs):
+                archive_ids |= select_loop_clear_scope(
+                    [ti for ti in dry_run_tis if (ti.dag_id, ti.run_id) == gate_run],
+                    downstream=False,
+                    session=session,
+                ).archive_ids
+            if not archive_ids - listed_ids:
+                return dry_run_tis
+            return [
+                *dry_run_tis,
+                *session.scalars(select(TaskInstance).where(TaskInstance.id.in_(archive_ids - listed_ids))),
+            ]
 
         tis = list(tis_result)
 
