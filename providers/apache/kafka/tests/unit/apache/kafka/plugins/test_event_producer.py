@@ -551,7 +551,7 @@ def test_get_topic(
 ):
     # Check that ``topic`` is properly deprecated
     ctxt = (
-        pytest.raises(
+        pytest.warns(
             AirflowProviderDeprecationWarning,
             match=r"""The ``topic`` option in \[kafka_event_producer\] has been split into ``dagrun_topic`` and ``task_instance_topic`` -
             please update your config\.""",
