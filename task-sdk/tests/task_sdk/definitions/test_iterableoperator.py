@@ -2237,6 +2237,105 @@ class TestIterableOperator:
 
         iterable_op.on_kill()  # should not raise
 
+    def test_the_kill_thread_is_waited_for_before_the_run_concludes(self):
+        """
+        ``on_kill()`` kills in a thread of its own and returns at once; the run waits for that
+        thread once the killed indexed tasks came back, so the task does not end, and the process
+        with it, while a sub-operator's ``on_kill`` is still cleaning up.
+        """
+        executing = threading.Event()
+        killed = threading.Event()
+        cleanup_may_finish = threading.Event()
+
+        class SlowToKill(BaseOperator):
+            def __init__(self, arg1=None, **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+
+            def execute(self, context):
+                executing.set()
+                killed.wait(5)
+                raise RuntimeError("killed")
+
+            def on_kill(self):
+                killed.set()
+                cleanup_may_finish.wait(5)
+
+        outcome: list[BaseException] = []
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{"arg1": 1}]), task_id="joined_kill", operator_class=SlowToKill
+            )
+
+            with mock_context(task=iterable_op) as context:
+
+                def run():
+                    try:
+                        iterable_op.execute(context=context)
+                    except BaseException as e:
+                        outcome.append(e)
+
+                run_thread = threading.Thread(target=run)
+                run_thread.start()
+                assert executing.wait(5)
+                iterable_op.on_kill()
+                assert killed.wait(5)
+
+                run_thread.join(0.5)
+                assert run_thread.is_alive(), "the run concluded while on_kill was still cleaning up"
+                cleanup_may_finish.set()
+                run_thread.join(5)
+
+        assert not run_thread.is_alive()
+        assert isinstance(outcome[0], AirflowTaskTerminated)
+
+    def test_the_wait_for_the_kill_thread_is_bounded(self):
+        """A sub-operator whose ``on_kill`` never returns holds the run for the shutdown timeout, not forever."""
+        executing = threading.Event()
+        killed = threading.Event()
+        released = threading.Event()
+
+        class StuckKill(BaseOperator):
+            def __init__(self, arg1=None, **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+
+            def execute(self, context):
+                executing.set()
+                killed.wait(5)
+                raise RuntimeError("killed")
+
+            def on_kill(self):
+                killed.set()
+                released.wait(30)
+
+        outcome: list[BaseException] = []
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{"arg1": 1}]), task_id="stuck_kill", operator_class=StuckKill
+            )
+
+            with (
+                mock_context(task=iterable_op) as context,
+                patch.object(IterableOperator, "_SHUTDOWN_TIMEOUT", 0.2),
+            ):
+
+                def run():
+                    try:
+                        iterable_op.execute(context=context)
+                    except BaseException as e:
+                        outcome.append(e)
+
+                run_thread = threading.Thread(target=run)
+                run_thread.start()
+                assert executing.wait(5)
+                iterable_op.on_kill()
+                run_thread.join(5)
+
+        released.set()
+        assert not run_thread.is_alive()
+        assert isinstance(outcome[0], AirflowTaskTerminated)
+
     def test_run_task_tracks_active_sub_operator_during_execution(self, monkeypatch: pytest.MonkeyPatch):
         """``_run_task`` must register the sub-task's unmapped operator in the iteration state
         only for the duration of its execution, so ``on_kill()`` propagates only to sub-tasks that

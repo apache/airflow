@@ -22,8 +22,9 @@ import hashlib
 import json
 import os
 import threading
+import time
 import warnings
-from collections.abc import AsyncIterable, AsyncIterator, Iterable, Mapping, Sequence
+from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Mapping, Sequence
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -163,6 +164,8 @@ class IterationState:
         # it first, and a sub-operator is killed once.
         self._killed: set[int] = set()
         self._stop_requested = threading.Event()
+        # The threads on_kill() started to kill the sub-operators in flight; see await_kill.
+        self._kill_threads: list[threading.Thread] = []
         #: The input resolved for this task instance, once ``aresolve`` returned.
         self.resolved: Resolved | None = None
 
@@ -193,6 +196,30 @@ class IterationState:
     def request_stop(self) -> None:
         """Ask the iteration to start nothing else; see :meth:`stop_requested`."""
         self._stop_requested.set()
+
+    def start_kill(self, kill: Callable[[list[BaseOperator]], None], operators: list[BaseOperator]) -> None:
+        """Run ``kill`` over ``operators`` in a thread of its own, kept so that :meth:`await_kill` can wait for it."""
+        thread = threading.Thread(
+            target=kill, args=(operators,), name="iterable-operator-on-kill", daemon=True
+        )
+        with self._lock:
+            self._kill_threads.append(thread)
+        thread.start()
+
+    def await_kill(self, timeout: float) -> None:
+        """
+        Wait up to ``timeout`` seconds for the threads :meth:`start_kill` started.
+
+        Called by ``IterableOperator._run_tasks`` once the loop closed and before the run
+        concludes, so the task does not end, and the process with it, while a sub-operator's
+        ``on_kill`` is still cleaning up. The threads are daemon threads: one that never returns
+        holds the run for ``timeout`` at most, and the supervisor's SIGKILL bounds the rest.
+        """
+        deadline = time.monotonic() + timeout
+        with self._lock:
+            threads = list(self._kill_threads)
+        for thread in threads:
+            thread.join(max(0.0, deadline - time.monotonic()))
 
     def stop_requested(self) -> bool:
         """Whether :meth:`request_stop` was called; passed to the executor as its ``stop``."""
@@ -751,6 +778,10 @@ class IterableOperator(BaseOperator):
         # for every copy of the operator.
         self._state = IterationState()
 
+    # How long the run waits for its threads to end once it is over: the executor's worker and
+    # coroutine shutdown, and the thread on_kill() kills the sub-operators from.
+    _SHUTDOWN_TIMEOUT: float = 10.0
+
     def on_kill(self) -> None:
         # The default BaseOperator.on_kill() is a no-op, which would otherwise leave every
         # currently in-flight sub-task unaware that the IterableOperator itself was killed
@@ -767,10 +798,9 @@ class IterableOperator(BaseOperator):
         # while a result is handed to the consumer, and the same call would wait for a lock a
         # parked asend holds, which only the paused loop can release. In its own thread the call
         # waits its turn in both cases, and the loop goes on serving the sub-tasks. _run_tasks
-        # kills what is in flight through _kill directly, from a thread the loop drives.
-        threading.Thread(
-            target=self._kill, args=(active_operators,), name="iterable-operator-on-kill", daemon=True
-        ).start()
+        # kills what is in flight through _kill directly, from a thread the loop drives, and waits
+        # for this thread before the run concludes (see IterationState.await_kill).
+        self._state.start_kill(self._kill, active_operators)
 
     def _kill(self, operators: list[BaseOperator]) -> None:
         # One sub-operator's on_kill must not keep the kill from the others: DeadlockImminentError
@@ -845,8 +875,13 @@ class IterableOperator(BaseOperator):
             Checkpoints(context) as checkpoints,
             IndexedTaskOutcomes(self, self._state, context) as outcomes,
         ):
-            with event_loop() as loop:
-                with AsyncAwareExecutor(loop=loop, max_workers=self.max_workers) as executor:
+            try:
+                with (
+                    event_loop() as loop,
+                    AsyncAwareExecutor(
+                        loop=loop, max_workers=self.max_workers, shutdown_timeout=self._SHUTDOWN_TIMEOUT
+                    ) as executor,
+                ):
                     try:
                         for task, _result, raised in executor.imap_unordered(
                             partial(
@@ -876,6 +911,13 @@ class IterableOperator(BaseOperator):
                         except RuntimeError:
                             self._kill(in_flight)
                         raise
+            finally:
+                # The kill on_kill() started runs on its own thread and may still be cleaning a
+                # sub-operator up once the killed indexed tasks came back and the loop closed. Waited
+                # for here, before the failure callbacks fire and the run concludes, so the task does
+                # not end with that cleanup half done. The loop is closed, so a synchronous SDK call
+                # in that on_kill no longer has an asend to wait for.
+                self._state.await_kill(self._SHUTDOWN_TIMEOUT)
             skipped = outcomes.conclude()
         return do_xcom_push, skipped
 
