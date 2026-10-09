@@ -2820,6 +2820,37 @@ class TestAKillSticks:
         assert store["_iterable_0"]["status"] == "success"
         assert all(f"_iterable_{index}" not in store for index in (1, 2, 3))
 
+    def test_a_kill_before_the_run_started_still_stops_it(self):
+        """SIGTERM can land between the operator's creation and _run_tasks: the stop must survive."""
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}]), task_id="killed_early"
+            )
+            iterable_op.on_kill()
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+                with pytest.raises(AirflowTaskTerminated, match="while its input was being resolved"):
+                    iterable_op.execute(context=context)
+
+        assert "_iterable_completed" not in store
+        assert "_iterable_0" not in store
+
+    def test_a_rerun_in_the_same_process_does_not_see_the_earlier_kill(self):
+        """dag.test() and the tests run one operator object several times; the state is per run."""
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}]), task_id="killed_then_rerun"
+            )
+            iterable_op.on_kill()
+            with mock_context(task=iterable_op) as context:
+                with pytest.raises(AirflowTaskTerminated):
+                    iterable_op.execute(context=context)
+
+                result = iterable_op.execute(context=context)
+
+        assert len(result) == 2
+        assert "_iterable_completed" in context["task_state_store"]
+
     def test_a_kill_before_any_item_started_is_not_an_empty_input(self):
         """A kill while the input is resolved leaves nothing to run; that is a kill, not a skip."""
         xcom_arg = make_xcom_arg(None)

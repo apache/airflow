@@ -150,7 +150,8 @@ class IterationState:
 
     A deep copy of the operator (``dag.partial_subset``, ``prepare_for_execution``) is another
     task with nothing in flight and no kill pending, so copying the state gives a fresh one. The
-    operator starts every run with a fresh one as well.
+    operator renews it once a run ended, not when one starts: a rerun in the same process starts
+    clean, while a kill that arrives before the run sets the stop flag on the state the run uses.
     """
 
     def __init__(self) -> None:
@@ -836,7 +837,6 @@ class IterableOperator(BaseOperator):
         """Run ``tasks`` to completion; return whether they pushed results, and the skipped indices."""
         do_xcom_push = True
 
-        self._state = IterationState()
         self.log.info("Running tasks with %d workers", self.max_workers)
         with (
             Checkpoints(context) as checkpoints,
@@ -1127,19 +1127,24 @@ class IterableOperator(BaseOperator):
                     jinja_env=jinja_env,
                 )
 
-        do_xcom_push, skipped = self._run_tasks(context=context, tasks=tasks())
-        result = (
-            XComIterable(
-                task_id=self.task_id,
-                dag_id=self.dag_id,
-                run_id=context["run_id"],
-                length=self._state.length,
-                map_index=context["ti"].map_index,
-                skipped=skipped,
+        try:
+            do_xcom_push, skipped = self._run_tasks(context=context, tasks=tasks())
+            result = (
+                XComIterable(
+                    task_id=self.task_id,
+                    dag_id=self.dag_id,
+                    run_id=context["run_id"],
+                    length=self._state.length,
+                    map_index=context["ti"].map_index,
+                    skipped=skipped,
+                )
+                if do_xcom_push and self._state.resolved
+                else None
             )
-            if do_xcom_push and self._state.resolved
-            else None
-        )
-        if skipped:
-            self._skip_downstream_of_a_partial_skip(context, result)
-        return result
+            if skipped:
+                self._skip_downstream_of_a_partial_skip(context, result)
+            return result
+        finally:
+            # Renewed once the run ended, not when it starts (see IterationState): a kill that lands
+            # before the run must stop it, and a rerun in the same process must not see that kill.
+            self._state = IterationState()

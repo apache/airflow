@@ -687,7 +687,7 @@ class XComIterable(Sequence):
     @classmethod
     def deserialize(cls, data: dict, version: int):
         """Ensure the object is JSON deserializable."""
-        return XComIterable(**data)
+        return cls(**data)
 
 
 class _AsyncXComIterator:

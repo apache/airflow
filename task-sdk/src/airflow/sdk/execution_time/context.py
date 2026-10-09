@@ -895,6 +895,9 @@ class IndexedTaskStateStoreAccessor(TaskStateStoreAccessor):
     state and the operator's own checkpoints; an iteration deletes its own keys instead. Keys
     starting with ``_iterable`` are refused as well: the operator keeps its checkpoints in this
     store under ``_iterable_<index>``, which is what ``_iterable`` would become once suffixed.
+
+    The view wraps the parent's accessor instead of being one: it has no ``_ti_id`` or ``_scope``
+    of its own, so every inherited member that reads them is overridden here.
     """
 
     # The namespace of IndexedTaskState.build_key and Checkpoints.COMPLETION_KEY.
@@ -946,6 +949,10 @@ class IndexedTaskStateStoreAccessor(TaskStateStoreAccessor):
             "task_state_store.clear() is not available inside an iterated task: the store is shared "
             "with the other iterations and the operator's checkpoints; delete your own keys instead"
         )
+
+    def _clear_backend_only(self) -> None:
+        # The runner's clear_on_success path, on the parent's accessor; refused here as clear() is.
+        self.clear()
 
     async def aclear(self) -> None:
         self.clear()

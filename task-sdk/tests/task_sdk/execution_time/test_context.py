@@ -3133,6 +3133,20 @@ class TestIndexedTaskStateStoreAccessor:
         store.clear.assert_not_called()
         store.aclear.assert_not_called()
 
+    def test_the_runners_backend_clear_is_refused_as_well(self, store):
+        """The view has no scope of its own to clear; the inherited path is refused, not broken."""
+        with pytest.raises(RuntimeError, match="not available inside an iterated task"):
+            IndexedTaskStateStoreAccessor(store, index=1)._clear_backend_only()
+
+    def test_the_view_never_equals_the_parents_accessor(self):
+        """Python tries the subclass's ``__eq__`` first, so the parent's never reads the view's ``_ti_id``."""
+        parent = TaskStateStoreAccessor(UUID(int=1), TaskScope(dag_id="d", run_id="r", task_id="t"))
+        indexed = IndexedTaskStateStoreAccessor(parent, index=1)
+
+        assert parent != indexed
+        assert indexed != parent
+        assert indexed == IndexedTaskStateStoreAccessor(parent, index=1)
+
     @pytest.mark.parametrize("key", ["_iterable", "_iterable_completed", "_iterable_3"])
     @pytest.mark.asyncio
     async def test_keys_of_the_operators_checkpoints_are_refused(self, store, key):
