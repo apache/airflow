@@ -63,6 +63,8 @@ _LIST_DIRECTORY_MAX_ENTRIES = 10_000
 # through ``SandboxFilter(metadata=...)``; the sbx backend uses the sandbox name
 # for the same purpose.
 _CREATED_BY_METADATA = {"created-by": "airflow"}
+# The egress sidecar's "dns" mode filters name resolution only, not connections.
+_ADDRESS_LAYER_EGRESS_MODE = "dns+nft"
 
 
 def _get_status_code(error: Exception) -> int | None:
@@ -183,6 +185,12 @@ class OpenSandboxBackend(SandboxBackend):
     :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` asked for. The
     fail-closed contract is this backend's to keep, not the server's.
 
+    The check also reads the sidecar's enforcement mode. Only
+    ``[egress] mode = "dns+nft"`` in the server configuration drops connections
+    at the address layer; in ``dns`` mode the sidecar filters name resolution
+    alone and a deny-all sandbox can still connect to numeric addresses, so the
+    backend destroys the sandbox on any mode but ``dns+nft``.
+
     Command deadlines are enforced by execd. If its event stream stalls, the
     call is abandoned ``_EXEC_GRACE`` seconds past the budget, the sandbox is
     destroyed to end it, and the result reports ``timed_out`` with
@@ -285,10 +293,9 @@ class OpenSandboxBackend(SandboxBackend):
             return None
         if spec.allow_egress_to_cidrs:
             raise SandboxTerminalError(
-                "SandboxSpec names allow_egress_to_cidrs, which this backend cannot safely enforce: "
-                "OpenSandbox CIDR rules require the egress sidecar's dns+nft mode, but the SDK "
-                "does not expose that enforcement mode on policy read-back. Use allow_egress_to "
-                "with hostnames or a backend with verifiable address-layer enforcement."
+                "SandboxSpec names allow_egress_to_cidrs, which this backend does not support yet. "
+                "Use allow_egress_to with hostnames, or a backend that enforces address ranges, "
+                "such as ModalSandboxBackend."
             )
         if not spec.block_network:
             if spec.allow_egress_to:
@@ -308,23 +315,65 @@ class OpenSandboxBackend(SandboxBackend):
         return NetworkPolicy(defaultAction="deny", egress=rules or None)
 
     @staticmethod
+    def _get_egress_enforcement_mode(sandbox: SandboxSync) -> str | None:
+        """Return the mode the sandbox's egress sidecar enforces its policy in, or ``None`` if unreported."""
+        import httpx
+        from opensandbox.adapters.converter.response_handler import handle_api_error, require_parsed
+        from opensandbox.api.egress import Client
+        from opensandbox.api.egress.api.policy import get_policy
+        from opensandbox.api.egress.models import PolicyStatusResponse
+        from opensandbox.constants import DEFAULT_EGRESS_PORT
+
+        # get_egress_policy() keeps only the rules from the sidecar's /policy response and drops
+        # its enforcementMode, so read that response with the SDK's generated egress client.
+        config = sandbox.connection_config
+        endpoint = sandbox.get_endpoint(DEFAULT_EGRESS_PORT)
+        with Client(
+            base_url=f"{config.protocol}://{endpoint.endpoint}",
+            headers=endpoint.build_request_headers(config),
+            timeout=httpx.Timeout(config.request_timeout.total_seconds()),
+        ) as client:
+            response = get_policy.sync_detailed(client=client)
+        handle_api_error(response, "Get egress policy")
+        mode = require_parsed(response, PolicyStatusResponse, "Get egress policy").enforcement_mode
+        return mode if isinstance(mode, str) else None
+
+    @staticmethod
     def _verify_network_policy(sandbox: SandboxSync, requested: NetworkPolicy) -> None:
         wanted = {rule.target for rule in requested.egress or ()}
         try:
             enforced = sandbox.get_egress_policy()
             allowed = {rule.target for rule in enforced.egress or () if rule.action == "allow"}
-            matches = enforced.default_action == "deny" and allowed == wanted
-            detail = f"enforced policy is default {enforced.default_action!r} with allow {sorted(allowed)}"
+            if enforced.default_action != "deny" or allowed != wanted:
+                problem = (
+                    f"the enforced policy is default {enforced.default_action!r} with allow "
+                    f"{sorted(allowed)}. The server may be running without its egress sidecar."
+                )
+            else:
+                mode = OpenSandboxBackend._get_egress_enforcement_mode(sandbox)
+                if mode == _ADDRESS_LAYER_EGRESS_MODE:
+                    return
+                problem = (
+                    f"its egress sidecar enforces it in {mode!r} mode"
+                    if mode is not None
+                    else "its egress sidecar does not report an enforcement mode"
+                ) + (
+                    f', and only "{_ADDRESS_LAYER_EGRESS_MODE}" stops connections to numeric addresses '
+                    "rather than name resolution alone. Set "
+                    f'[egress] mode = "{_ADDRESS_LAYER_EGRESS_MODE}" in the server configuration, or pass '
+                    "SandboxSpec(block_network=False) for a sandbox that may reach the network."
+                )
         except Exception as e:
-            matches = False
-            detail = f"the policy could not be read back ({type(e).__name__})"
-        if matches:
-            return
+            code = _get_status_code(e)
+            status = f", HTTP {code}" if code is not None else ""
+            problem = (
+                f"the policy could not be read back ({type(e).__name__}{status}). The server may be "
+                "running without its egress sidecar."
+            )
         with suppress(Exception):
             sandbox.destroy()
         raise SandboxTerminalError(
-            f"OpenSandbox did not enforce the requested network policy ({detail}), so the sandbox was "
-            "destroyed. The server may be running without its egress sidecar."
+            f"OpenSandbox did not enforce the requested network policy, so the sandbox was destroyed: {problem}"
         )
 
     def create(self, *, spec: SandboxSpec | None = None) -> str:

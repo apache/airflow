@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import builtins
 import io
+import re
 import threading
 import time
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest import mock
 
@@ -27,8 +29,11 @@ import pytest
 
 pytest.importorskip("opensandbox")
 
+import httpx
+from opensandbox.config import ConnectionConfigSync
+from opensandbox.constants import DEFAULT_EGRESS_PORT
 from opensandbox.exceptions import SandboxApiException
-from opensandbox.models.sandboxes import NetworkPolicy, NetworkRule
+from opensandbox.models.sandboxes import NetworkPolicy, NetworkRule, SandboxEndpoint
 
 from airflow.providers.common.ai.sandbox import base
 from airflow.providers.common.ai.sandbox.base import (
@@ -92,12 +97,18 @@ def _deny_policy(*targets: str) -> NetworkPolicy:
 
 
 def _created(policy: NetworkPolicy | Exception | None = None):
-    sandbox = mock.MagicMock(spec=["id", "get_egress_policy", "destroy"])
+    sandbox = mock.MagicMock(spec=["id", "get_egress_policy", "destroy", "connection_config", "get_endpoint"])
     sandbox.id = "created"
     if isinstance(policy, Exception):
         sandbox.get_egress_policy.side_effect = policy
     else:
         sandbox.get_egress_policy.return_value = policy
+    sandbox.connection_config = ConnectionConfigSync(
+        domain="sandbox.example", api_key="key", use_server_proxy=True, request_timeout=timedelta(seconds=12)
+    )
+    sandbox.get_endpoint.return_value = SandboxEndpoint(
+        endpoint="egress.example:18080", headers={"X-Route": "created"}
+    )
     return sandbox
 
 
@@ -207,6 +218,25 @@ class TestConnection:
 
 
 class TestCreate:
+    @pytest.fixture(autouse=True)
+    def egress_sidecar(self):
+        """Answer the egress sidecar's ``GET /policy``, reporting ``enforcement_mode`` (dns+nft unless a test sets it)."""
+        sidecar = SimpleNamespace(enforcement_mode="dns+nft", status_code=200, requests=[])
+
+        def send(_client, request, **_kwargs):
+            sidecar.requests.append(request)
+            if isinstance(sidecar.enforcement_mode, Exception):
+                raise sidecar.enforcement_mode
+            if sidecar.status_code != 200:
+                return httpx.Response(sidecar.status_code, text="upstream failed", request=request)
+            body = {"status": "ok", "mode": "deny_all", "policy": {"defaultAction": "deny"}}
+            if sidecar.enforcement_mode is not None:
+                body["enforcementMode"] = sidecar.enforcement_mode
+            return httpx.Response(200, json=body, request=request)
+
+        with mock.patch.object(httpx.Client, "send", autospec=True, side_effect=send):
+            yield sidecar
+
     @mock.patch("opensandbox.SandboxSync.create", autospec=True)
     def test_refuses_an_owner_because_nothing_could_attach(self, create):
         # The ownership rules ride on per-sandbox metadata the attaching side reads back,
@@ -293,11 +323,13 @@ class TestCreate:
     def test_cidr_allowlist_is_refused_fail_closed(self):
         backend = OpenSandboxBackend()
 
-        with pytest.raises(SandboxTerminalError, match="allow_egress_to_cidrs"):
+        with pytest.raises(
+            SandboxTerminalError, match="allow_egress_to_cidrs, which this backend does not support yet"
+        ):
             backend.create(spec=SandboxSpec(allow_egress_to_cidrs=["203.0.113.0/24"]))
 
     @mock.patch("opensandbox.SandboxSync.create", autospec=True)
-    def test_enforced_deny_policy_is_read_back_before_the_sandbox_is_handed_out(self, create):
+    def test_enforced_deny_policy_is_read_back_before_the_sandbox_is_handed_out(self, create, egress_sidecar):
         create.return_value = _created(_deny_policy("pypi.org"))
         backend = OpenSandboxBackend()
         backend._connection_config = mock.sentinel.connection_config
@@ -305,7 +337,39 @@ class TestCreate:
         assert backend.create(spec=SandboxSpec(allow_egress_to=["pypi.org"])) == "created"
 
         create.return_value.get_egress_policy.assert_called_once_with()
+        create.return_value.get_endpoint.assert_called_once_with(DEFAULT_EGRESS_PORT)
+        [request] = egress_sidecar.requests
+        assert (request.method, str(request.url)) == ("GET", "http://egress.example:18080/policy")
+        assert request.headers["X-Route"] == "created"
+        assert request.headers["OPEN-SANDBOX-API-KEY"] == "key"
+        assert request.extensions["timeout"]["read"] == 12
         create.return_value.destroy.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("sidecar", "reason"),
+        [
+            ({"enforcement_mode": "dns"}, r"enforces it in 'dns' mode.*\[egress\] mode = \"dns\+nft\""),
+            ({"enforcement_mode": None}, "does not report an enforcement mode"),
+            ({"enforcement_mode": httpx.ConnectError("refused")}, r"could not be read back \(ConnectError\)"),
+            ({"status_code": 500}, r"could not be read back \(SandboxApiException, HTTP 500\)"),
+        ],
+        ids=["dns-only", "unreported", "unreachable-sidecar", "sidecar-http-error"],
+    )
+    @mock.patch("opensandbox.SandboxSync.create", autospec=True)
+    def test_policy_not_enforced_at_the_address_layer_destroys_the_sandbox_and_is_terminal(
+        self, create, sidecar, reason, egress_sidecar
+    ):
+        vars(egress_sidecar).update(sidecar)
+        create.return_value = _created(_deny_policy())
+        backend = OpenSandboxBackend()
+        backend._connection_config = mock.sentinel.connection_config
+
+        with pytest.raises(SandboxTerminalError, match="did not enforce the requested network policy") as err:
+            backend.create(spec=SandboxSpec())
+
+        assert re.search(reason, str(err.value))
+        create.return_value.destroy.assert_called_once_with()
+        assert backend._sandboxes == {}
 
     @pytest.mark.parametrize(
         "enforced",

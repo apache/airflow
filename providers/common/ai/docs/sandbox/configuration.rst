@@ -54,8 +54,13 @@ egress there is a host-level ``sbx policy``, so the backend honors the default b
 refusing to provision unless the Deployment Manager has declared
 ``host_network_policy="deny-all"``, which means a bare ``SandboxSpec()`` is refused
 under the default ``host_network_policy="unknown"`` rather than silently getting
-an open sandbox. ``allow_egress_to`` names hosts the sandbox may reach, and both
-backends refuse it until you have said something that makes it enforceable:
+an open sandbox. On OpenSandbox the default and ``allow_egress_to`` become a policy
+for the server's egress sidecar, and the backend refuses to provision unless that
+sidecar runs in ``dns+nft`` mode, the one that drops connections to unlisted
+addresses rather than only name resolution (see
+:ref:`the OpenSandbox backend <sandbox-backend-opensandbox>`). ``allow_egress_to``
+names hosts the sandbox may reach, and ``sbx`` and Modal refuse it until you have
+said something that makes it enforceable:
 ``sbx`` applies it as a per-sandbox rule on top of that ``deny-all`` host policy,
 since a local rule can narrow egress and never widen it, and Modal matches
 hostnames in the TLS handshake, which is weaker than it sounds and has to be
