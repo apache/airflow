@@ -237,18 +237,12 @@
       "type": "object"
     },
     "_Literal": {
-      "description": "A literal value.\n\nContainers recurse so nested markers are still resolved; scalars pass\nthrough.",
+      "description": "A literal value.",
       "not": {
-        "maxProperties": 1,
-        "minProperties": 1,
-        "propertyNames": {
-          "enum": [
-            "$x",
-            "$xcom",
-            "$t",
-            "$template",
-            "$const"
-          ]
+        "not": {
+          "patternProperties": {
+            "^\\$": false
+          }
         },
         "type": "object"
       },

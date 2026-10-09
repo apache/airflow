@@ -135,8 +135,11 @@ def _value_discriminator(v: Any) -> str:
     """
     Route a raw value to a marker branch, or to ``literal``.
 
-    A reserved ``$``-marker is recognised only as the sole key of an object, so
-    a multi-key dict that merely contains ``$x`` is a plain literal dict.
+    The prefix ``$`` is reserved to express Airflow constructs. To prevent
+    typos, any unknown ``$``-prefixed strings are routed here and rejected.
+
+    If such a key is needed, it can be wrapped in ``$const``, which would
+    avoid this discrimator (only used by :class:`_Literal`).
     """
     if isinstance(v, dict) and len(v) == 1:
         (key,) = v
@@ -146,7 +149,6 @@ def _value_discriminator(v: Any) -> str:
             return "template"
         if key == CONST_KEY:
             return "const"
-    # Already-parsed marker instances (revalidation) route to themselves.
     if isinstance(v, XComRef):
         return "xcom"
     if isinstance(v, TemplateRef):
@@ -161,32 +163,33 @@ class _Literal(RootModel[Any]):
     A literal value.
 
     Containers recurse so nested markers are still resolved; scalars pass
-    through.
+    through. A ``$``-prefixed key here is a misused marker, so it is rejected.
     """
 
     root: Any
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "not": {"type": "object", "not": {"patternProperties": {r"^\$": False}}},
+            "description": "A literal value.",
+        }
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _recurse(cls, v: Any) -> Any:
-        if isinstance(v, dict):
-            return {k: _ValueAdapter.validate_python(item) for k, item in v.items()}
         if isinstance(v, list):
             return [_ValueAdapter.validate_python(item) for item in v]
+        if isinstance(v, dict):
+            for key in v:
+                if not isinstance(key, str) or not key.startswith("$"):
+                    continue
+                raise ValueError(
+                    f"unexpected key {key!r}: '$'-prefixed keys are reserved "
+                    f"markers; wrap a literal '$' key in $const"
+                )
+            return {k: _ValueAdapter.validate_python(item) for k, item in v.items()}
         return v
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        schema = handler(core_schema)
-        schema["not"] = {
-            "type": "object",
-            "minProperties": 1,
-            "maxProperties": 1,
-            "propertyNames": {"enum": [*XCOM_KEYS, *TEMPLATE_KEYS, CONST_KEY]},
-        }
-        return schema
 
 
 Value = Annotated[

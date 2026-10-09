@@ -88,10 +88,19 @@ def test_const_is_verbatim_not_recursed():
     assert t.run["a"].value == {"$x": "not-a-ref"}  # inner marker NOT interpreted
 
 
-def test_marker_only_as_sole_key():
-    t = _task("- {id: t, run: {a: {$x: up, extra: 1}}}")  # two keys -> literal dict
-    assert isinstance(t.run["a"], _Literal)
-    assert set(t.run["a"].root) == {"$x", "extra"}
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param("{$x: up, extra: 1}", id="marker-key-plus-extra"),
+        pytest.param("{$xcomm: up}", id="unknown-marker-typo"),
+        pytest.param("{$tempalte: x}", id="unknown-template-typo"),  # codespell:ignore tempalte
+        pytest.param("{cfg: {$weird: 1}}", id="dollar-key-nested-in-literal"),
+    ],
+)
+def test_reserved_dollar_keys_rejected(value):
+    # A '$'-prefixed key that is not a recognised sole-key marker is rejected, not silently literal.
+    with pytest.raises(YamlDagParseError, match="reserved"):
+        _task(f"- {{id: t, run: {{a: {value}}}}}")
 
 
 def test_nested_marker_inside_literal_resolved():
