@@ -35,13 +35,12 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
-    SetXCom,
     TaskState,
 )
 
 
 class AddLoopRuntime(VersionChange):
-    """Carry loop context, previous-iteration reads and private gate decisions."""
+    """Carry loop context and previous-iteration reads."""
 
     description = __doc__
     instructions_to_migrate_to_previous_version = (
@@ -50,7 +49,6 @@ class AddLoopRuntime(VersionChange):
         schema(GetXComCount).field("previous_iteration").didnt_exist,
         schema(GetXComSequenceItem).field("previous_iteration").didnt_exist,
         schema(GetXComSequenceSlice).field("previous_iteration").didnt_exist,
-        schema(SetXCom).field("loop_decision").didnt_exist,
     )
 
 

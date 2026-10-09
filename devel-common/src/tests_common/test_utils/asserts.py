@@ -292,10 +292,13 @@ def count_loaded_task_instances(task_id: str) -> Generator[list[TaskInstance], N
     from airflow.models.taskinstance import TaskInstance
 
     loaded: list[TaskInstance] = []
-    listener = loaded.append
+
+    def listener(target: TaskInstance, _context: object) -> None:
+        if target.task_id == task_id:
+            loaded.append(target)
+
     event.listen(TaskInstance, "load", listener)
     try:
         yield loaded
     finally:
         event.remove(TaskInstance, "load", listener)
-    loaded[:] = [ti for ti in loaded if ti.task_id == task_id]

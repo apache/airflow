@@ -346,6 +346,55 @@ def test_xcom_read_of_one_mapped_slot_loads_no_producer_rows(mapped_run, session
     assert loaded == []
 
 
+def test_loaded_task_instance_collector_keeps_only_the_requested_task(mapped_run, session):
+    dr, _ = mapped_run(3)
+
+    with (
+        count_loaded_task_instances("mapped") as loaded,
+        count_loaded_task_instances("other") as other_loaded,
+    ):
+        rows = session.scalars(
+            select(TaskInstance).where(TaskInstance.run_id == dr.run_id, TaskInstance.task_id == "mapped")
+        ).all()
+
+    assert len(rows) == 3
+    assert sorted(ti.id for ti in loaded) == sorted(ti.id for ti in rows)
+    assert other_loaded == []
+
+
+@pytest.mark.parametrize("mapped_count", [3, 60])
+def test_loop_read_of_one_mapped_slot_loads_no_producer_rows(dag_maker, session, mapped_count):
+    @task_group
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(
+            op_args=[[i] for i in range(mapped_count)]
+        ) >> EmptyOperator(task_id="reduce")
+
+    with dag_maker(serialized=True):
+        create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    caller = session.scalars(
+        select(TaskInstance).where(TaskInstance.run_id == dr.run_id, TaskInstance.task_id == "body.reduce")
+    ).one()
+    session.expire_all()
+    token = TIToken(id=caller.id, claims=TIClaims())
+
+    with count_loaded_task_instances("body.mapped") as loaded:
+        read = _build_xcom_read(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            task_id="body.mapped",
+            key="return_value",
+            session=session,
+            dag_bag=DBDagBag(),
+            token=token,
+            map_index=2,
+        )
+        session.scalars(read).all()
+
+    assert loaded == []
+
+
 def test_selected_mapped_producers_match_resolved_producers(mapped_run, session):
     dr, caller = mapped_run(6)
     resolver = TaskCoordinateResolver(DBDagBag(), session)

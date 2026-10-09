@@ -580,7 +580,6 @@ export type TiId8 = string;
 export type Key17 = string;
 export type ExpiresAt = string | null;
 export type Type71 = "SetTaskStateStore";
-export type LoopDecision = boolean;
 export type Key18 = string;
 export type DagId21 = string;
 export type RunId14 = string;
@@ -1807,7 +1806,6 @@ export interface SetTaskStateStore {
  * via the `definition` "SetXCom".
  */
 export interface SetXCom {
-  loop_decision?: LoopDecision;
   key: Key18;
   value: JsonValue;
   dag_id: DagId21;

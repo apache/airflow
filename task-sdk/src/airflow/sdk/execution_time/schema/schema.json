@@ -3908,11 +3908,6 @@
     },
     "SetXCom": {
       "properties": {
-        "loop_decision": {
-          "default": false,
-          "title": "Loop Decision",
-          "type": "boolean"
-        },
         "key": {
           "title": "Key",
           "type": "string"

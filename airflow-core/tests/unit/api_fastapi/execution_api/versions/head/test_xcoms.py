@@ -234,17 +234,27 @@ def test_previous_mapped_iteration_reads_retained_slots_before_count_and_slice(
     assert client.get(url + "/item/-1", params=params).json() == "replacement"
 
 
-def test_normal_xcom_push_rejects_loop_reserved_prefix(client, create_task_instance):
+@pytest.mark.parametrize("key", ["_airflow_loop_decision", "_airflow_loop_other"])
+def test_normal_xcom_push_rejects_loop_reserved_prefix(client, create_task_instance, key):
     ti = create_task_instance()
-    response = client.post(
-        f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/_airflow_loop_decision", json="continue"
-    )
+    response = client.post(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{key}", json="continue")
     assert response.status_code == 400
 
 
-@pytest.mark.parametrize("value", ["continue", "stop", True, "invalid", {"decision": "stop"}])
+@pytest.mark.parametrize(
+    ("value", "region_index", "expected_status"),
+    [
+        ("continue", 0, 201),
+        ("stop", 2, 201),
+        ("continue", 2, 400),
+        ("stop", 0, 400),
+        (True, 2, 400),
+        ("invalid", 2, 400),
+        ({"decision": "stop"}, 2, 400),
+    ],
+)
 def test_internal_loop_decision_uses_token_gate_coordinates(
-    client, loop_xcoms, session, authenticate_as, value
+    client, loop_xcoms, session, authenticate_as, value, region_index, expected_status
 ):
     dr, _, consumer, _ = loop_xcoms
     gate = session.scalar(
@@ -252,31 +262,32 @@ def test_internal_loop_decision_uses_token_gate_coordinates(
             TaskInstance.dag_id == dr.dag_id, TaskInstance.task_id == "body.__loop_gate"
         )
     )
-    gate.region_id, gate.region_index = consumer.region_id, 2
+    gate.region_id, gate.region_index = consumer.region_id, region_index
     gate.state = "running"
     session.commit()
     authenticate_as(gate)
     url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{gate.task_id}/_airflow_loop_decision"
 
-    response = client.post(url, params={"loop_decision": True}, json=value)
+    response = client.post(url, json=value)
 
-    assert response.status_code == (201 if value in ("continue", "stop") else 400)
-    if response.status_code == 201:
-        stored = session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id))
-        assert (stored.region_id, stored.region_index, stored.value) == (gate.region_id, 2, value)
-        authenticate_as(consumer)
-        assert client.post(url, params={"loop_decision": True}, json="stop").status_code == 400
-        assert (
-            client.post(
-                f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{consumer.task_id}/_airflow_loop_decision",
-                params={"loop_decision": True},
-                json="stop",
-            ).status_code
-            == 400
-        )
+    assert response.status_code == expected_status
+    stored = session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id))
+    if expected_status == 400:
+        assert stored is None
+        return
+    assert (stored.region_id, stored.region_index, stored.value) == (gate.region_id, region_index, value)
+    authenticate_as(consumer)
+    assert client.post(url, json="stop").status_code == 400
+    assert (
+        client.post(
+            f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{consumer.task_id}/_airflow_loop_decision",
+            json="stop",
+        ).status_code
+        == 400
+    )
 
 
-def test_loop_result_item_read_loads_only_the_consumers_pass(dag_maker, session, client, authenticate_as):
+def test_loop_result_item_read_loads_no_producer_rows(dag_maker, session, client, authenticate_as):
     @task_group
     def body():
         PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2], [3]]) >> (
@@ -295,7 +306,6 @@ def test_loop_result_item_read_loads_only_the_consumers_pass(dag_maker, session,
     session.flush()
     consumer.region_id, consumer.region_index = loop_region.id, 1
     mapped_task = dag.get_task("body.mapped")
-    selected = []
     for iteration in range(3):
         region = DynamicRegion.get_or_create(
             dag_id=dr.dag_id,
@@ -321,8 +331,6 @@ def test_loop_result_item_read_loads_only_the_consumers_pass(dag_maker, session,
                 serialize=False,
                 session=session,
             )
-            if iteration == 1:
-                selected.append(ti.id)
     session.commit()
     authenticate_as(consumer)
     session.expunge_all()
@@ -339,7 +347,7 @@ def test_loop_result_item_read_loads_only_the_consumers_pass(dag_maker, session,
         event.remove(Session, "loaded_as_persistent", record)
 
     assert response.json() == "1-0"
-    assert set(loaded) == set(selected)
+    assert loaded == []
 
 
 def test_loop_xcom_omission_uses_consumer_pass_and_retained_region(client, loop_xcoms):

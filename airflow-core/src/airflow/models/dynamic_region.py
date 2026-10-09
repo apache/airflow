@@ -21,7 +21,7 @@ import struct
 from collections.abc import Collection, Iterable
 from datetime import datetime
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import attrs
@@ -531,6 +531,62 @@ def _validate_producer_request(
         raise ValueError("Previous-iteration lookup requires a loop context")
 
 
+def _build_candidate_query(
+    query: Select[Any],
+    *,
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    is_mapped: bool,
+    context: ProducerContext | None,
+    map_indexes: int | Collection[int] | None,
+    region_id: UUID | None,
+    region_index: int | None,
+    session: Session,
+) -> Select[Any] | None:
+    """Narrow ``query`` to the candidate producers of the caller's scope, or ``None`` if there are none."""
+    regions: dict[UUID, DynamicRegion] = {}
+    position = None
+    if context and region_id is None:
+        regions = load_region_ancestry(
+            {context.region_id} - {SENTINEL_REGION_ID}, dag_id=dag_id, run_id=run_id, session=session
+        )
+        if context.loop_node_id is not None:
+            position = loop_position(regions, context.region_id, context.region_index, context.loop_node_id)
+            if position is None:
+                raise ValueError("Caller is not inside the requested loop")
+            if context.previous_iteration:
+                position = position[0], position[1] - 1
+                if position[1] < 0:
+                    return None
+
+    return _filter_producers(
+        query,
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        is_mapped=is_mapped,
+        map_indexes=map_indexes,
+        region_id=region_id,
+        region_index=region_index,
+        top_level_only=region_id is None and position is None,
+        loop_pass=_load_loop_pass_regions(position, session=session) if position is not None else None,
+    )
+
+
+def _check_producers_unambiguous(
+    region_indexes: Iterable[int], *, dag_id: str, run_id: str, task_id: str, is_mapped: bool
+) -> None:
+    seen: set[int] = set()
+    for region_index in region_indexes:
+        public_index = region_index if is_mapped else -1
+        if public_index in seen:
+            raise AmbiguousProducerError(
+                f"Multiple live producers for {dag_id}/{run_id}/{task_id} index {public_index}"
+            )
+        seen.add(public_index)
+
+
 def resolve_current_producers(
     *,
     dag_id: str,
@@ -547,45 +603,29 @@ def resolve_current_producers(
     from airflow.models.taskinstance import TaskInstance
 
     _validate_producer_request(context=context, region_id=region_id, region_index=region_index)
-    regions: dict[UUID, DynamicRegion] = {}
-    position = None
-    if context and region_id is None:
-        regions = load_region_ancestry(
-            {context.region_id} - {SENTINEL_REGION_ID}, dag_id=dag_id, run_id=run_id, session=session
-        )
-        if context.loop_node_id is not None:
-            position = loop_position(regions, context.region_id, context.region_index, context.loop_node_id)
-            if position is None:
-                raise ValueError("Caller is not inside the requested loop")
-            if context.previous_iteration:
-                position = position[0], position[1] - 1
-                if position[1] < 0:
-                    return ()
-
-    candidates = session.scalars(
-        _filter_producers(
-            select(TaskInstance),
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            is_mapped=is_mapped,
-            map_indexes=map_indexes,
-            region_id=region_id,
-            region_index=region_index,
-            top_level_only=region_id is None and position is None,
-            loop_pass=_load_loop_pass_regions(position, session=session) if position is not None else None,
-        )
-    ).all()
-
-    selected: dict[int, TaskInstance] = {}
-    for ti in candidates:
-        public_index = ti.region_index if is_mapped else -1
-        if public_index in selected:
-            raise AmbiguousProducerError(
-                f"Multiple live producers for {dag_id}/{run_id}/{task_id} index {public_index}"
-            )
-        selected[public_index] = ti
-    return tuple(selected[index] for index in sorted(selected))
+    query = _build_candidate_query(
+        select(TaskInstance),
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        is_mapped=is_mapped,
+        context=context,
+        map_indexes=map_indexes,
+        region_id=region_id,
+        region_index=region_index,
+        session=session,
+    )
+    if query is None:
+        return ()
+    candidates = session.scalars(query).all()
+    _check_producers_unambiguous(
+        (ti.region_index for ti in candidates),
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        is_mapped=is_mapped,
+    )
+    return tuple(sorted(candidates, key=lambda ti: ti.region_index if is_mapped else -1))
 
 
 def select_current_producer_ids(
@@ -632,14 +672,27 @@ def select_current_producer_ids(
             )
             single_region = not session.scalar(select(other_region.exists()))
         if not single_region:
-            producers = resolve_current_producers(
+            candidate_query = _build_candidate_query(
+                select(TaskInstance.id, TaskInstance.region_index),
                 dag_id=dag_id,
                 run_id=run_id,
                 task_id=task_id,
                 is_mapped=is_mapped,
                 context=context,
                 map_indexes=map_indexes,
+                region_id=None,
+                region_index=None,
                 session=session,
             )
-            return select(TaskInstance.id).where(TaskInstance.id.in_([ti.id for ti in producers]))
+            candidates = session.execute(candidate_query).all() if candidate_query is not None else []
+            _check_producers_unambiguous(
+                (candidate.region_index for candidate in candidates),
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                is_mapped=is_mapped,
+            )
+            return select(TaskInstance.id).where(
+                TaskInstance.id.in_([candidate.id for candidate in candidates])
+            )
     return query

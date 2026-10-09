@@ -25,6 +25,7 @@ from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import AirflowFailException
 from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import (
+    DeleteXCom,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -135,18 +136,20 @@ def test_gate_publishes_successful_decision(loop_ti, mock_supervisor_comms, inde
     assert isinstance(message, SetXCom)
     assert message.key == "_airflow_loop_decision"
     assert message.value == decision
-    assert message.loop_decision is True
 
 
-@pytest.mark.parametrize("raises", [False, True])
-def test_unsuccessful_gate_does_not_publish_decision(loop_ti, mock_supervisor_comms, raises):
+@pytest.mark.parametrize(
+    ("raises", "error", "message"),
+    [(False, LoopMaxIterationsExceeded, "max_iterations"), (True, ValueError, "condition failed")],
+)
+def test_unsuccessful_gate_does_not_publish_decision(loop_ti, mock_supervisor_comms, raises, error, message):
     def until(*, loop):
         if raises:
             raise ValueError("condition failed")
         return False
 
     ti = loop_ti(index=2, until=until)
-    with pytest.raises(Exception, match="condition failed" if raises else "max_iterations"):
+    with pytest.raises(error, match=message):
         ti.task.execute(ti.get_template_context())
 
     mock_supervisor_comms.send.assert_not_called()
@@ -234,3 +237,9 @@ def test_gate_retry_clears_old_signal_without_custom_backend(loop_ti, mock_super
         if call.args and isinstance(call.args[0], SetXCom)
     ]
     assert [decision.value for decision in decisions] == ["continue"]
+    deletes = [
+        call.args[0]
+        for call in mock_supervisor_comms.send.call_args_list
+        if call.args and isinstance(call.args[0], DeleteXCom)
+    ]
+    assert [delete.key for delete in deletes] == ["_airflow_loop_decision"]

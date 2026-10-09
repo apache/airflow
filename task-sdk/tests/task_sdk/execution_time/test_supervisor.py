@@ -2508,7 +2508,6 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "dag_result": False,
                 "mapped_length": None,
-                "loop_decision": False,
             },
             response=OKResponse(ok=True),
         ),
@@ -2536,7 +2535,6 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "dag_result": False,
                 "mapped_length": None,
-                "loop_decision": False,
             },
             response=OKResponse(ok=True),
         ),
@@ -2565,7 +2563,6 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "dag_result": False,
                 "mapped_length": 3,
-                "loop_decision": False,
             },
             response=OKResponse(ok=True),
         ),
@@ -2593,7 +2590,6 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "dag_result": True,
                 "mapped_length": None,
-                "loop_decision": False,
             },
             response=OKResponse(ok=True),
         ),

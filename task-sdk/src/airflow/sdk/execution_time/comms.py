@@ -986,7 +986,6 @@ class GetXComSequenceSlice(BaseModel):
 
 
 class SetXCom(BaseModel):
-    loop_decision: bool = False
     key: str
     value: JsonValue
     dag_id: str

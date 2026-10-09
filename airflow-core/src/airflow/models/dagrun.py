@@ -151,6 +151,17 @@ class InvalidLoopDecision(ValueError):
     """A gate cannot complete successfully with the available decision."""
 
 
+def validate_loop_decision(decision: str | None, region_index: int, group: SerializedLoopTaskGroup) -> None:
+    """Raise :class:`InvalidLoopDecision` unless ``decision`` is valid for the gate of pass ``region_index``."""
+    at_limit = region_index + 1 >= group.max_iterations
+    if decision not in ("continue", "stop"):
+        raise InvalidLoopDecision("Successful loop gate requires a decision")
+    if decision == "continue" and at_limit:
+        raise InvalidLoopDecision("Loop cannot continue beyond its iteration limit")
+    if not group.has_until and (decision == "stop") != at_limit:
+        raise InvalidLoopDecision("Fixed-count loop decision does not match its iteration limit")
+
+
 class TISchedulingDecision(NamedTuple):
     """Type of return for DagRun.task_instance_scheduling_decisions."""
 
@@ -2246,13 +2257,7 @@ class DagRun(Base, LoggingMixin):
                 session.delete(signal)
             return
         decision = signal.value if signal is not None else None
-        at_limit = gate.region_index + 1 >= group.max_iterations
-        if decision not in ("continue", "stop"):
-            raise InvalidLoopDecision("Successful loop gate requires a decision")
-        if decision == "continue" and at_limit:
-            raise InvalidLoopDecision("Loop cannot continue beyond its iteration limit")
-        if not group.has_until and (decision == "stop") != at_limit:
-            raise InvalidLoopDecision("Fixed-count loop decision does not match its iteration limit")
+        validate_loop_decision(decision, gate.region_index, group)
         session.delete(signal)
         if decision == "stop":
             return
@@ -2315,10 +2320,16 @@ class DagRun(Base, LoggingMixin):
                     )
                     .limit(1)
                 ):
-                    raise ValueError(f"Loop {group_id!r} has regions but no live gate")
-                region = DynamicRegion(dag_id=self.dag_id, run_id=self.run_id, node_id=group_id)
-                session.add(region)
-                session.flush()
+                    log.warning(
+                        "skipping loop that has regions but no live gate",
+                        dag_id=self.dag_id,
+                        run_id=self.run_id,
+                        loop=group_id,
+                    )
+                    continue
+                region = DynamicRegion.get_or_create(
+                    dag_id=self.dag_id, run_id=self.run_id, node_id=loops[group_id].node_id, session=session
+                )
                 coordinates = [(region.id, 0)]
             for region_id, region_index in coordinates:
                 yield from self._create_tasks(

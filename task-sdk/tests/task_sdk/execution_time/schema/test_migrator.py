@@ -57,7 +57,6 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceItem,
     GetXComSequenceSlice,
     PreviousTIResult,
-    SetXCom,
     TaskState,
 )
 from airflow.sdk.execution_time.schema import (
@@ -106,7 +105,6 @@ def test_previous_ti_response_coordinates_follow_supervisor_version(version):
         (GetXComCount, {}, "previous_iteration"),
         (GetXComSequenceItem, {"offset": 0}, "previous_iteration"),
         (GetXComSequenceSlice, {"start": None, "stop": None, "step": None}, "previous_iteration"),
-        (SetXCom, {"value": "stop"}, "loop_decision"),
     ],
 )
 def test_loop_selectors_follow_supervisor_version(model, extra, field):

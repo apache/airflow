@@ -598,7 +598,17 @@ class TaskCoordinateResolver:
                     ).order_by(TaskInstance.region_index)
                 )
             )
-        return resolve_current_producers(**attrs.asdict(request, recurse=False), session=self.session)
+        return resolve_current_producers(
+            dag_id=request.dag_id,
+            run_id=request.run_id,
+            task_id=request.task_id,
+            is_mapped=request.is_mapped,
+            context=request.context,
+            map_indexes=request.map_indexes,
+            region_id=request.region_id,
+            region_index=request.region_index,
+            session=self.session,
+        )
 
     def select_skip_target_ids(
         self, *, caller: TaskInstance, task_id: str, map_indexes: int | None = None
@@ -681,4 +691,14 @@ class TaskCoordinateResolver:
                 region_index=region_index,
                 map_indexes=map_indexes,
             )
-        return select_current_producer_ids(**attrs.asdict(request, recurse=False), session=self.session)
+        return select_current_producer_ids(
+            dag_id=request.dag_id,
+            run_id=request.run_id,
+            task_id=request.task_id,
+            is_mapped=request.is_mapped,
+            context=request.context,
+            map_indexes=request.map_indexes,
+            region_id=request.region_id,
+            region_index=request.region_index,
+            session=self.session,
+        )

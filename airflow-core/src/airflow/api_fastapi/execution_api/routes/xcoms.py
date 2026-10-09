@@ -40,7 +40,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.exceptions import TaskNotFound
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, InvalidLoopDecision, validate_loop_decision
 from airflow.models.dynamic_region import (
     LOOP_DECISION_KEY,
     LOOP_XCOM_PREFIX,
@@ -582,7 +582,6 @@ def set_xcom(
         ),
     ] = None,
     map_index: Annotated[int, Query()] = -1,
-    loop_decision: bool = False,
     dag_result: Annotated[bool, Query(description="Whether this XCom is a dag result")] = False,
     mapped_length: Annotated[
         int | None, Query(ge=0, description="Number of mapped tasks this value expands into")
@@ -594,11 +593,10 @@ def set_xcom(
 
     region_id: UUID | None = None
     region_index: int | None = None
-    if loop_decision:
+    if key == LOOP_DECISION_KEY:
         caller = session.get(TaskInstance, token.id)
         if (
-            key != LOOP_DECISION_KEY
-            or value not in ("continue", "stop")
+            value not in ("continue", "stop")
             or mapped_length is not None
             or dag_result
             or map_index != -1
@@ -624,6 +622,10 @@ def set_xcom(
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Loop decisions require the pinned loop gate")
         if caller.state != TaskInstanceState.RUNNING or caller.working_set is not True:
             raise HTTPException(status.HTTP_409_CONFLICT, "Loop gate is no longer running")
+        try:
+            validate_loop_decision(value, caller.region_index, loop[0])
+        except InvalidLoopDecision as error:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
         region_id, region_index = caller.region_id, caller.region_index
     elif key.startswith(LOOP_XCOM_PREFIX):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")

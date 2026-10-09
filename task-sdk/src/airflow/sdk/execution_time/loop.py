@@ -100,6 +100,5 @@ def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
             task_id=ti.task_id,
             key=LOOP_DECISION_KEY,
             value=decision,
-            loop_decision=True,
         )
     )

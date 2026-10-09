@@ -673,12 +673,9 @@ class XComOperations:
         *,
         dag_result: bool = False,
         mapped_length: int | None = None,
-        loop_decision: bool = False,
     ) -> OKResponse:
         """Set a XCom value via the API server."""
         params: dict[str, str | int] = {}
-        if loop_decision:
-            params["loop_decision"] = True
         if dag_result:
             params["dag_result"] = dag_result
         if map_index is not None and map_index >= 0:

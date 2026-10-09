@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from datetime import datetime
-from threading import Barrier, Event
+from threading import Barrier, Event, local
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -37,12 +38,11 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import ValidationError
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, event, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
-from sqlalchemy.sql.selectable import Select
 
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.state import TaskScope
@@ -1705,7 +1705,6 @@ class TestTIUpdateState:
         assert (
             client.post(
                 f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{gate.task_id}/_airflow_loop_decision",
-                params={"loop_decision": True},
                 json="continue",
             ).status_code
             == 201
@@ -1777,12 +1776,20 @@ class TestTIUpdateState:
         gate.state = State.RUNNING
         gate.start_date = DEFAULT_START_DATE
         session.commit()
-        if decision:
+        if decision and rejected:
+            XComModel.set_for_attempt(
+                task_instance_id=gate.id,
+                key="_airflow_loop_decision",
+                value=decision,
+                serialize=False,
+                session=session,
+            )
+            session.commit()
+        elif decision:
             exec_app = client.app.routes[-1].app
             exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=gate.id, claims=TIClaims())
             response = client.post(
                 f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{gate.task_id}/_airflow_loop_decision",
-                params={"loop_decision": True},
                 json=decision,
             )
             assert response.status_code == 201
@@ -1948,34 +1955,49 @@ class TestTIUpdateState:
 
     @pytest.mark.backend("mysql", "postgres")
     def test_loop_decision_rewrite_and_completion_use_same_lock_order(
-        self, session, running_loop_gate, mocker
+        self, session, running_loop_gate, request
     ):
         gate = running_loop_gate
         gate_id, dag_id, run_id, task_id = gate.id, gate.dag_id, gate.run_id, gate.task_id
+        XComModel.set_for_attempt(
+            task_instance_id=gate_id,
+            key="_airflow_loop_decision",
+            value="stop",
+            serialize=False,
+            session=session,
+        )
+        session.commit()
         bind = session.get_bind()
-        run_locked = Event()
+        role = local()
+        writer_locked = Event()
         completion_at_lock = Event()
-        execute = Session.execute
 
-        def coordinate_requests(request_session, statement, *args, **kwargs):
-            role = request_session.info.get("loop_test_role")
-            locks_run = (
-                isinstance(statement, Select)
-                and statement._for_update_arg is not None
-                and any(getattr(table, "name", None) == "dag_run" for table in statement.get_final_froms())
-            )
-            if role == "completion" and locks_run:
+        def note_completion_lock(conn, cursor, statement, parameters, context, executemany):
+            if getattr(role, "name", None) == "completion" and "FOR UPDATE" in statement:
                 completion_at_lock.set()
-            result = execute(request_session, statement, *args, **kwargs)
-            if role == "writer" and locks_run and not run_locked.is_set():
-                run_locked.set()
-                assert completion_at_lock.wait(timeout=10)
-            return result
 
-        mocker.patch.object(Session, "execute", autospec=True, side_effect=coordinate_requests)
+        def pause_writer_after_first_lock(conn, cursor, statement, parameters, context, executemany):
+            if (
+                getattr(role, "name", None) == "writer"
+                and "FOR UPDATE" in statement
+                and not writer_locked.is_set()
+            ):
+                writer_locked.set()
+                assert completion_at_lock.wait(timeout=10)
+                # Give completion time to take its first lock, so a writer that locks in a different
+                # order deadlocks against it.
+                time.sleep(0.5)
+
+        event.listen(bind, "before_cursor_execute", note_completion_lock)
+        event.listen(bind, "after_cursor_execute", pause_writer_after_first_lock)
+        request.addfinalizer(lambda: event.remove(bind, "before_cursor_execute", note_completion_lock))
+        request.addfinalizer(
+            lambda: event.remove(bind, "after_cursor_execute", pause_writer_after_first_lock)
+        )
 
         def rewrite():
-            with Session(bind=bind, info={"loop_test_role": "writer"}) as request_session:
+            role.name = "writer"
+            with Session(bind=bind) as request_session:
                 set_xcom(
                     dag_id=dag_id,
                     run_id=run_id,
@@ -1984,14 +2006,14 @@ class TestTIUpdateState:
                     session=request_session,
                     dag_bag=DBDagBag(),
                     value="continue",
-                    loop_decision=True,
                     token=TIToken(id=gate_id, claims=TIClaims()),
                 )
                 request_session.commit()
 
         def complete():
-            assert run_locked.wait(timeout=10)
-            with Session(bind=bind, info={"loop_test_role": "completion"}) as request_session:
+            role.name = "completion"
+            assert writer_locked.wait(timeout=10)
+            with Session(bind=bind) as request_session:
                 ti_update_state(
                     task_instance_id=gate_id,
                     ti_patch_payload=TISuccessStatePayload(state="success", end_date=DEFAULT_END_DATE),
@@ -2046,7 +2068,6 @@ class TestTIUpdateState:
 
         response = client.post(
             f"/execution/xcoms/{gate.dag_id}/{gate.run_id}/{gate.task_id}/_airflow_loop_decision",
-            params={"loop_decision": True},
             json="continue",
         )
 

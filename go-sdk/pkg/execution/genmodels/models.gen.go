@@ -1588,9 +1588,6 @@ type SetXCom struct {
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
 
-	// LoopDecision corresponds to the JSON schema field "loop_decision".
-	LoopDecision bool `msgpack:"loop_decision,omitempty"`
-
 	// MapIndex corresponds to the JSON schema field "map_index".
 	MapIndex interface{} `msgpack:"map_index,omitempty"`
 

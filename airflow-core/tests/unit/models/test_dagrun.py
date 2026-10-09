@@ -232,22 +232,56 @@ def test_loop_new_member_joins_live_pass_after_reserialization(dag_maker, sessio
     assert session.get(TI, gate.id).state == State.SUCCESS
 
 
-def test_loop_integrity_does_not_revive_region_without_live_gate(dag_maker, session):
+def test_loop_integrity_skips_loop_with_regions_but_no_live_gate(dag_maker, session, caplog):
     @task_group
     def body():
         PythonOperator(task_id="terminal", python_callable=list)
 
     with dag_maker(serialized=True, session=session):
-        create_loop(body, max_iterations=3)
+        EmptyOperator(task_id="outside")
+        loop = create_loop(body, max_iterations=3)
     dr = dag_maker.create_dagrun()
     for ti in dr.get_task_instances(session=session):
         session.delete(ti)
     session.flush()
 
-    with pytest.raises(ValueError, match="has regions but no live gate"):
+    with caplog.at_level("WARNING"):
         dr.verify_integrity(session=session, dag_version_id=dr.created_dag_version_id)
 
-    assert not dr.get_task_instances(session=session)
+    assert [ti.task_id for ti in dr.get_task_instances(session=session)] == ["outside"]
+    assert {
+        "event": "skipping loop that has regions but no live gate",
+        "dag_id": dr.dag_id,
+        "run_id": dr.run_id,
+        "loop": loop.group_id,
+        "log_level": "warning",
+    } in caplog
+    assert (
+        session.scalar(
+            select(func.count()).select_from(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)
+        )
+        == 1
+    )
+
+
+def test_loop_integrity_reuses_region_created_by_a_concurrent_run(dag_maker, session):
+    @task_group
+    def body():
+        PythonOperator(task_id="terminal", python_callable=list)
+
+    with dag_maker(serialized=True, session=session):
+        loop = create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    region_id = session.scalar(select(DynamicRegion.id).where(DynamicRegion.dag_id == dr.dag_id))
+    for ti in dr.get_task_instances(session=session):
+        session.delete(ti)
+    session.flush()
+
+    with mock.patch.object(session, "scalar", autospec=True, return_value=None):
+        dr.verify_integrity(session=session, dag_version_id=dr.created_dag_version_id)
+
+    gate = next(ti for ti in dr.get_task_instances(session=session) if ti.task_id == loop.gate_task_id)
+    assert gate.region_id == region_id
     assert (
         session.scalar(
             select(func.count()).select_from(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)

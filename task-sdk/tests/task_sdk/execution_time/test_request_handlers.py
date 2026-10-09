@@ -41,7 +41,6 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceSlice,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
-    SetXCom,
 )
 from airflow.sdk.execution_time.request_handlers import (
     handle_clear_asset_state_store_by_name,
@@ -56,7 +55,6 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_xcom_sequence_slice,
     handle_set_asset_state_store_by_name,
     handle_set_asset_state_store_by_uri,
-    handle_set_xcom,
 )
 
 
@@ -85,7 +83,6 @@ def client_ssl_cache():
             [],
             "previous_iteration",
         ),
-        (SetXCom, handle_set_xcom, {"value": "stop"}, None, "loop_decision"),
     ],
 )
 def test_loop_selectors_survive_comms_and_http_transport(
