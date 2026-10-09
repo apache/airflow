@@ -740,6 +740,10 @@ Stable API Permissions
      - GET
      - Providers.can_read
      - Op
+   * - ``/api/v2/providers/{provider_name}``
+     - GET
+     - Providers.can_read
+     - Op
    * - ``/api/v2/variables``
      - GET
      - Variables.can_read
