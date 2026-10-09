@@ -70,6 +70,7 @@ expected_config_response = {
     "theme": THEME,
     "multi_team": False,
     "rerun_with_latest_version": None,
+    "backends_order": "custom,environment_variable,metastore",
 }
 
 

@@ -29,6 +29,7 @@ import type { ConnectionResponse } from "openapi/requests/types.gen";
 
 import { Tooltip, ActionBar } from "src/system-components";
 
+import { BackendsOrderCard } from "src/components/BackendsOrder/BackendsOrderCard";
 import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
@@ -198,6 +199,7 @@ export const Connections = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
+      <BackendsOrderCard />
       <DataTable
         columns={columns}
         data={data?.connections ?? []}

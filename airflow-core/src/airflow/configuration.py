@@ -39,6 +39,7 @@ from airflow._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
     configure_parser_from_configuration_description,
 )
+from airflow._shared.configuration.secrets_backends import Backend, sorted_backends
 from airflow._shared.module_loading import import_string
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow4Warning
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
@@ -722,7 +723,12 @@ def ensure_secrets_loaded(
 
     # Check if we are loading the backends for worker too by checking if the default_backends is equal
     # to DEFAULT_SECRETS_SEARCH_PATH.
-    if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
+    secrets_backend_list = globals().get("secrets_backend_list")
+    if (
+        secrets_backend_list is None
+        or len(secrets_backend_list) == 2
+        or default_backends != DEFAULT_SECRETS_SEARCH_PATH
+    ):
         return initialize_secrets_backends(default_backends=default_backends)
     return secrets_backend_list
 
@@ -758,7 +764,7 @@ def initialize_secrets_backends(
         from airflow.models import Connection
 
         custom_secret_backend._set_connection_class(Connection)
-        backend_list.append(custom_secret_backend)
+        backend_list.append((Backend.CUSTOM, custom_secret_backend))
 
     for class_name in default_backends:
         from airflow.models import Connection
@@ -766,9 +772,9 @@ def initialize_secrets_backends(
         secrets_backend_cls = import_string(class_name)
         backend = secrets_backend_cls()
         backend._set_connection_class(Connection)
-        backend_list.append(backend)
+        backend_list.append((Backend.from_path(class_name), backend))
 
-    return backend_list
+    return sorted_backends(conf, backend_list, worker_mode)
 
 
 def initialize_auth_manager() -> BaseAuthManager:
@@ -815,5 +821,12 @@ else:
 SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 
 conf: AirflowConfigParser = initialize_config()
-secrets_backend_list = initialize_secrets_backends()
 conf.validate()
+
+
+def __getattr__(name: str):
+    if name == "secrets_backend_list":
+        val = initialize_secrets_backends()
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
