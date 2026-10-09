@@ -338,6 +338,10 @@ not all at the same moment:
   any item exists, or items cancelled because the task's ``execution_timeout`` ran out (the item
   the timeout struck is reported like the other failures). The iterated task carries no
   task-level callbacks of its own.
+* Listeners (``on_task_instance_running``, ``on_task_instance_success``,
+  ``on_task_instance_failed``) fire once, for the iterated task instance, when the runner reports
+  its state; an item is not a task instance and fires none. With ``.expand()`` they fire once per
+  mapped task instance.
 
 Comparison
 ----------

@@ -492,7 +492,8 @@ class IterableOperator(BaseOperator):
         once every item has run, on the thread that ran the iteration, and says what happens to
         the task: retried or failed for good (see :meth:`_report_failed_items`). A failure no item
         owns, such as an error resolving the input, fires no callback: the iterated task has none
-        of its own.
+        of its own. Listeners fire once, for the task instance, as for any task; an item is not a
+        task instance and fires none.
 
     .. note::
         **Pools count the task instance, not its iterations.**
