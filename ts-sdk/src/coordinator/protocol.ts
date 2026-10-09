@@ -72,6 +72,11 @@ export type {
   DagRunStateResult,
   GetDag,
   DagResult,
+  ClearTaskStateStore,
+  DeleteTaskStateStore,
+  GetTaskStateStore,
+  SetTaskStateStore,
+  TaskStateStoreResult,
 } from "../generated/supervisor.js";
 
 // -------- Frames from supervisor --------

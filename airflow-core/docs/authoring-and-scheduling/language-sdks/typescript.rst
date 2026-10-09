@@ -496,7 +496,7 @@ Two functions give it what it needs while it runs:
        that fires when Airflow stops the task. Pass ``signal`` to ``fetch()``, timers, or any other API that
        accepts one, so the task can stop cleanly.
    * - ``getClient()``
-     - A ``TaskClient`` for Airflow Variables, Connections and XComs.
+     - A ``TaskClient`` for Airflow Variables, Connections, XComs and the task state store.
 
 Both work anywhere inside the handler's call, including helper functions and code after an ``await``, and
 throw outside it. Await everything the handler starts: work still running after the handler returns runs
@@ -523,12 +523,63 @@ The ``TaskClient``
   ``taskId`` and ``mapIndex`` default to the current task; pass ``taskId`` to read an upstream task's XCom.
   See :ref:`typescript-sdk/types` for how values map to JavaScript types.
 * ``setXCom({ key, value, ... })`` publishes an XCom value.
+* ``taskStateStore`` is this task instance's key/value store, with ``get<T>(key)``,
+  ``set(key, value, { retentionMs? })``, ``delete(key)`` and ``clear()``.
 
 .. note::
 
    A value from a secrets backend, such as an ``AIRFLOW_VAR_*`` environment variable, still wins over the
    stored value when the Variable is read back. ``setVariable`` without a description clears the existing
    description, and ``deleteVariable`` succeeds even when the Variable does not exist.
+
+Task state store
+----------------
+
+The task state store is a per-task-instance key/value store, scoped to ``dagId``, ``runId``, ``taskId``,
+and ``mapIndex`` (but not ``tryNumber``), so a value written by one attempt is still readable by the next.
+It survives worker crashes and task retries within the same Dag run, which makes it a good place to record
+external job IDs, checkpoints within a task, and progress metadata. See :doc:`/core-concepts/task-state-store`
+for the full concept, including the equivalent Python API.
+
+.. code-block:: typescript
+
+    import { getClient, NEVER_EXPIRE } from "apache-airflow-ts-sdk";
+
+    export async function runSparkJob() {
+      const store = getClient().taskStateStore;
+
+      let jobId = await store.get<string>("job_id");
+      if (jobId == null) {
+        jobId = await submitSparkJob();
+        await store.set("job_id", jobId, { retentionMs: NEVER_EXPIRE });
+      }
+
+      const result = await waitForSparkJob(jobId);
+      await store.delete("job_id");
+      return result;
+    }
+
+**Retention.** ``retentionMs`` is milliseconds to retain the key, counted from the time of the write:
+
+* A number retains the key for that many milliseconds from now; ``retentionMs: 0`` expires the key
+  immediately.
+* ``NEVER_EXPIRE`` (imported from ``apache-airflow-ts-sdk``) stores the key with no expiry, regardless of
+  the deployment default.
+* When ``retentionMs`` is omitted the runtime reads ``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``, which
+  the coordinator sets from ``[state_store] default_retention_days``. A value of ``0`` there means the key
+  never expires. This is not the same as ``retentionMs: 0`` above, which expires the key immediately.
+
+**Keys** must be non-empty strings of at most 512 characters; they may contain slashes. **Values** must be
+JSON-compatible (see :ref:`typescript-sdk/types`), and can never be ``null`` — ``set`` rejects a ``null``
+value. ``get`` returns ``null`` only to mean "key not found."
+
+Two behaviors to note:
+
+* ``[workers] state_store_backend`` is not used from TypeScript tasks, so values are always stored inline
+  through the Execution API. A key written by a Python task through a custom worker-side backend reads back
+  from TypeScript as that backend's reference marker string, not the original value.
+* ``[state_store] clear_on_success`` removes all of a task instance's state store keys when the task
+  succeeds, the same as for Python tasks.
 
 Logging
 -------
