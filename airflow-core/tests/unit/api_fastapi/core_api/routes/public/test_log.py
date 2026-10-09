@@ -108,6 +108,31 @@ class TestTaskInstancesLog:
             assert selected.id != current.id
             assert try_number == 1
 
+    @pytest.mark.parametrize(
+        ("requested_try", "expected_try"), [(1, "history"), (2, "current")], ids=["history", "current"]
+    )
+    def test_external_link_selects_the_requested_try_within_a_region(
+        self, session, requested_try, expected_try
+    ):
+        history, current, previous_region, _ = self._place_tries_in_sibling_regions(session)
+        current.region_id = previous_region
+        session.commit()
+        expected = history if expected_try == "history" else current
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.log.TaskLogReader", autospec=True
+        ) as reader:
+            reader.return_value.supports_external_link = True
+            reader.return_value.log_handler = mock.create_autospec(ExternalLoggingMixin, instance=True)
+            reader.return_value.log_handler.get_external_log_url.return_value = "https://logs.example/try"
+            response = self.client.get(
+                f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/externalLogUrl/{requested_try}",
+                params={"region_id": str(previous_region), "region_index": 2},
+            )
+            assert response.status_code == 200, response.text
+            selected, try_number = reader.return_value.log_handler.get_external_log_url.call_args.args
+            assert selected.id == expected.id
+            assert try_number == requested_try
+
     @pytest.mark.parametrize("selected_try", ["history", "current"])
     def test_log_reads_the_execution_in_the_selected_region(self, session, selected_try):
         history, current, previous_region, current_region = self._place_tries_in_sibling_regions(session)

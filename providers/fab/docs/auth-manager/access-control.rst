@@ -484,10 +484,6 @@ Stable API Permissions
      - POST
      - DAGs.can_edit, DAG Runs.can_edit
      - User
-   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/execution``
-     - GET
-     - DAGs.can_read, DAG Runs.can_read, Task Instances.can_read
-     - Viewer
    * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails``
      - GET
      - DAGs.can_read

@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 from unittest.mock import patch
-from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -171,6 +170,10 @@ class TestGetTaskState(TestTaskStateEndpoint):
     def test_missing_key_returns_404(self, test_client):
         response = test_client.get(f"{BASE_URL}/nonexistent")
         assert response.status_code == 404
+
+    def test_map_index_below_minus_one_returns_422(self, test_client):
+        response = test_client.get(f"{BASE_URL}/job_id", params={"map_index": -5})
+        assert response.status_code == 422
 
     def test_key_with_slash_is_supported(self, test_client):
         """Keys containing slashes must work — route uses {key:path}."""
@@ -598,9 +601,21 @@ class TestRegionalTaskState(TestTaskStateEndpoint):
 
     @pytest.fixture
     def regional_scopes(self, dag_maker):
-        regions = [uuid4(), uuid4()]
+        loop = DynamicRegion.get_or_create(
+            dag_id=DAG_ID, run_id=RUN_ID, node_id="loop", session=self._session
+        )
+        regions = [
+            DynamicRegion.get_or_create(
+                dag_id=DAG_ID,
+                run_id=RUN_ID,
+                node_id=TASK_ID,
+                parent_region_id=loop.id,
+                parent_region_index=iteration,
+                session=self._session,
+            ).id
+            for iteration in (0, 1)
+        ]
         for region_id in regions:
-            self._session.add(DynamicRegion(id=region_id, dag_id=DAG_ID, run_id=RUN_ID, node_id="loop"))
             for index in (2, 3):
                 self._session.add(
                     TaskInstance(
@@ -643,8 +658,14 @@ class TestRegionalTaskState(TestTaskStateEndpoint):
         )
         assert response.json()["value"] == f"{sibling}:2"
 
-    @pytest.mark.parametrize("all_map_indices", [False, True])
-    def test_clear_keeps_other_regions(self, test_client, regional_scopes, all_map_indices):
+    @pytest.mark.parametrize(
+        ("all_map_indices", "survivors"),
+        [
+            pytest.param(False, {("sibling", 2), ("sibling", 3), ("selected", 3)}, id="one-index"),
+            pytest.param(True, {("sibling", 2), ("sibling", 3)}, id="every-index-of-the-mapping-region"),
+        ],
+    )
+    def test_clear_keeps_other_regions(self, test_client, regional_scopes, all_map_indices, survivors):
         selected, sibling = regional_scopes
         response = test_client.delete(
             BASE_URL,
@@ -660,16 +681,19 @@ class TestRegionalTaskState(TestTaskStateEndpoint):
                 select(TaskStateStoreModel.region_id, TaskStateStoreModel.region_index)
             ).all()
         )
-        assert remaining == {(sibling, 2), (sibling, 3), (selected, 3)}
+        named = {"selected": selected, "sibling": sibling}
+        assert remaining == {(named[name], index) for name, index in survivors}
 
     def test_index_requires_region(self, test_client):
         response = test_client.get(BASE_URL, params={"region_index": 2})
         assert response.status_code == 400
 
-    def test_clear_all_indices_uses_selected_mapping_region(self, test_client, regional_scopes):
+    def test_clear_all_indices_outside_a_mapping_region_clears_only_the_selected_index(
+        self, test_client, regional_scopes
+    ):
         selected, sibling = regional_scopes
         region = self._session.get(DynamicRegion, selected)
-        region.node_id = TASK_ID
+        region.node_id = "loop"
         self._session.commit()
         response = test_client.delete(
             BASE_URL,
@@ -681,4 +705,4 @@ class TestRegionalTaskState(TestTaskStateEndpoint):
                 select(TaskStateStoreModel.region_id, TaskStateStoreModel.region_index)
             ).all()
         )
-        assert remaining == {(sibling, 2), (sibling, 3)}
+        assert remaining == {(sibling, 2), (sibling, 3), (selected, 3)}

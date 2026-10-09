@@ -71,19 +71,26 @@ def _create_loop_iterations(dag_maker, session):
         loop = create_loop(body, max_iterations=4)
     run = dag_maker.create_dagrun()
     region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
-    sibling_region = DynamicRegion.get_or_create(
-        dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id, session=session
+    resumed_region = DynamicRegion(
+        dag_id=run.dag_id,
+        run_id=run.run_id,
+        node_id=loop.group_id,
+        forked_from_region_id=region.id,
+        resumes_from_index=3,
     )
-    session.add(sibling_region)
+    session.add(resumed_region)
     session.flush()
     iterations = []
-    for region_id, subject in ((sibling_region.id, "Other loop"), (region.id, "Iteration 3")):
+    for region_id, region_index, subject in (
+        (resumed_region.id, 3, "Iteration 4"),
+        (region.id, 2, "Iteration 3"),
+    ):
         ti = TIModel(
             task=dag.get_task("body.work"),
             run_id=run.run_id,
             dag_version_id=run.created_dag_version_id,
             region_id=region_id,
-            region_index=2,
+            region_index=region_index,
         )
         ti.try_number = 1
         ti.state = TaskInstanceState.AWAITING_INPUT
@@ -139,6 +146,30 @@ def test_hitl_list_reports_every_loop_iteration(test_client, dag_maker, session)
     assert data["total_entries"] == 2
     selected = next(row for row in data["hitl_details"] if row["subject"] == "Iteration 3")
     _assert_selected_iteration(selected, region)
+
+
+@pytest.mark.parametrize("with_region_index", [False, True])
+def test_hitl_list_selects_loop_iteration_by_region(test_client, dag_maker, session, with_region_index):
+    run, region, _, _ = _create_loop_iterations(dag_maker, session)
+    params = {"region_id": str(region.id), **({"region_index": 2} if with_region_index else {})}
+
+    response = test_client.get(f"/dags/{run.dag_id}/dagRuns/{run.run_id}/hitlDetails", params=params)
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["total_entries"] == 1
+    _assert_selected_iteration(data["hitl_details"][0], region)
+
+
+def test_hitl_list_rejects_region_index_without_region_id(test_client, dag_maker, session):
+    run, _, _, _ = _create_loop_iterations(dag_maker, session)
+
+    response = test_client.get(
+        f"/dags/{run.dag_id}/dagRuns/{run.run_id}/hitlDetails", params={"region_index": 2}
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "region_index requires region_id"
 
 
 def test_hitl_respond_selects_loop_iteration(test_client, dag_maker, session):

@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+from fastapi.openapi.utils import get_openapi
+
 from airflow.api_fastapi.core_api.routes.public import authenticated_router, public_router
 
 # Set of paths that are allowed to be accessible without authentication
@@ -61,3 +64,22 @@ def test_invalid_routes_return_404(test_client):
     response = test_client.get("/api/nonexistent")
     assert response.status_code == 404
     assert response.json() == {"error": "API route not found"}
+
+
+@pytest.mark.parametrize(
+    ("operation_id", "released_order"),
+    [
+        ("get_extra_links", ["map_index", "try_number"]),
+        ("get_xcom_entry", ["map_index", "deserialize", "stringify"]),
+    ],
+)
+def test_released_query_parameters_keep_their_order(operation_id, released_order):
+    spec = get_openapi(title="Airflow", version="test", routes=public_router.routes)
+    operation = next(
+        operation
+        for path_item in spec["paths"].values()
+        for operation in path_item.values()
+        if operation["operationId"] == operation_id
+    )
+    names = [parameter["name"] for parameter in operation["parameters"]]
+    assert [name for name in names if name in released_order] == released_order

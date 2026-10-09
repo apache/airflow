@@ -26,10 +26,14 @@ from pydantic import BaseModel
 from airflow._shared.state import TaskScope
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError
-from airflow.models.task_coordinates import TaskCoordinateResolver
+from airflow.models.task_coordinates import TaskCoordinateResolver, public_map_index_expression
+from airflow.models.taskinstance import TaskInstance
 
 if TYPE_CHECKING:
+    from sqlalchemy import Select
+
     from airflow.models.task_coordinates import TaskCoordinate
 
 
@@ -42,17 +46,29 @@ class TaskCoordinateView:
 
     value: TaskCoordinate
     resolver: TaskCoordinateResolver
+    projected_map_index: int | None = None
 
     def __getattr__(self, name: str) -> Any:
         if name == "map_index":
+            if self.projected_map_index is not None:
+                return self.projected_map_index
             return self.resolver.public_map_index(self.value)
         return getattr(self.value, name)
 
 
+def add_public_map_index(statement: Select) -> Select:
+    """Select each row's public map index next to it, so sorting and presenting agree."""
+    return statement.add_columns(public_map_index_expression(TaskInstance).label("map_index"))
+
+
 def task_coordinate_response(
-    schema: type[Response], value: TaskCoordinate, resolver: TaskCoordinateResolver
+    schema: type[Response],
+    value: TaskCoordinate,
+    resolver: TaskCoordinateResolver,
+    *,
+    map_index: int | None = None,
 ) -> Response:
-    return schema.model_validate(TaskCoordinateView(value, resolver))
+    return schema.model_validate(TaskCoordinateView(value, resolver, map_index))
 
 
 def resolve_task_scope(
@@ -128,6 +144,8 @@ def _task_scope(
     region_id: Annotated[UUID | None, Query()] = None,
     region_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> TaskScope:
+    if map_index < -1:
+        raise HTTPException(HTTP_422_UNPROCESSABLE_CONTENT, "map_index must be greater than or equal to -1")
     return resolve_task_scope(
         dag_id=dag_id,
         run_id=dag_run_id,
@@ -139,4 +157,23 @@ def _task_scope(
     )
 
 
+def _unmapped_task_scope(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    resolver: CoordinateResolverDep,
+    region_id: Annotated[UUID | None, Query()] = None,
+    region_index: Annotated[int | None, Query(ge=-1)] = None,
+) -> TaskScope:
+    return resolve_task_scope(
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        task_id=task_id,
+        resolver=resolver,
+        region_id=region_id,
+        region_index=region_index,
+    )
+
+
 TaskScopeDep = Annotated[TaskScope, Depends(_task_scope)]
+UnmappedTaskScopeDep = Annotated[TaskScope, Depends(_unmapped_task_scope)]

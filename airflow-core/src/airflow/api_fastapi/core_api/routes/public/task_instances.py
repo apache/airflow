@@ -110,6 +110,8 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import (
     CoordinateResolverDep,
     TaskCoordinateView,
     TaskScopeDep,
+    UnmappedTaskScopeDep,
+    add_public_map_index,
     task_coordinate_response,
 )
 from airflow.api_fastapi.core_api.services.public.task_instances import (
@@ -165,7 +167,7 @@ def get_task_instance(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
-    scope: TaskScopeDep,
+    scope: UnmappedTaskScopeDep,
     resolver: CoordinateResolverDep,
 ) -> TaskInstanceResponse:
     """Get task instance."""
@@ -276,12 +278,14 @@ def get_mapped_task_instances(
     region_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> TaskInstanceCollectionResponse:
     """Get list of mapped task instances."""
-    query = eager_load_task_instance_for_validation(
-        select(TI).where(
-            TI.dag_id == dag_id,
-            TI.run_id == dag_run_id,
-            TI.task_id == task_id,
-            public_map_index_expression(TI) >= 0,
+    query = add_public_map_index(
+        eager_load_task_instance_for_validation(
+            select(TI).where(
+                TI.dag_id == dag_id,
+                TI.run_id == dag_run_id,
+                TI.task_id == task_id,
+                public_map_index_expression(TI) >= 0,
+            )
         )
     )
     if region_index is not None and region_id is None:
@@ -335,12 +339,13 @@ def get_mapped_task_instances(
         limit=limit,
         session=session,
     )
-    task_instances = list(session.scalars(task_instance_select))
-    load_legacy_rendered_fields(task_instances, session=session)
+    rows = session.execute(task_instance_select).all()
+    load_legacy_rendered_fields([ti for ti, _ in rows], session=session)
 
     return TaskInstanceCollectionResponse(
         task_instances=[
-            task_coordinate_response(TaskInstanceResponse, ti, resolver) for ti in task_instances
+            task_coordinate_response(TaskInstanceResponse, ti, resolver, map_index=map_index)
+            for ti, map_index in rows
         ],
         total_entries=total_entries,
     )
@@ -348,7 +353,9 @@ def get_mapped_task_instances(
 
 @task_instances_router.get(
     task_instances_prefix + "/{task_id}/dependencies",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
     operation_id="get_task_instance_dependencies",
 )
@@ -427,7 +434,13 @@ def get_task_instance_tries(
     resolver: CoordinateResolverDep,
     map_index: int = -1,
 ) -> TaskInstanceHistoryCollectionResponse:
-    """Get list of task instances history."""
+    """
+    Get list of task instances history.
+
+    Tries recorded before regions existed live under the sentinel region. Once the task has
+    regions, those tries are only returned when `region_id` is
+    `00000000-0000-0000-0000-000000000000`.
+    """
     query = (
         eager_load_task_instance_for_validation(
             select(TI).where(
@@ -474,6 +487,13 @@ def get_mapped_task_instance_tries(
     scope: TaskScopeDep,
     resolver: CoordinateResolverDep,
 ) -> TaskInstanceHistoryCollectionResponse:
+    """
+    Get list of task instances history for a mapped task instance.
+
+    Tries recorded before regions existed live under the sentinel region. Once the task has
+    regions, those tries are only returned when `region_id` is
+    `00000000-0000-0000-0000-000000000000`.
+    """
     return get_task_instance_tries(
         dag_id=dag_id,
         dag_run_id=dag_run_id,
@@ -641,7 +661,7 @@ def get_task_instances(
     """
     use_cursor = cursor is not None
     dag_run = None
-    query = eager_load_task_instance_for_validation(select(TI))
+    query = add_public_map_index(eager_load_task_instance_for_validation(select(TI)))
     if region_index is not None and region_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_index requires region_id")
     if region_id is not None:
@@ -724,12 +744,12 @@ def get_task_instances(
                 is_backward=is_backward,
             )
 
-        fetched = list(session.scalars(task_instance_select))
+        fetched = list(session.execute(task_instance_select).all())
         has_more = len(fetched) > page_limit
-        task_instances = fetched[:page_limit]
+        rows = fetched[:page_limit]
 
         if is_backward:
-            task_instances.reverse()
+            rows.reverse()
             has_prev = has_more
             has_next = True
         else:
@@ -739,21 +759,24 @@ def get_task_instances(
         total_entries, total_entries_limit = bounded_total_entries(
             statement=query, filters=filters, session=session
         )
-        load_legacy_rendered_fields(task_instances, session=session)
+        load_legacy_rendered_fields([ti for ti, _ in rows], session=session)
         return TaskInstanceCollectionResponse(
             task_instances=[
-                task_coordinate_response(TaskInstanceResponse, ti, resolver) for ti in task_instances
+                task_coordinate_response(TaskInstanceResponse, ti, resolver, map_index=map_index)
+                for ti, map_index in rows
             ],
             total_entries=total_entries,
             total_entries_limit=total_entries_limit,
             next_cursor=(
-                encode_cursor(TaskCoordinateView(task_instances[-1], resolver), order_by)
-                if has_next and task_instances
+                encode_cursor(TaskCoordinateView(rows[-1][0], resolver, rows[-1][1]), order_by)
+                if has_next and rows
                 else None
             ),
             previous_cursor=(
-                make_backward_cursor(encode_cursor(TaskCoordinateView(task_instances[0], resolver), order_by))
-                if has_prev and task_instances
+                make_backward_cursor(
+                    encode_cursor(TaskCoordinateView(rows[0][0], resolver, rows[0][1]), order_by)
+                )
+                if has_prev and rows
                 else None
             ),
         )
@@ -766,11 +789,12 @@ def get_task_instances(
         limit=limit,
         session=session,
     )
-    task_instances = list(session.scalars(task_instance_select))
-    load_legacy_rendered_fields(task_instances, session=session)
+    page_rows = session.execute(task_instance_select).all()
+    load_legacy_rendered_fields([ti for ti, _ in page_rows], session=session)
     return TaskInstanceCollectionResponse(
         task_instances=[
-            task_coordinate_response(TaskInstanceResponse, ti, resolver) for ti in task_instances
+            task_coordinate_response(TaskInstanceResponse, ti, resolver, map_index=map_index)
+            for ti, map_index in page_rows
         ],
         total_entries=total_entries,
     )
@@ -855,7 +879,7 @@ def get_task_instances_batch(
         to_replace={"map_index": public_map_index_expression(TI)},
     ).set_value([body.order_by] if body.order_by else None)
 
-    query = eager_load_task_instance_for_validation(select(TI))
+    query = add_public_map_index(eager_load_task_instance_for_validation(select(TI)))
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -878,12 +902,13 @@ def get_task_instances_batch(
         limit=limit,
         session=session,
     )
-    task_instances = list(session.scalars(task_instance_select))
-    load_legacy_rendered_fields(task_instances, session=session)
+    rows = session.execute(task_instance_select).all()
+    load_legacy_rendered_fields([ti for ti, _ in rows], session=session)
 
     return TaskInstanceCollectionResponse(
         task_instances=[
-            task_coordinate_response(TaskInstanceResponse, ti, resolver) for ti in task_instances
+            task_coordinate_response(TaskInstanceResponse, ti, resolver, map_index=map_index)
+            for ti, map_index in rows
         ],
         total_entries=total_entries,
     )
@@ -1560,7 +1585,9 @@ def patch_task_instance(
 
 @task_instances_router.delete(
     task_instances_prefix + "/{task_id}",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def delete_task_instance(

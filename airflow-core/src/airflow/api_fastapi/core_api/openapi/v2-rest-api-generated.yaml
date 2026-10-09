@@ -5148,124 +5148,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/execution:
-    get:
-      tags:
-      - DagRun
-      summary: Get Execution
-      description: 'List a Dag run''s live task instances with the region structure
-        that locates them.
-
-
-        Supplying ``try_number`` selects the tries with that number instead, including
-        archived
-
-        ones. Use ``region_id``, ``region_index`` and ``try_number`` for exact links.'
-      operationId: get_execution
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
-      - name: task_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Task Id
-      - name: region_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Region Id
-      - name: region_index
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: -1
-          - type: 'null'
-          title: Region Index
-      - name: try_number
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: 0
-          - type: 'null'
-          title: Try Number
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 50
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-          title: Offset
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExecutionCollectionResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links:
     get:
       tags:
@@ -5296,14 +5178,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: try_number
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Try Number
       - name: map_index
         in: query
         required: false
@@ -5329,6 +5203,14 @@ paths:
             minimum: -1
           - type: 'null'
           title: Region Index
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
       responses:
         '200':
           description: Successful Response
@@ -7151,20 +7033,6 @@ paths:
         schema:
           type: string
           title: Xcom Key
-      - name: deserialize
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: false
-          title: Deserialize
-      - name: stringify
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: false
-          title: Stringify
       - name: map_index
         in: query
         required: false
@@ -7190,6 +7058,20 @@ paths:
             minimum: -1
           - type: 'null'
           title: Region Index
+      - name: deserialize
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Deserialize
+      - name: stringify
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Stringify
       responses:
         '200':
           description: Successful Response
@@ -7857,13 +7739,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: map_index
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: -1
-          title: Map Index
       - name: region_id
         in: query
         required: false
@@ -8108,12 +7983,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8787,12 +8674,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8804,7 +8703,15 @@ paths:
       tags:
       - Task Instance
       summary: Get Task Instance Tries
-      description: Get list of task instances history.
+      description: 'Get list of task instances history.
+
+
+        Tries recorded before regions existed live under the sentinel region. Once
+        the task has
+
+        regions, those tries are only returned when `region_id` is
+
+        `00000000-0000-0000-0000-000000000000`.'
       operationId: get_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
@@ -8901,6 +8808,15 @@ paths:
       tags:
       - Task Instance
       summary: Get Mapped Task Instance Tries
+      description: 'Get list of task instances history for a mapped task instance.
+
+
+        Tries recorded before regions existed live under the sentinel region. Once
+        the task has
+
+        regions, those tries are only returned when `region_id` is
+
+        `00000000-0000-0000-0000-000000000000`.'
       operationId: get_mapped_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
@@ -12090,6 +12006,24 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       - name: limit
         in: query
         required: false
@@ -12317,6 +12251,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '422':
           description: Validation Error
           content:
@@ -16447,154 +16387,6 @@ components:
       - extra
       title: EventLogResponse
       description: Event Log Response.
-    ExecutionCollectionResponse:
-      properties:
-        task_instances:
-          items:
-            $ref: '#/components/schemas/ExecutionTaskResponse'
-          type: array
-          title: Task Instances
-        regions:
-          items:
-            $ref: '#/components/schemas/ExecutionRegionResponse'
-          type: array
-          title: Regions
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - task_instances
-      - regions
-      - total_entries
-      title: ExecutionCollectionResponse
-      description: A page of task executions with their region ancestry.
-    ExecutionRegionResponse:
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-        node_id:
-          type: string
-          title: Node Id
-        parent_region_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Parent Region Id
-        parent_region_index:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Parent Region Index
-        forked_from_region_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Forked From Region Id
-        resumes_from_index:
-          type: integer
-          title: Resumes From Index
-      type: object
-      required:
-      - id
-      - node_id
-      - parent_region_id
-      - parent_region_index
-      - forked_from_region_id
-      - resumes_from_index
-      title: ExecutionRegionResponse
-      description: Immutable region structure for interpreting task coordinates.
-    ExecutionTaskResponse:
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-        dag_id:
-          type: string
-          title: Dag Id
-        dag_run_id:
-          type: string
-          title: Dag Run Id
-        task_id:
-          type: string
-          title: Task Id
-        task_display_name:
-          type: string
-          title: Task Display Name
-        region_id:
-          type: string
-          format: uuid
-          title: Region Id
-        region_index:
-          type: integer
-          title: Region Index
-        map_index:
-          type: integer
-          title: Map Index
-        try_number:
-          type: integer
-          title: Try Number
-        state:
-          anyOf:
-          - $ref: '#/components/schemas/TaskInstanceState'
-          - type: 'null'
-        start_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Start Date
-        end_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: End Date
-        duration:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Duration
-        dag_version_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Dag Version Id
-        operator:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Operator
-        note:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Note
-      type: object
-      required:
-      - id
-      - dag_id
-      - dag_run_id
-      - task_id
-      - task_display_name
-      - region_id
-      - region_index
-      - map_index
-      - try_number
-      - state
-      - start_date
-      - end_date
-      - duration
-      - dag_version_id
-      - operator
-      title: ExecutionTaskResponse
-      description: A task try together with the coordinates that address it exactly.
     ExternalLogUrlResponse:
       properties:
         url:

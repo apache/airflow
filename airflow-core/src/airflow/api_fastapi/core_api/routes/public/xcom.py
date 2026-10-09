@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
@@ -71,6 +72,24 @@ xcom_router = AirflowRouter(
 )
 
 
+@dataclass(frozen=True)
+class XComEntryOptions:
+    """Query options of ``get_xcom_entry``, declared after the scope so their spec order follows the scope's."""
+
+    deserialize: bool
+    stringify: bool
+
+
+def _get_xcom_entry_options(
+    deserialize: Annotated[bool, Query()] = False,
+    stringify: Annotated[bool, Query()] = False,
+) -> XComEntryOptions:
+    return XComEntryOptions(deserialize=deserialize, stringify=stringify)
+
+
+XComEntryOptionsDep = Annotated[XComEntryOptions, Depends(_get_xcom_entry_options)]
+
+
 @xcom_router.get(
     "/{xcom_key:path}",
     responses=create_openapi_http_exception_doc(
@@ -89,10 +108,11 @@ def get_xcom_entry(
     xcom_key: str,
     session: SessionDep,
     scope: TaskScopeDep,
-    deserialize: Annotated[bool, Query()] = False,
-    stringify: Annotated[bool, Query()] = False,
+    options: XComEntryOptionsDep,
 ) -> XComResponseNative | XComResponseString:
     """Get an XCom entry."""
+    deserialize = options.deserialize
+    stringify = options.stringify
     xcom_read = XComModel.get_many(
         run_id=dag_run_id,
         key=xcom_key,

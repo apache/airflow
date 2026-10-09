@@ -21,7 +21,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 import structlog
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -360,6 +360,7 @@ def get_hitl_detail_try_detail(
 @task_instances_hitl_router.get(
     "/hitlDetails",
     status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_details(
@@ -412,8 +413,12 @@ def get_hitl_details(
     subject_patten: QueryHITLDetailSubjectSearch,
     body_patten: QueryHITLDetailBodySearch,
     created_at: Annotated[RangeFilter, Depends(datetime_range_filter_factory("created_at", HITLDetailModel))],
+    region_id: Annotated[UUID | None, Query()] = None,
+    region_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> HITLDetailCollection:
     """Get Human-in-the-loop details."""
+    if region_index is not None and region_id is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_index requires region_id")
     query = (
         select(HITLDetailModel)
         .join(TI, HITLDetailModel.ti_id == TI.id)
@@ -431,6 +436,10 @@ def get_hitl_details(
         query = query.where(TI.dag_id == dag_id)
     if dag_run_id != "~":
         query = query.where(TI.run_id == dag_run_id)
+    if region_id is not None:
+        query = query.where(TI.region_id == region_id)
+    if region_index is not None:
+        query = query.where(TI.region_index == region_index)
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
         filters=[

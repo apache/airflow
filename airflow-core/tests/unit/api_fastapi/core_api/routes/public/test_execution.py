@@ -23,17 +23,16 @@ from sqlalchemy import select
 
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task, task_group
-from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.dag import _run_task
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 pytestmark = pytest.mark.db_test
+
+UI_URL = "http://testserver/ui"
 
 
 def test_execution_lists_live_work_and_selects_archived_tries(test_client, dag_maker, session):
@@ -50,10 +49,10 @@ def test_execution_lists_live_work_and_selects_archived_tries(test_client, dag_m
     assert live.id != archived_id
     url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}"
 
-    response = test_client.get(f"{url}/execution")
+    response = test_client.get(f"{UI_URL}{url}/execution")
     assert response.status_code == 200, response.text
     assert [item["id"] for item in response.json()["task_instances"]] == [str(live.id)]
-    response = test_client.get(f"{url}/execution", params={"try_number": 1})
+    response = test_client.get(f"{UI_URL}{url}/execution", params={"try_number": 1})
     assert [item["id"] for item in response.json()["task_instances"]] == [str(archived_id)]
 
     tries_url = f"{url}/taskInstances/task/tries"
@@ -100,7 +99,7 @@ def test_loop_repeated_selective_clears_archive_only_replaced_task_instances(
     clear_url = f"/dags/{run.dag_id}/clearTaskInstances"
 
     def live_executions():
-        response = test_client.get(f"{run_url}/execution")
+        response = test_client.get(f"{UI_URL}{run_url}/execution")
         assert response.status_code == 200, response.text
         return response.json()["task_instances"]
 
@@ -174,42 +173,3 @@ def test_loop_repeated_selective_clears_archive_only_replaced_task_instances(
         .execution_options(include_all_attempts=True)
     ).all()
     assert archived_ids <= {str(ti.id) for ti in archived}
-
-
-def test_execution_requires_an_existing_dag_run(test_client):
-    assert test_client.get("/dags/missing/dagRuns/missing/execution").status_code == 404
-
-
-def test_execution_projects_public_indexes_and_pages_distinct_loop_passes(test_client, dag_maker, session):
-    @task_group
-    def body():
-        EmptyOperator(task_id="work")
-
-    with dag_maker(serialized=True) as dag:
-        loop = create_loop(body, max_iterations=4)
-        PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=[{}, {}])
-    run = dag_maker.create_dagrun()
-    region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
-    later = TaskInstance(
-        task=dag.get_task("body.work"),
-        run_id=run.run_id,
-        dag_version_id=run.created_dag_version_id,
-        region_id=region.id,
-        region_index=2,
-    )
-    session.add(later)
-    session.commit()
-    url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}/execution"
-
-    response = test_client.get(url, params={"task_id": "body.work", "limit": 1, "offset": 1})
-    assert response.status_code == 200, response.text
-    assert response.json()["total_entries"] == 2
-    assert len(response.json()["task_instances"]) == 1
-    assert response.json()["task_instances"][0]["id"] == str(later.id)
-    assert response.json()["task_instances"][0]["region_index"] == 2
-    assert response.json()["task_instances"][0]["map_index"] == -1
-    assert [r["id"] for r in response.json()["regions"]] == [str(region.id)]
-    mapped = test_client.get(url, params={"task_id": "mapped"})
-    assert {ti["map_index"] for ti in mapped.json()["task_instances"]} == {0, 1}
-    assert test_client.get(url, params={"region_index": 2}).status_code == 400
-    assert test_client.get(url, params={"offset": -1}).status_code == 422

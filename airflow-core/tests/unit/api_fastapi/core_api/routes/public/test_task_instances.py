@@ -336,6 +336,39 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json()["id"] == str(selected.id)
         assert response.json()["id"] != str(sibling.id)
 
+    def test_cursor_pages_mapped_region_instances_pinned_to_an_unmapped_definition(
+        self, test_client, dag_maker, session
+    ):
+        with dag_maker("pinned-unmapped", serialized=True):
+
+            @task
+            def mapped(value):
+                return value
+
+            mapped.expand(value=[1, 2, 3])
+        dr = dag_maker.create_dagrun()
+        with dag_maker(dag_id=dr.dag_id, serialized=True):
+            MockOperator(task_id="mapped")
+        latest_version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
+        for ti in dr.task_instances:
+            ti.dag_version_id = latest_version_id
+        session.commit()
+        collection_url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances"
+
+        cursor = ""
+        entries = []
+        while cursor is not None:
+            response = test_client.get(
+                collection_url, params={"order_by": "map_index", "limit": 1, "cursor": cursor}
+            )
+            assert response.status_code == 200
+            page = response.json()
+            entries.extend(page["task_instances"])
+            cursor = page["next_cursor"]
+            assert len(entries) <= 3
+
+        assert [ti["map_index"] for ti in entries] == [0, 1, 2]
+
     def test_removed_mapped_regional_instances_are_still_listed(self, test_client, dag_maker, session):
         with dag_maker("removed-mapped", serialized=True):
             MockOperator(task_id="kept")
@@ -763,6 +796,17 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID` and task_id: `print_the_context` was not found"
         }
+
+    def test_does_not_accept_a_map_index_query_parameter(self, test_client, session):
+        self.create_task_instances(session)
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+            params={"map_index": 3},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["map_index"] == -1
 
     def test_raises_404_for_mapped_task_instance_with_multiple_indexes(self, test_client, session):
         tis = self.create_task_instances(session)

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.sql import select
@@ -42,6 +42,13 @@ if TYPE_CHECKING:
 extra_links_router = AirflowRouter(
     tags=["Extra Links"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links"
 )
+
+
+def _get_try_number(try_number: int | None = None) -> int | None:
+    return try_number
+
+
+TryNumberDep = Annotated[int | None, Depends(_get_try_number)]
 
 
 def _find_operator_link(task: SerializedOperator, link_name: str) -> Any:
@@ -70,7 +77,7 @@ def get_extra_links(
     session: SessionDep,
     dag_bag: DagBagDep,
     scope: TaskScopeDep,
-    try_number: int | None = None,
+    try_number: TryNumberDep,
 ) -> ExtraLinkCollectionResponse:
     """Get extra links for task instance."""
     query = select(TaskInstance).where(

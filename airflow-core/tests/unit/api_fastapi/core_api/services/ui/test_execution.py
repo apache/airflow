@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from airflow.api_fastapi.core_api.services.public.execution import get_execution_members
+from airflow.api_fastapi.core_api.services.ui.execution import get_execution_members
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import TaskInstanceState
@@ -37,7 +37,7 @@ def test_members_load_notes_without_per_row_queries(dag_maker, session, task_cou
     run = dag_maker.create_dagrun()
     with assert_queries_count(2):
         members, total = get_execution_members(run, session=session)
-        assert [ti.note for ti in members] == [None] * task_count
+        assert [ti.note for ti, _ in members] == [None] * task_count
     assert total == task_count
 
 
@@ -55,9 +55,9 @@ def test_members_are_live_unless_a_try_number_is_selected(dag_maker, session):
     live_id = session.scalar(select(TaskInstance.id).where(TaskInstance.working_set.is_(True)))
     assert live_id != archived_id
     live, total = get_execution_members(run, session=session)
-    assert (total, [member.id for member in live]) == (1, [live_id])
+    assert (total, [member.id for member, _ in live]) == (1, [live_id])
     archived, total = get_execution_members(run, session=session, try_number=1)
-    assert (total, [member.id for member in archived]) == (1, [archived_id])
+    assert (total, [member.id for member, _ in archived]) == (1, [archived_id])
 
 
 def test_members_page_in_a_stable_order(dag_maker, session):
@@ -69,4 +69,4 @@ def test_members_page_in_a_stable_order(dag_maker, session):
     pages = [get_execution_members(run, session=session, limit=1, offset=offset) for offset in range(3)]
 
     assert {total for _, total in pages} == {3}
-    assert [member.task_id for members, _ in pages for member in members] == ["task_0", "task_1", "task_2"]
+    assert [member.task_id for members, _ in pages for member, _ in members] == ["task_0", "task_1", "task_2"]

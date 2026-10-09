@@ -143,8 +143,12 @@ def test_serialized_links_read_xcom_from_selected_region(test_client, dag_maker,
         loop = create_loop(body, max_iterations=4)
     run = dag_maker.create_dagrun()
     sibling = next(ti for ti in run.task_instances if ti.task_id == "body.work" and ti.region_index == 0)
-    selected_region = DynamicRegion.get_or_create(
-        dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id, session=session
+    selected_region = DynamicRegion(
+        dag_id=run.dag_id,
+        run_id=run.run_id,
+        node_id=loop.group_id,
+        forked_from_region_id=sibling.region_id,
+        resumes_from_index=sibling.region_index + 1,
     )
     session.add(selected_region)
     session.flush()
@@ -153,7 +157,7 @@ def test_serialized_links_read_xcom_from_selected_region(test_client, dag_maker,
         run_id=run.run_id,
         dag_version_id=run.created_dag_version_id,
         region_id=selected_region.id,
-        region_index=sibling.region_index,
+        region_index=sibling.region_index + 1,
     )
     session.add(selected)
     session.flush()

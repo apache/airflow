@@ -362,6 +362,13 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.status_code == 404
         assert response.json()["detail"] == f"XCom entry with key: `{TEST_XCOM_KEY_2}` not found"
 
+    def test_map_index_below_minus_one_returns_422(self, test_client):
+        response = test_client.get(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}",
+            params={"map_index": -5},
+        )
+        assert response.status_code == 422
+
     def test_should_respond_200_native_with_slash_key(self, test_client):
         slash_key = "folder/sub/value"
         self._create_xcom(slash_key, TEST_XCOM_VALUE)

@@ -1610,49 +1610,6 @@ export type EventLogResponse = {
 };
 
 /**
- * A page of task executions with their region ancestry.
- */
-export type ExecutionCollectionResponse = {
-    task_instances: Array<ExecutionTaskResponse>;
-    regions: Array<ExecutionRegionResponse>;
-    total_entries: number;
-};
-
-/**
- * Immutable region structure for interpreting task coordinates.
- */
-export type ExecutionRegionResponse = {
-    id: string;
-    node_id: string;
-    parent_region_id: string | null;
-    parent_region_index: number | null;
-    forked_from_region_id: string | null;
-    resumes_from_index: number;
-};
-
-/**
- * A task try together with the coordinates that address it exactly.
- */
-export type ExecutionTaskResponse = {
-    id: string;
-    dag_id: string;
-    dag_run_id: string;
-    task_id: string;
-    task_display_name: string;
-    region_id: string;
-    region_index: number;
-    map_index: number;
-    try_number: number;
-    state: TaskInstanceState | null;
-    start_date: string | null;
-    end_date: string | null;
-    duration: number | null;
-    dag_version_id: string | null;
-    operator: string | null;
-    note?: string | null;
-};
-
-/**
  * Response for the external log URL endpoint.
  */
 export type ExternalLogUrlResponse = {
@@ -2995,6 +2952,49 @@ export type EdgeResponse = {
 };
 
 /**
+ * A page of task executions with their region ancestry.
+ */
+export type ExecutionCollectionResponse = {
+    task_instances: Array<ExecutionTaskResponse>;
+    regions: Array<ExecutionRegionResponse>;
+    total_entries: number;
+};
+
+/**
+ * Immutable region structure for interpreting task coordinates.
+ */
+export type ExecutionRegionResponse = {
+    id: string;
+    node_id: string;
+    parent_region_id: string | null;
+    parent_region_index: number | null;
+    forked_from_region_id: string | null;
+    resumes_from_index: number;
+};
+
+/**
+ * A task try together with the coordinates that address it exactly.
+ */
+export type ExecutionTaskResponse = {
+    id: string;
+    dag_id: string;
+    dag_run_id: string;
+    task_id: string;
+    task_display_name: string;
+    region_id: string;
+    region_index: number;
+    map_index: number;
+    try_number: number;
+    state: TaskInstanceState | null;
+    start_date: string | null;
+    end_date: string | null;
+    duration: number | null;
+    dag_version_id: string | null;
+    operator: string | null;
+    note?: string | null;
+};
+
+/**
  * Define a menu item that can be added to the menu by auth managers or plugins.
  */
 export type ExtraMenuItem = {
@@ -3903,6 +3903,13 @@ export type ClearDagRunPartitionsData = {
 
 export type ClearDagRunPartitionsResponse = ClearPartitionsResponse;
 
+export type GetDagRunStatsData = {
+    dagId: string;
+    dagRunId: string;
+};
+
+export type GetDagRunStatsResponse = DagRunStatsResponse;
+
 export type GetExecutionData = {
     dagId: string;
     dagRunId: string;
@@ -3915,13 +3922,6 @@ export type GetExecutionData = {
 };
 
 export type GetExecutionResponse = ExecutionCollectionResponse;
-
-export type GetDagRunStatsData = {
-    dagId: string;
-    dagRunId: string;
-};
-
-export type GetDagRunStatsResponse = DagRunStatsResponse;
 
 export type GetDagVersionDiffData = {
     /**
@@ -4347,7 +4347,6 @@ export type GetExtraLinksResponse = ExtraLinkCollectionResponse;
 export type GetTaskInstanceData = {
     dagId: string;
     dagRunId: string;
-    mapIndex?: number;
     regionId?: string | null;
     regionIndex?: number | null;
     taskId: string;
@@ -4824,6 +4823,8 @@ export type GetHitlDetailsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
      */
     orderBy?: Array<(string)>;
+    regionId?: string | null;
+    regionIndex?: number | null;
     respondedByUserId?: Array<(string)>;
     respondedByUserName?: Array<(string)>;
     responseReceived?: boolean | null;
@@ -6766,26 +6767,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/execution': {
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/stats': {
         get: {
-            req: GetExecutionData;
+            req: GetDagRunStatsData;
             res: {
                 /**
                  * Successful Response
                  */
-                200: ExecutionCollectionResponse;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
+                200: DagRunStatsResponse;
                 /**
                  * Not Found
                  */
@@ -6797,14 +6786,18 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/stats': {
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/execution': {
         get: {
-            req: GetDagRunStatsData;
+            req: GetExecutionData;
             res: {
                 /**
                  * Successful Response
                  */
-                200: DagRunStatsResponse;
+                200: ExecutionCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -7626,6 +7619,10 @@ export type $OpenApiTs = {
                  */
                 200: unknown;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7637,6 +7634,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7719,6 +7720,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskDependencyCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7730,6 +7735,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8380,6 +8389,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: HITLDetailCollection;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */

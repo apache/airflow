@@ -25,16 +25,16 @@ from sqlalchemy import select
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.execution import (
+from airflow.api_fastapi.core_api.datamodels.ui.execution import (
     ExecutionCollectionResponse,
     ExecutionRegionResponse,
     ExecutionTaskResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
-from airflow.api_fastapi.core_api.services.public.execution import get_execution_members
+from airflow.api_fastapi.core_api.services.ui.execution import get_execution_members
 from airflow.models.dagrun import DagRun
-from airflow.models.dynamic_region import SENTINEL_REGION_ID, load_region_ancestry
+from airflow.models.dynamic_region import load_region_ancestry
 
 execution_router = AirflowRouter(
     tags=["DagRun"],
@@ -80,7 +80,7 @@ def get_execution(
         offset=offset.value or 0,
     )
     regions = load_region_ancestry(
-        {ti.region_id for ti in members}, dag_id=dag_id, run_id=dag_run_id, session=session
+        {ti.region_id for ti, _ in members}, dag_id=dag_id, run_id=dag_run_id, session=session
     )
     tasks = [
         ExecutionTaskResponse.model_validate(
@@ -92,11 +92,7 @@ def get_execution(
                 "task_display_name": ti.task_display_name,
                 "region_id": ti.region_id,
                 "region_index": ti.region_index,
-                "map_index": (
-                    ti.region_index
-                    if ti.region_id == SENTINEL_REGION_ID or regions[ti.region_id].node_id == ti.task_id
-                    else -1
-                ),
+                "map_index": map_index,
                 "try_number": ti.try_number,
                 "state": ti.state,
                 "start_date": ti.start_date,
@@ -107,7 +103,7 @@ def get_execution(
                 "note": ti.note,
             }
         )
-        for ti in members
+        for ti, map_index in members
     ]
     return ExecutionCollectionResponse(
         task_instances=tasks,

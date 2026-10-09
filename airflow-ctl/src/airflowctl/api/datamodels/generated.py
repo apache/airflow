@@ -956,19 +956,6 @@ class EventLogResponse(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
-class ExecutionRegionResponse(BaseModel):
-    """
-    Immutable region structure for interpreting task coordinates.
-    """
-
-    id: Annotated[UUID, Field(title="Id")]
-    node_id: Annotated[str, Field(title="Node Id")]
-    parent_region_id: Annotated[UUID | None, Field(title="Parent Region Id")]
-    parent_region_index: Annotated[int | None, Field(title="Parent Region Index")]
-    forked_from_region_id: Annotated[UUID | None, Field(title="Forked From Region Id")]
-    resumes_from_index: Annotated[int, Field(title="Resumes From Index")]
-
-
 class ExternalLogUrlResponse(BaseModel):
     """
     Response for the external log URL endpoint.
@@ -2480,29 +2467,6 @@ class EventLogCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class ExecutionTaskResponse(BaseModel):
-    """
-    A task try together with the coordinates that address it exactly.
-    """
-
-    id: Annotated[UUID, Field(title="Id")]
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    dag_run_id: Annotated[str, Field(title="Dag Run Id")]
-    task_id: Annotated[str, Field(title="Task Id")]
-    task_display_name: Annotated[str, Field(title="Task Display Name")]
-    region_id: Annotated[UUID, Field(title="Region Id")]
-    region_index: Annotated[int, Field(title="Region Index")]
-    map_index: Annotated[int, Field(title="Map Index")]
-    try_number: Annotated[int, Field(title="Try Number")]
-    state: TaskInstanceState | None
-    start_date: Annotated[datetime | None, Field(title="Start Date")]
-    end_date: Annotated[datetime | None, Field(title="End Date")]
-    duration: Annotated[float | None, Field(title="Duration")]
-    dag_version_id: Annotated[UUID | None, Field(title="Dag Version Id")]
-    operator: Annotated[str | None, Field(title="Operator")]
-    note: Annotated[str | None, Field(title="Note")] = None
-
-
 class ExternalViewResponse(BaseModel):
     """
     Serializer for External View Plugin responses.
@@ -3035,16 +2999,6 @@ class DagStatsCollectionResponse(BaseModel):
     """
 
     dags: Annotated[list[DagStatsResponse], Field(title="Dags")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
-
-
-class ExecutionCollectionResponse(BaseModel):
-    """
-    A page of task executions with their region ancestry.
-    """
-
-    task_instances: Annotated[list[ExecutionTaskResponse], Field(title="Task Instances")]
-    regions: Annotated[list[ExecutionRegionResponse], Field(title="Regions")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
