@@ -89,8 +89,9 @@ capabilities:
     supported: false
     note: "no task-facing state-store API yet"
   asset-state-store:
-    supported: false
-    note: "no task-facing state-store API yet"
+    supported: true
+    since: "3.4"
+    note: "assetStateStore.forAsset(), by asset name or URI"
   asset-event-emit:
     supported: false
     note: "runtime does not emit asset events yet"

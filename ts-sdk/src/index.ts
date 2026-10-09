@@ -17,6 +17,7 @@
  * under the License.
  */
 
+export { Asset } from "./sdk/asset.js";
 export { Dag } from "./sdk/dag.js";
 export { triggerDagRun } from "./sdk/trigger-dag-run.js";
 export { Bundle } from "./sdk/bundle.js";
@@ -26,6 +27,7 @@ export { getClient, getContext } from "./sdk/task.js";
 export { ConnectionNotFoundError, VariableNotFoundError } from "./sdk/client.js";
 export { SUPERVISOR_API_VERSION } from "./coordinator/index.js";
 export type { ArgNameMap } from "./sdk/arg-names.js";
+export type { AssetNameRef, AssetRef, AssetRefSpec, AssetSpec, AssetUriRef } from "./sdk/asset.js";
 export type { Registerable } from "./sdk/bundle.js";
 export type { DagRunState, TriggerDagRunSpec, TriggerDagRunTask } from "./sdk/trigger-dag-run.js";
 export type {
@@ -44,6 +46,6 @@ export type {
   TaskRef,
   TaskSpec,
 } from "./sdk/dag.js";
-export type { TaskClient } from "./sdk/client.js";
+export type { AssetStateStore, AssetStateStores, TaskClient } from "./sdk/client.js";
 export type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "./sdk/client-types.js";
 export type { TaskContext, TaskFunction } from "./sdk/task.js";

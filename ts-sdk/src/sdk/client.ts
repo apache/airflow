@@ -17,7 +17,59 @@
  * under the License.
  */
 
-import type { ConnectionResult, GetXComOpts, SetXComOpts } from "./client-types.js";
+import type { Asset, AssetRef } from "./asset.js";
+import type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "./client-types.js";
+
+/**
+ * Key-value state scoped to one asset, from
+ * {@link AssetStateStores.forAsset | forAsset}.
+ *
+ * State outlives the task and the Dag run that wrote it: it is shared by every
+ * task that addresses the same asset, and stays until a task deletes it or the
+ * asset is no longer active. There is no retention option.
+ *
+ * Values go straight to the supervisor. A Python worker-side
+ * `[workers] state_store_backend` is not loaded, so values are stored in the
+ * metadata database as they are.
+ */
+export interface AssetStateStore {
+  /**
+   * Look up a value.
+   *
+   * Returns `null` when the key is missing, and also when the asset itself is
+   * unknown: the supervisor reports both the same way.
+   */
+  get<T = unknown>(key: string): Promise<T | null>;
+
+  /**
+   * Store a JSON-compatible value, replacing any existing value for the key.
+   *
+   * @throws {@link TypeError} when `value` is null or undefined.
+   */
+  set(key: string, value: NonNullable<JsonValue>): Promise<void>;
+
+  /** Delete a key. Resolves when the key does not exist. */
+  delete(key: string): Promise<void>;
+
+  /** Delete every key of this asset. */
+  clear(): Promise<void>;
+}
+
+/** Entry point to asset-scoped state, as {@link TaskClient.assetStateStore}. */
+export interface AssetStateStores {
+  /**
+   * Bind a store to one asset.
+   *
+   * An {@link Asset} and `Asset.ref({ name })` address the asset by name;
+   * `Asset.ref({ uri })` addresses it by URI. The runtime does not see the
+   * task's inlets and outlets, so nothing checks that the task declares the
+   * asset; the Python Dag must declare it for the asset to stay active.
+   *
+   * @throws {@link TypeError} when `asset` is not an `Asset` or a reference
+   * from `Asset.ref()`.
+   */
+  forAsset(asset: Asset | AssetRef): AssetStateStore;
+}
 
 /**
  * Client for reading and writing Airflow task-time data from a task handler.
@@ -107,6 +159,18 @@ export interface TaskClient {
    * @throws {@link Exceptions!ConnectionNotFoundError | ConnectionNotFoundError} when the connection does not exist.
    */
   getConnectionOrThrow(connId: string): Promise<ConnectionResult>;
+
+  /**
+   * Key-value state scoped to an asset, shared across tasks and Dag runs.
+   * Every method rejects a key that is not a non-empty string.
+   *
+   * ```ts
+   * const state = client.assetStateStore.forAsset(new Asset({ name: "orders" }));
+   * const watermark = await state.get<string>("watermark");
+   * await state.set("watermark", "2026-10-08T00:00:00Z");
+   * ```
+   */
+  readonly assetStateStore: AssetStateStores;
 }
 
 /** Error thrown by {@link TaskClient.getVariableOrThrow}. */

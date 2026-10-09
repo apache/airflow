@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from airflow.sdk import dag, task
+from airflow.sdk import Asset, dag, task
 
 
 @task
@@ -37,12 +37,22 @@ def read_connection(): ...
 def write_and_delete_variable(): ...
 
 
+# The TypeScript task cannot see this inlet. Declaring it keeps the asset active, and the
+# Execution API only reads and writes the state of active assets.
+typescript_example_orders = Asset(name="typescript_example_orders", uri="x-typescript-example://orders")
+
+
+@task.stub(queue="typescript", inlets=[typescript_example_orders])
+def use_asset_state_store(): ...
+
+
 @dag(dag_id="typescript_example", schedule=None, catchup=False, tags=["typescript", "example"])
 def typescript_example():
     start = python_start()
     message = build_message()
     read_connection()
     write_and_delete_variable()
+    use_asset_state_store()
 
     start >> message
 

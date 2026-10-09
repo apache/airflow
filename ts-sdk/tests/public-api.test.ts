@@ -21,6 +21,10 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { AIRFLOW_METADATA_FLAG } from "../src/coordinator/manifest.js";
 import type {
   ArgNameMap,
+  AssetRef,
+  AssetSpec,
+  AssetStateStore,
+  AssetStateStores,
   ConnectionResult,
   DagSpec,
   GetXComOpts,
@@ -41,6 +45,7 @@ import type {
 } from "../src/index.js";
 import * as sdk from "../src/index.js";
 import {
+  Asset,
   Bundle,
   ConnectionNotFoundError,
   Dag,
@@ -429,6 +434,36 @@ describe("public API", () => {
       (key: string, value: string, description?: string | null) => Promise<void>
     >();
     expectTypeOf<TaskClient["deleteVariable"]>().toEqualTypeOf<(key: string) => Promise<void>>();
+  });
+
+  it("exports Asset and the asset-scoped state store surface", () => {
+    expect(new Asset({ name: "orders" })).toBeInstanceOf(Asset);
+    expectTypeOf<ConstructorParameters<typeof Asset>>().toEqualTypeOf<[AssetSpec]>();
+    expectTypeOf<ReturnType<typeof Asset.ref>>().toEqualTypeOf<AssetRef>();
+    expectTypeOf<TaskClient["assetStateStore"]>().toEqualTypeOf<AssetStateStores>();
+    expectTypeOf<AssetStateStores["forAsset"]>().toEqualTypeOf<
+      (asset: Asset | AssetRef) => AssetStateStore
+    >();
+    // Never invoked: a compile-time fixture for the CRUD calls an author makes.
+    const usesStore = async (client: TaskClient) => {
+      const store = client.assetStateStore.forAsset(Asset.ref({ uri: "s3://warehouse/orders" }));
+      const watermark = await store.get<string>("watermark");
+      expectTypeOf(watermark).toEqualTypeOf<string | null>();
+      await store.set("watermark", { at: "2026-10-08T00:00:00Z" });
+      await store.delete("watermark");
+      await store.clear();
+      // @ts-expect-error the store rejects a null value.
+      await store.set("watermark", null);
+      // @ts-expect-error asset state has no retention option.
+      await store.set("watermark", "x", { retentionMs: 1 });
+      // @ts-expect-error a plain object is not an SDK-created Asset or reference.
+      client.assetStateStore.forAsset({ name: "orders" });
+      // @ts-expect-error a reference names an asset by name or by uri, not both.
+      Asset.ref({ name: "orders", uri: "s3://warehouse/orders" });
+      // @ts-expect-error an Asset needs a name or a uri.
+      new Asset({});
+    };
+    void usesStore;
   });
 
   it("rejects wire-format names and non-JSON XCom values", () => {

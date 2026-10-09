@@ -507,7 +507,7 @@ A task handler takes no SDK-supplied argument. Two getters, valid for as long as
        ``AbortSignal`` that fires when Airflow terminates the task. Pass ``signal`` to ``fetch()``, timers,
        or other APIs that accept an ``AbortSignal`` for cooperative cancellation.
    * - ``getClient()``
-     - A ``TaskClient`` for Airflow Variables, Connections, and XCom.
+     - A ``TaskClient`` for Airflow Variables, Connections, XCom, and the asset state store.
 
 Both read a store the runtime installs around the handler call,
 which follows the handler across every ``await`` and into every promise it creates,
@@ -539,6 +539,8 @@ The ``TaskClient`` surface
   (``dagId``, ``runId``, ``taskId``, ``mapIndex``) default to the current task; pass ``taskId`` to read an
   upstream task's XCom. See :ref:`typescript-sdk/types` for how the stored JSON maps to JavaScript types.
 * ``setXCom({key, value, ...})`` publishes an XCom value.
+* ``assetStateStore.forAsset(asset)`` returns the state store of one asset; see
+  :ref:`typescript-sdk/asset-state-store`.
 
 .. note::
 
@@ -546,6 +548,72 @@ The ``TaskClient`` surface
    takes precedence over the stored value when the Variable is read back. Calling ``setVariable`` without
    a description clears the description the Variable had, and ``deleteVariable`` resolves even when the
    key does not exist.
+
+.. _typescript-sdk/asset-state-store:
+
+Asset state store
+~~~~~~~~~~~~~~~~~
+
+``client.assetStateStore`` reads and writes the :doc:`asset state store </core-concepts/asset-state-store>`,
+a key-value store that belongs to an asset rather than to a Dag run. A value that one run stores, such as an
+incremental-load watermark, is still there in later runs, and every task that addresses the same asset sees
+it.
+
+The TypeScript SDK does not receive the inlets and outlets declared on the ``@task.stub``, so every operation
+names its asset: ``forAsset()`` binds a store to one asset, as Python's
+``context["asset_state_store"][asset]`` does. Airflow keeps state only for assets that a Dag references, so
+also declare the asset as an inlet or outlet of the stub. Nothing on the TypeScript side checks that
+declaration.
+
+.. code-block:: python
+
+    orders = Asset(name="orders", uri="s3://warehouse/orders")
+
+
+    @task.stub(queue="typescript", inlets=[orders])
+    def load_orders(): ...
+
+.. code-block:: ts
+
+    import { Asset, getClient } from "apache-airflow-ts-sdk";
+
+    const orders = new Asset({ name: "orders", uri: "s3://warehouse/orders" });
+
+    export async function loadOrders() {
+      const state = getClient().assetStateStore.forAsset(orders);
+      const watermark = await state.get<string>("watermark"); // null on the first run
+      // Your own code: load the rows created after the watermark and return the newest creation time.
+      const newest = await loadRowsCreatedAfter(watermark);
+      await state.set("watermark", newest);
+    }
+
+``forAsset()`` takes an ``Asset`` or a reference from ``Asset.ref()``, and rejects a plain object:
+
+* ``new Asset({ name, uri })`` takes a ``name``, a ``uri``, or both, and a missing one defaults to the
+  other, as in Python's ``Asset``. Unlike Python, it does not normalize the URI.
+* ``Asset.ref({ name })`` and ``Asset.ref({ uri })`` refer to an asset by one identifier alone, like Python's
+  ``Asset.ref``.
+
+An ``Asset`` and ``Asset.ref({ name })`` address the asset by name; only ``Asset.ref({ uri })`` addresses it
+by URI. Airflow normalizes asset URIs when it parses a Dag, so give ``Asset.ref({ uri })`` the normalized
+form. For example, ``s3://warehouse/orders/`` is stored as ``s3://warehouse/orders``.
+
+The store has four methods:
+
+* ``get<T>(key)`` returns the stored value, or ``null`` when the key is not set. It also returns ``null``
+  when no Dag references the asset, because the supervisor reports both cases the same way.
+* ``set(key, value)`` stores a JSON-compatible value, replacing any existing value. ``null`` and
+  ``undefined`` are rejected. Entries do not expire, and there is no retention option.
+* ``delete(key)`` removes one key, and resolves when the key does not exist.
+* ``clear()`` removes every key of the asset.
+
+Any other error rejects, as does a write the supervisor does not acknowledge. A key that is not a non-empty
+string is rejected before anything is sent.
+
+The TypeScript SDK does not apply a ``[workers] state_store_backend``. It sends each value to Airflow as-is.
+A key that a Python task stored through such a backend comes back to TypeScript as an object that holds only
+the reference under ``__airflow_state_ref__``, not the stored value. Deleting or clearing such a key from
+TypeScript removes only that reference, and the stored value stays in the backend.
 
 Logging
 -------

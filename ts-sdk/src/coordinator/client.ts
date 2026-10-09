@@ -20,8 +20,9 @@
 import type { CommChannel } from "./comm-channel.js";
 import type { LogChannel } from "./log-channel.js";
 import type { TaskContext } from "../sdk/task.js";
-import type { TaskClient } from "../sdk/client.js";
+import type { AssetStateStore, TaskClient } from "../sdk/client.js";
 import type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "../sdk/client-types.js";
+import { Asset, AssetNameRef, AssetUriRef } from "../sdk/asset.js";
 import { ConnectionNotFoundError, VariableNotFoundError } from "../sdk/client.js";
 import type {
   GetVariable,
@@ -34,12 +35,32 @@ import type {
   TriggerDagRun,
   GetDagRunState,
   GetDag,
+  GetAssetStateStoreByName,
+  GetAssetStateStoreByUri,
+  SetAssetStateStoreByName,
+  SetAssetStateStoreByUri,
+  DeleteAssetStateStoreByName,
+  DeleteAssetStateStoreByUri,
+  ClearAssetStateStoreByName,
+  ClearAssetStateStoreByUri,
   ConnectionResult as WireConnectionResult,
 } from "./protocol.js";
 
 /** What a supervisor "row is absent" error means for an operation: only a lookup
  *  can return `null`; for a `void` call a swallowed error would read as success. */
 type AbsentRowPolicy = "null" | "throw";
+
+function resolveAssetAddress(asset: unknown): { name: string } | { uri: string } {
+  if (asset instanceof Asset || asset instanceof AssetNameRef) return { name: asset.name };
+  if (asset instanceof AssetUriRef) return { uri: asset.uri };
+  throw new TypeError("forAsset() expects an Asset or a reference from Asset.ref()");
+}
+
+function assertStateKey(key: unknown): void {
+  if (typeof key !== "string" || key === "") {
+    throw new TypeError("state store key must be a non-empty string");
+  }
+}
 
 function resolveWireMapIndex(
   requestedMapIndex: number | null | undefined,
@@ -139,6 +160,47 @@ export function createCoordinatorClient(
     }
     logs?.debug(`${op} ok`);
     return extract(body);
+  }
+
+  function forAsset(asset: unknown): AssetStateStore {
+    const address = resolveAssetAddress(asset);
+    const send = async (msg: { type?: string }): Promise<void> => {
+      await rpc(msg.type!, "OKResponse", msg, () => undefined, "throw");
+    };
+    return {
+      async get<T = unknown>(key: string): Promise<T | null> {
+        assertStateKey(key);
+        const msg: GetAssetStateStoreByName | GetAssetStateStoreByUri =
+          "name" in address
+            ? { type: "GetAssetStateStoreByName", ...address, key }
+            : { type: "GetAssetStateStoreByUri", ...address, key };
+        return rpc(msg.type!, "AssetStateStoreResult", msg, (body) => body!.value as T, "null");
+      },
+      async set(key: string, value: NonNullable<JsonValue>): Promise<void> {
+        assertStateKey(key);
+        if (value == null) throw new TypeError("state store value must not be null or undefined");
+        const msg: SetAssetStateStoreByName | SetAssetStateStoreByUri =
+          "name" in address
+            ? { type: "SetAssetStateStoreByName", ...address, key, value }
+            : { type: "SetAssetStateStoreByUri", ...address, key, value };
+        await send(msg);
+      },
+      async delete(key: string): Promise<void> {
+        assertStateKey(key);
+        const msg: DeleteAssetStateStoreByName | DeleteAssetStateStoreByUri =
+          "name" in address
+            ? { type: "DeleteAssetStateStoreByName", ...address, key }
+            : { type: "DeleteAssetStateStoreByUri", ...address, key };
+        await send(msg);
+      },
+      async clear(): Promise<void> {
+        const msg: ClearAssetStateStoreByName | ClearAssetStateStoreByUri =
+          "name" in address
+            ? { type: "ClearAssetStateStoreByName", ...address }
+            : { type: "ClearAssetStateStoreByUri", ...address };
+        await send(msg);
+      },
+    };
   }
 
   const client: CoordinatorClient = {
@@ -289,6 +351,10 @@ export function createCoordinatorClient(
       if (connection == null) throw new ConnectionNotFoundError(connId);
       return connection;
     },
+
+    // ---- Asset state store ----
+
+    assetStateStore: { forAsset },
   };
   return client;
 }
@@ -328,7 +394,12 @@ function parseFrameError(frame: { body: unknown; error?: unknown }): FrameError 
 }
 
 // Exact supervisor ErrorType codes that mean "absent", not "failed".
-const NOT_FOUND_CODES = new Set(["VARIABLE_NOT_FOUND", "XCOM_NOT_FOUND", "CONNECTION_NOT_FOUND"]);
+const NOT_FOUND_CODES = new Set([
+  "VARIABLE_NOT_FOUND",
+  "XCOM_NOT_FOUND",
+  "CONNECTION_NOT_FOUND",
+  "ASSET_STORE_NOT_FOUND",
+]);
 
 /** Is this error a "not found" (caller should get null, not a throw)?
  *  Covers both dedicated NOT_FOUND codes and API_SERVER_ERROR with 404. */
@@ -337,8 +408,8 @@ function isNotFound(err: FrameError): boolean {
   // The supervisor wraps API server 404s as API_SERVER_ERROR with
   // detail.status_code=404 (supervisor.py: WatchedSubprocess.handle_requests).
   // Dag / Dag run lookups hit this path.
-  // TODO: If the TS client adds lookups beyond variables, XCom, and connections,
-  // make not-found handling operation-specific instead of treating every
+  // TODO: If the TS client adds lookups beyond variables, XCom, connections, and
+  // asset state, make not-found handling operation-specific instead of treating every
   // API_SERVER_ERROR 404 as null.
   return err.code === "API_SERVER_ERROR" && err.statusCode === 404;
 }

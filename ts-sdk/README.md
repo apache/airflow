@@ -326,15 +326,40 @@ Options:
 
 `getClient()` returns a `TaskClient` for task-time Airflow data access, for as long as a handler is running:
 
-| Method                                                          | Description             |
-| --------------------------------------------------------------- | ----------------------- |
-| `getVariable(key)` / `getVariableOrThrow`                       | Airflow Variables       |
-| `setVariable(key, value, description?)` / `deleteVariable(key)` | Variable write / delete |
-| `getXCom(opts)` / `setXCom(opts)`                               | XCom read/write         |
-| `getConnection(connId)` / `getConnectionOrThrow`                | Airflow Connections     |
+| Method                                                          | Description              |
+| --------------------------------------------------------------- | ------------------------ |
+| `getVariable(key)` / `getVariableOrThrow`                       | Airflow Variables        |
+| `setVariable(key, value, description?)` / `deleteVariable(key)` | Variable write / delete  |
+| `getXCom(opts)` / `setXCom(opts)`                               | XCom read/write          |
+| `getConnection(connId)` / `getConnectionOrThrow`                | Airflow Connections      |
+| `assetStateStore.forAsset(asset)`                               | State store of one asset |
 
 Locator fields such as `dagId`, `runId`, and `taskId` default to the
 current task context when omitted.
+
+### Asset state store
+
+`assetStateStore.forAsset()` binds a store to one asset, like Python's
+`context["asset_state_store"][asset]`. The runtime does not see the stub's inlets and
+outlets, so every operation names its asset:
+
+```ts
+import { Asset, getClient } from "apache-airflow-ts-sdk";
+
+const orders = new Asset({ name: "orders", uri: "s3://warehouse/orders" });
+const state = getClient().assetStateStore.forAsset(orders);
+
+const watermark = await state.get<string>("watermark"); // null on the first run
+await state.set("watermark", "2026-10-08T00:00:00Z");
+await state.delete("watermark");
+await state.clear();
+```
+
+An `Asset` and `Asset.ref({ name })` address the asset by name; `Asset.ref({ uri })`
+addresses it by URI. State outlives the run and has no retention option. `get()` returns
+`null` both for a missing key and for an asset no Dag references, since the supervisor
+reports them alike. Declare the asset as an inlet or outlet of the Python stub to keep it
+active. Values go to Airflow as-is: a Python `[workers] state_store_backend` is not applied.
 
 ## Cancellation
 
@@ -375,7 +400,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | capability: `self-contained-bundle` | MUST | ✓ | 3.4 | Airflow metadata embedded in the bundle |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
 | capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
-| capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `asset-state-store` | MAY | ✓ | 3.4 | assetStateStore.forAsset(), by asset name or URI |
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
 | **Native-Dag authoring** |  |  |  |  |

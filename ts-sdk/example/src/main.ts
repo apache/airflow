@@ -22,7 +22,9 @@
 // Both Dags in `dags/` are declared in Python with `@task.stub` tasks routed to the Node
 // coordinator, so this side only supplies the task bodies.
 
-import { Bundle, getClient, getContext, TaskHandler } from "apache-airflow-ts-sdk";
+import { isDeepStrictEqual } from "node:util";
+
+import { Asset, Bundle, getClient, getContext, TaskHandler } from "apache-airflow-ts-sdk";
 
 import { buildSummaryMessage, report, summarize } from "./taskflow.js";
 
@@ -57,6 +59,48 @@ export async function writeAndDeleteVariable() {
   await client.deleteVariable(SCRATCH_VARIABLE);
 }
 
+/** Declared as the `use_asset_state_store` inlet in `dags/typescript_example.py`. */
+const ORDERS = new Asset({
+  name: "typescript_example_orders",
+  uri: "x-typescript-example://orders",
+});
+
+function expectRead(step: string, expected: unknown, actual: unknown) {
+  if (!isDeepStrictEqual(actual, expected)) {
+    throw new Error(
+      `${step}: expected ${JSON.stringify(expected)}, read ${JSON.stringify(actual)}`,
+    );
+  }
+}
+
+/**
+ * Calls every asset state store method on one asset, addressed by name and by URI. Each step
+ * changes the state through one selector and checks it through the other, so the task fails
+ * unless both reach the same asset. Asset state outlives the run, so it starts by clearing what
+ * an earlier run left, and leaves only `summary` for the E2E test to read.
+ */
+export async function useAssetStateStore() {
+  const stores = getClient().assetStateStore;
+  const byName = stores.forAsset(ORDERS);
+  const byNameRef = stores.forAsset(Asset.ref({ name: ORDERS.name }));
+  const byUri = stores.forAsset(Asset.ref({ uri: ORDERS.uri }));
+
+  await byUri.clear();
+
+  await byName.set("scratch", "first");
+  expectRead("set() by name", "first", await byUri.get("scratch"));
+  await byUri.clear();
+  expectRead("clear() by URI", null, await byName.get("scratch"));
+
+  await byUri.set("deleted", "temporary");
+  await byNameRef.delete("deleted");
+  expectRead("delete() by name reference", null, await byUri.get("deleted"));
+
+  const summary = { runId: getContext().runId, rows: [1, 2, 3] };
+  await byNameRef.set("summary", summary);
+  expectRead("set() by name reference", summary, await byUri.get("summary"));
+}
+
 export async function readConnection() {
   const connection = await getClient().getConnection("typescript_example_http");
 
@@ -77,6 +121,7 @@ bundle.register(
   new TaskHandler("typescript_example", "build_message", buildMessage),
   new TaskHandler("typescript_example", "read_connection", readConnection),
   new TaskHandler("typescript_example", "write_and_delete_variable", writeAndDeleteVariable),
+  new TaskHandler("typescript_example", "use_asset_state_store", useAssetStateStore),
   new TaskHandler("typescript_taskflow_example", "summarize", summarize),
   new TaskHandler("typescript_taskflow_example", "report", report),
   new TaskHandler("typescript_taskflow_example", "build_message", buildSummaryMessage),
