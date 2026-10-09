@@ -27,3 +27,13 @@ package org.apache.airflow.sdk.internal
  * against the same pattern the SDK enforces; not user-facing API.
  */
 val GROUP_ID: Regex = Regex("[A-Za-z0-9_-]+")
+
+/**
+ * @suppress
+ *
+ * The task ID a task declared from a class alone carries: the class's simple
+ * name with its first character lowercased, so `HasRows.class` and a
+ * `hasRows` task method name agree. Public so the annotation processor can
+ * check an ID it derives the same way; not user-facing API.
+ */
+fun deriveTaskId(definition: Class<*>): String = definition.simpleName.replaceFirstChar { it.lowercaseChar() }

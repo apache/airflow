@@ -555,9 +555,10 @@ when some files are not changed. Those are the rules implemented:
     `scripts/ci/lang_sdk_serialization/`, because the check compares the SDK against those and
     none of them forces `full_tests_needed`
   * if no `TS SDK files` (`ts-sdk/`) changed - `check-ts-sdk-supervisor-schema` check is
-    skipped (it regenerates and diffs the generated ts-sdk file; a change to the supervisor
-    wire schema alone deliberately does not trigger it - regenerating the ts-sdk types is
-    the ts-sdk follow-up PR's job, not the schema author's)
+    skipped (it regenerates and diffs the generated ts-sdk file from the vendored schema). A
+    change to the supervisor wire schema on the Python side is not deferred to a follow-up PR:
+    `sync-ts-sdk-schemas` is triggered by that source, refreshes the vendored copy, and fails
+    on the PR that caused it, so the drift surfaces there rather than shipping unnoticed
   * `check-provider-yaml-valid` is skipped unless at least one of these changed:
     `All Providers Python files`, `All Providers Distribution Config files`
     (which includes `provider.yaml`, `pyproject.toml`, and `providers/.pre-commit-config.yaml`),

@@ -43,6 +43,7 @@ const (
 	errCodeConnectionNotFound = "CONNECTION_NOT_FOUND"
 	errCodeXComNotFound       = "XCOM_NOT_FOUND"
 	errCodeTaskStoreNotFound  = "TASK_STORE_NOT_FOUND"
+	errCodeDagRunExists       = string(genmodels.ErrorTypeDAGRUNALREADYEXISTS)
 )
 
 // A language SDK runtime cannot read Airflow config, so the supervisor passes
@@ -359,6 +360,51 @@ func omittedMapIndex(mapIndex *int) *int {
 func (c *CoordinatorClient) skipDownstreamTasks(ctx context.Context, taskIDs []string) error {
 	_, err := c.comm.Communicate(ctx, genmodels.SkipDownstreamTasks{Tasks: taskIDs})
 	return err
+}
+
+// triggerDagRun asks the supervisor to create a Dag run. It reports alreadyExists, not an error,
+// when a Dag run with the same run_id exists, because a trigger task decides what to do then.
+func (c *CoordinatorClient) triggerDagRun(
+	ctx context.Context,
+	msg genmodels.TriggerDagRun,
+) (alreadyExists bool, err error) {
+	if _, err := c.comm.Communicate(ctx, msg); err != nil {
+		var apiErr *APIError
+		if errors.As(err, &apiErr) && apiErr.Err == errCodeDagRunExists {
+			return true, nil
+		}
+		return false, err
+	}
+	return false, nil
+}
+
+// getDagRunState asks the supervisor for the state of a Dag run.
+func (c *CoordinatorClient) getDagRunState(
+	ctx context.Context,
+	dagID, runID string,
+) (string, error) {
+	resp, err := c.comm.Communicate(ctx, genmodels.GetDagRunState{DagID: dagID, RunID: runID})
+	if err != nil {
+		return "", err
+	}
+	var result genmodels.DagRunStateResult
+	if err := decodeBody(resp, &result); err != nil {
+		return "", fmt.Errorf("decoding Dag run state result: %w", err)
+	}
+	return string(result.State), nil
+}
+
+// isDagPaused asks the supervisor whether a Dag is paused.
+func (c *CoordinatorClient) isDagPaused(ctx context.Context, dagID string) (bool, error) {
+	resp, err := c.comm.Communicate(ctx, genmodels.GetDag{DagID: dagID})
+	if err != nil {
+		return false, err
+	}
+	var result genmodels.DagResult
+	if err := decodeBody(resp, &result); err != nil {
+		return false, fmt.Errorf("decoding Dag result: %w", err)
+	}
+	return result.IsPaused, nil
 }
 
 // TaskStateStore returns the task state store scoped to this task instance.

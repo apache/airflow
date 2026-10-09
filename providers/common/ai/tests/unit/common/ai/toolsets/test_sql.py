@@ -548,6 +548,68 @@ class TestSQLToolsetQuery:
 
 
 class TestSQLToolsetCheckQuery:
+    @pytest.mark.parametrize(
+        ("allow_writes", "expected_valid"),
+        [(False, False), (True, True)],
+    )
+    def test_write_statement_validity_follows_allow_writes(self, allow_writes, expected_valid):
+        ts = SQLToolset("pg_default", allow_writes=allow_writes)
+        ts._hook = _make_mock_db_hook()
+
+        result = asyncio.run(
+            ts.call_tool(
+                "check_query",
+                {"sql": "INSERT INTO users VALUES (3, 'Eve')"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        assert json.loads(result)["valid"] is expected_valid
+
+    def test_write_to_allowed_table_is_valid(self):
+        ts = SQLToolset("pg_default", allowed_tables=["orders"], allow_writes=True)
+        ts._hook = _make_mock_db_hook()
+
+        assert _run_check(ts, "INSERT INTO orders (id) VALUES (1)")["valid"] is True
+
+    def test_write_to_disallowed_table_is_invalid_and_names_the_table(self):
+        ts = SQLToolset("pg_default", allowed_tables=["orders"], allow_writes=True)
+        ts._hook = _make_mock_db_hook()
+
+        data = _run_check(ts, "INSERT INTO secret_salaries (id) VALUES (1)")
+
+        assert data["valid"] is False
+        assert "secret_salaries" in data["error"]
+
+    def test_malformed_write_is_invalid_for_check_query_but_still_reaches_the_hook_for_query(self):
+        """check_query syntax-checks writes; query without an allow-list leaves them unparsed."""
+        sql = "INSERT INTO users VALUES ("
+        ts = SQLToolset("pg_default", allow_writes=True)
+        ts._hook = _make_mock_db_hook(records=[], last_description=None)
+
+        assert _run_check(ts, sql)["valid"] is False
+
+        _run_query(ts, sql)
+        _assert_executed(ts._hook, sql)
+
+    @pytest.mark.parametrize(
+        ("toolset_kwargs", "expected_valid"),
+        [({}, True), ({"allowed_tables": ["users"]}, False)],
+    )
+    def test_multiple_statements_follow_query_when_writes_allowed(self, toolset_kwargs, expected_valid):
+        ts = SQLToolset("pg_default", allow_writes=True, **toolset_kwargs)
+        ts._hook = _make_mock_db_hook()
+
+        result = asyncio.run(
+            ts.call_tool(
+                "check_query",
+                {"sql": "INSERT INTO users VALUES (1, 'a'); DELETE FROM users"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        assert json.loads(result)["valid"] is expected_valid
+
     def test_valid_select(self):
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
