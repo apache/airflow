@@ -380,6 +380,11 @@ Comparison
        with ``none_failed`` they run over the other items
      - The same: a skipped iteration is left out of the result, downstream tasks with
        ``all_success`` are skipped, and with ``none_failed`` they run over the other items
+   * - Items that return ``None``
+     - The task instance pushes no XCom and is not counted: a downstream ``.expand()`` over the
+       output runs over the values that exist, and positions shift
+     - The iteration pushes no XCom but keeps its position: the result reads ``None`` there, and a
+       downstream ``.expand()`` over it runs over that ``None``
    * - Asset events
      - One event per mapped task instance that emits to an asset
      - One event per asset for the whole task instance: items emitting to the same asset are

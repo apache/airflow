@@ -1436,6 +1436,42 @@ class TestIterableOperator:
                 assert store["_iterable_1"]["status"] == "success"
                 assert store["_iterable_completed"]["completed"] is True
 
+    def test_an_iteration_returning_none_keeps_its_position_and_reads_as_none(self):
+        """
+        Only a skip takes an index out of the sequence. An iteration that returned ``None`` pushed
+        nothing, as a mapped task instance would, but is counted and reads as ``None``; ``.expand()``
+        would not count it, which the docs page says.
+        """
+
+        class ValueOrNothing(BaseOperator):
+            def __init__(self, value=None, skip=False, **kwargs):
+                super().__init__(**kwargs)
+                self.value = value
+                self.skip = skip
+
+            def execute(self, context):
+                if self.skip:
+                    raise AirflowSkipException("nothing to do")
+                return self.value
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput(
+                [{"value": 1}, {"value": None}, {"skip": True}, {"value": 4}]
+            )
+            iterable_op = create_iterable_operator(
+                dag, expand_input, task_id="none_and_skip", operator_class=ValueOrNothing
+            )
+
+            with mock_context(task=iterable_op) as context:
+                result = iterable_op.execute(context=context)
+                store = context["task_state_store"]
+
+                assert result.skipped == [2]
+                assert len(result) == 3
+                assert list(result) == [1, None, 4]
+                assert store["_iterable_1"]["status"] == "success"
+                assert "result" not in store["_iterable_1"]
+
     def test_skipped_iteration_is_left_out_of_the_result(self):
         """As a skipped mapped task instance, a skipped iteration is not among the values downstream reads."""
         with DAG("test_dag") as dag:

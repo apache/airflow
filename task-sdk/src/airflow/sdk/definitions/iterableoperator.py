@@ -519,7 +519,10 @@ class IterableOperator(BaseOperator):
         :class:`~airflow.sdk.exceptions.AirflowSkipException` is skipped, as a mapped task instance
         would be: it pushes no XCom, does not fail the task and is not run again on a retry. It is
         left out of the task's :class:`~airflow.sdk.bases.xcom.XComIterable`, so downstream tasks
-        only see the values that exist. A direct downstream task whose trigger rule skips it when an
+        only see the values that exist. A sub-task that returns ``None`` is not skipped: it succeeds,
+        pushes no XCom and keeps its position in the sequence, which reads ``None`` there, so a
+        downstream ``.expand()`` over the result runs over it; ``.expand()`` leaves a mapped task
+        instance that returned ``None`` out of the count instead. A direct downstream task whose trigger rule skips it when an
         upstream task instance is skipped (``all_success``, ``none_skipped``,
         ``all_done_min_one_success``) is skipped, as after a mapped upstream; one with a rule such
         as ``none_failed`` runs over the remaining values. If *every* sub-task is skipped, a single

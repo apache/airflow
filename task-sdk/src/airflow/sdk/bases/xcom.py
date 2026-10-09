@@ -588,7 +588,9 @@ class XComIterable(Sequence):
     Indexing follows the usual sequence rules, negative indices included: ``result[-1]`` is the last
     value. Iterations that were skipped pushed nothing and are left out, as the XComs of skipped
     mapped task instances are: ``length`` counts every input item, ``skipped`` lists the indices
-    that produced no value, and positions in the sequence run over the others only.
+    that were skipped, and positions in the sequence run over the others only. An iteration that
+    returned ``None`` pushed nothing either but keeps its position: reading it gives ``None``,
+    where ``.expand()`` would not count such a mapped task instance at all.
 
     Every element is a remote fetch, so random access costs one XCom read per element, and so do
     iterating and slicing: N elements are N requests. Reading several in one request needs an
