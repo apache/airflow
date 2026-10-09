@@ -66,7 +66,8 @@ class TestEventProducer:
     KAFKA_CONFIG_ID = "kafka_default"
     # Use a unique topic per run to avoid errors on a re-run, in case
     # the previous teardown hasn't finished with the topic deletion.
-    TOPIC = f"airflow.events.itest.{uuid.uuid4().hex[:8]}"
+    DAGRUN_TOPIC = f"airflow.dagrun.itest.{uuid.uuid4().hex[:8]}"
+    TASK_INSTANCE_TOPIC = f"airflow.task_instance.itest.{uuid.uuid4().hex[:8]}"
 
     @classmethod
     def setup_class(cls):
@@ -85,8 +86,8 @@ class TestEventProducer:
 
         os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__DAG_RUN_EVENTS_ENABLED"] = "True"
         os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_EVENTS_ENABLED"] = "True"
-        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__DAGRUN_TOPIC"] = cls.TOPIC
-        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_TOPIC"] = cls.TOPIC
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__DAGRUN_TOPIC"] = cls.DAGRUN_TOPIC
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_TOPIC"] = cls.TASK_INSTANCE_TOPIC
         os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__SOURCE"] = "dev-breeze"
 
         # Shared Kafka connection: used by the event producer plugin, the topic
