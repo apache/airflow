@@ -46,7 +46,7 @@ from airflow.exceptions import (
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.pool import Pool
-from airflow.sdk.exceptions import TaskGroupCycleDeprecationWarning  # noqa: SDK001
+from airflow.sdk.exceptions import AirflowDagCycleException, TaskGroupCycleDeprecationWarning
 from airflow.sdk.importers import DagImportError, get_importer_registry
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
@@ -547,8 +547,6 @@ class DagBag(LoggingMixin):
 
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        from airflow.sdk.exceptions import AirflowDagCycleException
-
         try:
             prev_dag = self.dags.get(dag.dag_id)
             if prev_dag and prev_dag.fileloc != dag.fileloc:
