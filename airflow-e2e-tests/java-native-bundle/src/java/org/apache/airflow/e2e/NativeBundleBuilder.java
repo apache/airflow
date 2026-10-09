@@ -21,6 +21,7 @@ package org.apache.airflow.e2e;
 
 import java.util.List;
 import org.apache.airflow.e2e.nativedag.AnnotationDag;
+import org.apache.airflow.e2e.nativedag.TargetDag;
 import org.apache.airflow.sdk.*;
 
 /**
@@ -60,6 +61,47 @@ public class NativeBundleBuilder {
     }
   }
 
+  /** Its boolean picks one of {@link ReportMany} and {@link ReportFew}; the other is skipped. */
+  public static class HasRows implements ConditionTask {
+    @Override
+    public boolean decide(Context context, Client client) {
+      return ((Number) client.getXCom("transform")).longValue() > 0;
+    }
+  }
+
+  public static class ReportMany implements Task {
+    @Override
+    public void execute(Context context, Client client) {}
+  }
+
+  public static class ReportFew implements Task {
+    @Override
+    public void execute(Context context, Client client) {}
+  }
+
+  /** Names the one of {@link ReportLong} and {@link ReportShort} that runs; the other is skipped. */
+  public static class PickReport implements SwitchTask {
+    @Override
+    public Class<? extends Task> choose(Context context, Client client) {
+      return ((Number) client.getXCom("transform")).longValue() > 100 ? ReportLong.class : ReportShort.class;
+    }
+  }
+
+  public static class ReportLong implements Task {
+    @Override
+    public void execute(Context context, Client client) {}
+  }
+
+  public static class ReportShort implements Task {
+    @Override
+    public void execute(Context context, Client client) {}
+  }
+
+  public static class Audit implements Task {
+    @Override
+    public void execute(Context context, Client client) {}
+  }
+
   public static DagDef buildDag() {
     var dag =
         new DagDef("java_native_e2e")
@@ -72,11 +114,34 @@ public class NativeBundleBuilder {
     var load = dag.task("load", Load.class).config("queue", QUEUE);
 
     transform.after(extract).before(load);
+
+    var reportMany = dag.task("report_many", ReportMany.class).config("queue", QUEUE);
+    var reportFew = dag.task("report_few", ReportFew.class).config("queue", QUEUE);
+    dag.If("has_rows", HasRows.class).after(transform).config("queue", QUEUE).Then(reportMany).Else(reportFew);
+
+    var reportLong = dag.task("report_long", ReportLong.class).config("queue", QUEUE);
+    var reportShort = dag.task("report_short", ReportShort.class).config("queue", QUEUE);
+    dag.Switch("pick_report", PickReport.class)
+        .after(transform)
+        .config("queue", QUEUE)
+        .Case(reportLong)
+        .Case(reportShort);
+
+    // A task that starts a run of another Dag; it runs no Java code.
+    var trigger =
+        dag.task("trigger_downstream", new TriggerDagRun("java_native_target_e2e")).config("queue", QUEUE);
+    load.before(trigger);
+
+    // Ordering-only edge: the checks group runs after extract, with no data flowing.
+    var checks = dag.taskGroup("checks");
+    checks.task("audit", Audit.class).config("queue", QUEUE);
+    extract.before(checks);
+
     return dag;
   }
 
   public static Bundle build() {
-    return new Bundle().register(buildDag()).register(AnnotationDag.class);
+    return new Bundle().register(buildDag()).register(AnnotationDag.class).register(TargetDag.build());
   }
 
   public static void main(String[] args) {

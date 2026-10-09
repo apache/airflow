@@ -27,13 +27,14 @@ bundle. There are four ``JavaCoordinator``s, so ``[sdk] dag_bundle_to_coordinato
 ``java-native`` one to parse it: the Dag processor runs the JAR through it. Each task sets
 ``queue="java-native"``, which routes to ``java-jdk``. That coordinator runs the same JAR from the Dag's
 own bundle, whatever its ``task_handler_bundle_name`` says. ``java_native_e2e`` is declared with the interface
-API, ``java_native_annotation_e2e`` with annotations.
+API, ``java_native_annotation_e2e`` with annotations. Both also exercise a task group, an ``If``, a
+``Switch`` and a ``TriggerDagRun`` of ``java_native_target_e2e``, the third Dag the JAR declares.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -45,25 +46,54 @@ _JAVA_TASK_TIMEOUT = 600
 # The queue the Dag's tasks set, which ``queue_to_coordinator`` routes to ``java-jdk``.
 _QUEUE = "java-native"
 
+# The Dag ``trigger_downstream`` starts a run of; not triggered through the client itself.
+_TARGET_DAG_ID = "java_native_target_e2e"
+
+# Both native Dags wire an identical If/Switch/task-group/trigger shape onto their own
+# extract -> transform -> load chain, so their graphs and skip sets match exactly; only
+# the transform value (84 vs 63) differs, and both land on the same side of each decider.
+_CONTROL_FLOW_DOWNSTREAM: dict[str, set[str]] = {
+    "transform": {"load", "has_rows", "pick_report"},
+    "load": {"trigger_downstream"},
+    "has_rows": {"report_many", "report_few"},
+    "report_many": set(),
+    "report_few": set(),
+    "pick_report": {"report_long", "report_short"},
+    "report_long": set(),
+    "report_short": set(),
+    "trigger_downstream": set(),
+    "checks.audit": set(),
+}
+# The Else side of the If, and the Case the Switch does not choose.
+_CONTROL_FLOW_SKIPPED = frozenset({"report_few", "report_long"})
+
 
 @dataclass(frozen=True)
 class _NativeDag:
     dag_id: str
     downstream: dict[str, set[str]]
-    return_values: dict[str, int]
+    return_values: dict[str, int | bool | str]
+    # Marks the Java source of the file that declares this Dag; each Dag's own source file,
+    # not always the bundle's main class, since the bundle embeds one source per Dag.
+    source_marker: str
+    skipped: frozenset[str] = frozenset()
 
 
 _NATIVE_DAGS = [
     _NativeDag(
         dag_id="java_native_e2e",
-        downstream={"extract": {"transform"}, "transform": {"load"}, "load": set()},
-        return_values={"extract": 42, "transform": 84},
+        downstream={"extract": {"transform", "checks.audit"}, **_CONTROL_FLOW_DOWNSTREAM},
+        return_values={"extract": 42, "transform": 84, "has_rows": True, "pick_report": "report_short"},
+        source_marker="public class NativeBundleBuilder",
+        skipped=_CONTROL_FLOW_SKIPPED,
     ),
     _NativeDag(
         dag_id="java_native_annotation_e2e",
-        downstream={"extract": {"transform", "audit"}, "transform": {"load"}, "load": set(), "audit": set()},
+        downstream={"extract": {"transform", "checks.audit"}, **_CONTROL_FLOW_DOWNSTREAM},
         # transform(extracted, lit(1.5)).
-        return_values={"extract": 42, "transform": 63},
+        return_values={"extract": 42, "transform": 63, "has_rows": True, "pick_report": "report_short"},
+        source_marker="public class AnnotationDag",
+        skipped=_CONTROL_FLOW_SKIPPED,
     ),
 ]
 
@@ -79,10 +109,13 @@ class _CompletedRun:
 
 @pytest.fixture(scope="module")
 def parsed_dags() -> AirflowClient:
-    """A client that has waited for the Dag processor to register both Dags from the JAR."""
+    """A client that has waited for the Dag processor to register every Dag from the JAR."""
     client = AirflowClient()
-    for native_dag in _NATIVE_DAGS:
-        client.wait_for_dag(native_dag.dag_id, timeout=_JAVA_TASK_TIMEOUT)
+    for dag_id in (*[native_dag.dag_id for native_dag in _NATIVE_DAGS], _TARGET_DAG_ID):
+        client.wait_for_dag(dag_id, timeout=_JAVA_TASK_TIMEOUT)
+    # trigger_downstream never goes through the client, so nothing else un-pauses its
+    # target; a run of a still-paused Dag can leave its tasks queued instead of running.
+    client.un_pause_dag(_TARGET_DAG_ID)
     return client
 
 
@@ -92,7 +125,7 @@ def completed_runs(parsed_dags: AirflowClient) -> dict[str, _CompletedRun]:
     client = parsed_dags
     run_ids = {
         native_dag.dag_id: client.trigger_dag(
-            native_dag.dag_id, json={"logical_date": datetime.now(timezone.utc).isoformat()}
+            native_dag.dag_id, json={"logical_date": datetime.now(UTC).isoformat()}
         )["dag_run_id"]
         for native_dag in _NATIVE_DAGS
     }
@@ -128,13 +161,12 @@ def test_the_dag_source_is_the_bundle_main_class(parsed_dags: AirflowClient, nat
     """
     The Code view shows the Java source the JAR embeds, not the JAR read as text.
 
-    The Code view shows the JAR's entrypoint, its main class, so both Dags show the file that
-    declares ``java_native_e2e`` and registers ``java_native_annotation_e2e``.
+    The bundle embeds one source file per Dag, so the Code view shows the file that actually
+    declares each Dag, not always the bundle's main class.
     """
     content = parsed_dags.get_dag_source(native_dag.dag_id)["content"]
 
-    assert "public class NativeBundleBuilder" in content
-    assert 'new DagDef("java_native_e2e")' in content
+    assert native_dag.source_marker in content
 
 
 @_by_dag_id
@@ -144,8 +176,12 @@ def test_dag_run_succeeded(completed_runs: dict[str, _CompletedRun], native_dag:
     assert run.state == "success", (
         f"expected the run to succeed; got {run.state!r}. task states: {run.ti_states}"
     )
-    # load throws unless transform's value reached it, so its success proves the last hop.
-    assert run.ti_states == dict.fromkeys(native_dag.downstream, "success")
+    # load throws unless transform's value reached it, so its success proves that hop.
+    expected = {
+        task_id: "skipped" if task_id in native_dag.skipped else "success"
+        for task_id in native_dag.downstream
+    }
+    assert run.ti_states == expected
 
 
 @_by_dag_id
@@ -158,3 +194,22 @@ def test_xcoms_flow_between_java_tasks(
             dag_id=native_dag.dag_id, task_id=task_id, run_id=run_id, key="return_value"
         ).get("value")
         assert value == expected, f"{native_dag.dag_id}.{task_id} returned {value!r}"
+
+
+@_by_dag_id
+def test_trigger_downstream_run_succeeded(
+    parsed_dags: AirflowClient, completed_runs: dict[str, _CompletedRun], native_dag: _NativeDag
+):
+    """``trigger_downstream`` pushes the triggered run's ID; follow it and check it too succeeded."""
+    run_id = completed_runs[native_dag.dag_id].run_id
+    triggered_run_id = parsed_dags.get_xcom_value(
+        dag_id=native_dag.dag_id, task_id="trigger_downstream", run_id=run_id, key="return_value"
+    ).get("value")
+    assert triggered_run_id, f"{native_dag.dag_id}.trigger_downstream pushed no run ID"
+
+    state = parsed_dags.wait_for_dag_run(
+        dag_id=_TARGET_DAG_ID, run_id=triggered_run_id, timeout=_JAVA_TASK_TIMEOUT
+    )
+    assert state == "success", (
+        f"expected the {_TARGET_DAG_ID} run {triggered_run_id} to succeed; got {state!r}"
+    )

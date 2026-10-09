@@ -49,16 +49,58 @@ public class AnnotationDag {
     }
   }
 
-  @Builder.Task(id = "audit", queue = QUEUE)
-  public void audit() {}
+  @Builder.Task(id = "report_many", queue = QUEUE)
+  public void reportMany() {}
+
+  @Builder.Task(id = "report_few", queue = QUEUE)
+  public void reportFew() {}
+
+  /** Picks one of {@link #reportMany} and {@link #reportFew}; the other is skipped. */
+  @Builder.If(id = "has_rows", queue = QUEUE)
+  public boolean hasRows(long transformed) {
+    return transformed > 0;
+  }
+
+  @Builder.Task(id = "report_long", queue = QUEUE)
+  public void reportLong() {}
+
+  @Builder.Task(id = "report_short", queue = QUEUE)
+  public void reportShort() {}
+
+  /** Names the one of {@link #reportLong} and {@link #reportShort} that runs; the other is skipped. */
+  @Builder.Switch(id = "pick_report", queue = QUEUE)
+  public Class<? extends Task> pickReport(long transformed) {
+    return transformed > 100 ? AnnotationDagBuilder.ReportLong.class : AnnotationDagBuilder.ReportShort.class;
+  }
+
+  // A task that starts a run of another Dag. The method runs when this Dag is
+  // built, not when the task runs, so it takes no arguments.
+  @Builder.Task(id = "trigger_downstream", queue = QUEUE)
+  public TriggerDagRun triggerDownstream() {
+    return new TriggerDagRun("java_native_target_e2e");
+  }
+
+  // A task group: everything it declares is prefixed with its id, so this is
+  // the task "checks.audit".
+  @Builder.TaskGroup(id = "checks")
+  static class Checks {
+    @Builder.Task(id = "audit", queue = QUEUE)
+    public void audit() {}
+  }
 
   @Builder.Deps
   static class Wiring implements AnnotationDagDeps {
     void depends() {
       var extracted = extract();
-      load(transform(extracted, lit(1.5)));
-      // Ordering-only edge: audit runs after extract, with no data flowing.
-      extracted.before(audit());
+      var transformed = transform(extracted, lit(1.5));
+      var loaded = load(transformed);
+      hasRows(transformed).Then(reportMany()).Else(reportFew());
+      pickReport(transformed).Case(reportLong()).Case(reportShort());
+      loaded.before(triggerDownstream());
+      // Ordering-only edge: the checks group runs after extract, with no data
+      // flowing.
+      extracted.before(checks());
+      checks().audit();
     }
   }
 }
