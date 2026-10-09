@@ -43,9 +43,10 @@ Requirements
 ------------
 
 The executor needs ``apache-airflow-providers-cncf-kubernetes`` version 10.24.0 or
-newer, the release that added the ``client_factory`` setting the executor is built on.
-Install the ``cncf.kubernetes`` extra of the Amazon provider together with that
-version:
+newer, the release that added the
+:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__client_factory`
+setting the executor is built on. Install the ``cncf.kubernetes`` extra of the Amazon
+provider together with that version:
 
 .. code-block:: bash
 
@@ -54,8 +55,10 @@ version:
 
 The AWS credentials the executor uses must be allowed to call ``eks:DescribeCluster``
 on the cluster, and the IAM principal behind those credentials must be granted
-access inside the cluster itself. On modern clusters this means an EKS access entry;
-on older clusters it means an entry in the ``aws-auth`` config map. Without that
+access inside the cluster itself. On modern clusters this means an `EKS access entry
+<https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html>`__; on older
+clusters it means an entry in the `aws-auth ConfigMap
+<https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html>`__. Without that
 in-cluster grant every Kubernetes API call is rejected, and the startup check described
 below stops the scheduler with an error that points at the access entry.
 
@@ -64,7 +67,8 @@ How authentication works
 
 When the executor starts, it plugs its own Kubernetes client into the Kubernetes
 executor. Every process that needs a client, including the pod watcher that Airflow runs
-as a separate process, builds its own from the ``[aws_eks_executor]`` settings.
+as a separate process, builds its own from the :ref:`[aws_eks_executor] <eks_config_options>`
+settings.
 
 To build a client, the executor describes the cluster to find its API endpoint and
 certificate authority, then mints an authentication token for it. An EKS token is a presigned
@@ -113,34 +117,40 @@ Pod-level configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Settings that describe the worker pods themselves stay in the
-``[kubernetes_executor]`` section, exactly as they are for the Kubernetes executor.
-This includes ``namespace``, ``pod_template_file``, ``worker_container_repository``,
-``worker_container_tag``, and ``delete_worker_pods``. See
-:doc:`apache-airflow-providers-cncf-kubernetes:kubernetes_executor` for the full list
-and for how pod templates and ``pod_override`` work.
+:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor`
+section, exactly as they are for the Kubernetes executor. This includes
+:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__namespace`,
+:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__pod_template_file`,
+:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__worker_container_repository`,
+:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__worker_container_tag`, and
+:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__delete_worker_pods`.
+See :doc:`apache-airflow-providers-cncf-kubernetes:kubernetes_executor` for the full list, and
+for how :ref:`pod templates <apache-airflow-providers-cncf-kubernetes:concepts:pod_template_file>` and
+:ref:`apache-airflow-providers-cncf-kubernetes:concepts:pod_override` work.
 
-Leave ``client_factory`` and ``async_client_factory`` in that section unset. The
-executor sets both itself, and raises an error at startup if either is set to something
-else, so that a stale or conflicting setting cannot silently send tasks to the wrong
-cluster.
+Leave :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__client_factory` and
+:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__async_client_factory`
+in that section unset. The executor sets both itself, and raises an error at startup if
+either is set to something else, so that a stale or conflicting setting cannot silently
+send tasks to the wrong cluster.
 
 The worker pod template
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Set ``[kubernetes_executor] pod_template_file`` to the path of a YAML file describing
-the worker pod. Treat it as required. There is no usable default: when the setting is
-empty the Kubernetes executor only logs a warning that the model file does not exist
-and then builds a worker pod from an empty template. That pod is missing the container
-the executor needs, so the failure arrives later and somewhere else, usually as a
-rejected pod or a task that never reports back.
+Set :ref:`[kubernetes_executor] pod_template_file
+<apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__pod_template_file>`
+to the path of a YAML file describing the worker pod. Treat it as required. There is no
+usable default: when the setting is empty the Kubernetes executor only logs a warning
+that the model file does not exist and then builds a worker pod from an empty template.
+That pod is missing the container the executor needs, so the failure arrives later and
+somewhere else, usually as a rejected pod or a task that never reports back.
 
 The file must define a container named ``base`` as the first entry in
 ``spec.containers``, and that container has to run your Airflow worker image.
-The ``pod_template_file`` section of
-:doc:`apache-airflow-providers-cncf-kubernetes:kubernetes_executor` covers the full set
-of requirements and includes templates for Dags baked into the image, Dags on a volume,
-and git-sync. Any of those works here unchanged, since this executor only replaces how
-the Kubernetes client is authenticated.
+The :ref:`apache-airflow-providers-cncf-kubernetes:concepts:pod_template_file` section of the
+Kubernetes executor docs covers the full set of requirements and includes templates for
+Dags baked into the image, Dags on a volume, and git-sync. Any of those works here
+unchanged, since this executor only replaces how the Kubernetes client is authenticated.
 
 .. _eks_logging:
 
@@ -148,9 +158,10 @@ the Kubernetes client is authenticated.
   :start-after: .. BEGIN LOGGING
   :end-before: .. END LOGGING
 
--  Worker pods are deleted when their task succeeds (``[kubernetes_executor]
-   delete_worker_pods``), and their logs go with them, so configure remote
-   logging to CloudWatch Logs or S3 to keep task logs viewable in the Airflow UI.
+-  Worker pods are deleted when their task succeeds (:ref:`[kubernetes_executor]
+   delete_worker_pods <apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__delete_worker_pods>`),
+   and their logs go with them, so configure remote logging to CloudWatch Logs or S3
+   to keep task logs viewable in the Airflow UI.
 -  The remote logging configuration must be set on the worker pods as well as on
    the scheduler and API server, and the worker pods need an IAM role, for
    example through EKS Pod Identity, that can write to the log destination.
@@ -163,11 +174,13 @@ Setting up an EKS Executor for Apache Airflow
 Grant access to the cluster
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Create an EKS access entry for the IAM role or user that the scheduler runs as, and
-associate a policy that allows create, get, list, watch, patch and delete on pods, and
-get on pods/log, in the namespace you plan to use. If you manage cluster access through
-the ``aws-auth`` config map instead, add the principal there and map it to a Kubernetes
-group with the same permissions.
+Create an `EKS access entry
+<https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html>`__ for the IAM
+role or user that the scheduler runs as, and associate a policy that allows create, get,
+list, watch, patch and delete on pods, and get on pods/log, in the namespace you plan to
+use. If you manage cluster access through the `aws-auth ConfigMap
+<https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html>`__ instead, add
+the principal there and map it to a Kubernetes group with the same permissions.
 
 Configure Airflow
 ~~~~~~~~~~~~~~~~~
@@ -213,8 +226,9 @@ Multi-team deployments
 
 The executor supports :doc:`multi-team <apache-airflow:core-concepts/multi-team>` mode
 the same way the Kubernetes executor does. Teams share the cluster set in the global
-``[aws_eks_executor]`` section, and each team gets its own team-scoped
-``[kubernetes_executor]`` settings, such as the namespace and pod template.
+:ref:`[aws_eks_executor] <eks_config_options>` section, and each team gets its own
+team-scoped :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor` settings,
+such as the namespace and pod template.
 
 Fault tolerance
 ---------------
