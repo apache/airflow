@@ -39,6 +39,7 @@ from airflow.api_fastapi.execution_api import security
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI, lifespan
 from airflow.api_fastapi.execution_api.datamodels.token import (
     DagParseClaims,
+    DagParseToken,
     DagProcessorClaims,
     DagProcessorSessionClaims,
     DagProcessorSessionToken,
@@ -380,7 +381,7 @@ class TestJWTBearer:
         [
             ("dag_processor_session", "DagProcessorSessionToken", "DagProcessorSessionClaims"),
             ("dag_processor", "DagProcessorToken", "DagProcessorClaims"),
-            ("dag_parse", "ExecutionToken", "DagParseClaims"),
+            ("dag_parse", "DagParseToken", "DagParseClaims"),
         ],
     )
     def test_processor_token_construction(self, app, scope, token_type, claims_type):
@@ -580,7 +581,7 @@ class TestGetTeamNameDep:
         bundle.teams.append(Team(name="team_a"))
         session.add(bundle)
         session.commit()
-        token = ExecutionToken.model_validate(
+        token = {"dag_processor": DagProcessorToken, "dag_parse": DagParseToken}[scope].model_validate(
             {
                 "id": UUID(int=2),
                 "claims": {
@@ -604,9 +605,17 @@ class TestGetTeamNameDep:
         assert result == "team_a"
 
 
+_TOKEN_TYPES: dict[type, type[ExecutionToken]] = {
+    TIClaims: TIToken,
+    DagProcessorSessionClaims: DagProcessorSessionToken,
+    DagProcessorClaims: DagProcessorToken,
+    DagParseClaims: DagParseToken,
+}
+
+
 def _build_client(app: FastAPI, claims: ExecutionClaims) -> TestClient:
     async def mock_jwt(request: Request):
-        return ExecutionToken(id=UUID(int=1), claims=claims)
+        return _TOKEN_TYPES[type(claims)](id=UUID(int=1), claims=claims)
 
     app.dependency_overrides[_jwt_bearer] = mock_jwt
     return TestClient(app, headers={"Authorization": "Bearer fake"})
@@ -655,6 +664,13 @@ class TestGetSelectedDagBundle:
         assert response.status_code == expected_status
         if expected_body is not None:
             assert response.json() == expected_body
+
+    def test_header_is_in_the_openapi_spec(self, _, app):
+        parameters = app.openapi()["paths"]["/selected"]["get"]["parameters"]
+
+        assert [(p["name"], p["in"], p["required"]) for p in parameters] == [
+            (DAG_BUNDLE_HEADER, "header", False)
+        ]
 
 
 @pytest.fixture
@@ -789,6 +805,7 @@ class TestDagProcessorTokenOverHTTP:
         assert claims["dag_bundles"] == ["granted"]
         assert claims["relative_fileloc"] == "folder/dag.py"
         assert 0 < claims["exp"] - claims["iat"] <= 30
+        assert response.json()["expires_in"] == claims["exp"] - claims["iat"]
 
     @pytest.mark.parametrize(
         ("body", "status"),

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import svcs
 from cadwyn import VersionedAPIRouter
@@ -52,14 +52,15 @@ from airflow.api_fastapi.execution_api.security import (
     require_auth,
 )
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, JobState
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import JobTeam
 
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
 
 router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
@@ -67,6 +68,24 @@ router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
 _JOB_NOT_FOUND = create_openapi_http_exception_doc(
     [(status.HTTP_404_NOT_FOUND, "Job not found for this token")]
 )
+
+
+class _RegistrationRace(Exception):
+    """The Job insert lost to a concurrent registration of the same session or registration id."""
+
+
+def _get_team_names(bundle_names: list[str]) -> list[str]:
+    # From config like ``airflow dag-processor``: bundle rows may not be synced when a processor registers.
+    if not conf.getboolean("core", "multi_team"):
+        return []
+    configured = get_configured_bundle_team_names()
+    return sorted({team for name in bundle_names if (team := configured.get(name))})
+
+
+def _expired_credential(error: ExpiredDagProcessorToken) -> HTTPException:
+    return HTTPException(
+        status.HTTP_403_FORBIDDEN, detail={"reason": "credential_expired", "message": str(error)}
+    )
 
 
 def _check_token_job(job_id: int, token: DagProcessorToken) -> None:
@@ -85,7 +104,7 @@ def _build_registration_response(
     job_id: int, bundle_names: list[str], token: DagProcessorSessionToken, services: svcs.Container
 ) -> JobRegisterResponse:
     try:
-        credential = generate_dag_processor_token(
+        issued = generate_dag_processor_token(
             services.get(JWTGenerator),
             session_id=token.id,
             job_id=job_id,
@@ -93,8 +112,8 @@ def _build_registration_response(
             session_expiry=token.claims.exp,
         )
     except ExpiredDagProcessorToken as error:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(error)) from error
-    return JobRegisterResponse(job_id=job_id, token=credential)
+        raise _expired_credential(error) from error
+    return JobRegisterResponse(job_id=job_id, token=issued.token, expires_in=issued.expires_in)
 
 
 def _resume_registration(
@@ -125,7 +144,7 @@ def _resume_registration(
 
 
 @router.post(
-    "",
+    "/jobs",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Security(require_auth, scopes=["token:dag_processor_session"])],
     responses=create_openapi_http_exception_doc(
@@ -166,6 +185,7 @@ def register_job(
     if registered := _get_registered_job(body.registration_id, session=session):
         return _resume_registration(registered, body, bundle_names, token, services)
 
+    team_names = _get_team_names(bundle_names)
     now = timezone.utcnow()
     previous = session.scalar(select(Job).where(Job.session_id == token.id).with_for_update())
     if previous is not None:
@@ -182,25 +202,30 @@ def register_job(
 
     try:
         with session.begin_nested():
-            # A core insert: Job.__init__ would stamp the API server's host and user and fire listeners.
-            session.execute(
-                insert(Job).values(
-                    job_type=DagProcessorJobRunner.job_type,
-                    state=JobState.RUNNING,
-                    start_date=now,
-                    latest_heartbeat=now,
-                    hostname=body.hostname,
-                    unixname=body.unixname,
-                    bundle_names=bundle_names,
-                    session_id=token.id,
-                    registration_id=body.registration_id,
+            try:
+                # A core insert: Job.__init__ would stamp the API server's host and user and fire listeners.
+                inserted = session.execute(
+                    insert(Job).values(
+                        job_type=DagProcessorJobRunner.job_type,
+                        state=JobState.RUNNING,
+                        start_date=now,
+                        latest_heartbeat=now,
+                        hostname=body.hostname,
+                        unixname=body.unixname,
+                        bundle_names=bundle_names,
+                        session_id=token.id,
+                        registration_id=body.registration_id,
+                    )
                 )
-            )
-            job_id = session.scalars(select(Job.id).where(Job.session_id == token.id)).one()
-            # Issue the credential before releasing the savepoint so an expiry failure
-            # also rolls back the new Job under SQLite's legacy transaction control.
+            except IntegrityError as error:
+                raise _RegistrationRace from error
+            job_id = cast("CursorResult", inserted).inserted_primary_key[0]  # type: ignore[index]
+            session.add_all(JobTeam(job_id=job_id, team_name=team) for team in team_names)
+            session.flush()
+            # Everything that can fail runs before the savepoint is released: under SQLite's legacy
+            # transaction control the release commits, and a failure after it would keep a half-registered Job.
             response = _build_registration_response(job_id, bundle_names, token, services)
-    except IntegrityError:
+    except _RegistrationRace:
         # A retry sent before the original request finished can lose the race to it; resume the winner.
         if registered := _get_registered_job(body.registration_id, session=session):
             return _resume_registration(registered, body, bundle_names, token, services)
@@ -208,17 +233,11 @@ def register_job(
             status.HTTP_409_CONFLICT,
             detail={"reason": "job_running", "message": "Session registered another Job concurrently"},
         )
-    if conf.getboolean("core", "multi_team"):
-        team_names = DagBundleModel.get_team_names(bundle_names, session=session)
-        session.add_all(
-            JobTeam(job_id=job_id, team_name=team)
-            for team in sorted({team for team in team_names.values() if team})
-        )
     return response
 
 
 @router.post(
-    "/{job_id}/heartbeat",
+    "/jobs/{job_id}/heartbeat",
     dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
     responses=_JOB_NOT_FOUND,
 )
@@ -233,7 +252,7 @@ def heartbeat_job(
 
 
 @router.post(
-    "/{job_id}/complete",
+    "/jobs/{job_id}/complete",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(require_auth, scopes=["token:dag_processor", JOB_UNCHECKED_SCOPE])],
     responses=_JOB_NOT_FOUND,
@@ -266,7 +285,7 @@ def complete_job(
 
 
 @router.post(
-    "/{job_id}/parse-token",
+    "/jobs/{job_id}/parse-token",
     dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
     responses=_JOB_NOT_FOUND,
 )
@@ -279,9 +298,12 @@ def exchange_parse_token(
     """Bind runtime access to the bundle and file selected by the trusted processor manager."""
     _check_token_job(job_id, token)
     if body.bundle_name not in token.claims.dag_bundles:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Token is not granted this Dag bundle")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail={"reason": "bundle_not_granted", "message": f"Bundle not granted: {body.bundle_name}"},
+        )
     try:
-        parsing_token = generate_dag_parse_token(
+        issued = generate_dag_parse_token(
             services.get(JWTGenerator),
             session_id=token.id,
             job_id=job_id,
@@ -291,5 +313,5 @@ def exchange_parse_token(
             processor_expiry=token.claims.exp,
         )
     except ExpiredDagProcessorToken as error:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(error)) from error
-    return DagParseTokenResponse(token=parsing_token)
+        raise _expired_credential(error) from error
+    return DagParseTokenResponse(token=issued.token, expires_in=issued.expires_in)

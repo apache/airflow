@@ -337,7 +337,7 @@ The token flows through the execution stack as follows:
 Even if a workload token is intercepted in transit, it can only call ``/run``. That endpoint
 rejects re-runs (``409 Conflict`` unless the task instance is in ``QUEUED`` or ``RESTARTING``),
 so the attack surface for the longer-lived token is bounded to "start a task that is already
-queued". All other endpoints require ``scope=execution`` and reject workload tokens.
+queued". Every other endpoint rejects workload tokens.
 
 Token validation (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -358,7 +358,7 @@ The ``JWTBearer`` security dependency validates the token once per request:
    ``403 Forbidden`` even when cryptographic validation succeeds. All claim types allow extra
    fields so auth managers can attach deployment-specific claims.
 6. Constructs the corresponding token object: ``TIToken``, ``DagProcessorSessionToken``,
-   ``DagProcessorToken``, or an ``ExecutionToken`` carrying ``DagParseClaims``.
+   ``DagProcessorToken``, or ``DagParseToken``.
 7. Caches the validated token on the ASGI request scope for the duration of the request.
 
 Route-level enforcement is handled by ``require_auth``:
@@ -508,9 +508,12 @@ the client may access::
     airflow dag-processor-token --token-file /run/airflow/processor.jwt \
         --bundle-name dags-folder --rotate
 
-The command writes the token atomically with owner-only permissions. Keep the provisioner
-running and mount its directory rather than a single file so token replacement stays
-visible. Each processor process needs its own session.
+The command writes the token atomically. A new file is readable only by its owner, and replacing
+an existing file keeps its mode and group, so grant the processor read access once. ACLs are not
+carried over. Keep the provisioner running and mount its directory rather than a single file so
+token replacement stays visible. Each processor process needs its own session. Restarting the
+provisioner with the same token file and bundles keeps that session, so running processors keep
+their Jobs.
 
 The three credentials have different issuers and permissions:
 
@@ -530,7 +533,12 @@ invalidates its runtime credentials.
 
 The client selects the bundle with ``use_bundle`` and a parsing attempt with ``use_parse``.
 A request header cannot override the parsing token's signed bundle.
-Connection and Variable access uses the bundle's current team.
+Connection and Variable access uses the bundle's current team. A registered Job's teams come from
+``[dag_processor] dag_bundle_config_list`` on the API server, so it needs the same bundle-to-team
+configuration as the processor. A ``dag_parse`` token can also write and delete Variables, as a
+parsing subprocess can without this client. ``Variable.set`` upserts on the key alone, so in
+multi-team mode a write can overwrite another team's Variable with the same key, as it can with task
+tokens.
 
 The client attempts renewal at 80% of token lifetime. Transient early-renewal failures leave
 the existing token usable until expiry. A retired registration signals that its owner must

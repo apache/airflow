@@ -23,7 +23,8 @@ the signing key, because the processor runs the code it parses.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import math
+from typing import TYPE_CHECKING, NamedTuple
 
 from airflow._shared.timezones import timezone
 
@@ -34,8 +35,23 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
 
 
+class IssuedToken(NamedTuple):
+    """A token with the seconds left until it expires."""
+
+    token: str
+    expires_in: int
+
+
 class ExpiredDagProcessorToken(ValueError):
     """The parent credential expired before a Job or parsing credential could be issued."""
+
+
+def _get_lifetime(generator: JWTGenerator, parent_expiry: float, message: str) -> int:
+    """Return whole seconds a child token may live: the signer's lifetime, capped by its parent's expiry."""
+    lifetime = math.floor(min(generator.valid_for, parent_expiry - timezone.utcnow().timestamp()))
+    if lifetime < 1:
+        raise ExpiredDagProcessorToken(message)
+    return lifetime
 
 
 def generate_dag_processor_session_token(
@@ -59,20 +75,19 @@ def generate_dag_processor_token(
     job_id: int,
     bundle_names: Collection[str],
     session_expiry: float,
-) -> str:
+) -> IssuedToken:
     """Issue a Job credential that cannot outlive its provisioned session credential."""
-    remaining = session_expiry - timezone.utcnow().timestamp()
-    if remaining <= 0:
-        raise ExpiredDagProcessorToken("Session credential has expired")
-    return generator.generate(
+    lifetime = _get_lifetime(generator, session_expiry, "Session credential has expired")
+    token = generator.generate(
         extras={
             "sub": str(session_id),
             "scope": "dag_processor",
             "dag_bundles": sorted(bundle_names),
             "job_id": job_id,
         },
-        valid_for=min(generator.valid_for, remaining),
+        valid_for=lifetime,
     )
+    return IssuedToken(token, lifetime)
 
 
 def generate_dag_parse_token(
@@ -84,12 +99,10 @@ def generate_dag_parse_token(
     bundle_name: str,
     relative_fileloc: str,
     processor_expiry: float,
-) -> str:
+) -> IssuedToken:
     """Issue a parsing credential that cannot outlive its parent Job credential."""
-    remaining = processor_expiry - timezone.utcnow().timestamp()
-    if remaining <= 0:
-        raise ExpiredDagProcessorToken("Processor credential has expired")
-    return generator.generate(
+    lifetime = _get_lifetime(generator, processor_expiry, "Processor credential has expired")
+    token = generator.generate(
         extras={
             "sub": str(attempt_id),
             "scope": "dag_parse",
@@ -98,5 +111,6 @@ def generate_dag_parse_token(
             "dag_bundles": [bundle_name],
             "relative_fileloc": relative_fileloc,
         },
-        valid_for=min(generator.valid_for, remaining),
+        valid_for=lifetime,
     )
+    return IssuedToken(token, lifetime)

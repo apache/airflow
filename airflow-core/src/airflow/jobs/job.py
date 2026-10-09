@@ -105,7 +105,7 @@ class Job(Base, LoggingMixin):
     unixname: Mapped[str | None] = mapped_column(String(1000))
     bundle_names: Mapped[list[str] | None] = mapped_column(ExtendedJSON, nullable=True)
     session_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True, unique=True)
-    """Component session that registered this Job over the Execution API; ``None`` for Jobs written directly."""
+    """Component session that registered this Job over the Execution API; ``None`` for Jobs written directly or replaced by a newer registration."""
     registration_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True, unique=True)
     """Process registration that created this Job; it creates no other Job, even after this one ends."""
 

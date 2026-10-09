@@ -131,6 +131,9 @@ class DagParseTokenResponse(BaseModel):
         extra="forbid",
     )
     token: Annotated[str, Field(title="Token")]
+    expires_in: Annotated[
+        int, Field(description="Seconds until the token expires.", gt=0, title="Expires In")
+    ]
 
 
 class DagResponse(BaseModel):
@@ -308,7 +311,13 @@ class JobRegisterResponse(BaseModel):
     )
     job_id: Annotated[int, Field(title="Job Id")]
     token: Annotated[
-        str, Field(description="A ``dag_processor`` token valid while the Job is open.", title="Token")
+        str,
+        Field(
+            description="A ``dag_processor`` token, valid until it expires or the Job ends.", title="Token"
+        ),
+    ]
+    expires_in: Annotated[
+        int, Field(description="Seconds until the token expires.", gt=0, title="Expires In")
     ]
 
 

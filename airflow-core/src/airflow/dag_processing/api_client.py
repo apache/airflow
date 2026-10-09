@@ -29,7 +29,6 @@ from typing import Any
 from uuid import UUID
 
 import httpx
-import jwt
 import structlog
 from uuid6 import uuid7
 
@@ -77,7 +76,7 @@ class DagProcessorJobAlreadyRunning(RuntimeError):
 def get_error_reason(error: httpx.HTTPStatusError) -> str | None:
     try:
         payload = error.response.json()
-    except ValueError:
+    except (ValueError, httpx.ResponseNotRead):
         return None
     detail = payload.get("detail") if isinstance(payload, dict) else None
     return detail.get("reason") if isinstance(detail, dict) else None
@@ -203,21 +202,7 @@ class DagProcessorAPIClient(Client):
             timeout=timeout or self.timeout,
         )
         parsed = DagParseTokenResponse.model_validate_json(response.content)
-        try:
-            claims = jwt.decode(parsed.token, options={"verify_signature": False})
-            lifetime = float(claims["exp"]) - float(claims["iat"])
-            if (
-                not math.isfinite(lifetime)
-                or lifetime <= 0
-                or claims.get("scope") != "dag_parse"
-                or claims.get("sub") != str(context.request.attempt_id)
-                or claims.get("job_id") != self._job_id
-                or claims.get("dag_bundles") != [context.request.bundle_name]
-                or claims.get("relative_fileloc") != context.request.relative_fileloc
-            ):
-                raise ValueError
-        except (jwt.PyJWTError, KeyError, TypeError, ValueError):
-            raise ValueError("Token exchange returned an invalid Dag parsing token") from None
+        lifetime = parsed.expires_in
         context.token = parsed.token
         context.expires_at = started_at + lifetime
         context.renew_at = started_at + lifetime * 0.8
@@ -301,19 +286,7 @@ class DagProcessorAPIClient(Client):
         registered = JobRegisterResponse.model_validate_json(response.content)
         if self._job_id is not None and self._job_id != registered.job_id:
             raise RuntimeError("Registration returned a different Dag processor Job")
-        try:
-            # Unverified claims only schedule renewal; the API server remains the authority on validity.
-            claims = jwt.decode(registered.token, options={"verify_signature": False})
-            lifetime = float(claims["exp"]) - float(claims["iat"])
-            if (
-                not math.isfinite(lifetime)
-                or lifetime <= 0
-                or claims.get("scope") != "dag_processor"
-                or claims.get("job_id") != registered.job_id
-            ):
-                raise ValueError
-        except (jwt.PyJWTError, KeyError, TypeError, ValueError):
-            raise ValueError("Registration returned an invalid Dag processor Job token") from None
+        lifetime = registered.expires_in
 
         self._job_id = registered.job_id
         self.auth = BearerAuth(registered.token)

@@ -56,7 +56,8 @@ class JobRegisterResponse(StrictBaseModel):
     """The registered Job and its management credential."""
 
     job_id: int
-    token: str = Field(description="A ``dag_processor`` token valid while the Job is open.")
+    token: str = Field(description="A ``dag_processor`` token, valid until it expires or the Job ends.")
+    expires_in: int = Field(gt=0, description="Seconds until the token expires.")
 
 
 class JobHeartbeatResponse(StrictBaseModel):
@@ -90,3 +91,4 @@ class DagParseTokenResponse(StrictBaseModel):
     """Short-lived parsing credential; cannot register, heartbeat, or complete Jobs."""
 
     token: str
+    expires_in: int = Field(gt=0, description="Seconds until the token expires.")

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -31,7 +32,6 @@ from airflow.api_fastapi.execution_api.datamodels.token import (
 )
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.jobs.job import Job, JobState
-from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
@@ -134,7 +134,7 @@ class TestRegisterJob:
         assert job.bundle_names == ["bundle_a", "bundle_b"]
         assert (job.session_id, job.registration_id) == (SESSION_ID, REGISTRATION_ID)
 
-    def test_returns_a_token_for_the_job_that_never_outlives_the_session_token(self, client):
+    def test_returns_a_token_bound_to_the_job_and_its_session(self, client):
         response = _register(client, bundle_names=["bundle_b"])
 
         assert response.status_code == 201, response.json()
@@ -143,7 +143,20 @@ class TestRegisterJob:
         assert claims["sub"] == str(SESSION_ID)
         assert claims["job_id"] == response.json()["job_id"]
         assert claims["dag_bundles"] == ["bundle_b"]
-        assert claims["exp"] <= SESSION_EXPIRY.timestamp()
+        assert response.json()["expires_in"] == claims["exp"] - claims["iat"]
+
+    def test_the_job_token_never_outlives_the_session_token(self, client, authenticate):
+        authenticate(
+            scope="dag_processor_session",
+            dag_bundles=frozenset({"bundle_a", "bundle_b"}),
+            exp=NOW.timestamp() + 60,
+        )
+
+        response = _register(client)
+
+        assert response.status_code == 201, response.json()
+        assert _decode(response.json()["token"])["exp"] == NOW.timestamp() + 60
+        assert response.json()["expires_in"] == 60
 
     def test_rejects_an_empty_bundle_selection(self, client, session):
         response = _register(client, bundle_names=[])
@@ -166,7 +179,10 @@ class TestRegisterJob:
         response = _register(client)
 
         assert response.status_code == 403
-        assert response.json()["detail"] == "Session credential has expired"
+        assert response.json()["detail"] == {
+            "reason": "credential_expired",
+            "message": "Session credential has expired",
+        }
         assert session.scalars(select(Job.id)).all() == expected_job_ids
 
     def test_rejects_an_ungranted_bundle(self, client, session):
@@ -176,17 +192,50 @@ class TestRegisterJob:
         assert response.json()["detail"]["reason"] == "bundle_not_granted"
         assert session.scalars(select(Job)).all() == []
 
-    @conf_vars({("core", "multi_team"): "True"})
-    def test_records_the_teams_of_its_bundles(self, client, session):
-        team_bundle = DagBundleModel(name="bundle_a")
-        team_bundle.teams.append(Team(name="team_a"))
-        session.add_all([team_bundle, DagBundleModel(name="bundle_b")])
+    @conf_vars(
+        {
+            ("core", "multi_team"): "True",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(
+                [
+                    {"name": "bundle_a", "classpath": "x.BundleA", "kwargs": {}, "team_name": "team_a"},
+                    {"name": "bundle_b", "classpath": "x.BundleB", "kwargs": {}},
+                ]
+            ),
+        }
+    )
+    def test_records_the_teams_of_its_bundles_from_config(self, client, session):
+        session.add(Team(name="team_a"))
         session.commit()
 
         response = _register(client)
 
         assert response.status_code == 201, response.json()
         assert session.get(Job, response.json()["job_id"]).team_names == ["team_a"]
+
+    @conf_vars(
+        {
+            ("core", "multi_team"): "True",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(
+                [{"name": "bundle_a", "classpath": "x.BundleA", "kwargs": {}, "team_name": "missing_team"}]
+            ),
+        }
+    )
+    def test_a_failed_team_assignment_leaves_no_job_behind(self, client, session, monkeypatch):
+        monkeypatch.setattr(client._transport, "raise_server_exceptions", False)
+
+        response = _register(client)
+
+        assert response.status_code == 500
+        assert session.scalars(select(Job)).all() == []
+
+    @conf_vars({("core", "multi_team"): "True", ("dag_processor", "dag_bundle_config_list"): "not json"})
+    def test_unreadable_bundle_config_leaves_no_job_behind(self, client, session, monkeypatch):
+        monkeypatch.setattr(client._transport, "raise_server_exceptions", False)
+
+        response = _register(client)
+
+        assert response.status_code == 500
+        assert session.scalars(select(Job)).all() == []
 
     def test_same_registration_returns_the_same_job_with_a_fresh_token(self, client, session):
         job = _create_job(session)
@@ -344,7 +393,10 @@ class TestParseTokenExchange:
         )
 
         assert response.status_code == 403
-        assert response.json()["detail"] == "Processor credential has expired"
+        assert response.json()["detail"] == {
+            "reason": "credential_expired",
+            "message": "Processor credential has expired",
+        }
 
 
 class TestCompleteJob:

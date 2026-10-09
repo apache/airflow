@@ -94,12 +94,12 @@ Why ``ExecutionAPIRoute`` is needed:
 # ruff: noqa: I002
 
 from collections.abc import Callable
-from typing import Any, ParamSpec, TypeVar, get_args
+from typing import Annotated, Any, ParamSpec, TypeVar, get_args
 from uuid import UUID
 
 import structlog
 import svcs
-from fastapi import Depends, HTTPException, Request, Response, Security, status
+from fastapi import Depends, Header, HTTPException, Request, Response, Security, status
 from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPBearer, SecurityScopes
@@ -109,6 +109,7 @@ from sqlalchemy import select
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.datamodels.token import (
     DagParseClaims,
+    DagParseToken,
     DagProcessorClaims,
     DagProcessorSessionToken,
     DagProcessorToken,
@@ -118,8 +119,12 @@ from airflow.api_fastapi.execution_api.datamodels.token import (
     TokenScope,
 )
 from airflow.api_fastapi.execution_api.deps import DepContainer
+from airflow.jobs.job import Job
 from airflow.models.callback import Callback
+from airflow.models.dag import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.team import Team
 from airflow.utils.session import create_session_async
 
 log = structlog.get_logger(logger_name=__name__)
@@ -129,7 +134,7 @@ _TOKEN_MODELS: dict[str, type[ExecutionToken]] = {
     **dict.fromkeys(get_args(TaskTokenScope), TIToken),
     "dag_processor_session": DagProcessorSessionToken,
     "dag_processor": DagProcessorToken,
-    "dag_parse": ExecutionToken,
+    "dag_parse": DagParseToken,
 }
 
 _REQUEST_SCOPE_TOKEN_KEY = "ti_token"
@@ -337,8 +342,6 @@ async def _require_open_dag_processor_job(
     if request.scope.get(_REQUEST_SCOPE_JOB_KEY):
         return
 
-    from airflow.jobs.job import Job
-
     async with create_session_async() as session:
         session_id = claims.session_id if isinstance(claims, DagParseClaims) else token_id
         job_id = await session.scalar(
@@ -393,12 +396,14 @@ ExecutionOrProcessorSecretsToken = Security(
 """Bundle preparation needs Connection and Variable reads before a file can be discovered."""
 
 
-async def get_selected_dag_bundle(request: Request, token=CurrentExecutionToken) -> str | None:
+async def get_selected_dag_bundle(
+    bundle_name: Annotated[str | None, Header(alias=DAG_BUNDLE_HEADER)] = None,
+    token: ExecutionToken = CurrentExecutionToken,
+) -> str | None:
     """Select a granted management bundle or use the immutable bundle of a parsing attempt."""
-    if token.claims.scope not in ("dag_processor", "dag_parse"):
+    if not isinstance(token, (DagProcessorToken, DagParseToken)):
         return None
-    bundle_name = request.headers.get(DAG_BUNDLE_HEADER)
-    if token.claims.scope == "dag_parse":
+    if isinstance(token, DagParseToken):
         signed_bundle = next(iter(token.claims.dag_bundles))
         if bundle_name is not None and bundle_name != signed_bundle:
             raise HTTPException(
@@ -421,17 +426,17 @@ async def get_selected_dag_bundle(request: Request, token=CurrentExecutionToken)
 SelectedDagBundle = Depends(get_selected_dag_bundle)
 
 
-async def require_dag_in_granted_bundle(request: Request, token=CurrentExecutionToken) -> None:
+async def require_dag_in_granted_bundle(
+    request: Request, token: ExecutionToken = CurrentExecutionToken
+) -> None:
     """
     Limit a parsing request to Dags in the bundle its token grants.
 
     The Dag comes from the ``dag_id`` path or query parameter. A Dag without a ``DagModel`` row yet, as on its
     first parse, belongs to no other bundle, so it is let through to answer like it would for an execution token.
     """
-    if token.claims.scope not in ("dag_processor", "dag_parse"):
+    if not isinstance(token, (DagProcessorToken, DagParseToken)):
         return
-
-    from airflow.models import DagModel
 
     dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
     if not dag_id:
@@ -491,7 +496,9 @@ class ExecutionAPIRoute(APIRoute):
         self.requires_open_job = JOB_UNCHECKED_SCOPE not in all_scopes
 
 
-async def get_team_name_dep(token=CurrentExecutionToken, dag_bundle=SelectedDagBundle) -> str | None:
+async def get_team_name_dep(
+    token: ExecutionToken = CurrentExecutionToken, dag_bundle: str | None = SelectedDagBundle
+) -> str | None:
     """Return the team of a task or the selected bundle of a processor or parsing attempt."""
     from airflow.configuration import conf
 
@@ -499,7 +506,7 @@ async def get_team_name_dep(token=CurrentExecutionToken, dag_bundle=SelectedDagB
         return None
 
     async with create_session_async() as session:
-        if token.claims.scope in ("dag_processor", "dag_parse"):
+        if isinstance(token, (DagProcessorToken, DagParseToken)):
             return await session.scalar(_team_name_for_bundle_stmt(dag_bundle))
         return await session.scalar(_team_name_for_ti_stmt(token.id))
 
@@ -520,10 +527,6 @@ def get_team_name_for_ti(ti_id, session) -> str | None:
 
 def _team_name_for_ti_stmt(ti_id):
     """Build the select statement resolving ``TaskInstance.id -> Team.name``."""
-    from airflow.models import DagModel, TaskInstance
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.models.team import Team
-
     return (
         select(Team.name)
         .select_from(TaskInstance)
@@ -536,18 +539,11 @@ def _team_name_for_ti_stmt(ti_id):
 
 def _team_name_for_bundle_stmt(bundle_name):
     """Build the select statement resolving ``DagBundleModel.name -> Team.name``."""
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.models.team import Team
-
     return select(Team.name).join(DagBundleModel.teams).where(DagBundleModel.name == bundle_name)
 
 
 def _team_name_for_dag_stmt(dag_id):
     """Build the select statement resolving ``DagModel.dag_id -> Team.name``."""
-    from airflow.models import DagModel
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.models.team import Team
-
     return (
         select(Team.name)
         .select_from(DagModel)

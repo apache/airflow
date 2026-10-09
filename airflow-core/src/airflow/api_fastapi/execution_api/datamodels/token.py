@@ -109,3 +109,9 @@ class DagProcessorToken(ExecutionToken):
     """Authenticated Dag processor Job."""
 
     claims: DagProcessorClaims
+
+
+class DagParseToken(ExecutionToken):
+    """Authenticated parsing attempt."""
+
+    claims: DagParseClaims
