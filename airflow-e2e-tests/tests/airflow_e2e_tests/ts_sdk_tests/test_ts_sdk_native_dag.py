@@ -35,7 +35,7 @@ there. Every task, the trigger included, runs in the TypeScript runtime.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -94,7 +94,7 @@ def completed_run(parsed_dag: AirflowClient) -> _CompletedRun:
     # Dags are paused at creation here, so the run trigger_downstream starts would stay queued.
     client.un_pause_dag(_DOWNSTREAM_DAG_ID)
     client.un_pause_dag(_DAG_ID)
-    resp = client.trigger_dag(_DAG_ID, json={"logical_date": datetime.now(timezone.utc).isoformat()})
+    resp = client.trigger_dag(_DAG_ID, json={"logical_date": datetime.now(UTC).isoformat()})
     run_id = resp["dag_run_id"]
     state = client.wait_for_dag_run(dag_id=_DAG_ID, run_id=run_id, timeout=_TS_TASK_TIMEOUT)
     ti_resp = client.get_task_instances(dag_id=_DAG_ID, run_id=run_id)

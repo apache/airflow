@@ -32,7 +32,7 @@
 // `main.ts` registers this Dag on the same bundle as the mixed-language
 // handlers, so one artifact covers both authoring modes.
 
-import { Dag, getClient } from "apache-airflow-ts-sdk";
+import { Dag, getClient, triggerDagRun } from "apache-airflow-ts-sdk";
 
 /** The regions this example works over. */
 const REGIONS = ["north", "south"] as const;
@@ -102,13 +102,9 @@ const reportedEmpty = reportEmpty();
 
 // The upstream is an input like any other, named after the argument it
 // supplies.
-const hasRows = dag.task(
-  "has_rows",
-  async ({ summary }: { summary: { total: number } }) => summary.total > 0,
-);
-const gated = hasRows({ summary: summarized });
+const hasRows = async ({ summary }: { summary: { total: number } }) => summary.total > 0;
 
-dag.if(gated).then(loaded).else(reportedEmpty);
+dag.if(hasRows, { summary: summarized }, { taskId: "has_rows" }).then(loaded).else(reportedEmpty);
 
 // --- A multi-way branch ---------------------------------------------------
 //
@@ -123,13 +119,15 @@ const weekly = publishWeekly();
 
 // Decided from a Variable rather than from an upstream value, so the decider
 // takes no argument and the extract group is what orders it.
-const pickCadence = dag.task("pick_cadence", async () => {
+const pickCadence = async () => {
   const cadence = await getClient().getVariable("typescript_native_cadence");
   return cadence === "weekly" ? weekly : daily;
-});
-const picked = pickCadence();
+};
 
-dag.switch(picked).case(daily).case(weekly);
+const picked = dag
+  .switch(pickCadence, undefined, { taskId: "pick_cadence" })
+  .case(daily)
+  .case(weekly);
 
 // --- Order-only edges -----------------------------------------------------
 //
@@ -156,13 +154,14 @@ extract.before(picked);
 // Python triggerer runs, and resumes here once that run finishes. There is no
 // Jinja, so `conf` is sent as written.
 
-dag
-  .triggerDagRun({
-    taskId: "trigger_downstream",
+const triggerDownstream = dag.task(
+  "trigger_downstream",
+  triggerDagRun({
     dagId: "typescript_example",
     conf: { triggered_by: dag.dagId },
     waitForCompletion: true,
     deferrable: true,
     pokeInterval: 5,
-  })
-  .after(cleaned);
+  }),
+);
+triggerDownstream().after(cleaned);
