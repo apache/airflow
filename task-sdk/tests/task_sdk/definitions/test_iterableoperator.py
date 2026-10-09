@@ -2960,13 +2960,26 @@ class TestIndexedTaskOutcomes:
         assert outcomes.not_started == 1
         assert outcomes.exceptions == []
         state.request_stop()
-        with pytest.raises(AirflowTaskTerminated, match="1 of 3 items ran, 1 pulled but never started"):
+        with pytest.raises(
+            AirflowTaskTerminated, match=r"1 of 3 items ran, 1 pulled but never started, 1 never pulled\.$"
+        ):
+            outcomes.conclude()
+
+    def test_a_kill_after_every_item_was_pulled_claims_no_remainder(self):
+        """Every item pulled and run, the killed one back as a failure: the message ends with the count."""
+        state = IterationState()
+        state.resolved = self._resolved(2)
+        outcomes = self._outcomes(state=state)
+        outcomes.record(self._task(0), ValueError("killed"))
+        outcomes.record(self._task(1), None)
+        state.request_stop()
+        with pytest.raises(AirflowTaskTerminated, match=r"2 of 2 items ran\.$"):
             outcomes.conclude()
 
     def test_a_kill_while_resolving_is_not_an_empty_input(self):
         state = IterationState()
         state.request_stop()
-        with pytest.raises(AirflowTaskTerminated, match="while its input was being resolved") as info:
+        with pytest.raises(AirflowTaskTerminated, match="before its input was resolved") as info:
             self._outcomes(state=state).conclude()
         assert info.value.__cause__ is None
 
@@ -3135,7 +3148,7 @@ class TestAKillSticks:
             iterable_op.on_kill()
             with mock_context(task=iterable_op) as context:
                 store = context["task_state_store"]
-                with pytest.raises(AirflowTaskTerminated, match="while its input was being resolved"):
+                with pytest.raises(AirflowTaskTerminated, match="before its input was resolved"):
                     iterable_op.execute(context=context)
 
         assert "_iterable_completed" not in store

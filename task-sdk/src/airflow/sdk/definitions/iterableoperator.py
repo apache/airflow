@@ -327,13 +327,9 @@ class IndexedTaskOutcomes:
         skips the task too.
         """
         if self._state.stop_requested():
-            length = self._state.length
-            raise AirflowTaskTerminated(
-                f"The iterated task was killed: {self.total} of {length} items ran, {self.not_started} pulled "
-                "but never started, the rest never pulled."
-                if length is not None
-                else "The iterated task was killed while its input was being resolved."
-            ) from (BaseExceptionGroup("Sub-task failures", self.exceptions) if self.exceptions else None)
+            raise AirflowTaskTerminated(self._killed_message()) from (
+                BaseExceptionGroup("Sub-task failures", self.exceptions) if self.exceptions else None
+            )
         if self.exceptions:
             raise self._failure_for_the_runner()
         if self.total == 0:
@@ -341,6 +337,24 @@ class IndexedTaskOutcomes:
         if self.skipped and len(self.skipped) == self.total:
             raise next(iter(self.skipped.values()))
         return sorted(self.skipped)
+
+    def _killed_message(self) -> str:
+        """
+        Say what a kill left behind, naming only the counts that are not zero.
+
+        Before the input was resolved there is no count to give. Once it is, the indexed tasks
+        that ran (the killed ones among them, which came back as failures), those pulled before
+        the kill and never started, and those never pulled add up to the length.
+        """
+        length = self._state.length
+        if length is None:
+            return "The iterated task was killed before its input was resolved."
+        parts = [f"{self.total} of {length} items ran"]
+        if self.not_started:
+            parts.append(f"{self.not_started} pulled but never started")
+        if never_pulled := length - self.total - self.not_started:
+            parts.append(f"{never_pulled} never pulled")
+        return f"The iterated task was killed: {', '.join(parts)}."
 
     def _report(self, raised: BaseException) -> None:
         """
