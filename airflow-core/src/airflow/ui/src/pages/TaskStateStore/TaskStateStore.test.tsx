@@ -53,6 +53,7 @@ it("lists state for the exact loop coordinate, retaining the public unmapped ind
     executor_config: "{}",
     hostname: null,
     id: "execution",
+    in_loop: true,
     logical_date: null,
     map_index: -1,
     max_tries: 0,

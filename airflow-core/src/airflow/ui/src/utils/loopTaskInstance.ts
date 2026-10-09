@@ -18,6 +18,5 @@
  */
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
-/** Mapped expansions outside a loop carry a non-sentinel region too, so only `in_loop` marks a loop member. */
-export const isLoopTaskInstance = (taskInstance: { in_loop?: boolean } & TaskInstanceResponse): boolean =>
-  taskInstance.in_loop === true;
+/** Mapped expansions outside a loop carry a region too, so only `in_loop` marks a loop member. */
+export const isLoopTaskInstance = (taskInstance: TaskInstanceResponse): boolean => taskInstance.in_loop;

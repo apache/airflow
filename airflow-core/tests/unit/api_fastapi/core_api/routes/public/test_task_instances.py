@@ -272,6 +272,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json()["region_index"] == 2
         assert response.json()["rendered_map_index"] is None
         assert response.json()["loop_iteration"] == {"loop_id": "body", "iteration": 2}
+        assert response.json()["in_loop"] is True
         response = test_client.get(f"{url}/tries/1", params=params)
         assert response.status_code == 200
         assert response.json()["state"] == TaskInstanceState.RUNNING
@@ -298,6 +299,10 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert len({ti["id"] for ti in entries}) == 4
         assert all(ti["rendered_map_index"] is None for ti in entries if ti["map_index"] < 0)
         assert all(ti["loop_iteration"] is None for ti in entries if ti["task_id"] == "mapped")
+        assert {(ti["task_id"], ti["in_loop"]) for ti in entries} == {
+            ("body.member", True),
+            ("mapped", False),
+        }
         response = test_client.get(collection_url, params={"map_index": -1})
         assert response.json()["total_entries"] == 2
         response = test_client.get(collection_url, params={"rendered_map_index_pattern": "2"})
@@ -460,6 +465,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
+            "in_loop": False,
             "loop_iteration": None,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -574,6 +580,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": run_id,
             "dag_display_name": "dag_with_multiple_versions",
             "map_index": -1,
+            "in_loop": False,
             "loop_iteration": None,
             "logical_date": mock.ANY,
             "start_date": None,
@@ -663,6 +670,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
+            "in_loop": False,
             "loop_iteration": None,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -732,6 +740,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
+            "in_loop": False,
             "loop_iteration": None,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -791,6 +800,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
+            "in_loop": False,
             "loop_iteration": None,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -926,6 +936,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "hostname": "",
                 "id": response_data["id"],
                 "map_index": map_index,
+                "in_loop": False,
                 "loop_iteration": None,
                 "max_tries": 0,
                 "note": "placeholder-note",
@@ -4782,6 +4793,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "id": response_data["task_instances"][0]["id"],
                 "logical_date": response_logical_date,
                 "map_index": -1,
+                "in_loop": False,
                 "loop_iteration": None,
                 "max_tries": 0,
                 "note": "placeholder-note",
@@ -6394,6 +6406,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "hostname": "",
                     "id": response_data["task_instances"][0]["id"],
                     "map_index": -1,
+                    "in_loop": False,
                     "loop_iteration": None,
                     "max_tries": 0,
                     "note": "placeholder-note",
@@ -6674,6 +6687,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "hostname": "",
                             "id": mock.ANY,
                             "map_index": -1,
+                            "in_loop": False,
                             "loop_iteration": None,
                             "max_tries": 0,
                             "note": "placeholder-note",
@@ -6814,6 +6828,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
+                    "in_loop": False,
                     "loop_iteration": None,
                     "max_tries": 0,
                     "note": new_note_value,
@@ -6881,6 +6896,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
+                    "in_loop": False,
                     "loop_iteration": None,
                     "max_tries": 0,
                     "note": new_note_value,
@@ -6995,6 +7011,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "executor_config": "{}",
                         "hostname": "",
                         "map_index": map_index,
+                        "in_loop": False,
                         "loop_iteration": None,
                         "max_tries": 0,
                         "note": new_note_value,
@@ -7083,6 +7100,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "executor_config": "{}",
                 "hostname": "",
                 "map_index": map_index,
+                "in_loop": False,
                 "loop_iteration": None,
                 "max_tries": 0,
                 "note": new_note_value,
@@ -7283,6 +7301,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "hostname": "",
                     "id": response_data["task_instances"][0]["id"],
                     "map_index": -1,
+                    "in_loop": False,
                     "loop_iteration": None,
                     "max_tries": 0,
                     "note": "placeholder-note",
@@ -7575,6 +7594,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "hostname": "",
                             "id": mock.ANY,
                             "map_index": -1,
+                            "in_loop": False,
                             "loop_iteration": None,
                             "max_tries": 0,
                             "note": "placeholder-note",

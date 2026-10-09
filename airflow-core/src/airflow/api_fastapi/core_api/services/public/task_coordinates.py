@@ -65,6 +65,8 @@ class TaskCoordinateView:
             return self.resolver.public_map_index(self.value)
         if name == "rendered_map_index" and self.resolver.public_map_index(self.value) < 0:
             return getattr(self.value, "_rendered_map_index", None)
+        if name == "in_loop":
+            return self.resolver.get_loop_iteration(self.value) is not None
         if name == "loop_iteration":
             if (position := self.resolver.get_loop_iteration(self.value)) is None:
                 return None
