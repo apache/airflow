@@ -61,14 +61,37 @@ class TestNativeJavaDagOnKubernetes(BaseK8STest):
 
     Covers the path a Dag with no Python file takes: the Dag processor parses the
     ``airflow-e2e-java-native-bundle`` jar through the Java coordinator, the scheduler reads
-    the serialized Dag, and each task runs in its own pod on the ``java-native`` queue.
+    the serialized Dag, and each task runs in its own pod on the ``java-native`` queue. The graph
+    has a task group, an ``If``, a ``Switch`` and a ``trigger_downstream`` task, so pod-per-task
+    scheduling is exercised against branches that skip rather than a linear chain.
     """
 
     DAG_ID = "java_native_e2e"
-    TASK_IDS = ["extract", "transform", "load"]
+    # The Dag trigger_downstream starts a run of; see NativeBundleBuilder.java.
+    TARGET_DAG_ID = "java_native_target_e2e"
+    TASK_IDS = [
+        "extract",
+        "transform",
+        "load",
+        "has_rows",
+        "report_many",
+        "pick_report",
+        "report_short",
+        "checks.audit",
+        "trigger_downstream",
+    ]
+    # The Else side of the If, and the Case the Switch does not choose.
+    SKIPPED_TASK_IDS = ["report_few", "report_long"]
+
+    def _unpause_dag(self, dag_id: str) -> None:
+        resp = self.session.patch(f"http://{self.host}/dags/{dag_id}", json={"is_paused": False})
+        assert resp.status_code == 200, f"Could not un-pause {dag_id}: {resp.text}"
 
     @pytest.mark.execution_timeout(900)
     def test_native_java_dag_succeeds(self):
+        # trigger_downstream waits for the run it starts, which stays queued while its Dag is paused.
+        self._unpause_dag(self.TARGET_DAG_ID)
+
         dag_run_id, logical_date = self.start_job_in_kubernetes(self.DAG_ID, self.host)
         print(f"Triggered {self.DAG_ID} run {dag_run_id} (logical_date={logical_date})")
 
@@ -79,6 +102,18 @@ class TestNativeJavaDagOnKubernetes(BaseK8STest):
                 dag_id=self.DAG_ID,
                 task_id=task_id,
                 expected_final_state="success",
+                timeout=_TIMEOUT,
+            )
+
+        # The branch that was not taken is skipped, not failed, which is what proves the skip
+        # reached the supervisor rather than the task erroring.
+        for skipped in self.SKIPPED_TASK_IDS:
+            self.monitor_task(
+                host=self.host,
+                dag_run_id=dag_run_id,
+                dag_id=self.DAG_ID,
+                task_id=skipped,
+                expected_final_state="skipped",
                 timeout=_TIMEOUT,
             )
 
