@@ -23,7 +23,7 @@ import { stripExecutionParams } from "./executionParams";
 describe("stripExecutionParams", () => {
   it("drops the params that pin one execution, try or loop iteration and keeps the rest", () => {
     const source = new URLSearchParams(
-      "try_number=2&region_id=r&region_index=1&iteration=3&loop_region_id=l&dag_run_state=failed",
+      "try_number=2&region_id=r&region_index=1&iteration=3&loop_id=batch&dag_run_state=failed",
     );
 
     const stripped = stripExecutionParams(source);

@@ -56,7 +56,7 @@ export const TaskInstance = () => {
   const coordinates = useTaskInstanceCoordinates();
   const { error, historical, historicalTaskInstance, isLoading, liveTaskInstance, taskInstance } =
     useTaskInstanceView();
-  const isRegional = liveTaskInstance !== undefined && isLoopTaskInstance(liveTaskInstance);
+  const regional = liveTaskInstance !== undefined && isLoopTaskInstance(liveTaskInstance);
   const tryNumber = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const coordinateSearch = new URLSearchParams();
 
@@ -131,7 +131,7 @@ export const TaskInstance = () => {
       search: tab.search ?? (coordinateSearch.toString() || undefined),
     }));
   const newTabs =
-    taskInstance && taskInstance.map_index > -1 && !isRegional && !historical
+    taskInstance && taskInstance.map_index > -1 && !regional && !historical
       ? [
           ...scopedTabs.slice(0, 1),
           {

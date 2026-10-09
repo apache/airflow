@@ -31,6 +31,7 @@ const {
   DURATION_GTE: DURATION_GTE_PARAM,
   DURATION_LTE: DURATION_LTE_PARAM,
   LOGICAL_DATE_RANGE: LOGICAL_DATE_RANGE_PARAM,
+  LOOP: LOOP_PARAM,
   MAP_INDEX: MAP_INDEX_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   OPERATOR_NAME_PATTERN: OPERATOR_NAME_PATTERN_PARAM,
@@ -61,6 +62,11 @@ export const TaskInstancesFilter = () => {
     QUEUE_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
     STATE_PARAM as FilterableSearchParamsKeys,
   ];
+
+  // A loop lives in one run, so this only makes sense once a run is in scope.
+  if (runId !== undefined) {
+    paramKeys.push(LOOP_PARAM);
+  }
 
   if (multiTeamEnabled) {
     paramKeys.push(TEAMS_PARAM as FilterableSearchParamsKeys);

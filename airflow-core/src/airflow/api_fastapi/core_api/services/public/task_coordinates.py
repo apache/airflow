@@ -113,27 +113,86 @@ def loop_iteration_filter(
     iteration: int | None,
     session: Session,
 ) -> ColumnElement[bool]:
+    """
+    Match the task instances a named loop produced, optionally narrowed to one iteration.
+
+    Keyed by the loop's node id rather than a region, so it spans every invocation of that loop
+    in the run: a filter names a loop the author wrote, not one of its executions. Regions stay
+    an internal coordinate -- nothing here asks the caller to know one.
+    """
     regions = {
         region.id: region
         for region in session.scalars(
             select(DynamicRegion).where(DynamicRegion.dag_id == dag_id, DynamicRegion.run_id == run_id)
         )
     }
-    any_index: list[UUID] = []
-    loop_node: list[UUID] = []
+    nested: list[UUID] = []
+    own_node: list[UUID] = []
     for region in regions.values():
         position = loop_position(regions, region.id, -1, loop_id)
         if position is None:
             continue
         if iteration is not None and region.node_id == loop_id:
-            loop_node.append(region.id)
+            own_node.append(region.id)
         elif iteration is None or position[1] == iteration:
-            any_index.append(region.id)
+            nested.append(region.id)
     predicates: list[ColumnElement[bool]] = []
-    if any_index:
-        predicates.append(TaskInstance.region_id.in_(any_index))
-    if loop_node:
-        predicates.append(and_(TaskInstance.region_id.in_(loop_node), TaskInstance.region_index == iteration))
+    if nested:
+        predicates.append(TaskInstance.region_id.in_(nested))
+    if own_node:
+        predicates.append(and_(TaskInstance.region_id.in_(own_node), TaskInstance.region_index == iteration))
+    return or_(*predicates) if predicates else false()
+
+
+def region_scope_filter(
+    *,
+    dag_id: str,
+    run_id: str,
+    region_id: UUID,
+    region_index: int | None,
+    session: Session,
+) -> ColumnElement[bool]:
+    """
+    Match task instances at a region coordinate, including the regions nested beneath it.
+
+    One coordinate can span several regions: a loop iteration holds the loop's own region plus
+    every mapped expansion created inside that pass, hence the two predicates rather than a
+    single equality. For a region with nothing nested under it this degrades to exact match.
+
+    ``region_id`` is resolved to its fork family, so a coordinate keeps resolving after a clear
+    replaces the execution with a forked successor.
+    """
+    regions = {
+        region.id: region
+        for region in session.scalars(
+            select(DynamicRegion).where(DynamicRegion.dag_id == dag_id, DynamicRegion.run_id == run_id)
+        )
+    }
+    target = regions.get(region_id)
+    if target is None:
+        return false()
+    node_id = target.node_id
+    origin = loop_position(regions, region_id, -1, node_id)
+    if origin is None:
+        return false()
+    family_id = origin[0]
+    nested: list[UUID] = []
+    own_node: list[UUID] = []
+    for region in regions.values():
+        position = loop_position(regions, region.id, -1, node_id)
+        if position is None or position[0] != family_id:
+            continue
+        if region_index is not None and region.node_id == node_id:
+            own_node.append(region.id)
+        elif region_index is None or position[1] == region_index:
+            nested.append(region.id)
+    predicates: list[ColumnElement[bool]] = []
+    if nested:
+        predicates.append(TaskInstance.region_id.in_(nested))
+    if own_node:
+        predicates.append(
+            and_(TaskInstance.region_id.in_(own_node), TaskInstance.region_index == region_index)
+        )
     return or_(*predicates) if predicates else false()
 
 

@@ -66,6 +66,7 @@ class GridNodeAgg:
     dag_version_number: int | None = None
     has_note: bool = False
     loop_iterations: dict[str, set[tuple[UUID, int]]] = field(default_factory=dict)
+    latest_region: tuple[UUID, int] | None = None
 
     def add_ti(
         self,
@@ -76,9 +77,21 @@ class GridNodeAgg:
         dag_version_number: int | None,
         has_note: bool = False,
         loop_positions: dict[str, tuple[UUID, int]] | None = None,
+        count_state: bool = True,
+        region: tuple[UUID, int] | None = None,
     ) -> None:
-        """Merge one task instance row into the summary."""
-        self.child_states[state] += 1
+        """
+        Merge one task instance row into the summary.
+
+        ``count_state`` is false for a superseded loop iteration: its position still counts
+        towards the iterations run, but its state no longer describes where the task stands.
+        """
+        if count_state:
+            self.child_states[state] += 1
+            # A looped task has one row per iteration, so a link without a coordinate cannot say
+            # which one it means. Carry the newest so the grid can address it.
+            if region is not None:
+                self.latest_region = region
         if has_started(state, start_date):
             for loop_id, position in (loop_positions or {}).items():
                 self.loop_iterations.setdefault(loop_id, set()).add(position)
@@ -166,6 +179,8 @@ def _get_aggs_for_node(summary: GridNodeAgg) -> dict[str, Any]:
         "child_states": _serialize_child_states(summary.child_states),
         "dag_version_number": summary.dag_version_number,
         "has_note": summary.has_note,
+        "latest_region_id": None if summary.latest_region is None else summary.latest_region[0],
+        "latest_region_index": None if summary.latest_region is None else summary.latest_region[1],
     }
 
 
@@ -413,6 +428,7 @@ def summarize_loop_run(
             rows.append(
                 LoopIterationSummary(
                     index=index,
+                    task_count=len(tasks),
                     state=agg_state(states),
                     start_date=min(starts) if starts else None,
                     end_date=max(ends) if ends and all(s in State.finished for s in states) else None,

@@ -23,7 +23,7 @@ const EXECUTION_PARAMS = [
   SearchParamsKeys.REGION_ID,
   SearchParamsKeys.REGION_INDEX,
   SearchParamsKeys.ITERATION,
-  SearchParamsKeys.LOOP_REGION_ID,
+  SearchParamsKeys.LOOP_ID,
 ];
 
 /** A copy of `searchParams` without the params that pin one execution, try or loop iteration. */
@@ -35,4 +35,22 @@ export const stripExecutionParams = (searchParams: string | URLSearchParams): UR
   }
 
   return stripped;
+};
+
+/**
+ * Point a link at one execution. A task inside a loop has a row per iteration, so a link with
+ * no coordinate is ambiguous and the API rejects it; the newest iteration is the sensible
+ * landing place from a view that shows the task once.
+ */
+export const setExecutionCoordinates = (
+  searchParams: URLSearchParams,
+  regionId: string | null | undefined,
+  regionIndex: number | null | undefined,
+): URLSearchParams => {
+  if (regionId !== null && regionId !== undefined && regionIndex !== null && regionIndex !== undefined) {
+    searchParams.set(SearchParamsKeys.REGION_ID, regionId);
+    searchParams.set(SearchParamsKeys.REGION_INDEX, String(regionIndex));
+  }
+
+  return searchParams;
 };

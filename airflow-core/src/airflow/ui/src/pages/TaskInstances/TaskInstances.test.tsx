@@ -238,37 +238,23 @@ describe("TaskInstances", () => {
     expect(screen.getByText("eu-west")).toBeInTheDocument();
   });
 
-  it("keeps loop iteration filters separate from mapped slot filters", () => {
-    mockParams.groupId = "loop";
-    mockSearchParams = new URLSearchParams("map_index=1");
-    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
-    render(<TaskInstances iteration="3" loopGroupId="loop" />, { wrapper: Wrapper });
-    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        iteration: 3,
-        loopId: "loop",
-        mapIndex: [1],
-      }),
-      undefined,
-      expect.any(Object),
-    );
-  });
-  it("does not fetch a loop group's list before its iteration is known", () => {
-    mockParams.groupId = "loop";
-    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
-    render(<TaskInstances loopGroupId="loop" />, { wrapper: Wrapper });
-    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
-      expect.objectContaining({ iteration: undefined, loopId: "loop" }),
-      undefined,
-      expect.objectContaining({ enabled: false }),
-    );
-  });
-  it("ignores stale loop selectors outside a loop group", () => {
+  it("drops a stale iteration that no loop in the URL counts", () => {
     mockSearchParams = new URLSearchParams("iteration=3");
     vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
     render(<TaskInstances />, { wrapper: Wrapper });
     expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
       expect.objectContaining({ iteration: undefined, loopId: undefined }),
+      undefined,
+      expect.any(Object),
+    );
+  });
+
+  it("sends the pair once a loop names the pass", () => {
+    mockSearchParams = new URLSearchParams("loop_id=batch&iteration=3");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
+      expect.objectContaining({ iteration: 3, loopId: "batch" }),
       undefined,
       expect.any(Object),
     );

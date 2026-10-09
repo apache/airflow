@@ -23,7 +23,7 @@ from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.execution import (
     ExecutionCollectionResponse,
@@ -32,9 +32,11 @@ from airflow.api_fastapi.core_api.datamodels.ui.execution import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
+from airflow.api_fastapi.core_api.services.public.task_coordinates import CoordinateResolverDep
 from airflow.api_fastapi.core_api.services.ui.execution import get_execution_members
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import load_region_ancestry
+from airflow.models.taskinstance import TaskInstance as TI
 
 execution_router = AirflowRouter(
     tags=["DagRun"],
@@ -51,8 +53,19 @@ def get_execution(
     dag_id: str,
     dag_run_id: str,
     session: SessionDep,
+    resolver: CoordinateResolverDep,
     limit: QueryLimit,
     offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["id", "task_id", "map_index", "state", "try_number", "start_date", "end_date", "duration"],
+                TI,
+                to_replace={"map_index": "region_index"},
+            ).dynamic_depends()
+        ),
+    ],
     task_id: str | None = None,
     region_id: UUID | None = None,
     region_index: Annotated[int | None, Query(ge=-1)] = None,
@@ -72,6 +85,7 @@ def get_execution(
     members, total = get_execution_members(
         run,
         session=session,
+        order_by=order_by,
         task_id=task_id,
         region_id=region_id,
         region_index=region_index,
@@ -79,6 +93,7 @@ def get_execution(
         limit=limit.value or 0,
         offset=offset.value or 0,
     )
+    resolver.prefetch_regions([ti for ti, _ in members])
     regions = load_region_ancestry(
         {ti.region_id for ti, _ in members}, dag_id=dag_id, run_id=dag_run_id, session=session
     )
@@ -93,6 +108,9 @@ def get_execution(
                 "region_id": ti.region_id,
                 "region_index": ti.region_index,
                 "map_index": map_index,
+                # Clearing offers loop options only for work a loop produced; a mapped expansion
+                # has a region without being one.
+                "in_loop": resolver.get_loop_iteration(ti) is not None,
                 "try_number": ti.try_number,
                 "state": ti.state,
                 "start_date": ti.start_date,
