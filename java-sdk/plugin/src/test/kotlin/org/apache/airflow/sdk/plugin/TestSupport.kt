@@ -1,4 +1,4 @@
-/*!
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,22 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { chakraComponents } from "chakra-react-select";
-import type { ControlProps } from "chakra-react-select";
-import { FiSearch } from "react-icons/fi";
 
-import type { DagSearchOption } from "src/utils/option";
+package org.apache.airflow.sdk.plugin
 
-/**
- * Leads the input with the search affordance. react-select only renders indicators after the value
- * container, so an icon on the start side has to come from the control itself.
- */
-export const Control = ({ children, ...props }: ControlProps<DagSearchOption, false>) => (
-  <chakraComponents.Control {...props}>
-    <Box alignItems="center" as="span" color="fg.muted" display="flex" flexShrink={0} pe={1.5}>
-      <FiSearch />
-    </Box>
-    {children}
-  </chakraComponents.Control>
-);
+import java.io.File
+import javax.tools.ToolProvider
+
+/** Compiles [sources] (paths under [srcDir]) into [classesDir] with the JDK's own compiler. */
+internal fun compileJava(
+  srcDir: File,
+  classesDir: File,
+  vararg sources: String,
+  options: List<String> = emptyList(),
+) {
+  classesDir.mkdirs()
+  val compiler = checkNotNull(ToolProvider.getSystemJavaCompiler()) { "Tests need a JDK" }
+  val args = options + listOf("-d", classesDir.path) + sources.map { File(srcDir, it).path }
+  check(compiler.run(null, null, null, *args.toTypedArray()) == 0) { "javac failed for ${sources.toList()}" }
+}
+
+internal fun File.write(
+  relativePath: String,
+  text: String,
+): File =
+  File(this, relativePath).apply {
+    parentFile.mkdirs()
+    writeText(text)
+  }

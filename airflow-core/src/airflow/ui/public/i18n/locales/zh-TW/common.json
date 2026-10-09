@@ -290,6 +290,13 @@
       },
       "title": "清除"
     },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "在 Dag 列表中顯示每個 Dag 的近期任務狀態。關閉後將不載入這些資料，有助於改善 Dag 數量眾多的部署環境效能。",
+        "label": "顯示近期任務"
+      },
+      "title": "Dag 列表"
+    },
     "description": "這些偏好設定僅會儲存在此瀏覽器中，並套用至整個應用程式。",
     "general": {
       "landingPage": {

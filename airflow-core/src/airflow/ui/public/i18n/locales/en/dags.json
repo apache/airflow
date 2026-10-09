@@ -128,6 +128,7 @@
   "search": {
     "advanced": "Advanced Search",
     "clear": "Clear search",
+    "dagRuns": "Search $t(common:dagRun_other)",
     "dags": "Search $t(common:dag_other)",
     "hotkey": "+K",
     "tasks": "Search $t(common:task_other)"
