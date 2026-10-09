@@ -87,6 +87,45 @@ supported by this operator.
 
 For direct calls, use
 :class:`~airflow.providers.databricks.hooks.agent.DatabricksAgentHook` and its
-``invoke_agent`` and ``get_invocation`` methods.
+``create_invocation`` and ``get_invocation`` methods.
 See `Query agents deployed on Databricks
 <https://docs.databricks.com/aws/en/agents/query-llms>`_ for the API contract.
+
+Common AI managed-agent interface
+---------------------------------
+
+Install ``apache-airflow-providers-databricks[common.ai]`` to use the hook with
+Common AI consumers such as ``ManagedAgentToolset``. Bind the deployed app's URL
+to a hook configured with the same OAuth connection:
+
+Import ``ManagedAgentRequest`` from ``airflow.providers.common.ai.managed_agents``
+and ``DatabricksAgentHook`` from ``airflow.providers.databricks.hooks.agent``:
+
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_agent.py
+    :language: python
+    :start-after: [START howto_databricks_managed_agent]
+    :end-before: [END howto_databricks_managed_agent]
+
+This interface uses the synchronous invocation API. It converts a prompt to a
+user message, or passes supplied messages under ``input.messages``. For an agent
+that expects a prompt under another key, set ``vendor_options={"input_key": "question"}``.
+Other input schemas remain available through ``create_invocation`` and the operator.
+
+Each call generates a new invocation UUID. To reuse an invocation across task
+retries, supply a stable UUID with ``vendor_options={"invocation_id": "YOUR_UUID"}``.
+HTTP retries within a call reuse the same UUID. ``session_id`` continues the
+conversation and is sent as the routing key. A hook can bind multiple app URLs;
+vendor options cannot override the app URL or connection.
+
+``ManagedAgentResponse.raw`` preserves the full invocation response. String outputs
+become ``text``; an object with a string ``output`` field uses that field as text;
+other outputs become JSON text. Non-string outputs are also available in
+``structured``. The invocation ID is returned as ``trace_ref``.
+
+The managed-agent interface requires a ``completed`` invocation. Failed,
+interrupted, missing or unexpected statuses raise ``ManagedAgentInvocationError``;
+use the operator to handle an interrupted invocation's response directly.
+Terminal HTTP errors raise the same exception, while transient HTTP and connection
+errors propagate after the hook's configured retries. The request timeout bounds
+the HTTP call and its retries; OAuth refresh retains its separate timeout.
+The operator and background hook methods do not require the Common AI extra.

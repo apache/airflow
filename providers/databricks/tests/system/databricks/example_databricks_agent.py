@@ -26,7 +26,9 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from airflow.providers.common.ai.managed_agents import ManagedAgentRequest
 from airflow.providers.common.compat.sdk import DAG, task
+from airflow.providers.databricks.hooks.agent import DatabricksAgentHook
 from airflow.providers.databricks.operators.agent import DatabricksAgentInvokeOperator
 
 DAG_ID = "example_databricks_agent"
@@ -34,6 +36,23 @@ APP_URL = os.environ.get("DATABRICKS_AGENT_APP_URL", "https://my-agent.databrick
 CONN_ID = os.environ.get("DATABRICKS_AGENT_CONN_ID", "databricks_oauth")
 INPUT = {"messages": [{"role": "user", "content": "Hello from Airflow"}]}
 SESSION_ID = "{{ dag.dag_id }}-{{ run_id }}"
+
+
+# [START howto_databricks_managed_agent]
+@task
+def invoke_managed_agent(app_url: str, conn_id: str, session_id: str) -> dict:
+    agent = DatabricksAgentHook(databricks_conn_id=conn_id).agent(app_url)
+    result = agent.invoke(
+        ManagedAgentRequest(
+            messages=[{"role": "user", "content": "Hello from Airflow"}],
+            session_id=session_id,
+            timeout=60,
+        )
+    )
+    return result.raw
+
+
+# [END howto_databricks_managed_agent]
 
 
 @task
@@ -65,6 +84,9 @@ with DAG(
     # [END howto_operator_databricks_agent_invoke]
 
     verify_sync = verify_result.override(task_id="verify_sync")(invoke.output, SESSION_ID)
+    invoke_managed = invoke_managed_agent(APP_URL, CONN_ID, SESSION_ID)
+    verify_managed = verify_result.override(task_id="verify_managed")(invoke_managed, SESSION_ID)
+    verify_sync >> invoke_managed
 
     # [START howto_operator_databricks_agent_invoke_deferrable]
     invoke_deferrable = DatabricksAgentInvokeOperator(
@@ -79,7 +101,7 @@ with DAG(
     # [END howto_operator_databricks_agent_invoke_deferrable]
 
     verify_deferred = verify_result.override(task_id="verify_deferred")(invoke_deferrable.output, SESSION_ID)
-    verify_sync >> invoke_deferrable >> verify_deferred
+    verify_managed >> invoke_deferrable >> verify_deferred
 
     from tests_common.test_utils.watcher import watcher
 

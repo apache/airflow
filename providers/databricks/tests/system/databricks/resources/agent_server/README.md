@@ -64,7 +64,9 @@ breeze testing system-tests \
   -q
 ```
 
-The test invokes the existing app in normal and deferrable modes and checks its output and session ID. It does not create or delete the deployment.
+Install the Databricks provider's `common.ai` extra for the managed-agent task. Breeze's source development environment includes it.
+
+The test invokes the existing app through the managed-agent interface and in normal and deferrable operator modes, and checks each output and session ID. It does not create or delete the deployment.
 
 ## Clean up
 
