@@ -206,6 +206,17 @@ class TrinoHook(DbApiHook):
             if user is None:
                 user = db.login
         http_headers = {"X-Trino-Client-Info": generate_trino_client_info()}
+        connect_kwargs: dict[str, Any] = {}
+        if _boolify(extra.get("allow_insecure_auth", False)):
+            self.log.warning(
+                "Connection %r has 'allow_insecure_auth' enabled. This disables the Trino client's "
+                "requirement to use HTTPS for authentication, so credentials may be sent in cleartext "
+                "over plain HTTP. Only use it when the transport is encrypted below the application "
+                "layer (for example, by an mTLS service mesh sidecar).",
+                db.conn_id,
+            )
+            # Only passed when enabled: trino<0.340.0 does not accept this keyword.
+            connect_kwargs["allow_insecure_auth"] = True
         trino_conn = trino.dbapi.connect(
             host=db.host,
             port=db.port,
@@ -223,6 +234,7 @@ class TrinoHook(DbApiHook):
             timezone=extra.get("timezone") or None,
             extra_credential=extra.get("extra_credential") or None,
             roles=extra.get("roles") or None,
+            **connect_kwargs,
         )
 
         return trino_conn
