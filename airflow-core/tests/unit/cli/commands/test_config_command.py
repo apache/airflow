@@ -104,6 +104,53 @@ class TestCliConfigList:
         lines = output.splitlines()
         assert all(not line.startswith("testkey =") for line in lines if line)
 
+    def test_cli_show_config_should_not_show_per_key_secrets_backend_kwargs(self, stdout_capture):
+        """``airflow config list --show-values --hide-sensitive`` must redact synthetic
+        per-key secrets-backend-kwarg options the same way the Config API does.
+        See https://github.com/apache/airflow/issues/71037"""
+        overrides = {
+            ("secrets", "backend_kwarg__secret_id"): "vault-role-id-or-secret-id-material",
+            ("workers", "secrets_backend_kwarg__secret_id"): "vault-role-id-or-secret-id-material",
+        }
+        with conf_vars(overrides):
+            with stdout_capture as temp_stdout:
+                config_command.show_config(
+                    self.parser.parse_args(
+                        ["config", "list", "--color", "off", "--show-values", "--hide-sensitive"]
+                    )
+                )
+        output = temp_stdout.getvalue()
+        assert "backend_kwarg__secret_id = < hidden >" in output
+        assert "secrets_backend_kwarg__secret_id = < hidden >" in output
+        assert "vault-role-id-or-secret-id-material" not in output
+
+    def test_cli_show_config_should_not_show_team_scoped_per_key_secrets_backend_kwargs(self, stdout_capture):
+        """A team scoped spelling of a per-key secrets-backend-kwarg option -- the
+        ``[<team>=secrets]`` config-file section -- must be redacted the same way as the
+        base one. See https://github.com/apache/airflow/issues/71037"""
+        team_section = "team_a=secrets"
+        overrides = {
+            (team_section, "backend_kwarg__secret_id"): "vault-role-id-or-secret-id-material",
+        }
+        # conf_vars only tears down options it changed, not the synthetic team scoped section it
+        # had to create -- remove it explicitly so it does not leak into other tests sharing the
+        # same conf singleton.
+        section_existed_before = conf.has_section(team_section)
+        try:
+            with conf_vars(overrides):
+                with stdout_capture as temp_stdout:
+                    config_command.show_config(
+                        self.parser.parse_args(
+                            ["config", "list", "--color", "off", "--show-values", "--hide-sensitive"]
+                        )
+                    )
+            output = temp_stdout.getvalue()
+            assert "backend_kwarg__secret_id = < hidden >" in output
+            assert "vault-role-id-or-secret-id-material" not in output
+        finally:
+            if not section_existed_before and conf.has_section(team_section):
+                conf.remove_section(team_section)
+
     def test_cli_show_config_should_only_show_comments_when_no_defaults(self, stdout_capture):
         with stdout_capture as temp_stdout:
             config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
