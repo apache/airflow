@@ -397,6 +397,56 @@ class TestDagRun:
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
+    @pytest.mark.parametrize(
+        "limit_kwargs",
+        [
+            pytest.param({"max_active_tis_per_dag": 1}, id="max_active_tis_per_dag"),
+            pytest.param({"max_active_tis_per_dagrun": 1}, id="max_active_tis_per_dagrun"),
+        ],
+    )
+    def test_deleted_ti_deadlocks_run_despite_concurrency_limit(self, dag_maker, session, limit_kwargs):
+        with dag_maker(schedule=datetime.timedelta(days=1), session=session):
+            upstream = EmptyOperator(task_id="upstream")
+            downstream = EmptyOperator(task_id="downstream", **limit_kwargs)
+            downstream.set_upstream(upstream)
+
+        dr = dag_maker.create_dagrun()
+        upstream_ti = dr.get_task_instance(task_id=upstream.task_id, session=session)
+        downstream_ti = dr.get_task_instance(task_id=downstream.task_id, session=session)
+        upstream_ti.set_state(state=TaskInstanceState.SUCCESS, session=session)
+        downstream_ti.set_state(state=None, session=session)
+        session.flush()
+
+        dr.update_state(session=session)
+        assert dr.state == DagRunState.RUNNING
+
+        session.delete(upstream_ti)
+        session.flush()
+        session.expire_all()
+
+        dr.update_state(session=session)
+        assert dr.state == DagRunState.FAILED
+
+    def test_concurrency_limit_does_not_deadlock_a_runnable_task(self, dag_maker, session):
+        with dag_maker(schedule=datetime.timedelta(days=1), session=session):
+            EmptyOperator(task_id="limited", max_active_tis_per_dag=1)
+
+        running_run = dag_maker.create_dagrun(run_id="running")
+        waiting_run = dag_maker.create_dagrun(
+            run_id="waiting",
+            logical_date=running_run.logical_date + datetime.timedelta(days=1),
+        )
+        running_run.get_task_instance(task_id="limited", session=session).set_state(
+            state=TaskInstanceState.RUNNING, session=session
+        )
+        waiting_run.get_task_instance(task_id="limited", session=session).set_state(
+            state=None, session=session
+        )
+        session.flush()
+
+        waiting_run.update_state(session=session)
+        assert waiting_run.state == DagRunState.RUNNING
+
     def test_dagrun_no_deadlock_with_restarting(self, dag_maker, session):
         with dag_maker(schedule=datetime.timedelta(days=1)):
             op1 = EmptyOperator(task_id="upstream_task")
