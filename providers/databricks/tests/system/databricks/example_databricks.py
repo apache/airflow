@@ -45,6 +45,7 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksSubmitRunOperator,
     DatabricksTaskOperator,
 )
+from airflow.sdk import Asset
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_databricks_operator"
@@ -115,7 +116,11 @@ with DAG(
 
     # [START howto_operator_databricks_run_now]
     # Example of using the DatabricksRunNowOperator after creating a job with DatabricksCreateJobsOperator.
-    run_now = DatabricksRunNowOperator(task_id="run_now", job_id=jobs_create_named.output)
+    run_now = DatabricksRunNowOperator(
+        task_id="run_now",
+        job_id=jobs_create_named.output,
+        outlets=[Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")],
+    )
 
     jobs_create_named >> run_now
     # [END howto_operator_databricks_run_now]
@@ -147,6 +152,7 @@ with DAG(
         new_cluster=new_cluster,
         spark_jar_task={"main_class_name": "com.example.ProcessData"},
         libraries=[{"jar": "dbfs:/lib/etl-0.1.jar"}],
+        outlets=[Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")],
     )
     # [END howto_operator_databricks_named]
     notebook_task >> spark_jar_task
@@ -155,8 +161,9 @@ with DAG(
     sql_statement = DatabricksSQLStatementsOperator(
         task_id="sql_statement",
         databricks_conn_id="databricks_default",
-        statement="select * from default.my_airflow_table",
+        statement="insert into default.my_airflow_table values (3, 'test 3')",
         warehouse_id=WAREHOUSE_ID,
+        outlets=[Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")],
         # deferrable=True, # For using the operator in deferrable mode
     )
     # [END howto_operator_sql_statements]

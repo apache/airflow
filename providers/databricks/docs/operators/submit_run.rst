@@ -247,3 +247,31 @@ DatabricksSubmitRunDeferrableOperator
 Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` operator.
 
 It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
+Explicit assets
+---------------
+
+``DatabricksSubmitRunOperator`` does not infer Databricks table assets produced
+by a submitted job. Declare known outputs explicitly using ``outlets``::
+
+    from airflow.sdk import Asset
+
+    DatabricksSubmitRunOperator(
+        task_id="spark_jar_task",
+        new_cluster=new_cluster,
+        spark_jar_task={"main_class_name": "com.example.ProcessData"},
+        libraries=[{"jar": "dbfs:/lib/etl-0.1.jar"}],
+        outlets=[
+            Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")
+        ],
+    )
+
+An outlet is a declared output asset. It does not automatically verify that the
+job produced a new table commit.
+
+When ``wait_for_termination=False``, a successful task means that the
+Databricks run was submitted successfully, not that the declared table was
+refreshed. The operator emits a warning when outlets are configured in this mode.
+
+With synchronous or deferrable execution, the outlet event represents successful
+remote job completion. Remote failure or cancellation does not produce a
+successful outlet event.

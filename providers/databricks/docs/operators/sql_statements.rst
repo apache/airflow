@@ -109,3 +109,40 @@ An example usage of the ``DatabricksSQLStatementsSensor`` is as follows:
     :language: python
     :start-after: [START howto_sensor_databricks_sql_statement]
     :end-before: [END howto_sensor_databricks_sql_statement]
+
+Explicit assets
+---------------
+
+``DatabricksSQLStatementsOperator`` does not infer which Databricks tables a SQL
+statement writes to. Declare output assets explicitly using ``outlets``::
+
+    from airflow.sdk import Asset
+
+    DatabricksSQLStatementsOperator(
+        task_id="sql_statement",
+        statement="insert into default.my_airflow_table values (3, 'test 3')",
+        warehouse_id=WAREHOUSE_ID,
+        outlets=[
+            Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")
+        ],
+    )
+
+An outlet is a declared output asset. It does not by itself verify that the
+declared table was changed.
+
+When ``wait_for_termination=False``, successful task completion means that the
+SQL statement was submitted successfully. The resulting asset event does not
+confirm that the table was refreshed. A warning is emitted when outlets are
+configured with ``wait_for_termination=False``.
+
+For deferrable execution, the asset event is emitted only after the remote
+statement completes successfully. Remote failures and cancellations do not
+produce a successful outlet event.
+
+Mapped tasks and templated names
+--------------------------------
+
+For mapped tasks, declare the outlet explicitly in the mapped operator
+configuration. Asset identity should remain static; templated SQL may resolve
+the table name at runtime, but the declared outlet must represent the intended
+output asset. The operator does not infer assets from rendered SQL.
