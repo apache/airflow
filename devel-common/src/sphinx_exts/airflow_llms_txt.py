@@ -39,19 +39,23 @@ import posixpath
 import re
 from collections.abc import Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-from urllib.parse import urljoin
+from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from docutils import nodes
 from sphinx import addnodes
+from sphinx.errors import ExtensionError
 from sphinx.util import logging
 from sphinx.util.matching import Matcher
 from sphinx_llm.markdown_builder import SphinxLlmMarkdownBuilder, SphinxLlmMarkdownTranslator
 from sphinx_markdown_builder.contexts import IndentContext, SubContext, SubContextParams, TableContext
 
+from sphinx_exts.redirects import iter_redirects
+
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
     from sphinx.config import Config
+    from sphinx.domains.std import StandardDomain
     from sphinx.environment import BuildEnvironment
 
 logger = logging.getLogger(__name__)
@@ -165,12 +169,14 @@ class AirflowMarkdownTranslator(SphinxLlmMarkdownTranslator):
         pass
 
     def visit_title(self, node: nodes.Element) -> None:
-        # A visible toctree's caption is a title inside its wrapper; as a heading it would be a
-        # second H1 on the page.
+        # Render navigation captions in bold rather than as section headings.
         parent = node.parent
-        if isinstance(parent, nodes.compound) and "toctree-wrapper" in parent["classes"]:
+        if (isinstance(parent, addnodes.compact_paragraph) and parent.get("toctree")) or (
+            isinstance(parent, nodes.compound) and "toctree-wrapper" in parent.get("classes", [])
+        ):
             self.add(f"**{node.astext()}**", prefix_eol=2, suffix_eol=1)
             raise nodes.SkipNode
+
         super().visit_title(node)
 
     def depart_title(self, node: nodes.Element) -> None:
@@ -214,21 +220,18 @@ def _xref_title(xref: addnodes.pending_xref, env: BuildEnvironment) -> str | Non
         title = env.titles.get(posixpath.normpath(docname))
         return _inline_markdown(title, env) if title else None
     if xref.get("reftype") == "ref":
-        label = env.get_domain("std").labels.get(target.lower())
+        domain = cast("StandardDomain", env.get_domain("std"))
+        label = domain.labels.get(target.lower())
         return label[2] if label else None
     return None
 
 
 def _separate_markdown_doctrees(app: Sphinx, config: Config) -> None:
-    """
-    Give the Markdown build a doctree cache of its own.
+    """Give the Markdown build its own doctree cache."""
+    # sphinx-llm's sequential build shares the HTML cache, which can reuse
+    # incompatible doctrees or overwrite them. Set a separate cache before
+    # Sphinx creates the environment.
 
-    Without parallel mode sphinx-llm points the Markdown build at the HTML build's doctree cache.
-    The Markdown build would then reuse doctrees read for HTML (curly quotes, none of this
-    extension's ``doctree-read`` changes) or, once re-read, overwrite them. Its own directory sits
-    inside sphinx-llm's temporary output, which is deleted after the Markdown files are copied.
-    Sphinx creates the environment after ``config-inited``, so the change takes effect.
-    """
     if app.tags.has("sphinx_llm_markdown"):
         app.doctreedir = Path(app.outdir) / ".doctrees"
 
@@ -267,14 +270,8 @@ def _link_example_sources(app: Sphinx, doctree: nodes.document) -> None:
 
 
 def _clean_markdown_doctree(app: Sphinx, doctree: nodes.document, docname: str) -> None:
-    """
-    Drop RST comments and fix up link targets.
+    """Remove RST comments and normalize version, GitHub source and site-root links for Markdown."""
 
-    The comments are the license header on every page. ``|version|`` in a URL is not an RST
-    substitution; ``extra_provider_files_with_substitutions`` replaces it in the built HTML files
-    only, so the Markdown build has to do the same on the doctree. Hand-written links to the
-    release tag on GitHub then get the same ref as the ``exampleinclude`` links.
-    """
     if not _is_markdown_build(app):
         return
     site_root = urljoin(app.config.llms_txt_site_url, "/")
@@ -358,6 +355,58 @@ def _toctree_docs(env: BuildEnvironment, docname: str, seen: set[str]) -> list[t
     return docs
 
 
+def _write_markdown_redirects(app: Sphinx) -> None:
+    """Write Markdown stubs for redirected documentation pages."""
+    outdir = Path(app.outdir)
+
+    for from_path, to_path in iter_redirects(app):
+        # Preserve Markdown belonging to an actual source document.
+        docname = from_path.removesuffix(".html")
+        if docname in app.env.found_docs:
+            continue
+
+        target = urlsplit(to_path)
+        resolved_path = posixpath.normpath(posixpath.join(posixpath.dirname(from_path), target.path))
+
+        # Only change links within this package to Markdown.
+        # Other packages and external sites might only publish HTML.
+        if (
+            not target.scheme
+            and not target.netloc
+            and not target.path.startswith("/")
+            and resolved_path != ".."
+            and not resolved_path.startswith("../")
+            and target.path.endswith(".html")
+        ):
+            target = target._replace(path=f"{target.path}.md")
+
+        destination = urlunsplit(target)
+        output = outdir / f"{from_path}.md"
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            f"# Page moved\n\nThis page has moved to [the new page](<{destination}>).\n",
+            encoding="utf-8",
+        )
+
+
+def _check_markdown_coverage(outdir: Path) -> None:
+    """Fail if an eligible HTML page has no Markdown copy."""
+    excluded = {"genindex.html", "search.html", "py-modindex.html"}
+    missing = []
+
+    for page in sorted(outdir.rglob("*.html")):
+        relative = page.relative_to(outdir)
+        if "_modules" in relative.parts or page.name in excluded:
+            continue
+        if not page.with_name(page.name + ".md").is_file():
+            missing.append(relative.as_posix())
+
+    if missing:
+        raise ExtensionError(
+            "HTML pages missing Markdown copies:\n" + "\n".join(f"  {page}" for page in missing)
+        )
+
+
 def _write_llms_txt(app: Sphinx, exception: Exception | None) -> None:
     """
     Replace sphinx-llm's flat ``llms.txt`` with one grouped by the root toctree captions.
@@ -368,10 +417,10 @@ def _write_llms_txt(app: Sphinx, exception: Exception | None) -> None:
         return
     env = app.env
     outdir = Path(app.outdir)
-    if not (outdir / f"{app.config.root_doc}.html.md").is_file():
-        # sphinx-llm logs why its Markdown build failed; an index of missing pages helps nobody.
-        logger.warning("No Markdown pages in %s; not writing llms.txt or llms-full.txt", outdir)
-        return
+
+    _write_markdown_redirects(app)
+    _check_markdown_coverage(outdir)
+
     site_url = app.config.llms_txt_site_url.rstrip("/")
     optional = Matcher(app.config.llms_txt_optional_docs)
     skipped = Matcher(app.config.llms_txt_skip_docs)
