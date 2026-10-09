@@ -19,6 +19,8 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.execution.AssetRef
+import org.apache.airflow.sdk.execution.comm.AssetStateStoreResult
 import org.apache.airflow.sdk.execution.comm.ConnectionResult
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.TaskInstance
@@ -104,6 +106,24 @@ private class FakeTransport(
   override fun clearTaskStateStore(tiId: UUID) {
     calls.add(StateStoreCall("clear", tiId))
   }
+
+  override fun getAssetStateStore(
+    asset: AssetRef,
+    key: String,
+  ): AssetStateStoreResult? = throw NotImplementedError()
+
+  override fun setAssetStateStore(
+    asset: AssetRef,
+    key: String,
+    value: Any,
+  ) = throw NotImplementedError()
+
+  override fun deleteAssetStateStore(
+    asset: AssetRef,
+    key: String,
+  ) = throw NotImplementedError()
+
+  override fun clearAssetStateStore(asset: AssetRef) = throw NotImplementedError()
 }
 
 class ClientTest {
@@ -278,6 +298,27 @@ class ClientTest {
       listOf(StateStoreCall("delete", tiId, "job_id"), StateStoreCall("clear", tiId)),
       transport.calls,
     )
+  }
+
+  @Test
+  @DisplayName("assetStateStore is exposed to Java as a getter so mocking frameworks can stub it")
+  fun assetStateStoreIsExposedAsGetter() {
+    val getter = Client::class.java.getMethod("getAssetStateStore")
+
+    Assertions.assertEquals(AssetStateStores::class.java, getter.returnType)
+    Assertions.assertTrue(Client::class.java.fields.none { it.name == "assetStateStore" })
+  }
+
+  @Test
+  @DisplayName("assetStateStore rejects an empty asset name or URI before anything is sent")
+  fun assetStateStoreRejectsEmptyNameOrUri() {
+    val client = clientWith(ConnectionResult())
+
+    val byName = Assertions.assertThrows(IllegalArgumentException::class.java) { client.assetStateStore.byName("") }
+    val byUri = Assertions.assertThrows(IllegalArgumentException::class.java) { client.assetStateStore.byUri("") }
+
+    Assertions.assertEquals("Asset name must not be empty", byName.message)
+    Assertions.assertEquals("Asset URI must not be empty", byUri.message)
   }
 
   @Test

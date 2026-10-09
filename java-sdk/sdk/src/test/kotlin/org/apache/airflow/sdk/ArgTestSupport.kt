@@ -19,6 +19,8 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.execution.AssetRef
+import org.apache.airflow.sdk.execution.comm.AssetStateStoreResult
 import org.apache.airflow.sdk.execution.comm.ConnectionResult
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.TIRunContext
@@ -90,6 +92,24 @@ internal class FakeXComTransport(
   ) = throw NotImplementedError()
 
   override fun clearTaskStateStore(tiId: UUID) = throw NotImplementedError()
+
+  override fun getAssetStateStore(
+    asset: AssetRef,
+    key: String,
+  ): AssetStateStoreResult? = throw NotImplementedError()
+
+  override fun setAssetStateStore(
+    asset: AssetRef,
+    key: String,
+    value: Any,
+  ) = throw NotImplementedError()
+
+  override fun deleteAssetStateStore(
+    asset: AssetRef,
+    key: String,
+  ) = throw NotImplementedError()
+
+  override fun clearAssetStateStore(asset: AssetRef) = throw NotImplementedError()
 }
 
 internal fun startupDetails(argBindings: List<Map<String, Any?>>?): StartupDetails =
