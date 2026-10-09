@@ -470,3 +470,95 @@ def test_inspector_is_cached():
         inspector2 = hook.inspector
         assert inspector1 is inspector2
         mock_get_engine.assert_called_once()
+
+
+class _CancelQueryHook(DbApiHook):
+    conn_name_attr = "conn_id"
+
+    def __init__(self, cursor: MagicMock, **kwargs):
+        super().__init__(**kwargs)
+        self.cursor = cursor
+
+    def get_conn(self):
+        conn = MagicMock(name="conn")
+        conn.cursor.return_value = self.cursor
+        return conn
+
+
+class TestDbApiHookCancelQuery:
+    @staticmethod
+    def _run_and_cancel_during_execute(hook: DbApiHook, cursor: MagicMock) -> bool:
+        """Run a statement and call ``cancel_query`` while ``cursor.execute`` is still in progress."""
+        outcome = []
+
+        def execute(*args, **kwargs):
+            outcome.append(hook.cancel_query())
+
+        cursor.execute.side_effect = execute
+        hook.run("select pg_sleep(600)")
+        return outcome[0]
+
+    def test_nothing_to_cancel_when_no_statement_is_running(self, caplog):
+        hook = _CancelQueryHook(cursor=MagicMock())
+
+        with caplog.at_level(logging.INFO):
+            assert hook.cancel_query() is False
+
+        assert "nothing to cancel" in caplog.text
+        hook.cursor.cancel.assert_not_called()
+
+    def test_nothing_to_cancel_when_init_was_not_called(self, caplog):
+        class HookWithoutInit(DbApiHook):
+            conn_name_attr = "conn_id"
+
+            def __init__(self):
+                # Deliberately skips ``DbApiHook.__init__`` so ``_running_cursor`` is never initialised
+                pass
+
+        hook = HookWithoutInit()
+
+        with caplog.at_level(logging.INFO):
+            assert hook.cancel_query() is False
+
+        assert "nothing to cancel" in caplog.text
+
+    def test_cancel_through_cursor(self):
+        cursor = MagicMock(spec=["execute", "close", "cancel", "connection", "description", "rowcount"])
+        hook = _CancelQueryHook(cursor=cursor)
+
+        assert self._run_and_cancel_during_execute(hook, cursor) is True
+
+        cursor.cancel.assert_called_once_with()
+        cursor.connection.cancel.assert_not_called()
+        assert hook._running_cursor is None
+
+    def test_cancel_falls_back_to_connection(self):
+        cursor = MagicMock(spec=["execute", "close", "connection", "description", "rowcount"])
+        hook = _CancelQueryHook(cursor=cursor)
+
+        assert self._run_and_cancel_during_execute(hook, cursor) is True
+
+        cursor.connection.cancel.assert_called_once_with()
+        assert hook._running_cursor is None
+
+    def test_cancel_not_supported_by_driver(self, caplog):
+        cursor = MagicMock(spec=["execute", "close", "connection", "description", "rowcount"])
+        cursor.connection = MagicMock(spec=["commit", "close"])
+        hook = _CancelQueryHook(cursor=cursor)
+
+        with caplog.at_level(logging.WARNING):
+            assert self._run_and_cancel_during_execute(hook, cursor) is False
+
+        assert "does not support cancelling a running SQL statement" in caplog.text
+
+    def test_running_cursor_is_cleared_when_statement_fails(self):
+        cursor = MagicMock()
+        cursor.execute.side_effect = RuntimeError("boom")
+        hook = _CancelQueryHook(cursor=cursor)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            hook.run("select 1")
+
+        assert hook._running_cursor is None
+        assert hook.cancel_query() is False
+        cursor.cancel.assert_not_called()
