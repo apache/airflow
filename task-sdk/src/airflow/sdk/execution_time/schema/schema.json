@@ -5129,6 +5129,18 @@
         "dag_run": {
           "$ref": "#/$defs/DagRun"
         },
+        "dag_run_conf_json": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dag Run Conf Json"
+        },
         "task_reschedule_count": {
           "default": 0,
           "title": "Task Reschedule Count",

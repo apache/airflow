@@ -838,6 +838,7 @@ class TIRunContext(BaseModel):
     """
 
     dag_run: DagRun
+    dag_run_conf_json: Annotated[str | None, Field(title="Dag Run Conf Json")] = None
     task_reschedule_count: Annotated[int | None, Field(title="Task Reschedule Count")] = 0
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None

@@ -592,6 +592,26 @@ def test_run_swallows_supervisor_terminal_send_failure(create_runtime_ti, mock_s
     assert error is None
 
 
+def test_template_context_materializes_opaque_dag_run_conf_in_task(create_runtime_ti):
+    """Serialized DagRun.conf is decoded once, in the task process."""
+    task = BaseOperator(task_id="opaque-conf")
+    runtime_ti = create_runtime_ti(
+        task=task,
+        dag_run_conf_json='{"records":[{"id":1,"value":"one"},{"id":2,"value":"two"}]}',
+    )
+
+    context = runtime_ti.get_template_context()
+    decoded_conf = context["dag_run"].conf
+    repeated_context = runtime_ti.get_template_context()
+
+    assert decoded_conf == {
+        "records": [{"id": 1, "value": "one"}, {"id": 2, "value": "two"}]
+    }
+    assert repeated_context["dag_run"].conf is decoded_conf
+    assert runtime_ti._ti_context_from_server is not None
+    assert runtime_ti._ti_context_from_server.dag_run_conf_json is None
+
+
 def test_run_signals_fail_closed_when_failure_terminal_send_fails(create_runtime_ti, mock_supervisor_comms):
     """
     When the task FAILS and the terminal-state send to the supervisor fails too

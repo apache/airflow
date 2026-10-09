@@ -55,6 +55,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddArgBindingsToTIRunContext,
     AddCallbackRunEndpoint,
+    AddDagRunConfJsonToTIRunContext,
     AddDagRunNoteUpdateEndpoint,
     AddMultiTeamToTIRunContext,
     AddStoppedTaskReport,
@@ -67,6 +68,7 @@ bundle = VersionBundle(
     Version(
         "2026-10-30",
         AddArgBindingsToTIRunContext,
+        AddDagRunConfJsonToTIRunContext,
         AddCallbackRunEndpoint,
         AddDagRunNoteUpdateEndpoint,
         AddTerminalStateRetryReasonField,
