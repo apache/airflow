@@ -25,17 +25,13 @@ AWS EKS Executor
 
 The EKS executor runs each Airflow task in its own pod on an Amazon EKS cluster.
 
-This executor extends the Kubernetes executor that ships in the ``cncf.kubernetes``
-provider. Pod scheduling, pod templates, per-task pod overrides, and log handling all
-behave the same way they do under
-:doc:`apache-airflow-providers-cncf-kubernetes:kubernetes_executor`. The part this executor
-adds is authentication. It builds the Kubernetes client for your EKS cluster from an
-Airflow AWS connection, so the scheduler does not need a kubeconfig file on disk and
-you do not have to refresh cluster credentials yourself.
-
-Because the executor inherits its pod behavior, everything written about the
-Kubernetes executor still applies, including the requirement for a database backend
-other than SQLite.
+It extends the Kubernetes executor from the ``cncf.kubernetes`` provider, so pod scheduling,
+pod templates, per-task pod overrides, log handling and requirements such as a database
+backend other than SQLite are all as described in
+:doc:`apache-airflow-providers-cncf-kubernetes:kubernetes_executor`. What it adds is
+authentication: it builds the Kubernetes client for your EKS cluster from an Airflow AWS
+connection, so the scheduler needs no kubeconfig file and you do not have to refresh cluster
+credentials yourself.
 
 For a quick start guide please see :ref:`here <eks_setup_guide>`.
 
@@ -54,29 +50,21 @@ provider together with that version:
         'apache-airflow-providers-cncf-kubernetes>=10.24.0'
 
 The AWS credentials the executor uses must be allowed to call ``eks:DescribeCluster``
-on the cluster, and the IAM principal behind those credentials must be granted
-access inside the cluster itself. On modern clusters this means an `EKS access entry
-<https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html>`__; on older
-clusters it means an entry in the `aws-auth ConfigMap
-<https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html>`__. Without that
-in-cluster grant every Kubernetes API call is rejected, and the startup check described
-below stops the scheduler with an error that points at the access entry.
+on the cluster, and their IAM principal must also be granted access inside the cluster, as
+described in :ref:`eks_grant_access`. Without that in-cluster grant every Kubernetes API call
+is rejected.
 
 How authentication works
 ------------------------
 
 When the executor starts, it plugs its own Kubernetes client into the Kubernetes
-executor. Every process that needs a client, including the pod watcher that Airflow runs
-as a separate process, builds its own from the :ref:`[aws_eks_executor] <eks_config_options>`
-settings.
-
-To build a client, the executor describes the cluster to find its API endpoint and
-certificate authority, then mints an authentication token for it. An EKS token is a presigned
-STS URL that stays valid for roughly fifteen minutes, while the scheduler holds a
-single client for as long as it runs. To keep the token current, the executor
-registers a refresh hook that the Kubernetes client calls on every authenticated
-request. The hook reuses the current token and gets a new one a minute before it
-expires.
+executor. Every process that needs a client, including the separate pod watcher process,
+builds its own from the :ref:`[aws_eks_executor] <eks_config_options>` settings: it
+describes the cluster to find its API endpoint and certificate authority, then gets an
+authentication token for it. An EKS token is a presigned STS URL that stays valid for
+roughly fifteen minutes, so the executor registers a refresh hook that the Kubernetes client
+calls on every authenticated request. The hook reuses the current token and gets a new one
+a minute before it expires.
 
 Before it accepts any tasks, the executor checks that the cluster is ``ACTIVE`` or
 ``UPDATING``, since EKS keeps the Kubernetes API available during an update (see `Update
@@ -91,8 +79,8 @@ Config Options
 --------------
 
 The executor reads its own settings from an ``aws_eks_executor`` section in
-``airflow.cfg``. You can also set any of them with an environment variable using the
-``AIRFLOW__AWS_EKS_EXECUTOR__<OPTION_NAME>`` form, for example
+``airflow.cfg``, or from environment variables of the form
+``AIRFLOW__AWS_EKS_EXECUTOR__<OPTION_NAME>``, for example
 ``AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME=airflow-eks-cluster``. For more information on
 how to set these options, see :doc:`apache-airflow:howto/set-config`.
 
@@ -116,9 +104,9 @@ Optional config options:
 Pod-level configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Settings that describe the worker pods themselves stay in the
+Settings for the worker pods stay in the
 :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor`
-section, exactly as they are for the Kubernetes executor. This includes
+section, exactly as for the Kubernetes executor. This includes
 :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__namespace`,
 :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__pod_template_file`,
 :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__worker_container_repository`,
@@ -130,27 +118,18 @@ for how :ref:`pod templates <apache-airflow-providers-cncf-kubernetes:concepts:p
 
 Leave :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__client_factory` and
 :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__async_client_factory`
-in that section unset. The executor sets both itself, and raises an error at startup if
-either is set to something else, so that a stale or conflicting setting cannot silently
-send tasks to the wrong cluster.
-
-The worker pod template
-~~~~~~~~~~~~~~~~~~~~~~~
+unset. The executor sets both itself, and raises an error at startup if either is set to
+something else, so that a conflicting setting cannot silently send tasks to the wrong cluster.
 
 Set :ref:`[kubernetes_executor] pod_template_file
 <apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__pod_template_file>`
-to the path of a YAML file describing the worker pod. Treat it as required. There is no
-usable default: when the setting is empty the Kubernetes executor only logs a warning
-that the model file does not exist and then builds a worker pod from an empty template.
-That pod is missing the container the executor needs, so the failure arrives later and
-somewhere else, usually as a rejected pod or a task that never reports back.
-
-The file must define a container named ``base`` as the first entry in
-``spec.containers``, and that container has to run your Airflow worker image.
-The :ref:`apache-airflow-providers-cncf-kubernetes:concepts:pod_template_file` section of the
-Kubernetes executor docs covers the full set of requirements and includes templates for
-Dags baked into the image, Dags on a volume, and git-sync. Any of those works here
-unchanged, since this executor only replaces how the Kubernetes client is authenticated.
+to a YAML file describing the worker pod, and treat it as required. When it is empty, the
+Kubernetes executor only logs a warning and builds the worker pod from an empty template, so
+the failure shows up later, usually as a rejected pod or a task that never reports back. The
+template's first container must be named ``base`` and run your Airflow worker image. The
+:ref:`apache-airflow-providers-cncf-kubernetes:concepts:pod_template_file` section of the
+Kubernetes executor docs covers the full requirements, and its example templates work here
+unchanged.
 
 .. _eks_logging:
 
@@ -170,6 +149,8 @@ unchanged, since this executor only replaces how the Kubernetes client is authen
 
 Setting up an EKS Executor for Apache Airflow
 ---------------------------------------------
+
+.. _eks_grant_access:
 
 Grant access to the cluster
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -205,21 +186,12 @@ Select the executor and name your cluster:
 
 The worker image must contain Airflow and the Amazon provider, and it needs access
 to your Dag files and a network path to the Airflow API server, in the same way any
-Kubernetes executor worker does.
+Kubernetes executor worker does. Configure remote logging as described in the
+:ref:`logging <eks_logging>` section.
 
-Task logging
-~~~~~~~~~~~~
-
-Configure remote logging as described in the :ref:`logging <eks_logging>` section, so
-that task logs stay viewable in the Airflow UI after the worker pods are deleted.
-
-Verify the setup
-~~~~~~~~~~~~~~~~
-
-Start the scheduler and trigger a small Dag. A successful run shows a worker pod
-appearing in your chosen namespace and the task finishing in the Airflow UI. If the
-scheduler logs an authentication or forbidden error from the Kubernetes API, the
-in-cluster access grant for your IAM principal is the first thing to check.
+Start the scheduler and trigger a small Dag. A worker pod should appear in your namespace
+and the task should finish. If the scheduler logs an authentication or forbidden error from
+the Kubernetes API, check the in-cluster access grant for your IAM principal first.
 
 Multi-team deployments
 ----------------------
@@ -233,12 +205,9 @@ such as the namespace and pod template.
 Fault tolerance
 ---------------
 
-Fault tolerance behaves as it does for the Kubernetes executor, including how worker
-pod crashes and scheduler restarts are handled. See
-:doc:`apache-airflow-providers-cncf-kubernetes:kubernetes_executor` for details.
-
-The one failure mode specific to this executor is credential expiry. Because tokens
-are replaced before they expire, an expired token is unusual. If you do see repeated
-authentication failures after the scheduler has been running for a long time, check
-that the credentials behind your connection are still valid and that the role has not
+Fault tolerance, including how worker pod crashes and scheduler restarts are handled, is
+the same as for the Kubernetes executor; see
+:doc:`apache-airflow-providers-cncf-kubernetes:kubernetes_executor`. Because tokens are
+replaced before they expire, repeated authentication failures on a long-running scheduler
+usually mean the credentials behind your connection are no longer valid, or the role has
 lost its access entry on the cluster.
