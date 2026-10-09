@@ -21,14 +21,20 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
 
-from airflow.providers.common.compat.sdk import timezone
+from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
+from airflow.providers.edge3.worker_api.auth import jwt_validator
 from airflow.providers.edge3.worker_api.datamodels import PushLogsBody
-from airflow.providers.edge3.worker_api.routes.logs import logfile_path, push_logs
+from airflow.providers.edge3.worker_api.routes.logs import logfile_path, logs_router, push_logs
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
+
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -56,6 +62,55 @@ class TestLogsApiRoutes:
         assert p
         assert str(Path(f"dag_id={DAG_ID}") / f"run_id={RUN_ID}" / f"task_id={TASK_ID}" / "attempt=1") in p
         assert "-1" not in Path(p).parts
+
+    @pytest.mark.parametrize(
+        ("method", "route", "body"),
+        [
+            ("GET", f"logs/logfile_path/{DAG_ID}/nonexistent_task/{RUN_ID}/1/-1", None),
+            (
+                "POST",
+                f"logs/push/{DAG_ID}/nonexistent_task/{RUN_ID}/1/-1",
+                {
+                    "log_chunk_data": "This is Lorem Ipsum log data",
+                    "log_chunk_time": "2024-11-24T00:00:00Z",
+                },
+            ),
+        ],
+        ids=["logfile_path", "push_logs"],
+    )
+    @conf_vars({("api_auth", "jwt_secret"): "edge-log-test-secret"})
+    def test_missing_ti_returns_404(
+        self,
+        method: str,
+        route: str,
+        body: dict[str, str] | None,
+    ) -> None:
+        app = FastAPI()
+        app.include_router(logs_router, prefix="/edge_worker/v1")
+        token = JWTGenerator(
+            secret_key=conf.get("api_auth", "jwt_secret"),
+            valid_for=60,
+            audience="api",
+        ).generate(extras={"method": route})
+        jwt_validator.cache_clear()
+        try:
+            with TestClient(app, raise_server_exceptions=False) as client:
+                response = client.request(
+                    method=method,
+                    url=f"/edge_worker/v1/{route}",
+                    headers={"Authorization": token},
+                    json=body,
+                )
+        finally:
+            jwt_validator.cache_clear()
+
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": (
+                f"TaskInstance not found for dag_id={DAG_ID}, task_id=nonexistent_task, "
+                f"run_id={RUN_ID}, map_index=-1"
+            )
+        }
 
     def test_push_logs(self, session: Session):
         log_data = PushLogsBody(
