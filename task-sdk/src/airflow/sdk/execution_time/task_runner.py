@@ -1185,7 +1185,7 @@ class IndexedTaskInstance(RuntimeTaskInstance):
 
     def context_for(self, context: Context, *, outlet_events: OutletEventAccessors | None = None) -> Context:
         """
-        The parent's context as this indexed task sees it.
+        Return the parent's context as this indexed task sees it.
 
         A clone of ``context`` with this task instance under ``ti`` and ``task_instance``, its
         unmapped operator under ``task`` and its indexed view of the store under
