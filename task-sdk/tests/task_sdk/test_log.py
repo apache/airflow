@@ -17,12 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
+import sys
+import textwrap
 from unittest import mock
 
 import pytest
 import structlog
 
 from airflow.sdk import log as sdk_log
+from airflow.sdk.execution_time.comms import MaskSecret
 
 
 class TestConfigureLogging:
@@ -87,3 +91,31 @@ class TestConfigureLogging:
 
         mock_load_remote_log_handler.assert_called_once_with()
         assert processors == (initial_processor, sdk_log.mask_logs, final_renderer)
+
+
+class TestMaskSecret:
+    def test_does_not_import_task_runner_outside_task_execution(self):
+        code = textwrap.dedent(
+            """
+            import sys
+            from airflow.sdk.log import mask_secret
+
+            mask_secret("s3cr3t")
+            print("airflow.sdk.execution_time.task_runner" in sys.modules)
+            """
+        )
+
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+
+        assert result.stdout.strip().splitlines()[-1] == "False"
+
+    def test_forwards_to_supervisor_in_task_execution(self, mock_supervisor_comms):
+        sdk_log.mask_secret("s3cr3t", name="password")
+
+        mock_supervisor_comms.send.assert_called_once_with(MaskSecret(value="s3cr3t", name="password"))
+
+    @pytest.mark.asyncio
+    async def test_async_forwards_to_supervisor_in_task_execution(self, mock_supervisor_comms):
+        await sdk_log.amask_secret("s3cr3t", name="password")
+
+        mock_supervisor_comms.asend.assert_awaited_once_with(MaskSecret(value="s3cr3t", name="password"))
