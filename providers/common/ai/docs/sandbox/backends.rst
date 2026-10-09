@@ -306,15 +306,17 @@ Constructor parameters:
   deadline, or 120 seconds for a file write. Default ``30``.
 
 A create request that times out, fails in transport, or gets a server error may
-still have started a sandbox, so it is sent once more with the same idempotency
-key, and Boat answers with the sandbox the first request created rather than
-starting a second one. The retry gets what is left of ``ready_timeout`` plus
-``request_timeout``, so provisioning takes at most their sum, and a sandbox the
-retry finds too late to become ready in time is deleted rather than left running
-until its TTL. If that retry fails too, or Boat is still creating the sandbox when
-``ready_timeout`` runs out, the backend never receives the sandbox's id, so any
-sandbox the first request started keeps a server-assigned name and runs until
-Boat stops it at ``ttl_seconds``.
+still have started a sandbox, so it is sent again with the same idempotency key,
+and Boat answers with the sandbox the first request created rather than starting
+a second one. While Boat is still creating that sandbox, it answers the resent
+request with 409 ``idempotency_in_progress``, and the backend sends it again two
+seconds after each such answer until ``ready_timeout`` runs out. Each resend gets
+what is left of ``ready_timeout`` plus ``request_timeout``, so provisioning takes
+at most their sum, and a sandbox a resend finds too late to become ready in time
+is deleted rather than left running until its TTL. If a resend fails any other
+way, or Boat is still creating the sandbox when ``ready_timeout`` runs out, the
+backend never receives the sandbox's id, so any sandbox the first request started
+keeps a server-assigned name and runs until Boat stops it at ``ttl_seconds``.
 
 Every sandbox is created with Boat's ``noEnv`` flag, so it gets none of your Boat
 account's stored environment variables, secret files or credentials, and cannot
@@ -339,6 +341,15 @@ could be created. Either way the model gets it back as a tool error it can
 retry. Reads deliberately keep the inherited bounded shell implementation, so
 ``max_bytes`` is enforced inside the guest before file contents reach worker
 memory.
+
+That path rule binds only ``write_file``; it is not a jail. Commands run as the
+guest user ``user``, which `Boat documents <https://docs.boat.dev/machines>`__ as
+having root through ``sudo`` with no password, so a command the model writes can
+read and write anywhere in the sandbox filesystem. The sandbox also has a public
+IPv4 or IPv6 address, and its firewall is inside the guest: Boat's
+`hosting guide <https://docs.boat.dev/hosting>`__ opens a port to the internet
+with ``ufw``, which a command can do too. The sandbox boundary is what contains
+that.
 
 A command's deadline is enforced inside the sandbox by GNU coreutils
 ``timeout``, which sends ``SIGTERM`` and then ``SIGKILL`` five seconds later, so

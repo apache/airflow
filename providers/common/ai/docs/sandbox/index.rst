@@ -451,6 +451,9 @@ task, a script the model writes, runs, and fixes from its own traceback.
   :ref:`Boat <sandbox-backend-boat>`.
 - **On Modal, commands run as root and** ``workdir`` **is not a jail.**
   :ref:`Modal <sandbox-backend-modal>`.
+- **On Boat, commands can become root through** ``sudo``, **the sandbox has a public
+  address, and the** ``/home/user`` **or** ``/tmp`` **rule binds only** ``write_file``.
+  :ref:`Boat <sandbox-backend-boat>`.
 - **The** ``sbx`` **backend is for local development.** It needs the ``sbx`` binary,
   a Docker login and, on Linux, KVM or nested virtualization, so it does not run on
   unprivileged Kubernetes, and a worker killed outright leaves its microVM behind.

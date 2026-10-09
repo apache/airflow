@@ -215,9 +215,11 @@ class BoatSandboxBackend(SandboxBackend):
         it erases its disk. Default ``3600``.
     :param ready_timeout: Seconds allowed for provisioning, from the create request
         until the sandbox is ready. A create request that times out, fails in
-        transport, or gets a server error is sent once more with the same
-        idempotency key, with what is left of ``ready_timeout`` plus
-        ``request_timeout``, so provisioning takes at most their sum. Default ``300``.
+        transport, or gets a server error is sent again with the same idempotency
+        key, and again two seconds after each 409 ``idempotency_in_progress``
+        answer until ``ready_timeout`` runs out. Each resend gets what is left of
+        ``ready_timeout`` plus ``request_timeout``, so provisioning takes at most
+        their sum. Default ``300``.
     :param request_timeout: HTTP timeout in seconds for a Boat API call that answers
         at once, such as the create request, a status check or a delete, and the
         time added to the operation's own for a call that waits on one: a
@@ -389,15 +391,18 @@ class BoatSandboxBackend(SandboxBackend):
 
     def _request_sandbox(self, api: BoatApi, env: dict[str, str], deadline: float) -> str:
         """
-        Send the create request, retrying it once if its answer may have been lost.
+        Send the create request, and resend it if its answer may have been lost.
 
-        Both attempts carry the same idempotency key and body, for which Boat
+        Every attempt carries the same idempotency key and body, for which Boat
         returns the sandbox the first one created rather than billing a second.
         The first attempt gets at most ``request_timeout``, so a lost answer
-        leaves time to retry; a retry that arrives while Boat is still creating
-        that sandbox is answered with 409 ``idempotency_in_progress``. The retry
-        is sent even at the deadline, because only its answer names a sandbox
-        the first request may have started, which ``create`` then deletes.
+        leaves time to resend it. A resend that arrives while Boat is still
+        creating that sandbox is answered with 409 ``idempotency_in_progress``,
+        and is sent again ``_READY_POLL_INTERVAL`` seconds later, for as long as
+        the deadline has not passed. Any other failure of a resend ends the
+        create. The first resend is sent even at the deadline, because only its
+        answer names a sandbox the first request may have started, which
+        ``create`` then deletes.
         """
         with _translate_boat_errors("create a sandbox"):
             from boat_sdk.models.create_sandbox_request import CreateSandboxRequest
