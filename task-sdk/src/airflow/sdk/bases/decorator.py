@@ -761,7 +761,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                 "Task-generated iterating within a task using 'iterate' is not allowed with trigger rule 'always'."
             )
         if not map_kwargs:
-            raise TypeError("no arguments to expand against")
+            raise TypeError("no arguments to iterate against")
         self._validate_arg_names("iterate", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         # Since the input is already checked at parse time, we can set strict

@@ -487,6 +487,17 @@ class TestTaskDecoratorTaskConcurrency:
             assert xcom_arg.operator.max_workers == 2
 
 
+def test_iterate_without_arguments_names_iterate_in_the_error():
+    with DAG("test_dag"):
+
+        @task
+        def add_one(x):
+            return x + 1
+
+        with pytest.raises(TypeError, match="no arguments to iterate against"):
+            add_one.iterate()
+
+
 def test_iterate_ignores_multiple_outputs_inferred_from_return_annotation():
     with DAG("test_dag"):
 
