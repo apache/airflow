@@ -405,6 +405,83 @@ class TestCachingModelReplayVerification:
         mock_model.request.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_unverifiable_current_request_treated_as_miss(
+        self, mock_model, mock_storage, counter, sample_response
+    ):
+        stale = ModelResponse(parts=[TextPart(content="stale")])
+        mock_storage.load_model_response.return_value = (stale, None)
+        mock_model.request = AsyncMock(return_value=sample_response)
+        mock_model.prepare_request = lambda settings, params: ({"extra_body": object()}, params)
+        caching = CachingModel(mock_model, storage=mock_storage, counter=counter)
+
+        result = await caching.request([], None, ModelRequestParameters())
+
+        assert result is sample_response
+        mock_model.request.assert_called_once()
+        assert counter.replayed_model == 0
+        mock_storage.save_model_response.assert_not_called()
+        # Not written, so it counts as skipped, like a write the backend refused.
+        assert (counter.cached_model, counter.skipped_model) == (0, 1)
+
+    @pytest.mark.asyncio
+    async def test_unverifiable_request_is_not_cached(
+        self, mock_model, mock_storage, counter, sample_response
+    ):
+        """An entry stored without a fingerprint can never satisfy the replay guard, so none is written."""
+        mock_model.request = AsyncMock(return_value=sample_response)
+        mock_model.prepare_request = lambda settings, params: ({"extra_body": object()}, params)
+        caching = CachingModel(mock_model, storage=mock_storage, counter=counter)
+
+        result = await caching.request([], None, ModelRequestParameters())
+
+        assert result is sample_response
+        mock_model.request.assert_called_once()
+        mock_storage.save_model_response.assert_not_called()
+        # Not written, so it counts as skipped, like a write the backend refused.
+        assert (counter.cached_model, counter.skipped_model) == (0, 1)
+
+    @pytest.mark.asyncio
+    async def test_unverifiable_request_warning_names_its_step(
+        self, mock_model, mock_storage, counter, sample_response
+    ):
+        """The step in the warning shows where a run-wide loss of fingerprints began."""
+        counter.next_step()
+        counter.next_step()
+        mock_model.request = AsyncMock(return_value=sample_response)
+        mock_model.prepare_request = lambda settings, params: ({"extra_body": object()}, params)
+        caching = CachingModel(mock_model, storage=mock_storage, counter=counter)
+
+        # Patched rather than captured: on Airflow 2 the task logger wraps the stdlib logger,
+        # which structlog's test capture does not see.
+        with patch("airflow.providers.common.ai.durable.fingerprint.log") as fingerprint_log:
+            await caching.request([], None, ModelRequestParameters())
+
+        fingerprint_log.warning.assert_called_once()
+        assert fingerprint_log.warning.call_args.kwargs["step"] == 2
+
+    @pytest.mark.asyncio
+    async def test_unverifiable_request_leaves_a_verifiable_entry_intact(
+        self, mock_model, mock_storage, counter, sample_response
+    ):
+        """A usable entry must survive an attempt that cannot fingerprint its request.
+
+        The read side was always safe here (a real digest never equalled ``None``),
+        but the write side used to clobber the good entry with a ``fingerprint=None``
+        one. It now survives for a later attempt to replay.
+        """
+        good = ModelResponse(parts=[TextPart(content="from a verifiable attempt")])
+        mock_storage.load_model_response.return_value = (good, request_fingerprint())
+        mock_model.request = AsyncMock(return_value=sample_response)
+        mock_model.prepare_request = lambda settings, params: ({"extra_body": object()}, params)
+        caching = CachingModel(mock_model, storage=mock_storage, counter=counter)
+
+        result = await caching.request([], None, ModelRequestParameters())
+
+        assert result is sample_response
+        assert counter.replayed_model == 0
+        mock_storage.save_model_response.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_fingerprint_uses_prepared_request_not_raw_arguments(
         self, mock_storage, counter, sample_response
     ):

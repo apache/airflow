@@ -182,6 +182,66 @@ class TestCachingToolsetReplayVerification:
         assert result == "fresh result"
         mock_toolset.call_tool.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_unverifiable_current_call_treated_as_miss(self, mock_toolset, mock_storage, counter):
+        mock_storage.load_tool_result.return_value = (True, "stale result", None)
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+        tool_args = {"value": object()}
+
+        result = await caching.call_tool("search", tool_args, ctx_for("call_1"), MagicMock())
+
+        assert result == "fresh result"
+        mock_toolset.call_tool.assert_called_once()
+        assert counter.replayed_tool == 0
+        mock_storage.save_tool_result.assert_not_called()
+        # Not written, so it counts as skipped, like a write the backend refused.
+        assert (counter.cached_tool, counter.skipped_tools) == (0, ["search"])
+
+    @pytest.mark.asyncio
+    async def test_unverifiable_call_is_not_cached(self, mock_toolset, mock_storage, counter):
+        """An entry stored without a fingerprint can never satisfy the replay guard, so none is written."""
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+
+        result = await caching.call_tool("search", {"value": object()}, ctx_for("call_1"), MagicMock())
+
+        assert result == "fresh result"
+        mock_toolset.call_tool.assert_called_once()
+        mock_storage.save_tool_result.assert_not_called()
+        # Not written, so it counts as skipped, like a write the backend refused.
+        assert (counter.cached_tool, counter.skipped_tools) == (0, ["search"])
+
+    @pytest.mark.asyncio
+    async def test_unverifiable_call_warning_names_its_step_and_tool(
+        self, mock_toolset, mock_storage, counter
+    ):
+        counter.next_step()
+        counter.next_step()
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+
+        # Patched rather than captured: on Airflow 2 the task logger wraps the stdlib logger,
+        # which structlog's test capture does not see.
+        with patch("airflow.providers.common.ai.durable.fingerprint.log") as fingerprint_log:
+            await caching.call_tool("search", {"value": object()}, ctx_for("call_1"), MagicMock())
+
+        fingerprint_log.warning.assert_called_once()
+        assert fingerprint_log.warning.call_args.kwargs["step"] == 2
+        assert fingerprint_log.warning.call_args.kwargs["tool"] == "search"
+
+    @pytest.mark.asyncio
+    async def test_unverifiable_call_leaves_a_verifiable_entry_intact(
+        self, mock_toolset, mock_storage, counter
+    ):
+        """A usable entry must survive a call that cannot be fingerprinted."""
+        good_fingerprint = fingerprint_tool_call("search", {"q": "foo"}, "call_1")
+        mock_storage.load_tool_result.return_value = (True, "from a verifiable attempt", good_fingerprint)
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+
+        result = await caching.call_tool("search", {"value": object()}, ctx_for("call_1"), MagicMock())
+
+        assert result == "fresh result"
+        assert counter.replayed_tool == 0
+        mock_storage.save_tool_result.assert_not_called()
+
 
 class TestSharedCounter:
     @pytest.mark.asyncio
