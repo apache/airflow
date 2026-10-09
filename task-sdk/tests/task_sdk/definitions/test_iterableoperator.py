@@ -56,6 +56,7 @@ from airflow.sdk.definitions._internal.expandinput import (
 from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.iterableoperator import (
     Checkpoints,
+    IndexedTaskInstanceNotStarted,
     IndexedTaskOutcomes,
     IterableOperator,
     IterationState,
@@ -2948,6 +2949,20 @@ class TestIndexedTaskOutcomes:
         assert isinstance(info.value.__cause__, BaseExceptionGroup)
         assert info.value.__cause__.exceptions == (outcomes.exceptions[0],)
 
+    def test_an_item_not_started_after_the_kill_is_counted_apart(self):
+        """It ran no code: not a failure to collect or log, not an item that ran, named in the message."""
+        state = IterationState()
+        state.resolved = self._resolved(3)
+        outcomes = self._outcomes(state=state)
+        outcomes.record(self._task(0), None)
+        outcomes.record(self._task(1), IndexedTaskInstanceNotStarted("pulled before the kill"))
+        assert outcomes.total == 1
+        assert outcomes.not_started == 1
+        assert outcomes.exceptions == []
+        state.request_stop()
+        with pytest.raises(AirflowTaskTerminated, match="1 of 3 items ran, 1 pulled but never started"):
+            outcomes.conclude()
+
     def test_a_kill_while_resolving_is_not_an_empty_input(self):
         state = IterationState()
         state.request_stop()
@@ -3039,6 +3054,19 @@ class MockKillingOperator(BaseOperator):
         return self.arg1
 
 
+class MockEchoAsyncOperator(BaseAsyncOperator):
+    """Async operator that returns its ``arg1``, for kills that come from elsewhere than the item."""
+
+    template_fields = ("arg1",)
+
+    def __init__(self, arg1=None, **kwargs):
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+
+    async def aexecute(self, context):
+        return self.arg1
+
+
 class TestAKillSticks:
     """on_kill() stops the iteration: nothing new starts, and the task fails without a retry."""
 
@@ -3060,6 +3088,43 @@ class TestAKillSticks:
         assert "_iterable_completed" not in store
         assert store["_iterable_0"]["status"] == "success"
         assert all(f"_iterable_{index}" not in store for index in (1, 2, 3))
+
+    def test_an_item_pulled_before_the_kill_but_not_started_does_not_run(self):
+        """
+        on_kill() reaches what has started; an item whose checkpoint read is in flight has not.
+
+        On a retry attempt every item reads its checkpoint before its runner starts. A kill that
+        lands during that read (here from the read itself, as a SIGTERM would land on the main
+        thread) finds the item unregistered: it must not run afterwards, gets no checkpoint and
+        fires no callback, as the items never pulled do not, and the message counts it apart.
+        """
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": 0}, {"arg1": 1}, {"arg1": 2}]),
+                task_id="killed",
+                task_concurrency=3,
+                operator_class=MockEchoAsyncOperator,
+            )
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = 2
+                store = context["task_state_store"]
+                read = store.aget
+
+                async def aget_and_kill(key, default=None):
+                    if key == "_iterable_1":
+                        iterable_op.on_kill()
+                    return await read(key, default)
+
+                store.aget = aget_and_kill
+                with pytest.raises(
+                    AirflowTaskTerminated, match="1 of 3 items ran, 1 pulled but never started"
+                ):
+                    iterable_op.execute(context=context)
+
+        assert "_iterable_completed" not in store
+        assert store["_iterable_0"]["status"] == "success"
+        assert all(f"_iterable_{index}" not in store for index in (1, 2))
 
     def test_a_kill_before_the_run_started_still_stops_it(self):
         """SIGTERM can land between the operator's creation and _run_tasks: the stop must survive."""

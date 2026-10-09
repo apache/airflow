@@ -140,6 +140,16 @@ class Checkpoints:
             self._store.set(self.COMPLETION_KEY, {"completed": True, "try_number": self._try_number})
 
 
+class IndexedTaskInstanceNotStarted(Exception):
+    """
+    The outcome of an indexed task instance pulled before a kill and reached after it.
+
+    Never raised: ``IterableOperator._run_task`` returns it as the instance's outcome, so that
+    :meth:`IndexedTaskOutcomes.record` counts it apart from the failures. It ran no code, wrote
+    no checkpoint and fires no callback; the next attempt runs it.
+    """
+
+
 class IterationState:
     """
     The state of one run of an iterated task, kept apart from the operator's configuration.
@@ -254,6 +264,8 @@ class IndexedTaskOutcomes:
         self._state = state
         self._context = context
         self.total = 0
+        #: Pulled before a kill and never started (see :class:`IndexedTaskInstanceNotStarted`).
+        self.not_started = 0
         self.exceptions: list[BaseException] = []
         self.skipped: dict[int, AirflowSkipException] = {}
         self._failed_runners: list[IndexedTaskRunner] = []
@@ -282,7 +294,10 @@ class IndexedTaskOutcomes:
         return tuple(self._failed_runners)
 
     def record(self, task: IndexedTaskInstance, raised: BaseException | None) -> None:
-        """Take one indexed task's outcome: nothing, a skip, a failure to collect, or one that ends the task."""
+        """Take one indexed task's outcome: nothing, a skip, not started, a failure, or one ending it."""
+        if isinstance(raised, IndexedTaskInstanceNotStarted):
+            self.not_started += 1
+            return
         self.total += 1
         if raised is None:
             return
@@ -314,7 +329,8 @@ class IndexedTaskOutcomes:
         if self._state.stop_requested():
             length = self._state.length
             raise AirflowTaskTerminated(
-                f"The iterated task was killed: {self.total} of {length} items ran, the rest never started."
+                f"The iterated task was killed: {self.total} of {length} items ran, {self.not_started} pulled "
+                "but never started, the rest never pulled."
                 if length is not None
                 else "The iterated task was killed while its input was being resolved."
             ) from (BaseExceptionGroup("Sub-task failures", self.exceptions) if self.exceptions else None)
@@ -581,9 +597,11 @@ class IterableOperator(BaseOperator):
         thread for a sync operator, on the event loop for an async one. A failed indexed task's
         ``on_failure_callback`` or ``on_retry_callback`` runs once every indexed task has run, on the
         thread that ran the iteration, and says what happens to the task: retried or failed for good
-        (see :class:`IndexedTaskOutcomes`). A failure no indexed task owns, such as an error resolving
-        the input, fires no callback: the iterated task has none of its own. Listeners fire once, for
-        the task instance, as for any task; an indexed task is not a task instance and fires none.
+        (see :class:`IndexedTaskOutcomes`). A failure no indexed task
+        owns, such as an error resolving the input, fires no callback, and neither does an indexed
+        task pulled before a kill and never started: the iterated task has no callbacks of its own.
+        Listeners fire once, for the task instance, as for any task; an indexed task is not a task
+        instance and fires none.
 
     .. note::
         **Pools count the task instance, not its iterations.**
@@ -991,6 +1009,20 @@ class IterableOperator(BaseOperator):
                 None,
                 AirflowSkipException(
                     f"Sub-task {task.task_id}[{task.index}] was skipped on a previous attempt"
+                ),
+            )
+
+        # Pulled before the kill and reached after it. on_kill() reaches the operators that started
+        # and the stop flag keeps the executor from pulling more; an item is neither until its runner
+        # starts, so a kill that lands while its checkpoint is read above would otherwise start it
+        # after the kill. A sync item is still handed to the pool below, whose threads are as many
+        # as the calls in flight, so only that pickup remains.
+        if self._state.stop_requested():
+            return (
+                task,
+                None,
+                IndexedTaskInstanceNotStarted(
+                    f"Sub-task {task.task_id}[{task.index}] was pulled before the kill and never started"
                 ),
             )
 
