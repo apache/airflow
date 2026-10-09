@@ -77,9 +77,13 @@ class TestGetEksKubeClient:
         ("kubernetes_version", "token_key"),
         [("35.0.0", "authorization"), ("36.0.1", "BearerToken")],
     )
+    def test_token_key_follows_kubernetes_version(self, kubernetes_version, token_key):
+        assert _client_factory._get_sync_token_key(kubernetes_version) == token_key
+
+    @pytest.mark.parametrize("token_key", ["authorization", "BearerToken"])
     @conf_vars({("aws_eks_executor", "cluster_name"): CLUSTER_NAME})
-    def test_token_key_follows_kubernetes_version(self, mock_aws, kubernetes_version, token_key):
-        with mock.patch("kubernetes.__version__", kubernetes_version):
+    def test_uses_sync_token_key(self, mock_aws, token_key):
+        with mock.patch.object(_client_factory, "_SYNC_TOKEN_KEY", token_key):
             configuration = _get_eks_kube_client().api_client.configuration
 
         assert configuration.api_key == {token_key: "k8s-aws-v1.token-1"}

@@ -28,6 +28,7 @@ import tempfile
 from base64 import b64decode
 from typing import TYPE_CHECKING
 
+import kubernetes
 from packaging.version import Version
 
 from airflow.providers.amazon.aws.executors.eks.utils import (
@@ -48,15 +49,20 @@ if TYPE_CHECKING:
 _USABLE_CLUSTER_STATUSES = ("ACTIVE", "UPDATING")
 
 
+def _get_sync_token_key(kubernetes_version: str) -> str:
+    # kubernetes 36 moved the bearer token from the "authorization" api_key to "BearerToken".
+    return "BearerToken" if Version(kubernetes_version).major >= 36 else "authorization"
+
+
+_SYNC_TOKEN_KEY = _get_sync_token_key(kubernetes.__version__)
+
+
 def _get_eks_kube_client() -> client.CoreV1Api:
     """Build a Kubernetes client for the configured EKS cluster, in memory and without a kubeconfig."""
-    import kubernetes
     from kubernetes import client
 
     configuration = client.Configuration()
-    # kubernetes 36 moved the bearer token from the "authorization" api_key to "BearerToken".
-    token_key = "BearerToken" if Version(kubernetes.__version__).major >= 36 else "authorization"
-    _configure_eks_auth(configuration, token_key)
+    _configure_eks_auth(configuration, _SYNC_TOKEN_KEY)
     return client.CoreV1Api(client.ApiClient(configuration=configuration))
 
 
