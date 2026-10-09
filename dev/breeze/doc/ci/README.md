@@ -30,3 +30,4 @@ This directory contains detailed design of the Airflow CI setup.
 * [Workflows](05_workflows.md) - contains description of the workflows used in CI
 * [Debugging](06_debugging.md) - contains description of debugging CI issues
 * [Running CI Locally](07_running_ci_locally.md) - contains description of running CI locally
+* [Fork CI for external contributors](08_fork_ci_for_external_contributors.md) - contains design of the AIP-120 fork CI gate, reconciler and `breeze ci audit`
