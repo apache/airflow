@@ -1024,6 +1024,7 @@ class DagRun(Base, LoggingMixin):
                 .values(is_paused=True, is_draining=False)
                 .execution_options(synchronize_session="fetch")
             )
+            stats.incr("dag.auto_paused", tags={"dag_id": self.dag_id})
             session.add(
                 Log(
                     event="paused",
