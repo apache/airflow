@@ -18,7 +18,7 @@
  */
 import { Box, Flex, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiCalendar, FiClipboard, FiZap } from "react-icons/fi";
+import { FiClipboard, FiZap } from "react-icons/fi";
 
 import { useDashboardServiceDagStats } from "openapi/queries";
 
@@ -100,14 +100,6 @@ export const Stats = () => {
           isRTL={isRTL}
           label={translate("stats.activeDags")}
           link="/dags?scheduling_state=active"
-        />
-
-        <StatsCard
-          colorScheme="brand"
-          icon={<FiCalendar />}
-          isRTL={isRTL}
-          label={translate("common:timeSchedule.title")}
-          link="../time-schedule"
         />
       </Flex>
     </Box>

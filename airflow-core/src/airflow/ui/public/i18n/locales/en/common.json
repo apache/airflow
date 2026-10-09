@@ -518,6 +518,7 @@
     "dagRunLimitOption": "Limit {{count}}",
     "dagRunsToDisplay": "Dag runs to display",
     "day": "Day",
+    "description": "Explore Dag run timing and overlaps.",
     "durationAggregation": "Duration aggregation",
     "durationAggregationHelp": "Combines runs with the same Dag ID, state, and time bucket into one bar.",
     "durationAggregationHelpLabel": "About duration aggregation",

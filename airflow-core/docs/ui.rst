@@ -577,7 +577,7 @@ Key pages include:
 Time Schedule Views
 -------------------
 
-From the **Home** page, select **Time Schedule** in the Stats section to view typical Dag start times and durations
+From the **Home** page, select the **Time Schedule** card beside the Stats section to view typical Dag start times and durations
 across the environment. Dag runs are grouped by time of day, making schedule patterns and congested periods easier to
 identify.
 
