@@ -179,10 +179,16 @@ def mock_context(task, run_id: str | None = None) -> Iterator[Context]:
             key=key,
         )
 
+    def _get_all(cls, *, key, dag_id, task_id, run_id, include_prior_dates=False, **kwargs):
+        """One map index in these tests, so the values of all of them are the one value, or none."""
+        value = context["ti"].xcom_pull(task_ids=task_id, dag_id=dag_id, key=key)
+        return None if value is None else [value]
+
     with (
         patch.object(XCom, "set", classmethod(_set)),
         patch.object(XCom, "aset", classmethod(_aset)),
         patch.object(XCom, "get_one", classmethod(_get_one)),
+        patch.object(XCom, "get_all", classmethod(_get_all)),
         patch.object(RuntimeTaskInstance, "task_state_store", property(lambda self: task_state_store)),
     ):
         yield context
@@ -1026,6 +1032,40 @@ class TestIterableOperator:
 
                 assert context["ti"].task is parent_ti_task
                 assert context["task"] is iterable_op
+
+    def test_an_item_reads_back_the_xcom_it_pushed(self):
+        """
+        ``ti.xcom_push("progress", v)`` in an item lands under ``progress_<index>``; the item's own
+        ``ti.xcom_pull(key="progress")`` must read that back, not the parent's unsuffixed key.
+        """
+        seen: list = []
+
+        class PushThenPull(BaseOperator):
+            def __init__(self, arg1=None, **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+
+            def execute(self, context):
+                ti = context["ti"]
+                ti.xcom_push(key="progress", value=self.arg1 * 10)
+                seen.append(
+                    (
+                        self.arg1,
+                        ti.xcom_pull(key="progress"),
+                        ti.xcom_pull(task_ids=ti.task_id, key="progress"),
+                    )
+                )
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
+            mapped_op = PushThenPull.partial(task_id="push_pull", dag=dag, task_concurrency=1)._expand(
+                expand_input, strict=True, register_with_dag=False
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+            with mock_context(task=iterable_op) as context:
+                iterable_op.execute(context=context)
+
+        assert sorted(seen) == [(1, 10, 10), (2, 20, 20)]
 
     def test_an_item_sees_its_own_operator_as_the_contexts_task(self):
         """

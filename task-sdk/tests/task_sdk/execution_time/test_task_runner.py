@@ -2642,6 +2642,40 @@ class TestIndexedTaskState:
 
 class TestIndexedTaskInstance:
     @pytest.mark.parametrize(
+        ("task_ids", "dag_id", "expected_key"),
+        [
+            (None, None, "custom_key_2"),
+            ("the_task", None, "custom_key_2"),
+            ("the_task", "the_dag", "custom_key_2"),
+            ("upstream", None, "custom_key"),
+            (["the_task", "upstream"], None, "custom_key"),
+            ("the_task", "other_dag", "custom_key"),
+        ],
+        ids=["no_task", "own_task", "own_task_and_dag", "upstream", "several", "other_dag"],
+    )
+    def test_xcom_pull_adds_the_index_for_its_own_xcoms_only(
+        self, make_indexed_ti, task_ids, dag_id, expected_key
+    ):
+        """What the iteration pushed under ``<key>_<index>`` is read back under that name; upstream keys stay."""
+        ti = make_indexed_ti(index=2, task_id="the_task", dag_id="the_dag")
+
+        with mock.patch.object(RuntimeTaskInstance, "xcom_pull", autospec=True) as pull:
+            ti.xcom_pull(task_ids=task_ids, dag_id=dag_id, key="custom_key")
+
+        assert pull.call_args.kwargs["key"] == expected_key
+        assert pull.call_args.kwargs["task_ids"] == task_ids
+
+    @pytest.mark.asyncio
+    async def test_axcom_pull_adds_the_index_for_its_own_xcoms_only(self, make_indexed_ti):
+        ti = make_indexed_ti(index=2, task_id="the_task", dag_id="the_dag")
+
+        with mock.patch.object(RuntimeTaskInstance, "axcom_pull", autospec=True) as pull:
+            await ti.axcom_pull(key="custom_key")
+            await ti.axcom_pull(task_ids="upstream", key="custom_key")
+
+        assert [call.kwargs["key"] for call in pull.call_args_list] == ["custom_key_2", "custom_key"]
+
+    @pytest.mark.parametrize(
         ("index", "key", "value", "expected_key"),
         [
             (3, "result", "ok", "result_3"),

@@ -987,8 +987,11 @@ class IndexedTaskInstance(RuntimeTaskInstance):
 
     It shares the parent task instance's identity, so what an iteration pushes or stores lands in
     the parent's scope, suffixed with the index so that iterations never overwrite each other:
-    XComs through :meth:`xcom_push`, task state through :attr:`task_state_store`. The operator's
-    own checkpoints go to the parent's store unsuffixed, under their ``_iterable_<index>`` keys.
+    XComs through :meth:`xcom_push`, task state through :attr:`task_state_store`. Reading back
+    follows the same rule: :meth:`xcom_pull` of the iteration's own XComs adds the index, a pull
+    from another task does not, as the store's accessor adds it to every key of its own. The
+    operator's own checkpoints go to the parent's store unsuffixed, under their
+    ``_iterable_<index>`` keys.
     """
 
     index: int
@@ -1057,6 +1060,60 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         # The return value has its own slot on the checkpoint and is published by the operator.
         if key != BaseXCom.XCOM_RETURN_KEY:
             self.pushed_xcoms[key] = value
+
+    def _own_key(self, task_ids: str | Iterable[str] | None, dag_id: str | None, key: str) -> str:
+        """
+        Suffix ``key`` with the index for a pull of this iteration's own XComs.
+
+        What :meth:`xcom_push` wrote under ``<key>_<index>`` is read back under the same name when
+        the pull names no task or this task instance's own (in its own DAG); a pull from another
+        task, or from several, keeps its key, since those XComs carry no index.
+        """
+        own_task = task_ids is None or task_ids == self.task_id
+        own_dag = dag_id is None or dag_id == self.dag_id
+        return f"{key}_{self.index}" if own_task and own_dag else key
+
+    def xcom_pull(
+        self,
+        task_ids: str | Iterable[str] | None = None,
+        dag_id: str | None = None,
+        key: str = BaseXCom.XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
+        *,
+        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
+        default: Any = None,
+        run_id: str | None = None,
+    ) -> Any:
+        return super().xcom_pull(
+            task_ids=task_ids,
+            dag_id=dag_id,
+            key=self._own_key(task_ids, dag_id, key),
+            include_prior_dates=include_prior_dates,
+            map_indexes=map_indexes,
+            default=default,
+            run_id=run_id,
+        )
+
+    async def axcom_pull(
+        self,
+        task_ids: str | Iterable[str] | None = None,
+        dag_id: str | None = None,
+        key: str = BaseXCom.XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,
+        *,
+        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
+        default: Any = None,
+        run_id: str | None = None,
+    ) -> Any:
+        return await super().axcom_pull(
+            task_ids=task_ids,
+            dag_id=dag_id,
+            key=self._own_key(task_ids, dag_id, key),
+            include_prior_dates=include_prior_dates,
+            map_indexes=map_indexes,
+            default=default,
+            run_id=run_id,
+        )
 
     @cached_property
     def task_state_store(self) -> TaskStateStoreAccessor:  # type: ignore[override]
