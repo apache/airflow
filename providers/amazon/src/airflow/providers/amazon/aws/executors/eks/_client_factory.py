@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 from base64 import b64decode
 from typing import TYPE_CHECKING
 
@@ -38,7 +39,10 @@ from airflow.providers.amazon.aws.executors.eks.utils import (
 )
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
-from airflow.providers.amazon.aws.utils.eks_get_token import fetch_access_token_for_cluster
+from airflow.providers.amazon.aws.utils.eks_get_token import (
+    TOKEN_EXPIRATION_MINUTES,
+    fetch_access_token_for_cluster,
+)
 from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
@@ -117,11 +121,18 @@ def _configure_eks_auth(
     configuration.ssl_ca_cert = _write_cluster_ca_file(cluster["certificateAuthority"]["data"])
     configuration.api_key_prefix[token_key] = "Bearer"
 
-    # EKS tokens expire after about 15 minutes, so refresh before every request.
+    # EKS tokens expire after about 15 minutes, so get a new one shortly before the current one expires.
+    token: str | None = None
+    refresh_at = 0.0
+
     def refresh_api_key(config: client.Configuration | async_client.Configuration) -> None:
-        config.api_key[token_key] = fetch_access_token_for_cluster(
-            cluster_name, sts_url, region_name=session.region_name, session=session
-        )
+        nonlocal token, refresh_at
+        if token is None or time.monotonic() >= refresh_at:
+            token = fetch_access_token_for_cluster(
+                cluster_name, sts_url, region_name=session.region_name, session=session
+            )
+            refresh_at = time.monotonic() + TOKEN_EXPIRATION_MINUTES * 60
+        config.api_key[token_key] = token
 
     configuration.refresh_api_key_hook = refresh_api_key
     refresh_api_key(configuration)

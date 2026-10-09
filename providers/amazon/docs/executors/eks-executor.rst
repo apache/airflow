@@ -75,8 +75,8 @@ certificate authority, then mints an authentication token for it. An EKS token i
 STS URL that stays valid for roughly fifteen minutes, while the scheduler holds a
 single client for as long as it runs. To keep the token current, the executor
 registers a refresh hook that the Kubernetes client calls on every authenticated
-request. Minting a token is a local signing operation with no network call, so
-refreshing that often costs very little.
+request. The hook reuses the current token and gets a new one a minute before it
+expires.
 
 Before it accepts any tasks, the executor checks that the cluster is ``ACTIVE`` or
 ``UPDATING``, since EKS keeps the Kubernetes API available during an update (see `Update
@@ -238,7 +238,7 @@ pod crashes and scheduler restarts are handled. See
 :doc:`apache-airflow-providers-cncf-kubernetes:kubernetes_executor` for details.
 
 The one failure mode specific to this executor is credential expiry. Because tokens
-are re-minted per request, an expired token is unusual. If you do see repeated
+are replaced before they expire, an expired token is unusual. If you do see repeated
 authentication failures after the scheduler has been running for a long time, check
 that the credentials behind your connection are still valid and that the role has not
 lost its access entry on the cluster.

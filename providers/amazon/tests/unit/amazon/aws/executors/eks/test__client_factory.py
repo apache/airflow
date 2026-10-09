@@ -31,12 +31,14 @@ from airflow.providers.amazon.aws.executors.eks._client_factory import (
     _get_eks_async_kube_client,
     _get_eks_kube_client,
 )
+from airflow.providers.amazon.aws.utils.eks_get_token import TOKEN_EXPIRATION_MINUTES
 
 from tests_common.test_utils.config import conf_vars
 
 CLUSTER_NAME = "test-eks-cluster"
 CLUSTER_ENDPOINT = "https://ABCDEF0123456789.gr7.us-east-1.eks.amazonaws.com"
 CA_PEM = b"-----BEGIN CERTIFICATE-----\nfake-ca\n-----END CERTIFICATE-----\n"
+TOKEN_REFRESH_SECONDS = TOKEN_EXPIRATION_MINUTES * 60
 
 
 @pytest.fixture
@@ -90,13 +92,26 @@ class TestGetEksKubeClient:
         assert configuration.api_key_prefix == {token_key: "Bearer"}
         os.unlink(configuration.ssl_ca_cert)
 
+    @pytest.mark.parametrize(
+        ("elapsed", "expected_token", "fetch_count"),
+        [
+            pytest.param(TOKEN_REFRESH_SECONDS - 1, "k8s-aws-v1.token-1", 1, id="within-window"),
+            pytest.param(TOKEN_REFRESH_SECONDS, "k8s-aws-v1.token-2", 2, id="after-deadline"),
+        ],
+    )
     @conf_vars({("aws_eks_executor", "cluster_name"): CLUSTER_NAME})
-    def test_refresh_api_key_hook_re_mints_token(self, mock_aws):
+    @mock.patch.object(_client_factory, "time", autospec=True)
+    def test_refresh_api_key_hook_re_mints_token_before_it_expires(
+        self, mock_time, mock_aws, elapsed, expected_token, fetch_count
+    ):
+        mock_time.monotonic.return_value = 1000.0
         configuration = _get_eks_kube_client().api_client.configuration
 
         mock_aws["fetch_token"].return_value = "k8s-aws-v1.token-2"
-        assert configuration.auth_settings()["BearerToken"]["value"] == "Bearer k8s-aws-v1.token-2"
+        mock_time.monotonic.return_value = 1000.0 + elapsed
+        assert configuration.auth_settings()["BearerToken"]["value"] == f"Bearer {expected_token}"
 
+        assert mock_aws["fetch_token"].call_count == fetch_count
         args = mock_aws["fetch_token"].call_args
         assert args.args[0] == CLUSTER_NAME
         assert args.args[1].startswith("https://sts.us-east-1.amazonaws.com/?Action=GetCallerIdentity")
@@ -142,7 +157,9 @@ class TestGetEksAsyncKubeClient:
     # kubernetes_asyncio loads the CA eagerly and the fake PEM is not loadable; the CA file is
     # covered by the sync client test.
     @mock.patch.object(_client_factory, "_write_cluster_ca_file", return_value=None)
-    async def test_builds_async_client_with_refreshing_bearer_token(self, _, mock_aws):
+    @mock.patch.object(_client_factory, "time", autospec=True)
+    async def test_builds_async_client_with_refreshing_bearer_token(self, mock_time, _, mock_aws):
+        mock_time.monotonic.return_value = 1000.0
         with conf_vars({("aws_eks_executor", "cluster_name"): CLUSTER_NAME}):
             core_v1 = _get_eks_async_kube_client()
 
@@ -150,6 +167,7 @@ class TestGetEksAsyncKubeClient:
         configuration = core_v1.api_client.configuration
         assert configuration.host == CLUSTER_ENDPOINT
         mock_aws["fetch_token"].return_value = "k8s-aws-v1.token-2"
+        mock_time.monotonic.return_value = 1000.0 + TOKEN_REFRESH_SECONDS
         auth = configuration.auth_settings()
         # auth_settings() became a coroutine in kubernetes_asyncio 36.
         if inspect.isawaitable(auth):
