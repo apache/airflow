@@ -37,6 +37,7 @@ from sqlalchemy import (
     and_,
     event,
     false,
+    func,
     literal,
     or_,
     select,
@@ -696,3 +697,101 @@ def select_current_producer_ids(
                 TaskInstance.id.in_([candidate.id for candidate in candidates])
             )
     return query
+
+
+def _load_loop_pass_owners(
+    *, dag_id: str, run_id: str, loop_node_id: str, session: Session
+) -> list[tuple[UUID, int | None]]:
+    """
+    Return each region that holds passes of a loop with the first pass it no longer owns.
+
+    A fork takes over every pass from its ``resumes_from_index``, so a region owns only the passes
+    before the earliest fork that follows it. The newest region owns every pass from its own start.
+    """
+    regions = session.scalars(
+        select(DynamicRegion).where(
+            DynamicRegion.dag_id == dag_id,
+            DynamicRegion.run_id == run_id,
+            DynamicRegion.node_id == loop_node_id,
+        )
+    ).all()
+    originals = [region for region in regions if region.forked_from_region_id is None]
+    if len(originals) > 1:
+        raise ValueError(f"Loop {loop_node_id!r} has several executions in Dag run {run_id!r}")
+    successors = {region.forked_from_region_id: region for region in regions}
+    chain = originals[:]
+    while chain and chain[-1].id in successors:
+        chain.append(successors[chain[-1].id])
+    owners: list[tuple[UUID, int | None]] = []
+    cut: int | None = None
+    for region in reversed(chain):
+        owners.append((region.id, cut))
+        cut = region.resumes_from_index if cut is None else min(cut, region.resumes_from_index)
+    return owners
+
+
+def _build_pass_ownership_filter(
+    region_column, index_column, owners: Iterable[tuple[UUID, int | None]]
+) -> ColumnElement[bool]:
+    return or_(
+        *(
+            region_column == region_id
+            if cut is None
+            else and_(region_column == region_id, index_column < cut)
+            for region_id, cut in owners
+        )
+    )
+
+
+def select_loop_producer_ids(
+    *, dag_id: str, run_id: str, loop_node_id: str, task_id: str, is_mapped: bool, session: Session
+) -> Select[tuple[UUID]]:
+    """
+    Select every live execution of ``task_id`` across all passes of the loop ``loop_node_id``.
+
+    That is what a task outside the loop sees of a loop task. A pass that a fork replaced does not count
+    even while its task instances are still live, because the fork's task instances stand in for it.
+    Order the executions with :func:`build_loop_sequence_order`.
+    """
+    from airflow.models.taskinstance import TaskInstance
+
+    query = select(TaskInstance.id).where(
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.task_id == task_id,
+        TaskInstance.working_set.is_(True),
+    )
+    owners = _load_loop_pass_owners(dag_id=dag_id, run_id=run_id, loop_node_id=loop_node_id, session=session)
+    if not owners:
+        return query.where(false())
+    if not is_mapped:
+        return query.where(
+            _build_pass_ownership_filter(TaskInstance.region_id, TaskInstance.region_index, owners)
+        )
+    pass_region = (
+        select(DynamicRegion.id)
+        .where(
+            DynamicRegion.id == TaskInstance.region_id,
+            _build_pass_ownership_filter(
+                DynamicRegion.parent_region_id, DynamicRegion.parent_region_index, owners
+            ),
+        )
+        .correlate(TaskInstance)
+        .exists()
+    )
+    return query.where(pass_region)
+
+
+def build_loop_sequence_order(region_id_column, region_index_column) -> tuple[ColumnElement[int], ...]:
+    """
+    Order the rows :func:`select_loop_producer_ids` selects depth-first: by pass, then by map index.
+
+    An unmapped task sits in the loop's own region, whose ``region_index`` is the pass. A mapped task sits
+    in a region nested under the pass, whose parent index is the pass and whose rows carry the map index.
+    """
+    nested_pass = (
+        select(DynamicRegion.parent_region_index)
+        .where(DynamicRegion.id == region_id_column)
+        .scalar_subquery()
+    )
+    return func.coalesce(nested_pass, region_index_column), region_index_column

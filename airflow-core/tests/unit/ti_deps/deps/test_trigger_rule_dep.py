@@ -94,6 +94,42 @@ def test_outside_dependency_observes_only_latest_live_loop_gate(dag_maker, sessi
         )
 
 
+GATE_RULE_MATRIX = {
+    TriggerRule.ALL_SUCCESS: {SUCCESS},
+    TriggerRule.ONE_SUCCESS: {SUCCESS},
+    TriggerRule.ONE_FAILED: {FAILED, UPSTREAM_FAILED},
+    TriggerRule.NONE_FAILED: {SUCCESS, SKIPPED},
+    TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS: {SUCCESS},
+    TriggerRule.ALL_DONE: {SUCCESS, FAILED, UPSTREAM_FAILED, SKIPPED},
+    TriggerRule.ALWAYS: {SUCCESS, FAILED, UPSTREAM_FAILED, SKIPPED, None},
+}
+
+
+@pytest.mark.parametrize("gate_state", [None, SUCCESS, FAILED, UPSTREAM_FAILED, SKIPPED])
+@pytest.mark.parametrize("rule", list(GATE_RULE_MATRIX))
+def test_task_using_a_loop_task_follows_the_loop_gate_not_the_loop_task(dag_maker, session, rule, gate_state):
+    @task_group
+    def body():
+        EmptyOperator(task_id="first") >> EmptyOperator(task_id="terminal")
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+        loop["first"] >> PythonOperator(task_id="outside", python_callable=list, trigger_rule=rule)
+    dr = dag_maker.create_dagrun()
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    tis["body.first"].state = SUCCESS
+    tis["body.terminal"].state = SUCCESS if gate_state in (SUCCESS, FAILED, SKIPPED) else FAILED
+    tis[loop.gate_task_id].state = gate_state
+    outside = tis["outside"]
+    outside.task = dag_maker.serialized_dag.get_task("outside")
+    session.flush()
+
+    met = TriggerRuleDep().is_met(ti=outside, dep_context=DepContext(), session=session)
+
+    assert outside.task.upstream_task_ids == {loop.gate_task_id}
+    assert met is (gate_state in GATE_RULE_MATRIX[rule])
+
+
 @pytest.mark.parametrize("current_state", [SUCCESS, FAILED])
 def test_trigger_rule_ignores_other_loop_passes(dag_maker, session, current_state):
     @task_group

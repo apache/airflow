@@ -35,6 +35,7 @@ from airflow.models.dynamic_region import (
     loop_position,
     resolve_current_producers,
     select_current_producer_ids,
+    select_loop_producer_ids,
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.definitions.mappedoperator import is_mapped
@@ -64,6 +65,7 @@ class _ProducerRequest:
     map_indexes: int | Collection[int] | None
     region_id: UUID | None
     region_index: int | None
+    loop_node_id: str | None = None
 
 
 class TaskCoordinate(Protocol):
@@ -437,7 +439,9 @@ class TaskCoordinateResolver:
             if len(gates) == 2 and gates[0].region_index == gates[1].region_index:
                 raise AmbiguousProducerError(f"Multiple live loop gates at pass {gates[0].region_index}")
             return tuple(gates[:1])
-        return self.resolve(dag_id=caller.dag_id, run_id=caller.run_id, task_id=task_id, caller=caller)
+        return self.resolve(
+            dag_id=caller.dag_id, run_id=caller.run_id, task_id=task_id, caller=caller, all_iterations=True
+        )
 
     @staticmethod
     def _filter_region_indexes(
@@ -501,6 +505,25 @@ class TaskCoordinateResolver:
             or (region_id is None and not self.has_regions(dag_id, run_id, task_id))
         )
 
+    def _is_outside_loop(self, loop: SerializedLoopTaskGroup, caller: TaskInstance) -> bool:
+        caller_loop = enclosing_loop(
+            self.get_task(caller.dag_id, caller.run_id, caller.task_id, dag_version_id=caller.dag_version_id)
+        )
+        return caller_loop is None or caller_loop.group_id != loop.group_id
+
+    def is_loop_task_read_from_outside(
+        self, *, dag_id: str, run_id: str, task_id: str, caller: TaskInstance | None
+    ) -> bool:
+        """Tell whether ``caller``, of the same Dag run and outside the loop, reads a task of that loop."""
+        if caller is None or (caller.dag_id, caller.run_id) != (dag_id, run_id):
+            return False
+        try:
+            task = self.get_task(dag_id, run_id, task_id, dag_version_id=caller.dag_version_id)
+        except TaskNotFound:
+            return False
+        loop = enclosing_loop(task)
+        return loop is not None and self._is_outside_loop(loop, caller)
+
     def _build_producer_request(
         self,
         *,
@@ -512,6 +535,7 @@ class TaskCoordinateResolver:
         region_index: int | None,
         map_indexes: int | Collection[int] | None,
         previous_iteration: bool,
+        all_iterations: bool = False,
     ) -> _ProducerRequest | None:
         shared_run = caller is not None and (caller.dag_id, caller.run_id) == (dag_id, run_id)
         try:
@@ -529,11 +553,24 @@ class TaskCoordinateResolver:
         if region_id is None and loop is not None:
             if caller is None or (caller.dag_id, caller.run_id) != (dag_id, run_id):
                 raise ValueError("A loop producer requires an explicit scope or a consumer inside the loop")
-            caller_loop = enclosing_loop(
-                self.get_task(dag_id, run_id, caller.task_id, dag_version_id=caller.dag_version_id)
-            )
-            if caller_loop is None or caller_loop.group_id != loop.group_id:
-                raise ValueError("A loop producer requires an explicit scope or a consumer inside the loop")
+            if self._is_outside_loop(loop, caller):
+                if not all_iterations:
+                    raise ValueError(
+                        "A loop producer requires an explicit scope or a consumer inside the loop"
+                    )
+                if previous_iteration:
+                    raise ValueError("Previous-iteration lookup requires a shared loop scope")
+                return _ProducerRequest(
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                    is_mapped=task.get_needs_expansion(),
+                    context=None,
+                    map_indexes=map_indexes,
+                    region_id=None,
+                    region_index=None,
+                    loop_node_id=loop.node_id,
+                )
             context = ProducerContext(
                 caller.region_id, caller.region_index, loop.group_id, previous_iteration
             )
@@ -561,7 +598,14 @@ class TaskCoordinateResolver:
         region_index: int | None = None,
         map_indexes: int | Collection[int] | None = None,
         previous_iteration: bool = False,
+        all_iterations: bool = False,
     ) -> tuple[TaskInstance, ...]:
+        """
+        Resolve the live task instances of ``task_id`` that ``caller`` reads.
+
+        With ``all_iterations``, a caller of the same Dag run that sits outside the loop of ``task_id``
+        reads every live iteration of it instead of being refused.
+        """
         if region_index is not None and region_id is None:
             raise ValueError("region_index requires an explicit producer region_id")
         if self._is_legacy_lookup(dag_id, run_id, task_id, region_id, previous_iteration):
@@ -583,7 +627,14 @@ class TaskCoordinateResolver:
             region_index=region_index,
             map_indexes=map_indexes,
             previous_iteration=previous_iteration,
+            all_iterations=all_iterations,
         )
+        if request is not None and request.loop_node_id is not None:
+            return tuple(
+                self.session.scalars(
+                    select(TaskInstance).where(TaskInstance.id.in_(self._select_loop_producer_ids(request)))
+                )
+            )
         if request is None:
             return tuple(
                 self.session.scalars(
@@ -647,6 +698,18 @@ class TaskCoordinateResolver:
             map_indexes=map_indexes,
         )
 
+    def _select_loop_producer_ids(self, request: _ProducerRequest) -> Select[tuple[UUID]]:
+        if TYPE_CHECKING:
+            assert request.loop_node_id is not None
+        return select_loop_producer_ids(
+            dag_id=request.dag_id,
+            run_id=request.run_id,
+            loop_node_id=request.loop_node_id,
+            task_id=request.task_id,
+            is_mapped=request.is_mapped,
+            session=self.session,
+        )
+
     def select_producer_ids(
         self,
         *,
@@ -658,6 +721,7 @@ class TaskCoordinateResolver:
         region_index: int | None = None,
         map_indexes: int | Collection[int] | None = None,
         previous_iteration: bool = False,
+        all_iterations: bool = False,
     ) -> Select[tuple[UUID]]:
         """Select the task instance ids :meth:`resolve` returns, without loading the producers."""
         if region_index is not None and region_id is None:
@@ -680,7 +744,10 @@ class TaskCoordinateResolver:
             region_index=region_index,
             map_indexes=map_indexes,
             previous_iteration=previous_iteration,
+            all_iterations=all_iterations,
         )
+        if request is not None and request.loop_node_id is not None:
+            return self._select_loop_producer_ids(request)
         if request is None:
             return self._filter_removed_task_producers(
                 select(TaskInstance.id),
