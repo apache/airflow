@@ -21,6 +21,8 @@ import { render, screen } from "@testing-library/react";
 import type { DAGDetailsResponse } from "openapi-gen/requests/types.gen";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type * as OpenApiQueries from "openapi/queries";
+
 import i18n from "src/i18n/config";
 import { MOCK_DAG } from "src/mocks/handlers/dag";
 import { Wrapper } from "src/utils/Wrapper";
@@ -31,6 +33,15 @@ const mockConfig: Record<string, unknown> = { multi_team: false };
 
 vi.mock("src/queries/useConfig", () => ({
   useConfig: (key: string) => mockConfig[key],
+}));
+
+const { mockBackfills } = vi.hoisted(() => ({
+  mockBackfills: { current: [] as Array<{ completed_at: string | null }> },
+}));
+
+vi.mock("openapi/queries", async (importOriginal) => ({
+  ...(await importOriginal<typeof OpenApiQueries>()),
+  useBackfillServiceListBackfillsUi: () => ({ data: { backfills: mockBackfills.current } }),
 }));
 
 const mockDag = {
@@ -58,6 +69,7 @@ const mockDag = {
 describe("Header", () => {
   afterEach(() => {
     mockConfig.multi_team = false;
+    mockBackfills.current = [];
   });
 
   it("shows a deactivated badge and hides stale-only next actions for stale dags", () => {
@@ -103,6 +115,34 @@ describe("Header", () => {
     expect(screen.getByText(i18n.t("common:dagDetails.activeRuns"))).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.queryByText(/null/u)).not.toBeInTheDocument();
+  });
+
+  it("points the active runs stat at the backfill that is still running", () => {
+    mockBackfills.current = [{ completed_at: null }];
+
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 1, max_active_runs: 2 }} />
+      </Wrapper>,
+    );
+
+    const badge = screen.getByText(i18n.t("components:banner.backfillInProgress"));
+
+    expect(badge).toBeInTheDocument();
+    expect(badge.closest("a")).toHaveAttribute("href", `/dags/${mockDag.dag_id}/backfills`);
+  });
+
+  it("drops the backfill badge once every backfill has completed", () => {
+    mockBackfills.current = [{ completed_at: "2024-08-22T19:00:00+00:00" }];
+
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 1, max_active_runs: 2 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText("1 of 2")).toBeInTheDocument();
+    expect(screen.queryByText(i18n.t("components:banner.backfillInProgress"))).not.toBeInTheDocument();
   });
 
   it("renders the draining badge instead of the next run timestamp for a draining Dag", () => {

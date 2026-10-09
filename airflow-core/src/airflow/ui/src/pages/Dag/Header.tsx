@@ -16,10 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Badge, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
+import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
+import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 
 import { RouterLink } from "src/system-components";
@@ -83,6 +86,16 @@ export const Header = ({
         },
       ];
 
+  const { data: backfillData } = useBackfillServiceListBackfillsUi(
+    { active: true, dagId: dagId ?? "" },
+    undefined,
+    { enabled: Boolean(dagId) },
+  );
+  // An active backfill may already be finished; only an incomplete one is in progress.
+  const hasRunningBackfill = (backfillData?.backfills ?? []).some(
+    (backfill) => backfill.completed_at === null,
+  );
+
   const stats = [
     {
       label: translate("dagDetails.schedule"),
@@ -116,11 +129,23 @@ export const Header = ({
     {
       label: translate("dagDetails.activeRuns"),
       value:
-        dag?.max_active_runs === undefined
-          ? undefined
-          : dag.max_active_runs === null
-            ? formatNumber(dag.active_runs_count ?? 0, i18n.language)
-            : `${formatNumber(dag.active_runs_count ?? 0, i18n.language)} of ${formatNumber(dag.max_active_runs, i18n.language)}`,
+        dag?.max_active_runs === undefined ? undefined : (
+          <HStack gap={2}>
+            <span>
+              {dag.max_active_runs === null
+                ? formatNumber(dag.active_runs_count ?? 0, i18n.language)
+                : `${formatNumber(dag.active_runs_count ?? 0, i18n.language)} of ${formatNumber(dag.max_active_runs, i18n.language)}`}
+            </span>
+            {hasRunningBackfill ? (
+              <RouterLink to={`/dags/${dag.dag_id}/backfills`}>
+                <Badge colorPalette="info" cursor="pointer" variant="subtle">
+                  <RiArrowGoBackFill size={12} />
+                  {translate("components:banner.backfillInProgress")}
+                </Badge>
+              </RouterLink>
+            ) : undefined}
+          </HStack>
+        ),
     },
     {
       label: translate("dagDetails.owner"),
