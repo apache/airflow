@@ -1862,3 +1862,29 @@ class TestSkippedRowLifecycle:
         assert restored.is_stale is False
         assert restored.bundle_name == "configured-bundle"
         assert restored.relative_fileloc == "legacy.py"
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+def test_sync_bundles_to_db_keeps_configured_bundle_active_when_template_fails(clear_db, session):
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
+        DagBundlesManager().sync_bundles_to_db()
+
+    session.add(ParseImportError(bundle_name="my-test-bundle", filename="some_file.py", stacktrace="err"))
+    session.flush()
+
+    with (
+        patch.dict(
+            os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+        ),
+        patch.object(DagBundlesManager, "_extract_template_params", side_effect=RuntimeError("boom")),
+    ):
+        DagBundlesManager().sync_bundles_to_db()
+
+    active = session.scalars(
+        select(DagBundleModel.active).where(DagBundleModel.name == "my-test-bundle")
+    ).one()
+    assert active is True
+    assert session.scalar(select(func.count(ParseImportError.id))) == 1
