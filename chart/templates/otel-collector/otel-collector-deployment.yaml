@@ -62,7 +62,7 @@ spec:
           {{- mustMerge .Values.otelCollector.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
-        checksum/otel-collector-config: {{ include (print $.Template.BasePath "/configmaps/otel-collector-configmap.yaml") . | sha256sum }}
+        checksum/otel-collector-config: {{ include "airflow.configMapOrSecretContentHash" (dict "ctx" . "name" "/configmaps/otel-collector-configmap.yaml") }}
         {{- with .Values.otelCollector.podAnnotations }}
           {{- tpl (toYaml .) $ | nindent 8 }}
         {{- end }}
