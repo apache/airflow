@@ -117,10 +117,7 @@ def _configure_eks_auth(
     configuration.ssl_ca_cert = _write_cluster_ca_file(cluster["certificateAuthority"]["data"])
     configuration.api_key_prefix[token_key] = "Bearer"
 
-    # An EKS token expires after ~15 minutes, but the scheduler and its pod watcher each keep one
-    # client for as long as they run. The client calls this hook in-process before every API
-    # request, and minting a token is local SigV4 signing with no network call, so re-minting
-    # each time is cheap. Worker pods do not use this client, so they need no token.
+    # EKS tokens expire after about 15 minutes, so refresh before every request.
     def refresh_api_key(config: client.Configuration | async_client.Configuration) -> None:
         config.api_key[token_key] = fetch_access_token_for_cluster(
             cluster_name, sts_url, region_name=session.region_name, session=session
