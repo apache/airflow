@@ -2024,6 +2024,46 @@ class TestDag:
         mapped_callable.assert_not_called()
 
     @pytest.mark.parametrize(
+        ("mark_success_pattern", "expected_dag_run_state", "expected_mapped_tis"),
+        [
+            ("make_xs|process_item", DagRunState.SUCCESS, [(0, TaskInstanceState.SUCCESS)]),
+            ("make_xs", DagRunState.FAILED, [(-1, TaskInstanceState.UPSTREAM_FAILED)]),
+        ],
+        ids=["mapped-marked", "mapped-unmarked"],
+    )
+    def test_dag_test_mark_success_pattern_one_of_two_upstreams_marked(
+        self, mark_success_pattern, expected_dag_run_state, expected_mapped_tis, testing_dag_bundle
+    ):
+        mapped_callable = mock.MagicMock()
+
+        @task_decorator
+        def make_xs():
+            return [1, 2, 3]
+
+        @task_decorator
+        def make_ys():
+            return [10, 20]
+
+        @task_decorator
+        def process_item(x, y):
+            mapped_callable(x, y)
+
+        with DAG(dag_id="test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            process_item.expand(x=make_xs(), y=make_ys())
+
+        sync_dag_to_db(dag)
+
+        dr = dag.test(mark_success_pattern=mark_success_pattern)
+
+        assert dr.state == expected_dag_run_state
+        make_ys_ti = dr.get_task_instance("make_ys")
+        assert make_ys_ti is not None
+        assert make_ys_ti.state == TaskInstanceState.SUCCESS
+        mapped_tis = [ti for ti in dr.get_task_instances() if ti.task_id == "process_item"]
+        assert [(ti.map_index, ti.state) for ti in mapped_tis] == expected_mapped_tis
+        mapped_callable.assert_not_called()
+
+    @pytest.mark.parametrize(
         ("upstream_items", "expected_mapped_tis"),
         [
             (
