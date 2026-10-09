@@ -37,7 +37,6 @@ from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
 from airflow.sdk.bases.xcom import XComIterable
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.exceptions import (
@@ -52,7 +51,7 @@ from airflow.sdk.exceptions import (
     TaskDeferred,
 )
 from airflow.sdk.execution_time.comms import DeadlockImminentError
-from airflow.sdk.execution_time.context import OutletEventAccessors, context_update_for_unmapped
+from airflow.sdk.execution_time.context import context_update_for_unmapped
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor
 from airflow.sdk.execution_time.task_runner import (
     IndexedTaskInstance,
@@ -69,7 +68,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-    from airflow.sdk.types import Logger, OutletEventAccessorsProtocol
+    from airflow.sdk.types import Logger
 
 
 # The trigger rules under which one skipped upstream task instance skips a task, whatever the other
@@ -84,169 +83,9 @@ SKIPPED_WITH_A_SKIPPED_UPSTREAM = frozenset(
 # them itself (see _run_task_and_map_outcome and _handle_handler_failure).
 FAIL_WITHOUT_RETRY = (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)
 
+
 # How strongly a retry policy decision speaks for the task when several indexed tasks failed: one the
 # policy says must not be retried fails the task, one it says to retry makes it retry on its terms.
-_DECISION_WEIGHT = {RetryAction.FAIL: 2, RetryAction.RETRY: 1, RetryAction.DEFAULT: 0}
-
-
-def refuse_operators_that_skip_downstream(operator: MappedOperator) -> None:
-    """
-    Refuse to iterate an operator that can skip downstream tasks.
-
-    An iteration has no downstream tasks of its own, so ``ShortCircuitOperator``, the branch
-    operators and any other ``SkipMixin`` would skip nothing and let every downstream task run.
-    Checked on the class: ``MappedOperator._can_skip_downstream`` is only derived from ``SkipMixin``
-    on the classic path, while the ``@task`` path copies a class default that is ``False`` even for
-    ``@task.short_circuit`` and ``@task.branch``.
-    """
-    if issubclass(operator.operator_class, SkipMixin):
-        raise TypeError(
-            f"{operator.operator_name} can skip downstream tasks and cannot be iterated: an iteration "
-            f"of {operator.task_id!r} has no downstream tasks of its own, so it would skip nothing and "
-            "every downstream task would run. Use .expand() for it instead."
-        )
-
-
-def _unprefixed_task_id(operator: MappedOperator) -> str:
-    """
-    Return the wrapped operator's task id without its task group's prefix.
-
-    ``partial()`` already gave the wrapped operator the prefixed id, and ``BaseOperator.__init__``
-    prefixes the id it gets once more, since an IterableOperator is not built from a mapped
-    operator. Handing it the bare id keeps the two equal. The same rule as ``label``, which cannot
-    be used here because it returns the display name when there is one.
-    """
-    task_group = operator.task_group
-    if task_group and task_group.node_id and task_group.prefix_group_id:
-        return operator.task_id[len(task_group.node_id) + 1 :]
-    return operator.task_id
-
-
-def _fingerprint(mapped_kwargs: Mapping[str, Any]) -> str | None:
-    """
-    Digest one sub-task's input, stored on its checkpoint to tell whether the checkpoint still applies.
-
-    A retry may run on another input than the attempt that wrote the checkpoints: the upstream was
-    cleared together with this task and produced other values. An index then no longer means the
-    same work, and replaying its result would hand downstream a value computed from the old value.
-    An input serde cannot serialize has no digest, and its checkpoint is honoured by index alone.
-    """
-    try:
-        serialized = json.dumps(serialize(mapped_kwargs), sort_keys=True)
-    except (TypeError, ValueError, AttributeError, RecursionError):
-        return None
-    return hashlib.sha256(serialized.encode()).hexdigest()
-
-
-def _partial_inputs_from_upstream(
-    partial_kwargs: Mapping[str, Any], unmapped_task: BaseOperator
-) -> dict[str, Any]:
-    """
-    Collect the rendered values of the partial kwargs an upstream task provides.
-
-    They belong in the fingerprint next to the iterated kwargs: clearing the upstream together with
-    this task can change them while the input stays the same, and a checkpoint written with the old
-    value must not be replayed. Only XComArg values count, read back from the unmapped operator
-    once rendered, at the top level or inside a mapping such as a ``@task``'s ``op_kwargs``. Other
-    templated values are left out on purpose: one like ``{{ ti.try_number }}`` changes with every
-    attempt and would make every checkpoint look stale.
-    """
-    inputs: dict[str, Any] = {}
-    for key, value in partial_kwargs.items():
-        if isinstance(value, XComArg):
-            inputs[key] = getattr(unmapped_task, key, None)
-        elif isinstance(value, Mapping):
-            rendered = getattr(unmapped_task, key, None)
-            for name, nested in value.items():
-                if isinstance(nested, XComArg):
-                    inputs[f"{key}.{name}"] = rendered.get(name) if isinstance(rendered, Mapping) else None
-    return inputs
-
-
-def _serialize_outlet_events(accessors: OutletEventAccessors) -> list[dict[str, Any]]:
-    """
-    Snapshot the outlet asset events one sub-task recorded into a JSON-safe list.
-
-    Persisted on the sub-task's checkpoint so a later attempt can replay them via
-    ``_replay_outlet_events`` when the sub-task is skipped because it already succeeded.
-    """
-    events: list[dict[str, Any]] = []
-    for _asset_or_alias, accessor in accessors.items():
-        if isinstance(accessor.key, AssetUniqueKey):
-            events.append(
-                {
-                    "kind": "asset",
-                    "name": accessor.key.name,
-                    "uri": accessor.key.uri,
-                    "extra": accessor.extra,
-                    "partition_keys": sorted(accessor.partition_keys),
-                }
-            )
-        for alias_event in accessor.asset_alias_events:
-            events.append(
-                {
-                    "kind": "asset_alias",
-                    "source_alias_name": alias_event.source_alias_name,
-                    "dest_asset_key": {
-                        "name": alias_event.dest_asset_key.name,
-                        "uri": alias_event.dest_asset_key.uri,
-                    },
-                    "dest_asset_extra": alias_event.dest_asset_extra,
-                    "extra": alias_event.extra,
-                }
-            )
-    return events
-
-
-def _merge_outlet_events(target: OutletEventAccessorsProtocol, source: OutletEventAccessors) -> None:
-    """
-    Merge every outlet asset event recorded in ``source`` into ``target``.
-
-    Used both to fold a sub-task's isolated accessor into the IterableOperator's shared
-    ``context["outlet_events"]`` right after it succeeds, and to replay a checkpointed
-    snapshot (via ``_replay_outlet_events``) for a sub-task skipped on retry.
-
-    A task instance sends one event per asset, so indexed tasks that emit to the same asset end up
-    in that one event: ``extra`` keeps what the last one to finish wrote, while partition keys and
-    alias events accumulate. ``.expand()`` sends one event per mapped task instance instead; the
-    docs page says so in its comparison table.
-    """
-    for asset_or_alias, accessor in source.items():
-        target_accessor = target[asset_or_alias]
-        target_accessor.extra.update(accessor.extra)
-        target_accessor.asset_alias_events.extend(accessor.asset_alias_events)
-        target_accessor.partition_keys.update(accessor.partition_keys)
-
-
-def _replay_outlet_events(target: OutletEventAccessorsProtocol, events: list[dict[str, Any]]) -> None:
-    """
-    Re-populate ``target`` with events a sub-task recorded on a previous attempt.
-
-    A sub-task skipped on retry (because it already succeeded) never re-executes, so it never
-    re-emits into the fresh ``OutletEventAccessors`` created for the new attempt. The failed
-    attempt sent nothing to the server either (outlet events travel only on the success payload),
-    so replaying cannot emit an event twice; without it the events would be lost.
-    """
-    replayed = OutletEventAccessors()
-    for event in events:
-        if event["kind"] == "asset":
-            accessor = replayed[Asset(name=event["name"], uri=event["uri"])]
-            accessor.extra.update(event["extra"])
-            if event["partition_keys"]:
-                accessor.add_partitions(event["partition_keys"])
-        else:
-            accessor = replayed[AssetAlias(name=event["source_alias_name"])]
-            accessor.asset_alias_events.append(
-                AssetAliasEvent(
-                    source_alias_name=event["source_alias_name"],
-                    dest_asset_key=AssetUniqueKey(**event["dest_asset_key"]),
-                    dest_asset_extra=event["dest_asset_extra"],
-                    extra=event["extra"],
-                )
-            )
-    _merge_outlet_events(target, replayed)
-
-
 class Checkpoints:
     """
     Decide whether one attempt of an IterableOperator may resume from its per-index checkpoints.
@@ -377,6 +216,10 @@ class IndexedTaskOutcomes:
     exception leaves the block, those included, the failed indexed tasks' callbacks are reported
     on exit with the task's fate, so they say what the runner then does: retry, or fail for good.
     """
+
+    #: How strongly a retry policy decision speaks for the task when several indexed tasks failed:
+    #: one the policy fails the task on outweighs one it retries on, which outweighs the default.
+    _DECISION_WEIGHT = {RetryAction.FAIL: 2, RetryAction.RETRY: 1, RetryAction.DEFAULT: 0}
 
     def __init__(self, operator: IterableOperator, state: IterationState, context: Context) -> None:
         self._operator = operator
@@ -577,7 +420,7 @@ class IndexedTaskOutcomes:
                     decision = policy.evaluate(
                         exception=exc, try_number=ti.try_number, max_tries=max_tries, context=self._context
                     )
-                    weights.append(_DECISION_WEIGHT.get(decision.action, 0))
+                    weights.append(self._DECISION_WEIGHT.get(decision.action, 0))
                     decisions.append(decision)
                 except Exception:
                     # As the runner does: a policy that fails to evaluate leaves the default.
@@ -757,6 +600,39 @@ class IterableOperator(BaseOperator):
         "_log",
     )
 
+    @staticmethod
+    def _refuse_operators_that_skip_downstream(operator: MappedOperator) -> None:
+        """
+        Refuse to iterate an operator that can skip downstream tasks.
+
+        An iteration has no downstream tasks of its own, so ``ShortCircuitOperator``, the branch
+        operators and any other ``SkipMixin`` would skip nothing and let every downstream task run.
+        Checked on the class: ``MappedOperator._can_skip_downstream`` is only derived from ``SkipMixin``
+        on the classic path, while the ``@task`` path copies a class default that is ``False`` even for
+        ``@task.short_circuit`` and ``@task.branch``.
+        """
+        if issubclass(operator.operator_class, SkipMixin):
+            raise TypeError(
+                f"{operator.operator_name} can skip downstream tasks and cannot be iterated: an iteration "
+                f"of {operator.task_id!r} has no downstream tasks of its own, so it would skip nothing and "
+                "every downstream task would run. Use .expand() for it instead."
+            )
+
+    @staticmethod
+    def _unprefixed_task_id(operator: MappedOperator) -> str:
+        """
+        Return the wrapped operator's task id without its task group's prefix.
+
+        ``partial()`` already gave the wrapped operator the prefixed id, and ``BaseOperator.__init__``
+        prefixes the id it gets once more, since an IterableOperator is not built from a mapped
+        operator. Handing it the bare id keeps the two equal. The same rule as ``label``, which cannot
+        be used here because it returns the display name when there is one.
+        """
+        task_group = operator.task_group
+        if task_group and task_group.node_id and task_group.prefix_group_id:
+            return operator.task_id[len(task_group.node_id) + 1 :]
+        return operator.task_id
+
     def __init__(
         self,
         *,
@@ -766,12 +642,12 @@ class IterableOperator(BaseOperator):
     ):
         if operator.get_closest_mapped_task_group() is not None:
             raise NotImplementedError("operator expansion in an expanded task group is not yet supported")
-        refuse_operators_that_skip_downstream(operator)
+        self._refuse_operators_that_skip_downstream(operator)
 
         super().__init__(
             **{
                 **kwargs,
-                "task_id": _unprefixed_task_id(operator),
+                "task_id": self._unprefixed_task_id(operator),
                 "owner": operator.owner,
                 "email": operator.email,
                 "email_on_retry": operator.email_on_retry,
@@ -1056,7 +932,7 @@ class IterableOperator(BaseOperator):
             for key, value in (indexed_task_state.xcoms or {}).items():
                 await task.axcom_push(key=key, value=value)
             if indexed_task_state.outlet_events:
-                _replay_outlet_events(context["outlet_events"], indexed_task_state.outlet_events)
+                indexed_task_state.replay_outlet_events(context["outlet_events"])
             return task, None, None
         if indexed_task_state is not None and indexed_task_state.status == TaskInstanceState.SKIPPED:
             return (
@@ -1070,7 +946,7 @@ class IterableOperator(BaseOperator):
         # The sub-task runs against its own view of the context (see IndexedTaskRunner.indexed_context),
         # with its own outlet events: sub-tasks run concurrently and each needs its events
         # attributed correctly so they can be checkpointed and merged individually (see
-        # _serialize_outlet_events/_merge_outlet_events).
+        # IndexedTaskState.record_outlet_events and IndexedTaskRunner.merge_outlet_events_into).
         indexed_task_runner = IndexedTaskRunner(
             task_instance=task,
             register=self._state,
@@ -1103,9 +979,7 @@ class IterableOperator(BaseOperator):
             # state_store_backend configured the checkpoint holds only a reference to the payload.
             if result is not None and task.do_xcom_push:
                 indexed_task_state.result = result
-            serialized_outlet_events = _serialize_outlet_events(indexed_task_runner.outlet_events)
-            if serialized_outlet_events:
-                indexed_task_state.outlet_events = serialized_outlet_events
+            indexed_task_state.record_outlet_events(indexed_task_runner.outlet_events)
             # Written with the one checkpoint, not per push: a retry that skips this sub-task pushes
             # them again, as the runner has deleted them by then.
             if task.pushed_xcoms:
@@ -1155,12 +1029,52 @@ class IterableOperator(BaseOperator):
             # so the same condition decides whether there is a return_value_<index> to push at all.
             if indexed_task_state.result is not None:
                 await self.axcom_push(task, indexed_task_state.result)
-            _merge_outlet_events(context["outlet_events"], indexed_task_runner.outlet_events)
+            indexed_task_runner.merge_outlet_events_into(context["outlet_events"])
         except (asyncio.CancelledError, AirflowTaskTimeout):
             raise
         except BaseException as e:
             return task, None, e
         return task, result, None
+
+    @staticmethod
+    def _fingerprint(mapped_kwargs: Mapping[str, Any]) -> str | None:
+        """
+        Digest one sub-task's input, stored on its checkpoint to tell whether the checkpoint still applies.
+
+        A retry may run on another input than the attempt that wrote the checkpoints: the upstream was
+        cleared together with this task and produced other values. An index then no longer means the
+        same work, and replaying its result would hand downstream a value computed from the old value.
+        An input serde cannot serialize has no digest, and its checkpoint is honoured by index alone.
+        """
+        try:
+            serialized = json.dumps(serialize(mapped_kwargs), sort_keys=True)
+        except (TypeError, ValueError, AttributeError, RecursionError):
+            return None
+        return hashlib.sha256(serialized.encode()).hexdigest()
+
+    def _partial_inputs_from_upstream(self, unmapped_task: BaseOperator) -> dict[str, Any]:
+        """
+        Collect the rendered values of the partial kwargs an upstream task provides.
+
+        They belong in the fingerprint next to the iterated kwargs: clearing the upstream together with
+        this task can change them while the input stays the same, and a checkpoint written with the old
+        value must not be replayed. Only XComArg values count, read back from the unmapped operator
+        once rendered, at the top level or inside a mapping such as a ``@task``'s ``op_kwargs``. Other
+        templated values are left out on purpose: one like ``{{ ti.try_number }}`` changes with every
+        attempt and would make every checkpoint look stale.
+        """
+        inputs: dict[str, Any] = {}
+        for key, value in self.partial_kwargs.items():
+            if isinstance(value, XComArg):
+                inputs[key] = getattr(unmapped_task, key, None)
+            elif isinstance(value, Mapping):
+                rendered = getattr(unmapped_task, key, None)
+                for name, nested in value.items():
+                    if isinstance(nested, XComArg):
+                        inputs[f"{key}.{name}"] = (
+                            rendered.get(name) if isinstance(rendered, Mapping) else None
+                        )
+        return inputs
 
     def _create_task(
         self,
@@ -1187,8 +1101,8 @@ class IterableOperator(BaseOperator):
             {**context, "ti": indexed_ti, "task_instance": indexed_ti}, unmapped_task, jinja_env
         )
         # Taken once rendered, so the partial kwargs an upstream provides are in it with their value.
-        indexed_ti.input_fingerprint = _fingerprint(
-            {**mapped_kwargs, **_partial_inputs_from_upstream(self.partial_kwargs, unmapped_task)}
+        indexed_ti.input_fingerprint = self._fingerprint(
+            {**mapped_kwargs, **self._partial_inputs_from_upstream(unmapped_task)}
         )
         return indexed_ti
 

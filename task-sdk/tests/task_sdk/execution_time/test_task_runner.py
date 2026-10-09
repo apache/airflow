@@ -84,7 +84,15 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetAliasEvent,
+    AssetUniqueKey,
+    AssetUriRef,
+    Dataset,
+    Model,
+)
 from airflow.sdk.definitions.iterableoperator import IterationState
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.retry_policy import (
@@ -2639,6 +2647,74 @@ class TestIndexedTaskState:
         assert "xcoms" not in serialized
         assert IndexedTaskState.deserialize(serialized).xcoms is None
 
+    @staticmethod
+    def _recorded_accessors() -> OutletEventAccessors:
+        accessors = OutletEventAccessors()
+        asset = accessors[Asset(name="a", uri="s3://bucket/a")]
+        asset.extra = {"rows": 3}
+        asset.add_partitions(["p2", "p1"])
+        accessors[AssetAlias(name="alias")].asset_alias_events.append(
+            AssetAliasEvent(
+                source_alias_name="alias",
+                dest_asset_key=AssetUniqueKey(name="b", uri="s3://bucket/b"),
+                dest_asset_extra={"via": "alias"},
+                extra={"n": 1},
+            )
+        )
+        return accessors
+
+    def test_record_outlet_events_keeps_a_json_safe_snapshot(self):
+        """The snapshot travels with the checkpoint, so it holds plain JSON, partition keys sorted."""
+        state = IndexedTaskState(status=TaskInstanceState.SUCCESS)
+
+        state.record_outlet_events(self._recorded_accessors())
+
+        assert state.outlet_events == [
+            {
+                "kind": "asset",
+                "name": "a",
+                "uri": "s3://bucket/a",
+                "extra": {"rows": 3},
+                "partition_keys": ["p1", "p2"],
+            },
+            {
+                "kind": "asset_alias",
+                "source_alias_name": "alias",
+                "dest_asset_key": {"name": "b", "uri": "s3://bucket/b"},
+                "dest_asset_extra": {"via": "alias"},
+                "extra": {"n": 1},
+            },
+        ]
+        assert IndexedTaskState.deserialize(state.serialize()).outlet_events == state.outlet_events
+
+    def test_record_outlet_events_leaves_the_checkpoint_alone_when_nothing_was_recorded(self):
+        state = IndexedTaskState(status=TaskInstanceState.SUCCESS)
+        state.record_outlet_events(OutletEventAccessors())
+        assert state.outlet_events is None
+
+    def test_replay_outlet_events_lands_them_in_the_parents_accessors(self):
+        """A replayed checkpoint ends up as the live merge would leave it: one event per asset."""
+        state = IndexedTaskState(status=TaskInstanceState.SUCCESS)
+        state.record_outlet_events(self._recorded_accessors())
+        target = OutletEventAccessors()
+        target[Asset(name="a", uri="s3://bucket/a")].extra = {"rows": 1, "kept": True}
+
+        IndexedTaskState.deserialize(state.serialize()).replay_outlet_events(target)
+
+        asset = target[Asset(name="a", uri="s3://bucket/a")]
+        assert asset.extra == {"rows": 3, "kept": True}
+        assert asset.partition_keys == {"p1", "p2"}
+        alias_events = target[AssetAlias(name="alias")].asset_alias_events
+        assert [event.dest_asset_key for event in alias_events] == [
+            AssetUniqueKey(name="b", uri="s3://bucket/b")
+        ]
+        assert len(list(target.items())) == 2
+
+    def test_replay_outlet_events_without_a_snapshot_does_nothing(self):
+        target = OutletEventAccessors()
+        IndexedTaskState(status=TaskInstanceState.SUCCESS).replay_outlet_events(target)
+        assert list(target.items()) == []
+
 
 class TestIndexedTaskInstance:
     @pytest.mark.parametrize(
@@ -2900,6 +2976,33 @@ class TestIndexedTaskRunner:
         events = mock.MagicMock(name="events")
         executor = IndexedTaskRunner(task_instance=make_indexed_ti(), outlet_events=events)
         assert executor.outlet_events is events
+
+    def test_merge_outlet_events_into_folds_them_into_one_event_per_asset(self, make_indexed_ti):
+        """Siblings emitting to one asset share its event: the last extra wins, the rest accumulates."""
+        parent = OutletEventAccessors()
+        asset = Asset(name="a", uri="s3://bucket/a")
+        first = IndexedTaskRunner(task_instance=make_indexed_ti(index=0))
+        first.outlet_events[asset].extra = {"rows": 1, "from": "first"}
+        first.outlet_events[asset].add_partitions(["p1"])
+        second = IndexedTaskRunner(task_instance=make_indexed_ti(index=1))
+        second.outlet_events[asset].extra = {"rows": 2}
+        second.outlet_events[asset].add_partitions(["p2"])
+        second.outlet_events[AssetAlias(name="alias")].asset_alias_events.append(
+            AssetAliasEvent(
+                source_alias_name="alias",
+                dest_asset_key=AssetUniqueKey(name="b", uri="s3://bucket/b"),
+                dest_asset_extra={},
+                extra={},
+            )
+        )
+
+        first.merge_outlet_events_into(parent)
+        second.merge_outlet_events_into(parent)
+
+        assert parent[asset].extra == {"rows": 2, "from": "first"}
+        assert parent[asset].partition_keys == {"p1", "p2"}
+        assert len(parent[AssetAlias(name="alias")].asset_alias_events) == 1
+        assert len(list(parent.items())) == 2
 
     def test_enter_sets_start_time(self, make_indexed_ti):
         ti = make_indexed_ti()

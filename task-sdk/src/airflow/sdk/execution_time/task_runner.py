@@ -70,6 +70,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_se
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
+    AssetAliasEvent,
     AssetNameRef,
     AssetUniqueKey,
     AssetUriRef,
@@ -941,6 +942,68 @@ class IndexedTaskState:
     # next to its result, as a mapped task instance that succeeded keeps its own.
     xcoms: dict[str, Any] | None = None
 
+    def record_outlet_events(self, accessors: OutletEventAccessors) -> None:
+        """
+        Keep a JSON-safe snapshot of the outlet asset events the indexed task recorded.
+
+        Persisted with the checkpoint so a later attempt can :meth:`replay_outlet_events` when
+        the indexed task is skipped because it already succeeded.
+        """
+        events: list[dict[str, Any]] = []
+        for _asset_or_alias, accessor in accessors.items():
+            if isinstance(accessor.key, AssetUniqueKey):
+                events.append(
+                    {
+                        "kind": "asset",
+                        "name": accessor.key.name,
+                        "uri": accessor.key.uri,
+                        "extra": accessor.extra,
+                        "partition_keys": sorted(accessor.partition_keys),
+                    }
+                )
+            for alias_event in accessor.asset_alias_events:
+                events.append(
+                    {
+                        "kind": "asset_alias",
+                        "source_alias_name": alias_event.source_alias_name,
+                        "dest_asset_key": {
+                            "name": alias_event.dest_asset_key.name,
+                            "uri": alias_event.dest_asset_key.uri,
+                        },
+                        "dest_asset_extra": alias_event.dest_asset_extra,
+                        "extra": alias_event.extra,
+                    }
+                )
+        if events:
+            self.outlet_events = events
+
+    def replay_outlet_events(self, target: OutletEventAccessorsProtocol) -> None:
+        """
+        Re-emit into ``target`` the events the indexed task recorded on a previous attempt.
+
+        An indexed task skipped on retry (because it already succeeded) never re-executes, so it
+        never re-emits into the fresh ``OutletEventAccessors`` created for the new attempt. The
+        failed attempt sent nothing to the server either (outlet events travel only on the success
+        payload), so replaying cannot emit an event twice; without it the events would be lost.
+        They land in the parent's accessors as :meth:`IndexedTaskRunner.merge_outlet_events_into`
+        lands the live ones: one event per asset per task instance.
+        """
+        for event in self.outlet_events or ():
+            if event["kind"] == "asset":
+                accessor = target[Asset(name=event["name"], uri=event["uri"])]
+                accessor.extra.update(event["extra"])
+                if event["partition_keys"]:
+                    accessor.add_partitions(event["partition_keys"])
+            else:
+                target[AssetAlias(name=event["source_alias_name"])].asset_alias_events.append(
+                    AssetAliasEvent(
+                        source_alias_name=event["source_alias_name"],
+                        dest_asset_key=AssetUniqueKey(**event["dest_asset_key"]),
+                        dest_asset_extra=event["dest_asset_extra"],
+                        extra=event["extra"],
+                    )
+                )
+
     @staticmethod
     def build_key(index: int) -> str:
         # The task state store is already scoped to the parent task instance (dag, run, task and
@@ -1192,6 +1255,22 @@ class IndexedTaskRunner(LoggingMixin):
         #: :meth:`report_failure` once the whole task's fate is known.
         self.failure: BaseException | None = None
         self._cancelled = False
+
+    def merge_outlet_events_into(self, target: OutletEventAccessorsProtocol) -> None:
+        """
+        Fold the outlet asset events this indexed task recorded into the parent's ``target``.
+
+        Called right after the indexed task succeeds, on the IterableOperator's shared
+        ``context["outlet_events"]``. A task instance sends one event per asset, so indexed tasks
+        that emit to the same asset end up in that one event: ``extra`` keeps what the last one to
+        finish wrote, while partition keys and alias events accumulate. ``.expand()`` sends one
+        event per mapped task instance instead; the docs page says so in its comparison table.
+        """
+        for asset_or_alias, accessor in self.outlet_events.items():
+            target_accessor = target[asset_or_alias]
+            target_accessor.extra.update(accessor.extra)
+            target_accessor.asset_alias_events.extend(accessor.asset_alias_events)
+            target_accessor.partition_keys.update(accessor.partition_keys)
 
     def cancel(self) -> None:
         """
