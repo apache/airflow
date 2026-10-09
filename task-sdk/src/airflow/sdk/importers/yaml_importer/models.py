@@ -26,6 +26,7 @@ constructors validate those at import time.
 
 from __future__ import annotations
 
+import collections
 import itertools
 from typing import TYPE_CHECKING, Annotated, Any
 
@@ -383,13 +384,16 @@ class DagDocument(BaseModel):
 
     @model_validator(mode="after")
     def _check_refs(self):
-        """Check ``needs`` and XCom targets are present in this Dag."""
-        ids = {t.id_ for t in self.tasks}
+        """Check task ID uniqueness and ensure dependencies are internal."""
+        task_id_counts = collections.Counter(t.id_ for t in self.tasks)
+        if duplicates := sorted(i for i, n in task_id_counts.items() if n > 1):
+            raise ValueError(f"duplicate task id(s): {duplicates}")
+        validated_task_ids = set(task_id_counts)
         for t in self.tasks:
             refs = set(t.needs)
             for v in itertools.chain(t.with_.values(), (t.run or {}).values()):
                 refs.update(_iter_xcom_task_ids(v))
-            if missing := refs - ids:
+            if missing := (refs - validated_task_ids):
                 raise ValueError(f"task {t.id_!r} references unknown task(s): {sorted(missing)}")
         return self
 

@@ -194,6 +194,11 @@ def test_unknown_xcom_target_rejected():
         _one("tasks:\n  - {id: t, run: {e: {$x: ghost}}}")
 
 
+def test_duplicate_task_ids_rejected():
+    with pytest.raises(YamlDagParseError, match="duplicate task id"):
+        _one("tasks:\n  - {id: a, run: {}}\n  - {id: a, uses: x.Y}")
+
+
 def test_schedule_forms():
     assert _one("schedule: '0 3 * * *'\ntasks: []").schedule == "0 3 * * *"
     assert _one("schedule: null\ntasks: []").schedule is None
