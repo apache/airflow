@@ -183,8 +183,14 @@ def _task_instance_event_allowed(dag_id: str, task_id: str) -> bool:
 # the topic flags track whether the topic exists on the broker and whether we're
 # currently in a back-off window after a failed topic check.
 _producer: Producer | None = None
-_topic_check_retry_after: dict[EventProducerKafkaTopic, float] = {EventProducerKafkaTopic.DAG_RUN: 0.0, EventProducerKafkaTopic.TASK_INSTANCE: 0.0}
-_topic_existence_map: dict[EventProducerKafkaTopic, bool] = {EventProducerKafkaTopic.DAG_RUN: False, EventProducerKafkaTopic.TASK_INSTANCE: False}
+_topic_check_retry_after: dict[EventProducerKafkaTopic, float] = {
+    EventProducerKafkaTopic.DAG_RUN: 0.0,
+    EventProducerKafkaTopic.TASK_INSTANCE: 0.0
+}
+_topic_existence_map: dict[EventProducerKafkaTopic, bool] = {
+    EventProducerKafkaTopic.DAG_RUN: False,
+    EventProducerKafkaTopic.TASK_INSTANCE: False
+}
 
 
 def _reset_state_after_fork() -> None:
@@ -201,7 +207,10 @@ def _reset_state_after_fork() -> None:
         EventProducerKafkaTopic.DAG_RUN: False,
         EventProducerKafkaTopic.TASK_INSTANCE: False,
     }
-    _topic_check_retry_after = {EventProducerKafkaTopic.DAG_RUN: 0.0, EventProducerKafkaTopic.TASK_INSTANCE: 0.0}
+    _topic_check_retry_after = {
+        EventProducerKafkaTopic.DAG_RUN: 0.0,
+        EventProducerKafkaTopic.TASK_INSTANCE: 0.0
+    }
 
 
 os.register_at_fork(after_in_child=_reset_state_after_fork)
