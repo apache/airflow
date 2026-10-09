@@ -697,26 +697,12 @@ export const $AssetStateStoreLastUpdatedBy = {
             title: 'Task Instance Id'
         },
         region_id: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'string',
+            format: 'uuid',
             title: 'Region Id'
         },
         region_index: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'integer',
             title: 'Region Index'
         },
         try_number: {

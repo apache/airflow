@@ -195,8 +195,8 @@ export type AssetStateStoreLastUpdatedBy = {
     task_id?: string | null;
     map_index?: number | null;
     task_instance_id?: string | null;
-    region_id?: string | null;
-    region_index?: number | null;
+    region_id?: string;
+    region_index?: number;
     try_number?: number | null;
 };
 

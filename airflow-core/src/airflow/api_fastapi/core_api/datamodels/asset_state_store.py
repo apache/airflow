@@ -23,11 +23,12 @@ from uuid import UUID
 from pydantic import JsonValue, field_validator
 
 from airflow._shared.state import AssetStateStoreWriterKind
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.configuration import conf
 
 
-class AssetStateStoreLastUpdatedBy(BaseModel):
+class AssetStateStoreLastUpdatedBy(OmitsMissingRegion, BaseModel):
     """Writer info for the last write to an asset state store entry."""
 
     kind: AssetStateStoreWriterKind
@@ -36,8 +37,8 @@ class AssetStateStoreLastUpdatedBy(BaseModel):
     task_id: str | None = None
     map_index: int | None = None
     task_instance_id: UUID | None = None
-    region_id: UUID | None = None
-    region_index: int | None = None
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     try_number: int | None = None
 
 
