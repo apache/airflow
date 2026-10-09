@@ -12,7 +12,6 @@
       "inFlight": "In flight",
       "unknown": "Unknown"
     },
-    "inProgress": "In Progress",
     "maxRuns": "Max Active Runs",
     "missingAndErroredRuns": "Missing and Errored Runs",
     "missingRuns": "Missing Runs",
@@ -43,6 +42,7 @@
     "viewSlots": "View slots for Backfill #{{id}}"
   },
   "banner": {
+    "backfillInProgress": "Backfill in progress",
     "cancel": "Cancel backfill",
     "pause": "Pause backfill",
     "unpause": "Unpause backfill"

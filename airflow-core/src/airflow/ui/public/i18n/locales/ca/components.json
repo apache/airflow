@@ -42,6 +42,7 @@
     "viewSlots": "Veure els slots del reompliment núm. {{id}}"
   },
   "banner": {
+    "backfillInProgress": "Reompliment en curs",
     "cancel": "Cancel·lar reompliment",
     "pause": "Pausar reompliment",
     "unpause": "Reactivar reompliment"

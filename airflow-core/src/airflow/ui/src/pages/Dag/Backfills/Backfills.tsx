@@ -145,7 +145,7 @@ const getColumns = ({
         <Badge colorPalette="info" variant="subtle">
           {row.original.is_paused
             ? translate("dags:schedulingState.paused")
-            : translate("components:backfill.inProgress")}
+            : translate("components:banner.backfillInProgress")}
         </Badge>
       ) : (
         <Text>

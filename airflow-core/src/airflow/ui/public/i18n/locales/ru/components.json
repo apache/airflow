@@ -33,6 +33,7 @@
     }
   },
   "banner": {
+    "backfillInProgress": "Backfill выполняется",
     "cancel": "Отменить Backfill",
     "pause": "Приостановить Backfill",
     "unpause": "Возобновить Backfill"

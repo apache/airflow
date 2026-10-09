@@ -27,6 +27,7 @@
     }
   },
   "banner": {
+    "backfillInProgress": "Backfill กำลังทำงานอยู่",
     "cancel": "ยกเลิก Backfill",
     "pause": "หยุดพัก Backfill",
     "unpause": "ยกเลิกการหยุดพัก Backfill"

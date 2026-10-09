@@ -44,6 +44,7 @@
     "viewSlots": "Voir les slots pour le rattrapage n°{{id}}"
   },
   "banner": {
+    "backfillInProgress": "Rattrapage en cours",
     "cancel": "Annuler le rattrapage",
     "pause": "Mettre en pause le rattrapage",
     "unpause": "Réactiver le rattrapage"

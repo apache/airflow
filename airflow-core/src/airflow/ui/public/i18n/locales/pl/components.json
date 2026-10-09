@@ -46,6 +46,7 @@
     "viewSlots": "Zobacz sloty dla wypełnienia wstecznego #{{id}}"
   },
   "banner": {
+    "backfillInProgress": "Wypełnienie wsteczne w toku",
     "cancel": "Anuluj uzupełnienie wsteczne",
     "pause": "Wstrzymaj uzupełnienie wsteczne",
     "unpause": "Wznów uzupełnienie wsteczne"

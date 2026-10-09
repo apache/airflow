@@ -252,7 +252,7 @@ describe("Backfills filters", () => {
     renderBackfills();
 
     // Exactly one row is still running, so only it gets a progress badge and actions.
-    expect(await screen.findByText("components:backfill.inProgress")).toBeInTheDocument();
+    expect(await screen.findByText("components:banner.backfillInProgress")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "components:banner.cancel" })).toHaveLength(1);
   });
 

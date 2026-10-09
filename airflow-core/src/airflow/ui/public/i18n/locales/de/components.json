@@ -42,6 +42,7 @@
     "viewSlots": "Slots für Auffüllung Nr. {{id}} anzeigen"
   },
   "banner": {
+    "backfillInProgress": "Auffüllung läuft",
     "cancel": "Auffüllung abbrechen",
     "pause": "Auffüllung pausieren",
     "unpause": "Auffüllung weiterführen"

@@ -42,6 +42,7 @@
     "viewSlots": "查看回填 #{{id}} 的槽位"
   },
   "banner": {
+    "backfillInProgress": "回填正在进行中",
     "cancel": "取消回填",
     "pause": "暂停回填",
     "unpause": "取消暂停回填"

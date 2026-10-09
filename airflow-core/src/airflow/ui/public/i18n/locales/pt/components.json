@@ -30,6 +30,7 @@
     }
   },
   "banner": {
+    "backfillInProgress": "Backfill em progresso",
     "cancel": "Cancelar backfill",
     "pause": "Pausar backfill",
     "unpause": "Despausar backfill"
