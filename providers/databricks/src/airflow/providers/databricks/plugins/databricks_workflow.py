@@ -380,24 +380,56 @@ def store_databricks_job_run_link(
         logger.warning("Failed to store Databricks job run link: %s", e)
 
 
+def store_databricks_repair_link(
+    context: Context,
+    launch_task_id: str,
+    logger: Logger,
+    *,
+    task_id: str | None = None,
+) -> None:
+    """
+    Store a repair link in XCom during task execution.
+
+    Stores the single-task repair link for ``task_id``, or the repair-all link when ``task_id`` is
+    omitted. The API server renders it from XCom like any other stored link, so it needs no
+    Databricks code to do so.
+    """
+    if not AIRFLOW_V_3_1_1_PLUS:
+        return  # The repair backend is only registered on 3.1.1+ (see DatabricksWorkflowPlugin).
+
+    try:
+        ti = context["ti"]
+        if task_id is None:
+            key = WorkflowJobRepairAllFailedLink().xcom_key
+            link = _build_repair_url(ti.dag_id, ti.run_id, launch_task_id, repair_all=True)
+        else:
+            key = WorkflowJobRepairSingleTaskLink().xcom_key
+            link = _build_repair_url(ti.dag_id, ti.run_id, launch_task_id, task_id=task_id)
+        ti.xcom_push(key=key, value=link)
+        logger.info("Stored Databricks repair link in XCom: %s", link)
+    except Exception as e:
+        logger.warning("Failed to store Databricks repair link: %s", e)
+
+
+def _get_link_from_xcom(ti_key: TaskInstanceKey | None, key: str, logger: Logger) -> str:
+    if ti_key is None:
+        return ""
+    try:
+        return XCom.get_value(ti_key=ti_key, key=key) or ""
+    except Exception as e:
+        logger.warning("Failed to retrieve Databricks link from XCom: %s", e)
+        return ""
+
+
 class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
     """Constructs a link to send a request to repair all failed tasks in the Databricks workflow."""
 
     name = "Repair All Failed Tasks"
 
     @property
-    def operators(self):
-        # On Airflow 3 a plugin extra link that declares no ``operators`` is replaced at
-        # deserialization by an ``XComOperatorLink`` that just returns a URL the task stored in
-        # XCom under ``xcom_key``. This link stores no such URL — it builds the URL at request time
-        # in ``get_link`` from the run's XCom metadata — so it must survive as the real object.
-        # Declaring the operators it applies to keeps it from being swapped out. Lazy import avoids
-        # a circular import with the operator module.
-        from airflow.providers.databricks.operators.databricks_workflow import (
-            _CreateDatabricksWorkflowOperator,
-        )
-
-        return [_CreateDatabricksWorkflowOperator]
+    def xcom_key(self) -> str:
+        """XCom key where the link is stored during task execution."""
+        return "databricks_repair_all_failed_link"
 
     def get_link(  # type: ignore[override]  # Signature intentionally kept this way for Airflow 2.x compatibility
         self,
@@ -407,17 +439,7 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if AIRFLOW_V_3_0_PLUS:
-            # The Airflow-3 repair backend is only registered on 3.1.1+ (see
-            # DatabricksWorkflowPlugin), so render no link below that.
-            if not AIRFLOW_V_3_1_1_PLUS:
-                return ""
-            if ti_key is None:
-                return ""
-            launch_task_id = _get_launch_task_id_v3(operator, ti_key)
-            if not launch_task_id:
-                return ""
-            # The set of failed tasks is resolved from the live Databricks run by the endpoint.
-            return _build_repair_url(ti_key.dag_id, ti_key.run_id, launch_task_id, repair_all=True)
+            return _get_link_from_xcom(ti_key, self.xcom_key, self.log)
 
         if not ti_key:
             ti = get_task_instance(operator, dttm)
@@ -510,19 +532,9 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
     name = "Repair a single task"
 
     @property
-    def operators(self):
-        # On Airflow 3 a plugin extra link that declares no ``operators`` is replaced at
-        # deserialization by an ``XComOperatorLink`` that just returns a URL the task stored in
-        # XCom under ``xcom_key``. This link stores no such URL — it builds the URL at request time
-        # in ``get_link`` from the run's XCom metadata — so it must survive as the real object.
-        # Declaring the operators it applies to keeps it from being swapped out. Lazy import avoids
-        # a circular import with the operator module.
-        from airflow.providers.databricks.operators.databricks import (
-            DatabricksNotebookOperator,
-            DatabricksTaskOperator,
-        )
-
-        return [DatabricksNotebookOperator, DatabricksTaskOperator]
+    def xcom_key(self) -> str:
+        """XCom key where the link is stored during task execution."""
+        return "databricks_repair_single_task_link"
 
     def get_link(  # type: ignore[override]  # Signature intentionally kept this way for Airflow 2.x compatibility
         self,
@@ -532,21 +544,7 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if AIRFLOW_V_3_0_PLUS:
-            # The Airflow-3 repair backend is only registered on 3.1.1+ (see
-            # DatabricksWorkflowPlugin), so render no link below that.
-            if not AIRFLOW_V_3_1_1_PLUS:
-                return ""
-            if ti_key is None:
-                return ""
-            launch_task_id = _get_launch_task_id_v3(operator, ti_key)
-            if not launch_task_id:
-                return ""
-            return _build_repair_url(
-                ti_key.dag_id,
-                ti_key.run_id,
-                launch_task_id,
-                task_id=operator.task_id,
-            )
+            return _get_link_from_xcom(ti_key, self.xcom_key, self.log)
 
         if not ti_key:
             ti = get_task_instance(operator, dttm)
@@ -571,13 +569,7 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
             assert isinstance(task, DatabricksTaskBaseOperator)
 
         if ".launch" not in ti_key.task_id:
-            try:
-                launch_task_id = get_launch_task_id(task_group)
-            except AirflowException:
-                # Declaring ``operators`` attaches this link to standalone Databricks tasks too, which
-                # have no launch task; render no URL rather than raising (which is a 500 in the
-                # Airflow 2 extra-links view). Mirrors the graceful "" the Airflow 3 branch returns.
-                return ""
+            launch_task_id = get_launch_task_id(task_group)
             ti_key = _get_launch_task_key(ti_key, task_id=launch_task_id)
         metadata = get_xcom_result(ti_key, "return_value")
 
@@ -592,8 +584,8 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
 
 
 # Airflow-3 repair backend. Flask-AppBuilder was dropped in Airflow 3, so the repair
-# action is re-implemented as a FastAPI sub-application mounted on the API server, and the
-# repair links (below) build URLs that point at it.
+# action is re-implemented as a FastAPI sub-application mounted on the API server. The workflow
+# tasks store the repair links pointing at it in XCom (``store_databricks_repair_link``).
 REPAIR_URL_PREFIX = "/databricks/workflow/repair"
 
 
@@ -613,6 +605,9 @@ def _build_repair_url(
     target ``task_id``. The Databricks connection, run id, and task keys are never placed in the
     link — the endpoint derives them server-side, so the request cannot point the repair at an
     arbitrary connection or Databricks run.
+
+    Called on the worker at task execution, so the path prefix comes from the worker's
+    ``[api] base_url``.
     """
     query: dict[str, Any] = {"launch_task_id": launch_task_id}
     if repair_all:
@@ -637,34 +632,6 @@ def _api_root_path() -> str:
 def _ui_run_path(dag_id: str, run_id: str) -> str:
     """Same-site relative path to the Dag run in the UI, including the API root path if set."""
     return f"{_api_root_path()}/dags/{quote(dag_id, safe='')}/runs/{quote(run_id, safe='')}"
-
-
-def _get_launch_task_id_v3(operator: BaseOperator, ti_key: TaskInstanceKey) -> str | None:
-    """
-    Resolve the ``task_id`` of the workflow's launch task for an extra-link render.
-
-    Works on both live operators and deserialized ones. ``SerializedTaskGroup`` has no
-    ``get_child_by_label``, so this never calls it. Returns ``None`` when the launch task
-    cannot be found (so the link is not rendered).
-    """
-    if ti_key.task_id.endswith(".launch"):
-        return ti_key.task_id
-
-    for tid in getattr(operator, "upstream_task_ids", ()) or ():
-        if tid.endswith(".launch"):
-            return tid
-
-    task_group = getattr(operator, "task_group", None)
-    while task_group is not None:
-        child_id = getattr(task_group, "child_id", None)
-        children = getattr(task_group, "children", None)
-        if callable(child_id) and children is not None:
-            launch_id = child_id("launch")
-            if launch_id in children:
-                child = children[launch_id]
-                return getattr(child, "task_id", launch_id)
-        task_group = getattr(task_group, "parent_group", None)
-    return None
 
 
 if AIRFLOW_V_3_1_1_PLUS:
@@ -791,14 +758,10 @@ if AIRFLOW_V_3_1_1_PLUS:
         """Repair failed Databricks tasks for a workflow run and resume the Airflow run."""
         from sqlalchemy import select
 
-        from airflow.models.serialized_dag import SerializedDagModel
+        from airflow.models.dagbag import DBDagBag
         from airflow.utils.session import create_session
 
         with create_session() as session:
-            dag = SerializedDagModel.get_dag(dag_id, session=session)
-            if dag is None:
-                raise HTTPException(status_code=404, detail="Dag not found.")
-
             dag_run = session.scalars(
                 select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
             ).one_or_none()
@@ -813,12 +776,25 @@ if AIRFLOW_V_3_1_1_PLUS:
 
             metadata = _read_launch_metadata(dag_id, run_id, launch_task_id, session)
 
+            run_task_ids = set(
+                session.scalars(
+                    select(TaskInstance.task_id).where(
+                        TaskInstance.dag_id == dag_id, TaskInstance.run_id == run_id
+                    )
+                )
+            )
             if repair_all:
                 repaired_task_ids: list[str] = []  # resolved from live Databricks state below
             else:
-                if task_id is None or not dag.has_task(task_id):
-                    raise HTTPException(status_code=404, detail="Task not found in Dag.")
+                if task_id is None or task_id not in run_task_ids:
+                    raise HTTPException(status_code=404, detail="Task not found in Dag run.")
                 repaired_task_ids = [task_id]
+
+            # Clearing downstream needs the Dag structure, so load the version this run was created
+            # from (as the core clear route does), before touching Databricks.
+            dag = DBDagBag().get_dag_for_run(dag_run, session=session)
+            if dag is None:
+                raise HTTPException(status_code=404, detail="Dag not found.")
 
             # Databricks API calls can fail (e.g. expired/invalid connection token); surface a
             # generic error to the UI without leaking the upstream exception text.
@@ -827,8 +803,7 @@ if AIRFLOW_V_3_1_1_PLUS:
                     hook = DatabricksHook(databricks_conn_id=metadata.conn_id)
                     task_keys = hook.get_run_failed_task_keys(metadata.run_id)
                     key_to_task_id = {
-                        _task_id_to_key(dag_id, t.task_id, metadata.task_key_map): t.task_id
-                        for t in dag.tasks
+                        _task_id_to_key(dag_id, tid, metadata.task_key_map): tid for tid in run_task_ids
                     }
                     repaired_task_ids = []
                     unmapped_keys = []

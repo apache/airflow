@@ -45,6 +45,7 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairSingleTaskLink,
     WorkflowJobRunLink,
     store_databricks_job_run_link,
+    store_databricks_repair_link,
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
@@ -2314,6 +2315,16 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
                     metadata=workflow_run_metadata,
                     logger=self.log,
                 )
+                repair_launch_task_id = next(
+                    (task for task in self.upstream_task_ids if task.endswith(".launch")), None
+                )
+                if repair_launch_task_id:
+                    store_databricks_repair_link(
+                        context=context,
+                        launch_task_id=repair_launch_task_id,
+                        logger=self.log,
+                        task_id=self.task_id,
+                    )
         else:
             self._launch_job(context=context)
         if self.wait_for_termination:
