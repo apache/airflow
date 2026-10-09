@@ -29,7 +29,7 @@ DAYS_PROTECTED = 2  # days of protection for composer env.
 async def _delete_composer_environment(resource: dict, log_prefix: str):
     name = get_resource_path(resource)
     create_time = datetime.datetime.fromisoformat(resource["createTime"].replace("Z", "+00:00"))
-    age = datetime.datetime.now(datetime.timezone.utc) - create_time
+    age = datetime.datetime.now(datetime.UTC) - create_time
     if not age > datetime.timedelta(days=DAYS_PROTECTED):
         print(
             f"Composer env with name: {name} was skipped because it is protected for {DAYS_PROTECTED} days."

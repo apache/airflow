@@ -40,6 +40,7 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
   const {
+    commitEditingState,
     editingState,
     endDateValue,
     formatDisplayValue,
@@ -67,8 +68,10 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
           lazyMount
           // The popover owns dismissal, so the pill never sees a blur. Deferring lets a range
           // picked in the same tick commit first, so the pill collapses instead of being dropped.
+          // Typed input is only kept local while editing, so commit it on dismissal too.
           onOpenChange={({ open }) => {
             if (!open) {
+              commitEditingState();
               setTimeout(onRequestClose, 0);
             }
           }}
@@ -151,6 +154,7 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
                 getFieldError={getFieldError}
                 handleInputChange={handleInputChange}
                 onChange={onChange}
+                onCommit={commitEditingState}
                 setEditingState={setEditingState}
                 startDateValue={startDateValue}
                 translate={translate}

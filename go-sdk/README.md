@@ -38,7 +38,9 @@ Python tasks are imported and run in-process. Go is compiled, so the model is di
 
 A single binary that bundles one or more Dags' task functions is called a **bundle**. You build one with
 the SDK's packer, `airflow-go-pack`, which compiles your code and appends a metadata footer (the manifest
-of `dag_id`s and `task_id`s, plus the Dag source) to the executable. The result is a **self-contained
+of `dag_id`s and `task_id`s, plus the source files) to the executable. The source files are the
+entrypoint (the file with `func main`) and the file that declares each Dag built with `airflow.Dag`.
+A Dag declared outside your module, such as in a dependency, uses the entrypoint as its source. The result is a **self-contained
 executable bundle**: a single runnable file that *is* the bundle, with no separate manifest or archive to
 ship alongside it.
 
@@ -298,9 +300,9 @@ the full range of task states, and alternate XCom backends without implementing 
   `task_handler_bundle_name` names the Dag bundle the coordinator scans for packed bundles (the task's own
   Dag bundle when unset). It is used only by mixed-language Dags, to locate the task handlers for the
   `@task.stub` tasks of a Python Dag; Dags defined natively in a language SDK do not use it.
-  `queue_to_coordinator` routes stub tasks with `queue="golang"` to this Go coordinator. Only files with the
-  executable bit are considered, so use a Dag bundle that keeps it: a `LocalDagBundle` does, object-store
-  Dag bundles such as `S3DagBundle` do not.
+  `queue_to_coordinator` routes stub tasks with `queue="golang"` to this Go coordinator. The matching bundle
+  is marked executable before it is launched, so any Dag bundle works, including an object-store one such as
+  `S3DagBundle`.
 
   > [!IMPORTANT]
   > The `[sdk]` config and the packed bundle files must be present wherever tasks execute and on the Dag
@@ -349,7 +351,7 @@ prek hook regenerate it.
 | capability: `variable-read-write` | MUST | ✓ | 3.4 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.3 | AFBNDL01 native binary via airflow-go-pack |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
-| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `task-state-store` | MAY | ✓ | 3.4 |  |
 | capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
@@ -389,6 +391,10 @@ Python supervisor / task runner
   protocol on the comm socket, with structured JSON-line logs on the logs socket.
 - The Python runtime is the worker. It proxies every `GetConnection` / `GetVariable` / `GetXCom` /
   `SetXCom` call through to the Execution API. The Go binary just runs the task function.
+- When the first frame on the comm socket is a `DagFileParseRequest` from the Dag processor, the
+  binary runs no task. It answers with one `DagFileParsingResult` that holds the Dags from
+  `airflow.Dag` that the binary registered. The Dags are serialized as
+  [Serializing a native Dag](#serializing-a-native-dag) describes. The binary then exits.
 
 The Go side of the protocol is implemented in `pkg/execution/`. On the Python side it is the
 `ExecutableCoordinator` in `task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py`.
@@ -451,17 +457,61 @@ it into the authoring shape, each entry carrying the reason it exists:
   the Python side surfaces in review instead of vanishing.
 - **type overrides** — the schema types a moment in time and a duration as a number of seconds, and
   an integral count as a JSON number.
-- **injections** — `Schedule`, which stands in for the serialized `timetable`. Injecting into the
-  schema rather than hand-writing the field keeps every field in one struct declaration, which is
-  what lets `TaskSpec` implement the sealed `TaskOption`.
+- **injections** — `Schedule`, which stands in for the serialized `timetable`, and the `Queue` of
+  `DagSpec`, for which the schema has no Dag-level property. Injecting into the schema rather than
+  hand-writing the field keeps every field in one struct declaration, which is what lets
+  `TaskSpec` implement the sealed `TaskOption`.
 
 The schema types `trigger_rule` and `weight_rule` as plain strings and does not list their values.
 `TriggerRule`, `WeightRule` and their constants are therefore hand-written in
 [`airflow/enums.go`](./airflow/enums.go). `TestRuleConstantsMatchPython` checks those constants
 against the Python enums in airflow-core.
 
-The `check-go-sdk-generated-drift` prek hook regenerates the file and fails when the committed one
+`just generate-specs` also writes [`airflow/spec_fields.gen.go`](./airflow/spec_fields.gen.go), which
+holds the schema key and the schema default of each field, keyed by the name of the Go field.
+
+The `check-go-sdk-generated-drift` prek hook regenerates both files and fails when a committed one
 differs, so a schema change that never reached Go cannot merge.
+
+## Serializing a native Dag
+
+[`airflow/serialize.go`](./airflow/serialize.go) writes a registered `airflow.Dag` as the Dag JSON
+that Airflow stores. Python's `DagSerialization` writes the same shape for a Python Dag. Each field
+of `DagSpec`, `TaskSpec` and `TaskGroupSpec` has an entry in a generated table, which names the
+schema property that the field sets and its schema default. The serializer leaves out a value equal to
+the default. `serialize.go` lists only the fields that the generated tables cannot describe: the ones
+it writes in its own way, and the lists that Python keeps in a set.
+
+`airflow.Inputs` takes the results of tasks and `airflow.Literal` values, one for each parameter after
+the `Context`. A task becomes an `xcom` argument binding and a literal becomes a `literal` one:
+
+```go
+dag.Task(load, airflow.Inputs(transformed, airflow.Literal("s3://bucket/out")))
+```
+
+```json
+[
+  {"name": "arg0", "kind": "xcom", "task_id": "transform"},
+  {"name": "arg1", "kind": "literal", "value": "s3://bucket/out"}
+]
+```
+
+A literal must be JSON that decodes into its parameter type, and it adds no edge to the Dag.
+
+The `check-go-sdk-serialization-conformance` prek hook builds the Dags of
+[`scripts/ci/lang_sdk_serialization/test_dags.yaml`](../scripts/ci/lang_sdk_serialization/test_dags.yaml)
+twice: with this SDK, and with Python and Airflow's own serializer. It loads the Go output with
+Airflow's deserializer and compares the two serializations field by field. Run it from the
+repository root:
+
+```bash
+prek run check-go-sdk-serialization-conformance --all-files
+```
+
+The hook runs every Dag of the file, including the ones that `requires` a feature that only some SDKs
+have. [`go_native.json`](../airflow-core/tests/unit/dag_processing/lang_sdk_fixtures/go_native.json)
+holds the Go output for the same Dags, so that the Airflow core tests check that Airflow loads it.
+`TestSerializeConformanceDags` says how to rewrite it.
 
 ## Architectural decisions
 

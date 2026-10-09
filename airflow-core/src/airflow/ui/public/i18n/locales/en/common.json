@@ -168,6 +168,7 @@
   "generateToken": "Generate Token",
   "includedIn": "Included in",
   "key": "Key",
+  "loading": "Loading…",
   "logLevel": {
     "hide": "Hide Log Levels",
     "hotkey": "l",
@@ -289,6 +290,13 @@
         "label": "Default task clear selection"
       },
       "title": "Clearing"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Show the recent task states of each Dag on the Dags list. Turn off to skip loading them, which can help on deployments with many Dags.",
+        "label": "Show recent tasks"
+      },
+      "title": "Dags List"
     },
     "description": "These preferences are saved in this browser only and apply across the whole app.",
     "general": {
@@ -412,6 +420,7 @@
     "upstream_failed": "Upstream Failed"
   },
   "switchDag": "Switch $t(dag_one)",
+  "switchDagRun": "Switch $t(dagRun_one)",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",

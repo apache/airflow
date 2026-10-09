@@ -279,6 +279,10 @@ export const ensureUseBackfillServiceListBackfillDagRunsData = (queryClient: Que
 * @param data.maxActiveRunsGt
 * @param data.maxActiveRunsLte
 * @param data.maxActiveRunsLt
+* @param data.durationGte
+* @param data.durationGt
+* @param data.durationLte
+* @param data.durationLt
 * @param data.reprocessBehavior
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
 * @param data.dagId
@@ -286,7 +290,7 @@ export const ensureUseBackfillServiceListBackfillDagRunsData = (queryClient: Que
 * @returns BackfillCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseBackfillServiceListBackfillsUiData = (queryClient: QueryClient, { active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
+export const ensureUseBackfillServiceListBackfillsUiData = (queryClient: QueryClient, { active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
   active?: boolean;
   completedAtGt?: string;
   completedAtGte?: string;
@@ -297,6 +301,10 @@ export const ensureUseBackfillServiceListBackfillsUiData = (queryClient: QueryCl
   createdAtLt?: string;
   createdAtLte?: string;
   dagId?: string;
+  durationGt?: number;
+  durationGte?: number;
+  durationLt?: number;
+  durationLte?: number;
   fromDateGt?: string;
   fromDateGte?: string;
   fromDateLt?: string;
@@ -313,7 +321,7 @@ export const ensureUseBackfillServiceListBackfillsUiData = (queryClient: QueryCl
   toDateGte?: string;
   toDateLt?: string;
   toDateLte?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }), queryFn: () => BackfillService.listBackfillsUi({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }), queryFn: () => BackfillService.listBackfillsUi({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }) });
 /**
 * Get Connection
 * Get a connection entry.
@@ -943,6 +951,25 @@ export const ensureUseDagServiceGetLatestRunInfoData = (queryClient: QueryClient
 export const ensureUseDagServiceGetDagRunStateCountsUiData = (queryClient: QueryClient, { dagIds }: {
   dagIds: string[];
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) });
+/**
+* Get Recent Task Instance State Counts
+* Return recent task-instance state counts for the Dags of the given runs, for the Dag list page.
+*
+* Like the Airflow 2 "Recent Tasks" column, a Dag's counts cover all of its running Dag
+* runs, or its latest run when none is running.
+*
+* The Dag list response already carries the latest run of each Dag, so the caller passes
+* those run ids straight in. Deriving the latest run again here would mean an
+* ``ORDER BY run_after DESC LIMIT 1`` per Dag, which has no supporting index and degrades
+* badly once a Dag has many runs. Runs the caller may not read are dropped.
+* @param data The data for the request.
+* @param data.dagRunIds
+* @returns DAGsRecentTaskInstanceStateCountsCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagServiceGetRecentTaskInstanceStateCountsUiData = (queryClient: QueryClient, { dagRunIds }: {
+  dagRunIds: number[];
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetRecentTaskInstanceStateCountsUiKeyFn({ dagRunIds }), queryFn: () => DagService.getRecentTaskInstanceStateCountsUi({ dagRunIds }) });
 /**
 * Get Event Log
 * @param data The data for the request.
@@ -1866,16 +1893,22 @@ export const ensureUseTaskServiceGetTasksData = (queryClient: QueryClient, { dag
 /**
 * Get Task
 * Get simplified representation of a task.
+*
+* Pass ``version_number`` (e.g. a task instance's ``dag_version.version_number``) to get the task
+* as defined in that Dag version. Without it the latest version is used. Returns 404 if that
+* version of the Dag does not exist.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.taskId
+* @param data.versionNumber
 * @returns TaskResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseTaskServiceGetTaskData = (queryClient: QueryClient, { dagId, taskId }: {
+export const ensureUseTaskServiceGetTaskData = (queryClient: QueryClient, { dagId, taskId, versionNumber }: {
   dagId: string;
   taskId: unknown;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId }), queryFn: () => TaskService.getTask({ dagId, taskId }) });
+  versionNumber?: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId, versionNumber }), queryFn: () => TaskService.getTask({ dagId, taskId, versionNumber }) });
 /**
 * Get Variable
 * Get a variable entry.

@@ -22,7 +22,6 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 
 export class DagCalendarTab extends BasePage {
   public readonly dailyToggle: Locator;
-  public readonly failedToggle = this.page.getByRole("button", { name: /failed/i });
   public readonly hourlyToggle: Locator;
   public readonly totalToggle = this.page.getByRole("button", { name: /total/i });
 
@@ -39,46 +38,6 @@ export class DagCalendarTab extends BasePage {
 
     this.hourlyToggle = page.getByRole("button", { name: /hourly/i });
     this.dailyToggle = page.getByRole("button", { name: /daily/i });
-  }
-
-  public async getActiveCellColors(): Promise<Array<string>> {
-    const count = await this.activeCells.count();
-    const colors: Array<string> = [];
-
-    for (let i = 0; i < count; i++) {
-      const cell = this.activeCells.nth(i);
-      const computedColor = await cell.evaluate((el: Element) => {
-        const getRenderableColor = (element: Element): string => {
-          const color = window.getComputedStyle(element).backgroundColor;
-
-          return color && color !== "rgba(0, 0, 0, 0)" && color !== "transparent" ? color : "";
-        };
-
-        const cellColor = getRenderableColor(el);
-
-        if (cellColor) {
-          return cellColor;
-        }
-
-        const children = [...el.querySelectorAll("*")];
-
-        for (const child of children) {
-          const childColor = getRenderableColor(child);
-
-          if (childColor) {
-            return childColor;
-          }
-        }
-
-        return "";
-      });
-
-      if (computedColor) {
-        colors.push(computedColor);
-      }
-    }
-
-    return colors;
   }
 
   public async getActiveCellCount(): Promise<number> {
@@ -114,10 +73,6 @@ export class DagCalendarTab extends BasePage {
     await this.waitForCalendarReady();
   }
 
-  public async switchToFailedView(): Promise<void> {
-    await this.failedToggle.click();
-  }
-
   public async switchToHourly(): Promise<void> {
     await this.hourlyToggle.click();
 
@@ -127,6 +82,8 @@ export class DagCalendarTab extends BasePage {
 
   public async switchToTotalView(): Promise<void> {
     await this.totalToggle.click();
+
+    await expect(this.page).toHaveURL(/calendar-view-mode=total/u);
   }
 
   private async waitForCalendarReady(): Promise<void> {

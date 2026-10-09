@@ -338,11 +338,12 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
-        # Optional scoping, limiting where this view is shown. Omit it entirely to show the view
-        # everywhere (the default). See "Scoping a view to specific Dags and tasks" below.
+        # Optional scoping, limiting where this view is shown. Keys are dotted field paths into
+        # the records the page has. Omit it entirely to show the view everywhere (the default).
+        # See "Scoping a view to specific Dags and tasks" below.
         "applies_to": {
-            "dag_tags": ["production", "ml"],
-            "dag_ids": ["my_dag", "my_other_dag"],
+            "dag.tags.name": ["production", "ml"],
+            "dag.dag_id": ["my_dag", "my_other_dag"],
         },
     }
 
@@ -374,11 +375,12 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
-        # Optional scoping, limiting where this app is shown. Omit it entirely to show the app
-        # everywhere (the default). See "Scoping a view to specific Dags and tasks" below.
+        # Optional scoping, limiting where this app is shown. Keys are dotted field paths into
+        # the records the page has. Omit it entirely to show the app everywhere (the default).
+        # See "Scoping a view to specific Dags and tasks" below.
         "applies_to": {
-            "dag_tags": ["production", "ml"],
-            "operators": ["KubernetesPodOperator"],
+            "dag.tags.name": ["production", "ml"],
+            "operator_name": ["KubernetesPodOperator"],
         },
     }
 
@@ -404,54 +406,155 @@ relevant instead of appearing on every Dag:
 .. code-block:: python
 
     "applies_to": {
-        "dag_tags": ["ml"],  # Dag carries any of these tags
-        "dag_ids": ["train_pipeline"],  # exact dag_id
-        "task_ids": ["train_model"],  # exact task_id
-        "operators": ["KubernetesPodOperator"],  # operator class name
+        "state": ["failed", "upstream_failed"],  # the entity's own field
+        "dag.tags.name": ["ml"],  # a related record, array-aware
+        "dag.dag_id": ["train_pipeline"],
     }
 
-All keys are optional. ``operators`` and ``operator_names`` are matched separately, the same
-way the task instance filters treat them: ``operators`` is the operator class name, while
-``operator_names`` is the display name shown in the UI (an operator's
-``custom_operator_name``). For a plain operator the two are identical, so either key works.
-They differ for decorator-based tasks: a ``@task.bash`` task has the display name
-``@task.bash`` but the private class name ``_BashDecoratedOperator``, so use
-``operator_names`` to target it.
+Keys are **dotted field paths** into the records the page has, so any field the REST API
+returns for an entity is addressable. Use the names the API returns, which are not always the
+Python attribute names: a task instance's run is ``dag_run_id``, not ``run_id``, and computed
+fields such as a Dag's ``is_backfillable`` work like any other. Values are matched for equality
+and compared as strings, so numbers and booleans need no quoting rules of their own
+(``"try_number": ["2"]``, ``"is_paused": ["false"]``).
 
-Criteria combine like Kubernetes label selectors — **OR within a key, AND across keys**. A
-Dag matching any listed tag satisfies ``dag_tags``, and a view configured with both
-``dag_tags`` and ``operators`` requires both to match.
+An **unqualified path is rooted at the entity the destination is about** — on ``dag_run``,
+``state`` is the run's state; on ``task_instance``, the task instance's. A path may instead
+name a related record as its first segment: ``dag``, ``dag_run``, ``task`` or
+``task_instance``. Traversing a list fans out across it, so ``dag.tags.name`` collects every
+tag name and matches if any of them is listed.
 
-Crucially, the AND applies **only across criteria the current page can evaluate**. A
-``task_ids`` criterion cannot be judged on a Dag-level page, so it is skipped there rather
-than failing the match. This lets one ``applies_to`` block be shared by a plugin's Dag- and
-task-level destinations. Which criteria each destination can evaluate:
+Paths combine like Kubernetes label selectors — **OR within a path, AND across paths** — but
+the AND applies only across paths the page can evaluate. A ``task_instance.*`` path cannot be
+judged on a Dag-level page, so it is skipped there rather than failing the match, which is what
+lets one block be shared across a plugin's destinations. Which records each destination
+resolves:
 
 .. list-table::
    :header-rows: 1
 
    * - Destination
-     - ``dag_tags`` / ``dag_ids``
-     - ``task_ids`` / ``operators`` / ``operator_names``
-   * - ``dag``, ``dag_run``, ``dag_overview``
-     - evaluated
-     - skipped
-   * - ``task``, ``task_overview``, ``task_instance``
-     - evaluated
-     - evaluated
+     - Unqualified path is rooted at
+     - Records a qualified path can reach
+   * - ``dag``, ``dag_overview``
+     - ``dag``
+     - ``dag``
+   * - ``dag_run``
+     - ``dag_run``
+     - ``dag``, ``dag_run``
+   * - ``task``, ``task_overview``
+     - ``task``
+     - ``dag``, ``task``
+   * - ``task_instance``
+     - ``task_instance``
+     - ``dag``, ``dag_run``, ``task``, ``task_instance``
    * - ``nav``, ``base``, ``dashboard``, ``asset``
-     - skipped
-     - skipped
+     - —
+     - none, so every path is skipped
 
-If none of the configured criteria can be evaluated on a given page, the view is shown. On
-task group pages the task-level criteria are skipped, since a group is not a task.
+If none of the configured paths can be evaluated on a given page, the view is shown. On task
+group pages the task-level records are absent, since a group is not a task.
 
-A malformed ``applies_to`` — one that is not a dictionary, names an unknown criterion, or
-gives a criterion something other than a list of strings — is reported as a warning when
-plugins are loaded, and ignored, so the view still loads unscoped. Configuring a criterion
-the ``destination`` cannot evaluate (for example ``task_ids`` on a ``dag`` view) is also
-warned about, since it has no effect there. Check the API server log for these warnings if a
-view is not scoped the way you expect.
+A path is also skipped when the record exists but has no such field, which on its own would mean
+a **typo widens the scope rather than narrowing it**. So paths are checked against the API
+response models when plugins load, and one that names a field *no* record has is treated as a
+misconfiguration: the view is **not loaded at all**, and the reason is logged as an error with a
+suggested correction.
+
+.. code-block:: text
+
+    Plugin 'acme' has an external view 'Incidents' with an 'applies_to' path that matches no
+    field: 'dag.tags.nme' names no field 'nme' on DagTagResponse (did you mean 'name'?). It
+    could never scope the way it asks to, so the view will not be loaded.
+
+Withholding it is deliberate: the author asked to narrow by something that cannot exist, so the
+view can never appear for the reason they intended, and a view that disappears gets noticed
+while one on every page looks deliberate.
+
+A path naming a field some *other* record has is a different matter — that is the shared-block
+pattern, so it is reported as skipped here and the view loads. Neither check can see past a
+field the models do not describe — the dict behind ``class_ref``, or a Dag Run's ``conf`` — so a
+typo below one of those still widens silently.
+
+If a view appears in more places than you expect, run ``airflow plugins --verbose``, then check
+the path against the REST API response for that entity.
+
+An empty list is different from a missing field: a Dag with no tags has definitively answered
+``dag.tags.name``, so the view is not shown. A path that stops short of a leaf is likewise a
+decided answer rather than a skip: ``dag.tags`` resolves to a list of objects, which have no
+comparable value, so the view is hidden. Address the field you mean to compare
+(``dag.tags.name``).
+
+Targeting operators
+^^^^^^^^^^^^^^^^^^^
+
+``operator_name`` is spelled the same way on a task and on a task instance, so **one
+unqualified path targets an operator on either page**:
+
+.. code-block:: python
+
+    "applies_to": {"operator_name": ["KubernetesPodOperator"]}
+
+``operator_name`` is the display name the UI shows (an operator's ``custom_operator_name``).
+It equals the class name for a plain operator, but not for a decorated one: a ``@task.bash``
+task is named ``@task.bash`` and classed ``_BashDecoratedOperator``.
+
+It is also the only operator field both records carry. The *class* name is spelled differently
+on each — a task instance has ``operator``, a task has ``class_ref.class_name`` — so targeting
+it takes one view per destination, each scoped on its own record:
+
+.. code-block:: python
+
+    external_views = [
+        {
+            # ... name, href, and a url_route of its own
+            "destination": "task_instance",
+            "applies_to": {"operator": ["KubernetesPodOperator"]},
+        },
+        {
+            # ...
+            "destination": "task",
+            "applies_to": {"class_ref.class_name": ["KubernetesPodOperator"]},
+        },
+    ]
+
+One block naming both also works, since whichever field this page's record lacks is skipped:
+
+.. code-block:: python
+
+    "applies_to": {
+        # On a task page the first is skipped and the second decides; on a task instance
+        # page, the reverse. Prefer `operator_name` unless you need the private class name.
+        "operator": ["KubernetesPodOperator"],
+        "class_ref.class_name": ["KubernetesPodOperator"],
+    }
+
+Qualifying them — ``task_instance.operator`` and ``task.class_ref.class_name`` — works too, but
+says the same thing twice: a task instance page resolves both records, so both are evaluated and
+AND-ed. The task record is read at the version that instance ran, so the two agree; naming one
+of them is enough.
+
+The general rule where records overlap: **prefer an unqualified path**, which always reads the
+entity the page is about, and qualify one only when you genuinely mean a different record —
+``dag.tags.name`` from a task instance, say.
+
+A malformed ``applies_to`` — one that is not a dictionary, has a non-string or empty path, or
+gives a path something other than a list of strings — is reported as a warning when plugins
+are loaded, and ignored, so the view still loads unscoped. Configuring a path whose root the
+``destination`` cannot resolve (for example ``task_instance.state`` on a ``dag`` view) is also
+warned about, since it has no effect there.
+
+All of these are logged when the UI plugins are first collected, which happens in the API
+server the first time anything requests ``/api/v2/plugins`` — and only once per process, so
+reloading the page will not log them again. To see them on demand instead of searching the API
+server log, run:
+
+.. code-block:: bash
+
+    airflow plugins --verbose
+
+Each invocation is a fresh process, so every warning for every plugin is reported. The
+``--verbose`` flag is required: without it the command suppresses log output.
 
 .. note::
     ``applies_to`` is a display convenience, not an authorization boundary. It controls

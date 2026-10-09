@@ -124,3 +124,19 @@ def extract_supervisor_schema_version(metadata: dict[str, Any]) -> str:
     if not isinstance(value, str) or not value:
         raise ValueError("missing or invalid sdk.supervisor_schema_version")
     return value
+
+
+def resolve_source_path(metadata: dict[str, Any], dag_id: str | None) -> str | None:
+    """
+    Return the embedded source path to show for *dag_id*, or ``None`` when there is none.
+
+    A Dag mapped in ``dag_source_paths`` resolves to its own file. Any other Dag, such as one built
+    dynamically, and a *dag_id* of ``None`` resolve to ``entrypoint_path``.
+    """
+    dag_source_paths = metadata.get("dag_source_paths")
+    if dag_id is not None and isinstance(dag_source_paths, dict):
+        mapped = dag_source_paths.get(dag_id)
+        if isinstance(mapped, str):
+            return mapped
+    entrypoint_path = metadata.get("entrypoint_path")
+    return entrypoint_path if isinstance(entrypoint_path, str) else None

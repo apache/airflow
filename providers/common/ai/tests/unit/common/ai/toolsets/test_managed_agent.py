@@ -233,8 +233,7 @@ class TestCallTool:
     async def test_logs_the_agent_it_consulted(self, caplog):
         with caplog.at_level("INFO"):
             await call(FakeManagedAgentToolset())
-        assert "specialist-1" in caplog.text
-        assert "fake.cloud" in caplog.text
+        assert "Consulted managed agent specialist-1 on fake.cloud" in caplog.messages
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats.incr", autospec=True)
@@ -313,8 +312,10 @@ class TestManagedAgentToolset:
         client = FakeClient(ref_raises=RuntimeError("Connection 'standby' not found"))
         with caplog.at_level("WARNING"):
             assert await call(ManagedAgentToolset(client, tool_name="ask"), "q") == "the answer: q"
-        assert "identity could not be resolved" in caplog.text
-        assert "Connection 'standby' not found" in caplog.text
+        [record] = [
+            r for r in caplog.records if r.getMessage() == "Managed agent identity could not be resolved"
+        ]
+        assert str(record.exc_info[1]) == "Connection 'standby' not found"
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats.incr", autospec=True)

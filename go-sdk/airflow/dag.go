@@ -18,6 +18,7 @@
 package airflow
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -32,6 +33,9 @@ import (
 // DagRef is a Dag authored in Go. [Dag] returns a new one.
 type DagRef struct {
 	dagID string
+	// file is the source file that called Dag, as the compiler recorded it. It is empty when the
+	// runtime cannot report a caller.
+	file string
 	// Dag and Task copy the specs they are given with copySpec, so a caller cannot change a
 	// registered Dag through a spec it still holds.
 	spec DagSpec
@@ -58,8 +62,7 @@ type DagRef struct {
 }
 
 // Dag returns an empty Dag with the given dag_id. An optional [DagSpec] holds the rest of the
-// Dag's attributes, and Dag panics if it gets more than one DagSpec. Add the tasks with
-// [DagRef.Task], then pass the Dag to [BundleRef.Register]:
+// Dag's attributes. Add the tasks with [DagRef.Task], then pass the Dag to [BundleRef.Register]:
 //
 //	dag := airflow.Dag("etl")
 //	dag.Task(extract)
@@ -67,11 +70,24 @@ type DagRef struct {
 //
 //	bundle.Register(dag)
 //
-// Add every task before Register. [DagRef.Task], [DagRef.If], [DagRef.TaskGroup], [IfRef.Then],
-// [IfRef.Else] and the methods of [TaskGroupRef] panic once the Dag is registered.
+// Add every task before Register. [DagRef.Task], [DagRef.If], [DagRef.Switch], [DagRef.TaskGroup],
+// [IfRef.Then], [IfRef.Else], [SwitchRef.Case] and the methods of [TaskGroupRef] panic once the Dag
+// is registered.
 //
-// [BundleRef.Serve] does not yet serve the Dags that Dag returns. It leaves them out of the
-// --airflow-metadata manifest and cannot run their tasks.
+// The bundle embeds the source file that calls Dag, so call it from the file that declares the Dag.
+// A Dag built in a factory function belongs to the file of the factory.
+//
+// [BundleRef.Serve] sends the registered Dags to the Dag processor and runs their tasks, but does
+// not list them in the dags of the --airflow-metadata manifest.
+//
+// Dag panics if it gets more than one DagSpec, or if the DagSpec has a value that Python rejects
+// when it builds or validates a Dag:
+//   - Schedule is something other than an empty string, a preset or a cron expression of five to
+//     seven fields
+//   - Schedule is "@continuous" and MaxActiveRuns is not 1
+//   - Catchup is true and StartDate is the zero Time, for a Dag that has a Schedule
+//   - a tag in Tags is longer than 100 characters
+//   - the year of StartDate or EndDate in UTC is not from 1 to 9999
 func Dag(dagID string, spec ...DagSpec) *DagRef {
 	if len(spec) > 1 {
 		panic(fmt.Sprintf(
@@ -81,31 +97,75 @@ func Dag(dagID string, spec ...DagSpec) *DagRef {
 		))
 	}
 	d := &DagRef{dagID: dagID}
+	_, d.file, _, _ = runtime.Caller(1)
 	if len(spec) == 1 {
+		if err := checkDagSpec(spec[0]); err != nil {
+			panic(fmt.Sprintf("airflow.Dag: Dag %q: %v", dagID, err))
+		}
 		d.spec = copySpec(spec[0])
 	}
 	return d
+}
+
+// tagMaxLength is the longest tag that Python's DAG accepts, counted in characters. Airflow stores
+// a tag in a column of that length.
+const tagMaxLength = 100
+
+// TODO: run this validation only at build time (airflow-go-pack), not on every Dag call.
+//
+// checkDagSpec rejects a DagSpec with a value that Python rejects when it builds or validates a
+// Dag. Depending on the value, Airflow would otherwise fail to load the serialized Dag, fail to
+// store the Dag, or never schedule the Dag.
+func checkDagSpec(spec DagSpec) error {
+	if err := checkSchedule(spec.Schedule); err != nil {
+		return err
+	}
+	// An unset MaxActiveRuns takes [core] max_active_runs_per_dag, which is 16 by default.
+	if spec.Schedule == "@continuous" && spec.MaxActiveRuns != 1 {
+		return errors.New(
+			`airflow.DagSpec.Schedule is "@continuous", which allows one active Dag run at a ` +
+				"time; set MaxActiveRuns to 1",
+		)
+	}
+	if spec.Catchup != nil && *spec.Catchup && spec.Schedule != "" && spec.StartDate.IsZero() {
+		return errors.New(
+			"airflow.DagSpec.Catchup is true, which needs a StartDate to catch up from; " +
+				"set StartDate",
+		)
+	}
+	for _, tag := range spec.Tags {
+		if n := utf8.RuneCountInString(tag); n > tagMaxLength {
+			return fmt.Errorf(
+				"airflow.DagSpec.Tags has %q, which has %d characters; a tag has at most %d",
+				tag, n, tagMaxLength,
+			)
+		}
+	}
+	if err := checkTime("airflow.DagSpec.StartDate", spec.StartDate); err != nil {
+		return err
+	}
+	return checkTime("airflow.DagSpec.EndDate", spec.EndDate)
 }
 
 func (*DagRef) registerable() {}
 
 // TaskRef is a task that [DagRef.Task] or [TaskGroupRef.Task] added to a Dag. Pass it to [Inputs]
 // to give its result to a task added later. Pass it to [IfRef.Then] or [IfRef.Else] to run it on
-// one side of a condition. A TaskRef is a [Node], so [TaskRef.Before] and [TaskRef.After] order it
-// against another task or a task group.
+// one side of a condition. Pass it to [SwitchRef.Case] to make it a case of a switch. A TaskRef is
+// a [Node], so [TaskRef.Before] and [TaskRef.After] order it against another task or a task group.
 type TaskRef struct {
 	dag *DagRef
 	// group is the task group that the task was added through. It is nil for a task that
-	// DagRef.Task or DagRef.If added.
+	// DagRef.Task, DagRef.If or DagRef.Switch added.
 	group  *TaskGroupRef
 	taskID string
 	spec   TaskSpec
 	// resultType is the type of the result that the task function returns with its error. It is
 	// nil when the function returns only an error.
 	resultType reflect.Type
-	// inputs holds the tasks that Inputs passed, in the order of the parameters they fill. Each
-	// of them is an upstream task of this one.
-	inputs []*TaskRef
+	// inputs holds what Inputs passed, in the order of the parameters it fills. The task of each ref
+	// is an upstream task of this one, and a literal adds no edge.
+	inputs []taskInput
 	// upstreams and downstreams hold the edges of the task, in the order they were declared and
 	// without a repeat, so that an edge is recorded in both directions. Inputs, Before and After
 	// all record an edge here.
@@ -116,17 +176,17 @@ type TaskRef struct {
 	// It is nil for a task that runs a Go function. A task from TriggerDagRun runs no Go
 	// function, so its resultType, inputs and task are nil.
 	triggerDagRun *TriggerDagRunSpec
-	// ifRef is the IfRef that DagRef.If or TaskGroupRef.If returned for the task. It is nil for a
-	// task from DagRef.Task or TaskGroupRef.Task.
-	ifRef *IfRef
+	// decider is the IfRef or the SwitchRef that an If or a Switch method returned for the task. It
+	// is nil for a task from DagRef.Task or TaskGroupRef.Task.
+	decider decider
 }
 
 // Task adds a task that runs fn to the Dag and returns the new task.
 //
 // fn takes a [Context] first and returns either error or (result, error), like a function
 // passed to [TaskHandler]. The parameters after the Context take the results of the tasks
-// passed to [Inputs], in order. fn can also be the value that [TriggerDagRun] returns. The task
-// then runs no Go code and takes no Inputs.
+// and the [Literal] values passed to [Inputs], in order. fn can also be the value that
+// [TriggerDagRun] returns. The task then runs no Go code and takes no Inputs.
 //
 // The task_id is the name of fn, spelled exactly as it is in Go. dag.Task(extractRows) adds the
 // task extractRows, and dag.Task(svc.Extract), which passes a method value, adds the task
@@ -154,7 +214,8 @@ type TaskRef struct {
 //   - opts holds more than one TaskSpec or more than one Inputs
 //   - the TaskSpec sets TriggerRule to a value that is not a TriggerRule constant
 //   - the TaskSpec sets WeightRule to a value that is not a WeightRule constant
-//   - the tasks passed to Inputs do not match the parameters of fn after the Context
+//   - the year of the StartDate or the EndDate of the TaskSpec in UTC is not from 1 to 9999
+//   - the inputs passed to Inputs do not match the parameters of fn after the Context
 //   - the task_id, with the group_ids that prefix it, is longer than 250 characters, or holds a
 //     character other than a letter, a digit, an underscore, a dash or a dot, as Python's
 //     validate_key requires
@@ -165,11 +226,22 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 	return d.addTask("airflow.DagRef.Task", nil, fn, opts, nil)
 }
 
-// addTask adds a task for Task and If, of the Dag or of a task group. method names the caller in
-// panic messages. group is the task group that the task is added through, and nil for a task of
-// the Dag itself. ifRef is the IfRef that If returns, and nil when Task calls addTask.
+// decider is the IfRef that If returns or the SwitchRef that Switch returns. addTask uses it to
+// add the task that decides which tasks after it to skip.
+type decider interface {
+	// wrap checks the result types of fn and wraps fn as a bundle.Task that skips the tasks that fn
+	// does not choose.
+	wrap(fn any) (bundle.Task, error)
+	// bind records task as the task that runs the function of the decider.
+	bind(task *TaskRef)
+}
+
+// addTask adds a task for Task, If and Switch, of the Dag or of a task group. method names the
+// caller in panic messages. group is the task group that the task is added through, and nil for a
+// task of the Dag itself. decider is the IfRef or the SwitchRef of the task, and nil when Task
+// calls addTask.
 func (d *DagRef) addTask(
-	method string, group *TaskGroupRef, fn any, opts []TaskOption, ifRef *IfRef,
+	method string, group *TaskGroupRef, fn any, opts []TaskOption, decider decider,
 ) *TaskRef {
 	trigger, isTrigger := fn.(TriggerDagRunTask)
 	var triggerSpec *TriggerDagRunSpec
@@ -195,8 +267,8 @@ func (d *DagRef) addTask(
 	var wrapped bundle.Task
 	if !isTrigger {
 		wrap := bundle.NewPositionalTaskFunction
-		if ifRef != nil {
-			wrap = ifRef.wrapCondition
+		if decider != nil {
+			wrap = decider.wrap
 		}
 		var err error
 		if wrapped, err = newTaskFunction(fn, wrap); err != nil {
@@ -279,7 +351,7 @@ func (d *DagRef) addTask(
 			method, d.dagID, taskID, taken,
 		))
 	}
-	var upstreams []*TaskRef
+	var taskInputs []taskInput
 	var resultType reflect.Type
 	if isTrigger {
 		if cfg.hasInputs {
@@ -291,7 +363,7 @@ func (d *DagRef) addTask(
 		}
 	} else {
 		fnType := reflect.TypeOf(fn)
-		upstreams = d.checkInputs(method, taskID, fnType, cfg.inputs)
+		taskInputs = d.checkInputs(method, taskID, fnType, cfg.inputs)
 		// newTaskFunction has checked that fn returns either error or (result, error).
 		if fnType.NumOut() == 2 {
 			resultType = fnType.Out(0)
@@ -304,13 +376,13 @@ func (d *DagRef) addTask(
 		taskID:        taskID,
 		spec:          copySpec(cfg.spec),
 		resultType:    resultType,
-		inputs:        upstreams,
+		inputs:        taskInputs,
 		task:          wrapped,
 		triggerDagRun: triggerSpec,
-		ifRef:         ifRef,
+		decider:       decider,
 	}
-	if ifRef != nil {
-		ifRef.task = task
+	if decider != nil {
+		decider.bind(task)
 	}
 	if d.tasksByID == nil {
 		d.tasksByID = make(map[string]*TaskRef)
@@ -322,20 +394,22 @@ func (d *DagRef) addTask(
 	}
 	// Inputs passes a task once per parameter it fills, so the same task can arrive twice. The
 	// edge is one either way, and the task is new, so no edge to it carries a label to settle.
-	for _, upstream := range upstreams {
-		d.addEdgeLocked(upstream, task, "")
+	for _, input := range taskInputs {
+		if !input.literal {
+			d.addEdgeLocked(input.ref, task, "")
+		}
 	}
 	return task
 }
 
 // markRegistered marks d as registered, which stops any further change to d. It panics instead
-// when a condition from If has no task from Then, or when the edges of d close a cycle. The Dag is
-// whole by then, so markRegistered can expand the group edges in the order they were first
-// declared, and a walk of the whole graph answers for every edge. It walks the graph before the
-// expansion too, so that a cycle between the edges the author declared is reported as declared.
-// A Dag that fails a check stays unregistered and holds only the edges its author declared. The
-// author can still give a condition its task from Then, but cannot undo a cycle, since a Dag only
-// ever gains edges.
+// when a condition from If has no task from Then, when a switch from Switch has no case, or when
+// the edges of d close a cycle. The Dag is whole by then, so markRegistered can expand the group
+// edges in the order they were first declared, and a walk of the whole graph answers for every
+// edge. It walks the graph before the expansion too, so that a cycle between the edges the author
+// declared is reported as declared. A Dag that fails a check stays unregistered and holds only the
+// edges its author declared. The author can still complete the Dag with IfRef.Then or
+// SwitchRef.Case, but cannot undo a cycle, since a Dag only ever gains edges.
 func (d *DagRef) markRegistered() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -345,12 +419,23 @@ func (d *DagRef) markRegistered() {
 		return
 	}
 	for _, task := range d.tasks {
-		if task.ifRef != nil && task.ifRef.thenTask == nil {
-			panic(fmt.Sprintf(
-				"airflow.BundleRef.Register: condition %q of Dag %q has no task from Then; "+
-					"name the task that runs when the condition is true with IfRef.Then",
-				task.taskID, d.dagID,
-			))
+		switch decider := task.decider.(type) {
+		case *IfRef:
+			if decider.thenTask == nil {
+				panic(fmt.Sprintf(
+					"airflow.BundleRef.Register: condition %q of Dag %q has no task from Then; "+
+						"name the task that runs when the condition is true with IfRef.Then",
+					task.taskID, d.dagID,
+				))
+			}
+		case *SwitchRef:
+			if len(decider.cases) == 0 {
+				panic(fmt.Sprintf(
+					"airflow.BundleRef.Register: switch %q of Dag %q has no case; "+
+						"name each task that the switch can choose with SwitchRef.Case",
+					task.taskID, d.dagID,
+				))
+			}
 		}
 	}
 	if cycle := d.cycleLocked(); cycle != nil {

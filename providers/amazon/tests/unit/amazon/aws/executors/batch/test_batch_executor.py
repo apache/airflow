@@ -59,7 +59,9 @@ from tests_common.test_utils.version_compat import (
 
 if hasattr(BaseExecutor, "get_task_key"):
     from airflow.executors.workloads.types import TaskInstanceUuid
-    from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+    if not AIRFLOW_V_3_4_PLUS:
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 ARN1 = "arn1"
@@ -1010,7 +1012,7 @@ class TestAwsBatchExecutor:
             task.pool_slots = 1
             task.priority_weight = 1
             task.context_carrier = {}
-            task.queued_dttm = dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc)
+            task.queued_dttm = dt.datetime(2024, 1, 1, tzinfo=dt.UTC)
             task.dag_model = mock.Mock()
             task.dag_model.bundle_name = "test_bundle"
             task.dag_model.relative_fileloc = "test_dag.py"
@@ -1455,9 +1457,14 @@ class TestTaskIdentity:
         session.commit()
         old_id = ti.id
 
-        ti.handle_failure("worker lost", session=session)
-        session.refresh(ti)
-        history = session.get(TaskInstanceHistory, old_id)
+        if AIRFLOW_V_3_4_PLUS:
+            successor = ti.handle_failure("worker lost", session=session)
+            history = session.get(TaskInstance, old_id)
+            ti = successor
+        else:
+            ti.handle_failure("worker lost", session=session)
+            session.refresh(ti)
+            history = session.get(TaskInstanceHistory, old_id)
 
         assert ti.state == TaskInstanceState.UP_FOR_RETRY
         assert ti.id != old_id

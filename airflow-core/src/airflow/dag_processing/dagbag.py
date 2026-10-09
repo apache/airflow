@@ -327,7 +327,11 @@ class DagBag(LoggingMixin):
 
         self.captured_warnings.pop(fileloc, None)
         self._import_warnings.pop(fileloc, None)
-        self.dag_source_codes.pop(fileloc, None)
+        # Keyed by dag_id, not fileloc: a bundle can embed several Dags' own source under one
+        # fileloc, so a stale entry is found by which dag_ids this fileloc previously bagged.
+        for dag_id, dag in list(self.dags.items()):
+            if dag.fileloc == fileloc:
+                self.dag_source_codes.pop(dag_id, None)
         bagged_dags: list[BaggedDAG]
         if self.parse_lang_sdk_files and is_coordinator_importer(importer):
             bagged_dags = list(self._import_lang_sdk_definition(definition))
@@ -335,9 +339,9 @@ class DagBag(LoggingMixin):
             bagged_dags = list(self._import_sdk_definition(importer, definition))
 
         self.file_last_changed[fileloc] = freshness_token
-        if bagged_dags:
+        for dag in bagged_dags:
             try:
-                self.dag_source_codes[fileloc] = importer.get_source_code(definition)
+                self.dag_source_codes[dag.dag_id] = importer.get_source_code(definition, dag.dag_id)
             except Exception:
                 self.log.exception("Failed to read source code of %s", fileloc)
         return bagged_dags

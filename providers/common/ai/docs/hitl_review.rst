@@ -23,7 +23,8 @@ Human-in-the-loop (HITL) review for agents
 HITL Review adds an interactive feedback loop to agentic operators. After the
 LLM Agent produces an initial output, a human reviewer can **approve**, **reject**, or
 **request changes** through a chat UI. The operator blocks until a
-terminal action, or until a timeout is reached or max_iterations reached.
+terminal action, or until a timeout is reached, max_iterations is reached, or
+polling the review XCom keeps failing.
 
 This document describes the architecture, workflow, API, XCom schema, and usage.
 
@@ -50,7 +51,8 @@ the API server and accesses the metadata database.
 
 .. important::
    **Worker slot usage**: Each HITL task **holds a worker slot for the entire
-   review duration** (until approve, reject, or timeout or max_iterations). The operator polls
+   review duration** (until approve, reject, timeout, max_iterations, or
+   repeated XCom polling failures). The operator polls
    XCom with ``time.sleep``; it does not defer. With a 10-second poll interval
    and review times of 30+ minutes, the worker is occupied for the duration.
 
@@ -133,7 +135,8 @@ Enable the review loop with ``enable_hitl_review=True``:
   changes at iterations 1 to 4; the fifth output must be either approved or
   rejected. Default ``5``.
 - ``hitl_timeout``: Maximum wall-clock time to wait for all review rounds.
-  ``None`` = no timeout (blocks until a terminal action).
+  ``None`` = no wall-clock timeout. The task still fails, re-raising the XCom error, if polling
+  the human action XCom fails 10 times in a row.
 - ``hitl_poll_interval``: Seconds between XCom polls while waiting for a
   human response. Default ``10``.
 

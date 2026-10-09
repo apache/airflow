@@ -28,6 +28,7 @@ import { Accordion, Modal } from "src/system-components";
 
 import { ActionErrors } from "src/components/ActionErrors";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 
@@ -39,7 +40,7 @@ type Props = {
   readonly selectedDagRuns: Array<DAGRunResponse>;
 };
 
-const getColumns = (translate: TFunction): Array<ColumnDef<DAGRunResponse>> => [
+const getColumns = (translate: TFunction): Array<ColumnDef<DataTableFeatures, DAGRunResponse>> => [
   {
     accessorKey: "dag_run_id",
     cell: ({ row: { original } }) => <Text>{original.dag_run_id}</Text>,

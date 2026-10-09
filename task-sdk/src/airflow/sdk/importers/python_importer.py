@@ -213,8 +213,8 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
         self._process_modules(modules, result, bundle=bundle)
         return result
 
-    def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
-        """Retrieve the raw source code for the Python definition."""
+    def get_source_code(self, definition: DagDefinition, dag_id: str | None = None) -> DagSourceCode:
+        """Retrieve the raw source code for the Python definition; *dag_id* does not narrow it further."""
         if get_file_suffix(definition) == ".pyc":
             return DagSourceCode(
                 source_code="# Sourceless bytecode (.pyc) — source code not available\n",

@@ -26,6 +26,7 @@ import { useJobServiceGetJobs } from "openapi/queries";
 import type { JobResponse, TaskInstanceState } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FilterBar } from "src/components/FilterBar";
@@ -37,7 +38,10 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
-const createColumns = (translate: TFunction, multiTeam: boolean): Array<ColumnDef<JobResponse>> => [
+const createColumns = (
+  translate: TFunction,
+  multiTeam: boolean,
+): Array<ColumnDef<DataTableFeatures, JobResponse>> => [
   {
     accessorKey: "id",
     header: translate("jobs.columns.id"),
@@ -60,7 +64,7 @@ const createColumns = (translate: TFunction, multiTeam: boolean): Array<ColumnDe
           enableSorting: false,
           header: translate("common:dagDetails.team"),
         },
-      ] as Array<ColumnDef<JobResponse>>)
+      ] as Array<ColumnDef<DataTableFeatures, JobResponse>>)
     : []),
   {
     accessorKey: "state",

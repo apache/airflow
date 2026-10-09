@@ -18,9 +18,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 from argparse import BooleanOptionalAction
+from datetime import UTC
 from pathlib import Path
 from textwrap import dedent
+from typing import Any
 from unittest import mock
 
 import httpx
@@ -43,6 +46,7 @@ from airflowctl.ctl.cli_config import (
     safe_call_command,
 )
 from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.ctl.utils.yaml import safe_load
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
@@ -746,7 +750,7 @@ class TestCliConfigMethods:
 
     def test_trigger_dag_run_defaults_logical_date_to_now(self):
         """Test that trigger command defaults logical_date to now when not provided."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
@@ -776,7 +780,7 @@ class TestCliConfigMethods:
             and "logical_date" in method_params[datamodel_param_name]
             and method_params[datamodel_param_name]["logical_date"] is None
         ):
-            method_params[datamodel_param_name]["logical_date"] = datetime.now(timezone.utc)
+            method_params[datamodel_param_name]["logical_date"] = datetime.now(UTC)
 
         # Step 3: Create the Pydantic model (what happens in the actual code)
         trigger_body = datamodel.model_validate(method_params[datamodel_param_name])
@@ -786,7 +790,7 @@ class TestCliConfigMethods:
         assert isinstance(trigger_body.logical_date, datetime)
 
         # Verify it's close to current time (within 5 seconds)
-        time_diff = abs((datetime.now(timezone.utc) - trigger_body.logical_date).total_seconds())
+        time_diff = abs((datetime.now(UTC) - trigger_body.logical_date).total_seconds())
         assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
 
         # Also verify timezone is UTC
@@ -794,7 +798,7 @@ class TestCliConfigMethods:
 
     def test_apply_datamodel_defaults_trigger_dag_run_with_none(self):
         """Test _apply_datamodel_defaults sets logical_date to now when None for TriggerDAGRunPostBody."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
@@ -808,7 +812,7 @@ class TestCliConfigMethods:
         assert isinstance(result["logical_date"], datetime)
 
         # Verify it's close to current time (within 5 seconds)
-        time_diff = abs((datetime.now(timezone.utc) - result["logical_date"]).total_seconds())
+        time_diff = abs((datetime.now(UTC) - result["logical_date"]).total_seconds())
         assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
 
         # Verify timezone is UTC
@@ -816,14 +820,14 @@ class TestCliConfigMethods:
 
     def test_apply_datamodel_defaults_trigger_dag_run_with_value(self):
         """Test _apply_datamodel_defaults preserves existing logical_date for TriggerDAGRunPostBody."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
         command_factory = CommandFactory()
 
         # Test with an existing logical_date value
-        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
         params = {"logical_date": specific_date, "conf": {}}
         result = command_factory._apply_datamodel_defaults(TriggerDAGRunPostBody, params)
 
@@ -987,3 +991,96 @@ class TestCliConfigMethods:
         args.func(args, api_client=mock.MagicMock(spec=Client))
 
         assert mocked_print_as.call_args.kwargs["output"] == "json"
+
+    @pytest.mark.parametrize(
+        ("output", "parse", "expected"),
+        [
+            pytest.param("json", json.loads, [{"tags": "etl"}, {"tags": "nightly"}], id="json"),
+            pytest.param("yaml", safe_load, [{"tags": "etl"}, {"tags": "nightly"}], id="yaml"),
+            pytest.param("table", str.split, ["tags", "=======", "etl", "nightly"], id="table"),
+            pytest.param("plain", str.split, ["tags", "etl", "nightly"], id="plain"),
+        ],
+    )
+    def test_collection_of_plain_values_prints_one_row_per_value(
+        self, api_client_maker, capsys, output, parse, expected
+    ):
+        """``dags get-tags`` receives plain strings, and the printer only renders records."""
+        api_client = api_client_maker(
+            path="/api/v2/dagTags",
+            response_json={"tags": ["etl", "nightly"], "total_entries": 2},
+            expected_http_status_code=200,
+        )
+        args = cli_parser.get_parser().parse_args(["dags", "get-tags", "--output", output])
+
+        args.func(args, api_client=api_client)
+
+        assert parse(capsys.readouterr().out) == expected
+
+    def test_list_of_records_prints_records_unwrapped(self, api_client_maker, capsys):
+        pools: list[dict[str, Any]] = [
+            {
+                "name": name,
+                "slots": 128,
+                "description": None,
+                "include_deferred": False,
+                "occupied_slots": 0,
+                "running_slots": 0,
+                "queued_slots": 0,
+                "scheduled_slots": 0,
+                "open_slots": 128,
+                "deferred_slots": 0,
+                "team_name": None,
+            }
+            for name in ("default_pool", "etl")
+        ]
+        api_client = api_client_maker(
+            path="/api/v2/pools",
+            response_json={"pools": pools, "total_entries": 2},
+            expected_http_status_code=200,
+        )
+        args = cli_parser.get_parser().parse_args(["pools", "list", "--output", "json"])
+
+        args.func(args, api_client=api_client)
+
+        rows = json.loads(capsys.readouterr().out)
+        assert [row["name"] for row in rows] == ["default_pool", "etl"]
+        assert all(row.keys() == pools[0].keys() for row in rows)
+
+    def test_nested_single_key_list_is_not_split_into_rows(self, api_client_maker, capsys):
+        api_client = api_client_maker(
+            path="/api/v2/dags/example/dagRuns/manual_run",
+            response_json={
+                "dag_run_id": "manual_run",
+                "dag_id": "example",
+                "logical_date": None,
+                "queued_at": None,
+                "start_date": None,
+                "end_date": None,
+                "duration": None,
+                "data_interval_start": None,
+                "data_interval_end": None,
+                "run_after": "2025-01-01T00:00:00Z",
+                "last_scheduling_decision": None,
+                "run_type": "manual",
+                "state": "success",
+                "triggered_by": None,
+                "triggering_user_name": None,
+                "conf": {"ids": ["a", "b"]},
+                "note": None,
+                "dag_versions": [],
+                "bundle_version": None,
+                "dag_display_name": "example",
+                "partition_key": None,
+                "partition_date": None,
+            },
+            expected_http_status_code=200,
+        )
+        args = cli_parser.get_parser().parse_args(
+            ["dagrun", "get", "example", "manual_run", "--output", "json"]
+        )
+
+        args.func(args, api_client=api_client)
+
+        rows = json.loads(capsys.readouterr().out)
+        assert [row["dag_run_id"] for row in rows] == ["manual_run"]
+        assert rows[0]["conf"] == ["a", "b"]

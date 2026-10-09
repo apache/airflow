@@ -22,6 +22,7 @@ from sqlalchemy import select, update
 
 from airflow.models.asset import (
     AssetAliasModel,
+    AssetEvent,
     AssetModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetNameReference,
@@ -35,6 +36,7 @@ from airflow.models.dag import DagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, AssetAlias
 from airflow.serialization.definitions.assets import SerializedAssetAlias
+from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.dag import sync_dags_to_db
 
@@ -55,6 +57,36 @@ def test_asset_alias_from_serialized():
     asset_alias_model = AssetAliasModel.from_serialized(asset_alias)
     assert asset_alias_model.name == "test_alias"
     assert asset_alias_model.group == "test_group"
+
+
+def test_source_task_instance_resolves_only_current_coordinate_row(dag_maker, session):
+    with dag_maker("asset_attempt_history", session=session):
+        EmptyOperator(task_id="task")
+    run = dag_maker.create_dagrun()
+    ti = run.get_task_instance("task")
+    ti.state = TaskInstanceState.SUCCESS
+    ti = session.merge(ti)
+    asset = AssetModel(name="attempt_source", uri="test://attempt_source")
+    session.add(asset)
+    session.flush()
+    event = AssetEvent(
+        asset_id=asset.id,
+        source_dag_id=ti.dag_id,
+        source_run_id=ti.run_id,
+        source_task_id=ti.task_id,
+        source_map_index=ti.map_index,
+    )
+    session.add(event)
+    session.flush()
+    event_id = event.id
+    old_id = ti.id
+    successor = ti.prepare_db_for_next_try(session)
+    successor_id = successor.id
+    session.commit()
+    session.expire_all()
+
+    assert session.get(AssetEvent, event_id).source_task_instance.id == successor_id
+    assert successor_id != old_id
 
 
 class TestAssetAliasModel:
