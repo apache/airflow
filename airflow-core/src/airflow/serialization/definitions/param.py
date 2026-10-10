@@ -20,13 +20,27 @@ from __future__ import annotations
 
 import collections.abc
 import copy
+import datetime
+import functools
+import operator
 from typing import TYPE_CHECKING, Any, Literal
 
+from airflow._shared.timezones import timezone
 from airflow.exceptions import ParamValidationError
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Callable, Iterator, Mapping
+
+# The ajv-formats keywords that bound a date param by another param, given as {"$data": "1/<param>"}.
+_DATE_BOUNDS: dict[str, tuple[Callable[[Any, Any], bool], str]] = {
+    "formatMinimum": (operator.ge, "on or after"),
+    "formatExclusiveMinimum": (operator.gt, "after"),
+}
+_DATE_PARSERS: dict[str, Callable[[str], Any]] = {
+    "date": datetime.date.fromisoformat,
+    "date-time": functools.partial(timezone.parse, strict=True),
+}
 
 
 class SerializedParam:
@@ -150,7 +164,10 @@ class SerializedParamsDict(collections.abc.Mapping[str, Any]):
             except Exception as e:
                 raise ParamValidationError(f"Invalid input for param {k}: {e}") from None
 
-        return {k: _validate_one(k, v) for k, v in self.__dict.items()}
+        resolved = {k: _validate_one(k, v) for k, v in self.__dict.items()}
+        for k, v in self.__dict.items():
+            _check_date_bounds(k, v.schema, resolved)
+        return resolved
 
     def dump(self) -> Mapping[str, Any]:
         """Dump the resolved values as a mapping."""
@@ -169,3 +186,29 @@ class SerializedParamsDict(collections.abc.Mapping[str, Any]):
             else:
                 params.__dict[k].value = v
         return params
+
+
+def _check_date_bounds(name: str, schema: Mapping[str, Any], resolved: Mapping[str, Any]) -> None:
+    """Check a date param against the params its date bounds reference; an empty value on either side passes."""
+    parse = _DATE_PARSERS.get(schema.get("format", ""))
+    if parse is None or (value := resolved[name]) is None:
+        return
+    for keyword, (compare, relation) in _DATE_BOUNDS.items():
+        if keyword not in schema:
+            continue
+        pointer = schema[keyword].get("$data", "") if isinstance(schema[keyword], dict) else ""
+        other = pointer.removeprefix("1/")
+        if not pointer.startswith("1/") or other not in resolved:
+            raise ParamValidationError(
+                f'Invalid input for param {name}: {keyword} must be {{"$data": "1/<param>"}}, not {schema[keyword]!r}'
+            )
+        if (bound := resolved[other]) is None:
+            continue
+        try:
+            holds = compare(parse(value), parse(bound))
+        except (TypeError, ValueError) as e:
+            raise ParamValidationError(f"Invalid input for param {name}: {e}") from None
+        if not holds:
+            raise ParamValidationError(
+                f"Invalid input for param {name}: {value!r} must be {relation} {other} ({bound!r})"
+            )
