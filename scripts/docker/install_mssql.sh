@@ -43,7 +43,7 @@ function install_mssql_client() {
     echo "${COLOR_BLUE}Installing mssql client${COLOR_RESET}"
     echo
 
-    echo "deb [arch=amd64,arm64] https://packages.microsoft.com/debian/$(lsb_release -rs)/prod $(lsb_release -cs) main" > \
+    echo "deb [arch=amd64,arm64] https://packages.microsoft.com/debian/$(common::debian_release)/prod $(common::debian_codename) main" > \
         /etc/apt/sources.list.d/mssql-release.list &&
     mkdir -p /opt/microsoft/msodbcsql18 &&
     touch /opt/microsoft/msodbcsql18/ACCEPT_EULA &&

@@ -43,7 +43,7 @@ install_postgres_client() {
 
     common::import_trusted_gpg "7FCC7D46ACCC4CF8" "postgres"
 
-    echo "deb [arch=amd64,arm64] https://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > \
+    echo "deb [arch=amd64,arm64] https://apt.postgresql.org/pub/repos/apt/ $(common::debian_codename)-pgdg main" > \
         /etc/apt/sources.list.d/pgdg.list
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"
