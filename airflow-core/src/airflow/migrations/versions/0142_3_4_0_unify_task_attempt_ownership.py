@@ -370,24 +370,244 @@ def upgrade():
         )
 
 
+def _build_task_instance_table():
+    return sa.table(
+        "task_instance",
+        sa.column("id"),
+        *(sa.column(c) for c in _COPY_COLUMNS),
+        sa.column("working_set", sa.Boolean()),
+        sa.column("dag_version_id"),
+    )
+
+
+def _build_legacy_owner_table():
+    return sa.table(
+        "legacy_task_data_owner", *(sa.column(c) for c in _COORDINATES), sa.column("task_instance_id")
+    )
+
+
+def _select_latest_attempts(ti):
+    newer = ti.alias("newer")
+    # An anti-join, because grouping by max(try_number) aggregates the whole table however few rows need copying.
+    return (
+        sa.select(ti.c.id, *(ti.c[c] for c in _COORDINATES))
+        .where(
+            ~sa.exists().where(
+                *(newer.c[c] == ti.c[c] for c in _COORDINATES), newer.c.try_number > ti.c.try_number
+            )
+        )
+        .subquery()
+    )
+
+
+def _has_duplicate_attempts(bind, ti) -> bool:
+    coordinates = [ti.c[c] for c in _COORDINATES]
+    for where, group_by in (
+        (ti.c.working_set.is_not(None), coordinates),
+        (sa.true(), [*coordinates, ti.c.try_number]),
+    ):
+        duplicated = sa.select(1).select_from(ti).where(where).group_by(*group_by).having(sa.func.count() > 1)
+        if bind.scalar(duplicated.limit(1)):
+            return True
+    return False
+
+
+def _select_archived_ids(ti):
+    return sa.select(ti.c.id).where(ti.c.working_set.is_(None))
+
+
+def _count_orphaned_archived_attempts(bind, ti) -> int:
+    current = ti.alias("current")
+    orphaned = (
+        sa.select(sa.func.count())
+        .select_from(ti)
+        .where(
+            ti.c.working_set.is_(None),
+            ~sa.exists().where(
+                *(current.c[c] == ti.c[c] for c in _COORDINATES), current.c.working_set.is_not(None)
+            ),
+        )
+    )
+    return bind.scalar(orphaned)
+
+
+def _has_moved_owners_with_legacy_rows(bind, ti) -> bool:
+    owner = _build_legacy_owner_table()
+    moved = sa.or_(*(owner.c[c] != ti.c[c] for c in _COORDINATES))
+    for name in ("xcom_v1", "rtif_v1"):
+        legacy = sa.table(name, *(sa.column(c) for c in _COORDINATES))
+        found = (
+            sa.select(1)
+            .select_from(owner.join(ti, ti.c.id == owner.c.task_instance_id))
+            .where(moved, sa.exists().where(*(legacy.c[c] == owner.c[c] for c in _COORDINATES)))
+        )
+        if bind.scalar(found.limit(1)):
+            return True
+    return False
+
+
+def _delete_moved_owners(ti):
+    owner = _build_legacy_owner_table()
+    op.execute(
+        owner.delete().where(
+            sa.exists().where(
+                ti.c.id == owner.c.task_instance_id,
+                sa.or_(*(ti.c[c] != owner.c[c] for c in _COORDINATES)),
+            )
+        )
+    )
+
+
+def _delete_legacy_rows_of_archived_attempts(ti):
+    owner = _build_legacy_owner_table()
+    archived_ids = _select_archived_ids(ti)
+    # Legacy rows owned by an archived attempt are hidden from its successor, so keeping them would expose them again.
+    for name in ("xcom_v1", "rtif_v1"):
+        legacy = sa.table(name, *(sa.column(c) for c in _COORDINATES))
+        op.execute(
+            legacy.delete().where(
+                sa.exists().where(
+                    *(owner.c[c] == legacy.c[c] for c in _COORDINATES),
+                    owner.c.task_instance_id.in_(archived_ids),
+                )
+            )
+        )
+
+
+def _move_owners_to_current_attempts(ti):
+    owner = _build_legacy_owner_table()
+    current = ti.alias("current")
+    archived_ids = _select_archived_ids(ti)
+    xcom_v2 = sa.table("xcom_v2", sa.column("task_instance_id"))
+    rtif_v2 = sa.table("rtif_v2", sa.column("task_instance_id"))
+    # Deleting archived attempts must not cascade into legacy rows through an owner that points at one.
+    op.execute(
+        owner.update()
+        .where(owner.c.task_instance_id.in_(archived_ids))
+        .values(
+            task_instance_id=sa.select(current.c.id)
+            .where(*(current.c[c] == owner.c[c] for c in _COORDINATES), current.c.working_set.is_not(None))
+            .scalar_subquery()
+        )
+    )
+    # Legacy tables reference owners by coordinates, so attempts created after the upgrade need an owner row first.
+    op.execute(
+        owner.insert().from_select(
+            [*_COORDINATES, "task_instance_id"],
+            sa.select(*(ti.c[c] for c in _COORDINATES), ti.c.id).where(
+                ti.c.working_set.is_not(None),
+                ti.c.id.in_(sa.select(xcom_v2.c.task_instance_id))
+                | ti.c.id.in_(sa.select(rtif_v2.c.task_instance_id)),
+                ~sa.exists().where(*(owner.c[c] == ti.c[c] for c in _COORDINATES)),
+            ),
+        )
+    )
+
+
+def _delete_replaced_legacy_rows(v1, v2, latest, *matching):
+    op.execute(
+        v1.delete().where(
+            sa.exists().where(
+                v2.c.task_instance_id == latest.c.id,
+                *(latest.c[c] == v1.c[c] for c in _COORDINATES),
+                *matching,
+            )
+        )
+    )
+
+
+def _copy_xcom_to_legacy(latest):
+    columns = ("key", "value", "timestamp", "dag_result", "mapped_length")
+    v2 = sa.table("xcom_v2", sa.column("task_instance_id"), *(sa.column(c) for c in columns))
+    v1 = sa.table("xcom_v1", *(sa.column(c) for c in (*_COORDINATES, *columns, "dag_run_id")))
+    dag_run = sa.table("dag_run", sa.column("id"), sa.column("dag_id"), sa.column("run_id"))
+    _delete_replaced_legacy_rows(v1, v2, latest, v2.c.key == v1.c.key)
+    source = v2.join(latest, v2.c.task_instance_id == latest.c.id).join(
+        dag_run, sa.and_(dag_run.c.dag_id == latest.c.dag_id, dag_run.c.run_id == latest.c.run_id)
+    )
+    op.execute(
+        v1.insert().from_select(
+            [*_COORDINATES, *columns, "dag_run_id"],
+            sa.select(
+                *(latest.c[c] for c in _COORDINATES), *(v2.c[c] for c in columns), dag_run.c.id
+            ).select_from(source),
+        )
+    )
+
+
+def _copy_rendered_fields_to_legacy(latest):
+    columns = ("rendered_fields", "k8s_pod_yaml")
+    v2 = sa.table("rtif_v2", sa.column("task_instance_id"), *(sa.column(c) for c in columns))
+    v1 = sa.table("rtif_v1", *(sa.column(c) for c in (*_COORDINATES, *columns)))
+    _delete_replaced_legacy_rows(v1, v2, latest)
+    op.execute(
+        v1.insert().from_select(
+            [*_COORDINATES, *columns],
+            sa.select(*(latest.c[c] for c in _COORDINATES), *(v2.c[c] for c in columns)).select_from(
+                v2.join(latest, v2.c.task_instance_id == latest.c.id)
+            ),
+        )
+    )
+
+
+def _move_archived_attempts_to_history(ti):
+    history = sa.table(
+        "task_instance_history",
+        sa.column("task_instance_id"),
+        *(sa.column(c) for c in _COPY_COLUMNS),
+        sa.column("dag_version_id"),
+    )
+    archived = ti.c.working_set.is_(None)
+    archived_ids = _select_archived_ids(ti)
+    op.execute(
+        history.insert().from_select(
+            ["task_instance_id", *_COPY_COLUMNS, "dag_version_id"],
+            sa.select(ti.c.id, *(ti.c[c] for c in _COPY_COLUMNS), ti.c.dag_version_id).where(archived),
+        )
+    )
+    hitl = sa.table("hitl_detail", sa.column("ti_id"), *(sa.column(c) for c in _HITL_COLUMNS))
+    hitl_history = sa.table(
+        "hitl_detail_history", sa.column("ti_history_id"), *(sa.column(c) for c in _HITL_COLUMNS)
+    )
+    op.execute(
+        hitl_history.insert().from_select(
+            ["ti_history_id", *_HITL_COLUMNS],
+            sa.select(hitl.c.ti_id, *(hitl.c[c] for c in _HITL_COLUMNS))
+            .join(ti, ti.c.id == hitl.c.ti_id)
+            .where(archived),
+        )
+    )
+    # SQLite runs this with foreign keys off, so cascades cannot be relied on.
+    for child in ("hitl_detail", "task_instance_note", "task_reschedule"):
+        child_table = sa.table(child, sa.column("ti_id"))
+        op.execute(child_table.delete().where(child_table.c.ti_id.in_(archived_ids)))
+    op.execute(ti.delete().where(archived))
+
+
 def downgrade():
-    """Refuse downgrade when the predecessor cannot represent retained ownership."""
+    """Fold the latest attempt's data back into the legacy tables and restore archived attempts to history."""
     if op.get_context().as_sql:
         raise RuntimeError("Offline downgrade cannot verify retained attempt ownership")
     bind = op.get_bind()
-    if bind.scalar(sa.text("SELECT 1 FROM task_instance WHERE working_set IS NULL LIMIT 1")):
-        raise RuntimeError("Cannot downgrade attempt ownership with historical attempts")
-    for name in ("xcom_v2", "rtif_v2"):
-        if bind.scalar(sa.text(f"SELECT 1 FROM {name} LIMIT 1")):
-            raise RuntimeError(f"Cannot downgrade attempt ownership with data in {name}")
-    if bind.scalar(
-        sa.text(
-            "SELECT 1 FROM legacy_task_data_owner o JOIN task_instance t ON t.id=o.task_instance_id "
-            "WHERE o.dag_id<>t.dag_id OR o.task_id<>t.task_id OR o.run_id<>t.run_id OR o.map_index<>t.map_index LIMIT 1"
+    ti = _build_task_instance_table()
+    if _has_duplicate_attempts(bind, ti):
+        raise RuntimeError("Cannot downgrade attempt ownership with multiple attempts sharing coordinates")
+    if orphans := _count_orphaned_archived_attempts(bind, ti):
+        raise RuntimeError(
+            f"Cannot downgrade attempt ownership: {orphans} archived attempts (task_instance rows with "
+            "working_set IS NULL) have no current attempt at their coordinates; delete them first"
         )
-    ):
+    if _has_moved_owners_with_legacy_rows(bind, ti):
         raise RuntimeError("Cannot downgrade attempt ownership after legacy owners changed coordinates")
     with _sqlite_rebuilds():
+        _create_history_tables()
+        _delete_moved_owners(ti)
+        _delete_legacy_rows_of_archived_attempts(ti)
+        _move_owners_to_current_attempts(ti)
+        latest = _select_latest_attempts(ti)
+        _copy_xcom_to_legacy(latest)
+        _copy_rendered_fields_to_legacy(latest)
+        _move_archived_attempts_to_history(ti)
         op.drop_table("rtif_v2")
         op.drop_table("xcom_v2")
         op.drop_index("ti_current_state", table_name="task_instance")
@@ -398,16 +618,24 @@ def downgrade():
             batch.create_unique_constraint("task_instance_composite_key", list(_COORDINATES))
             for column in ("working_set", "archived_reason"):
                 batch.drop_column(column)
+        with op.batch_alter_table("task_instance_history") as batch:
+            batch.create_foreign_key(
+                "task_instance_history_ti_fkey",
+                "task_instance",
+                list(_COORDINATES),
+                list(_COORDINATES),
+                ondelete="CASCADE",
+                onupdate="CASCADE",
+            )
         for old_name, name, constraint, onupdate in _LEGACY:
             _redirect_legacy(name, constraint, "task_instance", onupdate=onupdate)
             op.rename_table(name, old_name)
         op.drop_table("legacy_task_data_owner")
         with op.batch_alter_table("log") as batch:
             batch.drop_column("task_instance_id")
-        _restore_history_tables()
 
 
-def _restore_history_tables():
+def _create_history_tables():
     op.create_table(
         "task_instance_history",
         sa.Column("task_instance_id", sa.Uuid(), nullable=False),
@@ -449,13 +677,6 @@ def _restore_history_tables():
         sa.Column("retry_reason", sa.String(500), nullable=True),
         sa.PrimaryKeyConstraint("task_instance_id", name="task_instance_history_pkey"),
         sa.UniqueConstraint(*_COORDINATES, "try_number", name="task_instance_history_dtrt_uq"),
-        sa.ForeignKeyConstraint(
-            list(_COORDINATES),
-            [f"task_instance.{c}" for c in _COORDINATES],
-            name="task_instance_history_ti_fkey",
-            ondelete="CASCADE",
-            onupdate="CASCADE",
-        ),
     )
     op.create_index("idx_tih_dag_run", "task_instance_history", ["dag_id", "run_id"])
     op.create_table(

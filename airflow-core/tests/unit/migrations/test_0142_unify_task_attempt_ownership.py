@@ -24,12 +24,15 @@ from uuid import UUID, uuid4
 import pytest
 import sqlalchemy as sa
 from alembic import command
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from airflow import settings
 from airflow.utils.db import _get_alembic_config
 
 from tests_common.test_utils.attempt_ownership import (
+    COORDINATES,
     CURRENT_ID,
     DANGLING_VERSION,
     HISTORY_ID,
@@ -41,6 +44,10 @@ pytestmark = [pytest.mark.db_test, pytest.mark.execution_timeout(60)]
 
 PREDECESSOR = "90e4d18ccadf"
 REVISION = "e7c2a91bd540"
+DAG_RUN_ID = 41
+SECOND_DAG_RUN_ID = 42
+THIRD_DAG_RUN_ID = 43
+FOURTH_DAG_RUN_ID = 44
 
 
 @pytest.fixture(scope="module")
@@ -133,7 +140,7 @@ def populated_predecessor(predecessor):
     dag_run = table(connection, "dag_run")
     connection.execute(
         dag_run.insert().values(
-            id=41,
+            id=DAG_RUN_ID,
             dag_id="ownership",
             run_id="manual",
             run_type="manual",
@@ -176,7 +183,7 @@ def populated_predecessor(predecessor):
         .insert()
         .values(
             **coordinates,
-            dag_run_id=41,
+            dag_run_id=DAG_RUN_ID,
             key="return_value",
             value={"legacy": True},
             timestamp=NOW,
@@ -497,15 +504,6 @@ def test_upgrade_normalizes_only_null_historical_retry_budget(
     assert target_column["nullable"] is False
 
 
-def test_downgrade_refuses_retained_history_before_changing_schema(populated_predecessor):
-    connection, config = populated_predecessor
-    command.upgrade(config, REVISION)
-    with pytest.raises(RuntimeError, match="histor"):
-        command.downgrade(config, PREDECESSOR)
-    assert "xcom_v1" in sa.inspect(connection).get_table_names()
-    assert "xcom" not in sa.inspect(connection).get_table_names()
-
-
 def test_empty_downgrade_restores_predecessor_constraints(predecessor):
     connection, config = predecessor
 
@@ -630,43 +628,475 @@ def test_upgrade_preserves_uuid_children_and_legacy_cascades(populated_predecess
         assert connection.scalars(sa.select(data.c.task_instance_id)).all() == []
 
 
-@pytest.mark.parametrize("unsafe_data", ["xcom_v2", "rtif_v2", "moved_owner"])
-def test_downgrade_rejects_unrepresentable_ownership(populated_predecessor, unsafe_data):
+COORDINATE_KEY = ("dag_id", "task_id", "run_id", "map_index")
+NEIGHBOURS = {
+    "task_id": {"task_id": "neighbour"},
+    "run_id": {"run_id": "second"},
+    "map_index": {"map_index": 0},
+    "dag_id": {"dag_id": "other"},
+}
+
+
+def insert_attempt(connection, **values) -> UUID:
+    attempt_id = uuid4()
+    row = (
+        COORDINATES | {"try_number": 1, "state": "success", "pool": "default_pool", "pool_slots": 1} | values
+    )
+    connection.execute(table(connection, "task_instance", "id").insert().values(id=attempt_id, **row))
+    return attempt_id
+
+
+def insert_dag_run(connection, dag_run_id, dag_id, run_id):
+    connection.execute(
+        table(connection, "dag_run")
+        .insert()
+        .values(
+            id=dag_run_id,
+            dag_id=dag_id,
+            run_id=run_id,
+            run_type="manual",
+            run_after=NOW,
+            state="running",
+            start_date=NOW,
+        )
+    )
+
+
+def insert_neighbour_dag_runs(connection) -> dict[tuple[str, str], int]:
+    insert_dag_run(connection, SECOND_DAG_RUN_ID, "ownership", "second")
+    insert_dag_run(connection, THIRD_DAG_RUN_ID, "other", "manual")
+    return {
+        ("ownership", "manual"): DAG_RUN_ID,
+        ("ownership", "second"): SECOND_DAG_RUN_ID,
+        ("other", "manual"): THIRD_DAG_RUN_ID,
+    }
+
+
+def insert_xcom_v2(connection, attempt_id, key, value, **values):
+    connection.execute(
+        table(connection, "xcom_v2", "id", "task_instance_id")
+        .insert()
+        .values(id=uuid4(), task_instance_id=attempt_id, key=key, value=value, timestamp=NOW, **values)
+    )
+
+
+def insert_rtif_v2(connection, attempt_id, rendered_fields, **values):
+    connection.execute(
+        table(connection, "rtif_v2", "id", "task_instance_id")
+        .insert()
+        .values(id=uuid4(), task_instance_id=attempt_id, rendered_fields=rendered_fields, **values)
+    )
+
+
+def retry_current_attempt(connection, **values) -> UUID:
+    ti = table(connection, "task_instance", "id")
+    connection.execute(
+        ti.update().where(ti.c.id == CURRENT_ID).values(working_set=None, archived_reason="retry")
+    )
+    return insert_attempt(connection, try_number=3, state="running", **values)
+
+
+def read_legacy_xcom(connection):
+    rows = connection.execute(table(connection, "xcom").select())
+    return {(row.dag_id, row.run_id, row.task_id, row.map_index, row.key): row for row in rows}
+
+
+def read_legacy_rendered_fields(connection):
+    rows = connection.execute(table(connection, "rendered_task_instance_fields").select())
+    return {(row.dag_id, row.run_id, row.task_id, row.map_index): row for row in rows}
+
+
+def drop_unique_constraint(connection, name):
+    sqlite = connection.dialect.name == "sqlite"
+    connection.commit()
+    if sqlite:
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+    with (
+        Operations.context(MigrationContext.configure(connection)) as ops,
+        ops.batch_alter_table("task_instance") as batch,
+    ):
+        batch.drop_constraint(name, type_="unique")
+    connection.commit()
+    if sqlite:
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+
+
+def assert_upgraded_schema_untouched(connection):
+    tables = sa.inspect(connection).get_table_names()
+    assert {"xcom_v1", "legacy_task_data_owner"} <= set(tables)
+    assert "task_instance_history" not in tables
+    assert "hitl_detail_history" not in tables
+
+
+@pytest.mark.parametrize("legacy_store", ["xcom", "rendered_task_instance_fields"])
+def test_downgrade_rejects_owner_that_changed_coordinates(populated_predecessor, legacy_store):
     connection, config = populated_predecessor
-    connection.execute(table(connection, "hitl_detail_history").delete())
-    connection.execute(table(connection, "task_instance_history").delete())
+    other_store = {"xcom", "rendered_task_instance_fields"} - {legacy_store}
+    for name in ("hitl_detail_history", "task_instance_history", *other_store):
+        connection.execute(table(connection, name).delete())
     connection.commit()
     command.upgrade(config, REVISION)
-    if unsafe_data == "moved_owner":
-        ti = table(connection, "task_instance", "id")
-        connection.execute(ti.update().where(ti.c.id == CURRENT_ID).values(map_index=0))
-    elif unsafe_data == "xcom_v2":
+    ti = table(connection, "task_instance", "id")
+    connection.execute(ti.update().where(ti.c.id == CURRENT_ID).values(map_index=0))
+    connection.commit()
+    with pytest.raises(RuntimeError, match="legacy owners changed coordinates"):
+        command.downgrade(config, PREDECESSOR)
+    assert_upgraded_schema_untouched(connection)
+
+
+def test_downgrade_deletes_stale_owner_of_an_attempt_retried_after_promotion(populated_predecessor):
+    connection, config = populated_predecessor
+    for name in ("xcom", "rendered_task_instance_fields", "hitl_detail_history", "task_instance_history"):
+        connection.execute(table(connection, name).delete())
+    connection.commit()
+    command.upgrade(config, REVISION)
+    ti = table(connection, "task_instance", "id")
+    connection.execute(ti.update().where(ti.c.id == CURRENT_ID).values(map_index=0))
+    successor_id = retry_current_attempt(connection, map_index=0)
+    insert_xcom_v2(connection, successor_id, "k", "v")
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    assert {key: row.value for key, row in read_legacy_xcom(connection).items()} == {
+        ("ownership", "manual", "task", 0, "k"): "v"
+    }
+
+
+def test_downgrade_ignores_owner_that_changed_coordinates_without_legacy_rows(populated_predecessor):
+    connection, config = populated_predecessor
+    for name in ("xcom", "rendered_task_instance_fields", "hitl_detail_history", "task_instance_history"):
+        connection.execute(table(connection, name).delete())
+    connection.commit()
+    command.upgrade(config, REVISION)
+    ti = table(connection, "task_instance", "id")
+    connection.execute(ti.update().where(ti.c.id == CURRENT_ID).values(map_index=0))
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    live = table(connection, "task_instance", "id")
+    assert [(row.id, row.map_index) for row in connection.execute(live.select())] == [(CURRENT_ID, 0)]
+
+
+@pytest.mark.parametrize(
+    ("dropped_constraint", "duplicate"),
+    [
+        pytest.param("task_instance_current_key", {"try_number": 5}, id="second-current-attempt"),
+        pytest.param(
+            "task_instance_try_key", {"try_number": 1, "working_set": None}, id="repeated-try-number"
+        ),
+    ],
+)
+def test_downgrade_rejects_attempts_sharing_coordinates(populated_predecessor, dropped_constraint, duplicate):
+    connection, config = populated_predecessor
+    command.upgrade(config, REVISION)
+    drop_unique_constraint(connection, dropped_constraint)
+    insert_attempt(connection, **duplicate)
+    connection.commit()
+    with pytest.raises(RuntimeError, match="multiple attempts sharing coordinates"):
+        command.downgrade(config, PREDECESSOR)
+    assert_upgraded_schema_untouched(connection)
+
+
+def test_downgrade_rejects_archived_attempts_without_a_current_attempt(populated_predecessor):
+    connection, config = populated_predecessor
+    insert_neighbour_dag_runs(connection)
+    connection.commit()
+    command.upgrade(config, REVISION)
+    for overrides in NEIGHBOURS.values():
+        insert_attempt(connection, **(COORDINATES | overrides))
+    ti = table(connection, "task_instance", "id")
+    connection.execute(ti.delete().where(ti.c.id == CURRENT_ID))
+    connection.commit()
+    with pytest.raises(RuntimeError, match="1 archived attempts"):
+        command.downgrade(config, PREDECESSOR)
+    assert_upgraded_schema_untouched(connection)
+
+
+def test_downgrade_keeps_only_the_latest_attempt_of_a_task_first_run_after_upgrade(populated_predecessor):
+    connection, config = populated_predecessor
+    command.upgrade(config, REVISION)
+    coordinates = COORDINATES | {"task_id": "neighbour"}
+    first_id = insert_attempt(connection, **coordinates, working_set=None, archived_reason="retry")
+    second_id = insert_attempt(connection, **coordinates, try_number=2)
+    for attempt_id, value in ((first_id, "first"), (second_id, "second")):
+        insert_xcom_v2(connection, attempt_id, "return_value", value)
+        insert_rtif_v2(connection, attempt_id, {"f": value})
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    assert {key: row.value for key, row in read_legacy_xcom(connection).items() if key[2] == "neighbour"} == {
+        ("ownership", "manual", "neighbour", -1, "return_value"): "second"
+    }
+    assert {
+        key: row.rendered_fields
+        for key, row in read_legacy_rendered_fields(connection).items()
+        if key[2] == "neighbour"
+    } == {("ownership", "manual", "neighbour", -1): {"f": "second"}}
+
+
+def test_downgrade_replaces_legacy_xcom_key_by_key(populated_predecessor):
+    connection, config = populated_predecessor
+    dag_runs = insert_neighbour_dag_runs(connection)
+    legacy_xcom = table(connection, "xcom")
+    legacy_coordinates = [
+        COORDINATES | {"task_id": "other"},
+        *(
+            COORDINATES | {"task_id": "mapped", "run_id": run_id, "map_index": map_index}
+            for run_id in ("manual", "second")
+            for map_index in (0, 1)
+        ),
+    ]
+    for coordinates in legacy_coordinates:
+        insert_attempt(connection, **coordinates)
         connection.execute(
-            table(connection, unsafe_data, "task_instance_id", "id")
-            .insert()
-            .values(
-                id=uuid4(),
-                task_instance_id=CURRENT_ID,
-                key="new",
-                value=1,
+            legacy_xcom.insert().values(
+                **coordinates,
+                dag_run_id=dag_runs[(coordinates["dag_id"], coordinates["run_id"])],
+                key="legacy",
+                value="legacy",
                 timestamp=NOW,
             )
         )
-    else:
+    connection.commit()
+    command.upgrade(config, REVISION)
+
+    ti = table(connection, "task_instance", "id")
+    mapped_attempts = {
+        (row.run_id, row.map_index): row.id
+        for row in connection.execute(ti.select().where(ti.c.task_id == "mapped"))
+    }
+    for attempt_id, key, value in (
+        (HISTORY_ID, "from_archived_attempt", "archived"),
+        (CURRENT_ID, "return_value", "latest"),
+        (CURRENT_ID, "added", "added"),
+        (mapped_attempts[("manual", 0)], "extra", "extra"),
+        (mapped_attempts[("second", 1)], "legacy", "replaced"),
+    ):
+        insert_xcom_v2(connection, attempt_id, key, value)
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    xcom = read_legacy_xcom(connection)
+    assert {key: (row.value, row.dag_run_id) for key, row in xcom.items()} == {
+        ("ownership", "manual", "task", -1, "return_value"): ("latest", DAG_RUN_ID),
+        ("ownership", "manual", "task", -1, "added"): ("added", DAG_RUN_ID),
+        ("ownership", "manual", "other", -1, "legacy"): ("legacy", DAG_RUN_ID),
+        ("ownership", "manual", "mapped", 0, "legacy"): ("legacy", DAG_RUN_ID),
+        ("ownership", "manual", "mapped", 0, "extra"): ("extra", DAG_RUN_ID),
+        ("ownership", "manual", "mapped", 1, "legacy"): ("legacy", DAG_RUN_ID),
+        ("ownership", "second", "mapped", 0, "legacy"): ("legacy", SECOND_DAG_RUN_ID),
+        ("ownership", "second", "mapped", 1, "legacy"): ("replaced", SECOND_DAG_RUN_ID),
+    }
+
+
+def test_downgrade_carries_payload_columns_back(populated_predecessor):
+    connection, config = populated_predecessor
+    command.upgrade(config, REVISION)
+    created_id = insert_attempt(connection, task_id="created_after_upgrade")
+    insert_xcom_v2(connection, CURRENT_ID, "return_value", "latest", dag_result=True, mapped_length=3)
+    insert_xcom_v2(connection, created_id, "return_value", "created")
+    insert_rtif_v2(connection, HISTORY_ID, {"f": "archived"})
+    insert_rtif_v2(connection, CURRENT_ID, {"f": "latest"}, k8s_pod_yaml={"kind": "Pod"})
+    insert_rtif_v2(connection, created_id, {"f": "created"})
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    xcom = read_legacy_xcom(connection)
+    assert {key: (row.dag_result, row.mapped_length) for key, row in xcom.items()} == {
+        ("ownership", "manual", "task", -1, "return_value"): (True, 3),
+        ("ownership", "manual", "created_after_upgrade", -1, "return_value"): (None, None),
+    }
+    rendered_fields = read_legacy_rendered_fields(connection)
+    assert {key: (row.rendered_fields, row.k8s_pod_yaml) for key, row in rendered_fields.items()} == {
+        ("ownership", "manual", "task", -1): ({"f": "latest"}, {"kind": "Pod"}),
+        ("ownership", "manual", "created_after_upgrade", -1): ({"f": "created"}, None),
+    }
+
+
+def test_downgrade_copies_attempts_that_wrote_only_one_store(populated_predecessor):
+    connection, config = populated_predecessor
+    command.upgrade(config, REVISION)
+    insert_xcom_v2(connection, insert_attempt(connection, task_id="only_xcom"), "k", "v")
+    insert_rtif_v2(connection, insert_attempt(connection, task_id="only_rtif"), {"f": "v"})
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    assert {key[2:] for key in read_legacy_xcom(connection) if key[2] != "task"} == {("only_xcom", -1, "k")}
+    assert {key[2:] for key in read_legacy_rendered_fields(connection) if key[2] != "task"} == {
+        ("only_rtif", -1)
+    }
+
+
+def test_downgrade_copies_attempts_created_next_to_an_owned_coordinate(populated_predecessor):
+    connection, config = populated_predecessor
+    insert_neighbour_dag_runs(connection)
+    connection.commit()
+    command.upgrade(config, REVISION)
+    for overrides in NEIGHBOURS.values():
+        insert_xcom_v2(connection, insert_attempt(connection, **(COORDINATES | overrides)), "k", "v")
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    legacy_xcom = table(connection, "xcom")
+    copied = connection.execute(legacy_xcom.select().where(legacy_xcom.c.key == "k")).all()
+    assert sorted(tuple(getattr(row, name) for name in COORDINATE_KEY) for row in copied) == sorted(
+        tuple((COORDINATES | overrides)[name] for name in COORDINATE_KEY) for overrides in NEIGHBOURS.values()
+    )
+
+
+def test_downgrade_keeps_legacy_data_of_neighbouring_coordinates(populated_predecessor):
+    connection, config = populated_predecessor
+    dag_runs = insert_neighbour_dag_runs(connection)
+    for overrides in NEIGHBOURS.values():
+        coordinates = COORDINATES | overrides
+        insert_attempt(connection, **coordinates)
         connection.execute(
-            table(connection, unsafe_data, "task_instance_id", "id")
+            table(connection, "xcom")
             .insert()
             .values(
-                id=uuid4(),
-                task_instance_id=CURRENT_ID,
-                rendered_fields={},
+                **coordinates,
+                dag_run_id=dag_runs[(coordinates["dag_id"], coordinates["run_id"])],
+                key="legacy",
+                value="legacy",
+                timestamp=NOW,
             )
         )
+        connection.execute(
+            table(connection, "rendered_task_instance_fields")
+            .insert()
+            .values(**coordinates, rendered_fields={"f": "legacy"})
+        )
     connection.commit()
-    with pytest.raises(RuntimeError, match="Cannot downgrade"):
-        command.downgrade(config, PREDECESSOR)
-    assert "xcom_v1" in sa.inspect(connection).get_table_names()
-    assert "rtif_v2" in sa.inspect(connection).get_table_names()
+    command.upgrade(config, REVISION)
+    retry_current_attempt(connection)
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    expected = sorted(tuple((COORDINATES | o)[name] for name in COORDINATE_KEY) for o in NEIGHBOURS.values())
+    xcom = connection.execute(table(connection, "xcom").select()).all()
+    assert sorted(tuple(getattr(row, name) for name in COORDINATE_KEY) for row in xcom) == expected
+    rendered_fields = connection.execute(table(connection, "rendered_task_instance_fields").select()).all()
+    assert sorted(tuple(getattr(row, name) for name in COORDINATE_KEY) for row in rendered_fields) == expected
+
+
+def test_downgrade_keeps_dags_sharing_a_run_id_apart(populated_predecessor):
+    connection, config = populated_predecessor
+    insert_neighbour_dag_runs(connection)
+    insert_dag_run(connection, FOURTH_DAG_RUN_ID, "third", "manual")
+    insert_attempt(connection, dag_id="third")
+    connection.execute(
+        table(connection, "xcom")
+        .insert()
+        .values(
+            **(COORDINATES | {"dag_id": "third"}),
+            dag_run_id=FOURTH_DAG_RUN_ID,
+            key="legacy",
+            value="third",
+            timestamp=NOW,
+        )
+    )
+    connection.commit()
+    command.upgrade(config, REVISION)
+    other_id = insert_attempt(connection, dag_id="other", try_number=2)
+    insert_xcom_v2(connection, CURRENT_ID, "k", "ownership")
+    insert_xcom_v2(connection, other_id, "k", "other")
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    xcom = read_legacy_xcom(connection)
+    assert {(key[0], key[4]): (row.value, row.dag_run_id) for key, row in xcom.items()} == {
+        ("other", "k"): ("other", THIRD_DAG_RUN_ID),
+        ("ownership", "k"): ("ownership", DAG_RUN_ID),
+        ("ownership", "return_value"): ({"legacy": True}, DAG_RUN_ID),
+        ("third", "legacy"): ("third", FOURTH_DAG_RUN_ID),
+    }
+
+
+def test_downgrade_drops_legacy_data_of_a_retried_attempt_whose_successor_wrote_nothing(
+    populated_predecessor,
+):
+    connection, config = populated_predecessor
+    command.upgrade(config, REVISION)
+    retry_current_attempt(connection)
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    assert read_legacy_xcom(connection) == {}
+    assert read_legacy_rendered_fields(connection) == {}
+
+
+def test_downgrade_replaces_legacy_data_of_a_retried_attempt_with_its_successors(populated_predecessor):
+    connection, config = populated_predecessor
+    command.upgrade(config, REVISION)
+    successor_id = retry_current_attempt(connection)
+    insert_xcom_v2(connection, successor_id, "from_successor", "new")
+    insert_rtif_v2(connection, successor_id, {"f": "new"})
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    assert {key: row.value for key, row in read_legacy_xcom(connection).items()} == {
+        ("ownership", "manual", "task", -1, "from_successor"): "new"
+    }
+    assert {key: row.rendered_fields for key, row in read_legacy_rendered_fields(connection).items()} == {
+        ("ownership", "manual", "task", -1): {"f": "new"}
+    }
+
+
+def test_downgrade_restores_archived_attempts_to_history(populated_predecessor):
+    connection, config = populated_predecessor
+    history = table(connection, "task_instance_history", "task_instance_id", "dag_version_id")
+    hitl_history = table(connection, "hitl_detail_history", "ti_history_id")
+    source_history = connection.execute(history.select()).one()._mapping
+    source_hitl = connection.execute(hitl_history.select()).one()._mapping
+    connection.commit()
+    command.upgrade(config, REVISION)
+    connection.execute(
+        table(connection, "task_instance_note", "ti_id")
+        .insert()
+        .values(ti_id=HISTORY_ID, content="archived note", created_at=NOW, updated_at=NOW)
+    )
+    connection.execute(
+        table(connection, "task_reschedule", "ti_id")
+        .insert()
+        .values(ti_id=HISTORY_ID, start_date=NOW, end_date=NOW, duration=0, reschedule_date=NOW)
+    )
+    connection.execute(
+        table(connection, "hitl_detail", "ti_id")
+        .insert()
+        .values(ti_id=CURRENT_ID, options=["a"], subject="live", params={}, params_input={}, created_at=NOW)
+    )
+    connection.commit()
+
+    command.downgrade(config, PREDECESSOR)
+
+    restored = connection.execute(history.select()).one()._mapping
+    for name, value in source_history.items():
+        if name not in {"trigger_id", "dag_version_id", "max_tries"}:
+            assert restored[name] == value
+    assert connection.execute(hitl_history.select()).one()._mapping == source_hitl
+    live = table(connection, "task_instance", "id")
+    assert connection.scalars(sa.select(live.c.id)).all() == [CURRENT_ID]
+    for name in ("task_instance_note", "task_reschedule", "hitl_detail"):
+        child = table(connection, name, "ti_id")
+        assert connection.scalars(sa.select(child.c.ti_id)).all() == [CURRENT_ID]
+
+    connection.commit()
+    command.upgrade(config, REVISION)
+    live = table(connection, "task_instance", "id")
+    assert connection.scalars(sa.select(live.c.id).where(live.c.working_set.is_(None))).all() == [HISTORY_ID]
+    hitl = table(connection, "hitl_detail", "ti_id")
+    assert sorted(connection.scalars(sa.select(hitl.c.ti_id)).all()) == sorted([CURRENT_ID, HISTORY_ID])
 
 
 @pytest.mark.parametrize("source_problem", ["unvalidated", "reanchored"])
