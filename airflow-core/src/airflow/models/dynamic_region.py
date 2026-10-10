@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Collection
+import hashlib
+import struct
+from collections.abc import Collection, Iterable
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -24,17 +26,21 @@ from uuid import UUID
 import attrs
 import uuid6
 from sqlalchemy import (
+    BINARY,
     CheckConstraint,
     ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     UniqueConstraint,
     and_,
+    event,
     literal,
     or_,
     select,
     union_all,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, aliased, mapped_column
 
 from airflow._shared.timezones import timezone
@@ -44,10 +50,30 @@ from airflow.utils.sqlalchemy import CompactUUID, UtcDateTime
 SENTINEL_REGION_ID = UUID(int=0)
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    from sqlalchemy.engine import Connection
+    from sqlalchemy.orm import Mapper, Session
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.models.taskinstance import TaskInstance
+
+
+def _build_slot_key(
+    dag_id: str, run_id: str, node_id: str, parent_region_id: UUID | None, parent_region_index: int | None
+) -> bytes:
+    """
+    Hash the columns that identify a slot into the value of ``DynamicRegion.slot_key``.
+
+    The strings are length-prefixed so that no two different slots encode to the same bytes, and a missing
+    parent encodes as the sentinel id and index ``-1``.
+    """
+    digest = hashlib.sha256()
+    for part in (dag_id, run_id, node_id):
+        encoded = part.encode()
+        digest.update(struct.pack(">I", len(encoded)))
+        digest.update(encoded)
+    digest.update((parent_region_id or SENTINEL_REGION_ID).bytes)
+    digest.update(struct.pack(">i", -1 if parent_region_index is None else parent_region_index))
+    return digest.digest()
 
 
 @attrs.define(frozen=True)
@@ -74,6 +100,31 @@ class DynamicRegion(Base):
     When a clear replaces an execution, the successor records the region it was forked from and where
     it resumes. Rows never change after they are created; everything that does change lives on the
     task instances.
+
+    A *slot* is the place one region fills: ``(dag_id, run_id, node_id, parent_region_id,
+    parent_region_index)``, for example the expansion of mapped task ``t`` in a run, or of ``t`` inside
+    iteration 3 of a loop. Each slot holds one original region, and forks of it.
+
+    ``slot_key`` guarantees one original region per slot. Without it, two creators of the same slot at
+    once (two schedulers expanding the same placeholder, or a clear of only the new tasks racing a
+    scheduler) would each insert a region with a fresh id and both commits would succeed, leaving the
+    task with two live expansions that later lookups reject as ambiguous. Before regions existed the
+    second writer collided on ``task_instance_current_key`` and rolled back; a fresh region id removed
+    that collision. The key is a SHA-256 of the slot columns, set when an original region is inserted
+    and left NULL for a fork, and it is unique, so the loser's insert fails and
+    :meth:`DynamicRegion.get_or_create` reuses the winner's region.
+
+    The key is a hash because a unique key over the slot columns cannot work: the parent columns of a
+    top-level region are NULL, and NULLs never collide in a unique key; ``dag_id``, ``run_id`` and
+    ``node_id`` alone take up to about 3000 bytes with utf8mb4 ids, close to MySQL's 3072-byte key
+    limit; and a partial index is not portable to MySQL. A fork repeats the slot coordinates of the
+    region it forks, so it takes no key; a chain of forks stays linear because
+    ``forked_from_region_id`` is unique, which gives a region at most one successor.
+
+    It does not check that a fork's coordinates match its source's. Regions inserted without it, such as
+    rows from before the column existed or a raw insert that bypasses the ORM, have a NULL key and are
+    not guarded: :meth:`DynamicRegion.get_or_create` finds those by their slot columns, and a raw insert
+    must supply the key itself.
     """
 
     __tablename__ = "dynamic_region"
@@ -87,6 +138,10 @@ class DynamicRegion(Base):
     parent_region_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     forked_from_region_id: Mapped[UUID | None] = mapped_column(CompactUUID(), nullable=True)
     resumes_from_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Hash of the slot, set on original regions and NULL on forks; see the class docstring.
+    slot_key: Mapped[bytes | None] = mapped_column(
+        LargeBinary(32).with_variant(BINARY(32), "mysql", "mariadb"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     __table_args__ = (
@@ -103,6 +158,7 @@ class DynamicRegion(Base):
             ondelete="CASCADE",
         ),
         UniqueConstraint("forked_from_region_id", name="dynamic_region_forked_from_region_id_uq"),
+        UniqueConstraint("slot_key", name="dynamic_region_slot_key_uq"),
         CheckConstraint(
             "(parent_region_id IS NULL AND parent_region_index IS NULL) OR "
             "(parent_region_id IS NOT NULL AND parent_region_index IS NOT NULL)",
@@ -112,6 +168,147 @@ class DynamicRegion(Base):
         Index("idx_dynamic_region_slot", dag_id, run_id, node_id, parent_region_id, parent_region_index),
         Index("idx_dynamic_region_parent_region_id", parent_region_id),
     )
+
+    @classmethod
+    def get_or_create(
+        cls,
+        *,
+        dag_id: str,
+        run_id: str,
+        node_id: str,
+        parent_region_id: UUID | None = None,
+        parent_region_index: int | None = None,
+        session: Session,
+    ) -> DynamicRegion:
+        """
+        Return the region that first filled the slot, creating it when no other writer has.
+
+        Two transactions racing to create the same slot collide on ``slot_key``; the loser reuses the
+        winner's region. Regions created before slot keys existed have none and are found by their columns.
+        """
+        existing = cls._find_original(
+            dag_id=dag_id,
+            run_id=run_id,
+            node_id=node_id,
+            parent_region_id=parent_region_id,
+            parent_region_index=parent_region_index,
+            session=session,
+        )
+        if existing is not None:
+            return existing
+        region = cls(
+            dag_id=dag_id,
+            run_id=run_id,
+            node_id=node_id,
+            parent_region_id=parent_region_id,
+            parent_region_index=parent_region_index,
+        )
+        try:
+            with session.begin_nested():
+                session.add(region)
+        except IntegrityError:
+            existing = cls._find_original(
+                dag_id=dag_id,
+                run_id=run_id,
+                node_id=node_id,
+                parent_region_id=parent_region_id,
+                parent_region_index=parent_region_index,
+                session=session,
+            )
+            if existing is None:
+                raise
+            return existing
+        return region
+
+    @classmethod
+    def _find_original(
+        cls,
+        *,
+        dag_id: str,
+        run_id: str,
+        node_id: str,
+        parent_region_id: UUID | None,
+        parent_region_index: int | None,
+        session: Session,
+    ) -> DynamicRegion | None:
+        """Find the oldest non-fork region of a slot by its columns, which also covers rows without a slot key."""
+        return session.scalars(
+            select(cls)
+            .where(
+                cls.dag_id == dag_id,
+                cls.run_id == run_id,
+                cls.node_id == node_id,
+                cls.parent_region_id.is_(None)
+                if parent_region_id is None
+                else cls.parent_region_id == parent_region_id,
+                cls.parent_region_index.is_(None)
+                if parent_region_index is None
+                else cls.parent_region_index == parent_region_index,
+                cls.forked_from_region_id.is_(None),
+            )
+            .order_by(cls.id)
+            .limit(1)
+        ).first()
+
+    @classmethod
+    def get_or_create_many(
+        cls,
+        *,
+        dag_id: str,
+        run_id: str,
+        node_ids: Iterable[str],
+        parent_region_id: UUID | None = None,
+        parent_region_index: int | None = None,
+        session: Session,
+    ) -> dict[str, DynamicRegion]:
+        """
+        Return the region that first filled each slot, creating the missing ones in one statement.
+
+        The batch is inserted in a savepoint, which keeps the common case to a single INSERT. When any slot
+        is already taken the batch is rolled back and each slot is resolved on its own.
+        """
+        # A key known before the flush lets MySQL, which has no RETURNING, batch the INSERT.
+        slots = {
+            node_id: cls(
+                id=uuid6.uuid7(),
+                dag_id=dag_id,
+                run_id=run_id,
+                node_id=node_id,
+                parent_region_id=parent_region_id,
+                parent_region_index=parent_region_index,
+            )
+            for node_id in node_ids
+        }
+        if not slots:
+            return {}
+        try:
+            with session.begin_nested():
+                session.add_all(slots.values())
+        except IntegrityError:
+            return {
+                node_id: cls.get_or_create(
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    node_id=node_id,
+                    parent_region_id=parent_region_id,
+                    parent_region_index=parent_region_index,
+                    session=session,
+                )
+                for node_id in slots
+            }
+        return slots
+
+
+@event.listens_for(DynamicRegion, "before_insert")
+def _set_slot_key(mapper: Mapper, connection: Connection, region: DynamicRegion) -> None:
+    if region.slot_key is None and region.forked_from_region_id is None:
+        region.slot_key = _build_slot_key(
+            region.dag_id,
+            region.run_id,
+            region.node_id,
+            region.parent_region_id,
+            region.parent_region_index,
+        )
 
 
 def load_region_ancestry(
@@ -220,6 +417,53 @@ def _build_loop_pass_filter(regions: _LoopPassRegions) -> ColumnElement[bool]:
         and_(TaskInstance.region_id.in_(regions.family_ids), TaskInstance.region_index == regions.iteration),
         TaskInstance.region_id.in_(regions.nested_ids),
     )
+
+
+def public_region_filter(
+    model,
+    *,
+    dag_ids: str | Collection[str] | None = None,
+    run_ids: str | Collection[str] | None = None,
+    task_ids: str | Collection[str] | None = None,
+) -> ColumnElement[bool]:
+    """
+    Match rows addressed by public coordinates: legacy rows and a task's own top-level region.
+
+    Pass the dag, run and task the caller is looking up so the regions that can match are
+    resolved once from ``dynamic_region`` instead of being checked per row. The row filter is then an
+    equality-or-IN on ``region_id`` that the unique key serves, where a per-row check has to read
+    every row of the task.
+    """
+    own_region = (
+        select(DynamicRegion.id)
+        .where(
+            DynamicRegion.id == model.region_id,
+            DynamicRegion.node_id == model.task_id,
+            DynamicRegion.parent_region_id.is_(None),
+        )
+        .correlate(model)
+        .exists()
+    )
+    exact = or_(model.region_id == SENTINEL_REGION_ID, own_region)
+    if dag_ids is None or run_ids is None or task_ids is None:
+        return exact
+    candidates = union_all(
+        select(literal(SENTINEL_REGION_ID, CompactUUID()).label("id")),
+        select(DynamicRegion.id.label("id")).where(
+            _match_any(DynamicRegion.dag_id, dag_ids),
+            _match_any(DynamicRegion.run_id, run_ids),
+            _match_any(DynamicRegion.node_id, task_ids),
+            DynamicRegion.parent_region_id.is_(None),
+        ),
+    ).subquery()
+    narrowed = model.region_id.in_(select(candidates.c.id))
+    if isinstance(dag_ids, str) and isinstance(run_ids, str) and isinstance(task_ids, str):
+        return narrowed
+    return and_(narrowed, exact)
+
+
+def _match_any(column, value: str | Collection[str]) -> ColumnElement[bool]:
+    return column == value if isinstance(value, str) else column.in_(value)
 
 
 def resolve_current_producers(

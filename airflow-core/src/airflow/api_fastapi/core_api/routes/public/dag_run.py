@@ -863,7 +863,7 @@ def trigger_dag_run(
     summary="Experimental: Wait for a dag run to complete, and return task results if requested.",
     description="🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.",
     responses={
-        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
         status.HTTP_200_OK: {
             "description": "Successful Response",
             "content": {
@@ -886,6 +886,7 @@ def trigger_dag_run(
 def wait_dag_run_until_finished(
     dag_id: str,
     dag_run_id: str,
+    dag_bag: DagBagDep,
     session: SessionDep,
     user: GetUserDep,
     interval: Annotated[float, Query(gt=0.0, description="Seconds to wait between dag run state checks")],
@@ -917,7 +918,8 @@ def wait_dag_run_until_finished(
                 "User is not authorized to read XCom data for this Dag",
             )
         result_task_ids = []  # Explicitly not returning any XCom results.
-    if not session.scalar(select(1).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)):
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+    if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
@@ -928,6 +930,7 @@ def wait_dag_run_until_finished(
         interval=interval,
         result_task_ids=result_task_ids,
     )
+    waiter.validate_result_selection(dag_run, dag_bag, session=session)
     return StreamingResponse(waiter.wait())
 
 

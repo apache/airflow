@@ -96,10 +96,12 @@ from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool, PoolStats
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
@@ -122,6 +124,7 @@ from airflow.partition_mappers.window import (
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import (
     DAG,
@@ -157,7 +160,7 @@ from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, 
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
-from tests_common.test_utils.asserts import assert_queries_count, count_queries
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects, count_queries
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
@@ -418,6 +421,28 @@ class TestSchedulerJob:
             loader_mock.return_value = mock_executors
             yield default_executor
 
+    def test_ranked_admission_joins_exact_task_uuid(self, dag_maker, session):
+        with dag_maker(max_active_tasks=1):
+            task = EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        scheduled = dr.task_instances[0]
+        scheduled.state = TaskInstanceState.SCHEDULED
+        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id=task.task_id)
+        session.add(region)
+        session.flush()
+        sibling = TaskInstance(
+            task=task, run_id=dr.run_id, dag_version_id=scheduled.dag_version_id, region_id=region.id
+        )
+        sibling.state = TaskInstanceState.SUCCESS
+        session.add(sibling)
+        scheduled.dag_model.is_paused = False
+        session.flush()
+        runner = SchedulerJobRunner(Job())
+
+        selected = session.scalars(runner._build_schedulable_tis_query(set(), set(), set(), set(), 10)).all()
+
+        assert [ti.id for ti in selected] == [scheduled.id]
+
     def test_is_alive(self):
         scheduler_job = Job(heartrate=10, state=State.RUNNING)
         self.job_runner = SchedulerJobRunner(scheduler_job)
@@ -534,9 +559,10 @@ class TestSchedulerJob:
         assert idle_runs_val == num_runs, "Scheduler exits when idle run count reaches num_runs"
         assert total_runs_val > idle_runs_val, "Some runs should not be idle"
 
+    @mock.patch("airflow.models.task_coordinates.TaskCoordinateResolver.find_task", autospec=True)
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
-    def test_process_executor_events(self, mock_get_backend, mock_task_callback, dag_maker):
+    def test_process_executor_events(self, mock_get_backend, mock_task_callback, mock_find_task, dag_maker):
         mock_stats = mock.MagicMock(spec=StatsLogger)
         mock_get_backend.return_value = mock_stats
         dag_id = "test_process_executor_events"
@@ -564,6 +590,8 @@ class TestSchedulerJob:
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.FAILED
         self.job_runner.executor.callback_sink.send.assert_not_called()
+        # An ordinary task is named without looking up its definition.
+        mock_find_task.assert_not_called()
 
         # ti in success state
         ti1.state = State.SUCCESS
@@ -1050,6 +1078,42 @@ class TestSchedulerJob:
         session.expire_all()
         assert session.get(TaskInstance, ti_id).state == State.FAILED
         assert mock_task_callback.call_args.kwargs["ti"].map_index == 1
+
+    @pytest.mark.parametrize("warm", [False, True], ids=["cold_dag_bag", "warm_dag_bag"])
+    def test_process_executor_events_names_a_mapped_task_by_its_map_index(
+        self, dag_maker, session, caplog, warm
+    ):
+        with dag_maker(dag_id="executor_event_mapped_log", fileloc="/test_path1/", serialized=True):
+            BashOperator.partial(task_id="mapped", bash_command="true").expand(
+                env=[{"n": str(n)} for n in range(5)]
+            )
+        tis = list(dag_maker.create_dagrun().task_instances)
+        for ti in tis:
+            ti.state = State.RUNNING
+        ids = [ti.id for ti in tis]
+        version_id = tis[0].dag_version_id
+        session.commit()
+        session.expunge_all()
+        executor = MockExecutor(do_update=False)
+        job_runner = SchedulerJobRunner(Job(), executors=[executor])
+        for ti_id in ids:
+            executor.event_buffer[TaskInstanceUuid(ti_id)] = State.SUCCESS, None
+        job_runner.scheduler_dag_bag._dags.clear()
+        if warm:
+            job_runner.scheduler_dag_bag.get_dag(version_id, session=session)
+            session.expunge_all()
+
+        with (
+            caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"),
+            capture_orm_selects("serialized_dag") as dag_selects,
+        ):
+            job_runner._process_executor_events(executor=executor, session=session)
+
+        finished = [m for m in caplog.messages if m.startswith("TaskInstance Finished:")]
+        assert {m.split("map_index=")[1].split(",")[0] for m in finished} == {"0", "1", "2", "3", "4"}
+        assert all("region_id" not in m for m in finished)
+        # Naming the tasks must not load the Dag again for each instance of the run.
+        assert len(dag_selects) <= (0 if warm else 1)
 
     def test_process_executor_events_drains_connection_test_events(self, dag_maker, session):
         """Connection-test events in the event_buffer are drained without being treated as callbacks."""
@@ -4004,11 +4068,11 @@ class TestSchedulerJob:
 
         def refuse_adoption(tis):
             assert len(tis) == 1
-            # ``repr(ti)`` in the reset path reads both ``state`` and ``map_index``; the query
+            # ``repr(ti)`` in the reset path reads both ``state`` and ``region_index``; the query
             # must load both so the reset log stays accurate (and never lazy-loads on detach).
             unloaded = inspect(tis[0]).unloaded
             assert "state" not in unloaded
-            assert "map_index" not in unloaded
+            assert "region_index" not in unloaded
             # repr must render the real state, not the ``<deferred>`` fallback.
             assert "queued" in repr(tis[0])
             return tis
@@ -9017,8 +9081,11 @@ class TestSchedulerJob:
             ti.queued_by_job_id = scheduler_job.id
             session.flush()
             executor.running.add(TaskInstanceUuid(ti.id))  # The executor normally does this during heartbeat.
-            self.job_runner._find_and_purge_task_instances_without_heartbeats()
+            with mock.patch.object(TaskCoordinateResolver, "find_task", autospec=True) as find_task:
+                self.job_runner._find_and_purge_task_instances_without_heartbeats()
             assert ti.id not in executor.running
+            # An ordinary task is named without looking up its definition.
+            find_task.assert_not_called()
 
         executor.callback_sink.send.assert_called_once()
         callback_requests = executor.callback_sink.send.call_args.args
@@ -9106,6 +9173,49 @@ class TestSchedulerJob:
             "Map Index": 2,
             "External Executor Id": "abcdefg",
         }
+
+    def test_heartbeat_timeout_message_details_show_the_map_index_of_a_mapped_task(self, dag_maker, session):
+        with dag_maker("heartbeat_mapped", serialized=True):
+            PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=[{}, {}])
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.region_index == 1)
+
+        details = SchedulerJobRunner._generate_task_instance_heartbeat_timeout_message_details(ti)
+
+        assert details["Map Index"] == 1
+        assert "Region Id" not in details
+
+    @pytest.mark.parametrize("warm", [False, True], ids=["cold_dag_bag", "warm_dag_bag"])
+    def test_heartbeat_timeout_purge_names_a_mapped_task_by_its_map_index(
+        self, dag_maker, session, mocker, warm
+    ):
+        with dag_maker("heartbeat_mapped_purge", serialized=True):
+            PythonOperator.partial(task_id="mapped", python_callable=list).expand(
+                op_kwargs=[{} for _ in range(5)]
+            )
+        tis = list(dag_maker.create_dagrun().task_instances)
+        for ti in tis:
+            ti.state = TaskInstanceState.RUNNING
+        ids = [ti.id for ti in tis]
+        version_id = tis[0].dag_version_id
+        session.commit()
+        session.expunge_all()
+        job_runner = SchedulerJobRunner(Job(), executors=[MockExecutor()])
+        mocker.patch.object(job_runner, "_try_to_load_executor", autospec=True, return_value=None)
+        handle_failure = mocker.patch.object(TaskInstance, "handle_failure", autospec=True)
+        job_runner.scheduler_dag_bag._dags.clear()
+        if warm:
+            job_runner.scheduler_dag_bag.get_dag(version_id, session=session)
+            session.expunge_all()
+        heartbeat_tis = [session.get(TaskInstance, ti_id) for ti_id in ids]
+
+        with capture_orm_selects("serialized_dag") as dag_selects:
+            job_runner._purge_task_instances_without_heartbeats(heartbeat_tis, session=session)
+
+        errors = [call.kwargs["error"] for call in handle_failure.call_args_list]
+        assert {int(e.split("'Map Index': ")[1].split(",")[0].rstrip("}")) for e in errors} == set(range(5))
+        assert all("Region Id" not in error for error in errors)
+        # Naming the tasks must not load the Dag again for each instance of the run.
+        assert len(dag_selects) <= (0 if warm else 1)
 
     @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def run_scheduler_until_dagrun_terminal(self):
@@ -10258,6 +10368,7 @@ class TestSchedulerJob:
     @pytest.mark.parametrize("missing_definition", ["dag", "task"])
     @pytest.mark.parametrize(("max_tries", "expected_max_tries"), [(0, 3), (7, 7)])
     @pytest.mark.parametrize("callback_version_available", [True, False])
+    @pytest.mark.parametrize("regional", [False, True])
     def test_heartbeat_timeout_completes_clear_without_definition(
         self,
         dag_maker,
@@ -10267,11 +10378,17 @@ class TestSchedulerJob:
         max_tries,
         expected_max_tries,
         callback_version_available,
+        regional,
     ):
         with dag_maker(dag_id="heartbeat_clear_missing_definition", session=session):
             EmptyOperator(task_id="task")
         dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
         ti = dr.get_task_instance("task", session=session)
+        if regional:
+            region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="loop")
+            session.add(region)
+            session.flush()
+            ti.region_id, ti.region_index = region.id, 2
         ti.state = State.RESTARTING
         ti.try_number = 3
         ti.max_tries = max_tries
@@ -10283,6 +10400,7 @@ class TestSchedulerJob:
         executor.running.add(TaskInstanceUuid(old_id))
         if missing_definition == "dag":
             mocker.patch.object(runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, return_value=None)
+            mocker.patch.object(TaskCoordinateResolver, "get_dag", autospec=True, return_value=None)
         else:
             mocker.patch.object(
                 SerializedDAG, "get_task", autospec=True, side_effect=TaskNotFound("Task was removed")
@@ -10293,13 +10411,18 @@ class TestSchedulerJob:
             return_value=callback_version_available,
         )
 
+        send_callback = mocker.spy(executor, "send_callback")
+
         runner._purge_task_instances_without_heartbeats([ti], session=session)
 
+        send_callback.assert_not_called()
         session.flush()
         session.refresh(ti)
         assert ti.id == old_id
         assert ti.working_set is None
-        current = dr.get_task_instance("task", session=session)
+        current = dr.get_task_instance(
+            "task", map_index=ti.region_index, region_id=ti.region_id, session=session
+        )
         assert current.id != old_id
         assert (current.try_number, current.state, current.max_tries) == (4, None, expected_max_tries)
         assert current.external_executor_id is None

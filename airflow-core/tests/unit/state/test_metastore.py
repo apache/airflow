@@ -123,7 +123,10 @@ class TestMetastoreBackendTaskScope:
     def test_operations_isolate_colliding_regions(self, session, backend, dag_run, operation):
         regions = [UUID(int=0), uuid4(), uuid4()]
         expected = {
-            (TaskScope(DAG_ID, RUN_ID, TASK_ID, index, region_id=region), key): f"{region}:{index}:{key}"
+            (
+                TaskScope(DAG_ID, RUN_ID, TASK_ID, region_index=index, region_id=region),
+                key,
+            ): f"{region}:{index}:{key}"
             for region in regions
             for index in (0, 1)
             for key in ("value", "other")
@@ -621,7 +624,10 @@ class TestMetastoreBackendAsync:
     async def test_operations_isolate_colliding_regions(self, backend, dag_run_committed, operation):
         regions = [UUID(int=0), uuid4(), uuid4()]
         expected = {
-            (TaskScope(DAG_ID, RUN_ID, TASK_ID, index, region_id=region), key): f"{region}:{index}:{key}"
+            (
+                TaskScope(DAG_ID, RUN_ID, TASK_ID, region_index=index, region_id=region),
+                key,
+            ): f"{region}:{index}:{key}"
             for region in regions
             for index in (0, 1)
             for key in ("value", "other")

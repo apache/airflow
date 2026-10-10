@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 from collections import defaultdict
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from functools import partial, reduce
 from typing import TYPE_CHECKING
@@ -56,12 +57,18 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstan
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs, get_or_create_dagrun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
+from airflow.models.taskinstance import (
+    TaskInstance,
+    TaskInstanceNote,
+    _update_dagrun_to_latest_version,
+    clear_task_instances,
+)
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.variable import Variable
@@ -81,7 +88,7 @@ from airflow.sdk import (
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
-from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
@@ -91,6 +98,7 @@ from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInst
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -203,7 +211,7 @@ class TestDagRun:
 
         if task_states is not None:
             for task_id, task_state in task_states.items():
-                ti = dag_run.get_task_instance(task_id)
+                ti = dag_run.get_task_instance(task_id, session=session)
                 if TYPE_CHECKING:
                     assert ti
                 ti.set_state(task_state, session=session)
@@ -1755,10 +1763,10 @@ def test_verify_integrity_task_start_and_end_date(
 
 
 @pytest.mark.parametrize("is_noop", [True, False])
-def test_expand_mapped_task_instance_at_create(is_noop, dag_maker, session):
-    with mock.patch("airflow.settings.task_instance_mutation_hook") as mock_mut:
+@pytest.mark.parametrize("literal", [[], [1, 2, 3, 4]])
+def test_expand_mapped_task_instance_at_create(is_noop, literal, dag_maker, session):
+    with mock.patch("airflow.settings.task_instance_mutation_hook", autospec=True) as mock_mut:
         mock_mut.is_noop = is_noop
-        literal = [1, 2, 3, 4]
         with dag_maker(session=session, dag_id="test_dag"):
             mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
 
@@ -1768,7 +1776,98 @@ def test_expand_mapped_task_instance_at_create(is_noop, dag_maker, session):
             .where(TI.task_id == mapped.task_id, TI.dag_id == mapped.dag_id, TI.run_id == dr.run_id)
             .order_by(TI.map_index)
         ).all()
-        assert indices == [0, 1, 2, 3]
+        assert indices == (list(range(len(literal))) if literal else [-1])
+        region = session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).one()
+        assert region.node_id == mapped.task_id
+        assert region.parent_region_id is None
+        assert region.forked_from_region_id is None
+        tis = session.scalars(select(TI).where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)).all()
+        assert {ti.region_id for ti in tis} == {region.id}
+        if not literal:
+            assert tis[0].state == TaskInstanceState.SKIPPED
+        original_states = {ti.id: ti.state for ti in tis}
+
+        dr.verify_integrity(dag_version_id=dr.created_dag_version_id, session=session)
+
+        assert {ti.id: ti.state for ti in dr.get_task_instances(session=session)} == original_states
+        assert session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all() == [
+            region
+        ]
+
+
+@pytest.mark.parametrize(
+    ("has_upstream", "partial_kwargs"),
+    [
+        pytest.param(True, {}, id="upstream"),
+        pytest.param(False, {"depends_on_past": True}, id="depends_on_past"),
+        pytest.param(False, {"wait_for_downstream": True}, id="wait_for_downstream"),
+    ],
+)
+def test_empty_literal_mapped_task_with_pending_dependencies_is_not_skipped_at_create(
+    has_upstream, partial_kwargs, dag_maker, session
+):
+    with dag_maker(session=session, dag_id="test_dag"):
+        mapped = MockOperator.partial(task_id="mapped", **partial_kwargs).expand(arg2=[])
+        if has_upstream:
+            BaseOperator(task_id="upstream") >> mapped
+
+    dr = dag_maker.create_dagrun()
+
+    state = session.scalar(
+        select(TI.state).where(TI.task_id == "mapped", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+    )
+    assert state is None
+
+
+def test_empty_literal_mapped_task_becomes_upstream_failed_when_upstream_fails(dag_maker, session):
+    with dag_maker(session=session, dag_id="test_dag"):
+        upstream = BaseOperator(task_id="upstream")
+        upstream >> MockOperator.partial(task_id="mapped").expand(arg2=[])
+
+    dr = dag_maker.create_dagrun()
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    tis["upstream"].state = TaskInstanceState.FAILED
+    session.flush()
+
+    dr.update_state(execute_callbacks=False, session=session)
+
+    assert {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)} == {
+        "upstream": TaskInstanceState.FAILED,
+        "mapped": TaskInstanceState.UPSTREAM_FAILED,
+    }
+
+
+@pytest.mark.parametrize("task_count", [2, 40])
+def test_creating_literal_mapped_tasks_costs_constant_queries(task_count, dag_maker, session):
+    with dag_maker(session=session, serialized=True):
+        for index in range(task_count):
+            MockOperator.partial(task_id=f"mapped_{index}").expand(arg2=[1, 2, 3])
+
+    with assert_queries_count(12):
+        dr = dag_maker.create_dagrun()
+
+    live = session.scalars(select(TI).where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)).all()
+    assert len(live) == 3 * task_count
+
+
+def test_unresolved_mapping_has_region_before_expansion(dag_maker, session):
+    with dag_maker(serialized=True):
+        producer = BaseOperator(task_id="producer")
+        MockOperator.partial(task_id="mapped").expand(arg2=producer.output)
+    dr = dag_maker.create_dagrun()
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    mapped = tis["mapped"]
+    assert mapped.region_id.int != 0
+    assert mapped.region_index == -1
+    assert mapped.state is None
+    assert tis["producer"].region_id.int == 0
+    region = session.get(DynamicRegion, mapped.region_id)
+    assert region.node_id == "mapped"
+
+    dr.verify_integrity(dag_version_id=dr.created_dag_version_id, session=session)
+
+    assert session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all() == [region]
+    assert session.get(TI, mapped.id) is mapped
 
 
 @pytest.mark.parametrize("is_noop", [True, False])
@@ -2186,7 +2285,7 @@ def test_restoring_removed_task_allocates_attempt_once(dag_maker, session, try_n
         else:
             BashOperator(task_id="task", bash_command="true")
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance("task", map_index=0 if mapped else -1, session=session)
+    ti = dr.task_instances[0]
     ti.state = TaskInstanceState.REMOVED
     ti.try_number = try_number
     old_id = ti.id
@@ -2224,7 +2323,7 @@ def test_verifying_removed_map_index_does_not_allocate_attempt(dag_maker, sessio
     with dag_maker(session=session):
         BashOperator.partial(task_id="task").expand(bash_command=["true", "true"])
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance("task", map_index=1, session=session)
+    ti = next(ti for ti in dr.task_instances if ti.region_index == 1)
     ti.try_number = 2
     ti.state = TaskInstanceState.SUCCESS
     old_id = ti.id
@@ -2291,6 +2390,240 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
         (2, State.REMOVED),
         (3, State.REMOVED),
     ]
+
+
+def _verify_latest_version(dr, dag_maker, session):
+    dr.dag = dag_maker.serialized_dag
+    dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id
+    dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+
+
+def _consume_instances(dr, session):
+    return session.scalars(
+        select(TI).where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id, TI.task_id == "consume")
+    ).all()
+
+
+def test_task_no_longer_mapped_returns_unexpanded_placeholder_to_sentinel_region(dag_maker, session):
+    @task
+    def produce():
+        return [1, 2]
+
+    @task
+    def consume(x): ...
+
+    with dag_maker(session=session):
+        consume.expand(x=produce())
+
+    dr = dag_maker.create_dagrun()
+    (placeholder,) = _consume_instances(dr, session)
+    assert placeholder.region_id != SENTINEL_REGION_ID
+
+    with dag_maker(session=session):
+        produce()
+        consume(x=1)
+    _verify_latest_version(dr, dag_maker, session)
+
+    (placeholder,) = _consume_instances(dr, session)
+    assert (placeholder.region_id, placeholder.region_index, placeholder.state) == (
+        SENTINEL_REGION_ID,
+        -1,
+        None,
+    )
+
+
+def test_task_no_longer_mapped_returns_placeholder_when_the_run_is_repinned_to_the_latest_version(
+    dag_maker, session
+):
+    @task
+    def produce():
+        return [1, 2]
+
+    @task
+    def consume(x): ...
+
+    with dag_maker(session=session):
+        consume.expand(x=produce())
+
+    dr = dag_maker.create_dagrun()
+    with dag_maker(session=session):
+        produce()
+        consume(x=1)
+    _update_dagrun_to_latest_version(dr.dag_id, dr.run_id, session)
+
+    (placeholder,) = _consume_instances(dr, session)
+    assert (placeholder.region_id, placeholder.region_index) == (SENTINEL_REGION_ID, -1)
+
+
+def test_task_no_longer_mapped_moves_lowest_unfinished_expanded_slot_to_sentinel(dag_maker, session):
+    @task
+    def consume(x): ...
+
+    with dag_maker(session=session):
+        consume.expand(x=[1, 2])
+
+    dr = dag_maker.create_dagrun()
+    assert {ti.state for ti in _consume_instances(dr, session)} == {None}
+    region_id = _consume_instances(dr, session)[0].region_id
+
+    with dag_maker(session=session):
+        consume(x=1)
+    _verify_latest_version(dr, dag_maker, session)
+
+    assert {(ti.region_id, ti.region_index, ti.state) for ti in _consume_instances(dr, session)} == {
+        (SENTINEL_REGION_ID, -1, None),
+        (region_id, 1, TaskInstanceState.REMOVED),
+    }
+
+
+def test_task_no_longer_mapped_removes_unfinished_slots_when_a_slot_has_finished(dag_maker, session):
+    @task
+    def consume(x): ...
+
+    with dag_maker(session=session):
+        consume.expand(x=[1, 2, 3])
+
+    dr = dag_maker.create_dagrun()
+    first, *_ = sorted(_consume_instances(dr, session), key=lambda ti: ti.region_index)
+    first.state = TaskInstanceState.SUCCESS
+    region_id = first.region_id
+    session.flush()
+
+    with dag_maker(session=session):
+        consume(x=1)
+    _verify_latest_version(dr, dag_maker, session)
+
+    assert {(ti.region_id, ti.region_index, ti.state) for ti in _consume_instances(dr, session)} == {
+        (region_id, 0, TaskInstanceState.SUCCESS),
+        (region_id, 1, TaskInstanceState.REMOVED),
+        (region_id, 2, TaskInstanceState.REMOVED),
+    }
+
+
+def test_task_no_longer_mapped_keeps_removed_slots_removed_and_plain_instance_on_the_next_pass(
+    dag_maker, session
+):
+    @task
+    def consume(x): ...
+
+    with dag_maker(session=session):
+        consume.expand(x=[1, 2])
+
+    dr = dag_maker.create_dagrun()
+    with dag_maker(session=session):
+        consume(x=1)
+    _verify_latest_version(dr, dag_maker, session)
+    _verify_latest_version(dr, dag_maker, session)
+
+    assert {
+        (ti.region_id == SENTINEL_REGION_ID, ti.region_index, ti.state)
+        for ti in _consume_instances(dr, session)
+    } == {
+        (True, -1, None),
+        (False, 1, TaskInstanceState.REMOVED),
+    }
+
+
+def test_task_no_longer_mapped_removes_placeholder_when_sentinel_slot_is_taken(dag_maker, session):
+    @task
+    def produce():
+        return [1, 2]
+
+    @task
+    def consume(x): ...
+
+    with dag_maker(session=session):
+        consume.expand(x=produce())
+
+    dr = dag_maker.create_dagrun()
+    (placeholder,) = _consume_instances(dr, session)
+    with dag_maker(session=session):
+        produce()
+        consume(x=1)
+    taken = TI(
+        dag_maker.serialized_dag.get_task("consume"),
+        run_id=dr.run_id,
+        dag_version_id=placeholder.dag_version_id,
+    )
+    session.add(taken)
+    session.flush()
+    _verify_latest_version(dr, dag_maker, session)
+
+    assert placeholder.state == TaskInstanceState.REMOVED
+    assert placeholder.region_id != SENTINEL_REGION_ID
+    assert (taken.region_id, taken.state) == (SENTINEL_REGION_ID, None)
+
+
+def test_task_no_longer_mapped_leaves_finished_instances_in_their_region(dag_maker, session):
+    @task
+    def produce():
+        return [1, 2]
+
+    @task
+    def consume(x): ...
+
+    with dag_maker(session=session):
+        consume.expand(x=produce())
+
+    dr = dag_maker.create_dagrun()
+    (placeholder,) = _consume_instances(dr, session)
+    region_id = placeholder.region_id
+    placeholder.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    with dag_maker(session=session):
+        produce()
+        consume(x=1)
+    _verify_latest_version(dr, dag_maker, session)
+
+    assert (placeholder.region_id, placeholder.state) == (region_id, TaskInstanceState.SUCCESS)
+
+
+@pytest.mark.backend("postgres", "mysql")
+def test_update_dagrun_to_latest_version_waits_for_the_dagrun_lock(dag_maker, session):
+    with dag_maker(serialized=True):
+        EmptyOperator(task_id="task")
+    dr = dag_maker.create_dagrun()
+    session.commit()
+
+    def update():
+        with create_session(scoped=False) as other:
+            _update_dagrun_to_latest_version(dr.dag_id, dr.run_id, other)
+
+    with ThreadPoolExecutor(max_workers=1) as pool, create_session(scoped=False) as locker:
+        locker.scalar(select(DagRun.id).where(DagRun.id == dr.id).with_for_update())
+        future = pool.submit(update)
+        with pytest.raises(TimeoutError):
+            future.result(timeout=2)
+        locker.rollback()
+        future.result(timeout=60)
+
+
+def test_create_tasks_called_twice_reuses_the_region_of_each_mapped_task(dag_maker, session):
+    @task
+    def consume(x): ...
+
+    with dag_maker(session=session):
+        consume.expand(x=[1, 2])
+
+    dr = dag_maker.create_dagrun()
+    mapped = dr.dag.get_task("consume")
+
+    def creator(task, indexes, region_id):
+        return [region_id]
+
+    first = list(dr._create_tasks([mapped], creator, session=session))
+    second = list(dr._create_tasks([mapped], creator, session=session))
+
+    assert first == second
+    assert (
+        session.scalar(
+            select(func.count())
+            .select_from(DynamicRegion)
+            .where(DynamicRegion.dag_id == dr.dag_id, DynamicRegion.node_id == "consume")
+        )
+        == 1
+    )
 
 
 def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, session):
@@ -2423,13 +2756,47 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
     assert len(decision.schedulable_tis) == 2
 
     # We insert a faulty record
-    session.add(
-        create_task_instance(task=dag.get_task("task_2"), run_id=dr.run_id, dag_version_id=ti.dag_version_id)
+    placeholder = create_task_instance(
+        task=dag.get_task("task_2"), run_id=dr.run_id, dag_version_id=ti.dag_version_id
     )
+    placeholder.region_id = decision.schedulable_tis[0].region_id
+    session.add(placeholder)
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions()
     assert len(decision.schedulable_tis) == 2
+
+
+def test_verify_integrity_resolves_xcom_mapped_task_without_pinned_dag_version(dag_maker, session):
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_1():
+            return [1, 2, 3]
+
+        @task
+        def task_2(arg2): ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    upstream = dr.get_task_instance(task_id="task_1", session=session)
+    upstream.state = TaskInstanceState.SUCCESS
+    push_mapped_length(upstream, [1, 2, 3], session=session)
+    session.flush()
+    dr.task_instance_scheduling_decisions(session=session)
+    dag_version_id = DagVersion.get_latest_version(dag.dag_id, session=session).id
+    session.execute(update(TI).where(TI.run_id == dr.run_id).values(dag_version_id=None))
+    dr.created_dag_version_id = None
+    session.flush()
+    session.expire_all()
+
+    dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+
+    indices = session.execute(
+        select(TI.map_index, TI.state).where(TI.task_id == "task_2", TI.run_id == dr.run_id)
+    ).all()
+    assert sorted(indices) == [(0, State.NONE), (1, State.NONE), (2, State.NONE)]
 
 
 def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_maker, session, caplog):
@@ -2582,20 +2949,27 @@ def test_mapped_task_group_empty_operator(dag_maker, session):
     dr = dag_maker.create_dagrun()
 
     t2_task = dag.get_task("tg.t2")
-    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0)
+    region_id = session.scalar(
+        select(DynamicRegion.id).where(
+            DynamicRegion.dag_id == dr.dag_id,
+            DynamicRegion.run_id == dr.run_id,
+            DynamicRegion.node_id == "tg.t2",
+        )
+    )
+    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0, region_id=region_id)
     t2_0.refresh_from_task(t2_task)
     assert t2_0.state is None
 
-    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1)
+    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1, region_id=region_id)
     t2_1.refresh_from_task(t2_task)
     assert t2_1.state is None
 
     dr.schedule_tis([t2_0])
 
-    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0)
+    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0, region_id=region_id)
     assert t2_0.state == TaskInstanceState.SUCCESS
 
-    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1)
+    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1, region_id=region_id)
     assert t2_1.state is None
 
 
@@ -3402,6 +3776,7 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
                     map_index=map_index,
                     dag_version_id=ti.dag_version_id,
                 )
+                ti_new.region_id = ti.region_id
                 session.add(ti_new)
                 ti_new.dag_run = dr
         else:
@@ -3856,7 +4231,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     def printx(x):
         print(x)
 
-    with dag_maker() as dag:
+    with dag_maker():
         printx.expand(x=[1])
 
     dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
@@ -3886,7 +4261,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     # Purposely omitted RenderedTaskInstanceFields because the ti need
     # to be expanded but here we are mimicking and made it map_index -1
     session.add(tr)
-    XComModel.set(key="test", value="value", task_id=ti.task_id, dag_id=dag.dag_id, run_id=ti.run_id)
+    XComModel.set_for_attempt(task_instance_id=ti.id, key="test", value="value", session=session)
     session.commit()
     for table in [TaskInstanceNote, TaskReschedule, XComModel]:
         assert session.scalar(select(func.count()).select_from(table)) == 1
@@ -5562,3 +5937,20 @@ class TestGetOrCreateDagrun:
             select(func.count()).select_from(TaskInstance).where(TaskInstance.run_id == "manual__existing")
         )
         assert existing_ti_count == 1
+
+
+def test_scheduling_decisions_do_not_redeserialize_the_dag_per_pass(dag_maker, session):
+    with dag_maker(session=session, serialized=True):
+        producer = EmptyOperator(task_id="producer")
+        mapped = MockOperator.partial(task_id="mapped").expand(arg2=[1, 2])
+        producer >> mapped >> EmptyOperator(task_id="reduce")
+    dr = dag_maker.create_dagrun()
+    dr.dag = DBDagBag().get_dag_for_run(dr, session=session)
+
+    with mock.patch.object(
+        DagSerialization, "from_dict", autospec=True, side_effect=DagSerialization.from_dict
+    ) as read:
+        for _ in range(3):
+            dr.task_instance_scheduling_decisions(session=session)
+
+    assert read.call_count == 0

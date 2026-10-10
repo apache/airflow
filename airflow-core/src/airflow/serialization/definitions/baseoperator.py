@@ -77,6 +77,7 @@ class SerializedBaseOperator(DAGNode):
     dag: SerializedDAG | None = None
     depends_on_past: bool = False
     do_xcom_push: bool = True
+    returns_dag_result: bool = False
     doc: str | None = None
     doc_md: str | None = None
     doc_json: str | None = None
@@ -181,6 +182,7 @@ class SerializedBaseOperator(DAGNode):
                 "allow_nested_operators",
                 "depends_on_past",
                 "do_xcom_push",
+                "returns_dag_result",
                 "doc",
                 "doc_json",
                 "doc_md",
