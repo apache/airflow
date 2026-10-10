@@ -23,13 +23,13 @@ import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from airflow.providers.snowflake.hooks.snowflake_cortex_agent import (
+from airflow.providers.snowflake.hooks.cortex_agent import (
     CreateMode,
     JsonResponse,
     SnowflakeCortexAgentHook,
 )
 
-MODULE_PATH = "airflow.providers.snowflake.hooks.snowflake_cortex_agent"
+MODULE_PATH = "airflow.providers.snowflake.hooks.cortex_agent"
 HOOK_PATH = f"{MODULE_PATH}.SnowflakeCortexAgentHook"
 
 ACCOUNT = "test-account"

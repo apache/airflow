@@ -66,7 +66,7 @@ SnowflakeCortexAgentCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To create a Snowflake Cortex Agent you can use
-:class:`~airflow.providers.snowflake.operators.snowflake_cortex_agent.SnowflakeCortexAgentCreateOperator`.
+:class:`~airflow.providers.snowflake.operators.cortex_agent.SnowflakeCortexAgentCreateOperator`.
 
 .. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_cortex_agent.py
     :language: python
@@ -80,7 +80,7 @@ SnowflakeCortexAgentUpdateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To update an existing Snowflake Cortex Agent you can use
-:class:`~airflow.providers.snowflake.operators.snowflake_cortex_agent.SnowflakeCortexAgentUpdateOperator`.
+:class:`~airflow.providers.snowflake.operators.cortex_agent.SnowflakeCortexAgentUpdateOperator`.
 
 Only fields explicitly provided are updated. Optional fields left as ``None``
 retain their existing values on the Cortex Agent.
@@ -96,7 +96,7 @@ retain their existing values on the Cortex Agent.
 SnowflakeCortexAgentOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Use the :class:`~airflow.providers.snowflake.operators.snowflake_cortex_agent.SnowflakeCortexAgentOperator`
+Use the :class:`~airflow.providers.snowflake.operators.cortex_agent.SnowflakeCortexAgentOperator`
 to execute an existing Snowflake Cortex Agent.
 
 The operator wraps the Snowflake Cortex Agent Run API and executes an existing
@@ -118,7 +118,7 @@ SnowflakeCortexAgentDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To delete a Snowflake Cortex Agent you can use
-:class:`~airflow.providers.snowflake.operators.snowflake_cortex_agent.SnowflakeCortexAgentDeleteOperator`.
+:class:`~airflow.providers.snowflake.operators.cortex_agent.SnowflakeCortexAgentDeleteOperator`.
 
 .. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_cortex_agent.py
     :language: python
