@@ -171,6 +171,10 @@ class TestGetTaskState(TestTaskStateEndpoint):
         response = test_client.get(f"{BASE_URL}/nonexistent")
         assert response.status_code == 404
 
+    def test_map_index_below_minus_one_returns_422(self, test_client):
+        response = test_client.get(f"{BASE_URL}/job_id", params={"map_index": -5})
+        assert response.status_code == 422
+
     def test_key_with_slash_is_supported(self, test_client):
         """Keys containing slashes must work — route uses {key:path}."""
         _create_task_state_store_row(self._session, "workflow/step_1", "v", self.dag_run)
@@ -581,15 +585,124 @@ class TestRegionalTaskState(TestTaskStateEndpoint):
         self._session.flush()
         ti.region_id, ti.region_index = region.id, 0
         self._session.commit()
+        params = {"region_id": str(region.id), "region_index": 0}
 
-        assert test_client.put(f"{BASE_URL}/key?map_index=0", json={"value": "v"}).status_code == 204
+        assert test_client.put(f"{BASE_URL}/key", params=params, json={"value": "v"}).status_code == 204
 
         row = self._session.scalars(
             select(TaskStateStoreModel).where(TaskStateStoreModel.dag_id == DAG_ID)
         ).one()
         assert (row.region_id, row.region_index) == (region.id, 0)
-        assert test_client.get(f"{BASE_URL}/key?map_index=0").json()["value"] == "v"
+        assert test_client.get(f"{BASE_URL}/key", params=params).json()["value"] == "v"
 
-        assert test_client.delete(f"{BASE_URL}?all_map_indices=true").status_code == 204
+        assert test_client.delete(BASE_URL, params={**params, "all_map_indices": True}).status_code == 204
         self._session.expire_all()
         assert self._session.scalars(select(TaskStateStoreModel)).all() == []
+
+    @pytest.fixture
+    def regional_scopes(self, dag_maker):
+        loop = DynamicRegion.get_or_create(
+            dag_id=DAG_ID, run_id=RUN_ID, node_id="loop", session=self._session
+        )
+        regions = [
+            DynamicRegion.get_or_create(
+                dag_id=DAG_ID,
+                run_id=RUN_ID,
+                node_id=TASK_ID,
+                parent_region_id=loop.id,
+                parent_region_index=iteration,
+                session=self._session,
+            ).id
+            for iteration in (0, 1)
+        ]
+        for region_id in regions:
+            for index in (2, 3):
+                self._session.add(
+                    TaskInstance(
+                        task=dag_maker.dag.get_task(TASK_ID),
+                        run_id=RUN_ID,
+                        dag_version_id=self.dag_run.created_dag_version_id,
+                        region_id=region_id,
+                        region_index=index,
+                    )
+                )
+                self._session.add(
+                    TaskStateStoreModel(
+                        dag_run_id=self.dag_run.id,
+                        dag_id=DAG_ID,
+                        run_id=RUN_ID,
+                        task_id=TASK_ID,
+                        region_id=region_id,
+                        region_index=index,
+                        key="job_id",
+                        value=json.dumps(f"{region_id}:{index}"),
+                    )
+                )
+        self._session.commit()
+        return regions
+
+    def test_read_and_update_use_complete_coordinates(self, test_client, regional_scopes):
+        selected, sibling = regional_scopes
+        params = {"region_id": str(selected), "region_index": 2}
+        response = test_client.get(BASE_URL, params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+        assert response.json()["task_state_store"][0]["value"] == f"{selected}:2"
+
+        response = test_client.patch(f"{BASE_URL}/job_id", params=params, json={"value": "updated"})
+        assert response.status_code == 200
+        response = test_client.get(f"{BASE_URL}/job_id", params=params)
+        assert response.json()["value"] == "updated"
+        response = test_client.get(
+            f"{BASE_URL}/job_id", params={"region_id": str(sibling), "region_index": 2}
+        )
+        assert response.json()["value"] == f"{sibling}:2"
+
+    @pytest.mark.parametrize(
+        ("all_map_indices", "survivors"),
+        [
+            pytest.param(False, {("sibling", 2), ("sibling", 3), ("selected", 3)}, id="one-index"),
+            pytest.param(True, {("sibling", 2), ("sibling", 3)}, id="every-index-of-the-mapping-region"),
+        ],
+    )
+    def test_clear_keeps_other_regions(self, test_client, regional_scopes, all_map_indices, survivors):
+        selected, sibling = regional_scopes
+        response = test_client.delete(
+            BASE_URL,
+            params={
+                "region_id": str(selected),
+                "region_index": 2,
+                "all_map_indices": str(all_map_indices).lower(),
+            },
+        )
+        assert response.status_code == 204
+        remaining = set(
+            self._session.execute(
+                select(TaskStateStoreModel.region_id, TaskStateStoreModel.region_index)
+            ).all()
+        )
+        named = {"selected": selected, "sibling": sibling}
+        assert remaining == {(named[name], index) for name, index in survivors}
+
+    def test_index_requires_region(self, test_client):
+        response = test_client.get(BASE_URL, params={"region_index": 2})
+        assert response.status_code == 400
+
+    def test_clear_all_indices_outside_a_mapping_region_clears_only_the_selected_index(
+        self, test_client, regional_scopes
+    ):
+        selected, sibling = regional_scopes
+        region = self._session.get(DynamicRegion, selected)
+        region.node_id = "loop"
+        self._session.commit()
+        response = test_client.delete(
+            BASE_URL,
+            params={"region_id": str(selected), "region_index": 2, "all_map_indices": True},
+        )
+        assert response.status_code == 204
+        remaining = set(
+            self._session.execute(
+                select(TaskStateStoreModel.region_id, TaskStateStoreModel.region_index)
+            ).all()
+        )
+        assert remaining == {(sibling, 2), (sibling, 3), (selected, 3)}

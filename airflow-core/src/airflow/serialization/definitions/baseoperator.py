@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 import methodtools
 
 from airflow.serialization.definitions.node import DAGNode
+from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
@@ -41,7 +42,6 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
-    from airflow.serialization.definitions.operatorlink import XComOperatorLink
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -289,6 +289,8 @@ class SerializedBaseOperator(DAGNode):
         link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
         if not link:
             return None
+        if isinstance(link, XComOperatorLink):
+            return link.get_link(self, ti_key=ti.key, region_id=ti.region_id)
         return link.get_link(self, ti_key=ti.key)
 
     @property

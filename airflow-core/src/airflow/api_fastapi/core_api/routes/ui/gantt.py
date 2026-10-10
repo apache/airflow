@@ -26,6 +26,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.gantt import GanttResponse, GanttTaskInstance
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import TaskInstanceState
 
@@ -62,6 +63,10 @@ def get_gantt_data(
     """Get all task instance tries for Gantt chart."""
     # Pending retries retain timing for backoff; only the archived attempt belongs on the chart.
     current_tis = select(
+        TaskInstance.id,
+        TaskInstance.region_id,
+        TaskInstance.region_index,
+        public_map_index_expression(TaskInstance).label("map_index"),
         TaskInstance.task_id.label("task_id"),
         TaskInstance.task_display_name.label("task_display_name"),  # type: ignore[attr-defined]
         TaskInstance.try_number.label("try_number"),
@@ -73,11 +78,13 @@ def get_gantt_data(
     ).where(
         TaskInstance.dag_id == dag_id,
         TaskInstance.run_id == run_id,
-        TaskInstance.region_index == -1,
+        public_map_index_expression(TaskInstance) == -1,
         or_(TaskInstance.state != TaskInstanceState.UP_FOR_RETRY, TaskInstance.state.is_(None)),
     )
 
-    query = current_tis.order_by(TaskInstance.task_id, TaskInstance.try_number)
+    query = current_tis.order_by(
+        TaskInstance.task_id, TaskInstance.region_id, TaskInstance.region_index, TaskInstance.try_number
+    )
 
     results = session.execute(query).fetchall()
 
@@ -89,6 +96,10 @@ def get_gantt_data(
 
     task_instances = [
         GanttTaskInstance(
+            id=row.id,
+            region_id=row.region_id,
+            region_index=row.region_index,
+            map_index=row.map_index,
             task_id=row.task_id,
             task_display_name=row.task_display_name,
             try_number=row.try_number,

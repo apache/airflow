@@ -1550,6 +1550,10 @@ class VersionInfo(BaseModel):
     git_version: Annotated[str | None, Field(title="Git Version")]
 
 
+class RegionIndex(RootModel[int]):
+    root: Annotated[int, Field(ge=-1, title="Region Index")]
+
+
 class XComCreateBody(BaseModel):
     """
     Payload serializer for creating an XCom entry.
@@ -1561,6 +1565,8 @@ class XComCreateBody(BaseModel):
     key: Annotated[str, Field(title="Key")]
     value: Annotated[Any, Field(title="Value")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[RegionIndex | None, Field(title="Region Index")] = None
 
 
 class XComResponse(BaseModel):
@@ -1572,6 +1578,8 @@ class XComResponse(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -1590,6 +1598,8 @@ class XComResponseNative(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -1609,6 +1619,8 @@ class XComResponseString(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -1629,6 +1641,8 @@ class XComUpdateBody(BaseModel):
     )
     value: Annotated[Any, Field(title="Value")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[RegionIndex | None, Field(title="Region Index")] = None
 
 
 class AssetAliasCollectionResponse(BaseModel):
@@ -2615,10 +2629,13 @@ class TaskInstanceHistoryResponse(BaseModel):
     TaskInstanceHistory serializer for responses.
     """
 
+    id: Annotated[UUID, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     start_date: Annotated[datetime | None, Field(title="Start Date")]
     end_date: Annotated[datetime | None, Field(title="End Date")]
     duration: Annotated[float | None, Field(title="Duration")]
@@ -2641,6 +2658,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")]
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None
+    note: Annotated[str | None, Field(title="Note")] = None
     state_reason: Annotated[
         str | None,
         Field(

@@ -16,15 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated
+from dataclasses import dataclass
+from typing import Annotated, Any
+from uuid import UUID
 
 import structlog
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailBodySearch,
@@ -62,11 +65,16 @@ from airflow.api_fastapi.core_api.security import (
     get_auth_manager,
     requires_access_dag,
 )
+from airflow.api_fastapi.core_api.services.public.task_coordinates import (
+    TaskCoordinateView,
+    resolve_task_scope,
+)
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
 from airflow.models.renderedtifields import load_legacy_rendered_fields
+from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.trigger import handle_event_submit
 from airflow.triggers.base import TriggerEvent
@@ -81,21 +89,45 @@ task_instance_hitl_path = "/taskInstances/{task_id}/{map_index}/hitlDetails"
 log = structlog.get_logger(__name__)
 
 
+@dataclass
+class HITLDetailView:
+    """Expose the selected execution with its public mapping coordinates."""
+
+    value: HITLDetailModel
+    task_instance: TaskCoordinateView
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.value, name)
+
+
 def _get_task_instance_with_hitl_detail(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: int,
     try_number: int | None = None,
+    region_id: UUID | None = None,
+    region_index: int | None = None,
 ) -> TI:
+    scope = resolve_task_scope(
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        task_id=task_id,
+        resolver=TaskCoordinateResolver(dag_bag, session),
+        map_index=map_index,
+        region_id=region_id,
+        region_index=region_index,
+    )
     query = (
         select(TI)
         .where(
             TI.dag_id == dag_id,
             TI.run_id == dag_run_id,
             TI.task_id == task_id,
-            TI.map_index == map_index,
+            TI.region_id == scope.region_id,
+            TI.region_index == scope.region_index,
         )
         .options(joinedload(TI.hitl_detail), joinedload(TI.rendered_task_instance_fields))
     )
@@ -144,7 +176,10 @@ def update_hitl_detail(
     update_hitl_detail_payload: UpdateHITLDetailPayload,
     user: GetUserDep,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: int = -1,
+    region_id: UUID | None = None,
+    region_index: int | None = None,
 ) -> HITLDetailResponse:
     """Update a Human-in-the-loop detail."""
     task_instance = _get_task_instance_with_hitl_detail(
@@ -152,7 +187,10 @@ def update_hitl_detail(
         dag_run_id=dag_run_id,
         task_id=task_id,
         session=session,
+        dag_bag=dag_bag,
         map_index=map_index,
+        region_id=region_id,
+        region_index=region_index,
     )
 
     # Acquire row locks in a fixed order -- TaskInstance first, then the HITL row -- matching the
@@ -245,7 +283,9 @@ def update_hitl_detail(
 @task_instances_hitl_router.get(
     task_instance_hitl_path,
     status_code=status.HTTP_200_OK,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_detail(
@@ -253,7 +293,10 @@ def get_hitl_detail(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: int = -1,
+    region_id: UUID | None = None,
+    region_index: int | None = None,
 ) -> HITLDetail:
     """Get a Human-in-the-loop detail of a specific task instance."""
     task_instance = _get_task_instance_with_hitl_detail(
@@ -261,16 +304,26 @@ def get_hitl_detail(
         dag_run_id=dag_run_id,
         task_id=task_id,
         session=session,
+        dag_bag=dag_bag,
         map_index=map_index,
+        region_id=region_id,
+        region_index=region_index,
         try_number=None,
     )
-    return HITLDetail.model_validate(task_instance.hitl_detail)
+    return HITLDetail.model_validate(
+        HITLDetailView(
+            task_instance.hitl_detail,
+            TaskCoordinateView(task_instance, TaskCoordinateResolver(dag_bag, session)),
+        )
+    )
 
 
 @task_instances_hitl_router.get(
     task_instance_hitl_path + "/tries/{try_number}",
     status_code=status.HTTP_200_OK,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_detail_try_detail(
@@ -278,8 +331,11 @@ def get_hitl_detail_try_detail(
     dag_run_id: str,
     task_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
     map_index: int = -1,
     try_number: int | None = None,
+    region_id: UUID | None = None,
+    region_index: int | None = None,
 ) -> HITLDetailHistory:
     """Get a Human-in-the-loop detail of a specific task instance."""
     task_instance_history = _get_task_instance_with_hitl_detail(
@@ -287,15 +343,24 @@ def get_hitl_detail_try_detail(
         dag_run_id=dag_run_id,
         task_id=task_id,
         session=session,
+        dag_bag=dag_bag,
         map_index=map_index,
         try_number=try_number,
+        region_id=region_id,
+        region_index=region_index,
     )
-    return task_instance_history.hitl_detail
+    return HITLDetailHistory.model_validate(
+        HITLDetailView(
+            task_instance_history.hitl_detail,
+            TaskCoordinateView(task_instance_history, TaskCoordinateResolver(dag_bag, session)),
+        )
+    )
 
 
 @task_instances_hitl_router.get(
     "/hitlDetails",
     status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 def get_hitl_details(
@@ -329,6 +394,7 @@ def get_hitl_details(
         ),
     ],
     session: SessionDep,
+    dag_bag: DagBagDep,
     # permission filter
     readable_ti_filter: ReadableTIFilterDep,
     # ti related filter
@@ -347,8 +413,12 @@ def get_hitl_details(
     subject_patten: QueryHITLDetailSubjectSearch,
     body_patten: QueryHITLDetailBodySearch,
     created_at: Annotated[RangeFilter, Depends(datetime_range_filter_factory("created_at", HITLDetailModel))],
+    region_id: Annotated[UUID | None, Query()] = None,
+    region_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> HITLDetailCollection:
     """Get Human-in-the-loop details."""
+    if region_index is not None and region_id is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_index requires region_id")
     query = (
         select(HITLDetailModel)
         .join(TI, HITLDetailModel.ti_id == TI.id)
@@ -366,6 +436,10 @@ def get_hitl_details(
         query = query.where(TI.dag_id == dag_id)
     if dag_run_id != "~":
         query = query.where(TI.run_id == dag_run_id)
+    if region_id is not None:
+        query = query.where(TI.region_id == region_id)
+    if region_index is not None:
+        query = query.where(TI.region_index == region_index)
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -397,7 +471,14 @@ def get_hitl_details(
     hitl_details = session.scalars(hitl_detail_select).all()
     load_legacy_rendered_fields([detail.task_instance for detail in hitl_details], session=session)
 
+    resolver = TaskCoordinateResolver(dag_bag, session)
+
     return HITLDetailCollection(
-        hitl_details=hitl_details,
+        hitl_details=[
+            HITLDetail.model_validate(
+                HITLDetailView(detail, TaskCoordinateView(detail.task_instance, resolver))
+            )
+            for detail in hitl_details
+        ],
         total_entries=total_entries,
     )
