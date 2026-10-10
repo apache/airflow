@@ -54,8 +54,7 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--kubernetes-version",
-                "--go-image",
-                "--java-image",
+                "--runtime-image",
             ],
         }
     ],

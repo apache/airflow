@@ -17,13 +17,12 @@
 #
 # Helm overrides for the lang-SDK KubernetesExecutor system test. Applied with
 # `helm ... -f` by `breeze k8s setup-lang-sdk-test` (which also renders the
-# pod-template image placeholders and creates the lang-sdk-aws-conn secret).
+# shared worker pod template and creates the lang-sdk-aws-conn secret).
 ---
 executor: KubernetesExecutor
 
-# A global AWS connection pointing at the in-cluster localstack S3, used by the
-# dag-processor (to pull the Python stub Dag bundle) and by the artifact
-# init-containers. Sourced from the secret the breeze command creates.
+# A global AWS connection pointing at the in-cluster localstack S3. Every coordinator
+# downloads its own bundle, so both the Dag processor and every worker pod need it.
 extraEnv: |
   - name: AIRFLOW_CONN_AWS_LOCALSTACK
     valueFrom:
@@ -32,7 +31,7 @@ extraEnv: |
         key: uri
 
 # The KubernetesExecutor lives in the scheduler and reads each coordinator's
-# pod_template_file from disk, so mount the rendered templates (configmap created
+# pod_template_file from disk, so mount the rendered template (configmap created
 # by the breeze command) into the scheduler at the path referenced below.
 scheduler:
   extraVolumes:
@@ -44,16 +43,20 @@ scheduler:
       readOnly: true
       mountPath: /opt/airflow/lang_sdk/pod_templates
 
-# Serve BOTH the baked-in example Dags (dags-folder) and the lang-SDK stub Dag pulled from the
-# localstack "dags" bucket. This must be additive: the standard KubernetesExecutor tests share this
-# run and trigger example Dags, so dropping dags-folder marks them stale and their runs 404.
+# Serve the baked-in example Dags (dags-folder), the lang-SDK stub Dag, every
+# coordinator's task-handler bundle, and the two native Dag bundles. This must be
+# additive: the standard KubernetesExecutor tests share this run and trigger
+# example Dags, so dropping dags-folder marks them stale and their runs 404.
 # Configure it here (dagProcessor.dagBundleConfigList) rather than overriding
 # config.dag_processor.dag_bundle_config_list directly -- the chart renders the config from this and
 # it is the recommended, drift-safe path.
 #
-# go-task-handlers / java-task-handlers are the coordinators' task_handler_bundle_name bundles: the
-# worker pod's init container stages each artifact bucket into these paths (stage_artifacts.py).
-# They exist only in the worker pods, so the dag-processor finds no files in them.
+# go-task-handlers/java-task-handlers/ts-task-handlers carry an .airflowignore
+# that excludes every file in them, so the Dag processor never parses the
+# packed Go bundle or the Java/TypeScript handler-only bundles as Dags; a
+# coordinator's own artifact lookup does not read .airflowignore, so stub tasks
+# still find their handlers there. The two lang-sdk-native-* bundles carry no
+# such file: that is exactly what the Dag processor is meant to parse.
 dagProcessor:
   dagBundleConfigList:
     - name: dags-folder
@@ -65,22 +68,44 @@ dagProcessor:
         bucket_name: "dags"
         aws_conn_id: "aws_localstack"
     - name: go-task-handlers
-      classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+      classpath: "airflow.providers.amazon.aws.bundles.s3.S3DagBundle"
       kwargs:
-        path: "/opt/airflow/artifacts/go-artifacts"
+        bucket_name: "go-task-handlers"
+        aws_conn_id: "aws_localstack"
     - name: java-task-handlers
-      classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+      classpath: "airflow.providers.amazon.aws.bundles.s3.S3DagBundle"
       kwargs:
-        path: "/opt/airflow/artifacts/java-artifacts"
+        bucket_name: "java-task-handlers"
+        aws_conn_id: "aws_localstack"
+    - name: ts-task-handlers
+      classpath: "airflow.providers.amazon.aws.bundles.s3.S3DagBundle"
+      kwargs:
+        bucket_name: "ts-task-handlers"
+        aws_conn_id: "aws_localstack"
+    - name: lang-sdk-native-java
+      classpath: "airflow.providers.amazon.aws.bundles.s3.S3DagBundle"
+      kwargs:
+        bucket_name: "lang-sdk-native-java"
+        aws_conn_id: "aws_localstack"
+    - name: lang-sdk-native-ts
+      classpath: "airflow.providers.amazon.aws.bundles.s3.S3DagBundle"
+      kwargs:
+        bucket_name: "lang-sdk-native-ts"
+        aws_conn_id: "aws_localstack"
 
 config:
-  # Route the golang/java queues to their coordinators, each carrying an
-  # extra.pod_template_file (the worktree-1 feature) so the worker pod is
-  # launched from a coordinator-specific template that stages the artifact and,
-  # for Java, runs on the JVM-bearing image.
+  # Route each queue to its coordinator. Every coordinator carries the same
+  # extra.pod_template_file (no init container, so no artifact staging to
+  # differ on) and the same extra.worker_container_repository/tag (the one
+  # image with a JRE and Node, which KubernetesExecutor always prefers over
+  # the pod template's own base-container image).
   sdk:
     # Single-line JSON: airflow.cfg is an ini file, so a value with embedded
     # newlines would break the rendered configmap.
     # yamllint disable-line rule:line-length
-    coordinators: '{"go-sdk": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"task_handler_bundle_name": "go-task-handlers"}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_golang.yaml"}}, "java-sdk": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"task_handler_bundle_name": "java-task-handlers"}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_java.yaml", "worker_container_repository": "lang-sdk-java-worker", "worker_container_tag": "latest"}}}'
-    queue_to_coordinator: '{"golang": "go-sdk", "java": "java-sdk"}'
+    coordinators: '{"go-sdk": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"task_handler_bundle_name": "go-task-handlers"}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_worker.yaml", "worker_container_repository": "lang-sdk-runtimes", "worker_container_tag": "latest"}}, "java-sdk": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"task_handler_bundle_name": "java-task-handlers"}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_worker.yaml", "worker_container_repository": "lang-sdk-runtimes", "worker_container_tag": "latest"}}, "ts-sdk": {"classpath": "airflow.sdk.coordinators.node.NodeCoordinator", "kwargs": {"task_handler_bundle_name": "ts-task-handlers"}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_worker.yaml", "worker_container_repository": "lang-sdk-runtimes", "worker_container_tag": "latest"}}}'
+    # java-native is the native Java Dag's queue (the Java DSL has no Dag-level queue, so each of
+    # its tasks sets one); it routes to the same java-sdk coordinator, which ignores
+    # task_handler_bundle_name for a native task and reads the task's own Dag bundle instead.
+    # yamllint disable-line rule:line-length
+    queue_to_coordinator: '{"golang": "go-sdk", "java": "java-sdk", "java-native": "java-sdk", "typescript": "ts-sdk"}'

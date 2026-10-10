@@ -1,0 +1,49 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# Runtime image for every lang-SDK coordinator queue: the stock prod image plus a
+# headless JRE (JavaCoordinator execs `java`) and Node.js (NodeCoordinator execs
+# `node`). The Go queue needs neither -- a Go bundle is a self-contained static
+# binary -- but it shares this image too, since the Dag processor itself needs
+# both runtimes to parse native Java and TypeScript Dags, and using one image
+# everywhere keeps the pod templates and the Helm image override identical
+# across components.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+USER root
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y default-jre-headless \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+# The keyring step pipes curl into gpg, so a failure mid-pipe has to fail the build.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y ca-certificates curl gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+        > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install --no-install-recommends -y nodejs \
+    && apt-get purge -y --auto-remove gnupg \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+SHELL ["/bin/sh", "-c"]
+USER airflow

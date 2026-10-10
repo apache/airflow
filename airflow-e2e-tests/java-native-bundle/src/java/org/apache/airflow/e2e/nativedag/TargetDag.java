@@ -17,18 +17,30 @@
  * under the License.
  */
 
-package org.apache.airflow.k8sexample;
+// "native" is a Java keyword, so the native Dags live in "nativedag".
+package org.apache.airflow.e2e.nativedag;
 
+import static org.apache.airflow.e2e.NativeBundleBuilder.QUEUE;
+
+import java.util.List;
 import org.apache.airflow.sdk.*;
 
-// The bundle holds task handlers only: the "lang_sdk_mixed_language" Dag is the Python
-// file's, so nothing here declares a Dag.
-public class K8sBundleBuilder {
-  public static Bundle build() {
-    return new Bundle().register(MixedLanguageExample.class);
+/** The Dag the e2e's other native Dags trigger, so they can't trigger each other in a loop. */
+public class TargetDag {
+  public static class Receive implements Task {
+    @Override
+    public void execute(Context context, Client client) {
+      client.setXCom("triggered");
+    }
   }
 
-  public static void main(String[] args) {
-    Server.create(args).serve(build());
+  public static DagDef build() {
+    var dag =
+        new DagDef("java_native_target_e2e")
+            .config("description", "Native Java Dag the e2e's other native Dags trigger")
+            .config("catchup", false)
+            .config("tags", List.of("java-sdk", "native", "e2e"));
+    dag.task("receive", Receive.class).config("queue", QUEUE);
+    return dag;
   }
 }

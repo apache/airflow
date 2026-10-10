@@ -15,12 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Combined Python + Go + Java stub Dag for the KubernetesExecutor lang-SDK system test.
+Mixed-language stub Dag for the KubernetesExecutor lang-SDK system test.
 
-A single ``lang_sdk_combined`` Dag chains native Python tasks, Go stub tasks, and
-Java stub tasks so one run exercises all three runtimes on KubernetesExecutor::
+A single ``lang_sdk_mixed_language`` Dag chains native Python tasks with Go, Java and
+TypeScript stub tasks so one run exercises every lang-SDK coordinator on KubernetesExecutor::
 
-    python_task_1 >> go_extract >> go_transform >> java_extract >> java_transform >> python_task_2
+    python_task_1 >> go_extract >> go_transform >> java_extract >> java_transform
+                   >> ts_extract >> ts_transform >> python_task_2
 
 * ``go_extract`` / ``go_transform`` are ``@task.stub(queue="golang")``; the
   ``golang`` queue is routed to the ``ExecutableCoordinator``. Their Go
@@ -28,9 +29,12 @@ Java stub tasks so one run exercises all three runtimes on KubernetesExecutor::
 * ``java_extract`` / ``java_transform`` are ``@task.stub(queue="java")``; the
   ``java`` queue is routed to the ``JavaCoordinator``. Their Java
   implementations live in ``../java_example`` under this same dag_id.
+* ``ts_extract`` / ``ts_transform`` are ``@task.stub(queue="typescript")``; the
+  ``typescript`` queue is routed to the ``NodeCoordinator``. Their TypeScript
+  implementations live in ``../ts_example`` under this same dag_id.
 * The Python tasks run on the default Python path.
 
-The dag_id and the Go/Java task ids MUST match the identities the bundles expose
+The dag_id and the Go/Java/TypeScript task ids MUST match the identities the bundles expose
 so each coordinator can locate its artifact by dag_id and look up the task by id.
 """
 
@@ -60,21 +64,31 @@ def java_extract(): ...
 def java_transform(): ...
 
 
+@task.stub(queue="typescript")
+def ts_extract(): ...
+
+
+@task.stub(queue="typescript")
+def ts_transform(): ...
+
+
 @task()
 def python_task_2():
     print("python_task_2")
 
 
-@dag(dag_id="lang_sdk_combined")
-def lang_sdk_combined():
+@dag(dag_id="lang_sdk_mixed_language")
+def lang_sdk_mixed_language():
     (
         python_task_1()
         >> go_extract()
         >> go_transform()
         >> java_extract()
         >> java_transform()
+        >> ts_extract()
+        >> ts_transform()
         >> python_task_2()
     )
 
 
-lang_sdk_combined()
+lang_sdk_mixed_language()

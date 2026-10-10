@@ -17,12 +17,12 @@
 """
 End-to-end test of the lang-SDK coordinators on KubernetesExecutor.
 
-Triggers the ``lang_sdk_combined`` Dag (Python + Go + Java tasks in one graph)
-and asserts every task instance and the Dag run reach ``success``. This exercises
-the full path the worktree-1 feature enables: the ``golang``/``java`` queues are
-routed to their coordinators, each coordinator's ``pod_template_file`` launches a
-worker pod whose init-container stages the artifact from localstack S3 via the
-DagBundle interface, and the coordinator then runs the Go binary / Java jar.
+Triggers the ``lang_sdk_mixed_language`` Dag (Python + Go + Java + TypeScript tasks in one
+graph) and asserts every task instance and the Dag run reach ``success``. This exercises
+every coordinator's ``pod_template_file`` routing: the ``golang``/``java``/``typescript``
+queues are routed to their coordinators, each coordinator downloads its own
+``task_handler_bundle_name`` Dag bundle from localstack S3, and then runs the Go binary /
+Java jar / TypeScript bundle.
 
 Prerequisites are provisioned by ``breeze k8s setup-lang-sdk-test``.
 """
@@ -37,16 +37,18 @@ from kubernetes_tests.test_base import EXECUTOR, BaseK8STest
 
 _RUN_LANG_SDK = os.environ.get("RUN_LANG_SDK_K8S_TESTS", "").lower() in ("true", "1")
 
-DAG_ID = "lang_sdk_combined"
+DAG_ID = "lang_sdk_mixed_language"
 TASK_IDS = [
     "python_task_1",
     "go_extract",
     "go_transform",
     "java_extract",
     "java_transform",
+    "ts_extract",
+    "ts_transform",
     "python_task_2",
 ]
-# Each task is a fresh pod (KubernetesExecutor) and the lang tasks also pull an
+# Each task is a fresh pod (KubernetesExecutor) and the lang tasks also download an
 # artifact + start a coordinator subprocess, so allow generous headroom.
 _TIMEOUT = 600
 
@@ -55,15 +57,15 @@ _TIMEOUT = 600
     EXECUTOR != "KubernetesExecutor" or not _RUN_LANG_SDK,
     reason="Runs only on KubernetesExecutor with the lang-SDK env provisioned (RUN_LANG_SDK_K8S_TESTS)",
 )
-class TestLangSdkCoordinatorExecutor(BaseK8STest):
+class TestLangSdkMixedLanguageDag(BaseK8STest):
     def _ensure_variable(self, key: str, value: str) -> None:
-        """Create the Airflow Variable the Go/Java transform tasks read (idempotent)."""
+        """Create the Airflow Variable the Go/Java/TypeScript transform tasks read (idempotent)."""
         resp = self.session.post(f"http://{self.host}/variables", json={"key": key, "value": value})
         # 409 == already exists from a previous run; both are acceptable.
         assert resp.status_code in (200, 201, 409), f"Could not create variable {key}: {resp.text}"
 
     @pytest.mark.execution_timeout(900)
-    def test_lang_sdk_combined_dag_succeeds(self):
+    def test_mixed_language_dag_succeeds(self):
         self._ensure_variable("my_variable", "value_from_test")
 
         dag_run_id, logical_date = self.start_job_in_kubernetes(DAG_ID, self.host)

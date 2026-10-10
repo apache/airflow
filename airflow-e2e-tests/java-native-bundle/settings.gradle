@@ -17,18 +17,17 @@
  * under the License.
  */
 
-package org.apache.airflow.k8sexample;
-
-import org.apache.airflow.sdk.*;
-
-// The bundle holds task handlers only: the "lang_sdk_mixed_language" Dag is the Python
-// file's, so nothing here declares a Dag.
-public class K8sBundleBuilder {
-  public static Bundle build() {
-    return new Bundle().register(MixedLanguageExample.class);
-  }
-
-  public static void main(String[] args) {
-    Server.create(args).serve(build());
-  }
+// Route the plugin lookup to the SDK build published to the local Maven
+// repository by conftest._setup_java_sdk_integration.
+pluginManagement {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+    }
 }
+
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
+}
+
+rootProject.name = "airflow-e2e-java-native-bundle"
