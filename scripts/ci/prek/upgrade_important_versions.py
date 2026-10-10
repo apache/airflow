@@ -402,10 +402,12 @@ def prune_obsolete_cooldown_overrides() -> bool:
 
 
 HARDENED_PYTHON_CATALOG_URL = (
-    "https://raw.githubusercontent.com/docker-hardened-images/catalog/main/image/python/debian-12/"
+    "https://raw.githubusercontent.com/docker-hardened-images/catalog/main/image/python/debian-{debian}/"
     "{python_major_minor}-dev.yaml"
 )
-HARDENED_PYTHON_TAG_PATTERN = re.compile(r"^\s*-\s*(\d+\.\d+\.\d+)-debian12-dev\s*$", re.MULTILINE)
+# One patchlevel pin serves the images of every Debian release Airflow builds on (trixie is the
+# default, bookworm is still available for PROD images).
+HARDENED_PYTHON_DEBIAN_RELEASES = ["13", "12"]
 
 
 def get_latest_python_version(python_major_minor: str) -> str:
@@ -416,16 +418,24 @@ def get_latest_python_version(python_major_minor: str) -> str:
     published - a newer python.org release is of no use until Docker builds it. The image definitions
     in the public catalog list the patchlevel tag each image is currently built from.
     """
-    url = HARDENED_PYTHON_CATALOG_URL.format(python_major_minor=python_major_minor)
-    if VERBOSE:
-        console.print(f"[bright_blue]Fetching the hardened Python {python_major_minor} definition from {url}")
-    response = requests.get(url, headers={"User-Agent": "Python requests"})
-    response.raise_for_status()
-    versions = [Version(tag) for tag in HARDENED_PYTHON_TAG_PATTERN.findall(response.text)]
-    if not versions:
-        console.print(f"[bright_red]No hardened Python {python_major_minor} image tags found in {url}")
-        sys.exit(1)
-    latest_version = max(versions)
+    latest_per_release = []
+    for debian in HARDENED_PYTHON_DEBIAN_RELEASES:
+        url = HARDENED_PYTHON_CATALOG_URL.format(debian=debian, python_major_minor=python_major_minor)
+        if VERBOSE:
+            console.print(
+                f"[bright_blue]Fetching the hardened Python {python_major_minor} definition from {url}"
+            )
+        response = requests.get(url, headers={"User-Agent": "Python requests"})
+        response.raise_for_status()
+        pattern = rf"^\s*-\s*(\d+\.\d+\.\d+)-debian{debian}-dev\s*$"
+        versions = [Version(tag) for tag in re.findall(pattern, response.text, re.MULTILINE)]
+        if not versions:
+            console.print(f"[bright_red]No hardened Python {python_major_minor} image tags found in {url}")
+            sys.exit(1)
+        latest_per_release.append(max(versions))
+    # Docker does not always publish a patchlevel for every Debian release on the same day - pinning
+    # one that a release lacks would point its builds at a tag that does not exist.
+    latest_version = min(latest_per_release)
     if VERBOSE:
         console.print(f"[bright_blue]Latest version for {python_major_minor}: {latest_version}")
     return str(latest_version)

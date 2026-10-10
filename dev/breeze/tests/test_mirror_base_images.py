@@ -50,8 +50,15 @@ def _catalog_response(text: str) -> mock.MagicMock:
 )
 def test_latest_hardened_python_patchlevel_is_read_from_the_catalog(definition, expected):
     with mock.patch("requests.get", autospec=True, return_value=_catalog_response(definition)) as get:
-        assert get_latest_hardened_python_patchlevel("3.14") == expected
+        assert get_latest_hardened_python_patchlevel("3.14", "bookworm") == expected
     assert get.call_args.args[0].endswith("/image/python/debian-12/3.14-dev.yaml")
+
+
+def test_latest_hardened_python_patchlevel_defaults_to_trixie():
+    definition = "tags:\n  - 3.14.8-debian12-dev\n  - 3.14.9-debian13-dev\n"
+    with mock.patch("requests.get", autospec=True, return_value=_catalog_response(definition)) as get:
+        assert get_latest_hardened_python_patchlevel("3.14") == "3.14.9"
+    assert get.call_args.args[0].endswith("/image/python/debian-13/3.14-dev.yaml")
 
 
 def test_latest_hardened_python_patchlevel_is_none_when_the_catalog_is_unreachable():
@@ -79,9 +86,13 @@ def test_mirror_also_copies_a_newer_published_patchlevel(newer_available):
 
     assert result.exit_code == 0
     sources = [call.args[0][-1] for call in run.call_args_list]
-    assert sources[0] == f"dhi.io/python:{pinned}-debian12-dev"
     if newer_available:
-        assert sources[1:] == ["dhi.io/python:3.14.99-debian12-dev"]
-        assert "ghcr.io/apache/airflow/base/python:3.14.99-debian12-dev" in run.call_args_list[1].args[0]
+        assert sources == [
+            f"dhi.io/python:{pinned}-debian13-dev",
+            "dhi.io/python:3.14.99-debian13-dev",
+            f"dhi.io/python:{pinned}-debian12-dev",
+            "dhi.io/python:3.14.99-debian12-dev",
+        ]
+        assert "ghcr.io/apache/airflow/base/python:3.14.99-debian13-dev" in run.call_args_list[1].args[0]
     else:
-        assert sources[1:] == []
+        assert sources == [f"dhi.io/python:{pinned}-debian13-dev", f"dhi.io/python:{pinned}-debian12-dev"]

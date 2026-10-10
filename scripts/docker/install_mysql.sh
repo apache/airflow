@@ -24,8 +24,6 @@ set -euo pipefail
 common::get_colors
 declare -a packages
 
-# https://mariadb.org/about/#maintenance-policy
-readonly MARIADB_LTS_VERSION="10.11"
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 : "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
@@ -79,6 +77,13 @@ retry() {
 }
 
 install_mariadb_client() {
+    # https://mariadb.org/about/#maintenance-policy
+    # MariaDB publishes each LTS series only for the Debian releases current when it came out - 10.11
+    # has no trixie repository and 11.8 is the first LTS that does.
+    local mariadb_lts_version="10.11"
+    if [[ "$(common::debian_codename)" != "bookworm" ]]; then
+        mariadb_lts_version="11.8"
+    fi
     # List of compatible package Oracle MySQL -> MariaDB:
     # `mysql-client` -> `mariadb-client` or `mariadb-client-compat` (11+)
     # `libmysqlclientXX` (where XX is a number) -> `libmariadb3-compat`
@@ -98,15 +103,19 @@ install_mariadb_client() {
         echo
         exit 1
     fi
+    if [[ "${mariadb_lts_version%%.*}" -ge 11 ]]; then
+        # From 11.0 mariadb-client no longer ships the "mysql" named commands
+        packages+=("mariadb-client-compat")
+    fi
 
     common::import_trusted_gpg "0xF1656F24C74CD1D8" "mariadb"
 
     echo
-    echo "${COLOR_BLUE}Installing MariaDB client version ${MARIADB_LTS_VERSION}: ${1}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Installing MariaDB client version ${mariadb_lts_version}: ${1}${COLOR_RESET}"
     echo "${COLOR_YELLOW}MariaDB client protocol-compatible with MySQL client.${COLOR_RESET}"
     echo
 
-    echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${MARIADB_LTS_VERSION}/repo/debian/ $(common::debian_codename) main" > \
+    echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${mariadb_lts_version}/repo/debian/ $(common::debian_codename) main" > \
         /etc/apt/sources.list.d/mariadb.list
     # Make sure that dependencies from MariaDB repo are preferred over Debian dependencies
     printf "Package: *\nPin: release o=MariaDB\nPin-Priority: 999\n" > /etc/apt/preferences.d/mariadb
