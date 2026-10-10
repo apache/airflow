@@ -29,6 +29,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowSkipException,
     BaseOperatorLink,
     BaseSensorOperator,
+    XCom,
     conf,
 )
 from airflow.providers.standard.exceptions import (
@@ -75,6 +76,10 @@ class ExternalDagLink(BaseOperatorLink):
 
     name = "External DAG"
 
+    @property
+    def xcom_key(self) -> str:
+        return "_external_run_id"
+
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         if TYPE_CHECKING:
             assert isinstance(operator, (ExternalTaskMarker, ExternalTaskSensor))
@@ -96,13 +101,15 @@ class ExternalDagLink(BaseOperatorLink):
             if template_fields := RenderedTaskInstanceFields.get_templated_fields(core_ti_key):
                 external_dag_id: str = template_fields.get("external_dag_id", operator.external_dag_id)  # type: ignore[no-redef]
 
+        external_run_id = XCom.get_value(key=self.xcom_key, ti_key=ti_key) or ti_key.run_id
+
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.helpers import build_airflow_dagrun_url
 
-            return build_airflow_dagrun_url(dag_id=external_dag_id, run_id=ti_key.run_id)
+            return build_airflow_dagrun_url(dag_id=external_dag_id, run_id=external_run_id)
         from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
 
-        query = {"dag_id": external_dag_id, "run_id": ti_key.run_id}
+        query = {"dag_id": external_dag_id, "run_id": external_run_id}
         return build_airflow_url_with_query(query)
 
 
@@ -346,7 +353,20 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if AIRFLOW_V_3_0_PLUS:
             return self._poke_af3(context, dttm_filter)
-        return self._poke_af2(dttm_filter)
+        return self._poke_af2(context, dttm_filter)
+
+    def _push_external_run_ids_to_xcom(
+        self, context: Context, dttm_filter: Sequence[datetime.datetime]
+    ) -> None:
+        try:
+            if dttm_filter:
+                logical_date = dttm_filter[0]
+                external_run_id = f"scheduled__{logical_date.isoformat()}"
+
+                ti = context.get("ti")
+                ti.xcom_push(key=ExternalDagLink().xcom_key, value=external_run_id)
+        except Exception:
+            self.log.exception("Failed to push external run_id to XCom.")
 
     def _poke_af3(self, context: Context, dttm_filter: Sequence[datetime.datetime]) -> bool:
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
@@ -387,7 +407,10 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         count = _get_count(self.allowed_states)
         count_allowed = self._calculate_count(count, dttm_filter)
-        return count_allowed == len(dttm_filter)
+        if count_allowed == len(dttm_filter):
+            self._push_external_run_ids_to_xcom(context, dttm_filter)
+            return True
+        return False
 
     def _calculate_count(self, count: int, dttm_filter: Sequence[datetime.datetime]) -> float | int:
         """Calculate the normalized count based on the type of check."""
@@ -446,7 +469,11 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         @provide_session
         def _poke_af2(
-            self, dttm_filter: Sequence[datetime.datetime], *, session: Session = NEW_SESSION
+            self,
+            context: Context,
+            dttm_filter: Sequence[datetime.datetime],
+            *,
+            session: Session = NEW_SESSION,
         ) -> bool:
             if self.check_existence and not self._has_checked_existence:
                 self._check_for_existence(session=session)
@@ -460,7 +487,10 @@ class ExternalTaskSensor(BaseSensorOperator):
                 self._handle_skipped_states(count_skipped)
 
             count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
-            return count_allowed == len(dttm_filter)
+            if count_allowed == len(dttm_filter):
+                self._push_external_run_ids_to_xcom(context, dttm_filter)
+                return True
+            return False
 
     def execute(self, context: Context) -> None:
         """Run on the worker and defer using the triggers if deferrable is set to True."""
