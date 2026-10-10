@@ -1047,6 +1047,44 @@ class TestLLMOperatorApproval:
         with pytest.raises(HITLRejectException):
             op.execute_complete({}, generated_output="output", event=event)
 
+    @patch.object(LLMOperator, "skip")
+    def test_execute_complete_reject_skips_downstream_without_fail_on_reject(self, mock_skip):
+        op = LLMOperator(
+            task_id="t", prompt="p", llm_conn_id="c", require_approval=True, fail_on_reject=False
+        )
+        downstream = MagicMock(is_teardown=False)
+        task = MagicMock()
+        task.get_direct_relatives.return_value = [downstream, MagicMock(is_teardown=True)]
+        ti = MagicMock()
+        ctx = MagicMock(**{"__getitem__": lambda self, key: {"task": task, "ti": ti}[key]})
+
+        result = op.execute_complete(
+            ctx,
+            generated_output="output",
+            event={"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "admin"}},
+        )
+
+        assert result is None
+        assert mock_skip.call_args.kwargs["ti"] is ti
+        assert list(mock_skip.call_args.kwargs["tasks"]) == [downstream]
+
+    @pytest.mark.parametrize(
+        ("require_approval", "fail_on_reject", "expected"),
+        [(True, False, True), (True, True, False), (False, False, False)],
+    )
+    def test_inherits_from_skipmixin_only_when_a_rejection_skips(
+        self, require_approval, fail_on_reject, expected
+    ):
+        op = LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            require_approval=require_approval,
+            fail_on_reject=fail_on_reject,
+        )
+
+        assert op.inherits_from_skipmixin is expected
+
     def test_execute_complete_with_error(self):
         """execute_complete raises HITLTriggerEventError on error event."""
         from airflow.providers.standard.exceptions import HITLTriggerEventError

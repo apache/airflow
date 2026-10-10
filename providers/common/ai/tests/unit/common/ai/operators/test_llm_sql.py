@@ -810,6 +810,24 @@ class TestLLMSQLQueryOperatorApproval:
         with pytest.raises(HITLRejectException, match="Output was rejected by the reviewer"):
             op.execute_complete({}, generated_output="SELECT 1", event=event)
 
+    @patch.object(LLMSQLQueryOperator, "skip")
+    def test_execute_complete_reject_without_fail_on_reject_returns_none(self, mock_skip):
+        op = LLMSQLQueryOperator(
+            task_id="t", prompt="p", llm_conn_id="c", require_approval=True, fail_on_reject=False
+        )
+        task = MagicMock()
+        task.get_direct_relatives.return_value = []
+        ctx = MagicMock(**{"__getitem__": lambda self, key: {"task": task, "ti": MagicMock()}[key]})
+
+        assert (
+            op.execute_complete(
+                ctx,
+                generated_output="SELECT 1",
+                event={"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "admin"}},
+            )
+            is None
+        )
+
     def test_execute_complete_with_error(self):
         """execute_complete raises on error event."""
         from airflow.providers.standard.exceptions import HITLTimeoutError

@@ -190,10 +190,10 @@ class LLMSQLQueryOperator(LLMOperator):
         generated_output: str,
         event: dict[str, Any],
         decision: dict[str, Any] | None = None,
-    ) -> str:
+    ) -> Any:
         """Resume after human review, re-validating if the reviewer modified the SQL."""
         output = super().execute_complete(context, generated_output, event, decision)
-        if output != generated_output:
+        if output is not None and output != generated_output:
             _validate_sql(output, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
         return output
 
