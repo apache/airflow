@@ -203,7 +203,7 @@ def test_trigger_downstream_run_succeeded(
     """``trigger_downstream`` pushes the triggered run's ID; follow it and check it too succeeded."""
     run_id = completed_runs[native_dag.dag_id].run_id
     triggered_run_id = parsed_dags.get_xcom_value(
-        dag_id=native_dag.dag_id, task_id="trigger_downstream", run_id=run_id, key="return_value"
+        dag_id=native_dag.dag_id, task_id="trigger_downstream", run_id=run_id, key="trigger_run_id"
     ).get("value")
     assert triggered_run_id, f"{native_dag.dag_id}.trigger_downstream pushed no run ID"
 
