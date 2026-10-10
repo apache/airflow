@@ -64,10 +64,18 @@ def test_invalid_wait_options(field, value):
         ("run_id", "next"),
         ("task_id", "other"),
         ("dag_id", "other"),
-        ("app_url", "https://other.databricksapps.com"),
     ],
 )
 def test_idempotency_identity(operator, field, value):
+    operator.invocation_id = None
+    ti = mock.Mock(spec=["dag_id", "task_id", "run_id", "map_index"])
+    ti.dag_id, ti.task_id, ti.run_id, ti.map_index = "dag", "task", "run", -1
+    first = operator._get_invocation_id({"ti": ti})
+    setattr(ti, field, value)
+    assert operator._get_invocation_id({"ti": ti}) != first
+
+
+def test_identity_is_stable_across_retries(operator):
     operator.invocation_id = None
     ti = mock.Mock(spec=["dag_id", "task_id", "run_id", "map_index", "try_number"])
     ti.dag_id, ti.task_id, ti.run_id, ti.map_index, ti.try_number = "dag", "task", "run", -1, 1
@@ -75,16 +83,15 @@ def test_idempotency_identity(operator, field, value):
     assert str(UUID(first)) == first
     ti.try_number = 2
     assert operator._get_invocation_id({"ti": ti}) == first
-    if field == "app_url":
-        operator.app_url = value
-    else:
-        setattr(ti, field, value)
-    assert operator._get_invocation_id({"ti": ti}) != first
 
 
 @pytest.mark.parametrize(
     ("field", "value"),
-    [("input", {"messages": [{"role": "user", "content": "new question"}]}), ("session_id", "new-session")],
+    [
+        ("app_url", "https://other.databricksapps.com"),
+        ("input", {"messages": [{"role": "user", "content": "new question"}]}),
+        ("session_id", "new-session"),
+    ],
 )
 def test_changed_request_gets_new_identity(operator, field, value):
     operator.invocation_id = None
@@ -274,10 +281,16 @@ def test_invalid_trigger_event(operator, event):
 
 
 @pytest.mark.parametrize(
-    "error_type", ["api_error", "invalid_response", "unexpected_error", None, "private error text"]
+    ("error_type", "expected"),
+    [
+        ("api_error", "api_error"),
+        ("invalid_response", "invalid_response"),
+        ("unexpected_error", "unexpected_error"),
+        (None, "unexpected_error"),
+        ("private error text", "unexpected_error"),
+    ],
 )
-def test_trigger_polling_error(operator, error_type):
-    expected = error_type if error_type in ("api_error", "invalid_response") else "unexpected_error"
+def test_trigger_polling_error(operator, error_type, expected):
     with pytest.raises(DatabricksAgentInvocationError, match=rf"{INVOCATION_ID} failed \({expected}\)"):
         operator.execute_complete(
             {},
