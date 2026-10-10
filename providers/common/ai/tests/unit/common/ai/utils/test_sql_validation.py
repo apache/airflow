@@ -257,11 +257,6 @@ class TestReadOnlyMetadata:
         with pytest.raises(SQLSafetyError, match="Command.*not allowed"):
             validate_sql("SHOW TABLES", allow_read_only_metadata=True)
 
-    def test_explain_wrapped_write_still_blocked(self):
-        """EXPLAIN <write> parses to exp.Describe but the deep scan rejects the inner write."""
-        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Delete'"):
-            validate_sql("EXPLAIN DELETE FROM users", dialect="mysql", allow_read_only_metadata=True)
-
     @pytest.mark.parametrize(
         ("sql", "node"),
         [
@@ -636,6 +631,11 @@ _WRITE_STATEMENTS = {
     "grant": "GRANT SELECT ON t TO u",
     "cte_delete": "WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d",
     "cte_insert": "WITH d AS (INSERT INTO t VALUES (1) RETURNING *) SELECT * FROM d",
+    # THEN DELETE is required: with THEN UPDATE the nested Update is still rejected once Merge
+    # leaves the deny-list, which hides the gap.
+    "cte_merge": (
+        "WITH d AS (MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE RETURNING *) SELECT * FROM d"
+    ),
     "select_into": "SELECT * INTO n FROM t",
 }
 
@@ -653,6 +653,7 @@ _WRITE_NODE_TYPES = {
     "alter": exp.Alter,
     "cte_delete": exp.Delete,
     "cte_insert": exp.Insert,
+    "cte_merge": exp.Merge,
     "select_into": exp.Into,
 }
 
@@ -675,6 +676,7 @@ _WRITE_REJECTION = {
     "grant": _TOP_LEVEL_GUARD.format("Grant"),
     "cte_delete": _DEEP_SCAN_GUARD.format("Delete"),
     "cte_insert": _DEEP_SCAN_GUARD.format("Insert"),
+    "cte_merge": _DEEP_SCAN_GUARD.format("Merge"),
     "select_into": _DEEP_SCAN_GUARD.format("Into"),
 }
 
@@ -723,8 +725,14 @@ class TestSqlglotDriftTripwires:
             ("DESCRIBE ALTER TABLE t ADD COLUMN c INT", "postgres", "Alter"),
             ("DESCRIBE ALTER TABLE t ADD COLUMN c INT", "mysql", "Alter"),
             ("EXPLAIN DELETE FROM t", "mysql", "Delete"),
+            ("DESCRIBE ALTER SYSTEM SET x=1", "postgres", "Command"),
         ],
-        ids=["describe_alter_postgres", "describe_alter_mysql", "explain_delete_mysql"],
+        ids=[
+            "describe_alter_postgres",
+            "describe_alter_mysql",
+            "explain_delete_mysql",
+            "describe_alter_system_postgres",
+        ],
     )
     def test_wrapped_write_rejected_by_the_guard_that_applies(
         self, sql, dialect, node_name, allow_read_only_metadata
