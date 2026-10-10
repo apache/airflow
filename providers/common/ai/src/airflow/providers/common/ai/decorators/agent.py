@@ -24,6 +24,7 @@ and output serialization.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -40,6 +41,7 @@ from airflow.providers.common.compat.sdk import (
     determine_kwargs,
     task_decorator_factory,
 )
+from airflow.providers.common.compat.standard.operators import BaseAsyncOperator, is_async_callable
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -83,8 +85,17 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
             prompt=SET_DURING_EXECUTION,
             **kwargs,
         )
+        if self.is_async:
+            self._reject_unsupported_on_async_path()
+
+    @property
+    def is_async(self) -> bool:
+        return is_async_callable(self.python_callable)
 
     def execute(self, context: Context) -> Any:
+        if self.is_async:
+            return BaseAsyncOperator.execute(self, context)
+
         context_merge(context, self.op_kwargs)
         kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
@@ -100,6 +111,19 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
 
         self.render_template_fields(context)
         return AgentOperator.execute(self, context)
+
+    async def aexecute(self, context: Context) -> Any:
+        context_merge(context, self.op_kwargs)
+        kwargs = determine_kwargs(self.python_callable, self.op_args, context)
+
+        self.prompt = await self.python_callable(*self.op_args, **kwargs)
+
+        validate_prompt(self.prompt, decorator_name="@task.agent")
+
+        # Rendering a template can read a Variable or a Connection with a blocking call to
+        # the supervisor, which must not happen on the event loop.
+        await asyncio.to_thread(self.render_template_fields, context)
+        return await AgentOperator.aexecute(self, context)
 
 
 def agent_task(

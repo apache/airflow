@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import collections
 import copy
 import hashlib
@@ -75,6 +76,7 @@ from airflow.providers.common.compat.sdk import (
     conf,
     redact,
 )
+from airflow.providers.common.compat.standard.operators import BaseAsyncOperator
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
 
@@ -116,6 +118,14 @@ _TOOL_APPROVAL_REQUESTED_KEY = "common_ai_tool_approval_requested"
 # How long the transcript outlives a timed pause, so a resume that runs late still finds it.
 _TRANSCRIPT_RETENTION_MARGIN = timedelta(days=1)
 _RUN_USAGE_ADAPTER: TypeAdapter[RunUsage] = TypeAdapter(RunUsage)
+
+
+async def _axcom_push(ti: Any, *, key: str, value: Any) -> None:
+    if AIRFLOW_V_3_3_PLUS:
+        await ti.axcom_push(key=key, value=value)
+    else:
+        # Airflow 3.2 runs async tasks but has no ``axcom_push``: push from a worker thread.
+        await asyncio.to_thread(ti.xcom_push, key=key, value=value)
 
 
 class HITLReviewLink(BaseOperatorLink):
@@ -206,7 +216,7 @@ def _declares_agent_template_fields(toolset: Any) -> bool:
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
-class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
+class AgentOperator(CancellableAgentRunMixin, BaseAsyncOperator, HITLReviewMixin):
     """
     Run a pydantic-ai Agent with tools and multi-turn reasoning.
 
@@ -687,17 +697,38 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             agent_params["capabilities"] = render_capabilities(agent_params["capabilities"])
         self.agent_params = agent_params
 
-    @cached_property
-    def llm_hook(self) -> PydanticAIHook:
-        """Return PydanticAIHook for the configured LLM connection."""
-        hook_params = {
+    @property
+    def is_async(self) -> bool:
+        """
+        Whether the task runs on the worker's event loop, through :meth:`aexecute`.
+
+        ``False`` for the operator itself; ``@task.agent`` returns ``True`` for an ``async def`` callable.
+        """
+        return False
+
+    @property
+    def _llm_hook_params(self) -> dict[str, Any]:
+        return {
             "model_id": self.model_id,
             "fallback_conn_ids": self.fallback_conn_ids,
         }
-        return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
+
+    @cached_property
+    def llm_hook(self) -> PydanticAIHook:
+        """Return PydanticAIHook for the configured LLM connection."""
+        return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=self._llm_hook_params)
 
     def _build_agent(self) -> Agent[object, Any]:
         """Build and return a pydantic-ai Agent from the operator's config."""
+        return self.llm_hook.create_agent(**self._agent_kwargs())
+
+    async def _abuild_agent(self) -> Agent[object, Any]:
+        """Async version of :meth:`_build_agent`: the hook and its connections are fetched without blocking."""
+        hook = await PydanticAIHook.aget_hook(self.llm_conn_id, hook_params=self._llm_hook_params)
+        return await hook.acreate_agent(**self._agent_kwargs())
+
+    def _agent_kwargs(self) -> dict[str, Any]:
+        """Return the keyword arguments the hook builds the agent from."""
         extra_kwargs = dict(self.agent_params)
         passed_through = extra_kwargs.pop("capabilities", None)
         if passed_through is not None and self.capabilities is not None:
@@ -729,7 +760,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             capabilities.append(PromptCaching())
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
-        return self.llm_hook.create_agent(
+        return dict(
             output_type=self._agent_output_type(),
             instructions=self.system_prompt,
             **extra_kwargs,
@@ -1019,6 +1050,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             raise
 
     def execute(self, context: Context) -> Any:
+        if self.is_async:
+            return BaseAsyncOperator.execute(self, context)
+
         if self.enable_hitl_review and not isinstance(self.prompt, str):
             raise TypeError(
                 f"{type(self).__name__}: enable_hitl_review=True is not supported "
@@ -1060,18 +1094,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             self._replay_usage = ReplayUsageLedger(run_usage=run_usage, usage_limits=usage_limits)
 
         agent = self._build_agent()
-
-        self._run_identity_attrs = build_run_identity_attributes(ti)
-        stamp_identity_on_agent_spans(agent, self._run_identity_attrs)
-
-        # A per-attempt key (the task-instance id on Airflow 3, which is regenerated on
-        # each retry; dag/run/task/map/try on Airflow 2) is a unique, reverse-resolvable
-        # join key. It lands on result.run_id, the run's messages, and the
-        # ``gen_ai.agent.call.id`` span attribute.
-        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits, "run_id": make_task_instance_run_key(ti)}
-        history = self._resolve_message_history()
-        if history is not None:
-            run_kwargs["message_history"] = history
+        run_kwargs = self._run_kwargs(agent, ti, usage_limits)
 
         storage = self._durable_storage
         counter = self._durable_counter
@@ -1100,12 +1123,92 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
                 self._log_durable_summary(counter)
         return self._complete_run(context, result, attempt_usage=attempt_usage)
 
-    def _complete_run(self, context: Context, result: Any, *, attempt_usage: RunUsage) -> Any:
-        """Finish a run, or pause it when the agent is waiting on a tool call to be approved."""
+    def _run_kwargs(
+        self, agent: Agent[Any, Any], ti: Any, usage_limits: UsageLimits | None
+    ) -> dict[str, Any]:
+        """Stamp the run's identity on the agent's spans and return the keyword arguments of its run."""
+        self._run_identity_attrs = build_run_identity_attributes(ti)
+        stamp_identity_on_agent_spans(agent, self._run_identity_attrs)
+
+        # A per-attempt key (the task-instance id on Airflow 3, which is regenerated on
+        # each retry; dag/run/task/map/try on Airflow 2) is a unique, reverse-resolvable
+        # join key. It lands on result.run_id, the run's messages, and the
+        # ``gen_ai.agent.call.id`` span attribute.
+        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits, "run_id": make_task_instance_run_key(ti)}
+        history = self._resolve_message_history()
+        if history is not None:
+            run_kwargs["message_history"] = history
+        return run_kwargs
+
+    def _reject_unsupported_on_async_path(self) -> None:
+        """Refuse the features that block the event loop: both do synchronous I/O during the run."""
+        if self.durable or self.enable_hitl_review:
+            raise ValueError(
+                f"{type(self).__name__}: durable=True and enable_hitl_review=True are not supported "
+                "with an async callable. Use a synchronous callable for them."
+            )
+
+    async def aexecute(self, context: Context) -> Any:
+        """
+        Run the agent on the worker's event loop.
+
+        The async version of :meth:`execute`: the connection, the agent run and the bookkeeping of a
+        successful run (usage budget, run metadata, message history) make no blocking call to the
+        supervisor, so several of these runs can share one event loop. The rare branches (the usage
+        report of a failed run, the pause for a tool approval) reuse the synchronous code in a
+        worker thread.
+        """
+        self._reject_unsupported_on_async_path()
+        usage_limits = coerce_usage_limits(self.usage_limits)
+
+        if self._supports_tool_approval() and (store := context.get("task_state_store")) is not None:
+            await self._adelete_approval_transcript(store)
+
+        ti = context["task_instance"]
+        self._durable_storage = None
+        self._durable_counter = None
+        self._replay_usage = None
+        self._usage_budget = self._build_usage_budget(context, usage_limits, ti=ti)
+        self._run_usage = await self._usage_budget.aload() if self._usage_budget else RunUsage()
+        run_usage: RunUsage = self._run_usage
+        self._run_usage_base = copy_run_usage(run_usage)
+
+        agent = await self._abuild_agent()
+        run_kwargs = self._run_kwargs(agent, ti, usage_limits)
+
+        try:
+            try:
+                result = await self.run_agent_async(agent, self.prompt, usage=run_usage, **run_kwargs)
+            finally:
+                if self._usage_budget:
+                    await self._usage_budget.asave(run_usage)
+        except BaseException:
+            await asyncio.to_thread(self._report_failed_run, context, run_usage)
+            raise
+        attempt_usage = subtract_run_usage(run_usage, self._run_usage_base)
+        return await self._acomplete_run(context, result, attempt_usage=attempt_usage)
+
+    async def _acomplete_run(self, context: Context, result: Any, *, attempt_usage: RunUsage) -> Any:
+        """Async version of :meth:`_complete_run`, without the features :meth:`aexecute` refuses."""
         log_run_summary(self.log, result, usage=attempt_usage)
         if isinstance(result.output, DeferredToolRequests):
-            self._pause_for_tool_approval(context, result, attempt_usage=attempt_usage)
-        self._emit_run_metadata(context, result, usage=attempt_usage)
+            await asyncio.to_thread(
+                self._pause_for_tool_approval, context, result, attempt_usage=attempt_usage
+            )
+        await self._aemit_run_metadata(context, result, usage=attempt_usage)
+        self._log_cumulative_usage()
+
+        if self.message_history is not None:
+            await self._aemit_message_history(context, result)
+
+        output = result.output
+        if self._serialize_model_output and isinstance(output, BaseModel):
+            output = output.model_dump()
+        if self._usage_budget:
+            await self._usage_budget.aclear()
+        return output
+
+    def _log_cumulative_usage(self) -> None:
         if self._usage_budget and (run_usage := self._run_usage) is not None:
             self.log.info(
                 "Cumulative usage across attempts: requests=%s, tool_calls=%s, input_tokens=%s, "
@@ -1121,6 +1224,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
                     "Cumulative cost across attempts: $%s (USD, best-effort)",
                     format(run_usage.cost, "f"),
                 )
+
+    def _complete_run(self, context: Context, result: Any, *, attempt_usage: RunUsage) -> Any:
+        """Finish a run, or pause it when the agent is waiting on a tool call to be approved."""
+        log_run_summary(self.log, result, usage=attempt_usage)
+        if isinstance(result.output, DeferredToolRequests):
+            self._pause_for_tool_approval(context, result, attempt_usage=attempt_usage)
+        self._emit_run_metadata(context, result, usage=attempt_usage)
+        self._log_cumulative_usage()
 
         if self.message_history is not None:
             self._emit_message_history(context, result)
@@ -1248,6 +1359,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         # would be worse, and the row goes with the Dag run anyway.
         try:
             store.delete(_TOOL_APPROVAL_TRANSCRIPT_KEY)
+        except Exception:
+            self.log.warning("Could not delete the tool approval transcript", exc_info=True)
+
+    async def _adelete_approval_transcript(self, store: TaskStateStoreAccessor) -> None:
+        try:
+            await store.adelete(_TOOL_APPROVAL_TRANSCRIPT_KEY)
         except Exception:
             self.log.warning("Could not delete the tool approval transcript", exc_info=True)
 
@@ -1397,6 +1514,17 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         ti.xcom_push(key="usage", value=format_usage_for_xcom(usage))
         if (model_name := getattr(result.response, "model_name", None)) is not None:
             ti.xcom_push(key=MODEL_NAME_XCOM_KEY, value=model_name)
+
+    async def _aemit_message_history(self, context: Context, result: Any) -> None:
+        transcript = ModelMessagesTypeAdapter.dump_json(result.all_messages()).decode()
+        await _axcom_push(context["task_instance"], key="message_history", value=transcript)
+
+    async def _aemit_run_metadata(self, context: Context, result: Any, *, usage: RunUsage) -> None:
+        if not self.do_xcom_push:
+            return
+        ti = context["task_instance"]
+        await _axcom_push(ti, key="run_id", value=result.run_id)
+        await _axcom_push(ti, key="usage", value=format_usage_for_xcom(usage))
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """
