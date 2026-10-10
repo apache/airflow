@@ -70,6 +70,8 @@ describe("triggerDagRun", () => {
       operatorName: "TriggerDagRunOperator",
       dagId: "downstream_etl",
       runId: undefined,
+      logicalDate: undefined,
+      runAfter: undefined,
       conf: undefined,
       resetDagRun: false,
       waitForCompletion: false,
@@ -296,6 +298,16 @@ describe("triggerDagRun", () => {
       ["a non-boolean deferrable", { deferrable: "yes" }, /"deferrable" must be a boolean/],
       ["a non-string runId", { runId: 7 }, /"runId" must be a string/],
       ["a conf that is an array", { conf: [1] }, /"conf" must be an object/],
+      [
+        "a non-Date logicalDate",
+        { logicalDate: "2026-01-01" },
+        /"logicalDate" must be a valid Date/,
+      ],
+      [
+        "an invalid Date runAfter",
+        { runAfter: new Date("invalid") },
+        /"runAfter" must be a valid Date/,
+      ],
     ])("%s", (_label, spec, error) => {
       expect(() =>
         triggerDagRun({ dagId: "d2", ...spec } as unknown as TriggerDagRunSpec),
