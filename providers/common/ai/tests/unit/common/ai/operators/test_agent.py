@@ -64,6 +64,7 @@ from airflow.providers.common.ai.durable.base import (
 from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 from airflow.providers.common.ai.durable.storage import DurableStorage
+from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
 from airflow.providers.common.ai.sandbox.base import (
     HOLDER_TAG,
@@ -1037,6 +1038,31 @@ class TestAgentOperatorExecute:
         assert result == "Approved output"
         mock_run_hitl.assert_called_once_with(op, context, "Initial output", message_history=msg_history)
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_with_hitl_fails_when_review_output_does_not_validate(
+        self, mock_hook_cls, mock_run_hitl, make_mock_run_result
+    ):
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result(Summary(text="Draft", score=0.9))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.return_value = '{"score": 0.5}'
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            output_type=Summary,
+            enable_hitl_review=True,
+            hitl_timeout=timedelta(minutes=5),
+        )
+
+        with pytest.raises(ReviewedOutputValidationError, match="Field required"):
+            op.execute(context=MagicMock())
+
     @requires_typed_xcom
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
@@ -1106,7 +1132,6 @@ class TestAgentOperatorExecute:
             pytest.param(str, "42", "42", id="str-that-parses-as-a-number"),
             pytest.param(str, '{"total": 1}', '{"total": 1}', id="str-that-parses-as-an-object"),
             pytest.param(list[str], '["a", "b"]', ["a", "b"], id="list"),
-            pytest.param(int, "not a number", "not a number", id="edit-the-type-rejects"),
         ],
     )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
@@ -1377,6 +1402,21 @@ class TestAgentOperatorRegenerateWithFeedback:
             cancellation_token=ANY,
             usage=ANY,
         )
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_regenerate_with_feedback_serializes_list_output_as_json(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        mock_result = make_mock_run_result(["a", "b"])
+        mock_result.all_messages.return_value = []
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm", output_type=list[str])
+        output, _ = op.regenerate_with_feedback(feedback="Expand", message_history=[])
+
+        assert output == '["a","b"]'
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_regenerate_with_feedback_serializes_base_model_output(self, mock_hook_cls, make_mock_run_result):

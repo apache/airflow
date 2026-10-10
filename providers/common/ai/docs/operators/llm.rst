@@ -269,7 +269,8 @@ Parameters
   review path (``require_approval=True`` or a ``decision_policy`` that reviews)
   and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the output before
-  approving.  Default ``False``.
+  approving.  The edit must validate against ``output_type``, otherwise the task
+  fails with ``ReviewedOutputValidationError``.  Default ``False``.
 - ``approval_notifiers``: Notifier, or list of notifiers, called once the review
   is open.  Default ``None``.
 - ``approval_assigned_users``: Users allowed to answer the review, as

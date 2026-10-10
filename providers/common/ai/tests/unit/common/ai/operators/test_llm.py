@@ -30,6 +30,7 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.usage import RequestUsage, UsageLimits
 
+from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
@@ -1099,6 +1100,24 @@ class TestLLMOperatorApproval:
         result = op.execute_complete({}, generated_output=generated_output, event=event)
 
         assert result == expected
+
+    def test_execute_complete_fails_on_edit_invalid_for_output_type(self):
+        op = LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            output_type=int,
+            require_approval=True,
+            allow_modifications=True,
+        )
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "admin"},
+            "params_input": {"output": "thirty-one"},
+        }
+
+        with pytest.raises(ReviewedOutputValidationError, match="'thirty-one'"):
+            op.execute_complete({}, generated_output="5", event=event)
 
 
 @pytest.mark.skipif(

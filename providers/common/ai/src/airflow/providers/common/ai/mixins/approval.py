@@ -195,10 +195,10 @@ class LLMApprovalMixin:
 
         raw_output = output
         if isinstance(output, BaseModel):
-            output = output.model_dump_json()
+            output = output.model_dump_json(by_alias=True)
         elif not isinstance(output, str):
-            # JSON round-trip: execute_complete validates the string back into output_type.
-            output = TypeAdapter(type(output)).dump_json(output).decode()
+            # JSON round-trip by alias: execute_complete validates the string back into output_type.
+            output = TypeAdapter(type(output)).dump_json(output, by_alias=True).decode()
 
         ti_id = context["task_instance"].id
         timeout_defaults = LLMApprovalMixin.TIMEOUT_DEFAULTS.get(self.on_approval_timeout)

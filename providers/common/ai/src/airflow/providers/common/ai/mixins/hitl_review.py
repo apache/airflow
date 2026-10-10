@@ -21,7 +21,9 @@ import time
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
+from pydantic.errors import PydanticSchemaGenerationError
+from pydantic_core import PydanticSerializationError
 
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 from airflow.providers.common.ai.utils.hitl_review import (
@@ -104,11 +106,11 @@ class HITLReviewMixin:
         Execute the full HITL review loop.
 
         :param context: Airflow task context.
-        :param output: Initial LLM output (str or BaseModel).
+        :param output: Initial LLM output (any pydantic-serializable value).
         :param message_history: Provider-specific conversation state (e.g.
             pydantic-ai ``list[ModelMessage]``).  Passed to
             :meth:`regenerate_with_feedback` on each iteration.
-        :returns: The final approved output as a string.
+        :returns: The approved output as a string (JSON for non-str types).
         :raises HITLMaxIterationsError: When max iterations reached without approval.
         :raises HITLRejectException: When the reviewer rejects the output.
         :raises HITLTimeoutError: When hitl_timeout elapses with no response.
@@ -285,8 +287,13 @@ class HITLReviewMixin:
 
     @staticmethod
     def _to_string(output: Any) -> str:
+        """Serialize an output for review as JSON, or ``str()`` when pydantic cannot."""
         if isinstance(output, BaseModel):
-            return output.model_dump_json()
-        if not isinstance(output, str):
+            return output.model_dump_json(by_alias=True)
+        if isinstance(output, str):
+            return output
+        # JSON by alias, so an unedited approval validates back into ``output_type``.
+        try:
+            return TypeAdapter(type(output)).dump_json(output, by_alias=True).decode()
+        except (PydanticSchemaGenerationError, PydanticSerializationError):
             return str(output)
-        return output

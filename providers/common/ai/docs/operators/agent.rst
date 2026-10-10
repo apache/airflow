@@ -452,7 +452,9 @@ Parameters
 **HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
 ``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review
 loop, which needs the ``hitl_review`` plugin. :doc:`../hitl_review` documents each
-parameter and the review workflow.
+parameter and the review workflow. The approved output is converted back into
+``output_type``, and the task fails with ``ReviewedOutputValidationError`` when it
+does not validate against it.
 
 Logging
 -------

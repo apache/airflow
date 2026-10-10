@@ -1430,7 +1430,4 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         # shared, is the seeded cumulative object, not what this call alone contributed.
         log_run_summary(self.log, result, usage=regen_usage)
 
-        output = result.output
-        if isinstance(output, BaseModel):
-            output = output.model_dump_json()
-        return str(output), result.all_messages()
+        return self._to_string(result.output), result.all_messages()

@@ -29,7 +29,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from jinja2 import TemplateError
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
@@ -103,6 +103,10 @@ def context():
     return {"task_instance": ti, "dag": DAG("test_dag")}
 
 
+class _Aliased(BaseModel):
+    user_name: str = Field(alias="userName")
+
+
 # The legacy trigger path is taken on Airflow versions < 3.3; pin the flag so these tests keep
 # exercising the defer() fallback when run against newer Airflow versions.
 @patch(AWAIT_INPUT_FLAG_PATH, False)
@@ -143,8 +147,15 @@ class TestDeferForApproval:
 
     @pytest.mark.parametrize(
         ("output", "expected"),
-        [(42, "42"), (True, "true"), ([1, "a"], '[1,"a"]'), ({"k": "v"}, '{"k":"v"}')],
-        ids=["int", "bool", "list", "dict"],
+        [
+            (42, "42"),
+            (True, "true"),
+            ([1, "a"], '[1,"a"]'),
+            ({"k": "v"}, '{"k":"v"}'),
+            (_Aliased(userName="kax"), '{"userName":"kax"}'),
+            ([_Aliased(userName="kax")], '[{"userName":"kax"}]'),
+        ],
+        ids=["int", "bool", "list", "dict", "aliased-model", "aliased-model-list"],
     )
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)

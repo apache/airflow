@@ -69,6 +69,15 @@ class LLMFileAnalysisMultimodalRequiredError(LLMFileAnalysisUnsupportedFormatErr
     """Raised when image/PDF inputs are used without ``multi_modal=True``."""
 
 
+class ReviewedOutputValidationError(ValueError):
+    """
+    Raised when a reviewer-approved output cannot be converted back into the operator's ``output_type``.
+
+    Typically the reviewer edited the output into something the type rejects, for example free text
+    for an ``int``. The task fails instead of passing a value of the wrong type to downstream tasks.
+    """
+
+
 class LowConfidenceError(ValueError):
     """
     Raised by an LLM operator whose ``DecisionPolicy`` says ``on_uncertain="fail"``.

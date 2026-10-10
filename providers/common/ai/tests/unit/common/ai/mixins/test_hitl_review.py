@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import BaseModel, Field
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -108,6 +109,25 @@ def mock_ti(mock_supervisor_comms):
 @pytest.fixture
 def context(mock_ti):
     return {"task_instance": mock_ti}
+
+
+class _Aliased(BaseModel):
+    user_name: str = Field(alias="userName")
+
+
+class TestToString:
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [
+            (["tag-a", "tag-b"], '["tag-a","tag-b"]'),
+            (True, "true"),
+            (_Aliased(userName="kax"), '{"userName":"kax"}'),
+            ([_Aliased(userName="kax")], '[{"userName":"kax"}]'),
+        ],
+        ids=["list", "bool", "aliased-model", "aliased-model-list"],
+    )
+    def test_serializes_non_str_output_as_json(self, output, expected):
+        assert HITLReviewMixin._to_string(output) == expected
 
 
 class TestHITLReviewMixin:
