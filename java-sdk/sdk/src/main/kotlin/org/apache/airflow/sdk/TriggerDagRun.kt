@@ -66,6 +66,7 @@ private val TRIGGER_FIELDS: Map<String, Field> =
  * The task runs no Java code and takes no arguments. It pushes the triggered
  * run's ID, and the link the "Triggered DAG" extra link reads. It renders no
  * templates, so a value such as `"{{ ds }}"` reaches the new run unchanged.
+ * Like a Java task, it runs on the Dag's `queue` unless the task sets its own.
  *
  * @param dagId `trigger_dag_id`: the Dag to trigger.
  * @throws IllegalArgumentException if [dagId] is empty.

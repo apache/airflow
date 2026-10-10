@@ -352,7 +352,8 @@ Annotate a plain Java class and let the SDK generate the boilerplate at compile 
    * - ``@Builder.Dag(id = "...")``
      - Marks a class as a Dag that Java itself owns.  Attributes (``schedule``, ``description``,
        ``tags``, ``catchup``, …) are Airflow's own Dag settings; only attributes written
-       explicitly are applied.  See :ref:`java-sdk/native-dags`.
+       explicitly are applied.  ``queue`` is the queue each task runs on unless the task sets its
+       own.  See :ref:`java-sdk/native-dags`.
    * - ``@Builder.Task(id = "...")``
      - Marks a method as a task of a Java-owned Dag.  If ``id`` is omitted the method name is
        used.  Further attributes (``retries``, ``queue``, ``retryDelay``, …) are Airflow's own
@@ -594,6 +595,11 @@ Native Java Dags
 
 A Dag can also be authored entirely in Java: the annotations (or the ``DagDef`` / ``TaskDef``
 objects) carry the configuration, and Java declares the graph.
+
+Every task of the Dag runs on the Java coordinator, so it needs a queue that
+:ref:`queue_to_coordinator <java-sdk/coordinator-config>` sends there. Set ``queue`` once on the Dag, with
+``@Builder.Dag(queue = "java")`` or ``dag.config("queue", "java")``, and each task inherits it, including a
+``TriggerDagRun`` task. A task's own ``queue`` wins over the Dag's.
 
 Building the Dag in Java
 ~~~~~~~~~~~~~~~~~~~~~~~~
