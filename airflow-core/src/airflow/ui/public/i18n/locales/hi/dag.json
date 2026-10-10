@@ -42,8 +42,8 @@
   },
   "deadlineAlerts": {
     "completionRule": "{{reference}} के {{interval}} के भीतर पूरा होना चाहिए",
-    "count_one": "{{count}} डेडलाइन",
-    "count_other": "{{count}} डेडलाइन",
+    "count_one": "{{count, number}} डेडलाइन",
+    "count_other": "{{count, number}} डेडलाइन",
     "referenceType": {
       "AverageRuntimeDeadline": "औसत रनटाइम",
       "DagRunLogicalDateDeadline": "लॉजिकल तारीख",
@@ -58,13 +58,13 @@
     "label": "डेडलाइन",
     "met": "पूरी हुई",
     "missed": "छूट गई",
-    "missedCount_one": "{{count}} छूटी हुई डेडलाइन",
-    "missedCount_other": "{{count}} छूटी हुई डेडलाइन",
-    "mixedCount": "{{missedCount}} छूटी हुई, {{upcomingCount}} आगामी",
+    "missedCount_one": "{{count, number}} छूटी हुई डेडलाइन",
+    "missedCount_other": "{{count, number}} छूटी हुई डेडलाइन",
+    "mixedCount": "{{missedCount, number}} छूटी हुई, {{upcomingCount, number}} आगामी",
     "stillRunning": "अभी भी चल रहा है",
     "upcoming": "आगामी",
-    "upcomingCount_one": "{{count}} आगामी डेडलाइन",
-    "upcomingCount_other": "{{count}} आगामी डेडलाइन"
+    "upcomingCount_one": "{{count, number}} आगामी डेडलाइन",
+    "upcomingCount_other": "{{count, number}} आगामी डेडलाइन"
   },
   "extraLinks": "अतिरिक्त लिंक्स",
   "grid": {
@@ -98,7 +98,7 @@
     "info": "INFO",
     "noTryNumber": "कोई प्रयास संख्या नहीं",
     "search": {
-      "matchCount": "{{total}} में से {{current}}",
+      "matchCount": "{{total, number}} में से {{current, number}}",
       "noMatches": "कोई मिलान नहीं",
       "placeholder": "लॉग खोजें..."
     },
@@ -219,8 +219,8 @@
     "code": "कोड",
     "details": "विवरण",
     "logs": "लॉग्स",
-    "mappedTaskInstances_one": "टास्क इंस्टेंस [{{count}}]",
-    "mappedTaskInstances_other": "टास्क इंस्टेंसेज [{{count}}]",
+    "mappedTaskInstances_one": "टास्क इंस्टेंस [{{count, number}}]",
+    "mappedTaskInstances_other": "टास्क इंस्टेंसेज [{{count, number}}]",
     "overview": "ओवरव्यू",
     "renderedTemplates": "रेंडर किए गए टेम्प्लेट्स",
     "requiredActions": "आवश्यक क्रियाएं",

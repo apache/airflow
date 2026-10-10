@@ -2,11 +2,11 @@
   "alerts": {
     "seeLessContext": "عرض أقل",
     "seeMoreContext": "عرض المزيد",
-    "showMoreAlerts_few": "+{{count}} تنبيهات إضافية",
-    "showMoreAlerts_many": "+{{count}} تنبيهاً إضافياً",
-    "showMoreAlerts_one": "+{{count}} تنبيه إضافي",
-    "showMoreAlerts_other": "+{{count}} تنبيه إضافي",
-    "showMoreAlerts_two": "+{{count}} تنبيهان إضافيان",
+    "showMoreAlerts_few": "+{{count, number}} تنبيهات إضافية",
+    "showMoreAlerts_many": "+{{count, number}} تنبيهاً إضافياً",
+    "showMoreAlerts_one": "+{{count, number}} تنبيه إضافي",
+    "showMoreAlerts_other": "+{{count, number}} تنبيه إضافي",
+    "showMoreAlerts_two": "+{{count, number}} تنبيهان إضافيان",
     "showMoreAlerts_zero": "لا توجد تنبيهات إضافية"
   },
   "deadlines": {
@@ -21,13 +21,13 @@
     "showMore": "عرض المزيد",
     "title": "المواعيد النهائية"
   },
-  "deferredSlotsNotCounted": "المؤجّلة غير محتسبة ضمن الحصص: {{count}}",
+  "deferredSlotsNotCounted": "المؤجّلة غير محتسبة ضمن الحصص: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "المهام المؤجّلة الظاهرة داخل الشريط تُحتسب ضمن حصص مجموعة الموارد. المهام المؤجّلة الظاهرة أسفل الشريط تأتي من مجموعات موارد لا تحتسب المهام المؤجّلة ضمن الحصص.",
   "favorite": {
-    "favoriteDags_few": "أول {{count}} Dags مفضلة",
-    "favoriteDags_many": "أول {{count}} Dags مفضلة",
+    "favoriteDags_few": "أول {{count, number}} Dags مفضلة",
+    "favoriteDags_many": "أول {{count, number}} Dags مفضلة",
     "favoriteDags_one": "أول Dag مفضل",
-    "favoriteDags_other": "أول {{count}} Dags مفضلة",
+    "favoriteDags_other": "أول {{count, number}} Dags مفضلة",
     "favoriteDags_two": "أول 2 Dags المفضلة",
     "favoriteDags_zero": "لا توجد أي Dags مفضلة",
     "noDagRuns": "لا توجد تشغيلات لهذا الDag",

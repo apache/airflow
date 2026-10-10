@@ -211,6 +211,29 @@ class AirflowClient:
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances",
         )
 
+    def get_hitl_detail(self, dag_id: str, run_id: str, task_id: str, map_index: int = -1):
+        """Get the Human-in-the-loop request of a task instance."""
+        return self._make_request(
+            method="GET",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/{map_index}/hitlDetails",
+        )
+
+    def respond_to_hitl(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        chosen_options: list[str],
+        params_input: dict | None = None,
+        map_index: int = -1,
+    ):
+        """Answer the Human-in-the-loop request of a task instance."""
+        return self._make_request(
+            method="PATCH",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/{map_index}/hitlDetails",
+            json={"chosen_options": chosen_options, "params_input": params_input or {}},
+        )
+
     def list_dag_runs(self, dag_id: str, limit: int = 100):
         """List Dag runs for a given Dag."""
         return self._make_request(

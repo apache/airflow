@@ -144,14 +144,19 @@ def _write_pending_logins(request: Request, response: Any, entries: list[dict[st
         response.delete_cookie(COOKIE_NAME_LOGIN_STATE, path=cookie_path)
         return
     payload = base64.urlsafe_b64encode(json.dumps(entries, separators=(",", ":")).encode()).decode()
+    secure = _is_secure_request(request)
     response.set_cookie(
         COOKIE_NAME_LOGIN_STATE,
         f"{payload}.{_sign_login_state(payload)}",
         max_age=LOGIN_STATE_MAX_AGE,
         path=cookie_path,
-        secure=_is_secure_request(request),
+        secure=secure,
         httponly=True,
-        samesite="lax",
+        # The IdP sends the browser back to login_callback with a cross-site form POST. The
+        # browser sends a cookie on that request only if the cookie is SameSite=None. Browsers
+        # reject a SameSite=None cookie without Secure, so over plain http the cookie stays Lax.
+        # With a Lax cookie, the login completes only when the IdP is on the same site as Airflow.
+        samesite="none" if secure else "lax",
     )
 
 

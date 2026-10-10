@@ -20,48 +20,25 @@
 // Mirrors `TriggerDagRunOperator.execute` and `execute_complete` in the standard provider.
 
 import { setTimeout as sleep } from "node:timers/promises";
-import type { CoordinatorClient } from "./client.js";
-import type { LogChannel } from "./log-channel.js";
-import type {
-  RuntimeDeferTask,
-  RuntimeRetryTask,
-  RuntimeSucceedTask,
-  RuntimeTaskState,
-  StartupDetails,
-} from "./protocol.js";
-import { isPlainRecord } from "../sdk/dag.js";
-import { getBooleanEnv, type TriggerDagRunTask } from "../sdk/trigger-dag-run.js";
-
-export type TriggerOutcome =
-  RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState | RuntimeDeferTask;
-
-/** A failure the task's retries apply to, as `_handle_current_task_failed` decides. */
-export type FailTask = (message: string) => RuntimeRetryTask | RuntimeTaskState;
+import { isPlainRecord } from "./dag.js";
+import type { OperatorContext, OperatorOutcome } from "./operator.js";
+import type { TriggerDagRunTask } from "./trigger-dag-run.js";
 
 const DAG_STATE_TRIGGER = "airflow.providers.standard.triggers.external_task.DagStateTrigger";
 /** `TriggerDagRunLink().xcom_key`: the XCom the "Triggered DAG" extra link reads. */
 const LINK_XCOM_KEY = "_link_TriggerDagRunLink";
 const RUN_ID_XCOM_KEY = "trigger_run_id";
-/** `TRIGGER_FAIL_REPR`: the `next_method` a failed or timed-out trigger resumes with. */
-const TRIGGER_FAIL = "__fail__";
-const EXECUTE_COMPLETE = "execute_complete";
 
-export async function runTriggerDagRun(
-  details: StartupDetails,
+export async function executeTriggerDagRun(
   trigger: TriggerDagRunTask,
-  client: CoordinatorClient,
-  logs: LogChannel,
-  signal: AbortSignal,
-  fail: FailTask,
-): Promise<TriggerOutcome> {
-  const nextMethod = details.ti_context.next_method;
-  if (nextMethod) return resume(nextMethod, details.ti_context.next_kwargs, trigger, logs, fail);
-
+  op: OperatorContext,
+): Promise<OperatorOutcome> {
+  const { client, logs } = op;
   const logicalDate = new Date();
   const runId = trigger.runId ?? `manual__${pythonIsoformat(logicalDate)}`;
 
   if (trigger.failWhenDagIsPaused && (await client.isDagPaused(trigger.dagId))) {
-    return fail(`Dag ${trigger.dagId} is paused`);
+    return op.fail(`Dag ${trigger.dagId} is paused`);
   }
 
   logs.info("Triggering Dag Run.", { trigger_dag_id: trigger.dagId });
@@ -99,31 +76,22 @@ export async function runTriggerDagRun(
         { trigger_dag_id: trigger.dagId },
       );
     }
-    return succeeded();
+    return op.succeed();
   }
 
   if (trigger.deferrable) {
     logs.info("Pausing task as DEFERRED.", { trigger_dag_id: trigger.dagId, run_id: runId });
-    return {
-      type: "DeferTask",
-      state: "deferred",
+    return op.defer({
       classpath: DAG_STATE_TRIGGER,
       // `DagStateTrigger.serialize()`, key for key.
-      trigger_kwargs: {
+      kwargs: {
         dag_id: trigger.dagId,
         states: [...trigger.allowedStates, ...trigger.failedStates],
         poll_interval: trigger.pokeInterval,
         run_ids: [runId],
         execution_dates: null,
       },
-      trigger_timeout: null,
-      // `_defer_task` hands the trigger the task's queue only when triggerer queues are enabled.
-      queue: getBooleanEnv("AIRFLOW__TRIGGERER__QUEUES_ENABLED", false)
-        ? (details.ti.queue ?? null)
-        : null,
-      next_method: EXECUTE_COMPLETE,
-      next_kwargs: {},
-    };
+    });
   }
 
   while (true) {
@@ -132,41 +100,30 @@ export async function runTriggerDagRun(
       run_id: runId,
       allowed_state: trigger.allowedStates,
     });
-    await sleep(trigger.pokeInterval * 1000, undefined, { signal });
+    await sleep(trigger.pokeInterval * 1000, undefined, { signal: op.ctx.signal });
     const state = await client.getDagRunState(trigger.dagId, runId);
     if (includes(trigger.failedStates, state)) {
       logs.error("DagRun finished with failed state.", { dag_id: trigger.dagId, state });
-      return fail(`${trigger.dagId} failed with failed state ${state}`);
+      return op.fail(`${trigger.dagId} failed with failed state ${state}`);
     }
     if (includes(trigger.allowedStates, state)) {
       logs.info("DagRun finished with allowed state.", { dag_id: trigger.dagId, state });
-      return succeeded();
+      return op.succeed();
     }
     logs.debug("DagRun not yet in allowed or failed state.", { dag_id: trigger.dagId, state });
   }
 }
 
-/** `BaseOperator.resume_execution` for this task: `__fail__` or `execute_complete`. */
-function resume(
-  nextMethod: string,
-  nextKwargs: unknown,
+/** The run `DagStateTrigger` resumes the task with, after the triggered run reached a state. */
+export async function resumeTriggerDagRun(
   trigger: TriggerDagRunTask,
-  logs: LogChannel,
-  fail: FailTask,
-): TriggerOutcome {
-  const kwargs = isPlainRecord(nextKwargs) ? nextKwargs : {};
-  if (nextMethod === TRIGGER_FAIL) {
-    const traceback = kwargs["traceback"];
-    if (Array.isArray(traceback)) logs.error(`Trigger failed:\n${traceback.join("\n")}`);
-    return fail(String(kwargs["error"] ?? "Unknown"));
-  }
-  if (nextMethod !== EXECUTE_COMPLETE) {
-    return fail(`Task cannot resume with next_method "${nextMethod}"`);
-  }
-  const eventData = decodeEvent(kwargs["event"]);
+  op: OperatorContext,
+  event: unknown,
+): Promise<OperatorOutcome> {
+  const eventData = decodeEvent(event);
   const runIds = eventData?.["run_ids"];
   if (eventData === undefined || !Array.isArray(runIds)) {
-    return fail(`Task resumed with an event it cannot read: ${JSON.stringify(kwargs["event"])}`);
+    return op.fail(`Task resumed with an event it cannot read: ${JSON.stringify(event)}`);
   }
   const failedRunIds: string[] = [];
   for (const runId of runIds) {
@@ -176,7 +133,7 @@ function resume(
       continue;
     }
     if (includes(trigger.allowedStates, state)) {
-      logs.info("Triggered Dag run finished with allowed state.", {
+      op.logs.info("Triggered Dag run finished with allowed state.", {
         dag_id: trigger.dagId,
         state,
         run_id: runId,
@@ -184,12 +141,12 @@ function resume(
     }
   }
   if (failedRunIds.length > 0) {
-    return fail(
+    return op.fail(
       `${trigger.dagId} failed with failed states ${JSON.stringify(trigger.failedStates)} ` +
         `for run_ids ${JSON.stringify(failedRunIds)}`,
     );
   }
-  return succeeded();
+  return op.succeed();
 }
 
 /**
@@ -203,17 +160,8 @@ function decodeEvent(event: unknown): Record<string, unknown> | undefined {
   return pair[1];
 }
 
-function succeeded(): RuntimeSucceedTask {
-  return {
-    type: "SucceedTask",
-    end_date: new Date().toISOString(),
-    task_outlets: [],
-    outlet_events: [],
-  };
-}
-
 /** `datetime.isoformat()` of a UTC instant, which is how Python spells a run ID's date. */
-export function pythonIsoformat(date: Date): string {
+function pythonIsoformat(date: Date): string {
   const iso = date.toISOString();
   const seconds = iso.slice(0, 19);
   const millis = date.getUTCMilliseconds();
@@ -222,7 +170,7 @@ export function pythonIsoformat(date: Date): string {
 }
 
 /** `build_airflow_dagrun_url`, on `[api] base_url` from the environment, or "/" when unset. */
-export function dagRunUrl(dagId: string, runId: string): string {
+function dagRunUrl(dagId: string, runId: string): string {
   const base = process.env["AIRFLOW__API__BASE_URL"] || "/";
   return `${base.replace(/\/+$/, "")}/dags/${dagId}/runs/${runId}`;
 }

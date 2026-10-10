@@ -24,8 +24,10 @@
   },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
+  "breadcrumb": "Διαδρομή Πλοήγησης",
   "browse": {
     "auditLog": "Καταγραφή Ελέγχου",
+    "dagBundles": "Πακέτα Dag",
     "deadlines": "Προθεσμίες",
     "jobs": "Διεργασίες",
     "requiredActions": "Απαιτούμενες Ενέργειες",
@@ -38,7 +40,10 @@
   "createdAssetEvent_other": "Δημιουργήθηκαν Συμβάντα Οντοτήτων",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Πακέτο Dag",
+  "dagBundle_other": "Πακέτα Dag",
   "dagDetails": {
+    "activeRuns": "Ενεργές Εκτελέσεις",
     "catchup": "Catchup",
     "dagRunTimeout": "Χρονικό Όριο Εκτέλεσης Dag",
     "defaultArgs": "Προεπιλεγμένες Παράμετροι",
@@ -86,9 +91,8 @@
   "dagRun_one": "Εκτέλεση Dag",
   "dagRun_other": "Εκτελέσεις Dag",
   "dagRunId": "ID Εκτέλεσης Dag",
+  "dagRunState": "Κατάσταση Εκτέλεσης Dag",
   "dagWarnings": "Προειδοποιήσεις/Σφάλματα Dag",
-  "defaultToGraphView": "Προεπιλογή σε γραφική προβολή",
-  "defaultToGridView": "Προεπιλογή σε πλέγμα",
   "delete": "Διαγραφή",
   "diff": "Διαφορές",
   "diffCompareWith": "Σύγκριση με",
@@ -122,6 +126,8 @@
       "title": "Άρνηση Πρόσβασης"
     }
   },
+  "event_one": "Συμβάν",
+  "event_other": "Συμβάντα",
   "expand": {
     "collapse": "Σύμπτυξη",
     "expand": "Ανάπτυξη",
@@ -137,22 +143,36 @@
   },
   "filter": "Φίλτρο",
   "filters": {
+    "addFilter": "Προσθήκη Φίλτρου",
+    "completedAt": "Ολοκληρώθηκε Στ(η/ις)",
+    "date": "Ημερομηνία",
     "durationFrom": "Διάρκεια Από",
     "durationTo": "Διάρκεια Έως",
     "endTime": "Ώρα Λήξης",
     "logicalDateFrom": "Λογική Ημερομηνία Από",
     "logicalDateTo": "Λογική Ημερομηνία Έως",
+    "maxActiveRunsFrom": "Μέγιστες Ενεργές Εκτελέσεις Από",
+    "maxActiveRunsTo": "Μέγιστες Ενεργές Εκτελέσεις Έως",
+    "removeFilter": "Αφαίρεση Φίλτρου",
     "runAfterFrom": "Εκτέλεση Μετά Από",
     "runAfterTo": "Εκτέλεση Μετά Έως",
     "searchAsset": "Αναζήτηση Οντότητας",
     "selectDateRange": "Επιλέξτε Εύρος Ημερομηνιών",
-    "startTime": "Ώρα Έναρξης"
+    "selectDateTime": "Επιλέξτε ημερομηνία και ώρα",
+    "startTime": "Ώρα Έναρξης",
+    "time": "Ώρα"
   },
   "fullscreen": {
     "tooltip": "Πατήστε {{hotkey}} για πλήρη οθόνη"
   },
   "generateToken": "Δημιουργία Token",
+  "includedIn": "Περιλαμβάνεται σε",
   "key": "Κλειδί",
+  "logLevel": {
+    "hide": "Απόκρυψη Επιπέδων Καταγραφής",
+    "hotkey": "l",
+    "show": "Εμφάνιση Επιπέδων Καταγραφής"
+  },
   "logicalDate": "Λογική Ημερομηνία",
   "logout": "Αποσύνδεση",
   "logoutConfirmation": "Πρόκειται να αποσυνδεθείτε από την εφαρμογή.",
@@ -172,12 +192,14 @@
     "assets": "Οντότητες",
     "browse": "Περιήγηση",
     "dags": "Dags",
+    "dashboard": "Πίνακας Ελέγχου",
     "docs": "Τεκμηρίωση",
     "home": "Αρχική",
     "legacyFabViews": "Παλιές Προβολές",
     "plugins": "Πρόσθετα",
     "security": "Ασφάλεια"
   },
+  "no": "Όχι",
   "noItemsFound": "Δεν βρέθηκε {{modelName}}",
   "note": {
     "add": "Προσθήκη σημείωσης",
@@ -190,13 +212,16 @@
     "write": "Σύνταξη"
   },
   "overallStatus": "Συνολική Κατάσταση",
+  "partition_one": "Κατάτμηση",
+  "partition_other": "Κατατμήσεις",
   "partitionedDagRun_one": "Εκτέλεση Dag με Κατάτμηση",
   "partitionedDagRun_other": "Εκτελέσεις Dag με Κατάτμηση",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Ληφθέντα Συμβάντα Οντότητας"
   },
-  "pendingDagRun_one": "{{count}} Εκκρεμής Εκτέλεση Dag",
-  "pendingDagRun_other": "{{count}} Εκκρεμείς Εκτελέσεις Dag",
+  "pause": "Παύση",
+  "pendingDagRun_one": "{{count, number}} Εκκρεμής Εκτέλεση Dag",
+  "pendingDagRun_other": "{{count, number}} Εκκρεμείς Εκτελέσεις Dag",
   "presetFilters": {
     "deleteTitle": "Διαγραφή προκαθορισμένου φίλτρου",
     "deleteWarning": "Τα προκαθορισμένα φίλτρα αποθηκεύονται μόνο στο παρόν πρόγραμμα περιήγησης.",
@@ -245,6 +270,79 @@
   },
   "selectLanguage": "Επιλογή Γλώσσας",
   "selected": "Επιλεγμένα",
+  "settings": {
+    "clearing": {
+      "keepTaskState": {
+        "helper": "Διατήρηση των εγγραφών της αποθήκης καταστάσεων εργασίας από προεπιλογή κατά την εκκαθάριση εκτελέσεων εργασίας, αντί για απόρριψή τους.",
+        "label": "Διατήρηση κατάστασης εργασίας κατά την εκκαθάριση"
+      },
+      "preventRunningTask": {
+        "helper": "Παράλειψη εργασιών που εκτελούνται αυτήν τη στιγμή κατά την εκκαθάριση εκτελέσεων εργασίας.",
+        "label": "Αποτροπή εκκαθάρισης εκτελούμενων εργασιών"
+      },
+      "runSelection": {
+        "helper": "Επιλογές που είναι προεπιλεγμένες κατά την εκκαθάριση μιας Εκτέλεσης Dag.",
+        "label": "Προεπιλεγμένη επιλογή εκκαθάρισης εκτέλεσης"
+      },
+      "taskSelection": {
+        "helper": "Επιλογές που είναι προεπιλεγμένες κατά την εκκαθάριση εκτελέσεων εργασίας.",
+        "label": "Προεπιλεγμένη επιλογή εκκαθάρισης εργασίας"
+      },
+      "title": "Εκκαθάριση"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Εμφάνιση των πρόσφατων καταστάσεων εργασιών κάθε Dag στη λίστα Dags. Απενεργοποιήστε το για να παραλείπεται η φόρτωσή τους, κάτι που μπορεί να βοηθήσει σε εγκαταστάσεις με πολλά Dags.",
+        "label": "Εμφάνιση πρόσφατων εργασιών"
+      },
+      "title": "Λίστα Dags"
+    },
+    "description": "Αυτές οι προτιμήσεις αποθηκεύονται μόνο στο παρόν πρόγραμμα περιήγησης και ισχύουν για ολόκληρη την εφαρμογή.",
+    "general": {
+      "landingPage": {
+        "helper": "Η σελίδα που εμφανίζεται όταν ανοίγετε το Airflow.",
+        "label": "Αρχική σελίδα",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Πίνακας Ελέγχου"
+        }
+      },
+      "title": "Γενικά"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "Κατεύθυνση διάταξης για τα γραφήματα Dag και οντοτήτων που δεν έχετε ορίσει μεμονωμένα.",
+        "label": "Προεπιλεγμένη κατεύθυνση γραφήματος"
+      },
+      "taskGroupsExpanded": {
+        "helper": "Ανάπτυξη των ομάδων εργασιών σε Dags όπου δεν έχετε αποθηκεύσει επιλογή ομάδων. Οι υπάρχουσες επιλογές διατηρούνται.",
+        "label": "Ανάπτυξη ομάδων εργασιών από προεπιλογή"
+      },
+      "title": "Γράφημα"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Επιλογές που είναι προεπιλεγμένες κατά τη σήμανση της κατάστασης μιας εκτέλεσης εργασίας.",
+        "label": "Προεπιλεγμένη επιλογή σήμανσης"
+      },
+      "title": "Σήμανση"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Οι επιλογές ανά γραμμή αναζήτησης και οι κοινόχρηστοι σύνδεσμοι εξακολουθούν να έχουν προτεραιότητα.",
+        "label": "Αντιστοίχιση οπουδήποτε από προεπιλογή"
+      },
+      "title": "Αναζήτηση"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Η καρτέλα που εμφανίζεται πρώτη όταν ανοίγετε μια εκτέλεση εργασίας. Οι σύνδεσμοι προς συγκεκριμένη καρτέλα εξακολουθούν να ανοίγουν εκείνη την καρτέλα.",
+        "label": "Προεπιλεγμένη καρτέλα εκτέλεσης εργασίας"
+      },
+      "title": "Εκτέλεση Εργασίας"
+    },
+    "title": "Ρυθμίσεις"
+  },
   "shortcuts": {
     "categories": {
       "code": "Κώδικας",
@@ -278,6 +376,7 @@
       "toggleExpand": "Ανάπτυξη ή σύμπτυξη όλων των ομάδων",
       "toggleFullscreen": "Εναλλαγή πλήρους οθόνης",
       "toggleGraphGrid": "Εναλλαγή προβολής γραφήματος / πλέγματος",
+      "toggleLogLevel": "Εναλλαγή επιπέδων καταγραφής",
       "toggleSource": "Εναλλαγή πηγαίου",
       "toggleTaskGroup": "Ανάπτυξη ή σύμπτυξη Ομάδας Εργασιών",
       "toggleTimestamp": "Εναλλαγή χρονικών σημάνσεων",
@@ -288,6 +387,9 @@
   },
   "showDetailsPanel": "Εμφάνιση Πίνακα Λεπτομερειών",
   "signedInAs": "Συνδεδεμένος ως",
+  "slot": "Θέση",
+  "slot_one": "Θέση",
+  "slot_other": "Θέσεις",
   "source": {
     "hide": "Απόκρυψη Πηγαίου Κώδικα",
     "hotkey": "s",
@@ -316,6 +418,7 @@
     "up_for_retry": "Προς Επανάληψη",
     "upstream_failed": "Αποτυχία Ανάντη"
   },
+  "switchDag": "Αλλαγή $t(dag_one)",
   "table": {
     "completedAt": "Ολοκληρώθηκε στις",
     "createdAt": "Δημιουργήθηκε στις",
@@ -325,8 +428,10 @@
     "filterReset_other": "Επαναφορά φίλτρων",
     "from": "Από",
     "maxActiveRuns": "Μέγιστες Ενεργές Εκτελέσεις",
+    "noResultsFound": "Δεν βρέθηκαν αποτελέσματα",
     "noTagsFound": "Δεν βρέθηκαν ετικέτες",
     "noTeamsFound": "Δεν βρέθηκαν ομάδες",
+    "ownerPlaceholder": "Φιλτράρισμα κατά ιδιοκτήτη",
     "tagMode": {
       "all": "Όλα",
       "any": "Οποιοδήποτε"
@@ -368,6 +473,11 @@
     "queuedWhen": "Σε Ουρά Στις",
     "renderedMapIndex": "Αποδιδόμενος Δείκτης Χάρτη",
     "scheduledWhen": "Προγραμματίστηκε Στις",
+    "stateReason": "Αιτία κατάστασης",
+    "stateReasonSummary": {
+      "failed": "Σταμάτησε στην προσπάθεια {{tryNumber}} από {{totalTries}}",
+      "upForRetry": "Επανάληψη μετά την προσπάθεια {{tryNumber}} από {{totalTries}}"
+    },
     "trigger": "Ενεργοποίηση",
     "triggerer": {
       "assigned": "Ανατεθειμένος ενεργοποιητής",
@@ -382,10 +492,21 @@
   },
   "taskInstance_one": "Εκτέλεση Εργασίας",
   "taskInstance_other": "Εκτελέσεις Εργασίας",
+  "teams": {
+    "more_one": "και {{count, number}} ακόμη",
+    "more_other": "και {{count, number}} ακόμη",
+    "none": "Χωρίς ομάδα",
+    "title": "Ομάδες"
+  },
   "timeRange": {
+    "anyTime": "Οποιαδήποτε στιγμή",
+    "in": "σε",
+    "last7Days": "Τελευταίες 7 Ημέρες",
     "last12Hours": "Τελευταίες 12 Ώρες",
     "last24Hours": "Τελευταίες 24 Ώρες",
+    "last30Days": "Τελευταίες 30 Ημέρες",
     "lastHour": "Τελευταία Ώρα",
+    "latestRun": "Τελευταία Εκτέλεση",
     "pastWeek": "Προηγούμενη Εβδομάδα"
   },
   "timestamp": {
@@ -404,21 +525,21 @@
     "bulkClear": {
       "error": "Αποτυχία αιτήματος μαζικής εκκαθάρισης {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} εκκαθαρίστηκαν με επιτυχία. Κλειδιά: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} εκκαθαρίστηκαν με επιτυχία. Κλειδιά: {{keys}}",
         "title": "Υποβλήθηκε αίτημα μαζικής εκκαθάρισης {{resourceName}}"
       }
     },
     "bulkDelete": {
       "error": "Αποτυχία αιτήματος μαζικής διαγραφής {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} διαγράφηκαν με επιτυχία. Κλειδιά: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} διαγράφηκαν με επιτυχία. Κλειδιά: {{keys}}",
         "title": "Υποβλήθηκε αίτημα μαζικής διαγραφής {{resourceName}}"
       }
     },
     "bulkUpdate": {
       "error": "Αποτυχία αιτήματος μαζικής ενημέρωσης {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} ενημερώθηκαν με επιτυχία. Κλειδιά: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} ενημερώθηκαν με επιτυχία. Κλειδιά: {{keys}}",
         "title": "Υποβλήθηκε αίτημα μαζικής ενημέρωσης {{resourceName}}"
       }
     },
@@ -439,7 +560,7 @@
     "import": {
       "error": "Αποτυχία αιτήματος εισαγωγής {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} εισήχθησαν με επιτυχία.",
+        "description": "{{count, number}} {{resourceName}} εισήχθησαν με επιτυχία.",
         "title": "Υποβλήθηκε αίτημα εισαγωγής {{resourceName}}"
       }
     },
@@ -466,6 +587,7 @@
   "total": "Σύνολο {{state}}",
   "triggered": "Ενεργοποιήθηκε",
   "tryNumber": "Αριθμός Προσπάθειας",
+  "unpause": "Αναίρεση Παύσης",
   "user": "Χρήστης",
   "validation": {
     "mustBeAtLeast": "Πρέπει να είναι τουλάχιστον {{min}}.",
@@ -477,5 +599,6 @@
     "tooltip": "Πατήστε {{hotkey}} για εναλλαγή αναδίπλωσης",
     "unwrap": "Ξεδίπλωμα",
     "wrap": "Αναδίπλωση"
-  }
+  },
+  "yes": "Ναι"
 }

@@ -13,21 +13,21 @@ Use wording already established in existing `ko` locale files first. If a term h
 
 ```json
 "lastDagRun_one": "Last Dag Run",
-"deleteConnection_other": "Delete {{count}} connections"
+"deleteConnection_other": "Delete {{count, number}} connections"
 ```
 
 **Correct** — natural Korean UI wording:
 
 ```json
 "lastDagRun_one": "마지막 Dag 실행",
-"deleteConnection_other": "커넥션 {{count}}개 삭제"
+"deleteConnection_other": "커넥션 {{count, number}}개 삭제"
 ```
 
 **Incorrect** — overly literal or awkward:
 
 ```json
 "lastDagRun_one": "마지막 Dag 런",
-"deleteConnection_other": "{{count}} 연결들을 삭제"
+"deleteConnection_other": "{{count, number}} 연결들을 삭제"
 ```
 
 ## Plural Forms
@@ -37,15 +37,15 @@ Korean often uses the same wording for singular and plural. Follow established u
 **English source:**
 
 ```json
-"taskCount_one": "{{count}} Task",
-"taskCount_other": "{{count}} Tasks"
+"taskCount_one": "{{count, number}} Task",
+"taskCount_other": "{{count, number}} Tasks"
 ```
 
 **Correct** — identical for both when no established distinction exists:
 
 ```json
-"taskCount_one": "{{count}}개 작업",
-"taskCount_other": "{{count}}개 작업"
+"taskCount_one": "{{count, number}}개 작업",
+"taskCount_other": "{{count, number}}개 작업"
 ```
 
 ## Counters and Spacing
@@ -53,12 +53,12 @@ Korean often uses the same wording for singular and plural. Follow established u
 Use counters consistent with existing `ko` locale usage and keep spacing readable:
 
 - Insert a single space between Korean and adjacent English technical terms where needed (`Dag 실행`, `커넥션 ID`).
-- Do not insert a space between numbers/placeholders and counters such as `개` (for example, `{{count}}개`).
+- Do not insert a space between numbers/placeholders and counters such as `개` (for example, `{{count, number}}개`).
 
 ```json
-"deleteConnection_other": "커넥션 {{count}}개 삭제",
-"taskCount_one": "{{count}}개 작업",
-"taskCount_other": "{{count}}개 작업",
+"deleteConnection_other": "커넥션 {{count, number}}개 삭제",
+"taskCount_one": "{{count, number}}개 작업",
+"taskCount_other": "{{count, number}}개 작업",
 "lastDagRun_one": "마지막 Dag 실행",
 "connectionId": "커넥션 ID"
 ```
@@ -71,14 +71,14 @@ Preserve all `{{variable}}` placeholders exactly. Attach Korean particles outsid
 
 ```json
 "confirmation": "Are you sure you want to delete {{resourceName}}? This action cannot be undone.",
-"description": "{{count}} {{resourceName}} have been successfully deleted. Keys: {{keys}}"
+"description": "{{count, number}} {{resourceName}} have been successfully deleted. Keys: {{keys}}"
 ```
 
 **Correct** — placeholders preserved and particles outside:
 
 ```json
 "confirmation": "{{resourceName}}을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
-"description": "{{count}}개 {{resourceName}}이(가) 성공적으로 삭제되었습니다. 키: {{keys}}"
+"description": "{{count, number}}개 {{resourceName}}이(가) 성공적으로 삭제되었습니다. 키: {{keys}}"
 ```
 
 **Incorrect** — variable names translated:
