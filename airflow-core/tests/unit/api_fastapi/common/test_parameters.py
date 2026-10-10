@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import Column, MetaData, String, Table, create_engine, select
+from sqlalchemy import Column, MetaData, String, Table, case, create_engine, select, text
 from sqlalchemy.orm import aliased
 
 from airflow.api_fastapi.common.parameters import (
@@ -38,7 +38,7 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.parameters.asset import _AssetDependencyFilter, _ConsumingAssetFilter
-from airflow.api_fastapi.common.parameters.dag import _OwnersFilter
+from airflow.api_fastapi.common.parameters.dag import _DagDisplayNamePrefixSearchParam, _OwnersFilter
 from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter
 from airflow.api_fastapi.common.parameters.search import (
     _escape_like_pattern,
@@ -554,6 +554,58 @@ class TestPrefixSearchParamOnARealEngine:
     )
     def test_only_values_with_the_prefix_come_back(self, select_names, term, expected):
         assert select_names(term) == expected
+
+
+@pytest.mark.db_test
+@pytest.mark.backend("postgres")
+@pytest.mark.parametrize(
+    ("collation", "prefix", "name"),
+    [
+        ("libc", "카페", "카페매출집계"),
+        ("libc", "café", "caféteria"),
+        ("icu", "카페", "카페매출집계"),
+        ("icu", "카페a", "카페Abc"),
+        ("icu", "Å", "Å카페"),
+    ],
+)
+def test_dag_display_name_prefix_with_collation(session, collation, prefix, name):
+    if collation == "libc":
+        if not session.scalar(
+            text("SELECT EXISTS (SELECT 1 FROM pg_collation WHERE collname = 'en_US.utf8')")
+        ):
+            pytest.skip("Requires PostgreSQL en_US.utf8 collation")
+        session.execute(text('CREATE COLLATION prefix_test_collation FROM "en_US.utf8"'))
+    else:
+        if not session.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_collation WHERE collprovider = 'i')")):
+            pytest.skip("Requires PostgreSQL ICU collations")
+        session.execute(
+            text(
+                "CREATE COLLATION prefix_test_collation "
+                "(provider = icu, locale = 'und-u-ks-level2', deterministic = false)"
+            )
+        )
+    table = Table(
+        "prefix_collation_probe",
+        MetaData(),
+        Column("dag_id", String(250, collation="prefix_test_collation")),
+        Column("dag_display_name", String(2000)),
+        prefixes=["TEMPORARY"],
+    )
+    table.create(session.connection())
+    session.execute(
+        table.insert(),
+        [
+            {"dag_id": name, "dag_display_name": None},
+            {"dag_id": "display_match", "dag_display_name": name},
+            {"dag_id": "non_match", "dag_display_name": "다른이름"},
+        ],
+    )
+    display_name = case(
+        (table.c.dag_display_name.is_not(None), table.c.dag_display_name), else_=table.c.dag_id
+    )
+    param = _DagDisplayNamePrefixSearchParam(display_name).set_value(prefix)
+
+    assert set(session.scalars(param.to_orm(select(table.c.dag_id)))) == {name, "display_match"}
 
 
 class TestTaskDisplayNamePrefixPatternParam:

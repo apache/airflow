@@ -749,11 +749,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. Non-ASCII prefixes use substring
+            equality instead of index range comparisons. See "Filtering with pattern
+            parameters".
           title: Dag Display Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. Non-ASCII prefixes use substring
+          equality instead of index range comparisons. See "Filtering with pattern
+          parameters".
       - name: exclude_stale
         in: query
         required: false

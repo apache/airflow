@@ -362,12 +362,14 @@ def prefix_search_param_factory(
     prefix_pattern_name: str,
     skip_none: bool = True,
     pipe_as_or: bool = True,
+    param_class: type[_PrefixSearchParam] = _PrefixSearchParam,
+    description: str | None = None,
 ) -> Callable[[str | None], _PrefixSearchParam]:
     """
     Build a FastAPI ``Depends`` returning a :class:`_PrefixSearchParam` for prefix matching.
 
-    Prefer this over :func:`search_param_factory` for performance: prefix matching uses a
-    B-tree index range scan, while substring matching requires a full table scan.
+    The default implementation uses range comparisons to allow B-tree index scans.
+    ``param_class`` can specialize matching for expressions requiring different predicates.
     """
     DESCRIPTION = (
         "Case-sensitive, index-friendly prefix match. "
@@ -376,9 +378,11 @@ def prefix_search_param_factory(
     )
 
     def depends_prefix_search(
-        value: str | None = Query(alias=prefix_pattern_name, default=None, description=DESCRIPTION),
+        value: str | None = Query(
+            alias=prefix_pattern_name, default=None, description=description or DESCRIPTION
+        ),
     ) -> _PrefixSearchParam:
-        search_parm = _PrefixSearchParam(attribute, skip_none, pipe_as_or=pipe_as_or)
+        search_parm = param_class(attribute, skip_none, pipe_as_or=pipe_as_or)
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
 
