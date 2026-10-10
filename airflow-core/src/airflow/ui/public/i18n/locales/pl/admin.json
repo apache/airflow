@@ -42,6 +42,7 @@
     "form": {
       "connectionIdRequired": "Identyfikator połączenia jest wymagany",
       "connectionIdRequirement": "Identyfikator połączenia nie może zawierać wyłącznie spacji",
+      "connectionTypeFields": "Pola typu {{connectionType}}",
       "connectionTypeRequired": "Typ połączenia jest wymagany",
       "extraFieldsJson": "Dodatkowe pola JSON",
       "helperText": "Brakuje typu połączenia? Upewnij się, że zainstalowałeś odpowiedniego dostawcę.",

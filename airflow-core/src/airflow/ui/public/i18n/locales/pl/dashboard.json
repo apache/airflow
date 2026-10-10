@@ -32,14 +32,31 @@
   "group": "Grupa",
   "health": {
     "dagProcessor": "Processor Dagów",
+    "degraded": "Ograniczony",
+    "degradedHint": {
+      "dagProcessor": "Niektóre skonfigurowane paczki Dagów nie są parsowane przez żaden procesor Dagów.",
+      "triggerer": "Niektóre zespoły nie mają działającego wyzwalacza, który obsługiwałby ich odroczone zadania."
+    },
+    "down": "Niedostępny",
     "health": "Stan Systemu",
     "healthy": "Prawidłowy",
+    "instances": {
+      "bundles": "Paczki Dagów",
+      "hostname": "Host",
+      "team": "Zespół",
+      "title_few": "{{title}} — {{status}} ({{count}} instancje)",
+      "title_many": "{{title}} — {{status}} ({{count}} instancji)",
+      "title_one": "{{title}} — {{status}} ({{count}} instancja)",
+      "title_other": "{{title}} — {{status}} ({{count}} instancji)",
+      "unknownHostname": "Nieznany host"
+    },
     "lastHeartbeat": "Ostatni czas sprawdzenia",
     "metaDatabase": "Baza Danych Meta",
     "scheduler": "Planer zadań",
     "status": "Stan",
     "triggerer": "Wyzwalacz",
-    "unhealthy": "Nieprawidłowy"
+    "unhealthy": "Nieprawidłowy",
+    "unknownStatus": "Nieznany"
   },
   "history": "Historia",
   "importErrors": {
