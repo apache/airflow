@@ -92,13 +92,15 @@
       "existingTasks": "清除現有任務",
       "future": "未來",
       "keepTaskState": "保留任務狀態並繼續",
+      "laterIterations": "後續迭代",
       "onlyFailed": "只清除失敗任務",
       "past": "過去",
       "preventRunningTasks": "若任務正在執行中，則防止重新執行",
       "queueNew": "排隊新任務",
       "runOnLatestVersion": "執行最新套件包版本",
       "runOnLatestVersionForced": "一律使用最新的套件包版本 — 沒有可回復的較舊版本",
-      "upstream": "上游"
+      "upstream": "上游",
+      "wholeExpansion": "整個展開"
     }
   },
   "runStateCounts": {
@@ -128,6 +130,7 @@
   "search": {
     "advanced": "進階搜尋",
     "clear": "清除搜尋",
+    "dagRuns": "搜尋 $t(common:dagRun_other)",
     "dags": "搜尋 Dags",
     "hotkey": "+K",
     "tasks": "搜尋任務"
