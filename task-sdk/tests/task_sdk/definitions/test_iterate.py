@@ -1,0 +1,225 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Tests for the ``.iterate()`` / ``.iterate_kwargs()`` entry points on partials and decorated tasks."""
+
+from __future__ import annotations
+
+import contextlib
+from collections.abc import Callable
+from typing import Any
+from unittest import mock
+
+import pytest
+
+from airflow.sdk import DAG, TaskInstanceState
+from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.execution_time.comms import (
+    GetTICount,
+    GetXCom,
+    GetXComSequenceSlice,
+    SetXCom,
+    TICount,
+    XComResult,
+    XComSequenceSliceResult,
+)
+
+RunTI = Callable[[DAG, str, int], TaskInstanceState]
+
+
+class TestIterate:
+    def test_iterate_task_with_dict_return_annotation_pushes_whole_results(
+        self, run_ti: RunTI, mock_supervisor_comms
+    ):
+        """A Mapping return annotation makes @task infer multiple_outputs=True. The runner must not
+        apply that to an iterated task: its return value is the XComIterable aggregate, which is not a
+        dict, and every sub-task result is pushed whole rather than fanned out by key."""
+        items = [{"dag_id": "a", "n": 1}, {"dag_id": "b", "n": 2}, {"dag_id": "c", "n": 3}]
+
+        with DAG(dag_id="iterate_dict_return") as dag:
+
+            @dag.task
+            def list_items():
+                return items
+
+            @dag.task
+            def enrich(item: dict) -> dict:
+                return {"dag_id": item["dag_id"], "n": item["n"] * 2}
+
+            enrich.iterate(item=list_items())
+
+        assert enrich.multiple_outputs is True
+
+        def mock_comms(msg):
+            if isinstance(msg, GetXCom):
+                if msg.task_id == "list_items":
+                    return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=items)
+            elif isinstance(msg, GetXComSequenceSlice):
+                if msg.task_id == "list_items":
+                    return XComSequenceSliceResult(root=items)
+            elif isinstance(msg, GetTICount):
+                return TICount(count=1)
+            return mock.DEFAULT
+
+        mock_supervisor_comms.send.side_effect = mock_comms
+
+        # Sub-task results are pushed through the async send, the aggregate through the sync one.
+        mock_supervisor_comms.asend.reset_mock()
+        assert run_ti(dag, "enrich", -1) == TaskInstanceState.SUCCESS
+        pushed: dict[str, Any] = {
+            msg.key: msg.value
+            for call in [*mock_supervisor_comms.send.mock_calls, *mock_supervisor_comms.asend.mock_calls]
+            if isinstance(msg := (call.kwargs.get("msg") or call.args[0]), SetXCom)
+            and msg.task_id == "enrich"
+        }
+
+        assert pushed[BaseXCom.XCOM_RETURN_KEY]["__classname__"] == "airflow.sdk.bases.xcom.XComIterable"
+        assert pushed[BaseXCom.XCOM_RETURN_KEY]["__data__"]["map_index"] == -1
+        assert not {"dag_id", "n"} & pushed.keys()
+
+        sub_results = [
+            value for key, value in pushed.items() if key.startswith(f"{BaseXCom.XCOM_RETURN_KEY}_")
+        ]
+        assert sorted(sub_results, key=lambda r: r["dag_id"]) == [
+            {"dag_id": "a", "n": 2},
+            {"dag_id": "b", "n": 4},
+            {"dag_id": "c", "n": 6},
+        ]
+
+    def test_decorated_iterate_validates_as_iterate_not_expand(self):
+        """The decorated ``.iterate()`` names itself in its errors and, like ``.expand()``, refuses a
+        literal that is no collection, as the iteration refuses the same value from an upstream."""
+        with DAG(dag_id="test_decorated_iterate_validation") as dag:
+
+            @dag.task
+            def show(number):
+                return number
+
+            with pytest.raises(TypeError, match=r"iterate\(\) got an unexpected keyword argument 'bogus'"):
+                show.iterate(bogus=1)
+            with pytest.raises(ValueError, match=r"cannot call iterate\(\) on task context variable 'ti'"):
+                show.iterate(ti=1)
+            with pytest.raises(ValueError, match=r"expand\(\) got an unexpected type 'int'"):
+                show.expand(number=5)
+            with pytest.raises(ValueError, match=r"iterate\(\) got an unexpected type 'int'"):
+                show.iterate(number=5)
+            with pytest.raises(ValueError, match=r"iterate\(\) got an unexpected type 'str'"):
+                show.iterate(number="abc")
+            with pytest.raises(ValueError, match=r"iterate\(\) got an unexpected type 'NoneType'"):
+                show.iterate(number=None)
+
+    def test_iterate_marks_partial_as_expanded(self, recwarn):
+        """Test that .iterate() (like .expand()) flags the OperatorPartial as consumed, so
+        OperatorPartial.__del__ does not spuriously warn "Task ... was never mapped!" once the
+        partial and its resulting operator are garbage collected."""
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
+
+        with DAG(dag_id="test_iterate_expand_called"):
+            partial = EmptyOperator.partial(task_id="test_task")
+            partial._iterate(DictOfListsExpandInput({"retry_delay": [1, 2]}), strict=False)
+
+            assert partial._expand_called is True
+
+        del partial
+        assert not any("was never mapped" in str(w.message) for w in recwarn.list)
+
+
+class TestIterateInTaskGroup:
+    """The iterated task and the operator it runs for each item have the same, once-prefixed task id."""
+
+    @staticmethod
+    def _dag(prefix_group_id: bool = True, nested: bool = False):
+        from airflow.sdk import BaseOperator, TaskGroup, task
+
+        class Op(BaseOperator):
+            def __init__(self, x=None, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with DAG("in_task_group") as dag:
+            with TaskGroup("outer", prefix_group_id=prefix_group_id):
+                with TaskGroup("inner") if nested else contextlib.nullcontext():
+
+                    @task
+                    def f(x):
+                        return x
+
+                    @task
+                    def g(x):
+                        return x
+
+                    decorated = f.iterate(x=[1, 2]).operator
+                    g.expand(x=[1, 2])
+                    classic = Op.partial(task_id="c").iterate(x=[1, 2])
+        return dag, decorated, classic
+
+    @pytest.mark.parametrize(
+        ("prefix_group_id", "nested", "prefix"),
+        [
+            pytest.param(True, False, "outer.", id="group"),
+            pytest.param(True, True, "outer.inner.", id="nested-groups"),
+            pytest.param(False, False, "", id="no-prefix"),
+        ],
+    )
+    def test_task_ids_are_prefixed_once(self, prefix_group_id, nested, prefix):
+        dag, decorated, classic = self._dag(prefix_group_id, nested)
+
+        assert sorted(dag.task_dict) == sorted(f"{prefix}{name}" for name in ("c", "f", "g"))
+        assert decorated.task_id == decorated._operator.task_id == f"{prefix}f"
+        assert classic.task_id == classic._operator.task_id == f"{prefix}c"
+
+
+class TestIterateRejectsOperatorsThatSkipDownstream:
+    """
+    An iteration has no downstream tasks of its own, so a skip-capable operator would skip nothing
+    and let every downstream task run: .iterate() refuses it when the Dag is defined.
+    """
+
+    @staticmethod
+    def _classic(name):
+        from airflow.providers.standard.operators.python import BranchPythonOperator, ShortCircuitOperator
+
+        operator_class = {"short_circuit": ShortCircuitOperator, "branch": BranchPythonOperator}[name]
+        return operator_class.partial(task_id=name).iterate(python_callable=[lambda: True])
+
+    @staticmethod
+    def _decorated(name):
+        from airflow.sdk import task
+
+        def decide(x):
+            return x
+
+        return getattr(task, name)(decide).iterate(x=[1])
+
+    @pytest.mark.parametrize("name", ["short_circuit", "branch"])
+    @pytest.mark.parametrize("build", ["_classic", "_decorated"])
+    def test_skip_capable_operator_is_rejected(self, build, name):
+        with DAG(f"rejects_{build}_{name}"):
+            with pytest.raises(TypeError, match="can skip downstream tasks and cannot be iterated"):
+                getattr(self, build)(name)
+
+    def test_operators_that_cannot_skip_are_accepted(self):
+        from airflow.providers.standard.operators.python import PythonOperator
+        from airflow.sdk import task
+
+        def work(x):
+            return x
+
+        with DAG("accepts"):
+            task(work).iterate(x=[1])
+            PythonOperator.partial(task_id="classic").iterate(python_callable=[lambda: True])
