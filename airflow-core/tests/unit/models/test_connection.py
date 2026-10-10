@@ -401,6 +401,24 @@ class TestConnection:
             captured_log for captured_log in captured_logs if captured_log["log_level"] == "warning"
         ] == []
 
+    @pytest.mark.parametrize("port", [0, 65535, None])
+    def test_allows_valid_port_boundaries(self, port):
+        conn = Connection(conn_id="test-port", conn_type="http", port=port)
+        assert conn.port == port
+
+    @pytest.mark.parametrize("port", [-1, 65536, "123", 1.5, ""])
+    def test_rejects_invalid_direct_port_values(self, port):
+        with pytest.raises(ValueError, match="port"):
+            Connection(conn_id="test-port", conn_type="http", port=port)
+
+    def test_rejects_invalid_port_assignment(self):
+        conn = Connection(conn_id="test-port", conn_type="http", port=5432)
+
+        with pytest.raises(ValueError, match="port"):
+            conn.port = 65536
+
+        assert conn.port == 5432
+
     @pytest.mark.parametrize(
         ("connection", "expected_conn_id"),
         [
