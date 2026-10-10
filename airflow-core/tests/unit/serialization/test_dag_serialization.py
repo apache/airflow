@@ -23,6 +23,7 @@ import contextlib
 import copy
 import dataclasses
 import functools
+import gc
 import importlib
 import importlib.util
 import json
@@ -3182,6 +3183,62 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
     xcom_arg = serialized_dag.task_dict["task_2"].expand_input.value
     assert isinstance(xcom_arg, SchedulerPlainXComArg)
     assert xcom_arg.operator is serialized_dag.task_dict["op1"]
+
+
+def test_partial_subset_does_not_mutate_original_mapped_task_groups():
+    """
+    Test that partial_subset() leaves the original DAG untouched when it
+    contains a mapped TaskGroup with a nested TaskGroup (#74453).
+
+    SerializedMappedTaskGroup only declares ``_expand_input`` in its own
+    ``__slots__``, so copying ``type(group).__slots__`` never deep-copied
+    ``children``: the subset's tasks were written into the original DAG's
+    mapped group and the nested group's tasks ended up with dead
+    task_group weakrefs.
+    """
+    from airflow.sdk import task, task_group
+
+    @task
+    def files():
+        return [1, 2]
+
+    @task
+    def prepare(x):
+        return x
+
+    @task
+    def convert(x):
+        return x
+
+    @task
+    def select(x):
+        return x
+
+    @task_group
+    def inner(x):
+        a = convert.override(task_id="a")(x)
+        b = convert.override(task_id="b")(a)
+        return b
+
+    @task_group
+    def outer(x):
+        p = prepare(x)
+        c = convert(p)
+        i = inner(c)
+        return select(i)
+
+    with DAG("partial_subset_no_mutation", schedule=None) as dag:
+        outer.expand(x=files())
+
+    sdag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
+    mapped_group = sdag.task_group.children["outer"]
+    inner_group_before = mapped_group.children["outer.inner"]
+
+    sdag.partial_subset(task_ids=["outer.prepare"], include_downstream=True, include_upstream=False)
+    gc.collect()
+
+    assert mapped_group.children["outer.inner"] is inner_group_before
+    assert sdag.task_dict["outer.inner.a"].task_group.group_id == "outer.inner"
 
 
 def test_task_resources_serde():
