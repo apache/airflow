@@ -359,3 +359,38 @@ describe("generateElkGraph — operator colors", () => {
     expect(group?.uiFgcolor).toBe("green.600");
   });
 });
+
+describe("generateElkGraph — root layout options (#74398)", () => {
+  it("does not force the SIMPLE node-placement strategy", () => {
+    // #65031 set nodePlacement.strategy=SIMPLE to cut layout latency, but the
+    // single-pass placement compresses the graph onto the layer median: nodes
+    // bunch onto a center line and edges gain ~50% more bend points (#74398).
+    // The default BRANDES_KOEPF placement must stay in force.
+    const nodes = [buildNode({ id: "a", label: "a" }), buildNode({ id: "b", label: "b" })];
+    const edges = [buildEdge("a", "b")];
+
+    const root = generateElkGraph({ direction: "RIGHT", edges, font: "12px sans-serif", nodes });
+
+    expect(root.layoutOptions?.["elk.layered.nodePlacement.strategy"]).toBeUndefined();
+  });
+
+  it("reduces crossing-minimisation thoroughness only for large graphs", () => {
+    // Perf guard from #65031, kept after reverting SIMPLE (#74398): large edge
+    // counts still drop thoroughness so layout latency stays bounded.
+    const nodes = Array.from({ length: 120 }, (_, i) => buildNode({ id: `n${i}`, label: `n${i}` }));
+
+    const smallRoot = generateElkGraph({
+      direction: "RIGHT",
+      edges: [buildEdge("n0", "n1")],
+      font: "12px sans-serif",
+      nodes,
+    });
+    expect(smallRoot.layoutOptions?.["elk.layered.thoroughness"]).toBeUndefined();
+
+    // 101 unique edges (a chain) — duplicate (source, target) pairs would be
+    // deduplicated by the closed-group rewrite path and drop below the threshold.
+    const bigEdges = Array.from({ length: 101 }, (_, i) => buildEdge(`n${i}`, `n${i + 1}`));
+    const bigRoot = generateElkGraph({ direction: "RIGHT", edges: bigEdges, font: "12px sans-serif", nodes });
+    expect(bigRoot.layoutOptions?.["elk.layered.thoroughness"]).toBe("3");
+  });
+});

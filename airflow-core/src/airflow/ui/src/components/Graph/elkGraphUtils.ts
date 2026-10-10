@@ -412,9 +412,10 @@ export const generateElkGraph = ({
     layoutOptions: {
       "elk.core.options.EdgeLabelPlacement": "CENTER",
       "elk.direction": direction,
-      // SIMPLE placement is a single-pass algorithm — much faster than the
-      // default BRANDES_KOEPF four-pass approach with acceptable quality for DAGs.
-      "elk.layered.nodePlacement.strategy": "SIMPLE",
+      // nodePlacement stays at the BRANDES_KOEPF default. The single-pass
+      // SIMPLE strategy (#65031) cut layout latency but compressed the graph
+      // onto the layer median: nodes bunch onto a center line and edges gain
+      // ~50% more bend points (#74398).
       // Crossing minimisation thoroughness (default 7) controls how many random
       // sweeps are attempted. Drop to 3 for large graphs where the extra passes
       // rarely pay off and add noticeable layout latency.
