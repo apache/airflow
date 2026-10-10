@@ -136,6 +136,20 @@ wget \
 xz-utils \
 zlib1g-dev \
 "
+        if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then
+            # Needed only to compile Python from sources - without them it builds, but silently
+            # lacks modules such as sqlite3, lzma or readline.
+            local debian_version
+            # shellcheck disable=SC1091
+            debian_version=$(. /etc/os-release; printf '%s\n' "$VERSION_CODENAME")
+            if [[ "${debian_version}" == "bookworm" ]]; then
+                DEV_APT_DEPS+="lcov libbluetooth-dev libbz2-dev libdb-dev libgdbm-compat-dev libgdbm-dev \
+liblzma-dev libncurses5-dev libreadline6-dev libsqlite3-dev libzstd-dev lzma lzma-dev tk-dev uuid-dev"
+            else
+                DEV_APT_DEPS+="lcov libbluetooth-dev libbz2-dev libdb-dev libgdbm-compat-dev libgdbm-dev \
+liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev libzstd-dev tk-dev uuid-dev"
+            fi
+        fi
         export DEV_APT_DEPS
     fi
 }
@@ -491,6 +505,9 @@ function install_python() {
         exit 1
     fi
     rm -f "${build_log}"
+    # CPython builds without the optional modules whose -dev packages are missing, so check them here
+    # rather than finding out from a broken image.
+    /usr/python/bin/python3 -c "import bz2, ctypes, dbm.gnu, lzma, readline, sqlite3, ssl, uuid, zlib"
     cd /
     rm -rf /usr/src/python
     find /usr/python -depth \
