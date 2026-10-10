@@ -228,7 +228,7 @@ def get_dags(
 
     recent_dag_runs: list = []
     if dags:
-        recent_runs_branches = [
+        ranked = (
             select(
                 DagRun.id,
                 DagRun.dag_id,
@@ -238,16 +238,31 @@ def get_dags(
                 DagRun.run_after,
                 DagRun.start_date,
                 DagRun.state,
+                func.row_number()
+                .over(
+                    partition_by=DagRun.dag_id,
+                    order_by=(DagRun.run_after.desc(), DagRun.id.desc()),
+                )
+                .label("rn"),
             )
-            .where(DagRun.dag_id == dag.dag_id)
-            .order_by(DagRun.run_after.desc())
-            .limit(dag_runs_limit)
+            .where(DagRun.dag_id.in_([dag.dag_id for dag in dags]))
             .subquery()
-            for dag in dags
-        ]
-        recent_runs_union = union_all(*(select(branch) for branch in recent_runs_branches)).subquery()
+        )
         recent_dag_runs = list(
-            session.execute(select(recent_runs_union).order_by(recent_runs_union.c.run_after.desc()))
+            session.execute(
+                select(
+                    ranked.c.id,
+                    ranked.c.dag_id,
+                    ranked.c.run_id,
+                    ranked.c.end_date,
+                    ranked.c.logical_date,
+                    ranked.c.run_after,
+                    ranked.c.start_date,
+                    ranked.c.state,
+                )
+                .where(ranked.c.rn <= dag_runs_limit)
+                .order_by(ranked.c.run_after.desc())
+            )
         )
 
     # Fetch pending HITL actions for each Dag if we are not certain whether some of the Dag might contain HITL actions
