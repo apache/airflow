@@ -251,13 +251,28 @@ class TestLoginRouter:
     # Binding the SAML response to the browser that started the login
     # ------------------------------------------------------------------
 
-    def test_login_sets_a_login_state_cookie(self, test_client):
-        """The AuthnRequest id must be remembered so the response can be tied to it."""
-        response = test_client.get(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login", follow_redirects=False)
+    @pytest.mark.parametrize(
+        ("scheme", "samesite", "secure"),
+        [
+            pytest.param("http", "lax", False, id="http"),
+            pytest.param("https", "none", True, id="https"),
+        ],
+    )
+    def test_login_sets_a_login_state_cookie(self, test_client, scheme, samesite, secure):
+        """
+        The AuthnRequest id must be remembered so the response can be tied to it.
+
+        Over https, the login state cookie is SameSite=None. The IdP posts the SAML response back
+        from another site, and the browser does not send a Lax cookie with that cross-site request.
+        """
+        response = test_client.get(
+            f"{scheme}://testserver{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login", follow_redirects=False
+        )
         assert COOKIE_NAME_LOGIN_STATE in response.cookies
-        set_cookie = response.headers["set-cookie"].lower()
-        assert "httponly" in set_cookie
-        assert "samesite=lax" in set_cookie
+        attributes = {part.strip().lower() for part in response.headers["set-cookie"].split(";")[1:]}
+        assert "httponly" in attributes
+        assert f"samesite={samesite}" in attributes
+        assert ("secure" in attributes) is secure
 
     def test_login_sends_the_nonce_to_the_idp(self, test_client):
         """The nonce has to survive the round trip, so it goes out in RelayState."""
