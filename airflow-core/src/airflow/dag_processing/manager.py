@@ -1489,6 +1489,7 @@ class DagFileProcessorManager(LoggingMixin):
                 path=dag_file.absolute_path,
                 bundle_path=cast("Path", dag_file.bundle_path),
                 bundle_name=dag_file.bundle_name,
+                team_name=team_name,
                 dag_file_rel_path=str(dag_file.rel_path),
                 selector=self.selector,
                 logger=logger,

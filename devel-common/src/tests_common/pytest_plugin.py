@@ -2216,7 +2216,7 @@ def reset_dag_bundle_config_cache():
         return
 
     try:
-        from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
+        from airflow.dag_processing.bundles.provider import _load_bundle_config_snapshot
     except ImportError:
         # compat for airflow versions without the snapshot cache
         yield

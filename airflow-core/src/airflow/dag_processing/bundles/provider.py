@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ValidationError
@@ -72,19 +73,6 @@ class _ExternalBundleConfig(BaseModel):
     team_name: str | None = None
 
 
-class _InternalBundleConfig(BaseModel):
-    """
-    Schema used internally (in this file) to define the configuration for a Dag bundle.
-
-    Configuration defined by users when read must match ``_ExternalBundleConfig``.
-    This configuration is then parsed and converted to ``_InternalBundleConfig`` to be used across this file.
-    """
-
-    bundle_class: type[BaseDagBundle]
-    kwargs: dict
-    team_name: str | None = None
-
-
 def _bundle_item_exc(msg):
     return AirflowConfigException(
         "Invalid config for section `dag_processor` key `dag_bundle_config_list`. " + msg
@@ -108,40 +96,26 @@ def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
     return list(bundles.values())
 
 
+@cache
+def _load_bundle_config_snapshot() -> tuple[_ExternalBundleConfig, ...]:
+    """Read the static bundle configuration without importing bundle classes."""
+    config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
+    if not config_list:
+        return ()
+    if not isinstance(config_list, list):
+        raise AirflowConfigException(
+            "Section `dag_processor` key `dag_bundle_config_list` "
+            f"must be list but got {config_list.__class__}"
+        )
+    return tuple(_parse_bundle_config(config_list))
+
+
 class ConfigDagBundleProvider(DagBundleProvider):
     """Provide Dag bundles configured by ``dag_bundle_config_list``."""
 
     def __init__(self) -> None:
-        self._bundle_config: dict[str, _InternalBundleConfig] = {}
-        self._load_configured_bundles()
-
-    def _load_configured_bundles(self) -> None:
-        """
-        Load Dag bundles from ``dag_bundle_config_list``.
-
-        If a bundle class for a given name has already been imported, it will not be imported again.
-
-        :meta private:
-        """
-        if self._bundle_config:
-            return
-
-        config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
-        if not config_list:
-            return
-        if not isinstance(config_list, list):
-            raise AirflowConfigException(
-                "Section `dag_processor` key `dag_bundle_config_list` "
-                f"must be list but got {config_list.__class__}"
-            )
-        bundle_config_list = _parse_bundle_config(config_list)
-        for bundle_config in bundle_config_list:
-            class_ = import_string(bundle_config.classpath)
-            self._bundle_config[bundle_config.name] = _InternalBundleConfig(
-                bundle_class=class_,
-                kwargs=bundle_config.kwargs,
-                team_name=bundle_config.team_name,
-            )
+        self._bundle_config = {config.name: config for config in _load_bundle_config_snapshot()}
+        self._bundle_classes: dict[str, type[BaseDagBundle]] = {}
 
     def get_configured_bundle_metadata(self) -> Sequence[DagBundleMetadata]:
         return [
@@ -158,6 +132,8 @@ class ConfigDagBundleProvider(DagBundleProvider):
         cfg_bundle = self._bundle_config.get(name)
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
-        return cfg_bundle.bundle_class(
+        if name not in self._bundle_classes:
+            self._bundle_classes[name] = import_string(cfg_bundle.classpath)
+        return self._bundle_classes[name](
             name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
         )

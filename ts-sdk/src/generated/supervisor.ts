@@ -202,6 +202,7 @@ export type Type12 = "DagCallbackRequest";
 export type File = string;
 export type BundlePath = string;
 export type BundleName1 = string;
+export type TeamName1 = string | null;
 export type Filepath1 = string;
 export type BundleName2 = string;
 export type BundleVersion1 = string | null;
@@ -315,7 +316,7 @@ export type ConsumedAssetEvents1 = AssetEventDagRunReference[];
 export type PartitionKey4 = string | null;
 export type PartitionDate1 = string | null;
 export type Note1 = string | null;
-export type TeamName1 = string | null;
+export type TeamName2 = string | null;
 export type Type18 = "DagRunResult";
 export type Type19 = "DagRunStateResult";
 export type State2 = "deferred";
@@ -1019,6 +1020,7 @@ export interface DagFileParseRequest {
   file: File;
   bundle_path: BundlePath;
   bundle_name: BundleName1;
+  team_name?: TeamName1;
   callback_requests?: CallbackRequests;
   type?: Type15;
 }
@@ -1220,7 +1222,7 @@ export interface DagRunResult {
   partition_key: PartitionKey4;
   partition_date?: PartitionDate1;
   note?: Note1;
-  team_name?: TeamName1;
+  team_name?: TeamName2;
   type?: Type18;
 }
 /**
