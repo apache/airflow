@@ -20,13 +20,17 @@ from __future__ import annotations
 import datetime
 import logging
 import os
-from collections.abc import Collection, Iterable, Iterator, Sequence
+import posixpath
+import zipfile
+from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
 from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any
 
 import jinja2
 import jinja2.nativetypes
 import jinja2.sandbox
+from jinja2.loaders import split_template_path
 
 from airflow.sdk import ObjectStoragePath
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
@@ -374,6 +378,80 @@ FILTERS = {
 }
 
 
+def _find_zip_root(path: str) -> tuple[str, str] | None:
+    """Return ``(archive, prefix)`` when *path* is a zip archive or a directory inside one."""
+    candidate = Path(path)
+    existing = next((p for p in (candidate, *candidate.parents) if os.path.exists(p)), None)
+    if existing is None or not os.path.isfile(existing) or not zipfile.is_zipfile(existing):
+        return None
+    prefix = candidate.relative_to(existing).as_posix()
+    if ".." in PurePosixPath(prefix).parts:
+        return None
+    return os.fspath(existing), "" if prefix == "." else prefix
+
+
+class _ZipArchiveLoader(jinja2.BaseLoader):
+    """Load templates from a directory inside a zip archive, reading members without extracting them."""
+
+    def __init__(self, archive: str, prefix: str, encoding: str = "utf-8") -> None:
+        self.archive = archive
+        self.prefix = prefix
+        self.encoding = encoding
+
+    def get_source(
+        self, environment: jinja2.Environment, template: str
+    ) -> tuple[str, str, Callable[[], bool]]:
+        member = posixpath.join(self.prefix, *split_template_path(template))
+        mtime = os.path.getmtime(self.archive)
+        # Opened per lookup: a handle kept across the task supervisor's fork would share its file offset.
+        with zipfile.ZipFile(self.archive) as zf:
+            try:
+                source = zf.read(member).decode(self.encoding)
+            except KeyError:
+                raise jinja2.TemplateNotFound(template) from None
+
+        def is_up_to_date() -> bool:
+            try:
+                return os.path.getmtime(self.archive) == mtime
+            except OSError:
+                return False
+
+        return source, os.path.join(self.archive, member), is_up_to_date
+
+
+class _SearchPathLoader(jinja2.BaseLoader):
+    """Try each search path's loader in order, reporting the search paths like ``FileSystemLoader``."""
+
+    def __init__(self, searchpath: list[str], loaders: list[jinja2.BaseLoader]) -> None:
+        self.searchpath = searchpath
+        self.loaders = loaders
+
+    def get_source(
+        self, environment: jinja2.Environment, template: str
+    ) -> tuple[str, str | None, Callable[[], bool] | None]:
+        for loader in self.loaders:
+            try:
+                return loader.get_source(environment, template)
+            except jinja2.TemplateNotFound:
+                continue
+        plural = "path" if len(self.searchpath) == 1 else "paths"
+        paths = ", ".join(repr(path) for path in self.searchpath)
+        raise jinja2.TemplateNotFound(template, f"{template!r} not found in search {plural}: {paths}")
+
+
+def _build_template_loader(searchpath: list[str]) -> jinja2.BaseLoader:
+    zip_roots = [None if os.path.isdir(path) else _find_zip_root(path) for path in searchpath]
+    if not any(zip_roots):
+        return jinja2.FileSystemLoader(searchpath)
+    return _SearchPathLoader(
+        searchpath,
+        [
+            _ZipArchiveLoader(*zip_root) if zip_root else jinja2.FileSystemLoader(path)
+            for path, zip_root in zip(searchpath, zip_roots, strict=True)
+        ],
+    )
+
+
 def create_template_env(
     *,
     native: bool = False,
@@ -391,7 +469,7 @@ def create_template_env(
         "cache_size": 0,
     }
     if searchpath:
-        jinja_env_options["loader"] = jinja2.FileSystemLoader(searchpath)
+        jinja_env_options["loader"] = _build_template_loader(searchpath)
     if jinja_environment_kwargs:
         jinja_env_options.update(jinja_environment_kwargs)
 
