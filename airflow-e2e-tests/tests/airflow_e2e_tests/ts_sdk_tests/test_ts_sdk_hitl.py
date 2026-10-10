@@ -186,8 +186,8 @@ def test_answer_resumes_the_run(answered_run: _AnsweredRun):
 
 def test_review_xcom_holds_the_edited_answer(answered_run: _AnsweredRun):
     value = answered_run.xcom("review")
-    assert value["chosen_options"] == ["Approve"], value
-    assert value["params_input"] == {"amount": _EDITED_AMOUNT}, value
+    assert value["chosenOptions"] == ["Approve"], value
+    assert value["paramsInput"] == {"amount": _EDITED_AMOUNT}, value
     assert value["timedout"] is False, value
 
 

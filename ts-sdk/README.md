@@ -214,9 +214,9 @@ or the timeout passes, the task resumes in a new process. It does not write the 
   `dag.task` rejects it and asks for `responseTimeout` instead.
 - `assignedUsers: [{ id, name }]` limits who can respond, by the auth manager's user id.
 - The task returns the response, which downstream tasks receive and XCom stores under
-  `return_value`: `{ chosen_options, params_input, responded_at, responded_by_user, timedout }`.
-  These are the keys of Python's `HITLOperator` result plus `timedout`; `responded_at` is an
-  ISO-8601 string, and `responded_by_user` is `null` when the timeout defaults were applied.
+  `return_value`: `{ chosenOptions, paramsInput, respondedAt, respondedByUser, timedout }`.
+  These are the keys of Python's `HITLOperator` result in camelCase, plus `timedout`; `respondedAt` is an
+  ISO-8601 string, and `respondedByUser` is `null` when the timeout defaults were applied.
 
 **On "Reject", an approval succeeds and skips the tasks directly downstream by default**, as
 `ApprovalOperator` does. The run then shows as successful, with the guarded tasks skipped. Set
@@ -234,18 +234,18 @@ response is read against. Clearing the task starts a new attempt, which writes a
 
 ### Forms
 
-`params` adds form fields to the request, as `HITLOperator`'s `params` does. Each field is a `value`
-that pre-fills it, an optional `description`, and an optional JSON Schema that the form renders:
+`params` adds form fields to the request, as `HITLOperator`'s `params` does, for `approval(...)` and
+`hitl(...)` alike. Each field is a `value` that pre-fills it, an optional `description`, and an
+optional JSON Schema that the form renders:
 
 ```ts
-import { hitl } from "apache-airflow-ts-sdk/hitl";
+import { approval } from "apache-airflow-ts-sdk/hitl";
 
 const rollout = dag.task(
   "size_rollout",
-  hitl({
+  approval({
     subject: "Approve the rollout?",
-    options: ["Approve", "Reject"],
-    defaults: ["Reject"],
+    defaults: "Reject",
     params: {
       replicas: {
         value: 3,
@@ -257,9 +257,13 @@ const rollout = dag.task(
 )();
 ```
 
-The answers arrive as `params_input`, keyed by the param names. When the timeout applies `defaults`,
-each param's `value` is recorded as its answer. A response whose `params_input` names some params
-but not exactly the declared ones fails the task, as `HITLOperator` does.
+The answers arrive as `paramsInput`, keyed by the param names. When the timeout applies `defaults`,
+each param's `value` is recorded as its answer. An answer that fills in some params but not exactly
+the declared ones fails the task, as `HITLOperator` does. The values are not yet checked against
+their schema when the task resumes, so an answer given through the REST API can fall outside it.
+
+A `hitl(...)` whose options are exactly "Approve" and "Reject" gets the approval buttons in the UI
+but never skips anything; use `approval(...)` when Reject should stop the tasks after it.
 
 Branching on the response and notifiers are not supported yet.
 

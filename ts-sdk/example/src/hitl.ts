@@ -73,9 +73,8 @@ const picked = regions.task(
   }),
 )();
 regions.task("deploy", async ({ choice }: { choice: HITLResult }) => ({
-  deployedTo: choice.chosen_options,
-  // `null` when no one answered and the defaults were applied.
-  by: choice.responded_by_user?.name ?? "the timeout default",
+  deployedTo: choice.chosenOptions,
+  by: choice.respondedByUser?.name,
 }))({ choice: picked });
 
 // 3. Fall back to a default when no one answers in time.
@@ -110,17 +109,16 @@ assigned.task(
   }),
 )();
 
-// 6. Ask for form fields along with the choice.
+// 6. Ask for form fields along with the approval.
 //
 // Each param is a field on the Required Actions page. `value` pre-fills it, and is what the task
 // receives when the timeout passes with `defaults` set. The reviewer's answers arrive as
-// `params_input`, keyed by the param names.
+// `paramsInput`, keyed by the param names. "Reject" skips `rollout`, as for any approval.
 const form = new Dag("ts_hitl_form", { queue: QUEUE, tags: ["typescript", "hitl"] });
 const sized = form.task(
   "size_rollout",
-  hitl({
+  approval({
     subject: "Approve the rollout?",
-    options: ["Approve", "Reject"],
     params: {
       replicas: {
         value: 3,
@@ -132,8 +130,8 @@ const sized = form.task(
   }),
 )();
 form.task("rollout", async ({ answer }: { answer: HITLResult }) => ({
-  choice: answer.chosen_options[0],
-  replicas: answer.params_input["replicas"],
+  replicas: answer.paramsInput["replicas"],
+  approvedBy: answer.respondedByUser?.name,
 }))({ answer: sized });
 
 await new Bundle(release, regions, nightly, strict, assigned, form).serve();

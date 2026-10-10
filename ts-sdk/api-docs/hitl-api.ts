@@ -27,5 +27,6 @@ export type {
   HITLSpec,
   HITLTask,
   HITLText,
+  HITLTextArgs,
   HITLUser,
 } from "../src/hitl/index.js";

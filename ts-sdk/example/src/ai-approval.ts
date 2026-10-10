@@ -157,8 +157,8 @@ const review = dag.task(
 dag.task(
   "agent_continue",
   async ({ draft, decision }: { draft: AgentStep; decision: HITLResult }) => {
-    const approved = decision.chosen_options[0] === "Approve";
-    const edited = decision.params_input["amount"];
+    const approved = decision.chosenOptions[0] === "Approve";
+    const edited = decision.paramsInput["amount"];
     const amount = typeof edited === "number" ? edited : draft.pending[0]!.input.amount;
     const approvalId = draft.pending[0]!.id;
 

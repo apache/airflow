@@ -98,42 +98,53 @@ declare const OPERATOR_TYPES: unique symbol;
 export interface Operator<TArgs extends object | void = void, TResult = unknown> {
   /** @internal Never set; see {@link OPERATOR_TYPES}. */
   readonly [OPERATOR_TYPES]?: (args: TArgs) => TResult;
-  /** `_operator_name` the UI shows: the Python operator this mirrors. */
+  /** @internal `_operator_name` the UI shows: the Python operator this mirrors. */
   readonly operatorName: string;
-  /** Whether it may skip its downstream, as `SkipMixin` marks a Python operator. */
+  /** @internal Whether it may skip its downstream, as `SkipMixin` marks a Python operator. */
   readonly canSkipDownstream?: boolean;
-  /** An operator has no handler name to take a task id from, so `dag.task` requires one. */
+  /** @internal An operator has no handler name to take a task id from, so `dag.task` requires one. */
   readonly requiresTaskId?: boolean;
-  /** How `dag.task` names the operator's tasks in its errors. Defaults to `operatorName`. */
+  /** @internal How `dag.task` names the operator's tasks in its errors. Defaults to `operatorName`. */
   readonly label?: string;
-  /** A call that names the task, which `dag.task` shows when `requiresTaskId` is not met. */
+  /** @internal A call that names the task, which `dag.task` shows when `requiresTaskId` is not met. */
   readonly taskIdExample?: string;
-  /** Whether the task's factory must be called without inputs. */
+  /** @internal Whether the task's factory must be called without inputs. */
   readonly takesNoInputs?: boolean;
   /**
-   * The option that bounds how long it waits, which `dag.task` names when it rejects an
+   * @internal The option that bounds how long it waits, which `dag.task` names when it rejects an
    * `executionTimeout`: the operator does not enforce that one.
    */
   readonly executionTimeoutAlternative?: string;
   /**
-   * Extra fields merged into the task's serialized record. `label` names the task, for an error
+   * @internal Extra fields merged into the task's serialized record. `label` names the task, for an error
    * about a value it holds.
    */
   serialize?(label: string): Record<string, JsonValue>;
-  /** The Dags this task depends on. */
+  /** @internal The Dags this task depends on. */
   getDagDependencies?(): readonly OperatorDagDependency[];
+  /** @internal The task's first run. */
   execute(op: OperatorContext): Promise<OperatorOutcome>;
-  /** The run Airflow resumes with, after `awaitInput` or `defer`. */
+  /** @internal The run Airflow resumes with, after `awaitInput` or `defer`. */
   executeComplete?(op: OperatorContext, event: unknown): Promise<OperatorOutcome>;
 }
+
+// The operators this copy of the package built. The brand is shared by every copy, but another
+// copy's operator cannot run here: on Reject it would read this copy's Dag private state.
+const OWN_OPERATORS = new WeakSet<object>();
 
 /** Internal: whether `value` is an operator built by any copy of this package. */
 export function isOperator(value: unknown): value is Operator<never, unknown> {
   return hasBrand(value, "Operator");
 }
 
+/** Internal: whether `op` was built by this copy of the package. */
+export function isOwnOperator(op: Operator<never, unknown>): boolean {
+  return OWN_OPERATORS.has(op);
+}
+
 /** Internal: mark `op` as an operator and freeze it, as the factories that build one do. */
 export function brandOperator<T extends Operator<never, unknown>>(op: T): T {
   brand(op, "Operator");
+  OWN_OPERATORS.add(op);
   return Object.freeze(op);
 }

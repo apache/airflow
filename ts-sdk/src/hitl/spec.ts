@@ -29,10 +29,10 @@ import { toPlainJson } from "../sdk/plain-json.js";
 import { APPROVE, createHITLTask, REJECT } from "./operator.js";
 
 /** A user allowed to respond, as Airflow's auth manager identifies them. */
-export interface HITLUser {
+export type HITLUser = {
   readonly id: string;
   readonly name: string;
-}
+};
 
 /** Text shown to the responder: fixed, or computed from the task's inputs on its first run. */
 export type HITLText<TArgs, TText extends string | null = string> =
@@ -66,7 +66,7 @@ interface HITLBaseSpec<TSubjectArgs extends object | void, TBodyArgs extends obj
   readonly body?: HITLText<TBodyArgs, string | null>;
   /** Users allowed to respond. Anyone who can act on the task may respond when unset. */
   readonly assignedUsers?: readonly HITLUser[];
-  /** Form fields the responder fills in, by name. Their answers are the response's `params_input`. */
+  /** Form fields the responder fills in, by name. Their answers are the result's `paramsInput`. */
   readonly params?: Readonly<Record<string, HITLParam>>;
   /**
    * Whole seconds to wait for a response, since TypeScript has no timedelta. Waits indefinitely
@@ -111,19 +111,20 @@ export interface ApprovalSpec<
 /**
  * The response a HITL task pushes to XCom and passes downstream.
  *
- * The keys are those of Python's `HITLTriggerEventSuccessPayload` plus `timedout`, and
- * `responded_at` is an ISO-8601 string where Python's is a datetime.
+ * The keys are those of Python's `HITLTriggerEventSuccessPayload` in camelCase, and `respondedAt`
+ * is an ISO-8601 string where Python's is a datetime. Airflow's own records of the request and
+ * the response keep their snake_case keys.
  */
-export interface HITLResult {
-  readonly chosen_options: string[];
-  readonly params_input: Record<string, JsonValue>;
+export type HITLResult = {
+  readonly chosenOptions: string[];
+  readonly paramsInput: Record<string, JsonValue>;
   /** ISO-8601 UTC instant of the response, to the millisecond. */
-  readonly responded_at: string;
+  readonly respondedAt: string;
   /** `null` when the defaults were applied on timeout. */
-  readonly responded_by_user: HITLUser | null;
+  readonly respondedByUser: HITLUser | null;
   /** Whether the defaults were applied because the response timeout passed. */
   readonly timedout: boolean;
-}
+};
 
 /**
  * What `hitl(...)` and `approval(...)` return, to pass to `dag.task(...)`: the options, checked
@@ -133,7 +134,7 @@ export interface HITLTask<TArgs extends object | void = void> extends Operator<T
   readonly kind: "choice" | "approval";
   readonly subject: HITLText<TArgs>;
   readonly body: HITLText<TArgs, string | null> | undefined;
-  /** The `withArgNames` renames of `subject` and `body`, merged. */
+  /** @internal The `withArgNames` renames of `subject` and `body`, merged. */
   readonly argNames: ReadonlyMap<string, string>;
   readonly options: readonly string[];
   readonly defaults: readonly string[] | undefined;
@@ -154,7 +155,7 @@ export type HITLTaskFields = Omit<HITLTask<never>, keyof Operator<never, HITLRes
  * The inputs a task takes when its subject reads `TSubject` and its body reads `TBody`: both, or
  * whichever is read. Bracketed, so that `void` is not distributed over.
  */
-type TextArgs<TSubject, TBody> = [TSubject, TBody] extends [void, void]
+export type HITLTextArgs<TSubject, TBody> = [TSubject, TBody] extends [void, void]
   ? void
   : [TSubject] extends [void]
     ? TBody
@@ -194,7 +195,7 @@ const PARAM_KEYS: ReadonlySet<string> = new Set(["value", "description", "schema
 export function hitl<
   TSubjectArgs extends object | void = void,
   TBodyArgs extends object | void = TSubjectArgs,
->(spec: HITLSpec<TSubjectArgs, TBodyArgs>): HITLTask<TextArgs<TSubjectArgs, TBodyArgs>> {
+>(spec: HITLSpec<TSubjectArgs, TBodyArgs>): HITLTask<HITLTextArgs<TSubjectArgs, TBodyArgs>> {
   const given = checkSpec("hitl", spec, HITL_OPTION_NAMES);
   const subject = checkSubject("hitl", given["subject"]);
   const body = checkBody("hitl", given["body"]);
@@ -231,7 +232,7 @@ export function hitl<
 export function approval<
   TSubjectArgs extends object | void = void,
   TBodyArgs extends object | void = TSubjectArgs,
->(spec: ApprovalSpec<TSubjectArgs, TBodyArgs>): HITLTask<TextArgs<TSubjectArgs, TBodyArgs>> {
+>(spec: ApprovalSpec<TSubjectArgs, TBodyArgs>): HITLTask<HITLTextArgs<TSubjectArgs, TBodyArgs>> {
   const given = checkSpec("approval", spec, APPROVAL_OPTION_NAMES);
   const subject = checkSubject("approval", given["subject"]);
   const body = checkBody("approval", given["body"]);

@@ -118,11 +118,11 @@ async function resumeHITL(
   const { dag, ctx, logs } = op;
   // Throws, failing the task, when the answer cannot be read or is not allowed.
   const result = readAnswer(event, task);
-  const responder = result.responded_by_user?.name ?? "the response timeout default";
-  logs.info("Received response", { chosen_options: result.chosen_options, responder });
+  const responder = result.respondedByUser?.name ?? "the response timeout default";
+  logs.info("Received response", { chosenOptions: result.chosenOptions, responder });
 
   // `ApprovalOperator.execute_complete`: on "Reject", fail, or skip what follows.
-  if (task.kind === "approval" && result.chosen_options[0] === REJECT) {
+  if (task.kind === "approval" && result.chosenOptions[0] === REJECT) {
     if (task.failOnReject) return op.fail(`Rejected by ${responder}`);
     const skipped = getSkipTargets(dag, ctx.taskId, task.ignoreDownstreamTriggerRules);
     if (skipped.length > 0) {
@@ -135,7 +135,7 @@ async function resumeHITL(
   } else if (task.kind === "approval") {
     logs.info("Approved. Proceeding with downstream tasks...");
   }
-  return op.succeed(result as unknown as JsonValue);
+  return op.succeed(result);
 }
 
 /**
@@ -181,10 +181,10 @@ function readAnswer(event: unknown, task: HITLTask<never>): HITLResult {
 
   // 5. The result downstream tasks receive.
   return {
-    chosen_options: chosen,
-    params_input: paramsInput,
-    responded_at: respondedAt.toISOString(),
-    responded_by_user: respondedBy,
+    chosenOptions: chosen,
+    paramsInput: paramsInput,
+    respondedAt: respondedAt.toISOString(),
+    respondedByUser: respondedBy,
     timedout: event["timedout"] === true,
   };
 }
@@ -215,8 +215,10 @@ function checkChoice(chosen: string[], task: HITLTask<never>): string | undefine
 }
 
 /**
- * `HITLOperator.validate_params_input`: why the params input is not the form the task asked for,
- * or undefined. An input for no param, or a task with no params, is not checked.
+ * Checks the answer's form fields against the form the task declared (`params`): returns why they
+ * don't match, such as a missing or unknown field, or undefined when they do. Only the field
+ * names are checked, as the first half of `HITLOperator.validate_params_input`; the values are not
+ * checked against their schemas yet. An answer with no form fields, or a task with no form, passes.
  */
 function checkParamsInput(
   given: Record<string, JsonValue>,

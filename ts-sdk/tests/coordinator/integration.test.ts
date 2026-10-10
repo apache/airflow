@@ -1550,10 +1550,10 @@ describe("coordinator runtime integration", () => {
         key: "return_value",
         task_id: "choose",
         value: {
-          chosen_options: ["eu", "apac"],
-          params_input: {},
-          responded_at: "2026-10-08T12:30:15.123Z",
-          responded_by_user: { id: "1", name: "Ada" },
+          chosenOptions: ["eu", "apac"],
+          paramsInput: {},
+          respondedAt: "2026-10-08T12:30:15.123Z",
+          respondedByUser: { id: "1", name: "Ada" },
           timedout: false,
         },
       });
@@ -1636,7 +1636,7 @@ describe("coordinator runtime integration", () => {
       expect(requestsOf(result, "SetXCom")).toEqual([
         expect.objectContaining({
           key: "return_value",
-          value: expect.objectContaining({ chosen_options: ["Reject"] }),
+          value: expect.objectContaining({ chosenOptions: ["Reject"] }),
         }),
       ]);
     });
@@ -1660,7 +1660,7 @@ describe("coordinator runtime integration", () => {
 
       expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
       expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
-        value: { responded_by_user: null, timedout: true },
+        value: { respondedByUser: null, timedout: true },
       });
     });
 
@@ -1717,7 +1717,7 @@ describe("coordinator runtime integration", () => {
         expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
         expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
           key: "return_value",
-          value: { chosen_options: ["go"], params_input: { region: "eu", retries: 5 } },
+          value: { chosenOptions: ["go"], paramsInput: { region: "eu", retries: 5 } },
         });
       });
 
@@ -1739,7 +1739,7 @@ describe("coordinator runtime integration", () => {
 
         expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
         expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
-          value: { params_input: { region: "eu" } },
+          value: { paramsInput: { region: "eu" } },
         });
       });
 
@@ -1897,7 +1897,7 @@ describe("coordinator runtime integration", () => {
         testDag.task(
           "agent_continue",
           async ({ draft, decision }: { draft: AgentStep; decision: HITLResult }) => {
-            const edited = decision.params_input["amount"];
+            const edited = decision.paramsInput["amount"];
             const amount = typeof edited === "number" ? edited : draft.pending[0]!.input.amount;
             const approvalId = draft.pending[0]!.id;
             const messages: ModelMessage[] = [
@@ -1924,7 +1924,7 @@ describe("coordinator runtime integration", () => {
                   {
                     type: "tool-approval-response",
                     approvalId,
-                    approved: decision.chosen_options[0] === "Approve",
+                    approved: decision.chosenOptions[0] === "Approve",
                     reason: `Approved at $${amount}`,
                   },
                 ],
@@ -2030,8 +2030,8 @@ describe("coordinator runtime integration", () => {
         const [decisionPush] = requestsOf(resumed, "SetXCom");
         const decision = decisionPush!["value"] as HITLResult;
         expect(decision).toMatchObject({
-          chosen_options: ["Approve"],
-          params_input: { amount: EDITED_AMOUNT },
+          chosenOptions: ["Approve"],
+          paramsInput: { amount: EDITED_AMOUNT },
         });
         expect(modelCalls).toBe(1);
 

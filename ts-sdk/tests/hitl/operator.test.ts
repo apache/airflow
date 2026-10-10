@@ -94,6 +94,17 @@ describe("a HITL task in a Dag", () => {
       );
     });
 
+    it("an operator from another copy of the package, before it can run", () => {
+      // Stands in for an approval() from a second resolved copy: same brand, not built here.
+      const foreign = { ...approval({ subject: "s" }) };
+      Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.Operator"), { value: true });
+      const dag = new Dag("d");
+
+      expect(() => dag.task("sign_off", foreign)).toThrowError(
+        /A human-in-the-loop task of Dag "d" comes from a different copy of apache-airflow-ts-sdk/,
+      );
+    });
+
     it.each([
       ["hitl", hitl({ subject: "s", options: ["a"] })],
       ["approval", approval({ subject: "s" })],

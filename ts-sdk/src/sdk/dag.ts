@@ -32,7 +32,7 @@ import {
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import type { JsonValue } from "./client-types.js";
 import { getCurrentModuleSource } from "./module-source.js";
-import { isOperator, type Operator } from "./operator.js";
+import { isOperator, isOwnOperator, type Operator } from "./operator.js";
 import { getClient, type TaskFunction } from "./task.js";
 
 /** Internal: whether `value` is an object literal, not an array or a class instance. */
@@ -841,6 +841,11 @@ export class Dag {
     const idGiven = typeof taskIdOrHandler === "string";
     const body = idGiven ? handlerOrOptions : taskIdOrHandler;
     const operator = isOperator(body) ? body : undefined;
+    if (operator !== undefined && !isOwnOperator(operator)) {
+      throw new Error(
+        `A ${operator.label ?? operator.operatorName} task of Dag "${this.dagId}" ${DUPLICATE_COPY_HINT}`,
+      );
+    }
     const handler = body as (args: TArgs) => TReturn | Promise<TReturn>;
     const given = idGiven ? maybeOptions : (handlerOrOptions as TaskOptions | undefined);
     // Defaulted only when absent: an explicit `null` is a bad spec, not an
