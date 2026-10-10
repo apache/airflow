@@ -117,11 +117,11 @@ def test_the_dag_the_bundle_parsed_is_registered(parsed_dag: AirflowClient):
     assert {tag["name"] for tag in dag.get("tags") or []} >= {"typescript", "native"}
 
 
-def test_the_dag_source_is_the_bundle_entry_module(parsed_dag: AirflowClient):
-    """The Code view shows the TypeScript entry module the bundle embeds, not the bundle itself."""
+def test_the_dag_source_is_the_file_that_declares_it(parsed_dag: AirflowClient):
+    """The Code view shows native.ts, the file that declares this Dag, not the bundle itself."""
     content = parsed_dag.get_dag_source(_DAG_ID)["content"]
 
-    assert "new Bundle()" in content
+    assert 'new Dag("typescript_native_example"' in content
     assert "airflow-ts-pack" not in content
 
 
