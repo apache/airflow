@@ -31,6 +31,12 @@ if TYPE_CHECKING:
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
 
+# croniter accepts ``?`` in the day-of-month and day-of-week fields and expands
+# it to ``*``, so it must not count as a restriction when deciding whether the
+# DOM/DOW pair needs the "or" explanation.
+_UNRESTRICTED_DAY_FIELDS = frozenset({"*", "?"})
+
+
 def _covers_every_hour(cron: croniter) -> bool:
     """
     Check whether the given cron runs at least once an hour.
@@ -97,7 +103,7 @@ class CronMixin:
         dom = cron_fields[2]
         dow = cron_fields[4]
 
-        if dom != "*" and dow != "*":
+        if dom not in _UNRESTRICTED_DAY_FIELDS and dow not in _UNRESTRICTED_DAY_FIELDS:
             # Case: conflict → DOM OR DOW
             cron_fields_dom = cron_fields.copy()
             cron_fields_dom[4] = "*"
