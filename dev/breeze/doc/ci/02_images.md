@@ -379,7 +379,7 @@ plugin installed.
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian12-dev" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
   --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
   --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
@@ -404,7 +404,7 @@ comment](https://github.com/apache/airflow/issues/8605#issuecomment-690065621):
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian12-dev" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
   --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
   --build-arg ADDITIONAL_PYTHON_DEPS="apache-airflow-providers-odbc \
@@ -429,7 +429,7 @@ can be used for CI images:
 
 | Build argument                    | Default value               | Description                                                                                                       |
 |-----------------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------------------|
-| `BASE_IMAGE`                      | `ghcr.io/apache/airflow/base/python:<AIRFLOW_PYTHON_VERSION>-debian12-dev` | Mirror of the hardened base image Python comes from                                           |
+| `BASE_IMAGE`                      | `ghcr.io/apache/airflow/base/python:<AIRFLOW_PYTHON_VERSION>-debian13-dev` | Mirror of the hardened base image Python comes from                                           |
 | `PYTHON_MAJOR_MINOR_VERSION`      | `3.11`                      | major/minor version of Python (should match base image)                                                           |
 | `DEPENDENCIES_EPOCH_NUMBER`       | `2`                         | increasing this number will reinstall all apt dependencies                                                        |
 | `ADDITIONAL_PIP_INSTALL_FLAGS`    |                             | additional `pip` flags passed to the installation commands (except when reinstalling `pip` itself)                |
@@ -465,7 +465,7 @@ This builds the CI image in version 3.11 with default extras ("all").
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
    --pull \
-   --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian12-dev" --tag my-image:0.0.1
+   --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" --tag my-image:0.0.1
 ```
 
 This builds the CI image in version 3.11 with "gcp" extra only.
@@ -473,7 +473,7 @@ This builds the CI image in version 3.11 with "gcp" extra only.
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian12-dev" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg AIRFLOW_EXTRAS=gcp --tag my-image:0.0.1
 ```
 
@@ -482,7 +482,7 @@ This builds the CI image in version 3.11 with "apache-beam" extra added.
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian12-dev" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg ADDITIONAL_AIRFLOW_EXTRAS="apache-beam" --tag my-image:0.0.1
 ```
 
@@ -492,7 +492,7 @@ added.
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian12-dev" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg ADDITIONAL_PYTHON_DEPS="mssql" --tag my-image:0.0.1
 ```
 
@@ -502,7 +502,7 @@ apt dev dependencies added.
 ```
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull
-  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian12-dev" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" --tag my-image:0.0.1
 ```
 
@@ -512,7 +512,7 @@ This builds the CI image in version 3.11 with "jdbc" extra and
 ```
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian12-dev" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg AIRFLOW_EXTRAS=jdbc \
   --tag my-image:0.0.1
 ```
@@ -569,7 +569,7 @@ percent-encoded when you access them via UI (/ = %2F)
 
 | Image                    | Name                                   | Description                                                   |
 |--------------------------|----------------------------------------|---------------------------------------------------------------|
-| Python image (DockerHub) | python:\<X.Y\>-slim-bookworm           | Base Python image used by both production and CI image.       |
+| Hardened Python base     | base/python:\<X.Y.Z\>-debian13-dev     | Mirror of the Docker Hardened Python image that the CI image and the default PROD image are built on. |
 | CI image                 | airflow/\<BRANCH\>/ci/python\<X.Y\>    | CI image - this is the image used for most of the tests.      |
 | PROD image               | airflow/\<BRANCH\>/prod/python\<X.Y\>  | faster to build or pull. Production image optimized for size. |
 

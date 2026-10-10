@@ -26,7 +26,9 @@ from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
     ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
+    ALLOWED_IMAGE_FLAVORS,
     get_airflow_extras,
+    get_legacy_base_image,
 )
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.console import console_print
@@ -45,6 +47,7 @@ class BuildProdParams(CommonBuildParams):
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_fallback_no_constraints_installation: bool = False
     cleanup_context: bool = False
+    image_flavor: str = ALLOWED_IMAGE_FLAVORS[0]
     airflow_extras: str = field(default_factory=get_airflow_extras)
     disable_mssql_client_installation: bool = False
     disable_mysql_client_installation: bool = False
@@ -57,6 +60,13 @@ class BuildProdParams(CommonBuildParams):
     runtime_apt_deps: str | None = None
     use_constraints_for_context_distributions: bool = False
     use_uv: bool = True
+
+    @property
+    def python_base_image(self):
+        """The legacy flavor compiles Python itself, so it starts from plain Debian."""
+        if self.python_image is None and self.image_flavor == "legacy":
+            return get_legacy_base_image(self.debian_version)
+        return super().python_base_image
 
     @property
     def airflow_version(self) -> str:
@@ -232,6 +242,7 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("DOCKER_CONTEXT_FILES", self.docker_context_files)
         self._req_arg("INSTALL_DISTRIBUTIONS_FROM_CONTEXT", self.install_distributions_from_context)
         self._req_arg("INSTALL_POSTGRES_CLIENT", self.install_postgres_client)
+        self._req_arg("AIRFLOW_IMAGE_FLAVOR", self.image_flavor)
         self._req_arg("BASE_IMAGE", self.python_base_image)
         self._req_arg(
             "AIRFLOW_PYTHON_VERSION", ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(self.python, self.python)

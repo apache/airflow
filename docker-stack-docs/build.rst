@@ -889,7 +889,7 @@ you want to follow that route.
 Properties of the hardened base image
 .....................................
 
-Since Airflow 3.4.0 the images are built on the ``-dev`` variant of the
+Since Airflow 3.4.0 the images are built on the Debian 13 "trixie" ``-dev`` variant of the
 `Docker Hardened Image <https://dhi.io>`_ for Python (``dhi.io/python``, mirrored to
 ``ghcr.io/apache/airflow/base/python``) instead of compiling Python on ``debian:bookworm-slim``. Docker
 publishes the definitions these images are built from in the
@@ -933,6 +933,34 @@ previous images that can matter when you extend or run the image are:
   regular dependency upgrade moves the pinned patch level to it, so the images follow Docker's releases
   rather than python.org's.
 
+.. _image-legacy-flavor:
+
+Debian trixie and the legacy image flavor
+.........................................
+
+Together with the hardened base, the default images moved from Debian 12 "bookworm" to Debian 13
+"trixie". Besides the newer system libraries, this shows up in two places when you extend the image:
+
+* Several library packages were renamed in trixie's 64-bit ``time_t`` transition - for example
+  ``libssl3`` is ``libssl3t64`` and ``libldap-2.5-0`` is ``libldap2`` - so ``RUNTIME_APT_DEPS`` or
+  ``ADDITIONAL_RUNTIME_APT_DEPS`` that name the bookworm packages have to be updated.
+* The MySQL-compatible client comes from MariaDB 11.8, the first MariaDB LTS published for trixie. The
+  ``mysql`` named commands are provided by ``mariadb-client-compat``.
+
+For the 3.4.x line Airflow also publishes ``legacy`` images, built as before 3.4.0: Python downloaded
+from python.org, verified with its sigstore signature and compiled from sources on ``debian:bookworm-slim``.
+They are deprecated and will be removed in Airflow 3.5.0. You can build one with the
+``AIRFLOW_IMAGE_FLAVOR`` build argument:
+
+.. code-block:: bash
+
+    docker build . \
+      --build-arg AIRFLOW_IMAGE_FLAVOR="legacy" \
+      --build-arg BASE_IMAGE="debian:bookworm-slim" \
+      --tag my-image:my-tag
+
+The flavor an image was built with is recorded in its ``org.apache.airflow.image.flavor`` label.
+
 .. _image-build-fips:
 
 Build images in FIPS-compliant environments
@@ -945,7 +973,7 @@ Docker subscription, so they cannot be the default, but you can point the build 
 
 .. code-block:: bash
 
-    docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.16-debian12-fips-dev" --tag my-image:my-tag
+    docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.16-debian13-fips-dev" --tag my-image:my-tag
 
 .. note::
 

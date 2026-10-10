@@ -58,8 +58,13 @@ ARG AIRFLOW_VERSION="3.3.2"
 #
 # The FIPS-validated variants require a paid Docker subscription and cannot be mirrored or made the
 # default, but you can build a FIPS-compliant image by pointing the build at one:
-#   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.16-debian12-fips-dev"
-ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian12-dev"
+#   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.16-debian13-fips-dev"
+#
+# AIRFLOW_IMAGE_FLAVOR="legacy" builds the image the way it was built before the hardened base images:
+# BASE_IMAGE is then a plain Debian image (for example "debian:bookworm-slim") and Python
+# AIRFLOW_PYTHON_VERSION is downloaded from python.org, verified and compiled from sources.
+ARG AIRFLOW_IMAGE_FLAVOR="hardened"
+ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian13-dev"
 ARG AIRFLOW_PYTHON_VERSION="3.13.16"
 
 # You can swap comments between those two args to test pip from the main version
@@ -119,7 +124,20 @@ NODEJS_VERSION=${NODEJS_VERSION:-22.23.1}
 PNPM_VERSION=${PNPM_VERSION:-10.28.1}
 RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
-PYTHON_HOME=${PYTHON_HOME:-/opt/python}
+AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR:-hardened}
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.13.16}
+COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
+if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+    # The hardened Python base images ship Python under /opt/python.
+    PYTHON_HOME=${PYTHON_HOME:-/opt/python}
+elif [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then
+    PYTHON_HOME=${PYTHON_HOME:-/usr/python}
+else
+    echo
+    echo "ERROR! AIRFLOW_IMAGE_FLAVOR should be 'hardened' or 'legacy', not '${AIRFLOW_IMAGE_FLAVOR}'."
+    echo
+    exit 1
+fi
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
@@ -192,12 +210,23 @@ function get_runtime_apt_deps() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    debian_version_apt_deps="\
+    if [[ "${debian_version}" == "bookworm" ]]; then
+        debian_version_apt_deps="\
 libffi8 \
 libldap-2.5-0 \
 libssl3 \
 netcat-openbsd\
 "
+    else
+        # trixie renamed the libraries that moved to a 64-bit time_t (libssl3 -> libssl3t64) and
+        # dropped the soname from the LDAP library package name.
+        debian_version_apt_deps="\
+libffi8 \
+libldap2 \
+libssl3t64 \
+netcat-openbsd\
+"
+    fi
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
@@ -283,10 +312,14 @@ function restore_debian_base_files() {
 }
 
 function install_debian_dev_dependencies() {
-    keep_image_conffiles
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        keep_image_conffiles
+    fi
     apt-get update
     apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
-    restore_debian_base_files
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        restore_debian_base_files
+    fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_DEV_APT_ENV?}
@@ -405,11 +438,108 @@ function check_no_system_python() {
     fi
 }
 
+function install_cosign() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A cosign_sha256s=(
+        # https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign_checksums.txt
+        [amd64]="db15cc99e6e4837daabab023742aaddc3841ce57f193d11b7c3e06c8003642b2"
+        [arm64]="d098f3168ae4b3aa70b4ca78947329b953272b487727d1722cb3cb098a1a20ab"
+    )
+    local cosign_sha256="${cosign_sha256s[${arch}]}"
+    if [[ -z "${cosign_sha256}" ]]; then
+        echo "Unsupported architecture for cosign: ${arch}"
+        exit 1
+    fi
+    curl -fsSL --retry 3 --retry-delay 5 \
+        "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-${arch}" \
+        -o /tmp/cosign
+    echo "${cosign_sha256}  /tmp/cosign" | sha256sum --check
+    chmod +x /tmp/cosign
+}
+
+function install_python() {
+    # Only the legacy image flavor compiles Python - the hardened flavor gets it from the base image.
+    wget --tries=3 --waitretry=5 -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
+    local major_minor_version
+    major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
+    echo "Verifying Python ${AIRFLOW_PYTHON_VERSION} (${major_minor_version})"
+    # Sigstore verification (PEP 761)
+    declare -A sigstore_identities=(
+        # https://peps.python.org/pep-0664/#release-manager-and-crew
+        [3.11]="pablogsal@python.org"
+        # https://peps.python.org/pep-0693/#release-manager-and-crew
+        [3.12]="thomas@python.org"
+        # https://peps.python.org/pep-0719/#release-manager-and-crew
+        [3.13]="thomas@python.org"
+        # https://peps.python.org/pep-0745/#release-manager-and-crew
+        [3.14]="hugo@python.org"
+    )
+    declare -A sigstore_issuers=(
+        [3.11]="https://accounts.google.com"
+        [3.12]="https://accounts.google.com"
+        [3.13]="https://accounts.google.com"
+        [3.14]="https://github.com/login/oauth"
+    )
+    wget --tries=3 --waitretry=5 -O python.tar.xz.sigstore \
+        "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"
+    install_cosign
+    local identity="${sigstore_identities[${major_minor_version}]}"
+    local issuer="${sigstore_issuers[${major_minor_version}]}"
+    /tmp/cosign verify-blob \
+        --bundle python.tar.xz.sigstore \
+        --certificate-identity "${identity}" \
+        --certificate-oidc-issuer "${issuer}" \
+        python.tar.xz
+    rm -f python.tar.xz.sigstore /tmp/cosign
+    mkdir -p /usr/src/python
+    tar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz
+    rm python.tar.xz
+    cd /usr/src/python
+    arch="$(dpkg --print-architecture)"; arch="${arch##*-}"
+    gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"
+    EXTRA_CFLAGS="$(dpkg-buildflags --get CFLAGS)"
+    EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
+    LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
+    LDFLAGS="${LDFLAGS:--Wl},--strip-all"
+    local build_log
+    build_log=$(mktemp)
+    echo "Building Python ${AIRFLOW_PYTHON_VERSION} from source..."
+    if ! (
+        ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
+            --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
+                --enable-shared --with-lto && \
+        make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
+            "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python && \
+        make -s -j "$(nproc)" install
+    ) > "${build_log}" 2>&1; then
+        echo
+        echo "ERROR! Python build failed. Build output:"
+        echo
+        cat "${build_log}"
+        rm -f "${build_log}"
+        exit 1
+    fi
+    rm -f "${build_log}"
+    cd /
+    rm -rf /usr/src/python
+    find /usr/python -depth \
+      \( \
+        \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
+        -o \( -type f -a \( -name 'libpython*.a' \) \) \
+    \) -exec rm -rf '{}' +
+    link_python
+}
+
 function install_debian_runtime_dependencies() {
-    keep_image_conffiles
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        keep_image_conffiles
+    fi
     apt-get update
     apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
-    restore_debian_base_files
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        restore_debian_base_files
+    fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_RUNTIME_APT_ENV?}
@@ -426,8 +556,10 @@ function install_debian_runtime_dependencies() {
     apt-get clean
     check_no_system_python
     link_python
-    restore_thread_stack_size
-    compile_python_stdlib
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        restore_thread_stack_size
+        compile_python_stdlib
+    fi
     rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
@@ -528,9 +660,13 @@ else
     get_dev_apt_deps
     install_debian_dev_dependencies
     check_no_system_python
-    link_python
-    restore_thread_stack_size
-    compile_python_stdlib
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        link_python
+        restore_thread_stack_size
+        compile_python_stdlib
+    else
+        install_python
+    fi
     install_additional_dev_dependencies
     install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
@@ -553,7 +689,6 @@ set -euo pipefail
 common::get_colors
 declare -a packages
 
-readonly MARIADB_LTS_VERSION="10.11"
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 : "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
@@ -607,6 +742,13 @@ retry() {
 }
 
 install_mariadb_client() {
+    # https://mariadb.org/about/#maintenance-policy
+    # MariaDB publishes each LTS series only for the Debian releases current when it came out - 10.11
+    # has no trixie repository and 11.8 is the first LTS that does.
+    local mariadb_lts_version="10.11"
+    if [[ "$(common::debian_codename)" != "bookworm" ]]; then
+        mariadb_lts_version="11.8"
+    fi
     # List of compatible package Oracle MySQL -> MariaDB:
     # `mysql-client` -> `mariadb-client` or `mariadb-client-compat` (11+)
     # `libmysqlclientXX` (where XX is a number) -> `libmariadb3-compat`
@@ -626,15 +768,19 @@ install_mariadb_client() {
         echo
         exit 1
     fi
+    if [[ "${mariadb_lts_version%%.*}" -ge 11 ]]; then
+        # From 11.0 mariadb-client no longer ships the "mysql" named commands
+        packages+=("mariadb-client-compat")
+    fi
 
     common::import_trusted_gpg "0xF1656F24C74CD1D8" "mariadb"
 
     echo
-    echo "${COLOR_BLUE}Installing MariaDB client version ${MARIADB_LTS_VERSION}: ${1}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Installing MariaDB client version ${mariadb_lts_version}: ${1}${COLOR_RESET}"
     echo "${COLOR_YELLOW}MariaDB client protocol-compatible with MySQL client.${COLOR_RESET}"
     echo
 
-    echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${MARIADB_LTS_VERSION}/repo/debian/ $(common::debian_codename) main" > \
+    echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${mariadb_lts_version}/repo/debian/ $(common::debian_codename) main" > \
         /etc/apt/sources.list.d/mariadb.list
     # Make sure that dependencies from MariaDB repo are preferred over Debian dependencies
     printf "Package: *\nPin: release o=MariaDB\nPin-Priority: 999\n" > /etc/apt/preferences.d/mariadb
@@ -1854,13 +2000,15 @@ ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_ENV=""
 ARG AIRFLOW_PYTHON_VERSION
+ARG AIRFLOW_IMAGE_FLAVOR
 
 ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV} \
-    AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
+    AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION} \
+    AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR}
 
 ENV RUSTUP_HOME="/usr/local/rustup"
 ENV CARGO_HOME="/home/airflow/.cargo"
@@ -1868,6 +2016,14 @@ ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
+
+# The final image copies /python-dist over its root. It is empty for the hardened flavor, whose Python
+# comes with the base image, and holds the compiled /usr/python for the legacy flavor - so that COPY
+# needs no condition and adds nothing to the hardened image.
+RUN mkdir -p /python-dist; \
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then \
+        mkdir -p /python-dist/usr && cp -a /usr/python /python-dist/usr/; \
+    fi
 
 # In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
 # libraries will be accidentally used before the library installed from sources (which is newer and
@@ -2108,6 +2264,7 @@ ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
 ARG INSTALL_MSSQL_CLIENT="true"
 ARG INSTALL_POSTGRES_CLIENT="true"
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
+ARG AIRFLOW_IMAGE_FLAVOR
 
 ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS} \
@@ -2118,8 +2275,10 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
     INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
-    AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
+    AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
+    AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR}
 
+COPY --from=airflow-build-image /python-dist/ /
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime
 
@@ -2241,6 +2400,7 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.image="airflow" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.python.version="${AIRFLOW_PYTHON_VERSION}" \
+  org.apache.airflow.image.flavor="${AIRFLOW_IMAGE_FLAVOR}" \
   org.apache.airflow.uid="${AIRFLOW_UID}" \
   org.apache.airflow.main-image.build-id="${BUILD_ID}" \
   org.apache.airflow.main-image.commit-sha="${COMMIT_SHA}" \

@@ -44,6 +44,7 @@ from airflow_breeze.commands.common_image_options import (
     option_from_run,
     option_github_token_for_images,
     option_image_file_dir,
+    option_image_flavor,
     option_install_mysql_client_type,
     option_platform_multiple,
     option_prepare_buildx_cache,
@@ -260,6 +261,7 @@ def prod_image_group():
 @option_dry_run
 @option_github_repository
 @option_github_token
+@option_image_flavor
 @option_include_success_outputs
 @option_install_mysql_client_type
 @option_parallelism
@@ -313,6 +315,7 @@ def build(
     docker_host: str | None,
     github_repository: str,
     github_token: str | None,
+    image_flavor: str,
     include_success_outputs,
     install_airflow_reference: str | None,
     install_airflow_version: str | None,
@@ -411,6 +414,7 @@ def build(
         cleanup_context=cleanup_context,
         commit_sha=commit_sha,
         debian_version=debian_version,
+        image_flavor=image_flavor,
         dev_apt_command=dev_apt_command,
         dev_apt_deps=dev_apt_deps,
         docker_host=docker_host,

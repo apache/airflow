@@ -27,6 +27,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_BUILD_CACHE,
     ALLOWED_BUILD_PROGRESS,
     ALLOWED_DEBIAN_VERSIONS,
+    ALLOWED_IMAGE_FLAVORS,
     ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
     ALLOWED_PLATFORMS,
     DOCKER_DEFAULT_PLATFORM,
@@ -114,6 +115,15 @@ option_debian_version = click.option(
     show_default=True,
     help="Debian version used in Airflow image as base for building images.",
     envvar="DEBIAN_VERSION",
+)
+option_image_flavor = click.option(
+    "--image-flavor",
+    type=BetterChoice(ALLOWED_IMAGE_FLAVORS),
+    default=ALLOWED_IMAGE_FLAVORS[0],
+    show_default=True,
+    help="Flavor of the PROD image. 'hardened' gets Python from a Docker Hardened Image, "
+    "'legacy' compiles Python from sources on a plain Debian base image.",
+    envvar="IMAGE_FLAVOR",
 )
 option_dev_apt_command = click.option(
     "--dev-apt-command",

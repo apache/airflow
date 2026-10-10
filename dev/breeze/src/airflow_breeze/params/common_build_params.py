@@ -25,6 +25,7 @@ from typing import Any
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BUILD_PROGRESS,
+    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     DOCKER_DEFAULT_PLATFORM,
@@ -72,7 +73,7 @@ class CommonBuildParams:
     dry_run: bool = False
     version_suffix: str | None = None
     verbose: bool = False
-    debian_version: str = "bookworm"
+    debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]
     build_arg_values: list[str] = field(default_factory=list)
 
     @property

@@ -1,0 +1,120 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: "Scheduled legacy PROD image canary"
+# The default PROD images are hardened and based on Debian trixie, and that is all that PR and canary
+# builds test. The "legacy" flavor - Python compiled from sources on Debian bookworm - is still
+# published for the 3.4.x line, so this checks once a week that it can still be built and passes the
+# PROD image checks, instead of finding out only when a release is being prepared.
+#
+# The image is built the way release images are: with the Airflow version released to PyPI and its
+# constraints, on top of the Dockerfile from the checked-out branch.
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: '43 2 * * 0'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: scheduled-legacy-prod-image-canary-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  python-versions:
+    name: "Python versions to test"
+    runs-on: ["ubuntu-slim"]
+    if: github.repository == 'apache/airflow' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 10
+    outputs:
+      python-versions: ${{ steps.versions.outputs.python-versions }}
+      airflow-version: ${{ steps.versions.outputs.airflow-version }}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version-file: uv.lock
+      - name: "Get Python versions and the latest released Airflow version"
+        id: versions
+        run: |
+          python_versions=$(uv run --project dev/breeze python -c "
+          import json
+          from airflow_breeze.global_constants import CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
+          print(json.dumps(CURRENT_PYTHON_MAJOR_MINOR_VERSIONS))
+          ")
+          airflow_version=$(curl -fsSL --retry 3 https://pypi.org/pypi/apache-airflow/json \
+            | jq -r .info.version)
+          echo "python-versions=${python_versions}" >> "${GITHUB_OUTPUT}"
+          echo "airflow-version=${airflow_version}" >> "${GITHUB_OUTPUT}"
+          echo "Python versions: ${python_versions}, Airflow version: ${airflow_version}"
+
+  legacy-prod-image:
+    name: "Legacy bookworm PROD image ${{ matrix.python-version }}"
+    needs: [python-versions]
+    runs-on: ["ubuntu-22.04"]
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(needs.python-versions.outputs.python-versions) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      AIRFLOW_VERSION: ${{ needs.python-versions.outputs.airflow-version }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Make /mnt writeable"
+        run: ./scripts/ci/make_mnt_writeable.sh
+      - name: "Move docker to /mnt"
+        run: ./scripts/ci/move_docker_to_mnt.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Build legacy bookworm PROD image ${{ matrix.python-version }}"
+        run: >
+          breeze prod-image build
+          --python "${PYTHON_MAJOR_MINOR_VERSION}"
+          --image-flavor legacy
+          --debian-version bookworm
+          --installation-method apache-airflow
+          --install-airflow-version "${AIRFLOW_VERSION}"
+          --airflow-constraints-reference "constraints-${AIRFLOW_VERSION}"
+          --docker-cache disabled
+      - name: "Verify the image is the legacy bookworm flavor"
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}/main/prod/python${PYTHON_MAJOR_MINOR_VERSION}"
+          flavor=$(docker inspect "${image}" \
+            --format '{{ index .Config.Labels "org.apache.airflow.image.flavor" }}')
+          codename=$(docker run --rm --entrypoint /bin/bash "${image}" \
+            -c '. /etc/os-release && echo "${VERSION_CODENAME}"')
+          echo "Image flavor: ${flavor}, Debian: ${codename}"
+          [[ "${flavor}" == "legacy" && "${codename}" == "bookworm" ]]
+      - name: "Verify PROD image ${{ matrix.python-version }}"
+        run: breeze prod-image verify --python "${PYTHON_MAJOR_MINOR_VERSION}"
+      - name: "Test docker-compose quick start ${{ matrix.python-version }}"
+        run: breeze testing docker-compose-tests --python "${PYTHON_MAJOR_MINOR_VERSION}"
