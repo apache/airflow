@@ -87,7 +87,9 @@ class Source:
         if isinstance(argument, Mapping):
             return cls(list(argument.items()))
         if isinstance(argument, (str, bytes)) or not isinstance(argument, Iterable):
-            return cls((argument,))
+            # A literal is refused at parse time (validate_mapping_kwargs, _validate_arg_names), as
+            # .expand() refuses it, and an upstream value above; nothing else reaches this.
+            raise TypeError(f"cannot iterate over a {type(argument).__name__!r} argument")
         if not isinstance(argument, Sequence):
             return cls(list(argument))
         return cls(argument)

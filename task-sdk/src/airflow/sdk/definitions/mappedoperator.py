@@ -98,14 +98,14 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
             continue
         for name in param_names:
             value = unknown_args.pop(name, NOTSET)
-            if func != "expand":
+            if func not in ("expand", "iterate"):
                 continue
             if value is NOTSET:
                 continue
             if is_mappable(value):
                 continue
             type_name = type(value).__name__
-            error = f"{op.__name__}.expand() got an unexpected type {type_name!r} for keyword argument {name}"
+            error = f"{op.__name__}.{func}() got an unexpected type {type_name!r} for keyword argument {name}"
             raise ValueError(error)
         if not unknown_args:
             return  # If we have no args left to check: stop looking at the MRO chain.

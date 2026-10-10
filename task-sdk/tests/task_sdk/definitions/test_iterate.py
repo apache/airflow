@@ -101,8 +101,8 @@ class TestIterate:
         ]
 
     def test_decorated_iterate_validates_as_iterate_not_expand(self):
-        """The decorated ``.iterate()`` names itself in its errors and, like the classic path, does not
-        impose ``.expand()``'s mappable-type rule: a scalar is a valid one-item input to iterate over."""
+        """The decorated ``.iterate()`` names itself in its errors and, like ``.expand()``, refuses a
+        literal that is no collection, as the iteration refuses the same value from an upstream."""
         with DAG(dag_id="test_decorated_iterate_validation") as dag:
 
             @dag.task
@@ -115,7 +115,12 @@ class TestIterate:
                 show.iterate(ti=1)
             with pytest.raises(ValueError, match=r"expand\(\) got an unexpected type 'int'"):
                 show.expand(number=5)
-            show.iterate(number=5)
+            with pytest.raises(ValueError, match=r"iterate\(\) got an unexpected type 'int'"):
+                show.iterate(number=5)
+            with pytest.raises(ValueError, match=r"iterate\(\) got an unexpected type 'str'"):
+                show.iterate(number="abc")
+            with pytest.raises(ValueError, match=r"iterate\(\) got an unexpected type 'NoneType'"):
+                show.iterate(number=None)
 
     def test_iterate_marks_partial_as_expanded(self, recwarn):
         """Test that .iterate() (like .expand()) flags the OperatorPartial as consumed, so

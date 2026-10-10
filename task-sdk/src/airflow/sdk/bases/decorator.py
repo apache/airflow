@@ -98,10 +98,10 @@ class ExpandableFactory(Protocol):
         kwargs_left = kwargs.copy()
         for arg_name in self._mappable_function_argument_names:
             value = kwargs_left.pop(arg_name, NOTSET)
-            if func == "expand" and value is not NOTSET and not is_mappable(value):
+            if func in ("expand", "iterate") and value is not NOTSET and not is_mappable(value):
                 tname = type(value).__name__
                 raise ValueError(
-                    f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}"
+                    f"{func}() got an unexpected type {tname!r} for keyword argument {arg_name!r}"
                 )
         if len(kwargs_left) == 1:
             raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")

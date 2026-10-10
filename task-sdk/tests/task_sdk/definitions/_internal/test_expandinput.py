@@ -80,9 +80,7 @@ class TestExpandInput:
     @pytest.mark.parametrize(
         ("actual", "expected"),
         [
-            ({"a": 1}, [{"a": 1}]),
             ({"a": [1, 2, 3]}, [{"a": 1}, {"a": 2}, {"a": 3}]),
-            ({"a": "hello"}, [{"a": "hello"}]),
             (
                 {"a": [1, 2], "b": [10, 20]},
                 [{"a": 1, "b": 10}, {"a": 1, "b": 20}, {"a": 2, "b": 10}, {"a": 2, "b": 20}],
@@ -215,10 +213,10 @@ class TestSource:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("value", ["hello", b"bytes", 1, None, 2.5])
-    async def test_scalars_and_strings_become_a_single_item(self, value):
-        source = await Source.from_argument(value, {})
-        assert await source.alen() == 1
-        assert await source.aget(0) == value
+    async def test_scalars_and_strings_are_refused(self, value):
+        """A literal that is no collection is refused at parse time; one that gets here is refused too."""
+        with pytest.raises(TypeError, match=f"cannot iterate over a '{type(value).__name__}' argument"):
+            await Source.from_argument(value, {})
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("value", [[1, 2], (1, 2), range(1, 3)])

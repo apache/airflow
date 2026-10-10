@@ -516,9 +516,7 @@ class TestIterableOperator:
     @pytest.mark.parametrize(
         ("actual", "expected"),
         [
-            ({"a": 1}, [{"a": 1}]),
             ({"a": [1, 2, 3]}, [{"a": 1}, {"a": 2}, {"a": 3}]),
-            ({"a": "hello"}, [{"a": "hello"}]),
             (
                 {"a": [1, 2], "b": [10, 20]},
                 [{"a": 1, "b": 10}, {"a": 1, "b": 20}, {"a": 2, "b": 10}, {"a": 2, "b": 20}],
