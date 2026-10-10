@@ -65,7 +65,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
       <HeaderCard
         actions={
           <>
-            <NeedsReviewButtonWithModal dagId={dagId} runId={dagRunId} />
+            <NeedsReviewButtonWithModal dagId={dagId} runId={dagRunId} variant="chip" />
             <ClearRunButton bg="bg" dagRun={dagRun} isHotkeyEnabled variant="outline" />
             <MarkRunAsButton bg="bg" dagRun={dagRun} isHotkeyEnabled variant="outline" />
             <DeleteRunButton bg="bg" dagRun={dagRun} variant="outline" />

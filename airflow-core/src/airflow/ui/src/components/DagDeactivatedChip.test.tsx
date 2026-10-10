@@ -25,7 +25,7 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import dagLocale from "../../public/i18n/locales/en/dag.json";
 import dashboardLocale from "../../public/i18n/locales/en/dashboard.json";
-import { DagDeactivatedBanner } from "./DagDeactivatedBanner";
+import { DagDeactivatedChip } from "./DagDeactivatedChip";
 
 const { mockUseDagServiceGetDag, mockUseImportErrorServiceGetImportErrors } = vi.hoisted(() => ({
   mockUseDagServiceGetDag: vi.fn(),
@@ -70,7 +70,7 @@ const emptyImportErrorsQuery = {
   isPending: false,
 };
 
-describe("DagDeactivatedBanner", () => {
+describe("DagDeactivatedChip", () => {
   beforeEach(() => {
     i18n.addResourceBundle("en", "dag", dagLocale, true, true);
     i18n.addResourceBundle("en", "dashboard", dashboardLocale, true, true);
@@ -83,7 +83,7 @@ describe("DagDeactivatedBanner", () => {
 
     render(
       <Wrapper>
-        <DagDeactivatedBanner />
+        <DagDeactivatedChip />
       </Wrapper>,
     );
 
@@ -93,7 +93,7 @@ describe("DagDeactivatedBanner", () => {
   it("shows a deactivated banner when stale with no import error", () => {
     render(
       <Wrapper>
-        <DagDeactivatedBanner />
+        <DagDeactivatedChip />
       </Wrapper>,
     );
 
@@ -105,7 +105,7 @@ describe("DagDeactivatedBanner", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows a deactivated banner with an import error button when the API returns a file-scoped error", async () => {
+  it("names the import error and opens the parse error on click", async () => {
     mockUseImportErrorServiceGetImportErrors.mockReturnValue({
       ...emptyImportErrorsQuery,
       data: {
@@ -124,20 +124,23 @@ describe("DagDeactivatedBanner", () => {
 
     render(
       <Wrapper>
-        <DagDeactivatedBanner />
+        <DagDeactivatedChip />
       </Wrapper>,
     );
 
-    expect(screen.getByText(i18n.t("header.status.deactivated", { ns: "dag" }))).toBeInTheDocument();
-
-    const importErrorButton = screen.getByRole("button", {
-      name: i18n.t("importErrors.dagImportError", { count: 1, ns: "dashboard" }),
+    // One element states the status and opens the detail, rather than a badge plus a button.
+    const chip = screen.getByRole("button", {
+      name: i18n.t("importErrors.dagImportError_one", { ns: "dashboard" }),
     });
 
-    expect(importErrorButton).toBeInTheDocument();
+    // A parse error is named as such, so it is distinguishable from a Dag that
+    // merely disappeared from its file.
+    expect(screen.queryByText(i18n.t("header.status.deactivated", { ns: "dag" }))).not.toBeInTheDocument();
+
+    expect(chip).toBeInTheDocument();
     expect(screen.queryByText(/SyntaxError: invalid syntax/u)).not.toBeInTheDocument();
 
-    fireEvent.click(importErrorButton);
+    fireEvent.click(chip);
 
     await waitFor(() => {
       expect(screen.getByText("stale_dag.py")).toBeInTheDocument();

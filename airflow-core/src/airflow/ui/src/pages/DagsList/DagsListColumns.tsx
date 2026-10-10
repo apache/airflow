@@ -115,7 +115,7 @@ export const createColumns = (
     accessorKey: "next_dagrun",
     cell: ({ row: { original } }) =>
       original.is_paused ? undefined : original.scheduling_state === "draining" ? (
-        <DrainingBadge />
+        <DrainingBadge dagId={original.dag_id} />
       ) : Boolean(original.next_dagrun_run_after) ? (
         <Box whiteSpace="nowrap">
           <DagRunInfo

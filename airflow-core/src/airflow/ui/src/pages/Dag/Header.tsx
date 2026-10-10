@@ -16,10 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Badge, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
+import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
+import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 
 import { RouterLink } from "src/system-components";
@@ -73,7 +76,7 @@ export const Header = ({
         {
           label: translate("dagDetails.nextRun"),
           value: dag?.is_paused ? undefined : dag?.scheduling_state === "draining" ? (
-            <DrainingBadge />
+            <DrainingBadge dagId={dag.dag_id} />
           ) : Boolean(dag?.next_dagrun_run_after) ? (
             <DagRunInfo
               logicalDate={dag?.next_dagrun_logical_date}
@@ -82,6 +85,16 @@ export const Header = ({
           ) : undefined,
         },
       ];
+
+  const { data: backfillData } = useBackfillServiceListBackfillsUi(
+    { active: true, dagId: dagId ?? "" },
+    undefined,
+    { enabled: Boolean(dagId) },
+  );
+  // An active backfill may already be finished; only an incomplete one is in progress.
+  const hasRunningBackfill = (backfillData?.backfills ?? []).some(
+    (backfill) => backfill.completed_at === null,
+  );
 
   const stats = [
     {
@@ -116,11 +129,23 @@ export const Header = ({
     {
       label: translate("dagDetails.activeRuns"),
       value:
-        dag?.max_active_runs === undefined
-          ? undefined
-          : dag.max_active_runs === null
-            ? formatNumber(dag.active_runs_count ?? 0, i18n.language)
-            : `${formatNumber(dag.active_runs_count ?? 0, i18n.language)} of ${formatNumber(dag.max_active_runs, i18n.language)}`,
+        dag?.max_active_runs === undefined ? undefined : (
+          <HStack gap={2}>
+            <span>
+              {dag.max_active_runs === null
+                ? formatNumber(dag.active_runs_count ?? 0, i18n.language)
+                : `${formatNumber(dag.active_runs_count ?? 0, i18n.language)} of ${formatNumber(dag.max_active_runs, i18n.language)}`}
+            </span>
+            {hasRunningBackfill ? (
+              <RouterLink to={`/dags/${dag.dag_id}/backfills`}>
+                <Badge colorPalette="info" cursor="pointer" variant="subtle">
+                  <RiArrowGoBackFill size={12} />
+                  {translate("components:banner.backfillInProgress")}
+                </Badge>
+              </RouterLink>
+            ) : undefined}
+          </HStack>
+        ),
     },
     {
       label: translate("dagDetails.owner"),
@@ -150,7 +175,7 @@ export const Header = ({
         dag === undefined ? undefined : (
           <>
             <DeadlineAlertsBadge dagId={dag.dag_id} />
-            <NeedsReviewButtonWithModal dagId={dag.dag_id} />
+            <NeedsReviewButtonWithModal dagId={dag.dag_id} variant="chip" />
             {dag.doc_md === null ? undefined : (
               <DisplayMarkdownButton
                 bg="bg"
@@ -162,9 +187,9 @@ export const Header = ({
               />
             )}
             <FavoriteDagButton bg="bg" dagId={dag.dag_id} isFavorite={dag.is_favorite} variant="outline" />
-            {isStale ? undefined : (
-              <ParseDagButton bg="bg" dagId={dag.dag_id} fileToken={dag.file_token} variant="outline" />
-            )}
+            {/* Deliberately shown while stale: a Dag that failed to parse or vanished from
+                its file is exactly when reparsing is worth offering. */}
+            <ParseDagButton bg="bg" dagId={dag.dag_id} fileToken={dag.file_token} variant="outline" />
             <DeleteDagButton
               bg="bg"
               dagDisplayName={dag.dag_display_name}
