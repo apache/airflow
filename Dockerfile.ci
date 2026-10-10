@@ -1753,9 +1753,9 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
 
-ARG AIRFLOW_PYTHON_VERSION="3.13.15"
+ARG AIRFLOW_PYTHON_VERSION="3.13.16"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
-ENV GOLANG_MAJOR_MINOR_VERSION="1.27.1"
+ENV GOLANG_MAJOR_MINOR_VERSION="1.27.2"
 ENV TEMURIN_VERSION="11"
 ENV NODEJS_VERSION="22.23.1"
 # keep this in sync with package.json files
@@ -1821,7 +1821,7 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && chmod +x /usr/local/bin/helm
 
 # Install mprocs - a modern process manager for managing multiple Airflow components
-ARG MPROCS_VERSION="0.9.6"
+ARG MPROCS_VERSION="0.10.1"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM="$(uname -m)" \
@@ -1917,8 +1917,8 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.2.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.12.18
-ARG AIRFLOW_PREK_VERSION="0.5.3"
+ARG AIRFLOW_UV_VERSION=0.12.23
+ARG AIRFLOW_PREK_VERSION="0.5.5"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \

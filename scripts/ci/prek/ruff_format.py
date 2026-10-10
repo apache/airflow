@@ -18,7 +18,7 @@
 # /// script
 # requires-python = ">=3.11,<3.12"
 # dependencies = [
-#   "ruff==0.16.8",
+#   "ruff==0.16.10",
 # ]
 # ///
 
