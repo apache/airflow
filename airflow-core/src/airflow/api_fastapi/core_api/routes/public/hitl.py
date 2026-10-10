@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 import structlog
@@ -70,6 +70,7 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import (
     resolve_task_scope,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.exceptions import ParamValidationError
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
@@ -77,8 +78,12 @@ from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.trigger import handle_event_submit
+from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 task_instances_hitl_router = AirflowRouter(
     tags=["Task Instance"],
@@ -98,6 +103,43 @@ class HITLDetailView:
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.value, name)
+
+
+def _check_params_input(params: Mapping[str, Any], params_input: Mapping[str, Any]) -> str | None:
+    """
+    Return why ``params_input`` is not a valid answer to the request's ``params``, or None.
+
+    Mirrors ``HITLOperator.validate_params_input``: when both are given, the answer must name exactly
+    the declared params, and each value must pass its param's JSON Schema. A param stored without a
+    schema, as older providers store it, accepts any value.
+    """
+    if not params or not params_input:
+        return None
+    if set(params) != set(params_input):
+        return f"params_input {sorted(params_input)} does not match params {sorted(params)}."
+    answers = SerializedParamsDict(
+        {key: _answer_param(value, params[key]) for key, value in params_input.items()}
+    )
+    try:
+        answers.validate()
+    except ParamValidationError as e:
+        return str(e)
+    return None
+
+
+def _answer_param(value: Any, spec: Any) -> SerializedParam:
+    """
+    Build a param holding the submitted ``value``, with the JSON Schema from the field's ``spec``.
+
+    A ``spec`` without a schema, such as a plain value older providers store, attaches none, so any
+    value passes.
+    """
+    param = SerializedParam(value)
+    if isinstance(spec, dict) and isinstance(spec.get("schema"), dict):
+        # Set rather than passed as keywords: a schema's own "default" or "description" would
+        # collide with SerializedParam's arguments.
+        param.schema = spec["schema"]
+    return param
 
 
 def _get_task_instance_with_hitl_detail(
@@ -255,6 +297,10 @@ def update_hitl_detail(
             status.HTTP_400_BAD_REQUEST,
             "Multiple options chosen but this Human-in-the-loop task accepts only a single option.",
         )
+    if params_error := _check_params_input(
+        hitl_detail_model.params or {}, update_hitl_detail_payload.params_input
+    ):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, params_error)
 
     hitl_detail_model.responded_by = dict(hitl_user)
     hitl_detail_model.responded_at = timezone.utcnow()
