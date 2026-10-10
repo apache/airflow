@@ -402,12 +402,28 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
     get_console(output=output).print("\n")
 
 
+# Must match containerPort in scripts/ci/kubernetes/kind-cluster-conf.yaml and
+# nodePort in scripts/ci/kubernetes/nodeport.yaml.
+FORWARDED_NODE_PORT = 30007
+
+
+def _extract_forwarded_host_port(conf: dict[str, Any]) -> int:
+    for node in conf["nodes"]:
+        for port_mapping in node.get("extraPortMappings", []):
+            if port_mapping["containerPort"] == FORWARDED_NODE_PORT:
+                return port_mapping["hostPort"]
+    raise ValueError(
+        f"No node in the kind cluster config has an extraPortMappings entry for "
+        f"containerPort {FORWARDED_NODE_PORT}. Delete and recreate the cluster."
+    )
+
+
 def get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[int, int]:
     conf = _get_kind_cluster_config_content(python=python, kubernetes_version=kubernetes_version)
     if not conf:
         return 0, 0
     k8s_api_server_port = conf["networking"]["apiServerPort"]
-    api_server_port = conf["nodes"][1]["extraPortMappings"][0]["hostPort"]
+    api_server_port = _extract_forwarded_host_port(conf)
     return k8s_api_server_port, api_server_port
 
 
