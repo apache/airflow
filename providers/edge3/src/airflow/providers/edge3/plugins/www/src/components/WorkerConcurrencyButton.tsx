@@ -27,7 +27,7 @@ import {
   VStack,
   useDisclosure,
 } from "@chakra-ui/react";
-import { useUiServiceSetWorkerConcurrencyLimit } from "openapi/queries";
+import { useSetWorkerConcurrencyLimit } from "openapi/queries";
 import type { Worker } from "openapi/requests/types.gen";
 import { useState } from "react";
 import { LuSlidersHorizontal } from "react-icons/lu";
@@ -48,7 +48,7 @@ export const WorkerConcurrencyButton = ({
     currentConcurrency !== undefined ? String(currentConcurrency) : "",
   );
 
-  const setConcurrencyMutation = useUiServiceSetWorkerConcurrencyLimit({
+  const setConcurrencyMutation = useSetWorkerConcurrencyLimit(undefined, {
     onError: (error: unknown) => {
       onConcurrencyUpdate({
         description: `Unable to set concurrency for worker ${workerName}: ${error}`,
@@ -79,8 +79,8 @@ export const WorkerConcurrencyButton = ({
     }
 
     setConcurrencyMutation.mutate({
-      requestBody: { concurrency: value },
-      workerName,
+      body: { concurrency: value },
+      path: { worker_name: workerName },
     });
   };
 
