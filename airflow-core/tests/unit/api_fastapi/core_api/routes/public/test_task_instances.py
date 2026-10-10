@@ -5443,6 +5443,45 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json()["total_entries"] == group_size
 
+    @pytest.mark.parametrize(
+        ("mapped", "task_id", "expected"),
+        [
+            pytest.param(False, "a", [("a", -1), ("b", -1), ("root", -1)], id="unmapped"),
+            pytest.param(True, ["a", 0], [("a", 0), ("b", -1), ("root", -1)], id="mapped"),
+        ],
+    )
+    def test_clear_with_upstream_and_downstream_excludes_unrelated_tasks(
+        self, test_client, dag_maker, session, mapped, task_id, expected
+    ):
+        """Upstream + downstream must not include other descendants of the upstream tasks."""
+        dag_id = "clear_upstream_and_downstream"
+        with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1, serialized=True):
+            root = BaseOperator(task_id="root")
+            if mapped:
+                a = MockOperator.partial(task_id="a").expand(arg2=["x", "y", "z"])
+            else:
+                a = BaseOperator(task_id="a")
+            b = BaseOperator(task_id="b")
+            other = BaseOperator(task_id="other")
+            root >> a >> b
+            root >> other
+        dr = dag_maker.create_dagrun(run_id="run1", logical_date=DEFAULT_DATETIME_1)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={
+                "dry_run": True,
+                "only_failed": False,
+                "dag_run_id": dr.run_id,
+                "task_ids": [task_id],
+                "include_upstream": True,
+                "include_downstream": True,
+            },
+        )
+        assert response.status_code == 200
+        response_tis = response.json()["task_instances"]
+        assert sorted((ti["task_id"], ti["map_index"]) for ti in response_tis) == expected
+
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
     def test_history_without_dag_version_serializes_null(self, test_client, session):
