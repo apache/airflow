@@ -681,8 +681,7 @@ class RuntimeTaskInstance(TaskInstance):
             return None
 
         if from_server := self._ti_context_from_server:
-            # Servers older than the 2026-10-30 API version omit this, so fall through to
-            # asking the supervisor below.
+            # Older servers don't send this field, so fall through to asking the supervisor below.
             if (first_reschedule_date := from_server.first_task_reschedule_start_date) is not None:
                 return first_reschedule_date
 
