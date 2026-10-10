@@ -113,16 +113,20 @@ class TestAgentDecoratedOperator:
             prompt, usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_sequence_prompt_with_hitl_review_raises_before_run_sync(self, mock_hook_cls):
-        """Sequence prompt + enable_hitl_review=True fails before the agent runs."""
+    def test_sequence_prompt_with_hitl_review_reaches_the_review(
+        self, mock_hook_cls, mock_run_hitl, make_mock_run_result
+    ):
         from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
         if not AIRFLOW_V_3_1_PLUS:
             pytest.skip("enable_hitl_review requires Airflow >= 3.1.0")
 
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("Initial output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.return_value = "Approved output"
 
         op = _AgentDecoratedOperator(
             task_id="test",
@@ -130,10 +134,9 @@ class TestAgentDecoratedOperator:
             llm_conn_id="my_llm",
             enable_hitl_review=True,
         )
-        with pytest.raises(TypeError, match="enable_hitl_review=True"):
-            op.execute(context={})
 
-        mock_agent.run_sync.assert_not_called()
+        assert op.execute(context=_make_context()) == "Approved output"
+        mock_run_hitl.assert_called_once()
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls, make_mock_run_result):

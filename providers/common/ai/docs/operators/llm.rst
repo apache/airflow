@@ -187,9 +187,9 @@ Multimodal prompts
 may return either a ``str`` or a non-empty ``Sequence[UserContent]`` (e.g.,
 ``["Describe this:", ImageUrl(url="...")]``) for vision, audio, or document
 inputs. See :ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>` for
-the full example. ``require_approval=True`` is not supported with a ``Sequence``
-prompt: the approval session model expects a string, and the task raises at the
-approval boundary.
+the full example. With ``require_approval=True``, the review shows the
+prompt's text and a placeholder such as ``[image/png, 2048 bytes]`` for each
+non-text part.
 
 Classification with ``Literal``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

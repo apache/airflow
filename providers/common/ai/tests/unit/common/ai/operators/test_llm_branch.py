@@ -23,7 +23,7 @@ from uuid import uuid4
 import pytest
 from pydantic import TypeAdapter, ValidationError
 from pydantic_ai import Agent
-from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.messages import BinaryContent, ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
@@ -1071,24 +1071,28 @@ class TestLLMBranchOperatorApproval:
         with pytest.raises(ParamValidationError):
             Param(schema=schema).resolve(["task_x"])
 
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
-        """Non-string prompt + require_approval=True fails before the agent runs."""
+    def test_execute_with_approval_reviews_a_sequence_prompt(
+        self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
+    ):
         mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result("task_a")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMBranchOperator(
             task_id="test",
-            prompt=["describe", b"bytes"],  # type: ignore[arg-type]
+            prompt=["Pick a branch for", BinaryContent(data=b"\x89PNG", media_type="image/png")],
             llm_conn_id="my_llm",
             require_approval=True,
         )
         op.downstream_task_ids = {"task_a"}
 
-        with pytest.raises(TypeError, match="require_approval=True"):
+        with pytest.raises(ApprovalPauseSignal):
             op.execute(_make_context())
 
-        mock_agent.run_sync.assert_not_called()
+        assert "Prompt: Pick a branch for\n[image/png, 4 bytes]" in mock_upsert.call_args.kwargs["body"]
 
     @patch.object(LLMBranchOperator, "do_branch")
     def test_execute_complete_approved_single_branch(self, mock_do_branch):

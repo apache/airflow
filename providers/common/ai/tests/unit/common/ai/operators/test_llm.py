@@ -26,7 +26,7 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import UsageLimitExceeded
-from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
+from pydantic_ai.messages import BinaryContent, ModelMessage, ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.usage import RequestUsage, UsageLimits
 
@@ -635,20 +635,6 @@ class TestLLMOperatorConfidenceGate:
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="a reviewing decision_policy needs the HITL flow, Airflow >= 3.1"
     )
-    def test_policy_review_rejects_a_sequence_prompt_before_the_model_call(self):
-        """The multimodal-prompt guard applies to any review path, not only require_approval."""
-        op = LLMOperator(
-            task_id="t",
-            prompt=[{"type": "text", "text": "p"}],  # type: ignore[arg-type]
-            llm_conn_id="c",
-            decision_policy=DecisionPolicy(min_confidence=0.7),
-        )
-        with pytest.raises(TypeError, match="non-string prompt"):
-            op.execute(MagicMock(spec=dict))
-
-    @pytest.mark.skipif(
-        not AIRFLOW_V_3_1_PLUS, reason="a reviewing decision_policy needs the HITL flow, Airflow >= 3.1"
-    )
     def test_execute_complete_finalizes_the_carried_decision(self):
         op = LLMOperator(
             task_id="t", prompt="p", llm_conn_id="c", decision_policy=DecisionPolicy(min_confidence=0.7)
@@ -1104,25 +1090,22 @@ class TestLLMOperatorApproval:
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
 )
-class TestLLMOperatorMultimodalPromptGuard:
-    """LLMOperator.execute raises before agent.run_sync when require_approval is True
-    and self.prompt is not a string -- covering direct-operator construction and the
-    native template rendering escape (where a string template renders to a Sequence)."""
-
+class TestLLMOperatorMultimodalPromptApproval:
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
+    def test_execute_with_approval_reviews_a_sequence_prompt(
+        self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
+    ):
         mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result("LLM response")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
-        op = LLMOperator(
-            task_id="t",
-            prompt="placeholder",
-            llm_conn_id="c",
-            require_approval=True,
-        )
-        op.prompt = ["x", object()]  # simulate post-template-render value
+        op = LLMOperator(task_id="t", prompt="placeholder", llm_conn_id="c", require_approval=True)
+        op.prompt = ["Describe this:", BinaryContent(data=b"\x89PNG", media_type="image/png")]
 
-        with pytest.raises(TypeError, match="require_approval=True"):
+        with pytest.raises(ApprovalPauseSignal):
             op.execute(context=_make_context())
 
-        mock_agent.run_sync.assert_not_called()
+        mock_agent.run_sync.assert_called_once()
+        assert "Prompt: Describe this:\n[image/png, 4 bytes]" in mock_upsert.call_args.kwargs["body"]

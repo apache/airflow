@@ -45,6 +45,7 @@ from airflow.providers.common.ai.utils.decision import (
 )
 from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY, log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseOperator
@@ -296,9 +297,6 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
     def execute(self, context: Context) -> Any:
-        if self._may_review:
-            self.validate_approval_prompt()  # type: ignore[misc]
-
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
@@ -343,7 +341,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
             self._log_review(review, confidence, threshold)
             body = None
             if review != "require_approval":
-                body = f"```\nPrompt: {self.prompt}\n\n{output}\n```\n\n" + "\n\n".join(
+                body = f"```\nPrompt: {describe_prompt(self.prompt)}\n\n{output}\n```\n\n" + "\n\n".join(
                     describe_confidence(model_confidence, name, threshold) for name in fields
                 )
             self.defer_for_approval(context, output, body=body, decision=record)  # type: ignore[misc]

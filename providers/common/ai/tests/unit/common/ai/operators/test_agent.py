@@ -40,6 +40,7 @@ from pydantic_ai.capabilities import (
 )
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import (
+    BinaryContent,
     ModelMessage,
     ModelMessagesTypeAdapter,
     ModelRequest,
@@ -1765,28 +1766,23 @@ class TestAgentOperatorDurable:
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
 )
-class TestAgentOperatorMultimodalPromptGuard:
-    """AgentOperator.execute raises before agent.run_sync when enable_hitl_review=True
-    and self.prompt is not a string -- covering direct construction and the native
-    template rendering escape (where a string template renders to a Sequence)."""
-
+class TestAgentOperatorMultimodalPromptReview:
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_rejects_sequence_prompt_with_hitl_review(self, mock_hook_cls):
+    def test_execute_with_hitl_review_accepts_a_sequence_prompt(
+        self, mock_hook_cls, mock_run_hitl, make_mock_run_result
+    ):
+        prompt = ["Describe this:", BinaryContent(data=b"\x89PNG", media_type="image/png")]
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("Initial output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.return_value = "Approved output"
 
-        op = AgentOperator(
-            task_id="t",
-            prompt="placeholder",
-            llm_conn_id="c",
-            enable_hitl_review=True,
-        )
-        op.prompt = ["x", object()]  # simulate post-template-render value
+        op = AgentOperator(task_id="t", prompt="placeholder", llm_conn_id="c", enable_hitl_review=True)
+        op.prompt = prompt
 
-        with pytest.raises(TypeError, match="enable_hitl_review=True"):
-            op.execute(context=MagicMock())
-
-        mock_agent.run_sync.assert_not_called()
+        assert op.execute(context=MagicMock()) == "Approved output"
+        assert mock_agent.run_sync.call_args.args[0] == prompt
 
 
 def _sample_history():

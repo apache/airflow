@@ -26,6 +26,8 @@ if not AIRFLOW_V_3_1_PLUS:
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
+from pydantic_ai.messages import BinaryContent
+
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 from airflow.providers.common.ai.mixins.hitl_review import (
     _MAX_CONSECUTIVE_XCOM_PULL_FAILURES,
@@ -208,6 +210,36 @@ class TestHITLReviewMixin:
         assert "airflow_hitl_review_agent_output_1" in output_pushes
         assert "airflow_hitl_review_agent_output_2" in output_pushes
         assert output_pushes["airflow_hitl_review_agent_output_2"] == "Revised: Add more detail"
+
+    @patch.object(FakeAgenticOperator, "regenerate_with_feedback")
+    @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)
+    def test_session_renders_a_sequence_prompt(
+        self, mock_sleep, mock_regenerate, mock_ti, context, mock_supervisor_comms
+    ):
+        mock_regenerate.return_value = ("Revised", None)
+        mock_supervisor_comms.send.side_effect = [
+            XComResult(
+                key=XCOM_HUMAN_ACTION,
+                value=HumanActionData(
+                    action="changes_requested", feedback="More detail", iteration=1
+                ).model_dump(mode="json"),
+            ),
+            XComResult(
+                key=XCOM_HUMAN_ACTION,
+                value=HumanActionData(action="approve", iteration=2).model_dump(mode="json"),
+            ),
+        ]
+        prompt = ["Describe this:", BinaryContent(data=b"\x89PNG", media_type="image/png")]
+        op = FakeAgenticOperator(prompt=prompt)  # type: ignore[arg-type]
+
+        op.run_hitl_review(context, "Initial")
+
+        prompts = [
+            c[1]["value"]["prompt"]
+            for c in mock_ti.xcom_push.call_args_list
+            if c[1]["key"] == XCOM_AGENT_SESSION
+        ]
+        assert prompts == ["Describe this:\n[image/png, 4 bytes]"] * 2
 
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.monotonic", autospec=True)
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)

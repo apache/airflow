@@ -158,10 +158,6 @@ skipped too. Letting ``approval_timeout`` expire fails the task
 (``HITLTimeoutError``) unless ``on_approval_timeout`` answers the review for
 you; a timeout-driven rejection then skips downstream like any other rejection.
 
-``require_approval=True`` requires a string prompt: a decorated callable
-returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
-call.
-
 Apart from ``fail_on_reject`` and ``ignore_downstream_trigger_rules``, which
 are specific to this operator, ``approval_timeout``, ``on_approval_timeout``,
 ``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval

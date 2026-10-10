@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -331,9 +332,6 @@ class LLMSchemaCompareOperator(LLMOperator):
         return "".join(parts)
 
     def execute(self, context: Context) -> dict[str, Any]:
-        if self.require_approval:
-            self.validate_approval_prompt()  # type: ignore[misc]
-
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
@@ -366,7 +364,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             body = (
                 f"Compatible: {output.compatible}"
                 + (f" (mismatches: {summary})" if summary else "")
-                + f"\n\n```\nPrompt: {self.prompt}\n\n{output.model_dump_json(indent=2)}\n```"
+                + f"\n\n```\nPrompt: {describe_prompt(self.prompt)}\n\n{output.model_dump_json(indent=2)}\n```"
             )
             self.defer_for_approval(context, output, body=body)  # type: ignore[misc]
 

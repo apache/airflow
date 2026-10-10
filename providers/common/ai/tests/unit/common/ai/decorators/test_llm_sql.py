@@ -24,8 +24,6 @@ from pydantic_ai.messages import ImageUrl
 from airflow.providers.common.ai.decorators.llm_sql import _LLMSQLDecoratedOperator
 from airflow.providers.common.compat.sdk import DAG, task
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
-
 
 class TestLLMSQLDecoratedOperator:
     def test_custom_operator_name(self):
@@ -94,24 +92,6 @@ class TestLLMSQLDecoratedOperator:
 
         assert op.prompt == prompt
         mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, cancellation_token=ANY)
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="require_approval needs Airflow >= 3.1.0")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_sequence_prompt_with_require_approval_raises_before_run_sync(self, mock_hook_cls):
-        """Sequence prompt + require_approval=True fails before the agent runs."""
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-
-        op = _LLMSQLDecoratedOperator(
-            task_id="test",
-            python_callable=lambda: ["x", ImageUrl(url="https://example.com/x.png")],
-            llm_conn_id="my_llm",
-            require_approval=True,
-        )
-        with pytest.raises(TypeError, match="require_approval=True"):
-            op.execute(context={})
-
-        mock_agent.run_sync.assert_not_called()
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls, make_mock_run_result):
