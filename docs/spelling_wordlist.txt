@@ -1198,6 +1198,7 @@ objectORfile
 objectstorage
 observability
 od
+OData
 odbc
 odps
 OIDC

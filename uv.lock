@@ -6610,6 +6610,7 @@ dependencies = [
     { name = "azure-mgmt-datalake-store" },
     { name = "azure-mgmt-resource" },
     { name = "azure-mgmt-storage" },
+    { name = "azure-search-documents" },
     { name = "azure-servicebus" },
     { name = "azure-storage-blob" },
     { name = "azure-storage-file-datalake" },
@@ -6692,6 +6693,7 @@ requires-dist = [
     { name = "azure-mgmt-datalake-store", specifier = ">=0.5.0" },
     { name = "azure-mgmt-resource", specifier = ">=25.0.0" },
     { name = "azure-mgmt-storage", specifier = ">=24.0.1" },
+    { name = "azure-search-documents", specifier = ">=11.6.0" },
     { name = "azure-servicebus", specifier = ">=7.14.3" },
     { name = "azure-storage-blob", specifier = ">=12.28.0" },
     { name = "azure-storage-file-datalake", specifier = ">=12.23.0" },
@@ -10245,6 +10247,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/39/31/b24f494eca22e0389ac2e81b1b734453f187b69c95f039aa202f6f798b84/azure-nspkg-3.0.2.zip", hash = "sha256:e7d3cea6af63e667d87ba1ca4f8cd7cb4dfca678e4c55fc1cedb320760e39dd0", size = 4372, upload-time = "2018-10-02T22:48:45.999Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c4/0c/c562be95a9a2ed52454f598571cf300b1114d0db2aa27f5b8ed3bb9cd0c0/azure_nspkg-3.0.2-py3-none-any.whl", hash = "sha256:31a060caca00ed1ebd369fc7fe01a56768c927e404ebc92268f4d9d636435e28", size = 1530, upload-time = "2018-10-02T22:48:44.806Z" },
+]
+
+[[package]]
+name = "azure-search-documents"
+version = "12.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/59/dc/bb4db263381aa5b29414e280a8535a343d877a3831a501ef39332174c85c/azure_search_documents-12.0.0.tar.gz", hash = "sha256:8e6d73ec0ed1623083435b757e34324db65d72d4e09cca061a59fc7e90c8ddbc", size = 386222, upload-time = "2026-05-01T20:28:22.269Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a4/b1/4869a064dbb79fb4ecac684de51a8f8f7a93a315f3f9cc4bf8a65cc413cd/azure_search_documents-12.0.0-py3-none-any.whl", hash = "sha256:d88114e4179cd753845711042380a4571e7faa8619addf5e017928ebe37fc0d1", size = 352117, upload-time = "2026-05-01T20:28:23.989Z" },
 ]
 
 [[package]]
