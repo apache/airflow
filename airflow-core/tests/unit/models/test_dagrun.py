@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import re
 from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import contextmanager
@@ -89,6 +90,7 @@ from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInst
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -105,6 +107,8 @@ pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
+# A joined eager load of TaskInstance.dag_run aliases the table, hence the optional suffix.
+SELECTS_RUN_CONF = re.compile(r"\bdag_run(?:_\d+)?\.conf\b")
 
 
 async def empty_callback_for_deadline():
@@ -802,6 +806,52 @@ class TestDagRun:
 
         ti = dag_run.get_task_instance("test_short_circuit_false")
         assert ti is None
+
+    def test_fetch_task_instances_does_not_select_the_run_conf(self, dag_maker, session):
+        """
+        The run's conf must not come back on every task-instance row.
+
+        ``TaskInstance.dag_run`` is a joined eager load, so a query that selected ``dag_run.conf``
+        would return and decode one copy of the conf per task instance.
+        """
+        conf = {"payload": "x" * 1024}
+        with dag_maker(session=session):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+        dag_run = dag_maker.create_dagrun(conf=conf)
+        dag_id, run_id = dag_run.dag_id, dag_run.run_id
+        session.expunge_all()
+
+        with capture_orm_selects("task_instance") as statements:
+            tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, session=session)
+
+        assert [ti.task_id for ti in tis] == ["t1", "t2"]
+        assert statements
+        assert not any(SELECTS_RUN_CONF.search(sql) for sql in statements), statements
+        # The run is still joined, and its conf loads when read.
+        assert tis[0].dag_run.run_id == run_id
+        assert tis[0].dag_run.conf == conf
+
+    def test_scheduling_decisions_do_not_select_the_run_conf(self, dag_maker, session):
+        """
+        A scheduling pass must not load the run's conf once per task instance.
+
+        ``downstream`` waits for ``upstream``, so besides fetching the run's task instances the pass
+        re-reads the waiting ones to see whether their state changed.
+        """
+        with dag_maker(session=session):
+            EmptyOperator(task_id="upstream") >> EmptyOperator(task_id="downstream")
+        dag_run = dag_maker.create_dagrun(conf={"payload": "x" * 1024})
+
+        with capture_orm_selects("task_instance") as statements:
+            decision = dag_run.task_instance_scheduling_decisions(session=session)
+
+        assert [ti.task_id for ti in decision.schedulable_tis] == ["upstream"]
+        assert statements
+        selecting_conf = [sql for sql in statements if SELECTS_RUN_CONF.search(sql)]
+        assert not selecting_conf, (
+            f"{len(selecting_conf)} of {len(statements)} task-instance queries select the run conf"
+        )
 
     def test_get_latest_runs(self, dag_maker, session):
         with dag_maker(

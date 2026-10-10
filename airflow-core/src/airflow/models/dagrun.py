@@ -61,6 +61,7 @@ from sqlalchemy.orm import (
     Mapped,
     declared_attr,
     joinedload,
+    lazyload,
     mapped_column,
     relationship,
     synonym,
@@ -968,7 +969,9 @@ class DagRun(Base, LoggingMixin):
         """Return the task instances for this dag run."""
         tis = (
             select(TI)
-            .options(joinedload(TI.dag_run))
+            # The joined run comes back on every row. Its conf can be large, so it loads on first
+            # access instead of being decoded once per task instance.
+            .options(joinedload(TI.dag_run).defer(DagRun.conf))
             .where(
                 TI.dag_id == dag_id,
                 TI.run_id == run_id,
@@ -1782,7 +1785,8 @@ class DagRun(Base, LoggingMixin):
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)
         if tis_filter is not None:
-            fresh_tis = session.scalars(select(TI).where(tis_filter)).all()
+            # Joining the run here would decode its conf once per row; only the states are needed.
+            fresh_tis = session.scalars(select(TI).options(lazyload(TI.dag_run)).where(tis_filter)).all()
             changed_tis = any(ti.state != old_states[ti.key] for ti in fresh_tis)
 
         return ready_tis, changed_tis, expansion_happened
