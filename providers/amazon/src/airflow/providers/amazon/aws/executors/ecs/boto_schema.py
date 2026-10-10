@@ -58,6 +58,7 @@ class BotoTaskSchema(Schema):
     containers = fields.List(fields.Nested(BotoContainerSchema), required=True)
     started_at = fields.Raw(data_key="startedAt")
     stopped_reason = fields.String(data_key="stoppedReason")
+    stop_code = fields.String(data_key="stopCode")
 
     @post_load
     def make_task(self, data, **kwargs):

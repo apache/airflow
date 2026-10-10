@@ -54,16 +54,6 @@ if AIRFLOW_V_3_3_PLUS:
 
 pytestmark = pytest.mark.db_test
 
-# Patch the ExecutorLoader class object bound at import time by the module that calls init_executors()
-# (Job before Airflow 3.2, SchedulerJobRunner since), not the one currently in
-# airflow.executors.executor_loader: tests in other providers (e.g. cncf.kubernetes, celery) reload() that
-# module, which replaces the class there, so a patch via the module path never reaches the scheduler.
-SCHEDULER_EXECUTOR_LOADER = (
-    "airflow.jobs.scheduler_job_runner.ExecutorLoader"
-    if AIRFLOW_V_3_2_PLUS
-    else "airflow.jobs.job.ExecutorLoader"
-)
-
 
 @pytest.mark.parametrize(
     "uuid_executor",
@@ -548,13 +538,13 @@ class TestEdgeExecutor:
             assert job in session
         assert executor.running == {key}
 
-    @mock.patch(f"{SCHEDULER_EXECUTOR_LOADER}.init_executors", autospec=True)
-    def test_scheduler_restart_adopts_queued_edge_task(self, mock_init_executors, dag_maker, session):
+    def test_scheduler_restart_adopts_queued_edge_task(self, dag_maker, session):
         with dag_maker("test_dag", session=session):
             EmptyOperator(task_id="test_task")
         dag_run = dag_maker.create_dagrun()
         previous_scheduler_job = Job()
-        restarted_scheduler_job = Job()
+        executor = EdgeExecutor()
+        restarted_scheduler_job = Job() if AIRFLOW_V_3_2_PLUS else Job(executor=executor)
         session.add_all([previous_scheduler_job, restarted_scheduler_job])
         session.flush()
         ti = dag_run.get_task_instance("test_task", session=session)
@@ -576,10 +566,13 @@ class TestEdgeExecutor:
         session.commit()
         # A restarted scheduler loads the task instance from the database, not from this session.
         session.expunge_all()
-        executor = EdgeExecutor()
-        mock_init_executors.return_value = [executor]
 
-        SchedulerJobRunner(job=restarted_scheduler_job, num_runs=0).adopt_or_reset_orphaned_tasks()
+        runner = (
+            SchedulerJobRunner(job=restarted_scheduler_job, num_runs=0, executors=[executor])
+            if AIRFLOW_V_3_2_PLUS
+            else SchedulerJobRunner(job=restarted_scheduler_job, num_runs=0)
+        )
+        runner.adopt_or_reset_orphaned_tasks()
 
         ti.refresh_from_db(session=session)
         assert ti.state == TaskInstanceState.QUEUED

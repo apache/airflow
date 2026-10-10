@@ -157,6 +157,12 @@ class TestEcsExecutorTask:
         assert task.stopped_reason == stopped_reason
         assert task.external_executor_id == external_executor_id
 
+    def test_stop_code_preserves_positional_external_executor_id(self):
+        task = EcsExecutorTask("arn", "RUNNING", "RUNNING", [], None, None, "executor-id")
+
+        assert task.external_executor_id == "executor-id"
+        assert task.stop_code is None
+
     def test_get_task_state_running(self):
         """Test get_task_state returns RUNNING when last_status is RUNNING."""
         task = EcsExecutorTask(

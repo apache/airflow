@@ -21,17 +21,20 @@ import contextlib
 import json
 import logging
 import os
+import signal
 import sys
 from ast import literal_eval
 from datetime import datetime, timedelta
+from pathlib import PurePosixPath
 from time import sleep
+from typing import TYPE_CHECKING
 from unittest import mock
 
 # Leave this it is used by the test worker.
 import celery.contrib.testing.tasks  # noqa: F401
 import pytest
 import uuid6
-from celery import Celery
+from celery import Celery, states as celery_states
 from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
@@ -47,11 +50,16 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, conf
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import BaseOperator
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils import db
 from tests_common.test_utils.taskinstance import create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_4_PLUS
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from tests_common.pytest_plugin import DagMaker
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +267,96 @@ class TestCeleryExecutor:
         assert key_fail not in executor.workloads
 
         assert executor.queued_tasks == {}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Executor failure reasons require Airflow 3.4+")
+    @pytest.mark.parametrize("broker_url", _prepare_test_bodies())
+    @pytest.mark.parametrize("retries", [0, 1])
+    def test_worker_lost_is_reason_only(
+        self, broker_url: str, retries: int, dag_maker: DagMaker, session: Session
+    ) -> None:
+        """Use real prefork loss, but stub task execution and seed a queued TI."""
+        from airflow._shared.observability.metrics import stats
+        from airflow.jobs.job import Job
+        from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+        from airflow.models.dagrun import DagRunState
+        from airflow.providers.celery.executors import celery_executor
+
+        def fake_execute(_input: str) -> None:
+            sleep(60)
+
+        with _prepare_app(broker_url, execute=fake_execute) as app:
+            executor = celery_executor.CeleryExecutor()
+            executor._sync_parallelism = 1
+            executor.start()
+
+            with start_worker(
+                app=app,
+                logfile=sys.stdout,
+                loglevel="info",
+                pool="prefork",
+                concurrency=1,
+            ) as worker:
+                with dag_maker("celery_worker_lost"):
+                    task = BaseOperator(task_id="lost", retries=retries)
+                ti = dag_maker.create_dagrun(state=DagRunState.RUNNING).get_task_instance(
+                    task.task_id,
+                    session=session,
+                )
+                assert ti is not None
+                ti.state = State.QUEUED
+                ti.try_number = 1
+                ti.queued_by_job_id = 1
+                session.flush()
+                key = executor.get_task_key(ti)
+                workload = workloads.ExecuteTask(
+                    ti=TaskInstanceDTO.model_validate(ti, from_attributes=True),
+                    dag_rel_path=PurePosixPath("test.py"),
+                    token="",
+                    bundle_info=BundleInfo(name="test"),
+                    log_path="test.log",
+                )
+                executor.queue_workload(workload=workload, session=session)
+                executor.trigger_workloads(open_slots=1)
+
+                async_result = None
+                for _ in range(150):
+                    async_result = executor.workloads.get(key)
+                    if async_result is not None and async_result.state == celery_states.STARTED:
+                        break
+                    sleep(0.2)
+                assert async_result is not None
+                assert async_result.state == celery_states.STARTED
+
+                child = worker.pool._pool._pool[0]
+                os.kill(child.pid, signal.SIGKILL)
+
+                for _ in range(150):
+                    executor.update_all_workload_states()
+                    if executor.event_buffer.get(key, (None,))[0] == State.FAILED:
+                        break
+                    sleep(0.2)
+
+                assert executor.event_buffer[key][0] == State.FAILED
+                assert executor._task_failure_info[key] == (None, "WorkerLost")
+
+                runner = SchedulerJobRunner(job=Job(), executors=[executor])
+                with mock.patch("airflow.models.taskinstance.stats.incr", wraps=stats.incr) as mock_incr:
+                    SchedulerJobRunner.process_executor_events(
+                        executor=executor,
+                        job_id=1,
+                        scheduler_dag_bag=runner.scheduler_dag_bag,
+                        session=session,
+                    )
+                ti.refresh_from_db(session=session)
+                if retries:
+                    ti = ti.dag_run.get_task_instance(task.task_id, session=session)
+
+                expected_state = TaskInstanceState.UP_FOR_RETRY if retries else TaskInstanceState.FAILED
+                assert (ti.state, ti.max_tries) == (expected_state, retries)
+                assert executor.get_task_failure_info(key) is None
+                mock_incr.assert_any_call(
+                    "ti_failures", tags={**ti.stats_tags, "failure_kind": "unclassified"}
+                )
 
     def test_error_sending_workload(self):
         from airflow.providers.celery.executors import celery_executor, celery_executor_utils

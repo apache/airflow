@@ -125,13 +125,15 @@ class EcsExecutorTask:
         started_at: Any | None = None,
         stopped_reason: str | None = None,
         external_executor_id: str | None = None,
-    ):
+        stop_code: str | None = None,
+    ) -> None:
         self.task_arn = task_arn
         self.last_status = last_status
         self.desired_status = desired_status
         self.containers = containers
         self.started_at = started_at
         self.stopped_reason = stopped_reason
+        self.stop_code = stop_code
         self.external_executor_id = external_executor_id
 
     def get_task_state(self) -> str:
