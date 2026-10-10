@@ -728,3 +728,113 @@ def test_push_artifacts_to_asf_repo_completes_successfully(monkeypatch, rc_cmd):
         "Verify that the files are available here: https://dist.apache.org/repos/dist/dev/airflow/"
         in console_messages
     )
+
+
+# --- start-beta-process ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("name", "matches"),
+    [
+        pytest.param("3.4.0rc1", True, id="rc"),
+        pytest.param("3.4.0b1", True, id="beta"),
+        pytest.param("3.4.0b2", True, id="later-beta"),
+        pytest.param("3.4.0", False, id="final"),
+        pytest.param("3.4.0a1", False, id="alpha"),
+        pytest.param("not-a-release", False, id="garbage"),
+    ],
+)
+def test_pre_release_pattern_matches_rc_and_beta(rc_cmd, name, matches):
+    """Old-release cleanup collects rc and beta directories, not finals or anything else."""
+    assert bool(rc_cmd.PRE_RELEASE_PATTERN.match(name)) is matches
+
+
+def test_remove_old_releases_collects_beta_directories(monkeypatch, rc_cmd):
+    """A beta run offers to remove older beta directories, not only rc ones."""
+    version = "3.4.0b2"
+    task_sdk_version = "1.5.0b2"
+    repo_root = "/repo/root"
+
+    entries = [
+        FakeDirEntry(version, is_dir=True),  # current beta: skipped
+        FakeDirEntry("3.4.0b1", is_dir=True),  # old beta: collected
+        FakeDirEntry("3.4.0", is_dir=True),  # final: excluded
+    ]
+    console_messages: list[str] = []
+
+    monkeypatch.setattr(rc_cmd.os, "chdir", lambda path: None)
+    monkeypatch.setattr(rc_cmd.os, "scandir", lambda: iter(entries))
+    monkeypatch.setattr(rc_cmd.os.path, "exists", lambda path: False)
+    monkeypatch.setattr(
+        rc_cmd, "confirm_action", lambda prompt, **k: prompt == "Do you want to look for old RCs to remove?"
+    )
+    monkeypatch.setattr(rc_cmd, "console_print", lambda msg="": console_messages.append(str(msg)))
+    monkeypatch.setattr(rc_cmd, "run_command", lambda *a, **k: None)
+
+    rc_cmd.remove_old_releases(version=version, task_sdk_version=task_sdk_version, repo_root=repo_root)
+
+    assert "The following old Airflow releases should be removed: ['3.4.0b1']" in console_messages
+
+
+@pytest.mark.parametrize(
+    ("remote_branches", "should_exit"),
+    [
+        pytest.param("  origin/v3-4-test\n", False, id="passes-with-test-branch"),
+        pytest.param("  origin/main\n", True, id="exits-without-test-branch"),
+    ],
+)
+def test_validate_test_branch_exists(monkeypatch, rc_cmd, remote_branches, should_exit):
+    """A beta needs only vX-Y-test; it must not require a stable branch."""
+    import types
+
+    def fake_run_command(cmd, **kwargs):
+        if cmd[:3] == ["git", "branch", "-r"] and kwargs.get("capture_output"):
+            return types.SimpleNamespace(stdout=remote_branches)
+        return None
+
+    monkeypatch.setattr(rc_cmd, "run_command", fake_run_command)
+    monkeypatch.setattr(rc_cmd, "console_print", lambda *a, **k: None)
+
+    if should_exit:
+        with pytest.raises(SystemExit):
+            rc_cmd.validate_test_branch_exists("3-4", "origin")
+    else:
+        rc_cmd.validate_test_branch_exists("3-4", "origin")
+
+
+def test_checkout_test_branch_tip_resets_to_remote_tip(monkeypatch, rc_cmd):
+    """The beta is tagged from exactly the pushed vX-Y-test tip (checkout + hard reset to remote)."""
+    run_command_calls: list[list[str]] = []
+    monkeypatch.setattr(rc_cmd, "console_print", lambda *a, **k: None)
+    monkeypatch.setattr(rc_cmd, "run_command", lambda cmd, **k: run_command_calls.append(cmd))
+
+    rc_cmd.checkout_test_branch_tip("3-4", "origin")
+
+    assert run_command_calls == [
+        ["git", "checkout", "v3-4-test"],
+        ["git", "reset", "--hard", "origin/v3-4-test"],
+    ]
+
+
+def test_tag_constraints_from_branch_tip_fetches_tags_and_pushes(monkeypatch, rc_cmd):
+    """A beta tags constraints-<version> at the remote constraints-X-Y tip and pushes the tag."""
+    run_command_calls: list[list[str]] = []
+    monkeypatch.setattr(rc_cmd, "confirm_action", lambda *a, **k: True)
+    monkeypatch.setattr(rc_cmd, "console_print", lambda *a, **k: None)
+    monkeypatch.setattr(rc_cmd, "run_command", lambda cmd, **k: run_command_calls.append(cmd))
+
+    rc_cmd.tag_constraints_from_branch_tip("3.4.0b1", "3-4", "origin")
+
+    assert run_command_calls == [
+        ["git", "fetch", "origin", "constraints-3-4"],
+        [
+            "git",
+            "tag",
+            "-a",
+            "constraints-3.4.0b1",
+            "origin/constraints-3-4",
+            "-m",
+            "Constraints for Apache Airflow 3.4.0b1",
+        ],
+        ["git", "push", "origin", "refs/tags/constraints-3.4.0b1"],
+    ]

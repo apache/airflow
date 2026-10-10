@@ -22,6 +22,7 @@ RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
         "create-minor-branch",
         "prepare-airflow-distributions",
         "prepare-tarball",
+        "start-beta-process",
         "start-rc-process",
         "start-release",
         "release-prod-images",
@@ -499,6 +500,17 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Debug options",
             "options": ["--provider-id", "--provider-version"],
         },
+    ],
+    "breeze release-management start-beta-process": [
+        {
+            "name": "Start beta process flags",
+            "options": [
+                "--version",
+                "--task-sdk-version",
+                "--github-token",
+                "--remote-name",
+            ],
+        }
     ],
     "breeze release-management start-rc-process": [
         {

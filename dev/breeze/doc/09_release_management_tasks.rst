@@ -176,6 +176,20 @@ automates it.
   :alt: Breeze release-management create-minor-branch
 
 
+Start beta process
+""""""""""""""""""
+
+When we prepare a beta pre-release, we automate some of the steps we need to do.
+
+.. code-block:: bash
+
+     breeze release-management start-beta-process
+
+.. image:: ./images/output_release-management_start-beta-process.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_start-beta-process.svg
+  :width: 100%
+  :alt: Breeze release-management start-beta-process
+
 Start release candidate process
 """""""""""""""""""""""""""""""
 
