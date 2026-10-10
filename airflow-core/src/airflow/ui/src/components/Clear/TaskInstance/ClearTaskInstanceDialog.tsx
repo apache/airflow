@@ -122,7 +122,6 @@ const ClearTaskInstanceDialog = (props: Props) => {
     closeDialog();
   };
 
-  // Get current DAG's bundle version to compare with task instance's DAG version bundle version
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
   });
@@ -135,7 +134,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
     getRunOnLatestVersionState({
       latestBundleVersion: dagDetails?.bundle_version,
       latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
-      selectedBundleVersion: taskInstance?.dag_version?.bundle_version,
+      selectedBundleVersion: dagRun?.bundle_version,
       selectedDagVersionNumber: taskInstance?.dag_version?.version_number,
       selectedVersionMissing: dagRun?.dag_versions.length === 0,
     });
@@ -219,7 +218,9 @@ const ClearTaskInstanceDialog = (props: Props) => {
         footerActions={
           <>
             <Button
-              disabled={affectedTasks.total_entries === 0 || checkedTaskIds?.length === 0}
+              disabled={
+                !dagRun || !dagDetails || affectedTasks.total_entries === 0 || checkedTaskIds?.length === 0
+              }
               loading={isPending}
               onClick={onOpen}
             >

@@ -203,22 +203,11 @@ def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
 
 
 def _resolve_ti_callback_bundle_info(ti: TaskInstance) -> tuple[str, str | None, Any]:
-    """
-    Resolve the bundle name/version/version-data needed to build a TaskCallbackRequest or EmailRequest.
-
-    Used by the heartbeat-timeout purge path. Encapsulates the bundle-pinning semantics: fall back
-    to ``dag_model`` for legacy tasks with no ``dag_version`` (pre-AIP-66 migrations), and leave the
-    bundle version unpinned when the dag run itself wasn't pinned (``disable_bundle_versioning``),
-    so the callback runs against the same code as the task did. ``process_executor_events`` inlines
-    the same resolution for its externally-killed-task path.
-    """
+    """Resolve bundle metadata for task callbacks and emails using the run's execution bundle."""
     bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
-    bundle_version = (
-        ti.dag_version.bundle_version
-        if ti.dag_version and ti.dag_run.bundle_version is not None
-        else ti.dag_run.bundle_version
-    )
-    version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+    # A code-only update can advance the DagVersion's bundle while the run stays pinned.
+    bundle_version = ti.dag_run.bundle_version
+    version_data = _resolve_version_data(ti.dag_run.created_dag_version, ti.dag_run.bundle_version)
     return bundle_name, bundle_version, version_data
 
 
@@ -1670,18 +1659,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
                     # too, which would lead to double logging
                     cls.logger().error(msg)
-                    # Safely extract bundle info: prefer dag_version when available,
-                    # fall back to dag_model/dag_run for legacy tasks migrated from
-                    # Airflow 2 where dag_version may be None (AIP-66).
-                    _bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
-                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
-                    # leave the callback unpinned so it runs against the same code as the task.
-                    _bundle_version = (
-                        ti.dag_version.bundle_version
-                        if ti.dag_version and ti.dag_run.bundle_version is not None
-                        else ti.dag_run.bundle_version
-                    )
-                    _version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+                    _bundle_name, _bundle_version, _version_data = _resolve_ti_callback_bundle_info(ti)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -1713,15 +1691,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "Sending email request for task %s to DAG Processor",
                         ti,
                     )
-                    # Safely extract bundle info with fallback for legacy tasks
-                    # (dag_version may be None after Airflow 2 → 3 migration).
-                    _email_bundle_name = (
-                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    _email_bundle_name, _email_bundle_version, _email_version_data = (
+                        _resolve_ti_callback_bundle_info(ti)
                     )
-                    _email_bundle_version = (
-                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
-                    )
-                    _email_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -3378,19 +3350,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if task.has_on_failure_callback:
                     if inspect(ti).detached:
                         ti = session.merge(ti)
-                    # Safely extract bundle info with fallback for legacy tasks
-                    # (dag_version may be None after Airflow 2 → 3 migration).
-                    _stuck_bundle_name = (
-                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    _stuck_bundle_name, _stuck_bundle_version, _stuck_version_data = (
+                        _resolve_ti_callback_bundle_info(ti)
                     )
-                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
-                    # leave the callback unpinned so it runs against the same code as the task.
-                    _stuck_bundle_version = (
-                        ti.dag_version.bundle_version
-                        if ti.dag_version and ti.dag_run.bundle_version is not None
-                        else ti.dag_run.bundle_version
-                    )
-                    _stuck_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     # Note: we cannot use `continue` here because this method is not
                     # inside a loop.  If backfilling fails we simply skip the callback.
@@ -3853,6 +3815,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .options(selectinload(TI.dag_model))
             .options(asset_loader)
             .options(alias_loader)
+            .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
             .options(selectinload(TI.dag_version))
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)
