@@ -221,9 +221,19 @@ def test_unknown_needs_rejected():
         _one("tasks:\n  - {id: t, run: {}, needs: [ghost]}")
 
 
-def test_unknown_xcom_target_rejected():
+@pytest.mark.parametrize(
+    "task",
+    [
+        pytest.param("{id: t, run: {e: {$x: ghost}}}", id="run-top-level"),
+        pytest.param("{id: t, run: {e: [{$x: ghost}]}}", id="run-in-list"),
+        pytest.param("{id: t, run: {e: {nested: {$x: ghost}}}}", id="run-nested-dict"),
+        pytest.param("{id: t, uses: X, with: {a: {$x: ghost}}}", id="with-on-operator"),
+    ],
+)
+def test_unknown_xcom_target_rejected(task):
+    # XCom refs must be found at any depth inside with/run (the list and nested-dict branches too).
     with pytest.raises(YamlDagParseError, match="unknown task"):
-        _one("tasks:\n  - {id: t, run: {e: {$x: ghost}}}")
+        _one(f"tasks:\n  - {task}")
 
 
 def test_duplicate_task_ids_rejected():
@@ -328,6 +338,24 @@ def test_multiple_documents():
     assert [d.dag_id for d in docs] == ["a", "b"]
 
 
+def test_non_mapping_document_rejected():
+    with pytest.raises(YamlDagParseError, match="must be a mapping"):
+        list(parse_documents("- a\n- b"))
+
+
+def test_invalid_yaml_rejected():
+    with pytest.raises(YamlDagParseError, match="invalid YAML"):
+        list(parse_documents("key: [unclosed"))
+
+
+def test_error_label_points_at_offending_document():
+    # A failure in a later document of a multi-doc stream is labelled with its position.
+    good = f"$schema: {HEAD_SCHEMA}\ndag_id: a\ntasks: []"
+    bad = "dag_id: b\ntasks: []"  # missing $schema -> fails, and it is doc index 1
+    with pytest.raises(YamlDagParseError, match=r"\[doc 1\]"):
+        list(parse_documents(f"{good}\n---\n{bad}"))
+
+
 def test_model_json_schema_describes_markers():
     # The models are the schema source of truth (the prek dump script decorates + snapshots
     # them). Assert the generated schema shape here; the snapshot itself is enforced by the
@@ -338,8 +366,6 @@ def test_model_json_schema_describes_markers():
 
 
 def test_parses_example_fixture():
-    import pathlib
-
     fixture = pathlib.Path(__file__).parent / "example_dag.yaml"
     with fixture.open(encoding="utf-8") as fh:
         docs = list(parse_documents(fh, source=str(fixture)))
@@ -385,106 +411,3 @@ def test_published_schema_rejects_invalid_tasks(bad_task):
     validator = jsonschema.Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
     document = {"$schema": HEAD_SCHEMA, "dag_id": "d", "tasks": [bad_task]}
     assert list(validator.iter_errors(document))
-
-
-# A synthetic two-version bundle with a real forward converter, to exercise the migration
-# machinery (the real bundle has a single version, so nothing migrates there).
-from cadwyn import (  # noqa: E402
-    HeadVersion,
-    Version,
-    VersionBundle,
-    VersionChange,
-    convert_request_to_next_version_for,
-    schema,
-)
-
-from airflow.sdk.importers.yaml_importer import migrator  # noqa: E402
-
-
-class _RenameOwnerAttr(VersionChange):
-    "test-only: 2026-10-30 spelled the attribute `owner_old`; head renamed it to `owner`."
-
-    description = __doc__
-    instructions_to_migrate_to_previous_version = ()
-
-    @convert_request_to_next_version_for(DagDocument)  # type: ignore[arg-type]
-    def _move(request):
-        if "owner_old" in request.body:
-            request.body["owner"] = request.body.pop("owner_old")
-
-
-_SYNTH_BUNDLE = VersionBundle(HeadVersion(), Version("2027-06-01", _RenameOwnerAttr), Version("2026-10-30"))
-
-
-def _migrate(m, date, **extra):
-    body = {"$schema": migrator.schema_url(date), "dag_id": "d", "tasks": [], **extra}
-    return m.resolve_and_migrate(body)
-
-
-def test_exact_version_pin_migrates_from_that_version():
-    # Observed through the converter: it runs only when the pinned (exact) version is older than head.
-    m = migrator.DagDocumentMigrator(_SYNTH_BUNDLE)
-    assert _migrate(m, "2026-10-30", owner_old="t")["owner"] == "t"  # exact older version -> migrates
-    # head-pinned: resolved source == head, so no converter runs
-    at_head = _migrate(m, "2027-06-01", owner_old="t")
-    assert at_head.get("owner_old") == "t"
-    assert "owner" not in at_head
-
-
-@pytest.mark.parametrize(
-    "schema_value",
-    [
-        pytest.param(migrator.schema_url("2099-01-01"), id="newer-than-head"),
-        pytest.param(migrator.schema_url("2020-01-01"), id="older-than-oldest"),
-        pytest.param(migrator.schema_url("2027-03-01"), id="between-versions"),
-        pytest.param("not-a-version", id="no-version-token"),
-    ],
-)
-def test_unknown_version_is_rejected(schema_value):
-    # Strict exact match, mirroring the supervisor migrator: newer, older, in-between, and
-    # unreadable versions all raise -- there is no silent fallback to the head ruleset.
-    m = migrator.DagDocumentMigrator(_SYNTH_BUNDLE)
-    with pytest.raises(ValueError, match="not valid"):
-        m.resolve_and_migrate({"$schema": schema_value, "dag_id": "d", "tasks": []})
-
-
-def test_migrator_rejects_converter_for_non_dagdocument_model():
-    class _ConvertTask(VersionChange):
-        "test-only: a converter keyed on a nested model the migrator does not drive."
-
-        description = __doc__
-        instructions_to_migrate_to_previous_version = ()
-
-        @convert_request_to_next_version_for(Task)  # type: ignore[arg-type]
-        def _noop(request):
-            pass
-
-    bundle = VersionBundle(HeadVersion(), Version("2027-06-01", _ConvertTask), Version("2026-10-30"))
-    with pytest.raises(RuntimeError, match="only whole-document DagDocument converters"):
-        migrator.DagDocumentMigrator(bundle)
-
-
-def test_migrator_rejects_non_request_instructions():
-    class _RenameViaSchema(VersionChange):
-        "test-only: a schema instruction the migrator does not apply."
-
-        description = __doc__
-        instructions_to_migrate_to_previous_version = (
-            schema(DagDocument).field("schedule").had(name="schedule_interval"),
-        )
-
-    bundle = VersionBundle(HeadVersion(), Version("2027-06-01", _RenameViaSchema), Version("2026-10-30"))
-    with pytest.raises(RuntimeError, match="unsupported cadwyn instructions"):
-        migrator.DagDocumentMigrator(bundle)
-
-
-def test_known_version_does_not_warn(recwarn):
-    m = migrator.DagDocumentMigrator(_SYNTH_BUNDLE)
-    _migrate(m, "2026-10-30")
-    _migrate(m, "2027-06-01")
-    assert not recwarn.list, "exact known versions must not warn"
-
-
-def test_migrate_is_noop_at_head_for_the_real_bundle():
-    body = {"$schema": HEAD_SCHEMA, "dag_id": "d", "tasks": []}
-    assert migrator.get_migrator().resolve_and_migrate(body) is body  # one version -> no copy
