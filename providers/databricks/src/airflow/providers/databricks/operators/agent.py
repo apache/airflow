@@ -122,6 +122,7 @@ class DatabricksAgentInvokeOperator(BaseOperator):
                 "and supply a new invocation_id to run again"
             )
         if status == "completed":
+            self.log.info("Databricks agent invocation %s completed.", invocation_id)
             return result
         if not status:
             raise DatabricksAgentInvocationError(
@@ -131,13 +132,16 @@ class DatabricksAgentInvokeOperator(BaseOperator):
 
     def execute(self, context: Context) -> dict[str, Any]:
         invocation_id = self._get_invocation_id(context)
+        self.log.info("Submitting Databricks agent invocation %s.", invocation_id)
         submitted = self.hook.create_invocation(invocation_id, self.input, self.session_id)
+        self.log.info("Databricks agent invocation %s was submitted.", invocation_id)
         if not self.wait_for_termination:
             return submitted
         result = self._get_result(submitted, invocation_id) if submitted.get("status") else None
         if result is not None:
             return result
         if self.deferrable:
+            self.log.info("Deferring until Databricks agent invocation %s completes.", invocation_id)
             self.defer(
                 trigger=DatabricksAgentInvocationTrigger(
                     app_url=self.app_url,
@@ -150,6 +154,7 @@ class DatabricksAgentInvokeOperator(BaseOperator):
                 timeout=timedelta(seconds=self.timeout),
                 kwargs={"invocation_id": invocation_id},
             )
+        self.log.info("Waiting for Databricks agent invocation %s to complete.", invocation_id)
         deadline = time.monotonic() + self.timeout
         while True:
             remaining = self._get_remaining_time(deadline, invocation_id)
