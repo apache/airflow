@@ -107,7 +107,8 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
     { enabled: dag?.scheduling_state === "active" },
   );
   const { limit: storedLimit, setLimit } = useDagRunsLimit(dagId);
-  const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
+  const [storedDagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
+  const dagView = storedDagView === "gantt" && !Boolean(runId) ? "grid" : storedDagView;
   const panelButtonsRef = useRef<HTMLDivElement>(null);
   const panelButtonsWidth = useContainerWidth(panelButtonsRef);
   const limit = getEffectiveLimit(storedLimit, panelButtonsWidth, dagView === "gantt");
@@ -158,14 +159,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   // Only LTE is needed directly: ceiling logic and jump-to-latest both touch it.
   // GTE and the filter params (state, run_type, triggering_user) are managed by GridFilters/FilterBar.
   const setRunAfterLte = (value: string | undefined) => setParam(SearchParamsKeys.RUN_AFTER_LTE, value);
-
-  // Reset to grid when there is no runId. Remove this when we do gantt averages.
-  useEffect(() => {
-    if (!Boolean(runId) && dagView === "gantt") {
-      setDagView("grid");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, dagView]);
 
   // Transient pagination offset — reset whenever the user changes filters
   const [offset, setOffset] = useState(0);
