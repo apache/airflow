@@ -131,6 +131,7 @@ integrations:
       - /docs/apache-airflow-providers-databricks/operators/sql_statements.rst
       - /docs/apache-airflow-providers-databricks/operators/warehouse.rst
       - /docs/apache-airflow-providers-databricks/operators/copy_into.rst
+      - /docs/apache-airflow-providers-databricks/operators/delta_table_sensor.rst
     tags: [service]
   - integration-name: Databricks Repos
     external-doc-url: https://docs.databricks.com/repos/index.html
@@ -187,6 +188,7 @@ triggers:
   - integration-name: Databricks
     python-modules:
       - airflow.providers.databricks.triggers.databricks
+      - airflow.providers.databricks.triggers.databricks_delta_table
 
 sensors:
   - integration-name: Databricks
@@ -194,6 +196,7 @@ sensors:
       - airflow.providers.databricks.sensors.databricks
       - airflow.providers.databricks.sensors.databricks_sql
       - airflow.providers.databricks.sensors.databricks_partition
+      - airflow.providers.databricks.sensors.databricks_delta_table
 
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook
