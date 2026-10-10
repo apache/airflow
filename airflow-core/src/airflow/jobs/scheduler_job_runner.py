@@ -2544,8 +2544,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             log_cap_reached = self.log.debug if self._partition_cap_backlog_reported else self.log.warning
             log_cap_reached(
                 (
-                    "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
-                    "will be evaluated over subsequent scheduler ticks"
+                    "Reached the per-tick cap on pending partitioned Dag runs; only the oldest "
+                    "pending runs up to the cap are evaluated per tick, newer ones wait behind them"
                 ),
                 cap=self._max_partition_dag_runs_per_loop,
                 backlog_total=backlog_total,
@@ -2572,13 +2572,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         audit_session.add(
                             Log(
                                 event="partition Dag run cap reached",
+                                owner="scheduler",
+                                owner_display_name="Scheduler",
                                 extra=(
-                                    f"The scheduler evaluated {len(pending_apdrs)} pending partitioned Dag "
-                                    f"runs this tick, reaching the internal per-tick cap of "
-                                    f"{self._max_partition_dag_runs_per_loop}. The remaining backlog will "
-                                    f"be evaluated over subsequent ticks. A total of {backlog_total} "
-                                    f"partitioned Dag runs are currently eligible and pending across "
-                                    f"ticks. Affected dag_ids (highest pending count first): "
+                                    f"The scheduler fetched the oldest {len(pending_apdrs)} pending "
+                                    f"partitioned Dag runs this tick, reaching the internal per-tick cap "
+                                    f"of {self._max_partition_dag_runs_per_loop}; these are not "
+                                    f"necessarily satisfied. Only the oldest pending runs up to the cap "
+                                    f"are evaluated per tick, and newer ones wait behind them. A total "
+                                    f"of {backlog_total} partitioned Dag runs are currently pending. "
+                                    f"Affected dag_ids (highest pending count first): "
                                     f"{', '.join(displayed_dag_ids)}{more_suffix}."
                                 ),
                             )

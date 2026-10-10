@@ -15514,8 +15514,8 @@ def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
 # ``StructlogCapture.__contains__`` matches a plain string against the full event text, so a
 # truncated message would make every ``not in caplog`` assertion vacuously true.
 PARTITION_CAP_REACHED_EVENT = (
-    "Reached the per-tick cap on pending partitioned Dag runs; the remaining backlog "
-    "will be evaluated over subsequent scheduler ticks"
+    "Reached the per-tick cap on pending partitioned Dag runs; only the oldest "
+    "pending runs up to the cap are evaluated per tick, newer ones wait behind them"
 )
 
 
@@ -15715,6 +15715,8 @@ def test_partition_cap_reporting(
             "dag_ids": [dag_id],
         } in caplog
         assert [row.event for row in audit_rows] == ["partition Dag run cap reached"]
+        assert audit_rows[0].owner == "scheduler"
+        assert audit_rows[0].owner_display_name == "Scheduler"
         extra = audit_rows[0].extra
         assert extra is not None
         assert f"Affected dag_ids (highest pending count first): {dag_id}." in extra
