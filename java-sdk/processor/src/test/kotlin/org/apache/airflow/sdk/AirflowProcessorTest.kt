@@ -403,7 +403,7 @@ class AirflowProcessorTest {
         """
         package org.apache.airflow.example;
         import org.apache.airflow.sdk.Airflow;
-        @Airflow.Dag(id = "cfg", schedule = "@daily", tags = {"a", "b"}, catchup = true,
+        @Airflow.Dag(id = "cfg", schedule = "@daily", queue = "java", tags = {"a", "b"}, catchup = true,
             startDate = "2026-01-01T00:00:00Z")
         public class TestExample {
           @Airflow.Task(retries = 2, queue = "q", retryDelay = "PT5M", retryExponentialBackoff = 1.5)
@@ -442,6 +442,7 @@ class AirflowProcessorTest {
            public static DagDef build() {
              var dag = DagSource.declaredBy(new DagDef("cfg"), TestExample.class);
              dag.config("schedule", "@daily");
+             dag.config("queue", "java");
              dag.config("tags", List.of("a", "b"));
              dag.config("catchup", true);
              dag.config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00Z"));

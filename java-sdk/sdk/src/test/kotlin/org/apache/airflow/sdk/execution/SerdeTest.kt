@@ -22,10 +22,13 @@ package org.apache.airflow.sdk.execution
 import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
+import org.apache.airflow.sdk.TriggerDagRun
 import org.apache.airflow.sdk.execution.comm.DagFileParseRequest
 import org.apache.airflow.sdk.internal.Refs
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -44,6 +47,20 @@ private class SerdeNoopTask : Task {
   ) = Unit
 }
 
+private class SerdeCondition : ConditionTask {
+  override fun decide(
+    context: Context,
+    client: Client,
+  ) = true
+}
+
+private class SerdeSwitch : SwitchTask {
+  override fun choose(
+    context: Context,
+    client: Client,
+  ) = SerdeNoopTask::class.java
+}
+
 @Suppress("UNCHECKED_CAST")
 private fun taskData(
   serialized: Map<String, Any?>,
@@ -53,6 +70,12 @@ private fun taskData(
   assertEquals("operator", tasks[index]["__type"])
   return tasks[index]["__var"] as Map<String, Any?>
 }
+
+@Suppress("UNCHECKED_CAST")
+private fun queuesByTaskId(serialized: Map<String, Any?>): Map<String, Any?> =
+  (serialized["tasks"] as List<Map<String, Any?>>)
+    .map { it["__var"] as Map<String, Any?> }
+    .associate { it["task_id"] as String to it["queue"] }
 
 internal class SerdeTest {
   @Test
@@ -184,6 +207,48 @@ internal class SerdeTest {
       mapOf("extract" to listOf("operator", "extract"), "transform" to listOf("operator", "transform")),
       (serialized["task_group"] as Map<*, *>)["children"],
     )
+  }
+
+  @Test
+  @DisplayName("Should give every task the Dag's queue unless the task sets its own")
+  fun shouldGiveEachTaskTheDagQueue() {
+    val dag = DagDef("d").config("queue", "java")
+    val extract = dag.task<Unit>("extract", SerdeNoopTask::class.java)
+    dag.task<Unit>("heavy", SerdeNoopTask::class.java).config("queue", "java_large")
+    dag.task<Unit>("on_default", SerdeNoopTask::class.java).config("queue", "default")
+    dag.If("has_rows", SerdeCondition::class.java).after(extract)
+    dag.Switch("pick", SerdeSwitch::class.java).after(extract)
+    dag.task("trigger", TriggerDagRun("reports"))
+    dag.task("trigger_on_python", TriggerDagRun("reports")).config("queue", "python")
+
+    val serialized = serializeDag(dag, "", ".")
+
+    assertEquals(
+      mapOf(
+        "extract" to "java",
+        "heavy" to "java_large",
+        // Set on the task, so it wins; at the schema default, so it is left out.
+        "on_default" to null,
+        "has_rows" to "java",
+        "pick" to "java",
+        "trigger" to "java",
+        "trigger_on_python" to "python",
+      ),
+      queuesByTaskId(serialized),
+    )
+    assertFalse("queue" in serialized)
+  }
+
+  @Test
+  @DisplayName("Should leave the queue out when the Dag's queue is the schema default or unset")
+  fun shouldLeaveOutDefaultOrUnsetDagQueue() {
+    val onDefault = DagDef("d").config("queue", "default")
+    onDefault.task<Unit>("t", SerdeNoopTask::class.java)
+    val unset = DagDef("d")
+    unset.task<Unit>("t", SerdeNoopTask::class.java)
+
+    assertFalse("queue" in taskData(serializeDag(onDefault, "", "."), 0))
+    assertFalse("queue" in taskData(serializeDag(unset, "", "."), 0))
   }
 
   @Test
