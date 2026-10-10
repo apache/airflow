@@ -44,15 +44,15 @@ from airflow.dag_processing.dagbag import (
 )
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.processor import DagFileParsingResult
-from airflow.exceptions import UnknownExecutorException
+from airflow.exceptions import AirflowDagDuplicatedIdException, UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.sdk import DAG, BaseOperator
-from airflow.sdk.exceptions import AirflowConfigException
+from airflow.sdk import DAG, BaseOperator, TaskGroup
+from airflow.sdk.exceptions import AirflowConfigException, TaskGroupCycleDeprecationWarning
 from airflow.sdk.importers import (
     AbstractDagImporter,
     DagImportResult,
@@ -1401,6 +1401,58 @@ with airflow.DAG(
         assert dagbag.captured_warnings == {
             os.fspath(dag_file): (f"{dag_file}:1: test:deprecated_field: Deprecated field",)
         }
+
+    @staticmethod
+    def _make_task_group_cycle_dag(*, cyclic: bool) -> DAG:
+        with DAG(dag_id="test") as dag:
+            with TaskGroup("group") as group:
+                a = BaseOperator(task_id="a")
+                b = BaseOperator(task_id="b")
+            a >> BaseOperator(task_id="bridge", task_group=None if cyclic else group) >> b
+        return dag
+
+    def test_dag_warnings_task_group_cycle(self):
+        dagbag = DagBag(dag_folder="", collect_dags=False)
+
+        # Python ignores DeprecationWarning outside __main__, as in the Dag processor.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            dagbag.bag_dag(self._make_task_group_cycle_dag(cyclic=True))
+
+        (warning,) = dagbag.dag_warnings
+        assert (warning.dag_id, warning.warning_type) == ("test", DagWarningType.TASK_GROUP_CYCLE)
+        assert "group and bridge depend on each other in a cycle." in warning.message
+
+        with pytest.warns(TaskGroupCycleDeprecationWarning):
+            dagbag.bag_dag(self._make_task_group_cycle_dag(cyclic=True))
+
+        dagbag.bag_dag(self._make_task_group_cycle_dag(cyclic=False))
+        assert dagbag.dag_warnings == set()
+
+    @pytest.mark.parametrize(
+        ("bagged_cyclic", "duplicate_cyclic"),
+        [
+            pytest.param(False, True, id="cyclic-duplicate-of-acyclic"),
+            pytest.param(True, False, id="acyclic-duplicate-of-cyclic"),
+        ],
+    )
+    def test_dag_warnings_task_group_cycle_ignores_rejected_duplicate(self, bagged_cyclic, duplicate_cyclic):
+        dagbag = DagBag(dag_folder="", collect_dags=False)
+        bagged = self._make_task_group_cycle_dag(cyclic=bagged_cyclic)
+        bagged.fileloc = "/dags/bagged.py"
+        duplicate = self._make_task_group_cycle_dag(cyclic=duplicate_cyclic)
+        duplicate.fileloc = "/dags/duplicate.py"
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            dagbag.bag_dag(bagged)
+            with pytest.raises(AirflowDagDuplicatedIdException):
+                dagbag.bag_dag(duplicate)
+
+        assert dagbag.dags["test"] is bagged
+        assert {w.warning_type for w in dagbag.dag_warnings} == (
+            {DagWarningType.TASK_GROUP_CYCLE} if bagged_cyclic else set()
+        )
 
     def test_sigsegv_handling(self, tmp_path, caplog):
         """

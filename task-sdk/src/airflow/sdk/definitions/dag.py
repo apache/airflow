@@ -59,6 +59,7 @@ from airflow.sdk.exceptions import (
     NodeNotFound,
     ParamValidationError,
     RemovedInAirflow4Warning,
+    TaskGroupCycleDeprecationWarning,
     TaskNotFound,
 )
 
@@ -86,6 +87,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 TAG_MAX_LEN = 100
+
+# The TaskGroup cycle warning becomes a DagWarning.message, a Text column (64 KB on MySQL), so its
+# length must not grow with the size or the number of the cycles.
+_MAX_LISTED_TASK_GROUP_CYCLES = 10
+_MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS = 5
 
 __all__ = [
     "DAG",
@@ -303,6 +309,13 @@ def _default_task_group(instance: DAG) -> TaskGroup:
     from airflow.sdk.definitions.taskgroup import TaskGroup
 
     return TaskGroup.create_root(dag=instance)
+
+
+def _format_cycle_members(node_ids: list[str]) -> str:
+    if len(node_ids) > _MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS:
+        unlisted = len(node_ids) - _MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS
+        return f"{', '.join(node_ids[:_MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS])} and {unlisted} more"
+    return f"{', '.join(node_ids[:-1])} and {node_ids[-1]}"
 
 
 def _is_valid_dag_result(value: Any) -> TypeIs[PlainXComArg]:
@@ -1141,6 +1154,9 @@ class DAG:
         """
         Check to see if there are any cycles in the Dag.
 
+        Also warns with ``TaskGroupCycleDeprecationWarning`` when TaskGroups depend on each
+        other in a cycle, which is deprecated.
+
         :raises AirflowDagCycleException: If cycle is found in the Dag.
         """
         task_dict = self.task_dict
@@ -1149,6 +1165,35 @@ class DAG:
             raise AirflowDagCycleException(
                 f"Cycle detected in Dag: {self.dag_id}. Faulty task: {faulty_task_id}"
             )
+
+        self._warn_task_group_cycles()
+
+    def _warn_task_group_cycles(self) -> None:
+        task_group_dict = self.task_group.get_task_group_dict()
+        # With only the root group, the projection is the task graph, which is acyclic here.
+        if len(task_group_dict) == 1:
+            return
+        cycles = [
+            cycle
+            for task_group in task_group_dict.values()
+            for cycle in task_group._find_dependency_cycles(group_dict=task_group_dict)
+        ]
+        if not cycles:
+            return
+        listed = "; ".join(_format_cycle_members(cycle) for cycle in cycles[:_MAX_LISTED_TASK_GROUP_CYCLES])
+        unlisted = len(cycles) - _MAX_LISTED_TASK_GROUP_CYCLES
+        unlisted_note = (
+            f" ({unlisted} more cycle{'s' if unlisted > 1 else ''} not listed)" if unlisted > 0 else ""
+        )
+        # Airflow 3.5 raises AirflowDagCycleException here instead; tracked at
+        # https://github.com/apache/airflow/issues/73678
+        warnings.warn(
+            f"Dag '{self.dag_id}': {listed} depend on each other in a cycle{unlisted_note}. Cyclic TaskGroup "
+            "dependencies are deprecated and will fail Dag parsing in Airflow 3.5. See "
+            '"Cyclic TaskGroup dependencies" in the docs.',
+            TaskGroupCycleDeprecationWarning,
+            stacklevel=3,
+        )
 
     def cli(self):
         """Exposes a CLI specific to this Dag."""

@@ -994,6 +994,30 @@ class TestUpdateDagParsingResults:
         dag_code = DagCode.get_latest_dagcode("yaml_dag", session=session)
         assert (dag_code.source_code, dag_code.language) == ("dag_id: yaml_dag\n", "yaml")
 
+    def test_task_group_cycle_warning_is_removed_when_dag_is_fixed(self, testing_dag_bundle, session):
+        dag = DAG(dag_id="fixed_dag")
+        session.add(DagModel(dag_id="fixed_dag", bundle_name="testing", is_stale=False))
+        session.add(
+            DagWarning(
+                dag_id="fixed_dag",
+                warning_type=DagWarningType.TASK_GROUP_CYCLE,
+                message="Dag 'fixed_dag': group and bridge depend on each other in a cycle.",
+            )
+        )
+        session.flush()
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        assert session.scalar(select(DagWarning).where(DagWarning.dag_id == "fixed_dag")) is None
+
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""
 
