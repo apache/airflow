@@ -4420,7 +4420,8 @@ class TestDagFileProcessorManager:
         # iteration will see a version mismatch and re-refresh rather than skip incorrectly
         assert "mock_bundle" not in manager._bundle_versions
 
-    def test_refresh_dag_bundles_discovery_failure_keeps_known_files_and_dags(self):
+    @mock.patch.object(DagFileProcessorManager, "_reconcile_bundles", autospec=True)
+    def test_refresh_dag_bundles_discovery_failure_keeps_known_files_and_dags(self, _mock_reconcile):
         """A failed listing keeps the bundle's known files and does not deactivate its Dags."""
         manager = DagFileProcessorManager(max_runs=1)
         bundle = self._make_refresh_bundle()
@@ -4446,7 +4447,8 @@ class TestDagFileProcessorManager:
         mock_clear.assert_not_called()
         assert known_files == {"mock_bundle": known}
 
-    def test_refresh_dag_bundles_discovery_failure_lists_again_on_next_refresh(self):
+    @mock.patch.object(DagFileProcessorManager, "_reconcile_bundles", autospec=True)
+    def test_refresh_dag_bundles_discovery_failure_lists_again_on_next_refresh(self, _mock_reconcile):
         """A failed listing must not advance the bundle version, or the next refresh skips the bundle."""
         manager = DagFileProcessorManager(max_runs=1, bundle_refresh_check_interval=0)
         bundle = self._make_refresh_bundle(supports_versioning=True, current_version="v2")
