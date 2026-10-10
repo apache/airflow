@@ -141,11 +141,11 @@ fingerprint that decides whether a retry re-attaches to the batch already submit
 that embeds something that changes between attempts (a wall-clock timestamp, say) looks like
 "the input changed" on every retry and pays for a new batch each time.
 
-Unlike ``@task.llm``, the returned prompts are **not** rendered as Jinja templates. Batch inputs
-are usually bulk text the Dag author did not write, where a stray ``{{`` or ``{%`` would either
-fail the whole batch or resolve ``var``/``conn`` accessors against Airflow secrets. Put anything
-dynamic in the callable, which receives the task context. ``result_path`` and the other operator
-parameters are templated as usual; keep ``result_path`` stable across attempts of the same task
+Like the other ``common.ai`` decorators, the returned prompts are **not** rendered as Jinja
+templates. Batch inputs are usually bulk text the Dag author did not write, where a stray ``{{``
+or ``{%`` would either fail the whole batch or resolve ``var``/``conn`` accessors against Airflow
+secrets. Put anything dynamic in the callable, which receives the task context. ``result_path``
+and the other operator parameters are templated as usual; keep ``result_path`` stable across attempts of the same task
 instance (``{{ run_id }}`` is fine, ``{{ ts }}`` is not), or a retry looks for its recorded state
 at a location the previous attempt never wrote to.
 

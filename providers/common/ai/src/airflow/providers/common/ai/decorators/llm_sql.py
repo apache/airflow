@@ -98,7 +98,6 @@ class _LLMSQLDecoratedOperator(DecoratedOperator, LLMSQLQueryOperator):
             feature_enabled=self.require_approval,
         )
 
-        self.render_template_fields(context)
         # Call LLMSQLQueryOperator.execute directly, not super().execute(),
         # because we need to skip DecoratedOperator.execute — the callable
         # invocation is already handled above.

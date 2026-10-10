@@ -100,7 +100,6 @@ class _LLMDecoratedOperator(DecoratedOperator, LLMOperator):
             feature_enabled=self._may_review,
         )
 
-        self.render_template_fields(context)
         return LLMOperator.execute(self, context)
 
 

@@ -98,7 +98,6 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
             feature_enabled=self.enable_hitl_review,
         )
 
-        self.render_template_fields(context)
         return AgentOperator.execute(self, context)
 
 

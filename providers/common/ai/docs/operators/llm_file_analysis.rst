@@ -116,6 +116,10 @@ returns the prompt string; file settings are passed to the decorator:
     :start-after: [START howto_decorator_llm_file_analysis]
     :end-before: [END howto_decorator_llm_file_analysis]
 
+The text the function returns is sent to the model as-is. It is not rendered as a
+Jinja template, so braces such as ``{{ ... }}`` or ``{% ... %}`` in it reach the model
+unchanged. Build the prompt from the task context inside the function instead.
+
 Human-in-the-Loop Approval
 ---------------------------
 

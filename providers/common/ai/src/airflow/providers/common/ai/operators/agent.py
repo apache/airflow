@@ -654,8 +654,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             rendered = copy.copy(toolset)
             self._do_render_template_fields(rendered, fields, context, jinja_env, seen_oids)
             # The rendered connection is recorded nowhere else, so this line is the audit trail
-            # of which connection this task instance's agent was given. @task.agent renders a
-            # second time, when the id no longer changes, so this logs once per task instance.
+            # of which connection this task instance's agent was given.
             if rendered.id != toolset.id:
                 self.log.info("Rendered toolset %s", rendered.id)
             return rendered
