@@ -263,6 +263,7 @@ export interface TaskGroupOptions {
 export interface OrderEdge {
   readonly upstream: string;
   readonly downstream: string;
+  readonly label?: string;
 }
 
 // A task id cannot hold a NUL, so a joined pair cannot collide with one.
@@ -310,8 +311,29 @@ export function isTaskRef(value: unknown): value is TaskRef {
 
 const conditionTasks = new WeakMap<object, TaskRef>();
 
+const labelledNodes = new WeakMap<object, { readonly node: Node; readonly text: string }>();
+
 function resolveNode(node: Node): Node {
-  return (typeof node === "object" && node !== null && conditionTasks.get(node)) || node;
+  if (typeof node !== "object" || node === null) return node;
+  return labelledNodes.get(node)?.node ?? conditionTasks.get(node) ?? node;
+}
+
+/**
+ * Label the edge that `before` or `after` draws to `node`, as Python's `Label` does.
+ *
+ * ```ts
+ * checked.before(label(processed, "rows found"), label(emptyNotice, "no rows"));
+ * ```
+ */
+export function label(node: Node, text: string): Node {
+  const target = resolveNode(node);
+  const labelled: Node = Object.freeze({
+    dagId: target.dagId,
+    before: (...downstream: readonly Node[]) => target.before(...downstream),
+    after: (...upstream: readonly Node[]) => target.after(...upstream),
+  });
+  labelledNodes.set(labelled, { node: target, text });
+  return labelled;
 }
 
 /**
@@ -1068,6 +1090,7 @@ export class Dag {
   }
 
   #addOrderEdge(upstreamNode: Node, downstreamNode: Node, verb: "before" | "after"): void {
+    const text = labelledNodes.get(verb === "before" ? downstreamNode : upstreamNode)?.text;
     const upstream = resolveNode(upstreamNode);
     const downstream = resolveNode(downstreamNode);
     if (this.#finalized) {
@@ -1090,12 +1113,11 @@ export class Dag {
     }
     const key = `${upstreamId}${EDGE_KEY_SEPARATOR}${downstreamId}`;
     // Idempotent, so an edge drawn from both ends is one edge.
-    if (!this.#orderEdges.has(key)) {
-      this.#orderEdges.set(
-        key,
-        Object.freeze({ upstream: upstreamId!, downstream: downstreamId! }),
-      );
-    }
+    const edgeLabel = text ?? this.#orderEdges.get(key)?.label;
+    this.#orderEdges.set(
+      key,
+      Object.freeze({ upstream: upstreamId!, downstream: downstreamId!, label: edgeLabel }),
+    );
   }
 
   #validateOwnNode(node: Node, label: string): void {

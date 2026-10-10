@@ -84,6 +84,19 @@ const TASK_MODULE = "airflow.sdk.coordinators.node";
  */
 const TASK_LANGUAGE = "typescript";
 
+/** Python's `DAG.edge_info`, keying a group end by its join node as Python does. */
+function serializeEdgeInfo(dag: Dag): SerializedValue {
+  const groups = getDagTaskGroups(dag);
+  const info: Record<string, Record<string, SerializedValue>> = {};
+  for (const { upstream, downstream, label } of getDagOrderEdges(dag)) {
+    if (label === undefined) continue;
+    const from = groups.has(upstream) ? `${upstream}.downstream_join_id` : upstream;
+    const to = groups.has(downstream) ? `${downstream}.upstream_join_id` : downstream;
+    (info[from] ??= {})[to] = { label };
+  }
+  return info;
+}
+
 /** The Dags this one triggers, for the UI dependency graph. */
 function serializeDagDependencies(dag: Dag): SerializedValue {
   const dependencies: SerializedValue[] = [];
@@ -176,7 +189,7 @@ export function serializeDag(
     ),
     dag_dependencies: serializeDagDependencies(dag),
     task_group: serializeTaskGroups(dag, graph),
-    edge_info: {},
+    edge_info: serializeEdgeInfo(dag),
     params: [],
     // Always written by Python's serializer, so a Dag without either still
     // round-trips to the same object.
