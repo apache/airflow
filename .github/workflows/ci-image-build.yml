@@ -215,8 +215,11 @@ jobs:
           ${{ inputs.image-stash-ref != '' && format('for ref {0}', inputs.image-stash-ref) || '' }}
         # yamllint disable-line rule:line-length
         uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
+        # The mount cache holds wheels compiled against the image's system libraries - bump the "vN"
+        # in this key (and in build_ci_image_with_cache) whenever the base OS changes, or wheels built
+        # for the old one get reused (v4: bookworm -> trixie, whose libxmlsec1 has no MD5 support).
         with:
-          key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
+          key: "ci-cache-mount-save-v4-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             ${{ inputs.image-stash-ref != '' && format('-{0}', inputs.image-stash-ref) || '' }}"
           path: "/tmp/"
         id: restore-cache-mount
@@ -224,7 +227,7 @@ jobs:
       - name: "Verify ci-cache file exists"
         if: steps.restore-cache-mount.outputs.stash-hit == 'true'
         env:
-          CACHE_FILE: "/tmp/ci-cache-mount-save-v3-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
+          CACHE_FILE: "/tmp/ci-cache-mount-save-v4-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
         run: |
           if [ ! -f "$CACHE_FILE" ]; then
             echo "Cache file not found: $CACHE_FILE"
@@ -238,7 +241,7 @@ jobs:
           PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
         run: >
           breeze ci-image import-mount-cache
-          --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
+          --cache-file /tmp/ci-cache-mount-save-v4-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
         if: steps.restore-cache-mount.outputs.stash-hit == 'true'
       - name: "Restore CI docker image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         # yamllint disable-line rule:line-length
@@ -376,7 +379,7 @@ jobs:
           PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
         run: >
           breeze ci-image export-mount-cache
-          --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
+          --cache-file /tmp/ci-cache-mount-save-v4-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
         if: >
           inputs.upload-mount-cache-artifact == 'true' &&
           steps.stashed-image.outputs.reusable != 'true'
@@ -385,9 +388,9 @@ jobs:
           ${{ inputs.image-stash-ref != '' && format('for ref {0}', inputs.image-stash-ref) || '' }}
         uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
-          key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
+          key: "ci-cache-mount-save-v4-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             ${{ inputs.image-stash-ref != '' && format('-{0}', inputs.image-stash-ref) || '' }}"
-          path: "/tmp/ci-cache-mount-save-v3-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
+          path: "/tmp/ci-cache-mount-save-v4-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
           if-no-files-found: 'error'
           # A ref's cache is read by the next publish of that same ref, days rather than hours
           # later, so it gets the retention the ref's image gets rather than the branch's.
