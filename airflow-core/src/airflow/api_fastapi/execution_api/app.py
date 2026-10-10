@@ -52,6 +52,7 @@ logger = structlog.get_logger(logger_name=__name__)
 __all__ = [
     "InProcessExecutionAPI",
     "create_task_execution_api_app",
+    "create_jwt_generator",
     "lifespan",
     "CorrelationIdMiddleware",
 ]
@@ -73,7 +74,8 @@ def _jwt_validator():
     return validator
 
 
-def _jwt_generator():
+def create_jwt_generator() -> JWTGenerator:
+    """Create a signer using the Execution API's configured key, audience, and lifetime."""
     from airflow.configuration import conf
 
     generator = JWTGenerator(
@@ -95,7 +97,7 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
     # record this here
     app.state.svcs_registry = registry
 
-    registry.register_factory(JWTGenerator, _jwt_generator)
+    registry.register_factory(JWTGenerator, create_jwt_generator)
 
     # InProcessExecutionAPI stubs out JWTValidator: don't re-register in that case.
     if JWTValidator not in registry:
@@ -145,10 +147,12 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
                     validator: JWTValidator = await services.aget(JWTValidator)
                     claims = await validator.avalidated_claims(token, {})
 
-                    # Workload and callback tokens are long-lived and meant to survive
-                    # queue wait times so avoid refreshing them. If avalidated_claims
-                    # raises for such a token, the outer except handles it.
-                    if claims.get("scope") in ("workload", "callback"):
+                    # Only short-lived execution tokens are renewed here. Any other type has a
+                    # lifetime set by its issuer (workload and callback tokens outlive queue waits,
+                    # the dag_processor_session token is rotated by provisioning, and Job and parsing
+                    # tokens are renewed by re-registering and re-exchanging), so a new type must
+                    # not become renewable by default. Tokens without a scope are legacy execution tokens.
+                    if claims.get("scope", "execution") != "execution":
                         return response
 
                     now = int(time.time())

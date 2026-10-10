@@ -36,10 +36,16 @@ Maintenance:
 
 from __future__ import annotations
 
+from typing import get_args
+
 import pytest
+from fastapi.dependencies.models import Dependant
+from fastapi.dependencies.utils import get_flat_dependant
 from fastapi.routing import APIRoute
 
 from airflow.api_fastapi.execution_api.routes import execution_api_router
+from airflow.api_fastapi.execution_api.security import get_selected_dag_bundle, require_dag_in_granted_bundle
+from airflow.dag_processing.processor import ToManager
 
 # Routes that intentionally deviate from the default (execution-only) policy.
 # Any route NOT listed here must accept only {"execution"}.
@@ -51,19 +57,85 @@ NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
     "GET /connection-tests/{connection_test_id}/connection": {"workload"},
     # Callback /run exchanges a single-use callback token for an execution token.
     "PATCH /callbacks/{callback_id}/run": {"callback"},
+    # Requests a Dag processor makes on behalf of the code it parses and the callbacks it runs.
+    "GET /connections/{connection_id:path}": {"execution", "dag_processor", "dag_parse"},
+    "GET /variables/keys": {"execution", "dag_parse"},
+    "GET /variables/{variable_key:path}": {"execution", "dag_processor", "dag_parse"},
+    "PUT /variables/{variable_key:path}": {"execution", "dag_parse"},
+    "DELETE /variables/{variable_key:path}": {"execution", "dag_parse"},
+    "GET /task-instances/count": {"execution", "dag_parse"},
+    "GET /task-instances/states": {"execution", "dag_parse"},
+    "GET /task-instances/previous/{dag_id}/{task_id}": {"execution", "dag_parse"},
+    "GET /dag-runs/previous": {"execution", "dag_parse"},
+    "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}": {"execution", "dag_parse"},
+    "HEAD /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}": {"execution", "dag_parse"},
+    "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}": {"execution", "dag_parse"},
+    "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/slice": {"execution", "dag_parse"},
+    # The Job lifecycle of a Dag processor session; registration exchanges the session token for a Job token.
+    "POST /jobs": {"dag_processor_session"},
+    "POST /jobs/{job_id}/heartbeat": {"dag_processor"},
+    "POST /jobs/{job_id}/complete": {"dag_processor"},
+    "POST /jobs/{job_id}/parse-token": {"dag_processor"},
 }
+
+# Routes that check the Job of a dag_processor token themselves instead of requiring it to be open.
+JOB_UNCHECKED_ROUTES = {"POST /jobs/{job_id}/complete"}
+
+DAG_PROCESSOR_LIFECYCLE_ROUTES = {
+    "POST /jobs",
+    "POST /jobs/{job_id}/heartbeat",
+    "POST /jobs/{job_id}/complete",
+    "POST /jobs/{job_id}/parse-token",
+}
+
+# Every message a Dag file parsing process can send its supervisor, mapped to the Execution API
+# route the supervisor calls for it, or to None when it is answered without one.
+DAG_PROCESSOR_MESSAGE_ROUTES: dict[str, str | None] = {
+    # Published by the manager through its own endpoint, not forwarded as a runtime request.
+    "DagFileParsingResult": None,
+    "MaskSecret": None,
+    # Bound to a task instance the processor does not have. The supervisor sends the parse process id,
+    # which matches no task instance, so the answer is always empty and needs no request.
+    "GetPrevSuccessfulDagRun": None,
+    "GetConnection": "GET /connections/{connection_id:path}",
+    "GetVariable": "GET /variables/{variable_key:path}",
+    "GetVariableKeys": "GET /variables/keys",
+    "PutVariable": "PUT /variables/{variable_key:path}",
+    "DeleteVariable": "DELETE /variables/{variable_key:path}",
+    "GetTICount": "GET /task-instances/count",
+    "GetTaskStates": "GET /task-instances/states",
+    "GetPreviousTI": "GET /task-instances/previous/{dag_id}/{task_id}",
+    "GetPreviousDagRun": "GET /dag-runs/previous",
+    "GetXCom": "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}",
+    "GetXComCount": "HEAD /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}",
+    "GetXComSequenceItem": "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}",
+    "GetXComSequenceSlice": "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
+}
+
+
+def _get_api_routes() -> dict[str, APIRoute]:
+    return {
+        f"{method} {route.path}": route
+        for route in execution_api_router.routes
+        if isinstance(route, APIRoute)
+        for method in route.methods or ()
+    }
+
+
+def _get_dependency_calls(dependant: Dependant) -> set:
+    calls = set()
+    for dependency in dependant.dependencies:
+        calls.add(dependency.call)
+        calls |= _get_dependency_calls(dependency)
+    return calls
 
 
 def _all_route_policies() -> dict[str, set[str]]:
     """Return a map of all API routes and their allowed token types."""
-    policy_map: dict[str, set[str]] = {}
-    for route in execution_api_router.routes:
-        if isinstance(route, APIRoute):
-            allowed_tokens = set(getattr(route, "allowed_token_types", {"execution"}))
-            if route.methods:
-                for method in route.methods:
-                    policy_map[f"{method} {route.path}"] = allowed_tokens
-    return policy_map
+    return {
+        key: set(getattr(route, "allowed_token_types", {"execution"}))
+        for key, route in _get_api_routes().items()
+    }
 
 
 class TestTokenScopeBoundaries:
@@ -100,3 +172,42 @@ class TestTokenScopeBoundaries:
 
         assert not tokens_gained, f"{route}: gained unexpected token types {sorted(tokens_gained)}"
         assert not tokens_lost, f"{route}: lost expected token types {sorted(tokens_lost)}"
+
+
+class TestDagProcessorMessageRoutes:
+    """Each parse-time message is either answered locally or sent to a route that admits Dag processors."""
+
+    def test_every_message_is_classified(self):
+        (message_union, _) = get_args(ToManager)
+        message_names = {message.__name__ for message in get_args(message_union)}
+
+        assert message_names == set(DAG_PROCESSOR_MESSAGE_ROUTES)
+
+    def test_classified_routes_are_exactly_the_dag_processor_routes(self):
+        admitting = {
+            route
+            for route, types in _all_route_policies().items()
+            if types & {"dag_processor", "dag_processor_session", "dag_parse"}
+        }
+
+        assert (
+            admitting
+            == {route for route in DAG_PROCESSOR_MESSAGE_ROUTES.values() if route}
+            | DAG_PROCESSOR_LIFECYCLE_ROUTES
+        )
+
+    def test_only_job_completion_skips_the_open_job_check(self):
+        skipping = {
+            key for key, route in _get_api_routes().items() if not getattr(route, "requires_open_job", True)
+        }
+
+        assert skipping == JOB_UNCHECKED_ROUTES
+
+    @pytest.mark.parametrize("route_key", sorted(filter(None, DAG_PROCESSOR_MESSAGE_ROUTES.values())))
+    def test_dag_processor_route_is_bound_to_a_granted_bundle(self, route_key):
+        route = _get_api_routes()[route_key]
+        flat = get_flat_dependant(route.dependant)
+        takes_dag_id = any(param.name == "dag_id" for param in (*flat.path_params, *flat.query_params))
+        expected = require_dag_in_granted_bundle if takes_dag_id else get_selected_dag_bundle
+
+        assert expected in _get_dependency_calls(route.dependant)

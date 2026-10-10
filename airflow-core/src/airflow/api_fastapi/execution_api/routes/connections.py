@@ -23,14 +23,19 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
-from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep
+from airflow.api_fastapi.execution_api.security import (
+    CurrentExecutionToken,
+    ExecutionAPIRoute,
+    ExecutionOrProcessorSecretsToken,
+    get_team_name_dep,
+)
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
 
 
 async def has_connection_access(
     connection_id: Annotated[str, Path(min_length=1)],
-    token=CurrentTIToken,
+    token=CurrentExecutionToken,
 ) -> bool:
     """Check if the task has access to the connection."""
     log.debug(
@@ -49,6 +54,7 @@ async def has_connection_access(
 
 
 router = APIRouter(
+    route_class=ExecutionAPIRoute,
     responses={status.HTTP_404_NOT_FOUND: {"description": "Connection not found"}},
     dependencies=[Depends(has_connection_access)],
 )
@@ -58,9 +64,11 @@ log = logging.getLogger(__name__)
 
 @router.get(
     "/{connection_id:path}",
+    dependencies=[ExecutionOrProcessorSecretsToken],
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
-        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the connection"},
+        status.HTTP_400_BAD_REQUEST: {"description": "A Dag processor token did not name its Dag bundle"},
+        status.HTTP_403_FORBIDDEN: {"description": "The caller does not have access to the connection"},
     },
 )
 def get_connection(

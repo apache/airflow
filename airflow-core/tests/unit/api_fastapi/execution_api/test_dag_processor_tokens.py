@@ -1,0 +1,93 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from unittest.mock import MagicMock
+
+import pytest
+import uuid6
+
+from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.app import _jwt_validator, create_jwt_generator
+from airflow.api_fastapi.execution_api.dag_processor_tokens import (
+    ExpiredDagProcessorToken,
+    generate_dag_parse_token,
+    generate_dag_processor_session_token,
+    generate_dag_processor_token,
+)
+from airflow.api_fastapi.execution_api.datamodels.token import DagProcessorSessionClaims
+
+from tests_common.test_utils.config import conf_vars
+
+
+@conf_vars({("api_auth", "jwt_secret"): "provisioning-test-secret"})
+def test_generated_token_is_a_valid_dag_processor_session_token():
+    session_id = uuid6.uuid7()
+
+    token = generate_dag_processor_session_token(
+        create_jwt_generator(), session_id=session_id, bundle_names={"b", "a"}, valid_for=120
+    )
+
+    claims = _jwt_validator().validated_claims(token)
+    assert claims["sub"] == str(session_id)
+    assert claims["dag_bundles"] == ["a", "b"]
+    assert claims["exp"] - claims["iat"] == 120
+    parsed = DagProcessorSessionClaims(**claims)
+    assert (parsed.scope, parsed.dag_bundles) == ("dag_processor_session", frozenset({"a", "b"}))
+
+
+@pytest.mark.parametrize("remaining", [0.5, 0, -1], ids=["under-a-second", "expires-now", "already-expired"])
+def test_expired_session_is_not_signed(time_machine, remaining):
+    now = datetime(2026, 10, 5, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+    generator = MagicMock(spec=JWTGenerator, valid_for=600)
+
+    with pytest.raises(ExpiredDagProcessorToken, match="Session credential has expired"):
+        generate_dag_processor_token(
+            generator,
+            session_id=uuid6.uuid7(),
+            job_id=1,
+            bundle_names={"bundle"},
+            session_expiry=now.timestamp() + remaining,
+        )
+
+    generator.generate.assert_not_called()
+
+
+@conf_vars({("api_auth", "jwt_secret"): "provisioning-test-secret"})
+@pytest.mark.parametrize(
+    ("remaining", "expires_in"),
+    [(45.9, 45), (3600, 600)],
+    ids=["capped-by-the-parent", "capped-by-the-signer"],
+)
+def test_child_token_lifetime_never_exceeds_its_parent(time_machine, remaining, expires_in):
+    now = datetime(2026, 10, 5, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+
+    issued = generate_dag_parse_token(
+        create_jwt_generator(),
+        session_id=uuid6.uuid7(),
+        job_id=1,
+        attempt_id=uuid6.uuid7(),
+        bundle_name="bundle",
+        relative_fileloc="dag.py",
+        processor_expiry=now.timestamp() + remaining,
+    )
+
+    claims = _jwt_validator().validated_claims(issued.token)
+    assert issued.expires_in == claims["exp"] - claims["iat"] == expires_in
