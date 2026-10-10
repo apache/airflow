@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, delete, func, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -33,6 +33,7 @@ from airflow.api_fastapi.common.db.assets import eager_load_asset_reference_team
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     BaseParam,
+    DateTimeQuery,
     FilterParam,
     OptionalDateTimeQuery,
     QueryAssetAliasNamePatternSearch,
@@ -69,6 +70,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    EditableDagsFilterDep,
     GetUserDep,
     ReadableAssetEventsByAssetFilterDep,
     ReadableAssetEventsFilterDep,
@@ -93,6 +95,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.utils.helpers import chunks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -101,6 +104,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
 assets_router = AirflowRouter(tags=["Asset"])
+
+_ASSET_EVENT_DELETE_BATCH_SIZE = 500
 
 
 def _generate_queued_event_where_clause(
@@ -435,6 +440,73 @@ def create_asset_event(
     if not assets_event:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found")
     return AssetEventResponse.model_validate(assets_event)
+
+
+@assets_router.delete(
+    "/assets/{asset_id}/events",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
+    dependencies=[
+        Depends(requires_access_asset(method="DELETE")),
+        Depends(requires_access_dag(method="PUT", use_query_params=False)),
+        Depends(action_logging()),
+    ],
+)
+def delete_asset_events(
+    asset_id: int,
+    before: DateTimeQuery,
+    readable_dags_filter: ReadableDagsFilterDep,
+    editable_dags_filter: EditableDagsFilterDep,
+    delete_queued_events: bool = False,
+    *,
+    session: SessionDep,
+) -> None:
+    """
+    Permanently delete an asset's historical events strictly before the given timestamp.
+
+    By default, return 409 without deleting anything if eligible events have queued references.
+    Set delete_queued_events=true to also remove those references. Asset delete and Dag edit
+    permissions are required, as well as read and edit access to every affected queued Dag.
+    Unauthorized requests return 403 without deleting anything; a dag_id query cannot limit this check.
+    Deletion also removes dependent Dag-run and alias references.
+    The asset, Dags, Dag runs, and alias definitions are preserved.
+    """
+    if session.scalar(select(AssetModel.id).where(AssetModel.id == asset_id)) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
+
+    eligible_events = (AssetEvent.asset_id == asset_id, AssetEvent.timestamp < before)
+    if session.get_bind().dialect.name == "sqlite":
+        # SQLite ignores FOR UPDATE. A real write takes its writer lock, even when no rows match.
+        session.execute(update(AssetEvent).where(*eligible_events).values(id=AssetEvent.id))
+
+    # Lock the FK parents before checking queues, and delete only this fixed set: events inserted
+    # afterwards have not been checked. Queue inserts must wait on these locks (or SQLite's writer lock).
+    event_ids = list(session.scalars(select(AssetEvent.id).where(*eligible_events).with_for_update()))
+    permitted_dag_ids = (readable_dags_filter.value or set()) & (editable_dags_filter.value or set())
+    for event_id_batch in chunks(event_ids, _ASSET_EVENT_DELETE_BATCH_SIZE):
+        # A locking read also sees queues committed while acquiring event locks on MySQL REPEATABLE READ.
+        queued_dag_ids = set(
+            session.scalars(
+                select(AssetDagRunQueue.target_dag_id)
+                .where(AssetDagRunQueue.asset_event_id.in_(event_id_batch))
+                .with_for_update()
+            )
+        )
+        if queued_dag_ids and not delete_queued_events:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Eligible asset events are queued; set delete_queued_events=true to delete them.",
+            )
+        if not queued_dag_ids <= permitted_dag_ids:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "Not authorized to delete all affected queued events"
+            )
+
+    # Bound IN parameters without committing between batches or deleting a permitted subset.
+    for event_id_batch in chunks(event_ids, _ASSET_EVENT_DELETE_BATCH_SIZE):
+        session.execute(delete(AssetEvent).where(AssetEvent.id.in_(event_id_batch)))
 
 
 @assets_router.post(

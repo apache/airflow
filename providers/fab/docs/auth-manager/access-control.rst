@@ -252,6 +252,14 @@ Stable API Permissions
      - GET
      - Assets.can_read
      - Viewer
+   * - ``/api/v2/assets/{asset_id}/events``
+     - DELETE
+     - Assets.can_delete
+     - Op
+   * - ``/api/v2/assets/{asset_id}/events``
+     - DELETE
+     - DAGs.can_edit
+     - User
    * - ``/api/v2/assets/{asset_id}/materialize``
      - POST
      - Assets.can_create

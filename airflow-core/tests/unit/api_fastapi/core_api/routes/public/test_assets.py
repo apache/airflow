@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, event, func, select, update
+from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -31,6 +33,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     DagAccessEntity,
     DagDetails,
 )
+from airflow.api_fastapi.core_api.routes.public.assets import _ASSET_EVENT_DELETE_BATCH_SIZE
 from airflow.api_fastapi.core_api.security import PermittedAssetEventFilter
 from airflow.models import DagModel
 from airflow.models.asset import (
@@ -42,6 +45,9 @@ from airflow.models.asset import (
     AssetWatcherModel,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
+    alias_association_table,
+    asset_alias_asset_event_association_table,
+    association_table,
 )
 from airflow.models.base import ID_LEN
 from airflow.models.dagbundle import DagBundleModel
@@ -53,7 +59,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
-from airflow.utils.session import provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
@@ -2007,6 +2013,426 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with dag_id: `dag` was not found"
+
+
+class TestDeleteAssetEvents(TestAssets):
+    @pytest.mark.parametrize(
+        "before",
+        [
+            "2020-06-11T18:00:00Z",
+            "2020-06-11T20:00:00+02:00",
+            "2020-06-11T13:00:00-05:00",
+            "2020-06-11T18:00:00",
+        ],
+    )
+    @pytest.mark.usefixtures("time_freezer")
+    def test_delete_scoped_history_with_cascades(self, test_client, session, before):
+        self.create_assets(session=session)
+        self.create_dag_run(session=session, num=1)
+        dag_run_id = session.scalar(
+            select(DagRun.id).where(DagRun.dag_id == "source_dag_id", DagRun.run_id == "source_run_id_1")
+        )
+        session.add_all(
+            [
+                AssetEvent(id=1, asset_id=1, timestamp=DEFAULT_DATE - timedelta(microseconds=1)),
+                AssetEvent(id=2, asset_id=1, timestamp=DEFAULT_DATE),
+                AssetEvent(id=3, asset_id=1, timestamp=DEFAULT_DATE + timedelta(microseconds=1)),
+                AssetEvent(id=4, asset_id=2, timestamp=DEFAULT_DATE - timedelta(days=1)),
+                AssetAliasModel(id=1, name="history-alias"),
+            ]
+        )
+        session.flush()
+        session.execute(alias_association_table.insert(), [{"alias_id": 1, "asset_id": 1}])
+        session.execute(
+            association_table.insert(),
+            [{"dag_run_id": dag_run_id, "event_id": event_id} for event_id in range(1, 5)],
+        )
+        session.execute(
+            asset_alias_asset_event_association_table.insert(),
+            [{"alias_id": 1, "event_id": event_id} for event_id in range(1, 5)],
+        )
+        session.add_all(
+            AssetDagRunQueue(
+                target_dag_id="source_dag_id", asset_id=1 if event_id < 4 else 2, asset_event_id=event_id
+            )
+            for event_id in range(1, 5)
+        )
+        session.commit()
+
+        response = test_client.delete(
+            "/assets/1/events", params={"before": before, "delete_queued_events": "true"}
+        )
+
+        assert response.status_code == 204
+        assert response.content == b""
+        session.expire_all()
+        assert set(session.scalars(select(AssetEvent.id))) == {2, 3, 4}
+        assert set(session.execute(select(association_table))) == {(dag_run_id, i) for i in (2, 3, 4)}
+        assert set(session.execute(select(asset_alias_asset_event_association_table))) == {
+            (1, i) for i in (2, 3, 4)
+        }
+        assert set(
+            session.execute(select(AssetDagRunQueue.target_dag_id, AssetDagRunQueue.asset_event_id))
+        ) == {("source_dag_id", i) for i in (2, 3, 4)}
+        assert set(session.scalars(select(AssetModel.id))) == {1, 2}
+        assert session.scalar(select(func.count()).select_from(AssetActive)) == 2
+        assert session.scalars(select(DagRun.id)).all() == [dag_run_id]
+        assert session.get(DagModel, "source_dag_id") is not None
+        assert session.scalars(select(AssetAliasModel.id)).all() == [1]
+        assert session.execute(select(alias_association_table)).all() == [(1, 1)]
+        check_last_log(
+            session,
+            dag_id=None,
+            event="delete_asset_events",
+            logical_date=None,
+            expected_extra={
+                "asset_id": "1",
+                "before": before,
+                "delete_queued_events": "true",
+                "method": "DELETE",
+            },
+        )
+
+    @pytest.mark.parametrize("delete_queued_events", [None, "false"])
+    def test_refuses_queued_events_without_opt_in(self, test_client, session, delete_queued_events):
+        self.create_assets(session=session, num=1)
+        session.add_all(AssetEvent(id=i, asset_id=1, timestamp=DEFAULT_DATE) for i in (1, 2))
+        session.commit()
+        session.add(AssetDagRunQueue(target_dag_id="d", asset_id=1, asset_event_id=1))
+        session.commit()
+        params = {"before": (DEFAULT_DATE + timedelta(days=1)).isoformat()}
+        if delete_queued_events is not None:
+            params["delete_queued_events"] = delete_queued_events
+
+        response = test_client.delete("/assets/1/events", params=params)
+
+        assert response.status_code == 409
+        assert set(session.scalars(select(AssetEvent.id))) == {1, 2}
+        assert session.scalars(select(AssetDagRunQueue.asset_event_id)).all() == [1]
+        assert session.get(AssetModel, 1) is not None
+        assert session.get(DagModel, "d") is not None
+
+    @pytest.mark.parametrize("dag_id", [None, "d"])
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_dag",
+        autospec=True,
+    )
+    def test_requires_dag_edit_without_query_scope(self, mock_authorize, test_client, session, dag_id):
+        self.create_assets(session=session, num=1)
+        session.add_all(AssetEvent(id=i, asset_id=1, timestamp=DEFAULT_DATE) for i in (1, 2))
+        session.commit()
+        session.add(AssetDagRunQueue(target_dag_id="d1", asset_id=1, asset_event_id=1))
+        session.commit()
+        mock_authorize.side_effect = lambda _self, *, method, user, access_entity, details: details.id == "d"
+        params = {"before": (DEFAULT_DATE + timedelta(days=1)).isoformat(), "delete_queued_events": "true"}
+        if dag_id:
+            params["dag_id"] = dag_id
+
+        response = test_client.delete("/assets/1/events", params=params)
+
+        assert response.status_code == 403
+        assert set(session.scalars(select(AssetEvent.id))) == {1, 2}
+        assert session.scalars(select(AssetDagRunQueue.asset_event_id)).all() == [1]
+        mock_authorize.assert_called_once_with(
+            mock.ANY,
+            method="PUT",
+            access_entity=None,
+            details=DagDetails(id=None, team_name=None),
+            user=mock.ANY,
+        )
+
+    @pytest.mark.parametrize(
+        ("readable", "editable", "dag_id", "expected_status"),
+        [
+            (set(), set(), None, 403),
+            ({"d", "d1"}, {"d"}, None, 403),
+            ({"d"}, {"d", "d1"}, None, 403),
+            ({"d"}, {"d"}, "d", 403),
+            ({"d", "d1"}, {"d", "d1"}, None, 204),
+        ],
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    def test_authorizes_every_queue_target(
+        self, mock_authorized_ids, test_client, session, readable, editable, dag_id, expected_status
+    ):
+        self.create_assets(session=session, num=1)
+        session.add_all(AssetEvent(id=i, asset_id=1, timestamp=DEFAULT_DATE) for i in (1, 2))
+        session.commit()
+        session.add_all(
+            [
+                AssetDagRunQueue(target_dag_id="d", asset_id=1, asset_event_id=1),
+                AssetDagRunQueue(target_dag_id="d1", asset_id=1, asset_event_id=1),
+            ]
+        )
+        session.commit()
+        mock_authorized_ids.side_effect = lambda _self, *, user, method: (
+            readable if method == "GET" else editable
+        )
+        params = {"before": (DEFAULT_DATE + timedelta(days=1)).isoformat(), "delete_queued_events": "true"}
+        if dag_id:
+            params["dag_id"] = dag_id
+
+        response = test_client.delete("/assets/1/events", params=params)
+
+        assert response.status_code == expected_status
+        assert set(session.scalars(select(AssetEvent.id))) == ({1, 2} if expected_status == 403 else set())
+        assert set(session.scalars(select(AssetDagRunQueue.target_dag_id))) == (
+            {"d", "d1"} if expected_status == 403 else set()
+        )
+        assert session.get(AssetModel, 1) is not None
+        assert session.get(DagModel, "d") is not None
+        assert session.get(DagModel, "d1") is not None
+
+    @pytest.mark.parametrize("delete_queued_events", ["false", "true"])
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_dag_ids",
+        autospec=True,
+        return_value=set(),
+    )
+    def test_ignores_queues_outside_deletion_scope(
+        self, mock_authorized_ids, test_client, session, delete_queued_events
+    ):
+        self.create_assets(session=session)
+        session.add_all(
+            [
+                AssetEvent(id=1, asset_id=1, timestamp=DEFAULT_DATE - timedelta(days=1)),
+                AssetEvent(id=2, asset_id=1, timestamp=DEFAULT_DATE),
+                AssetEvent(id=3, asset_id=2, timestamp=DEFAULT_DATE - timedelta(days=1)),
+            ]
+        )
+        session.flush()
+        session.add_all(
+            [
+                AssetDagRunQueue(target_dag_id="d", asset_id=1, asset_event_id=2),
+                AssetDagRunQueue(target_dag_id="d", asset_id=2, asset_event_id=3),
+            ]
+        )
+        session.commit()
+
+        response = test_client.delete(
+            "/assets/1/events",
+            params={"before": DEFAULT_DATE.isoformat(), "delete_queued_events": delete_queued_events},
+        )
+
+        assert response.status_code == 204
+        assert set(session.scalars(select(AssetEvent.id))) == {2, 3}
+        assert set(session.scalars(select(AssetDagRunQueue.asset_event_id))) == {2, 3}
+
+    @pytest.mark.parametrize(
+        ("delete_queued_events", "permitted", "expected_status"),
+        [("false", {"d"}, 409), ("true", set(), 403), ("true", {"d"}, 204)],
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    def test_deletes_multiple_batches_atomically(
+        self, mock_authorized_ids, test_client, session, delete_queued_events, permitted, expected_status
+    ):
+        self.create_assets(session=session, num=1)
+        event_count = _ASSET_EVENT_DELETE_BATCH_SIZE + 1
+        session.add_all(
+            AssetEvent(id=i, asset_id=1, timestamp=DEFAULT_DATE) for i in range(1, event_count + 1)
+        )
+        session.flush()
+        session.add(AssetDagRunQueue(target_dag_id="d", asset_id=1, asset_event_id=event_count))
+        session.commit()
+        mock_authorized_ids.return_value = permitted
+
+        response = test_client.delete(
+            "/assets/1/events",
+            params={
+                "before": (DEFAULT_DATE + timedelta(days=1)).isoformat(),
+                "delete_queued_events": delete_queued_events,
+            },
+        )
+
+        assert response.status_code == expected_status
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == (
+            0 if expected_status == 204 else event_count
+        )
+        assert session.scalars(select(AssetDagRunQueue.asset_event_id)).all() == (
+            [] if expected_status == 204 else [event_count]
+        )
+
+    @pytest.mark.parametrize("delete_queued_events", ["false", "true"])
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_dag_ids",
+        autospec=True,
+        return_value={"d"},
+    )
+    def test_event_lock_prevents_queue_insert_after_check(
+        self, mock_authorized_ids, test_client, session, delete_queued_events
+    ):
+        self.create_assets(session=session, num=1)
+        session.add_all(AssetEvent(id=i, asset_id=1, timestamp=DEFAULT_DATE) for i in (1, 2))
+        session.commit()
+        engine = session.get_bind()
+        attempted = False
+
+        def insert_queue():
+            with create_session(scoped=False) as concurrent_session:
+                connection = concurrent_session.connection()
+                if engine.dialect.name == "sqlite":
+                    connection.exec_driver_sql("PRAGMA busy_timeout = 100")
+                elif engine.dialect.name == "postgresql":
+                    connection.exec_driver_sql("SET LOCAL lock_timeout = '100ms'")
+                else:
+                    connection.exec_driver_sql("SET SESSION innodb_lock_wait_timeout = 1")
+                concurrent_session.add(AssetDagRunQueue(target_dag_id="d1", asset_id=1, asset_event_id=1))
+                concurrent_session.flush()
+
+        def before_delete(conn, cursor, statement, parameters, context, executemany):
+            nonlocal attempted
+            compiled = context.compiled
+            if (
+                compiled is None
+                or not compiled.statement.is_delete
+                or compiled.statement.table.name != "asset_event"
+            ):
+                return
+            attempted = True
+            # Use an independent connection and a database lock timeout, not an assumed thread schedule.
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                with pytest.raises(OperationalError, match="locked|lock timeout|Lock wait timeout"):
+                    executor.submit(insert_queue).result(timeout=10)
+
+        event.listen(engine, "before_cursor_execute", before_delete)
+        try:
+            response = test_client.delete(
+                "/assets/1/events",
+                params={
+                    "before": (DEFAULT_DATE + timedelta(days=1)).isoformat(),
+                    "delete_queued_events": delete_queued_events,
+                },
+            )
+        finally:
+            event.remove(engine, "before_cursor_execute", before_delete)
+
+        assert attempted
+        assert response.status_code == 204
+        assert session.scalars(select(AssetEvent.id)).all() == []
+        assert session.scalars(select(AssetDagRunQueue.asset_event_id)).all() == []
+
+    @pytest.mark.parametrize(("delete_queued_events", "expected_status"), [("false", 409), ("true", 403)])
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_dag_ids",
+        autospec=True,
+        return_value={"d"},
+    )
+    def test_checks_queue_committed_before_event_lock(
+        self, mock_authorized_ids, test_client, session, delete_queued_events, expected_status
+    ):
+        self.create_assets(session=session, num=1)
+        session.add_all(AssetEvent(id=i, asset_id=1, timestamp=DEFAULT_DATE) for i in (1, 2))
+        session.commit()
+        engine = session.get_bind()
+        inserted = False
+
+        def before_lock(conn, cursor, statement, parameters, context, executemany):
+            nonlocal inserted
+            compiled = context.compiled
+            if inserted or compiled is None:
+                return
+            query = compiled.statement
+            if not (
+                (query.is_update and query.table.name == "asset_event")
+                or (query.is_select and query._for_update_arg is not None and "asset_event" in statement)
+            ):
+                return
+            inserted = True
+            with create_session(scoped=False) as concurrent_session:
+                concurrent_session.add(AssetDagRunQueue(target_dag_id="d1", asset_id=1, asset_event_id=1))
+
+        event.listen(engine, "before_cursor_execute", before_lock)
+        try:
+            response = test_client.delete(
+                "/assets/1/events",
+                params={
+                    "before": (DEFAULT_DATE + timedelta(days=1)).isoformat(),
+                    "delete_queued_events": delete_queued_events,
+                },
+            )
+        finally:
+            event.remove(engine, "before_cursor_execute", before_lock)
+
+        assert inserted
+        assert response.status_code == expected_status
+        assert set(session.scalars(select(AssetEvent.id))) == {1, 2}
+        assert session.scalars(select(AssetDagRunQueue.asset_event_id)).all() == [1]
+
+    @pytest.mark.parametrize("has_history", [False, True])
+    def test_should_respond_204_without_eligible_events(self, test_client, session, has_history):
+        self.create_assets(session=session, num=1)
+        if has_history:
+            self.create_assets_events(session=session, num=1)
+
+        response = test_client.delete("/assets/1/events", params={"before": DEFAULT_DATE.isoformat()})
+
+        assert response.status_code == 204
+        assert response.content == b""
+        assert session.scalars(select(AssetEvent.id)).all() == ([1] if has_history else [])
+        assert session.get(AssetModel, 1) is not None
+
+    def test_should_respond_404(self, test_client):
+        response = test_client.delete("/assets/1/events", params={"before": DEFAULT_DATE.isoformat()})
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "The Asset with ID: `1` was not found"
+
+    @pytest.mark.parametrize(
+        ("params", "expected_status"),
+        [({}, 422), ({"before": ""}, 422), ({"before": "not-a-timestamp"}, 400)],
+    )
+    def test_requires_valid_before(self, test_client, session, params, expected_status):
+        self.create_assets(session=session, num=1)
+        self.create_assets_events(session=session, num=1)
+
+        response = test_client.delete("/assets/1/events", params=params)
+
+        assert response.status_code == expected_status
+        assert session.scalars(select(AssetEvent.id)).all() == [1]
+        if expected_status == 422:
+            assert response.json()["detail"][0]["loc"] == ["query", "before"]
+        else:
+            assert response.json()["detail"].startswith("Invalid datetime:")
+
+    @pytest.mark.parametrize(
+        ("client_fixture", "expected_status"),
+        [("unauthenticated_test_client", 401), ("unauthorized_test_client", 403)],
+    )
+    def test_requires_access(self, request, session, client_fixture, expected_status):
+        self.create_assets(session=session, num=1)
+        self.create_assets_events(session=session, num=1)
+        client = request.getfixturevalue(client_fixture)
+
+        response = client.delete(
+            "/assets/1/events", params={"before": (DEFAULT_DATE + timedelta(days=1)).isoformat()}
+        )
+
+        assert response.status_code == expected_status
+        assert session.scalars(select(AssetEvent.id)).all() == [1]
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_asset",
+        autospec=True,
+        return_value=True,
+    )
+    def test_authorizes_asset_deletion(self, mock_is_authorized_asset, test_client, session):
+        self.create_assets(session=session, num=1)
+
+        response = test_client.delete("/assets/1/events", params={"before": DEFAULT_DATE.isoformat()})
+
+        assert response.status_code == 204
+        mock_is_authorized_asset.assert_called_once_with(
+            mock.ANY,
+            method="DELETE",
+            details=AssetDetails(id="1", name="simple1", uri="s3://bucket/key/1"),
+            user=mock.ANY,
+        )
 
 
 class TestPostAssetEvents(TestAssets):

@@ -267,6 +267,30 @@ class TestFastApiSecurity:
         assert result == user
         mock_resolve_user_from_token.assert_called_once_with(expected)
 
+    @pytest.mark.parametrize(
+        ("param_dag_id", "path_params", "expected_dag_id"),
+        [(None, {}, None), (None, {"dag_id": "path_dag"}, "path_dag"), ("fixed_dag", {}, "fixed_dag")],
+    )
+    @patch.object(DagModel, "get_team_name", autospec=True, return_value=None)
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager", autospec=True)
+    def test_requires_access_dag_can_ignore_query_params(
+        self, mock_get_auth_manager, mock_get_team_name, param_dag_id, path_params, expected_dag_id
+    ):
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_dag.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        request = Mock(spec=Request, path_params=path_params, query_params={"dag_id": "unrelated_dag"})
+        user = Mock(spec=BaseUser)
+
+        requires_access_dag("PUT", param_dag_id=param_dag_id, use_query_params=False)(request, user)
+
+        auth_manager.is_authorized_dag.assert_called_once_with(
+            method="PUT",
+            access_entity=None,
+            details=DagDetails(id=expected_dag_id, team_name=None),
+            user=user,
+        )
+
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("param_dag_id", "path_params", "query_params", "expected_dag_id"),

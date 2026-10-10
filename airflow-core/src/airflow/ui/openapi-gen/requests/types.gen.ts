@@ -3354,6 +3354,14 @@ export type CreateAssetEventData = {
 
 export type CreateAssetEventResponse = AssetEventResponse;
 
+export type DeleteAssetEventsData = {
+    assetId: number;
+    before: string;
+    deleteQueuedEvents?: boolean;
+};
+
+export type DeleteAssetEventsResponse = void;
+
 export type MaterializeAssetData = {
     assetId: number;
     requestBody: MaterializeAssetBody;
@@ -5468,6 +5476,41 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/assets/{asset_id}/events': {
+        delete: {
+            req: DeleteAssetEventsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                204: void;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
