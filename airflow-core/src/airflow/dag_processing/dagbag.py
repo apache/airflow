@@ -112,22 +112,14 @@ def _executor_exists(executor_name: str, team_name: str | None) -> bool:
     return False
 
 
-def _get_bundle_team_name(bundle_name: str | None) -> str | None:
-    """Return the team that owns *bundle_name* when multi-team is on, else ``None``."""
-    if not conf.getboolean("core", "multi_team") or not bundle_name:
-        return None
-    from airflow.dag_processing.bundles.manager import DagBundlesManager
-
-    return DagBundlesManager()._bundle_config[bundle_name].team_name
-
-
-def _validate_executor_fields(dag: DAG | SerializedDAG, bundle_name: str | None = None) -> None:
+def _validate_executor_fields(
+    dag: DAG | SerializedDAG, bundle_name: str | None = None, team_name: str | None = None
+) -> None:
     """Validate that executors specified in tasks are available and owned by the same team as the dag bundle."""
     import logging
 
     log = logging.getLogger(__name__)
-
-    dag_team_name = _get_bundle_team_name(bundle_name)
+    dag_team_name = team_name if conf.getboolean("core", "multi_team") else None
     if dag_team_name:
         log.debug("Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name)
 
@@ -153,10 +145,12 @@ def _validate_executor_fields(dag: DAG | SerializedDAG, bundle_name: str | None 
 
 def _assign_default_team_pools(
     dag: DAG,
-    bundle_name: str | None = None,
+    team_name: str | None = None,
 ) -> None:
     """Assign the default team pool to tasks that do not explicitly specify a pool."""
-    if not (dag_team_name := _get_bundle_team_name(bundle_name)):
+    dag_team_name = team_name if conf.getboolean("core", "multi_team") else None
+
+    if not dag_team_name:
         return
 
     for task in dag.tasks:
@@ -198,11 +192,20 @@ class DagBag(LoggingMixin):
         bundle_path: Path | None = None,
         bundle_name: str | None = None,
         parse_lang_sdk_files: bool = False,
+        team_name: str | None | ArgNotSet = NOTSET,
     ):
         super().__init__()
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
         self.parse_lang_sdk_files = parse_lang_sdk_files
+        # Explicit ownership, including None, avoids provider I/O in isolated processes.
+        if not is_arg_set(team_name):
+            team_name = None
+            if bundle_name and conf.getboolean("core", "multi_team"):
+                from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+                team_name = DagBundlesManager().get_configured_bundle_team_names().get(bundle_name)
+        self.team_name = team_name
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -378,8 +381,8 @@ class DagBag(LoggingMixin):
                 dag.relative_fileloc = self._get_relative_fileloc(fileloc)
                 dag.bundle_name = self.bundle_name
                 dag.validate()
-                _validate_executor_fields(dag, self.bundle_name)
-                _assign_default_team_pools(dag, self.bundle_name)
+                _validate_executor_fields(dag, self.bundle_name, self.team_name)
+                _assign_default_team_pools(dag, self.team_name)
                 self.bag_dag(dag=dag)
                 bagged_dags.append(dag)
             except AirflowClusterPolicySkipDag:
@@ -406,6 +409,7 @@ class DagBag(LoggingMixin):
             path=fileloc,
             bundle_path=self._bundle.path,
             bundle_name=self._bundle.name,
+            team_name=self.team_name,
             dag_file_rel_path=relative_loc,
             logger=structlog.get_logger(logger_name=__name__),
         )

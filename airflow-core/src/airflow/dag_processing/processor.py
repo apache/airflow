@@ -112,6 +112,9 @@ class DagFileParseRequest(BaseModel):
     bundle_name: str
     """Bundle name for team-specific executor validation."""
 
+    team_name: str | None = None
+    """Team resolved by the Dag processor manager for parser-side validation."""
+
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
 
@@ -244,6 +247,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
         bundle_name=msg.bundle_name,
+        team_name=msg.team_name,
         load_op_links=False,
     )
 
@@ -722,6 +726,7 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_name: str,
         dag_file_rel_path: str,
         callbacks: list[CallbackRequest],
+        team_name: str | None = None,
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
         **kwargs,
@@ -749,7 +754,7 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
             **kwargs,
         )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
-        proc._on_child_started(callbacks, path, bundle_path, bundle_name)
+        proc._on_child_started(callbacks, path, bundle_path, bundle_name, team_name)
         return proc
 
     def _on_child_started(
@@ -758,11 +763,13 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
         path: str | os.PathLike[str],
         bundle_path: Path,
         bundle_name: str,
+        team_name: str | None = None,
     ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,
             bundle_name=bundle_name,
+            team_name=team_name,
             callback_requests=callbacks,
         )
         self.send_msg(msg, request_id=0)
