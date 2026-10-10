@@ -3,18 +3,14 @@
     "ConstRef": {
       "additionalProperties": false,
       "description": "Force a literal; the value is taken verbatim.",
-      "oneOf": [
-        {
-          "required": [
-            "$const"
-          ]
-        }
-      ],
       "properties": {
         "$const": {
           "title": "$Const"
         }
       },
+      "required": [
+        "$const"
+      ],
       "title": "ConstRef",
       "type": "object"
     },

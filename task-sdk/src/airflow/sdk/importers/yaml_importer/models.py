@@ -87,9 +87,10 @@ class _MarkerRef(BaseModel):
         schema = handler(core_schema)
         (value_schema,) = schema.get("properties", {}).values()
         schema["properties"] = {key: value_schema for key in cls._marker_keys}
-        schema.pop("required", None)
-        schema["oneOf"] = [{"required": [key]} for key in cls._marker_keys]
         schema["additionalProperties"] = False
+        if len(cls._marker_keys) > 1:  # Pydantic sets the correct 'required' for the single-variant case.
+            schema.pop("required", None)
+            schema["oneOf"] = [{"required": [key]} for key in cls._marker_keys]
         return schema
 
 
