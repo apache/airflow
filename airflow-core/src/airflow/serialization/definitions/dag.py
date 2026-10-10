@@ -361,7 +361,12 @@ class SerializedDAG:
             memo[id(group.children)] = {}
             if parent_group:
                 memo[id(group.parent_group)] = parent_group
-            for attr in type(group).__slots__:
+            # attrs.fields() covers inherited fields too: a
+            # SerializedMappedTaskGroup only declares ``_expand_input`` in its
+            # own __slots__, so copying ``type(group).__slots__`` left
+            # ``children`` shared with the original group and the subset's
+            # tasks were written into it (#74453).
+            for attr in (field.name for field in attrs.fields(type(group))):
                 value = getattr(group, attr)
                 value = copy.deepcopy(value, memo)
                 object.__setattr__(copied, attr, value)
