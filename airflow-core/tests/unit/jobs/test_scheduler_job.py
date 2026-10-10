@@ -102,6 +102,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
+from airflow.models.variable import Variable
 from airflow.partition_mappers.base import (
     PartitionMapper as CorePartitionMapper,
     RollupMapper as CoreRollupMapper,
@@ -960,6 +961,50 @@ class TestSchedulerJob:
         assert session.get(ExecutorCallback, scheduled_callback.id).state == CallbackState.SCHEDULED
         assert session.get(ExecutorCallback, queued_callback.id).state == CallbackState.QUEUED
         assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
+
+    def test_enqueue_executor_callbacks_fails_only_callback_rejected_at_flush(self, dag_maker, session):
+        def test_callback():
+            pass
+
+        with dag_maker(dag_id="test_callback_rejected_at_flush"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+
+        callbacks = []
+        for _ in range(2):
+            callback = Deadline(
+                deadline_time=timezone.utcnow(),
+                callback=SyncCallback(test_callback),
+                dagrun_id=dag_run.id,
+                deadline_alert_id=None,
+            ).callback
+            callback.state = CallbackState.PENDING
+            callback.data["dag_run_id"] = dag_run.id
+            callback.data["dag_id"] = dag_run.dag_id
+            callbacks.append(callback)
+        rejected_callback, accepted_callback = callbacks
+        session.add_all([*callbacks, Variable(key="duplicate", val="x")])
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        executor = self.job_runner.executor
+        original_queue_workload = executor.queue_workload
+
+        def queue_workload(workload, session):
+            if workload.callback.id == str(rejected_callback.id):
+                # Stands in for an executor row the database rejects on flush, like an
+                # over-long edge_job.command.
+                session.add(Variable(key="duplicate", val="y"))
+            original_queue_workload(workload, session=session)
+
+        with mock.patch.object(executor, "queue_workload", autospec=True, side_effect=queue_workload):
+            self.job_runner._enqueue_executor_callbacks(session)
+        session.flush()
+
+        rejected = session.get(ExecutorCallback, rejected_callback.id)
+        assert rejected.state == CallbackState.FAILED
+        assert rejected.output == "Failed to queue callback: IntegrityError"
+        assert session.get(ExecutorCallback, accepted_callback.id).state == CallbackState.QUEUED
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
