@@ -24,14 +24,14 @@ Creating a custom Operator
 Airflow allows you to create new operators to suit the requirements of you or your team.
 This extensibility is one of the many features which make Apache Airflow powerful.
 
-You can create any operator you want by extending the public SDK base class :class:`~airflow.sdk.BaseOperator`.
+You can create your own, custom operator by extending (inheriting from) the public SDK base class :class:`~airflow.sdk.BaseOperator`.
 
-There are two methods that you need to override in a derived class:
+There are two methods that you need to override your custom operator:
 
-* Constructor - Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
+* Constructor (``__init__``): Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
   You can specify the ``default_args`` in the Dag file. See :ref:`Default args <concepts-default-arguments>` for more details.
 
-* Execute - The code to execute when the runner calls the operator. The method contains the
+* ``execute()``: The code to execute when the runner calls the operator. The method contains the
   Airflow context as a parameter that can be used to read config values.
 
 .. note::
@@ -74,8 +74,8 @@ You can now use the derived custom operator as follows:
     with dag:
         hello_task = HelloOperator(task_id="sample-task", name="foo_bar")
 
-You also can keep using your plugins folder for storing your custom operators. If you have the file
-``hello_operator.py`` within the plugins folder, you can import the operator as follows:
+As mentioned above, you can use your ``plugins`` folder for storing your custom operators. 
+If you have the file ``hello_operator.py`` within the ``plugins`` folder, you can import the operator as follows:
 
 .. code-block:: python
 
