@@ -28,6 +28,7 @@ try:
         McpSdkServerConfig,
         Message,
         ResultMessage,
+        ToolAnnotations,
         create_sdk_mcp_server,
         tool,
     )
@@ -42,6 +43,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
+from airflow.providers.common.ai.utils.query_results import DEFAULT_MAX_RESULT_BYTES
 from airflow.providers.common.ai.utils.tool_definition import serialize_for_llm
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
@@ -139,8 +141,14 @@ class AirflowTools:
         airflow_tools = collect_tools(sources)
         self.allowed_tools: list[str] = [f"mcp__{server_name}__{t.name}" for t in airflow_tools]
         self._run: _Run | None = None
+        # With ``tools=[]`` the model has no Read tool, so a result the SDK spills to a file is lost to
+        # it. ``maxResultSizeChars`` counts characters, so using SQLToolset's byte cap as the limit
+        # raises the inline ceiling to at least the size of any result it caps.
+        annotations = ToolAnnotations(maxResultSizeChars=DEFAULT_MAX_RESULT_BYTES)
         sdk_tools = [
-            tool(t.name, t.description, copy.deepcopy(t.parameters))(self._build_handler(t))
+            tool(t.name, t.description, self._build_tool_schema(t), annotations=annotations)(
+                self._build_handler(t)
+            )
             for t in airflow_tools
         ]
         self.server: McpSdkServerConfig = create_sdk_mcp_server(name=server_name, tools=sdk_tools)
@@ -211,6 +219,12 @@ class AirflowTools:
             return result
         finally:
             self._run = None
+
+    @staticmethod
+    def _build_tool_schema(airflow_tool: AirflowTool) -> dict[str, Any]:
+        schema = copy.deepcopy(airflow_tool.parameters)
+        schema.setdefault("properties", {})
+        return schema
 
     def _build_handler(
         self, airflow_tool: AirflowTool
