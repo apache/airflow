@@ -1614,6 +1614,7 @@ Sharepoint
 shm
 shouldn
 sie
+sigstore
 SIGTERM
 sku
 sla
@@ -1855,6 +1856,7 @@ triaging
 triggerer
 triggerers
 trino
+trixie
 trojan
 TrustedRouter
 truthy
