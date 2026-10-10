@@ -2858,6 +2858,28 @@ def test_schedule_tis_preserves_allocated_attempt(dag_maker, session, state, try
     assert session.get(TI, ti_id).try_number == try_number
 
 
+def test_schedule_tis_clears_retry_policy_columns(dag_maker, session):
+    """The new try must not inherit the finished try's reason."""
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1")
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+    ti.state = None
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
+    session.commit()
+    ti_id = ti.id
+
+    assert dr.schedule_tis((ti,), session=session) == 1
+    session.flush()
+    session.expire_all()
+
+    scheduled = session.get(TI, ti_id)
+    assert scheduled.retry_reason is None
+    assert scheduled.retry_delay_override is None
+
+
 def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker, session):
     with dag_maker(session=session) as dag:
         BashOperator(task_id="task", bash_command="echo 1")

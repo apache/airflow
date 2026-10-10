@@ -490,6 +490,10 @@ def clear_task_instances(
                 ti.max_tries = max(ti.max_tries or 0, previous_try_number)
             ti.state = None
             ti.external_executor_id = None
+            # retry_delay_override is the functional one: next_retry_datetime() prefers it over
+            # the task's own retry_delay, so a stale value would retime the next retry.
+            ti.retry_reason = None
+            ti.retry_delay_override = None
             ti.clear_next_method_args()
             # Match DagVersion to latest serialized DAG when running on the latest version.
             if use_latest_version:
