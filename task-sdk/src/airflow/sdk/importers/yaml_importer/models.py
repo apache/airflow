@@ -52,14 +52,13 @@ TEMPLATE_KEYS = ("$t", "$template")
 CONST_KEY = "$const"
 
 # Keys deferred to a later edition...
-DAG_CALLBACK_KEYS = {"on_success_callback", "on_failure_callback", "sla_miss_callback"}
+DAG_CALLBACK_KEYS = {"on_success_callback", "on_failure_callback"}
 TASK_CALLBACK_KEYS = {
     "on_success_callback",
     "on_failure_callback",
     "on_retry_callback",
     "on_execute_callback",
     "on_skipped_callback",
-    "sla_miss_callback",
 }
 TASK_ASSET_IO_KEYS = {"inlets", "outlets"}
 
