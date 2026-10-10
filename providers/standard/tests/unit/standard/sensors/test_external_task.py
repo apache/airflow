@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import itertools
 import logging
 import re
@@ -37,6 +38,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowSensorTimeout,
     AirflowSkipException,
     TaskDeferred,
+    XCom,
     timezone,
 )
 from airflow.providers.standard.exceptions import (
@@ -52,7 +54,12 @@ from airflow.providers.standard.exceptions import (
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.providers.standard.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
+from airflow.providers.standard.sensors.external_task import (
+    XCOM_EXTERNAL_RUN_IDS,
+    ExternalDagLink,
+    ExternalTaskMarker,
+    ExternalTaskSensor,
+)
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.timetables.base import DataInterval
@@ -1357,11 +1364,15 @@ class TestExternalTaskSensorV3:
         self.context["ti"].get_task_states.return_value = {"run_id": {"test_group.task_id": State.SUCCESS}}
         op.execute(context=self.context)
 
-        self.context["ti"].get_task_states.assert_called_once_with(
-            dag_id="test_dag_parent",
-            logical_dates=[DEFAULT_DATE],
-            task_group_id="test_group",
-        )
+        assert self.context["ti"].get_task_states.call_args_list == [
+            mock.call(dag_id="test_dag_parent", logical_dates=[DEFAULT_DATE], task_group_id="test_group"),
+            mock.call(
+                dag_id="test_dag_parent",
+                task_ids=None,
+                task_group_id="test_group",
+                logical_dates=[DEFAULT_DATE],
+            ),
+        ]
         assert op.external_dates_filter == DEFAULT_DATE.isoformat()
 
     @pytest.mark.execution_timeout(10)
@@ -1596,11 +1607,15 @@ class TestExternalTaskSensorV3:
         with pytest.raises(ExternalTaskGroupFailedError):
             op.execute(context=self.context)
 
-        self.context["ti"].get_task_states.assert_called_once_with(
-            dag_id="test_dag_parent",
-            logical_dates=[DEFAULT_DATE],
-            task_group_id="test_group",
-        )
+        assert self.context["ti"].get_task_states.call_args_list == [
+            mock.call(dag_id="test_dag_parent", logical_dates=[DEFAULT_DATE], task_group_id="test_group"),
+            mock.call(
+                dag_id="test_dag_parent",
+                task_ids=None,
+                task_group_id="test_group",
+                logical_dates=[DEFAULT_DATE],
+            ),
+        ]
         assert op.external_dates_filter == DEFAULT_DATE.isoformat()
 
     def test_get_logical_date(self):
@@ -1721,7 +1736,11 @@ class TestExternalTaskAsyncSensor:
             deferrable=True,
         )
 
-        context = {"execution_date": DEFAULT_DATE, "logical_date": DEFAULT_DATE}
+        context = {
+            "execution_date": DEFAULT_DATE,
+            "logical_date": DEFAULT_DATE,
+            "ti": mock.MagicMock(spec=["get_task_states", "xcom_push"]),
+        }
         with mock.patch.object(sensor.log, "info") as mock_log_info:
             sensor.execute_complete(
                 context=context,
@@ -1738,7 +1757,11 @@ class TestExternalTaskAsyncSensor:
             deferrable=True,
         )
 
-        context = {"execution_date": DEFAULT_DATE, "logical_date": DEFAULT_DATE}
+        context = {
+            "execution_date": DEFAULT_DATE,
+            "logical_date": DEFAULT_DATE,
+            "ti": mock.MagicMock(spec=["get_task_states", "xcom_push"]),
+        }
         with pytest.raises(ExternalDagFailedError, match="External job has failed."):
             sensor.execute_complete(
                 context=context,
@@ -1755,7 +1778,11 @@ class TestExternalTaskAsyncSensor:
             soft_fail=True,
         )
 
-        context = {"execution_date": DEFAULT_DATE, "logical_date": DEFAULT_DATE}
+        context = {
+            "execution_date": DEFAULT_DATE,
+            "logical_date": DEFAULT_DATE,
+            "ti": mock.MagicMock(spec=["get_task_states", "xcom_push"]),
+        }
         with pytest.raises(AirflowSkipException, match="External job has failed skipping."):
             sensor.execute_complete(
                 context=context,
@@ -1793,10 +1820,45 @@ class TestExternalTaskAsyncSensor:
         )
         assert sensor.external_dates_filter is None
 
-        context = {"execution_date": DEFAULT_DATE, "logical_date": DEFAULT_DATE}
+        context = {
+            "execution_date": DEFAULT_DATE,
+            "logical_date": DEFAULT_DATE,
+            "ti": mock.MagicMock(spec=["get_task_states", "xcom_push"]),
+        }
         sensor.execute_complete(context=context, event={"status": "success"})
 
         assert sensor.external_dates_filter == DEFAULT_DATE.isoformat()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Run IDs are looked up through the Task SDK")
+    @pytest.mark.parametrize(
+        ("status", "expectation"),
+        [
+            pytest.param("success", contextlib.nullcontext(), id="success"),
+            pytest.param("failed", pytest.raises(ExternalDagFailedError), id="failed"),
+            pytest.param("skipped", pytest.raises(AirflowSkipException), id="skipped"),
+        ],
+    )
+    def test_defer_execute_complete_pushes_matched_external_run_ids(self, status, expectation):
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            deferrable=True,
+        )
+        ti = mock.MagicMock(spec=["get_task_states", "xcom_push"])
+        ti.get_task_states.return_value = {"run_b": {EXTERNAL_TASK_ID: status}, "run_a": {}}
+        context = {"logical_date": DEFAULT_DATE, "ti": ti}
+
+        with expectation:
+            sensor.execute_complete(context=context, event={"status": status})
+
+        ti.get_task_states.assert_called_once_with(
+            dag_id=EXTERNAL_DAG_ID,
+            task_ids=[EXTERNAL_TASK_ID],
+            task_group_id=None,
+            logical_dates=[DEFAULT_DATE],
+        )
+        ti.xcom_push.assert_called_once_with(key=XCOM_EXTERNAL_RUN_IDS, value=["run_a", "run_b"])
 
     def test_poke_interval_set_on_init(self):
         """Test that poke_interval is set on init and the deprecated poll_interval attribute mirrors it."""
@@ -1821,7 +1883,9 @@ class TestExternalTaskAsyncSensor:
     ],
     ids=["not_templated", "templated"],
 )
+@mock.patch.object(XCom, "get_value", autospec=True, return_value=None)
 def test_external_task_sensor_extra_link(
+    mock_get_value,
     external_dag_id,
     external_task_id,
     expected_external_dag_id,
@@ -1844,7 +1908,7 @@ def test_external_task_sensor_extra_link(
 
     url = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
-    assert f"/dags/{expected_external_dag_id}/runs" in url
+    assert url.endswith(f"/dags/{expected_external_dag_id}")
 
 
 class TestExternalTaskMarker:
@@ -2420,9 +2484,8 @@ class TestExternalDagLink:
             pytest.param(ExternalTaskMarker, id="marker"),
         ],
     )
-    def test_link_points_to_external_dag_run(self, operator_class, dag_maker):
-        from airflow.configuration import conf
-
+    @mock.patch.object(XCom, "get_value", autospec=True, return_value=None)
+    def test_link_points_to_external_dag_without_matched_run(self, mock_get_value, operator_class, dag_maker):
         with dag_maker("test_external_dag_link", serialized=True):
             task = operator_class(
                 task_id="task_with_link",
@@ -2439,5 +2502,106 @@ class TestExternalDagLink:
 
         url = link.get_link(operator=task, ti_key=ti.key)
 
-        base_url = conf.get("api", "base_url", fallback="/").lower()
-        assert url == f"{base_url}dags/external_dag/runs/{dr.run_id}"
+        assert url.endswith("/dags/external_dag")
+
+    @pytest.mark.parametrize(
+        ("sensor_kwargs", "external_logical_date"),
+        [
+            pytest.param(
+                {"execution_delta": timedelta(minutes=5)},
+                DEFAULT_DATE - timedelta(minutes=5),
+                id="execution_delta",
+            ),
+            pytest.param(
+                {"execution_date_fn": lambda logical_date: logical_date - timedelta(minutes=5)},
+                DEFAULT_DATE - timedelta(minutes=5),
+                id="execution_date_fn",
+            ),
+            pytest.param({}, DEFAULT_DATE, id="same_logical_date_different_run_type"),
+        ],
+    )
+    def test_sensor_link_points_to_waited_external_dag_run(
+        self, sensor_kwargs, external_logical_date, dag_maker
+    ):
+        with dag_maker(
+            "external_dag", schedule=None, start_date=DEFAULT_DATE - timedelta(days=1), serialized=True
+        ):
+            EmptyOperator(task_id="external_task")
+        external_dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=external_logical_date,
+            state=DagRunState.SUCCESS,
+        )
+
+        with dag_maker("sensor_dag", schedule=None, serialized=True):
+            ExternalTaskSensor(task_id="wait", external_dag_id="external_dag", **sensor_kwargs)
+        sensor_dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE)
+
+        ti = dag_maker.run_ti("wait", sensor_dr)
+        assert ti.state == State.SUCCESS
+
+        url = dag_maker.serialized_dag.get_task("wait").get_extra_links(ti, ExternalDagLink.name)
+        assert url.endswith(f"/dags/external_dag/runs/{external_dr.run_id}")
+
+    def test_sensor_link_points_to_external_dag_runs_when_several_runs_matched(self, dag_maker):
+        external_logical_dates = [DEFAULT_DATE - timedelta(days=1), DEFAULT_DATE]
+        with dag_maker(
+            "external_dag", schedule=None, start_date=DEFAULT_DATE - timedelta(days=1), serialized=True
+        ):
+            EmptyOperator(task_id="external_task")
+        for logical_date in external_logical_dates:
+            dag_maker.create_dagrun(
+                run_type=DagRunType.SCHEDULED, logical_date=logical_date, state=DagRunState.SUCCESS
+            )
+
+        with dag_maker("sensor_dag", schedule=None, serialized=True):
+            ExternalTaskSensor(
+                task_id="wait",
+                external_dag_id="external_dag",
+                execution_date_fn=lambda _: external_logical_dates,
+            )
+        sensor_dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE)
+
+        ti = dag_maker.run_ti("wait", sensor_dr)
+        assert ti.state == State.SUCCESS
+
+        url = dag_maker.serialized_dag.get_task("wait").get_extra_links(ti, ExternalDagLink.name)
+        assert url.endswith("/dags/external_dag/runs")
+
+    @pytest.mark.parametrize(
+        ("sensor_kwargs", "expectation", "expected_state"),
+        [
+            pytest.param(
+                {"failed_states": [DagRunState.FAILED]},
+                pytest.raises(ExternalDagFailedError),
+                State.FAILED,
+                id="failed_states",
+            ),
+            pytest.param(
+                {"skipped_states": [DagRunState.FAILED]},
+                contextlib.nullcontext(),
+                State.SKIPPED,
+                id="skipped_states",
+            ),
+        ],
+    )
+    def test_sensor_link_points_to_external_dag_run_that_ended_the_wait(
+        self, sensor_kwargs, expectation, expected_state, dag_maker
+    ):
+        with dag_maker("external_dag", schedule=None, serialized=True):
+            EmptyOperator(task_id="external_task")
+        external_dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED, logical_date=DEFAULT_DATE, state=DagRunState.FAILED
+        )
+
+        with dag_maker("sensor_dag", schedule=None, serialized=True):
+            ExternalTaskSensor(task_id="wait", external_dag_id="external_dag", **sensor_kwargs)
+        sensor_dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE)
+
+        with expectation:
+            dag_maker.run_ti("wait", sensor_dr)
+        ti = sensor_dr.get_task_instance("wait")
+        assert ti.state == expected_state
+
+        url = dag_maker.serialized_dag.get_task("wait").get_extra_links(ti, ExternalDagLink.name)
+        assert url.endswith(f"/dags/external_dag/runs/{external_dr.run_id}")
