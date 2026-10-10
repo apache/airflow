@@ -928,6 +928,21 @@ previous images that can matter when you extend or run the image are:
   versions carry a ``+dhi<N>`` suffix, so apt prefers them over Debian's builds - in the image and in
   images extending it. The repository can be used anonymously: unlike pulling the ``dhi.io`` images,
   installing packages from it needs no ``docker login`` or any other credentials.
+* **Installing apt packages can pull in a second Python.** The Debian 13 images register their own Python
+  with ``dpkg`` (``python-3.12``, ``libpython-3.12``, ...), and Docker's package repository serves the
+  other Python versions as packages too. A Debian package that depends on ``python3`` - directly or, as
+  ``libenchant-2-dev`` does, through its build tools - therefore makes apt install another hardened Python
+  version (for example ``python-3.13`` into a Python 3.12 image), and on the Debian 12 images it pulls in
+  Debian's own ``python3``. The second interpreter does not replace the image's Python, but it can take
+  over ``/usr/bin/python3`` and its headers, and C extensions built afterwards then compile against the
+  wrong Python. The image build fails when this happens, but a custom image that installs extra apt
+  packages is not checked. Check what ``apt-get install --simulate`` would install before adding packages
+  that might depend on ``python3``, and prefer the runtime library packages over their ``-dev`` variants.
+* **apt does not refresh the shared library cache.** The base images ship ``libc-bin`` without its
+  ``dpkg`` trigger, so installing a shared library does not run ``ldconfig``, and anything that looks
+  libraries up through the cache - such as ``ctypes.util.find_library()`` - does not find it. The image
+  adds ``/etc/apt/apt.conf.d/99airflow-ldconfig``, which runs ``ldconfig`` after every ``dpkg`` run,
+  including those of images extending it.
 * **Some OS files are modified.** ``/etc/os-release`` identifies the system as "Docker Hardened Images
   (Debian)", and ``/etc/debian_version`` differs from the Debian package's copy, so an ``apt-get upgrade``
   that touches ``base-files`` would stop at ``dpkg``'s interactive configuration-file prompt. The image
