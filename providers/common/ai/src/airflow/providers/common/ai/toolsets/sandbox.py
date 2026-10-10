@@ -74,10 +74,12 @@ _RELEASE_RETRY_DELAY = 1.0
 
 # Runs backend.create off the event loop. Its threads start on first use, not at import.
 _provisioning = concurrent.futures.ThreadPoolExecutor(thread_name_prefix="sandbox-create")
-# This lock guards sandbox creation in each SandboxToolset. Airflow deep-copies tasks and
-# default_args together with the toolsets they hold. A lock cannot be deep-copied, so every
-# toolset shares this one lock instead of holding its own. The lock is never held during a
-# backend call, so one toolset never waits for another toolset's sandbox.
+# One process-wide lock for every SandboxToolset. It guards each toolset's pending creation,
+# the ``_open`` flag that ``_close`` clears, and the ``_open`` re-check before a newly created
+# sandbox is published. Airflow deep-copies tasks and default_args together with the toolsets
+# they hold, and a lock cannot be deep-copied, so toolsets share this lock instead of holding
+# their own. It is never held during a backend call, so one toolset never waits for another
+# toolset's sandbox.
 _create_lock = threading.Lock()
 
 RUN_COMMAND = "run_command"
