@@ -884,26 +884,72 @@ vetted by the security teams. It is also the most complex way of building the im
 expert of building and using Dockerfiles in order to use it and have to have specific needs of security if
 you want to follow that route.
 
+.. _image-hardened-base:
+
+Properties of the hardened base image
+.....................................
+
+Since Airflow 3.4.0 the images are built on the ``-dev`` variant of the
+`Docker Hardened Image <https://dhi.io>`_ for Python (``dhi.io/python``, mirrored to
+``ghcr.io/apache/airflow/base/python``) instead of compiling Python on ``debian:bookworm-slim``. Docker
+publishes the definitions these images are built from in the
+`docker-hardened-images/catalog <https://github.com/docker-hardened-images/catalog>`_ repository
+(``package/python`` for the Python build, ``image/python`` for the image). The differences from the
+previous images that can matter when you extend or run the image are:
+
+* **Python is patched.** Docker applies its own patches on top of the upstream CPython release
+  (``package/python/patch`` in the catalog). One of them makes ``pkgutil.get_data()`` reject resource
+  paths that are absolute or contain ``..`` (CVE-2026-3479) - upstream CPython only documents that
+  restriction and does not enforce it. Libraries that load bundled data through ``../`` paths fail with
+  ``ValueError: resource must be a relative path with no parent directory components``; for example
+  ``moto`` before 5.2.2.
+* **Threads get a 1 MiB stack.** The hardened Python is compiled with
+  ``-DTHREAD_STACK_SIZE=0x100000``, while the previous images used the ``glibc`` default (the 8 MiB
+  ``ulimit -s``). On Python 3.12 and 3.13 the interpreter's C recursion guard is a fixed depth that
+  assumes the larger stack, so deeply nested data - for example a JSON body parsed in a web server worker
+  thread - can crash the process instead of raising ``RecursionError``. The image restores the 8 MiB
+  default for threads started by Python with a ``airflow-thread-stack-size.pth`` file in the base
+  Python's ``site-packages``; delete that file if you need the smaller stacks.
+* **Python is built without profile-guided optimization.** The previous images were built with
+  ``--enable-optimizations`` and ``--with-lto``; the hardened Python uses only ``--with-lto``, so CPU-bound Python code
+  can run measurably slower.
+* **Python lives in** ``/opt/python``. ``/usr/python`` and the ``/usr/local/bin`` links point to it, so
+  the paths used before keep working. The standard library ships without ``.pyc`` files, so the build
+  compiles it into the image.
+* **The OS is minimal.** The base ships no compiler, ``curl``, ``wget``, ``git``, ``gzip``, ``which`` or
+  ``ldconfig``, no ``dash`` (``/bin/sh`` is ``bash``) and a stripped ``/etc`` - for example without
+  ``/etc/shells`` or the PAM ``common-*`` files. The build restores what Airflow and the Debian packages
+  it installs need; a custom image that relied on something else being present has to install it.
+* **Some OS files are modified.** ``/etc/os-release`` identifies the system as "Docker Hardened Images
+  (Debian)", and ``/etc/debian_version`` differs from the Debian package's copy, so an ``apt-get upgrade``
+  that touches ``base-files`` would stop at ``dpkg``'s interactive configuration-file prompt. The image
+  ships ``/etc/dpkg/dpkg.cfg.d/airflow-keep-conffiles`` (``force-confdef`` and ``force-confold``), so
+  ``dpkg`` keeps the image's copy of a configuration file without asking - also in images that extend
+  it. A package upgrade therefore does not replace a configuration file that differs from the
+  package's version.
+* **The tags are rebuilt in place.** Docker republishes the same tags as CVEs are fixed, and Airflow
+  refreshes its mirror weekly, so rebuilding an image from the same ``BASE_IMAGE`` tag can pick up a newer
+  base. The weekly mirror also copies the newest Python patch release Docker publishes, and Airflow's
+  regular dependency upgrade moves the pinned patch level to it, so the images follow Docker's releases
+  rather than python.org's.
+
 .. _image-build-fips:
 
 Build images in FIPS-compliant environments
 ...........................................
 
-If you are building images in a FIPS-compliant environment, you might encounter issues with the default
-build process. For example, the default build process uses ``--with-lto`` (Link Time Optimization) when
-building Python, which might fail in FIPS mode because LTO uses MD5 checksums to verify object files
-during compilation, and MD5 is blocked in FIPS mode.
-
-In order to build the image in FIPS-compliant environment, you can use ``PYTHON_LTO`` build argument
-and set it to ``false``.
+Airflow images are based on the `Docker Hardened Images <https://dhi.io>`_ for Python, and Docker
+publishes FIPS-validated variants of those images. Those variants are only available with a paid
+Docker subscription, so they cannot be the default, but you can point the build at one with the
+``BASE_IMAGE`` build argument.
 
 .. code-block:: bash
 
-    docker build . --build-arg PYTHON_LTO="false" --tag my-image:my-tag
+    docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.16-debian12-fips-dev" --tag my-image:my-tag
 
 .. note::
 
-   While disabling LTO is necessary for FIPS compliance during the build process, it is not sufficient
+   While building on a FIPS-validated base image is necessary for FIPS compliance, it is not sufficient
    to make the image fully FIPS compliant. There might be other reasons for FIPS incompatibility
    (for example usage of non-FIPS compliant algorithms in the software installed in the image).
    You should verify the compliance of the image yourself.

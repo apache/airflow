@@ -1,0 +1,73 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Mirror hardened base images
+# Copies the Docker Hardened Image (https://dhi.io) tags that Airflow images are built on into a
+# public ghcr.io repository owned by the project.
+#
+# Pulling from dhi.io requires a Docker Hub login. Requiring one to build an Airflow image would
+# mean every contributor and every CI job needs Docker Hub credentials, so the tags are mirrored
+# instead and `BASE_IMAGE` defaults to the mirror. The images are Apache-2.0 licensed, so
+# redistributing them is allowed.
+#
+# `docker buildx imagetools create` copies the multi-platform manifest between registries without
+# pulling the layers into the runner, so a refresh of all Python versions is cheap.
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+  schedule:
+    # Docker rebuilds the hardened images as CVEs are fixed, keeping the same tags. Re-running
+    # weekly is what picks those rebuilds up.
+    - cron: '27 4 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: mirror-hardened-base-images
+  cancel-in-progress: false
+jobs:
+  mirror:
+    name: "Mirror hardened base images"
+    runs-on: ["ubuntu-22.04"]
+    # Never runs on forks - they have neither the credentials nor the package to push to.
+    if: github.repository == 'apache/airflow'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      # dhi.io accepts any Docker Hub account - the free tier covers the images we mirror - so this
+      # reuses the credentials the DockerHub release workflows already use.
+      - name: "Login to dhi.io"
+        env:
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: echo "${DOCKERHUB_TOKEN}" | docker login dhi.io -u "${DOCKERHUB_USER}" --password-stdin
+      - name: "Login to ghcr.io"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
+      - name: "Mirror base images"
+        run: breeze release-management mirror-base-images

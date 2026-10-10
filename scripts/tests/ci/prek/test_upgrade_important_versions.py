@@ -237,3 +237,41 @@ def test_flit_core_upgrade_updates_provider_pyproject_template(monkeypatch):
     )
 
     assert 'requires = ["flit_core==99.0.0"]' in new_content
+
+
+@pytest.mark.parametrize(
+    ("definition", "expected"),
+    [
+        pytest.param(
+            "tags:\n  - 3.14-debian12-dev\n  - 3.14.8-debian12-dev\nplatforms:\n",
+            "3.14.8",
+            id="floating-and-patchlevel-tags",
+        ),
+        pytest.param(
+            "tags:\n  - 3.12.9-debian12-dev\n  - 3.12.15-debian12-dev\n",
+            "3.12.15",
+            id="highest-patchlevel-wins-numerically",
+        ),
+    ],
+)
+def test_python_patchlevel_comes_from_the_hardened_image_catalog(monkeypatch, definition, expected):
+    from ci.prek import upgrade_important_versions as uiv
+
+    response = mock.MagicMock(spec=uiv.requests.Response)
+    response.text = definition
+    get = mock.create_autospec(uiv.requests.get, return_value=response)
+    monkeypatch.setattr(uiv.requests, "get", get)
+
+    assert uiv.get_latest_python_version("3.14") == expected
+    assert get.call_args.args[0].endswith("/image/python/debian-12/3.14-dev.yaml")
+
+
+def test_python_patchlevel_exits_when_the_catalog_lists_no_tag(monkeypatch):
+    from ci.prek import upgrade_important_versions as uiv
+
+    response = mock.MagicMock(spec=uiv.requests.Response)
+    response.text = "tags:\n  - 3.14-debian12-dev\n"
+    monkeypatch.setattr(uiv.requests, "get", mock.create_autospec(uiv.requests.get, return_value=response))
+
+    with pytest.raises(SystemExit):
+        uiv.get_latest_python_version("3.14")
