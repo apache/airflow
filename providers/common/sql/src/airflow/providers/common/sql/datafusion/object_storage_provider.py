@@ -17,18 +17,21 @@
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 from pathlib import Path
 
 from datafusion.object_store import AmazonS3, GoogleCloud, LocalFileSystem, MicrosoftAzure
 
-from airflow.providers.common.sql.config import ConnectionConfig, StorageType
+from airflow.providers.common.sql.config import STORAGE_TYPE_SCHEMES, ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
 from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
 
 
 class S3ObjectStorageProvider(ObjectStorageProvider):
     """S3 Object Storage Provider using DataFusion's AmazonS3."""
+
+    SCHEMES = STORAGE_TYPE_SCHEMES[StorageType.S3]
 
     @property
     def get_storage_type(self) -> StorageType:
@@ -52,13 +55,11 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
         except Exception as e:
             raise ObjectStoreCreationException(f"Failed to create S3 object store: {e}")
 
-    def get_scheme(self) -> str:
-        """Return the scheme for S3."""
-        return "s3://"
-
 
 class GCSObjectStorageProvider(ObjectStorageProvider):
     """GCS Object Storage Provider using DataFusion's GoogleCloud."""
+
+    SCHEMES = STORAGE_TYPE_SCHEMES[StorageType.GCS]
 
     @property
     def get_storage_type(self) -> StorageType:
@@ -102,18 +103,51 @@ class GCSObjectStorageProvider(ObjectStorageProvider):
             if temp_key_path is not None:
                 Path(temp_key_path).unlink(missing_ok=True)
 
-    def get_scheme(self) -> str:
-        """Return the scheme for GCS."""
-        return "gs://"
+
+# Host suffix matched loosely (not pinned to dfs.core.windows.net) to also cover sovereign
+# clouds, consistent with DataFusionEngine._resolve_wasb_account's AZURE_STORAGE_ENDPOINT tolerance.
+_ABFS_URI_RE = re.compile(r"^abfss?://(?P<container>[^@/]+)@(?P<account>[^./]+)\.[^/]+(?P<path>/.*)?$")
+_ABFS_SCHEMES = ("abfs://", "abfss://")
 
 
 class AzureObjectStorageProvider(ObjectStorageProvider):
     """Azure Object Storage Provider using DataFusion's MicrosoftAzure."""
 
+    SCHEMES = STORAGE_TYPE_SCHEMES[StorageType.AZURE]
+
     @property
     def get_storage_type(self) -> StorageType:
         """Return the storage type."""
         return StorageType.AZURE
+
+    def get_bucket(self, path: str) -> str | None:
+        """Extract the container name, from either the ``az://`` or ``abfs(s)://`` URI shape."""
+        if match := _ABFS_URI_RE.match(path):
+            return match.group("container")
+        if path.startswith(_ABFS_SCHEMES):
+            raise ValueError(
+                f"{path!r} does not match the required abfs(s)://<container>@<account>.<host>/<path> shape"
+            )
+        return super().get_bucket(path)
+
+    def _get_uri_account(self, path: str) -> str | None:
+        """Return the storage account embedded in an ``abfs(s)://`` URI, if any."""
+        match = _ABFS_URI_RE.match(path)
+        return match.group("account") if match else None
+
+    def normalize_uri(self, path: str) -> str:
+        """
+        Rewrite ``abfs(s)://<container>@<account>.<host>/<path>`` to ``az://<account>.<container>/<path>``.
+
+        DataFusion's registry keys on (schema, host) alone, so container-only would collide for
+        two different accounts sharing a container name. Account and container names never
+        contain a dot, so joining on one is unambiguous. ``az://`` passes through unchanged --
+        it never carried an account, so that collision is a pre-existing limit of the scheme
+        itself, not something this normalization can resolve.
+        """
+        if match := _ABFS_URI_RE.match(path):
+            return f"az://{match.group('account')}.{match.group('container')}{match.group('path') or ''}"
+        return path
 
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create an Azure object store using DataFusion's MicrosoftAzure."""
@@ -124,6 +158,20 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
             credentials = connection_config.credentials
             container = self.get_bucket(path)
 
+            uri_account = self._get_uri_account(path)
+            resolved_account = credentials.get("account")
+            if uri_account and resolved_account and uri_account.lower() != resolved_account.lower():
+                raise ValueError(
+                    f"URI {path!r} names storage account {uri_account!r}, but connection "
+                    f"{connection_config.conn_id!r} resolves to account {resolved_account!r}. Point "
+                    "the URI and the connection at the same account, or omit the account from one of "
+                    "them."
+                )
+            if uri_account and not resolved_account:
+                # Without this, MicrosoftAzure falls back to AZURE_STORAGE_ACCOUNT_NAME, which can
+                # silently point at a different account than the one named in the URI.
+                credentials = {**credentials, "account": uri_account}
+
             azure_store = MicrosoftAzure(container_name=container, **credentials)
             self.log.info("Created Azure object store for container %s", container)
 
@@ -133,13 +181,11 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
             # A bad credential combination panics as pyo3_runtime.PanicException, not a plain Exception.
             raise ObjectStoreCreationException(f"Failed to create Azure object store: {e}")
 
-    def get_scheme(self) -> str:
-        """Return the scheme for Azure."""
-        return "az://"
-
 
 class LocalObjectStorageProvider(ObjectStorageProvider):
     """Local Object Storage Provider using DataFusion's LocalFileSystem."""
+
+    SCHEMES = STORAGE_TYPE_SCHEMES[StorageType.LOCAL]
 
     @property
     def get_storage_type(self) -> StorageType:
@@ -150,8 +196,13 @@ class LocalObjectStorageProvider(ObjectStorageProvider):
         """Create a Local object store."""
         return LocalFileSystem()
 
-    def get_scheme(self) -> str:
-        """Return the scheme to a Local file system."""
+    def get_scheme(self, uri: str) -> str:
+        """
+        Return "file://" regardless of ``uri``.
+
+        A bare path with no prefix is only reachable via an explicit
+        ``storage_type=StorageType.LOCAL``, so matching against ``uri`` won't work.
+        """
         return "file://"
 
 

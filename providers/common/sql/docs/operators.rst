@@ -365,8 +365,12 @@ resolved in this order:
 
 Azure Storage
 -------------
-Use an ``az://`` URI with a ``conn_id`` pointing to a ``wasb`` connection.
-``abfs://`` and ``abfss://`` URIs are not recognized yet. The account name
+Use an ``az://``, ``abfs://``, or ``abfss://`` URI with a ``conn_id`` pointing
+to a ``wasb`` connection. ``az://container/path`` takes the storage account
+only from the connection; ``abfs://container@account.dfs.core.windows.net/path``
+and ``abfss://...`` additionally name the account in the URI itself -- if it
+disagrees with the account the connection resolves to, registering the
+datasource raises rather than silently picking one. The account name
 comes from ``host`` (its first DNS label) when set, falling back to
 ``login`` only when ``host`` is empty; only the public
 ``*.blob.core.windows.net`` cloud is supported, since DataFusion's binding
