@@ -274,6 +274,70 @@ class TestAdbcHook:
 
         return AdbcHookWithRealGetConn()
 
+    @pytest.mark.parametrize(
+        ("connection", "expected"),
+        [
+            pytest.param(
+                Connection(
+                    conn_id="adbc_default",
+                    conn_type="adbc",
+                    host="db.example.com",
+                    login="user",
+                    password="p@ss",
+                    port=5432,
+                    schema="db",
+                    extra=json.dumps({"dialect": "postgresql"}),
+                ),
+                "postgresql://user:p%40ss@db.example.com:5432/db",
+                id="built-from-the-fields",
+            ),
+            pytest.param(
+                Connection(
+                    conn_id="adbc_default",
+                    conn_type="adbc",
+                    host="db.example.com",
+                    extra=json.dumps(
+                        {"dialect": "postgresql", "conn_kwargs": {"adbc.connection.read_only": "true"}}
+                    ),
+                ),
+                "postgresql://db.example.com",
+                id="extras-stay-out-of-the-uri",
+            ),
+            pytest.param(
+                Connection(
+                    conn_id="adbc_default",
+                    conn_type="adbc",
+                    host="postgresql://user:pass@db.example.com:5432/db?sslmode=require",
+                    extra=json.dumps({"dialect": "postgresql"}),
+                ),
+                "postgresql://user:pass@db.example.com:5432/db?sslmode=require",
+                id="uri-in-the-host-field",
+            ),
+            pytest.param(
+                Connection(
+                    conn_id="adbc_default",
+                    conn_type="adbc",
+                    host="file::memory:",
+                    extra=json.dumps({"dialect": "sqlite"}),
+                ),
+                "file::memory:",
+                id="sqlite-in-memory",
+            ),
+            pytest.param(
+                Connection(
+                    conn_id="adbc_default",
+                    conn_type="adbc",
+                    host="/data/app.db",
+                    extra=json.dumps({"dialect": "sqlite"}),
+                ),
+                "/data/app.db",
+                id="sqlite-file",
+            ),
+        ],
+    )
+    def test_uri(self, connection, expected):
+        assert self._make_real_conn_hook(connection).uri == expected
+
     @mock.patch("airflow.providers.apache.arrow.hooks.adbc.connect")
     def test_get_conn_forwards_db_kwargs(self, mock_connect):
         conn = Connection(
