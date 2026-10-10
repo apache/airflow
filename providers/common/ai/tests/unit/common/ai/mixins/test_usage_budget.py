@@ -25,7 +25,7 @@ import pytest
 from pydantic_ai.usage import RunUsage, UsageLimits
 
 from airflow.providers.common.ai.mixins.usage_budget import UsageBudgetMixin
-from airflow.providers.common.ai.utils.usage_budget import TaskStateStoreUsageBudget
+from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY, TaskStateStoreUsageBudget
 
 MIXIN_MODULE = "airflow.providers.common.ai.mixins.usage_budget"
 
@@ -54,23 +54,6 @@ class TestBuildUsageBudget:
     @mock.patch(f"{MIXIN_MODULE}.AIRFLOW_V_3_3_PLUS", True)
     def test_skipped_without_usage_limits(self):
         assert _Host()._build_usage_budget({}, None, ti=None) is None
-
-
-class TestGetUsageBudget:
-    def test_does_not_read_task_instance_without_usage_limits(self):
-        # A context without ``task_instance`` raises KeyError on access.
-        assert _Host()._get_usage_budget({}, None) is None
-
-    def test_passes_task_instance_when_usage_limits_set(self):
-        host = _Host()
-        context = {"task_instance": MagicMock()}
-        limits = UsageLimits(request_limit=5)
-
-        with mock.patch.object(host, "_build_usage_budget") as build:
-            result = host._get_usage_budget(context, limits)
-
-        build.assert_called_once_with(context, limits, ti=context["task_instance"])
-        assert result is build.return_value
 
 
 class TestRunTracked:
@@ -164,20 +147,37 @@ class TestClearUsageBudget:
 
         host._usage_budget.clear.assert_called_once_with()
 
-    def test_rebuilds_budget_from_usage_limits_on_resumed_instance(self):
+    @mock.patch(f"{MIXIN_MODULE}.AIRFLOW_V_3_3_PLUS", True)
+    def test_resumed_instance_deletes_the_record_straight_from_the_store(self):
         host = _Host(usage_limits={"request_limit": 5})
-        context = {"task_instance": MagicMock()}
-        budget = MagicMock(spec=TaskStateStoreUsageBudget)
+        accessor = MagicMock()
 
-        with mock.patch.object(host, "_get_usage_budget", return_value=budget) as get_budget:
-            host._clear_usage_budget(context)
+        host._clear_usage_budget({"task_state_store": accessor})
 
-        assert get_budget.call_args.args[0] is context
-        assert get_budget.call_args.args[1].request_limit == 5
-        budget.clear.assert_called_once_with()
+        accessor.delete.assert_called_once_with(USAGE_BUDGET_KEY)
 
-    def test_noop_when_no_budget_applies(self):
-        host = _Host()
+    @mock.patch(f"{MIXIN_MODULE}.AIRFLOW_V_3_3_PLUS", True)
+    def test_resume_does_not_fail_on_unparsable_usage_limits(self):
+        host = _Host(usage_limits={"request_limit": ""})
+        accessor = MagicMock()
 
-        with mock.patch.object(host, "_get_usage_budget", return_value=None):
-            host._clear_usage_budget({})
+        host._clear_usage_budget({"task_state_store": accessor})
+
+        accessor.delete.assert_called_once_with(USAGE_BUDGET_KEY)
+
+    @mock.patch(f"{MIXIN_MODULE}.AIRFLOW_V_3_3_PLUS", False)
+    def test_resume_before_airflow_3_3_does_not_touch_context(self):
+        host = _Host(usage_limits={"request_limit": 5})
+        context = MagicMock()
+
+        host._clear_usage_budget(context)
+
+        assert context.mock_calls == []
+
+    @mock.patch(f"{MIXIN_MODULE}.AIRFLOW_V_3_3_PLUS", True)
+    def test_noop_without_usage_limits(self):
+        context = MagicMock()
+
+        _Host()._clear_usage_budget(context)
+
+        assert context.mock_calls == []

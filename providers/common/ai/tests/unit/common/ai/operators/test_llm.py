@@ -1251,6 +1251,24 @@ class TestLLMOperatorApproval:
 
         assert task_state_store_accessor.get(USAGE_BUDGET_KEY)["usage"]["requests"] == 1
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    def test_approval_resume_survives_unparsable_usage_limits(self, mock_upsert):
+        accessor = MagicMock()
+        op = LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            require_approval=True,
+            usage_limits={"request_limit": ""},
+        )
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
+
+        resumed = op.execute_complete({"task_state_store": accessor}, generated_output="draft", event=event)
+
+        assert resumed == "draft"
+        accessor.delete.assert_called_once_with(USAGE_BUDGET_KEY)
+
     def test_execute_complete_with_error(self):
         """execute_complete raises HITLTriggerEventError on error event."""
         from airflow.providers.standard.exceptions import HITLTriggerEventError

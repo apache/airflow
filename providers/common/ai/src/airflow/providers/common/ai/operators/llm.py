@@ -391,7 +391,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         self, context: Context, agent: Agent[Any, Any], user_prompt: Any, *, usage_limits: UsageLimits | None
     ) -> AgentRunResult[Any]:
         """Run the agent, bounding ``usage_limits`` across task retries when the usage budget applies."""
-        self._usage_budget = self._get_usage_budget(context, usage_limits)
+        # Contexts built without a ``task_instance`` stay valid for runs that have no ``usage_limits``.
+        ti = context["task_instance"] if usage_limits is not None else None
+        self._usage_budget = self._build_usage_budget(context, usage_limits, ti=ti)
         if self._usage_budget is None:
             result = self.run_agent_sync(agent, user_prompt, usage_limits=usage_limits)
             log_run_summary(self.log, result)

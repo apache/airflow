@@ -21,10 +21,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Protocol
 
-from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.ai.utils.usage_budget import (
     TaskStateStoreUsageBudget,
     copy_run_usage,
+    delete_usage_record,
     subtract_run_usage,
 )
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
@@ -52,10 +52,6 @@ class UsageBudgetHostProtocol(Protocol):
 
     def _build_usage_budget(
         self, context: Context, usage_limits: UsageLimits | None, *, ti: Any
-    ) -> TaskStateStoreUsageBudget | None: ...
-
-    def _get_usage_budget(
-        self, context: Context, usage_limits: UsageLimits | None
     ) -> TaskStateStoreUsageBudget | None: ...
 
     def _settle_tracked_usage(self) -> None: ...
@@ -93,14 +89,6 @@ class UsageBudgetMixin:
         if not (AIRFLOW_V_3_3_PLUS and usage_limits is not None):
             return None
         return TaskStateStoreUsageBudget(context["task_state_store"], max_tries=ti.max_tries)
-
-    def _get_usage_budget(
-        self, context: Context, usage_limits: UsageLimits | None
-    ) -> TaskStateStoreUsageBudget | None:
-        """Return the usage budget for ``context``, reading the task instance only when a budget can apply."""
-        # Contexts built without a ``task_instance`` stay valid for runs that have no ``usage_limits``.
-        ti = context["task_instance"] if usage_limits is not None else None
-        return self._build_usage_budget(context, usage_limits, ti=ti)
 
     def _settle_tracked_usage(self) -> None:
         """Do nothing; override to run after a tracked run and before its usage is persisted."""
@@ -155,10 +143,10 @@ class UsageBudgetMixin:
         Drop the persisted usage so the next task instance starts with a fresh budget.
 
         A resumed operator (``execute_complete``) is a new instance whose ``_usage_budget``
-        was never set, so the budget is rebuilt from ``usage_limits`` in that case.
+        was never set, so the record is deleted straight from the task state store: a bad
+        re-rendered ``usage_limits`` must not fail an already-approved resume.
         """
-        budget = self._usage_budget
-        if budget is None:
-            budget = self._get_usage_budget(context, coerce_usage_limits(self.usage_limits))
-        if budget is not None:
-            budget.clear()
+        if self._usage_budget is not None:
+            self._usage_budget.clear()
+        elif AIRFLOW_V_3_3_PLUS and self.usage_limits is not None:
+            delete_usage_record(context["task_state_store"])
