@@ -75,3 +75,24 @@ An example usage of the SnowparkContainerJobOperator is as follows:
 
   Parameters that can be passed onto the operator will be given priority over the parameters already given
   in the Airflow connection metadata (such as ``schema``, ``role``, ``database`` and so forth).
+
+Durable execution
+^^^^^^^^^^^^^^^^^
+
+By default the operator runs in a *durable* mode that makes the synchronous poll crash-safe.
+Before polling begins the job name is persisted to :doc:`task state store
+<apache-airflow:core-concepts/task-state-store>`, so if the worker crashes or is preempted and the
+task is retried, the operator reconnects to the job already running in Snowflake instead of
+submitting a duplicate.
+
+On retry the operator checks the prior job's status:
+
+* still running: reconnect and continue polling
+* already succeeded: return immediately without resubmitting
+* failed or another terminal state: submit a fresh job
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On
+earlier versions the flag is a no-op (setting it only emits a warning) and the operator always
+submits a fresh job on retry. Durable execution only applies to the synchronous polling path. It has no effect when
+``wait_for_completion=False`` or ``deferrable=True``. Set ``durable=False`` to opt out and always
+submit a fresh job on retry.
