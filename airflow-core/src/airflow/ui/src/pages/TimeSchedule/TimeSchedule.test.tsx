@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render as baseRender, screen, waitFor, within } from "@testing-library/react";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
@@ -322,7 +322,7 @@ describe("TimeSchedule page", () => {
     fireEvent.click(within(screen.getByTestId("time-schedule-dag-run-limit")).getByRole("combobox"));
 
     expect(await screen.findByRole("option", { name: "Limit 200" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Limit 5000" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Limit 5,000" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /All Dag runs/u })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("option", { name: "Limit 600" }));

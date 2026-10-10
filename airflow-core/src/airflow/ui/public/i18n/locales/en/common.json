@@ -518,7 +518,7 @@
     "dagRunLimit": "Dag run limit",
     "dagRunLimitHelp": "Displays the most recent Dag runs that match the current filters, up to the selected limit.",
     "dagRunLimitHelpLabel": "About Dag run limit",
-    "dagRunLimitOption": "Limit {{count}}",
+    "dagRunLimitOption": "Limit {{count, number}}",
     "dagRunsToDisplay": "Dag runs to display",
     "day": "Day",
     "description": "Explore Dag run timing and overlaps.",
