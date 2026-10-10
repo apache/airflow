@@ -1380,6 +1380,30 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("let a wiring class label an edge with Flow.label, by simple name")
+  fun compileWiringThatLabelsAnEdge() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void extract() {}
+          @Builder.Task public void load() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { extract().before(Flow.label(load(), "rows")); }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+  }
+
+  @Test
   @DisplayName("reject a task group ID that is not a plain identifier")
   fun rejectInvalidTaskGroupId() {
     val compilation =
