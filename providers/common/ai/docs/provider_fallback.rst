@@ -200,10 +200,10 @@ Two checks, neither of which requires waiting for a real outage:
 chain, so a fallback with a missing ``model`` or an unknown connection ID is reported by name
 there rather than discovered mid-incident. Credential fields a provider class rejects with a
 ``TypeError`` fail the resolution with a ``ValueError`` naming the connection, the provider and
-the ignored fields -- the hook never falls back to environment-variable auth, which would
-authenticate as a different identity -- and ``test_connection`` reports it as a failure. It
-does not call the provider, so a well-formed but revoked key still passes -- that is what the
-drill below is for.
+the fields passed, with the provider's ``TypeError`` text -- the hook never falls back to
+environment-variable auth, which would authenticate as a different identity -- and
+``test_connection`` reports it as a failure. It does not call the provider, so a well-formed
+but revoked key still passes -- that is what the drill below is for.
 
 *Drill it.* Point the primary at an endpoint nothing listens on and run the Dag. The task
 should still succeed, and the run summary in its log names the model that answered:

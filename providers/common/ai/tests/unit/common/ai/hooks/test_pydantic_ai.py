@@ -1665,7 +1665,8 @@ class TestPydanticAIHookTestConnection:
 
         assert success is False
         assert f"Provider 'openai' rejected the credentials from connection '{expected_conn_id}'" in message
-        assert "(ignored: api_key)" in message
+        assert "(fields passed: api_key)" in message
+        assert "unexpected keyword argument 'api_key'" in message
 
 
 # ---------------------------------------------------------------------------
