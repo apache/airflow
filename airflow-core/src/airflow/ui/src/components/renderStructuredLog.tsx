@@ -253,7 +253,7 @@ const renderStructuredLogImpl = ({
   const { error_detail: errorDetail, ...reStructured } = structured;
   let details;
 
-  if (errorDetail !== undefined) {
+  if (Array.isArray(errorDetail)) {
     details = (errorDetail as Array<ErrorDetail>).map((error) => {
       const errorLines = error.frames.map((frame) => {
         if (renderingMode === "text") {
@@ -294,6 +294,12 @@ const renderStructuredLogImpl = ({
         </chakra.details>
       );
     });
+  } else if (errorDetail !== undefined) {
+    // Some producers send an already rendered traceback; start it on its own line. Any other
+    // shape is stringified so an unexpected value cannot take the log view down.
+    const rendered = typeof errorDetail === "string" ? errorDetail : JSON.stringify(errorDetail);
+
+    details = rendered === "" ? undefined : `\n${rendered}`;
   }
 
   elements.push(
