@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import collections
 import itertools
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar
 
 from pydantic import (
     AliasChoices,
@@ -71,59 +71,52 @@ class XComTarget(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-def _marker_json_schema(schema: JsonSchemaValue, keys: tuple[str, ...]) -> JsonSchemaValue:
-    """Emit a ``$``-marker object's schema."""
-    (value_schema,) = schema.get("properties", {}).values()
-    schema["properties"] = {key: value_schema for key in keys}
-    schema.pop("required", None)
-    schema["oneOf"] = [{"required": [key]} for key in keys]
-    schema["additionalProperties"] = False
-    return schema
+class _MarkerRef(BaseModel):
+    """Base for a reserved ``$``-marker object."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    _marker_keys: ClassVar[tuple[str, ...]]
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        # Emit the marker as a single key in every accepted spelling, nothing else.
+        schema = handler(core_schema)
+        (value_schema,) = schema.get("properties", {}).values()
+        schema["properties"] = {key: value_schema for key in cls._marker_keys}
+        schema.pop("required", None)
+        schema["oneOf"] = [{"required": [key]} for key in cls._marker_keys]
+        schema["additionalProperties"] = False
+        return schema
 
 
-class XComRef(BaseModel):
+class XComRef(_MarkerRef):
     """An upstream task's XCom output."""
+
+    _marker_keys = XCOM_KEYS
 
     target: str | XComTarget = Field(
         serialization_alias="$x",
         validation_alias=AliasChoices(*XCOM_KEYS),
     )
 
-    model_config = ConfigDict(extra="forbid")
 
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        return _marker_json_schema(handler(core_schema), XCOM_KEYS)
-
-
-class TemplateRef(BaseModel):
+class TemplateRef(_MarkerRef):
     """A Jinja template."""
+
+    _marker_keys = TEMPLATE_KEYS
 
     source: str = Field(serialization_alias="$t", validation_alias=AliasChoices(*TEMPLATE_KEYS))
 
-    model_config = ConfigDict(extra="forbid")
 
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        return _marker_json_schema(handler(core_schema), TEMPLATE_KEYS)
-
-
-class ConstRef(BaseModel):
+class ConstRef(_MarkerRef):
     """Force a literal; the value is taken verbatim."""
 
+    _marker_keys = (CONST_KEY,)
+
     value: Any = Field(serialization_alias="$const", validation_alias=AliasChoices(CONST_KEY))
-
-    model_config = ConfigDict(extra="forbid")
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        return _marker_json_schema(handler(core_schema), (CONST_KEY,))
 
 
 def _value_discriminator(v: Any) -> str:
