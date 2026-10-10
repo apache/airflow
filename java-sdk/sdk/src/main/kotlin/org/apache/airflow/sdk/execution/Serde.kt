@@ -22,6 +22,7 @@ package org.apache.airflow.sdk.execution
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.Endpoint
 import org.apache.airflow.sdk.GroupEdges
 import org.apache.airflow.sdk.GroupExpansion
 import org.apache.airflow.sdk.LiteralArg
@@ -110,7 +111,7 @@ internal fun serializeDag(
       "tasks" to dag.tasks.map { (taskId, def) -> serializeTask(taskId, def, downstream[taskId]) },
       "dag_dependencies" to serializeDagDependencies(dag),
       "task_group" to serializeTaskGroups(dag, expansion),
-      "edge_info" to emptyMap<String, Any?>(),
+      "edge_info" to serializeEdgeInfo(dag, expansion),
       "params" to emptyList<Any?>(),
       "deadline" to null,
       "allowed_run_types" to null,
@@ -504,6 +505,52 @@ private fun taskGroupObject(
 
 /** The edges this group records for itself; the root group records none. */
 private fun TaskGroupRef?.edges(expansion: GroupExpansion): GroupEdges = this?.let { expansion.edgesOf(it.id) } ?: GroupEdges()
+
+/**
+ * The label of every labeled edge, keyed first by the ID of the edge's
+ * upstream end and then by the ID of its downstream end. Python's
+ * `DAG.edge_info` holds the labels the same way.
+ *
+ * The Airflow UI draws an edge to or from a task group as an edge to or from
+ * a join node of the group. So the label of such an edge goes under the ID of
+ * the join node. Python puts the label there too.
+ */
+private fun serializeEdgeInfo(
+  dag: DagDef,
+  expansion: GroupExpansion,
+): Map<String, Map<String, Map<String, String>>> {
+  val info = linkedMapOf<String, MutableMap<String, Map<String, String>>>()
+
+  fun put(
+    upstream: String,
+    downstream: String,
+    label: String,
+  ) {
+    info.getOrPut(upstream) { linkedMapOf() }[downstream] = mapOf("label" to label)
+  }
+
+  // A task edge that has its own label keeps that label, so the labels each
+  // group edge gives to its task edges go in first.
+  expansion.labels.forEach { (ends, label) -> put(ends.first, ends.second, label) }
+  dag.tasks.values.forEach { def ->
+    def.upstreamLabels.forEach { (upstream, label) -> put(upstream.id, def.id, label) }
+  }
+  dag.groupEdgeLabels.forEach { (ends, label) ->
+    put(ends.first.toEdgeInfoId(".downstream_join_id"), ends.second.toEdgeInfoId(".upstream_join_id"), label)
+  }
+  return info
+}
+
+/**
+ * The ID that `edge_info` uses for this end of an edge. For a task, it is the
+ * task's own ID. For a group, it is the group's ID followed by [groupSuffix],
+ * which names one of the group's join nodes.
+ */
+private fun Endpoint.toEdgeInfoId(groupSuffix: String): String =
+  when (this) {
+    is TaskDef -> id
+    is TaskGroupRef -> id + groupSuffix
+  }
 
 /**
  * Recursively serializes a value with Airflow's type/var encoding, matching

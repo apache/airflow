@@ -682,9 +682,9 @@ returns the same handle every time, so it names one node wherever it appears; on
 arguments is called once, and the wiring fails if it is called again with arguments, so hold its
 handle in a local and reuse that.
 
-``before``, ``after`` and ``Flow.of`` work here exactly as they do on the interface surface; inside
-the wiring class ``Flow`` is inherited by simple name, so it needs no import and never collides with
-``java.util.concurrent.Flow``.
+``before``, ``after``, ``Flow.of`` and ``Flow.label`` work here exactly as they do on the interface
+surface.  Inside the wiring class, ``Flow`` is inherited by simple name, so it needs no import and
+never collides with ``java.util.concurrent.Flow``.
 
 Every ``@Builder.Dag`` class declares a wiring class, because the graph is what the Dag owns.  A
 class that supplies only task bodies, for a Dag a Python file declares, carries
@@ -758,6 +758,39 @@ underscores, or dashes, and no task or other group in the Dag can share it.
     does.  Python instead reads it at each ``>>``.  Edges are still resolved in the order they were
     drawn, as Python resolves them, so drawing an inner edge before or after an outer one gives
     different upstreams.
+
+Edge labels
+~~~~~~~~~~~
+
+An edge can carry a label.  The Airflow UI shows the label on the edge in the graph, as it does for
+Python's ``Label``.  ``Flow.label`` comes from ``org.apache.airflow.sdk.Deps.Flow``, the same place as
+``Flow.of``.  ``Flow.label`` wraps the task or group at one end of an edge.  Pass the result to
+``before`` or ``after`` like any other point in the flow:
+
+.. code-block:: java
+
+    loaded.before(Flow.label(reportEmpty, "when empty")); // load >> Label("when empty") >> report_empty
+    cleaned.after(Flow.label(loaded, "always"));          // load >> Label("always") >> cleanup
+
+The label wraps one end of the edge, not the whole call, so each edge of a fan-out can carry its own
+label.  When an edge already exists, declaring it again with a label only adds the label.  That is
+how the sides of a condition get their labels:
+
+.. code-block:: java
+
+    var hasRows = dag.If(HasRows.class).Then(load).Else(loadEmpty);
+    hasRows.before(Flow.label(load, "rows found"), Flow.label(loadEmpty, "no rows"));
+
+A new label replaces the label the edge had.  Use ``Flow.label`` only in the arguments of ``before``
+and ``after``.  Calling ``before`` or ``after`` on the value that ``Flow.label`` returns fails.  When
+an edge goes to or from a task group, the UI draws it to or from the group's own node and shows the
+label there.
+
+.. note::
+
+    A label never changes which tasks an edge connects.  When the two ends of a labeled edge are in
+    different task groups, Python's ``Label`` can replace one end with the group that holds that end.
+    The edge then connects tasks other than the ones that the Dag code names.
 
 Configuration attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~
