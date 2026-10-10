@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import io
 import json
 import logging
 from unittest.mock import MagicMock, patch
@@ -289,11 +290,37 @@ def _make_mock_pypdf_module(mock_reader):
     return mock_module
 
 
-def _make_mock_docx_module(mock_doc):
-    """Create a fake docx module with a Document that returns mock_doc."""
-    mock_module = MagicMock()
-    mock_module.Document = MagicMock(return_value=mock_doc)
-    return mock_module
+def _create_docx():
+    return pytest.importorskip("docx", reason="needs the 'docx' extra").Document()
+
+
+def _get_docx_bytes(doc) -> bytes:
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    return buffer.getvalue()
+
+
+def _fill_docx_table(table, rows: list[list[str]]) -> None:
+    for r, values in enumerate(rows):
+        for c, value in enumerate(values):
+            table.cell(r, c).text = value
+
+
+def _build_docx_bytes(*blocks: str | list[list[str]]) -> bytes:
+    """Build a DOCX in memory: a ``str`` adds a paragraph, a list of rows adds a table."""
+    doc = _create_docx()
+    for block in blocks:
+        if isinstance(block, str):
+            doc.add_paragraph(block)
+        else:
+            _fill_docx_table(doc.add_table(rows=len(block), cols=len(block[0])), block)
+    return _get_docx_bytes(doc)
+
+
+def _load_docx_text(raw: bytes) -> str:
+    op = DocumentLoaderOperator(task_id="test", source_bytes=raw, file_type=".docx")
+    (document,) = op.execute(context=MagicMock())
+    return document["text"]
 
 
 class TestPdfParser:
@@ -371,45 +398,28 @@ class TestPdfParser:
 
 class TestDocxParser:
     def test_docx_parsing(self, tmp_path):
-        mock_para_1 = MagicMock()
-        mock_para_1.text = "First paragraph"
-        mock_para_2 = MagicMock()
-        mock_para_2.text = "Second paragraph"
-        mock_para_empty = MagicMock()
-        mock_para_empty.text = "   "
-
-        mock_doc_obj = MagicMock()
-        mock_doc_obj.paragraphs = [mock_para_1, mock_para_empty, mock_para_2]
-
         f = tmp_path / "doc.docx"
-        f.write_bytes(b"fake docx")
+        f.write_bytes(_build_docx_bytes("First paragraph", "    ", "Second paragraph"))
 
-        mock_docx = _make_mock_docx_module(mock_doc_obj)
-        with patch.dict("sys.modules", {"docx": mock_docx}):
-            op = DocumentLoaderOperator(task_id="test", source_path=str(f))
-            result = op.execute(context=MagicMock())
+        op = DocumentLoaderOperator(task_id="test", source_path=str(f))
+        result = op.execute(context=MagicMock())
 
         assert len(result) == 1
         assert "First paragraph" in result[0]["text"]
         assert "Second paragraph" in result[0]["text"]
 
     def test_docx_from_bytes_uses_stream_no_tempfile(self):
-        mock_para = MagicMock()
-        mock_para.text = "Stream paragraph"
-        mock_doc_obj = MagicMock()
-        mock_doc_obj.paragraphs = [mock_para]
+        docx = pytest.importorskip("docx", reason="needs the 'docx' extra")
+        raw = _build_docx_bytes("Stream paragraph")
 
-        mock_docx = _make_mock_docx_module(mock_doc_obj)
-        with patch.dict("sys.modules", {"docx": mock_docx}):
-            op = DocumentLoaderOperator(task_id="test", source_bytes=b"fake docx", file_type=".docx")
+        with patch("docx.Document", autospec=True, side_effect=docx.Document) as mock_document:
+            op = DocumentLoaderOperator(task_id="test", source_bytes=raw, file_type=".docx")
             result = op.execute(context=MagicMock())
 
         assert "Stream paragraph" in result[0]["text"]
-        mock_docx.Document.assert_called_once()
-        (call_arg,) = mock_docx.Document.call_args.args
-        import io as _io
-
-        assert isinstance(call_arg, _io.BytesIO)
+        mock_document.assert_called_once()
+        (call_arg,) = mock_document.call_args.args
+        assert isinstance(call_arg, io.BytesIO)
 
     def test_docx_missing_raises_optional_feature_exception(self, tmp_path):
         from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -421,6 +431,140 @@ class TestDocxParser:
             op = DocumentLoaderOperator(task_id="test", source_path=str(f))
             with pytest.raises(AirflowOptionalProviderFeatureException):
                 op.execute(context=MagicMock())
+
+    @pytest.mark.parametrize(
+        ("blocks", "expected"),
+        [
+            pytest.param(
+                ("Intro", "   ", [["Name", "Qty"], ["Apple", "3"]], "Outro"),
+                "Intro\n\n| Name | Qty |\n| Apple | 3 |\n\nOutro",
+                id="tables-in-document-order",
+            ),
+            pytest.param(([["a", "", "c"]],), "| a |  | c |", id="empty-cell-keeps-its-column"),
+            pytest.param(
+                ([["h1", "h2"], ["", ""], ["x", "y"]],),
+                "| h1 | h2 |\n| x | y |",
+                id="empty-row-skipped",
+            ),
+            pytest.param(
+                ("Before", [["", ""]], "After", [["Name", "Qty"]]),
+                "Before\n\nAfter\n\n| Name | Qty |",
+                id="empty-table-skipped",
+            ),
+            pytest.param(
+                ([["line1\nline2", "b"]],),
+                "| line1 line2 | b |",
+                id="cell-line-break-stays-on-row",
+            ),
+            pytest.param(
+                ([["0", "0"], ["x", "x"]],),
+                "| 0 | 0 |\n| x | x |",
+                id="equal-adjacent-unmerged-cells-kept",
+            ),
+        ],
+    )
+    def test_docx_tables(self, blocks, expected):
+        assert _load_docx_text(_build_docx_bytes(*blocks)) == expected
+
+    def test_docx_merged_cells_horizontal_once_vertical_repeated(self):
+        doc = _create_docx()
+        table = doc.add_table(rows=3, cols=3)
+        _fill_docx_table(table, [["", "", "Note"], ["a", "", "c"], ["d", "", "f"]])
+        table.cell(0, 0).merge(table.cell(0, 1)).text = "Title"
+        table.cell(1, 1).merge(table.cell(2, 1)).text = "Shared"
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == (
+            "| Title |  | Note |\n| a | Shared | c |\n| d | Shared | f |"
+        )
+
+    def test_docx_grid_before_and_after_keep_columns(self):
+        doc = _create_docx()
+        table = doc.add_table(rows=3, cols=3)
+        _fill_docx_table(table, [["Product", "Revenue", "Cost"], ["", "100", "80"], ["Widget", "5", ""]])
+        starts_late, ends_early = table.rows[1]._tr, table.rows[2]._tr
+        starts_late.remove(starts_late.tc_lst[0])
+        starts_late.get_or_add_trPr().get_or_add_gridBefore().val = 1
+        ends_early.remove(ends_early.tc_lst[-1])
+        ends_early.get_or_add_trPr().get_or_add_gridAfter().val = 1
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == (
+            "| Product | Revenue | Cost |\n|  | 100 | 80 |\n| Widget | 5 |  |"
+        )
+
+    @pytest.mark.parametrize(
+        ("add_grid_element", "expected_row"),
+        [
+            pytest.param(
+                lambda tr: tr.get_or_add_trPr().get_or_add_gridBefore(), "|  |  | x |", id="grid-before"
+            ),
+            pytest.param(
+                lambda tr: tr.get_or_add_trPr().get_or_add_gridAfter(), "| x |  |  |", id="grid-after"
+            ),
+            pytest.param(
+                lambda tr: tr.tc_lst[0].get_or_add_tcPr().get_or_add_gridSpan(), "| x |  |", id="grid-span"
+            ),
+        ],
+    )
+    def test_docx_grid_values_capped_at_column_count(self, add_grid_element, expected_row):
+        doc = _create_docx()
+        table = doc.add_table(rows=2, cols=2)
+        _fill_docx_table(table, [["a", "b"], ["x", ""]])
+        row = table.rows[1]._tr
+        row.remove(row.tc_lst[1])
+        add_grid_element(row).val = 1000
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == f"| a | b |\n{expected_row}"
+
+    @pytest.mark.parametrize(
+        ("break_first_cell", "error"),
+        [
+            pytest.param(
+                # A vMerge continuation in the first row has no cell above it to continue.
+                lambda tc_pr: tc_pr.get_or_add_vMerge(),
+                "ValueError('no tr above topmost tr in w:tbl')",
+                id="first-row-vmerge-continuation",
+            ),
+            pytest.param(
+                lambda tc_pr: tc_pr.get_or_add_gridSpan(),
+                "InvalidXmlError(\"required 'w:val' attribute not present on element "
+                '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}gridSpan")',
+                id="gridspan-without-val",
+            ),
+        ],
+    )
+    def test_docx_unreadable_table_skipped_with_warning(self, break_first_cell, error, caplog):
+        doc = _create_docx()
+        doc.add_paragraph("Before")
+        unreadable = doc.add_table(rows=2, cols=2)
+        break_first_cell(unreadable.cell(0, 0)._tc.get_or_add_tcPr())
+        doc.add_paragraph("After")
+        _fill_docx_table(doc.add_table(rows=1, cols=2), [["Name", "Qty"]])
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "Before\n\nAfter\n\n| Name | Qty |"
+        assert (
+            f"Skipping a table in <bytes:.docx> that python-docx could not read: {error}" in caplog.messages
+        )
+
+    @patch.object(
+        DocumentLoaderOperator,
+        "_get_docx_table_rows",
+        autospec=True,
+        side_effect=RecursionError("maximum recursion depth exceeded"),
+    )
+    def test_docx_table_too_deep_to_read_skipped_with_warning(self, mock_get_rows, caplog):
+        assert _load_docx_text(_build_docx_bytes("Before", [["a", "b"]], "After")) == "Before\n\nAfter"
+        assert (
+            "Skipping a table in <bytes:.docx> that python-docx could not read: "
+            "RecursionError('maximum recursion depth exceeded')"
+        ) in caplog.messages
+
+    def test_docx_nested_table_flattened_into_its_cell(self):
+        doc = _create_docx()
+        table = doc.add_table(rows=1, cols=2)
+        _fill_docx_table(table, [["Outer", "Right"]])
+        _fill_docx_table(table.cell(0, 0).add_table(rows=2, cols=2), [["n1", "n2"], ["n3", "n4"]])
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "| Outer n1 / n2; n3 / n4 | Right |"
 
 
 class TestFileDiscovery:

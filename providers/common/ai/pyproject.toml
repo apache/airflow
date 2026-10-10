@@ -152,7 +152,9 @@ dependencies = [
     "llama-index-llms-openai>=0.6.8",
 ]
 "pdf" = ["pypdf>=4.0.0"]
-"docx" = ["python-docx>=1.0.0"]
+# python-docx 1.1.1 added the per-row _Row.cells and grid_cols_before/grid_cols_after but
+# pins lxml<=4.9.2, which does not build on 3.12, so 1.1.2 is the first release that works.
+"docx" = ["python-docx>=1.1.2"]
 "git" = [
     "apache-airflow-providers-git"
 ]
@@ -181,6 +183,8 @@ dev = [
     "openai>=2.47.0",
     "anthropic>=1.0.0",
     "opensandbox>=1.1.0",
+    # The DOCX parser tests build real documents in memory instead of mocking python-docx.
+    "python-docx>=1.1.2",
 ]
 
 # To build docs:
