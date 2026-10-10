@@ -17,14 +17,22 @@
 
 from __future__ import annotations
 
+import os
+import zipfile
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import MagicMock, NonCallableMagicMock
 
 import jinja2
 import pytest
 
 from airflow.sdk import DAG, ObjectStoragePath
-from airflow.sdk.definitions._internal.templater import LiteralValue, SandboxedEnvironment, Templater
+from airflow.sdk.definitions._internal.templater import (
+    LiteralValue,
+    SandboxedEnvironment,
+    Templater,
+    create_template_env,
+)
 
 
 class TestTemplater:
@@ -298,6 +306,115 @@ class TestTemplater:
         templater._do_render_template_fields(parent, ["items"], context, jinja_env, set())
 
         assert parent.items == ["first", "second"]
+
+
+def _write_zip(path: Path, members: dict[str, str]) -> Path:
+    with zipfile.ZipFile(path, "w") as zf:
+        for name, content in members.items():
+            zf.writestr(name, content)
+    return path
+
+
+def _write_template_dir(path: Path, templates: dict[str, str]) -> Path:
+    path.mkdir()
+    for name, content in templates.items():
+        (path / name).write_text(content)
+    return path
+
+
+class TestCreateTemplateEnvZip:
+    @pytest.mark.parametrize(
+        ("archive_name", "searchpath_parts", "template_name"),
+        [
+            pytest.param("dags.zip", (), "sql/query.sql", id="archive"),
+            pytest.param("dags.zip", ("sql",), "query.sql", id="directory-in-archive"),
+            pytest.param("DAGS.ZIP", (), "sql/query.sql", id="uppercase-extension"),
+        ],
+    )
+    def test_loads_template_from_zip(self, tmp_path, archive_name, searchpath_parts, template_name):
+        archive = _write_zip(tmp_path / archive_name, {"sql/query.sql": "SELECT {{ x }}"})
+
+        env = create_template_env(searchpath=[os.path.join(archive, *searchpath_parts)])
+
+        assert env.get_template(template_name).render(x=1) == "SELECT 1"
+
+    @pytest.mark.parametrize(
+        "searchpath_parts",
+        [
+            pytest.param(("templates",), id="directory"),
+            pytest.param(("templates.zip",), id="directory-named-like-archive"),
+            pytest.param(("not_a_zip.zip", "sql"), id="non-zip-file"),
+            pytest.param(("missing", "sql"), id="missing-path"),
+        ],
+    )
+    def test_keeps_filesystem_loader_without_zip(self, tmp_path, searchpath_parts):
+        (tmp_path / "templates").mkdir()
+        (tmp_path / "templates.zip").mkdir()
+        (tmp_path / "not_a_zip.zip").write_text("plain text")
+        searchpath = os.path.join(tmp_path, *searchpath_parts)
+
+        env = create_template_env(searchpath=[searchpath])
+
+        assert type(env.loader) is jinja2.FileSystemLoader
+        assert env.loader.searchpath == [searchpath]
+
+    @pytest.mark.parametrize(("zip_first", "expected"), [(True, "from zip"), (False, "from directory")])
+    def test_searches_zip_and_directory_in_order(self, tmp_path, zip_first, expected):
+        archive = str(_write_zip(tmp_path / "dags.zip", {"query.sql": "from zip"}))
+        directory = str(_write_template_dir(tmp_path / "templates", {"query.sql": "from directory"}))
+
+        env = create_template_env(searchpath=[archive, directory] if zip_first else [directory, archive])
+
+        assert env.get_template("query.sql").render() == expected
+
+    def test_template_not_found_lists_search_paths(self, tmp_path):
+        archive = str(_write_zip(tmp_path / "dags.zip", {"query.sql": "SELECT 1"}))
+        directory = str(_write_template_dir(tmp_path / "templates", {}))
+        env = create_template_env(searchpath=[archive, directory])
+
+        with pytest.raises(jinja2.TemplateNotFound) as ctx:
+            env.get_template("missing.sql")
+
+        assert ctx.value.name == "missing.sql"
+        assert ctx.value.message == f"'missing.sql' not found in search paths: {archive!r}, {directory!r}"
+
+    @pytest.mark.parametrize(
+        ("searchpath_parts", "template_name"),
+        [
+            pytest.param(("sql",), "../secret.sql", id="name-leaves-directory"),
+            pytest.param((), "../outside.sql", id="name-leaves-archive"),
+            pytest.param(("..",), "outside.sql", id="searchpath-leaves-archive"),
+        ],
+    )
+    def test_does_not_escape_search_root(self, tmp_path, searchpath_parts, template_name):
+        archive = _write_zip(
+            tmp_path / "dags.zip",
+            {"sql/query.sql": "SELECT 1", "secret.sql": "secret", "../outside.sql": "outside"},
+        )
+        env = create_template_env(searchpath=[os.path.join(archive, *searchpath_parts)])
+
+        with pytest.raises(jinja2.TemplateNotFound):
+            env.get_template(template_name)
+
+    def test_unreadable_archive_raises_instead_of_falling_through(self, tmp_path):
+        archive = _write_zip(tmp_path / "dags.zip", {"query.sql": "from zip"})
+        directory = _write_template_dir(tmp_path / "templates", {"query.sql": "from directory"})
+        env = create_template_env(searchpath=[str(archive), str(directory)])
+        archive.write_bytes(b"no longer a zip archive")
+
+        with pytest.raises(zipfile.BadZipFile):
+            env.get_template("query.sql")
+
+    def test_up_to_date_check_tracks_archive_mtime(self, tmp_path):
+        archive = _write_zip(tmp_path / "dags.zip", {"query.sql": "SELECT 1"})
+        env = create_template_env(searchpath=[str(archive)])
+
+        _, filename, is_up_to_date = env.loader.get_source(env, "query.sql")
+
+        assert filename == os.path.join(archive, "query.sql")
+        assert is_up_to_date()
+        os.utime(archive, (0, 0))
+        assert not is_up_to_date()
 
 
 @pytest.fixture
