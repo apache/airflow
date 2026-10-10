@@ -20,7 +20,144 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import * as queries from "openapi/queries";
+
+import { TIMEZONE_KEY } from "src/constants/localStorage";
+import i18n from "src/i18n/config";
 import { AppWrapper } from "src/utils/AppWrapper";
+
+describe("DagRuns recurring start filters", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.removeItem(TIMEZONE_KEY);
+  });
+
+  it("keeps Start Date and End Date next to each other in the filter menu", async () => {
+    render(<AppWrapper initialEntries={["/dag_runs"]} />);
+    fireEvent.click(await screen.findByRole("button", { name: i18n.t("common:filters.addFilter") }));
+    await screen.findByRole("menuitem", { name: i18n.t("common:startDate") });
+    const labels = screen.getAllByRole("menuitem").map((item) => item.textContent);
+
+    expect(labels[labels.indexOf(i18n.t("common:startDate")) + 1]).toBe(i18n.t("common:endDate"));
+  });
+
+  it("passes bucket filters to the API and clears them through the existing FilterBar", async () => {
+    const querySpy = vi.spyOn(queries, "useDagRunServiceGetDagRuns");
+
+    localStorage.setItem(TIMEZONE_KEY, JSON.stringify("Asia/Seoul"));
+
+    render(
+      <AppWrapper
+        initialEntries={[
+          "/dag_runs?start_time_gte=02%3A00%3A00.000Z&start_time_lt=03%3A00%3A00.000Z&start_weekday=0&start_weekday=1",
+        ]}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(querySpy.mock.calls.at(-1)?.[0]).toEqual(
+        expect.objectContaining({
+          startTimeGte: "02:00:00.000Z",
+          startTimeLt: "03:00:00.000Z",
+          startWeekday: [0, 1],
+        }),
+      ),
+    );
+    expect(await screen.findByTestId("start_time_range-pill")).toHaveTextContent("11:00 - 12:00");
+    fireEvent.click(screen.getByTestId("start_time_range-pill"));
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Asia/Seoul");
+    fireEvent.change(screen.getByRole("textbox", { name: i18n.t("common:table.to") }), {
+      target: { value: "13:00" },
+    });
+    await waitFor(() => expect(querySpy.mock.calls.at(-1)?.[0]?.startTimeLt).toBe("04:00:00.000Z"));
+    fireEvent.change(screen.getByRole("textbox", { name: i18n.t("common:table.to") }), {
+      target: { value: "25:00" },
+    });
+    expect(
+      screen.getByText(i18n.t("components:dateRangeFilter.validation.invalidTimeFormat")),
+    ).toBeInTheDocument();
+    expect(querySpy.mock.calls.at(-1)?.[0]?.startTimeLt).toBe("04:00:00.000Z");
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(await screen.findByTestId("start_time_range-pill")).toHaveTextContent("11:00 - 13:00");
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: new RegExp(`^Remove ${i18n.t("common:filters.startTime")} filter$`, "u"),
+      }),
+    );
+    await waitFor(() => expect(querySpy.mock.calls.at(-1)?.[0]?.startTimeLt).toBeUndefined());
+    expect(querySpy.mock.calls.at(-1)?.[0]?.startTimeGte).toBeUndefined();
+    const weekdayPill = screen.getByTestId("start_weekday-pill");
+
+    expect(weekdayPill).toHaveTextContent(i18n.t("dag:calendar.weekdays.sunday"));
+    expect(weekdayPill).toHaveTextContent(i18n.t("dag:calendar.weekdays.monday"));
+    fireEvent.click(weekdayPill);
+    const weekdaySelect = await screen.findByRole("combobox", { name: i18n.t("common:startWeekday") });
+
+    fireEvent.keyDown(weekdaySelect, { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("option", { name: i18n.t("dag:calendar.weekdays.tuesday") }));
+    await waitFor(() => expect(querySpy.mock.calls.at(-1)?.[0]?.startWeekday).toEqual([0, 1, 2]));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${i18n.t("common:reset")}$`, "u") }));
+    await waitFor(() =>
+      expect(querySpy.mock.calls.at(-1)?.[0]).toEqual(
+        expect.objectContaining({
+          startTimeGte: undefined,
+          startWeekday: undefined,
+        }),
+      ),
+    );
+  });
+
+  it("displays a UTC range crossing midnight in the selected timezone", async () => {
+    localStorage.setItem(TIMEZONE_KEY, JSON.stringify("Asia/Seoul"));
+    render(
+      <AppWrapper
+        initialEntries={["/dag_runs?start_time_gte=23%3A00%3A00.000Z&start_time_lt=01%3A00%3A00.000Z"]}
+      />,
+    );
+
+    expect(await screen.findByTestId("start_time_range-pill")).toHaveTextContent("08:00 - 10:00");
+    fireEvent.click(screen.getByTestId("start_time_range-pill"));
+    expect(await screen.findByRole("textbox", { name: i18n.t("common:table.from") })).toHaveValue("08:00");
+    expect(screen.getByRole("textbox", { name: i18n.t("common:table.to") })).toHaveValue("10:00");
+  });
+
+  it.each([
+    { end: "", label: "23:00 - …", start: "23:00" },
+    { end: "", label: "11:00 - …", start: "11:00" },
+    { end: "12:00", label: "… - 12:00", start: "" },
+  ])("shows and removes the time range $label", async ({ end, label, start }) => {
+    localStorage.setItem(TIMEZONE_KEY, JSON.stringify("UTC"));
+    const querySpy = vi.spyOn(queries, "useDagRunServiceGetDagRuns");
+    const getListQuery = () => {
+      const calls = querySpy.mock.calls.filter(([options]) => "startTimeGte" in options);
+
+      return calls[calls.length - 1]?.[0];
+    };
+    const params = new URLSearchParams();
+
+    if (start !== "") {
+      params.set("start_time_gte", `${start}:00.000Z`);
+    }
+    if (end !== "" && end !== "24:00") {
+      params.set("start_time_lt", `${end}:00.000Z`);
+    }
+    render(<AppWrapper initialEntries={[`/dag_runs?${params.toString()}`]} />);
+    expect(await screen.findByTestId("start_time_range-pill")).toHaveTextContent(label);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: new RegExp(`^Remove ${i18n.t("common:filters.startTime")} filter$`, "u"),
+      }),
+    );
+    await waitFor(() =>
+      expect(getListQuery()).toEqual(
+        expect.objectContaining({
+          startTimeGte: undefined,
+          startTimeLt: undefined,
+        }),
+      ),
+    );
+  });
+});
 
 // Stand in for the Monaco-backed JSON viewer so the test can assert the collapse
 // state without loading the editor.

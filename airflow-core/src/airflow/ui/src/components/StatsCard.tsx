@@ -41,7 +41,7 @@ export const StatsCard = ({
   state,
 }: {
   readonly colorScheme: string;
-  readonly count: number;
+  readonly count?: number;
   readonly icon?: ReactNode;
   readonly isLoading?: boolean;
   readonly isRTL: boolean;
@@ -68,7 +68,7 @@ export const StatsCard = ({
     >
       <StateBadge colorPalette={colorScheme} mr={2} state={state}>
         {icon}
-        {formatNumber(count, i18n.language)}
+        {count === undefined ? null : formatNumber(count, i18n.language)}
       </StateBadge>
 
       <Text color="fg" fontSize="sm" fontWeight="bold">

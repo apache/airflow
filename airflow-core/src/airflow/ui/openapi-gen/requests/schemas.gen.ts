@@ -12451,6 +12451,129 @@ export const $ThemeColors = {
     description: 'Color tokens for the UI theme. All fields are optional; at least one must be provided.'
 } as const;
 
+export const $TimeScheduleBatch = {
+    properties: {
+        dag_run_count: {
+            type: 'integer',
+            title: 'Dag Run Count'
+        },
+        items: {
+            items: {
+                '$ref': '#/components/schemas/TimeScheduleItem'
+            },
+            type: 'array',
+            title: 'Items'
+        }
+    },
+    type: 'object',
+    required: ['dag_run_count', 'items'],
+    title: 'TimeScheduleBatch',
+    description: 'A progressively streamed batch of Time Schedule bars.'
+} as const;
+
+export const $TimeScheduleItem = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        dag_run_id: {
+            type: 'string',
+            title: 'Dag Run Id'
+        },
+        duration_ms: {
+            type: 'number',
+            title: 'Duration Ms'
+        },
+        end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date'
+        },
+        is_time_scheduled: {
+            type: 'boolean',
+            title: 'Is Time Scheduled'
+        },
+        dag_display_name: {
+            type: 'string',
+            title: 'Dag Display Name'
+        },
+        run_count: {
+            type: 'integer',
+            title: 'Run Count'
+        },
+        run_after_min: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After Min'
+        },
+        run_after_max: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After Max'
+        },
+        start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date'
+        },
+        state: {
+            '$ref': '#/components/schemas/DagRunState'
+        },
+        start_time_gte: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Time Gte'
+        },
+        start_time_lt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Time Lt'
+        },
+        start_weekday: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Weekday'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'dag_run_id', 'duration_ms', 'end_date', 'is_time_scheduled', 'dag_display_name', 'run_count', 'run_after_min', 'run_after_max', 'start_date', 'state'],
+    title: 'TimeScheduleItem',
+    description: 'An aggregated bar in the Time Schedule UI.'
+} as const;
+
 export const $TokenType = {
     type: 'string',
     enum: ['api', 'cli'],

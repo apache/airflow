@@ -421,6 +421,126 @@ class TestGetDagRun:
 
 class TestGetDagRuns:
     @pytest.mark.parametrize(
+        ("params", "starts", "expected"),
+        [
+            (
+                {"start_time_gte": "23:00:00.000Z", "start_time_lt": "01:00:00.000Z"},
+                [
+                    "2026-10-05T23:00:00Z",
+                    "2026-10-06T00:30:00Z",
+                    "2026-10-06T01:00:00Z",
+                    "2026-10-05T22:59:00Z",
+                ],
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                {"start_time_gte": "11:00:00.000Z", "start_time_lt": "12:00:00.000Z"},
+                [
+                    "2026-10-05T11:00:00Z",
+                    "2026-10-05T12:00:00Z",
+                    "2026-10-06T11:30:00Z",
+                    "2026-10-05T10:55:00Z",
+                ],
+                [DAG1_RUN1_ID, DAG2_RUN1_ID],
+            ),
+            (
+                {
+                    "start_time_gte": "20:00:00.000+09:00",
+                    "start_time_lt": "21:00:00.000+09:00",
+                    "start_weekday": 1,
+                },
+                [
+                    "2026-10-05T11:00:00Z",
+                    "2026-10-05T12:00:00Z",
+                    "2026-10-06T11:30:00Z",
+                    "2026-10-05T10:55:00Z",
+                ],
+                [DAG1_RUN1_ID],
+            ),
+            (
+                {
+                    "start_time_gte": "05:15:00.000Z",
+                    "start_time_lt": "05:30:00.000Z",
+                    "start_weekday": 0,
+                },
+                [
+                    "2026-11-01T05:15:00Z",
+                    "2026-11-01T06:15:00Z",
+                    "2026-11-01T05:45:00Z",
+                    "2026-11-01T06:30:00Z",
+                ],
+                [DAG1_RUN1_ID],
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_recurring_start_time_filter_before_pagination(
+        self, test_client, session, params, starts, expected
+    ):
+        runs = session.scalars(select(DagRun).order_by(DagRun.run_id)).all()
+        for index, (run, start) in enumerate(zip(runs, starts)):
+            run.run_after = timezone.parse(start)
+            run.start_date = None if index == 0 else timezone.parse(start)
+            run.end_date = timezone.parse(start) + timedelta(hours=2)
+        session.commit()
+
+        response = test_client.get("/dags/~/dagRuns", params={**params, "limit": 1, "order_by": "run_id"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == len(expected)
+        assert [run["dag_run_id"] for run in response.json()["dag_runs"]] == expected[:1]
+        response = test_client.get("/dags/~/dagRuns", params={**params, "cursor": "", "order_by": "run_id"})
+        assert response.status_code == 200
+        assert [run["dag_run_id"] for run in response.json()["dag_runs"]] == expected
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_recurring_start_time_filter_multiple_weekdays(self, test_client, session):
+        starts = [
+            "2026-10-05T11:00:00Z",
+            "2026-10-06T11:15:00Z",
+            "2026-10-07T11:30:00Z",
+            "2026-10-06T12:00:00Z",
+        ]
+        runs = session.scalars(select(DagRun).order_by(DagRun.run_id)).all()
+        for run, start in zip(runs, starts):
+            run.start_date = timezone.parse(start)
+        session.commit()
+
+        response = test_client.get(
+            "/dags/~/dagRuns",
+            params={
+                "start_weekday": [1, 2],
+                "start_time_gte": "11:00:00.000Z",
+                "start_time_lt": "12:00:00.000Z",
+            },
+        )
+        assert response.status_code == 200
+        assert {run["dag_run_id"] for run in response.json()["dag_runs"]} == {DAG1_RUN1_ID, DAG1_RUN2_ID}
+
+        response = test_client.get("/dags/~/dagRuns", params={"start_weekday": [1, 2]})
+        assert response.status_code == 200
+        assert {run["dag_run_id"] for run in response.json()["dag_runs"]} == {
+            DAG1_RUN1_ID,
+            DAG1_RUN2_ID,
+            DAG2_RUN2_ID,
+        }
+
+    @pytest.mark.parametrize(
+        ("params", "status_code"),
+        [
+            ({"start_time_gte": "not-a-time"}, 422),
+            (
+                {"start_time_gte": "12:00:00.000Z", "start_time_lt": "12:00:00.000Z"},
+                400,
+            ),
+            ({"start_time_gte": "11:00:00"}, 422),
+            ({"start_weekday": 7}, 422),
+        ],
+    )
+    def test_recurring_start_time_filter_validation(self, test_client, params, status_code):
+        response = test_client.get("/dags/~/dagRuns", params=params)
+        assert response.status_code == status_code
+
+    @pytest.mark.parametrize(
         ("dag_id", "total_entries"),
         [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)],
     )

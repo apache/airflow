@@ -3239,6 +3239,34 @@ export type ThemeColors = {
 };
 
 /**
+ * A progressively streamed batch of Time Schedule bars.
+ */
+export type TimeScheduleBatch = {
+    dag_run_count: number;
+    items: Array<TimeScheduleItem>;
+};
+
+/**
+ * An aggregated bar in the Time Schedule UI.
+ */
+export type TimeScheduleItem = {
+    dag_id: string;
+    dag_run_id: string;
+    duration_ms: number;
+    end_date: string | null;
+    is_time_scheduled: boolean;
+    dag_display_name: string;
+    run_count: number;
+    run_after_min: string;
+    run_after_max: string;
+    start_date: string | null;
+    state: DagRunState;
+    start_time_gte?: string | null;
+    start_time_lt?: string | null;
+    start_weekday?: number | null;
+};
+
+/**
  * Type of token to generate.
  */
 export type TokenType = 'api' | 'cli';
@@ -3739,6 +3767,12 @@ export type GetDagRunsData = {
     startDateGte?: string | null;
     startDateLt?: string | null;
     startDateLte?: string | null;
+    startTimeGte?: string | null;
+    startTimeLt?: string | null;
+    /**
+     * Match any selected weekday. Sunday=0, Saturday=6.
+     */
+    startWeekday?: Array<(number)> | null;
     state?: Array<(string)>;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
@@ -5340,6 +5374,40 @@ export type ListTeamsData = {
 };
 
 export type ListTeamsResponse = TeamCollectionResponse;
+
+export type GetTimeScheduleStreamData = {
+    aggregationMode?: 'max' | 'mean' | 'min';
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    dagIdPattern?: string | null;
+    durationGt?: number | null;
+    durationGte?: number | null;
+    durationLt?: number | null;
+    durationLte?: number | null;
+    limit?: number;
+    paused?: boolean | null;
+    runAfterGt?: string | null;
+    runAfterGte?: string | null;
+    runAfterLt?: string | null;
+    runAfterLte?: string | null;
+    runType?: Array<(string)>;
+    showScheduledOnly?: boolean;
+    startDateGt?: string | null;
+    startDateGte?: string | null;
+    startDateLt?: string | null;
+    startDateLte?: string | null;
+    state?: Array<(string)>;
+    tags?: Array<(string)>;
+    tagsMatchMode?: 'any' | 'all' | null;
+    teams?: Array<(string)>;
+    timeScale?: 1 | 5 | 10 | 15 | 20 | 30 | 40 | 50 | 60;
+    timetableType?: Array<(string)>;
+    timezone?: string;
+    viewMode?: 'day' | 'week';
+};
+
+export type GetTimeScheduleStreamResponse = string;
 
 export type $OpenApiTs = {
     '/api/v2/assets': {
@@ -9496,6 +9564,21 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/time-schedule': {
+        get: {
+            req: GetTimeScheduleStreamData;
+            res: {
+                /**
+                 * NDJSON stream of aggregated Time Schedule batches
+                 */
+                200: string;
                 /**
                  * Validation Error
                  */

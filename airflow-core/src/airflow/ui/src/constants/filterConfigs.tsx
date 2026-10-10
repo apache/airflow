@@ -18,6 +18,9 @@
  */
 /* eslint-disable max-lines */
 import { Box } from "@chakra-ui/react";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
 import { FiActivity, FiBarChart, FiDatabase, FiTag, FiUser, FiUsers } from "react-icons/fi";
@@ -45,11 +48,14 @@ import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/request
 import type { FilterConfig } from "src/components/FilterBar";
 import { RunStateFilter } from "src/components/FilterBar/filters/RunStateFilter";
 import { TagsFilter } from "src/components/FilterBar/filters/TagsFilter";
+import { TimeRangeFilter } from "src/components/FilterBar/filters/TimeRangeFilter";
 import { TimetableTypeFilter } from "src/components/FilterBar/filters/TimetableTypeFilter";
+import { WeekdayFilter } from "src/components/FilterBar/filters/WeekdayFilter";
 import {
   runStateFromSearchParams,
   runStateToSearchParams,
 } from "src/components/FilterBar/filters/runStateParams";
+import type { FilterValue } from "src/components/FilterBar/types";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 
@@ -63,9 +69,23 @@ import {
   jobTypeOptions,
   taskInstanceStateOptions,
 } from "src/constants/stateOptions";
+import { useTimezone } from "src/context/timezone";
 import { useConfig } from "src/queries/useConfig";
 
 import { SearchParamsKeys } from "./searchParams";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const getTimeFromSearchParam = (param: string | null, selectedTimezone: string) => {
+  if (param === null) {
+    return "";
+  }
+  const date = dayjs().tz(selectedTimezone).format("YYYY-MM-DD");
+  const dateTime = dayjs(`${date}T${param}`);
+
+  return dateTime.isValid() ? dateTime.tz(selectedTimezone).format("HH:mm") : "";
+};
 
 export enum FilterTypes {
   BOOLEAN = "boolean",
@@ -92,10 +112,12 @@ export const useFilterConfigs = () => {
     "common",
     "components",
     "admin",
+    "dag",
     "dags",
     "hitl",
   ]);
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
+  const { selectedTimezone } = useTimezone();
   const { data: teamsData } = useTeamsServiceListTeams({ orderBy: ["name"] }, undefined, {
     enabled: multiTeamEnabled,
   });
@@ -480,12 +502,68 @@ export const useFilterConfigs = () => {
       placeholder: translate("dags:schedulingState.placeholder"),
       type: FilterTypes.SELECT,
     },
+    [SearchParamsKeys.SHOW_SCHEDULED_ONLY]: {
+      fromSearchParams: (params: URLSearchParams) =>
+        params.get(SearchParamsKeys.SHOW_SCHEDULED_ONLY) === "true" ? "true" : undefined,
+      icon: <MdSchedule />,
+      label: translate("common:timeSchedule.scheduledDagsOnly"),
+      toSearchParams: (value: FilterValue) => ({
+        [SearchParamsKeys.SHOW_SCHEDULED_ONLY]: value === "true" ? "true" : "false",
+      }),
+      type: FilterTypes.BOOLEAN,
+    },
     [SearchParamsKeys.START_DATE_RANGE]: {
       endKey: SearchParamsKeys.START_DATE_LTE,
       icon: <MdDateRange />,
       label: translate("common:startDate"),
       startKey: SearchParamsKeys.START_DATE_GTE,
       type: FilterTypes.DATERANGE,
+    },
+    [SearchParamsKeys.START_TIME_RANGE]: {
+      EditorComponent: TimeRangeFilter,
+      fromSearchParams: (params: URLSearchParams) => {
+        const startTime = getTimeFromSearchParam(
+          params.get(SearchParamsKeys.START_TIME_GTE),
+          selectedTimezone,
+        );
+        const endTime = getTimeFromSearchParam(params.get(SearchParamsKeys.START_TIME_LT), selectedTimezone);
+
+        return startTime || endTime ? { endTime, startTime } : undefined;
+      },
+      icon: <MdSchedule />,
+      label: translate("common:filters.startTime"),
+      toSearchParams: (value: FilterValue) => {
+        const range = value !== null && typeof value === "object" && "startTime" in value ? value : undefined;
+        const startTime = range?.startTime ?? "";
+        const endTime = range?.endTime ?? "";
+        const date = dayjs().tz(selectedTimezone).format("YYYY-MM-DD");
+        const toIsoTime = (time: string) => {
+          if (time === "" || time === "24:00") {
+            return undefined;
+          }
+          const dateTime = dayjs.tz(`${date}T${time}:00`, selectedTimezone);
+
+          return dateTime.utc().format("HH:mm:ss.SSS[Z]");
+        };
+
+        return {
+          [SearchParamsKeys.START_TIME_GTE]: toIsoTime(startTime),
+          [SearchParamsKeys.START_TIME_LT]: toIsoTime(endTime),
+        };
+      },
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.START_WEEKDAY]: {
+      EditorComponent: WeekdayFilter,
+      icon: <MdDateRange />,
+      label: translate("common:startWeekday"),
+      options: ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"].map(
+        (day, index) => ({
+          label: translate(`dag:calendar.weekdays.${day}`),
+          value: String(index),
+        }),
+      ),
+      type: FilterTypes.MULTISELECT,
     },
     [SearchParamsKeys.STATE]: {
       icon: <MdCheckCircle />,
