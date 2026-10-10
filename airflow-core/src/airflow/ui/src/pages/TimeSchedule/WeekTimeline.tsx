@@ -180,6 +180,7 @@ export const WeekTimeline = ({
                     labelLineClamp={Math.max(1, Math.floor(height / WEEK_LABEL_LINE_HEIGHT_PX))}
                     left={`calc(${(column / columnCount) * 100}% + 2px)`}
                     renderTooltip={renderTooltip}
+                    selectedTimezone={selectedTimezone}
                     showDagLabel
                     testId={`time-schedule-week-bar-${item.dag_run_id}`}
                     top={`${top}px`}

@@ -19,11 +19,15 @@
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import { describe, expect, it, vi } from "vitest";
 
 import type { TimeScheduleItem } from "openapi/requests/types.gen";
 
 import { TimelineTooltip } from "./TimelineTooltip";
+
+dayjs.extend(utc);
 
 vi.mock("src/components/StateIcon", () => ({
   StateIcon: ({ color, state }: { readonly color?: string; readonly state?: string }) => (
@@ -46,9 +50,9 @@ const item: TimeScheduleItem = {
   dag_run_id: "run-1",
   duration_ms: 60_000,
   end_date: "2024-01-01T00:01:00Z",
-  is_placeholder: false,
-  is_planned: false,
   is_time_scheduled: true,
+  run_after_max: "2024-01-01T00:00:00Z",
+  run_after_min: "2024-01-01T00:00:00Z",
   run_count: 1,
   start_date: "2024-01-01T00:00:00Z",
   state: "success",

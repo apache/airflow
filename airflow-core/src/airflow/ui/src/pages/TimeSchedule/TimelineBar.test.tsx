@@ -58,9 +58,9 @@ const item: TimeScheduleItem = {
   dag_run_id: "run-1",
   duration_ms: 60_000,
   end_date: "2024-01-01T00:01:00Z",
-  is_placeholder: false,
-  is_planned: false,
   is_time_scheduled: true,
+  run_after_max: "2024-01-01T00:00:00Z",
+  run_after_min: "2024-01-01T00:00:00Z",
   run_count: 1,
   start_date: "2024-01-01T00:00:00Z",
   state: "success",
@@ -69,8 +69,8 @@ const item: TimeScheduleItem = {
 const stateIconCases: Array<readonly [TimeScheduleItem["state"], string]> = [
   ["success", "success"],
   ["failed", "failed"],
-  ["planned", "scheduled"],
-  ["placeholder", "none"],
+  ["queued", "queued"],
+  ["running", "running"],
 ];
 
 const renderTimelineBar = (overrides: Partial<TimeScheduleItem> = {}) =>
@@ -82,6 +82,7 @@ const renderTimelineBar = (overrides: Partial<TimeScheduleItem> = {}) =>
           item={{ ...item, ...overrides }}
           left="0"
           renderTooltip={() => null}
+          selectedTimezone="Asia/Seoul"
           testId="timeline-bar"
           width="64px"
         />
@@ -90,6 +91,30 @@ const renderTimelineBar = (overrides: Partial<TimeScheduleItem> = {}) =>
   );
 
 describe("TimelineBar", () => {
+  it.each([
+    [null, item.start_date, null],
+    [0, "2024-01-06T15:00:00Z", "6"],
+    [4, "2024-01-03T17:00:00Z", "3"],
+  ] as const)(
+    "links a local bucket with weekday %s using the UTC weekday",
+    (weekday, startDate, utcWeekday) => {
+      renderTimelineBar({
+        run_count: 2,
+        start_date: startDate,
+        start_time_gte: "11:00",
+        start_time_lt: "12:00",
+        start_weekday: weekday,
+      });
+
+      const destination = new URL(screen.getByRole("link").getAttribute("href") ?? "", "http://localhost");
+
+      expect(destination.pathname).toBe("/dags/example_dag/runs");
+      expect(destination.searchParams.get("start_time_gte")).toBe("02:00:00.000Z");
+      expect(destination.searchParams.get("start_time_lt")).toBe("03:00:00.000Z");
+      expect(destination.searchParams.has("start_time_timezone")).toBe(false);
+      expect(destination.searchParams.get("start_weekday")).toBe(utcWeekday);
+    },
+  );
   it.each([
     [54_000, "54s"],
     [60_000, "1m"],
@@ -102,15 +127,13 @@ describe("TimelineBar", () => {
     expect(screen.getByText(label)).toBeInTheDocument();
   });
 
-  it("paints the full time-proportional width for a planned bar without external padding", () => {
-    renderTimelineBar({ duration_ms: 3_600_000, is_planned: true, state: "planned" });
+  it("paints the full time-proportional width without external padding", () => {
+    renderTimelineBar({ duration_ms: 3_600_000 });
 
     expect(screen.getByTestId("timeline-bar")).toHaveStyle({ paddingInline: "0", width: "64px" });
   });
   it.each(stateIconCases)("renders the %s state icon", (state, expectedIconState) => {
     renderTimelineBar({
-      is_placeholder: state === "placeholder",
-      is_planned: state === "planned",
       state,
     });
 

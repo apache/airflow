@@ -3251,13 +3251,16 @@ export type TimeScheduleItem = {
     dag_run_id: string;
     duration_ms: number;
     end_date: string | null;
-    is_placeholder: boolean;
-    is_planned: boolean;
     is_time_scheduled: boolean;
     dag_display_name: string;
     run_count: number;
+    run_after_min: string;
+    run_after_max: string;
     start_date: string | null;
-    state: DagRunState | 'placeholder' | 'planned';
+    state: DagRunState;
+    start_time_gte?: string | null;
+    start_time_lt?: string | null;
+    start_weekday?: number | null;
 };
 
 /**
@@ -3761,6 +3764,12 @@ export type GetDagRunsData = {
     startDateGte?: string | null;
     startDateLt?: string | null;
     startDateLte?: string | null;
+    startTimeGte?: string | null;
+    startTimeLt?: string | null;
+    /**
+     * Match any selected weekday. Sunday=0, Saturday=6.
+     */
+    startWeekday?: Array<(number)> | null;
     state?: Array<(string)>;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;

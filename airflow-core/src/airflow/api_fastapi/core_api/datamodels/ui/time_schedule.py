@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import DagRunState
@@ -31,13 +30,17 @@ class TimeScheduleItem(BaseModel):
     dag_run_id: str
     duration_ms: float
     end_date: datetime | None
-    is_placeholder: bool
-    is_planned: bool
     is_time_scheduled: bool
     dag_display_name: str
     run_count: int
+    # Preserve the real date range when bars combine runs from different days.
+    run_after_min: datetime
+    run_after_max: datetime
     start_date: datetime | None
-    state: DagRunState | Literal["placeholder", "planned"]
+    state: DagRunState
+    start_time_gte: str | None = None
+    start_time_lt: str | None = None
+    start_weekday: int | None = None
 
 
 class TimeScheduleBatch(BaseModel):

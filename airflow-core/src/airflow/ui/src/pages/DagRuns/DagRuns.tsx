@@ -343,6 +343,11 @@ export const DagRuns = () => {
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDateGte ?? undefined,
       startDateLte: startDateLte ?? undefined,
+      startTimeGte: searchParams.get(SearchParamsKeys.START_TIME_GTE) ?? undefined,
+      startTimeLt: searchParams.get(SearchParamsKeys.START_TIME_LT) ?? undefined,
+      startWeekday: searchParams.has(SearchParamsKeys.START_WEEKDAY)
+        ? searchParams.getAll(SearchParamsKeys.START_WEEKDAY).map(Number)
+        : undefined,
       state: filteredState === null ? undefined : [filteredState],
       tags: tags.length > 0 ? tags : undefined,
       tagsMatchMode: tags.length > 0 ? tagsMatchMode : undefined,

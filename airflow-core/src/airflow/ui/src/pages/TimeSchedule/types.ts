@@ -37,7 +37,6 @@ export type DayRowLayout = {
   readonly height: number;
   readonly items: Array<{ readonly item: TimeScheduleItem; readonly lane: number }>;
   readonly row: TimelineRow;
-  readonly top: number;
 };
 
 export type WeekItemLayout = {

@@ -1186,6 +1186,9 @@ export class DagRunService {
      * @param data.endDateGt
      * @param data.endDateLte
      * @param data.endDateLt
+     * @param data.startTimeGte
+     * @param data.startTimeLt
+     * @param data.startWeekday Match any selected weekday. Sunday=0, Saturday=6.
      * @param data.durationGte
      * @param data.durationGt
      * @param data.durationLte
@@ -1244,6 +1247,9 @@ export class DagRunService {
                 end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
                 end_date_lt: data.endDateLt,
+                start_time_gte: data.startTimeGte,
+                start_time_lt: data.startTimeLt,
+                start_weekday: data.startWeekday,
                 duration_gte: data.durationGte,
                 duration_gt: data.durationGt,
                 duration_lte: data.durationLte,

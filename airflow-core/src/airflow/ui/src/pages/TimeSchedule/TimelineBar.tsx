@@ -31,12 +31,7 @@ import { StateIcon } from "src/components/StateIcon";
 import { useDurationFormat } from "src/utils";
 
 import { WEEK_LABEL_LINE_HEIGHT_PX } from "./constants";
-import {
-  getTimelineDurationSeconds,
-  getTimelineItemColorPalette,
-  getTimelineItemDestination,
-  getTimelineItemIconState,
-} from "./timelineUtils";
+import { getTimelineDurationSeconds, getTimelineItemDestination } from "./timelineUtils";
 
 const STATE_ICON_SIZE_PX = 10;
 const WEEK_STATE_ICON_SIZE_PX = 12;
@@ -46,6 +41,7 @@ type TimelineBarProps = {
   readonly item: TimeScheduleItem;
   readonly left: string;
   readonly renderTooltip: (item: TimeScheduleItem) => ReactNode;
+  readonly selectedTimezone: string;
   readonly testId: string;
   readonly top?: string;
   readonly width: number | string;
@@ -60,6 +56,7 @@ export const TimelineBar = ({
   labelLineClamp,
   left,
   renderTooltip,
+  selectedTimezone,
   showDagLabel,
   testId,
   top,
@@ -67,25 +64,22 @@ export const TimelineBar = ({
 }: TimelineBarProps) => {
   const { t: translate } = useTranslation();
   const { renderDuration } = useDurationFormat();
-  const iconState = getTimelineItemIconState(item);
-  const stateLabel = iconState ?? "none";
   const durationLabel = renderDuration(getTimelineDurationSeconds(item.duration_ms));
 
   return (
     <Tooltip content={renderTooltip(item)}>
       <Link
         _hover={{ textDecoration: "none" }}
-        aria-label={`${item.dag_display_name}: ${translate(`states.${stateLabel}`)}, ${item.run_count} ${translate("dagRun", { count: item.run_count })}`}
+        aria-label={`${item.dag_display_name}: ${translate(`states.${item.state}`)}, ${item.run_count} ${translate("dagRun", { count: item.run_count })}`}
         asChild
         bg="colorPalette.solid"
         borderRadius="sm"
         color="inherit"
-        colorPalette={getTimelineItemColorPalette(item)}
+        colorPalette={item.state}
         data-testid={testId}
         display="block"
         height={height}
         left={left}
-        opacity={item.is_planned ? 0.8 : 1}
         overflow="hidden"
         position="absolute"
         px={showDagLabel ? 2 : 0}
@@ -95,7 +89,7 @@ export const TimelineBar = ({
         width={width}
         zIndex={2}
       >
-        <ReactRouterLink to={getTimelineItemDestination(item)}>
+        <ReactRouterLink to={getTimelineItemDestination(item, selectedTimezone)}>
           {showDagLabel ? (
             <Text
               color="colorPalette.contrast"
@@ -117,7 +111,7 @@ export const TimelineBar = ({
                 aria-hidden="true"
                 color="currentColor"
                 size={WEEK_STATE_ICON_SIZE_PX}
-                state={iconState}
+                state={item.state}
                 style={{ display: "inline", marginInlineEnd: "4px", verticalAlign: "text-bottom" }}
               />
               {item.dag_display_name}
@@ -143,7 +137,7 @@ export const TimelineBar = ({
                   aria-hidden="true"
                   color="currentColor"
                   size={STATE_ICON_SIZE_PX}
-                  state={iconState}
+                  state={item.state}
                 />
               </Box>
               {item.duration_ms > 0 ? (

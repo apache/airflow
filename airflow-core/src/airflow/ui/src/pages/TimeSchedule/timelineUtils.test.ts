@@ -32,9 +32,9 @@ const row: TimelineRow = {
       dag_run_id: "run-1",
       duration_ms: 60_000,
       end_date: "2024-01-01T00:01:00Z",
-      is_placeholder: false,
-      is_planned: false,
       is_time_scheduled: true,
+      run_after_max: "2024-01-01T00:00:00Z",
+      run_after_min: "2024-01-01T00:00:00Z",
       run_count: 1,
       start_date: "2024-01-01T00:00:00Z",
       state: "success",
@@ -45,9 +45,9 @@ const row: TimelineRow = {
       dag_run_id: "run-2",
       duration_ms: 60_000,
       end_date: "2024-01-01T00:02:00Z",
-      is_placeholder: false,
-      is_planned: false,
       is_time_scheduled: true,
+      run_after_max: "2024-01-01T00:00:00Z",
+      run_after_min: "2024-01-01T00:00:00Z",
       run_count: 1,
       start_date: "2024-01-01T00:01:00Z",
       state: "success",
@@ -92,11 +92,9 @@ describe("Time Schedule timeline layout", () => {
     expect(layout?.items.map(({ lane }) => lane)).toEqual([0, 1]);
   });
 
-  it("separates overlapping planned hour-long runs by their full duration", () => {
+  it("separates overlapping hour-long runs by their full duration", () => {
     const [layout] = buildDayRowLayouts({
-      rows: [
-        { ...row, items: row.items.map((item) => ({ ...item, duration_ms: 3_600_000, is_planned: true })) },
-      ],
+      rows: [{ ...row, items: row.items.map((item) => ({ ...item, duration_ms: 3_600_000 })) }],
       selectedTimezone: "UTC",
       timelineWidth: 1440,
     });

@@ -17,8 +17,10 @@
  * under the License.
  */
 import type { MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
+import { useLayoutEffect } from "react";
 
 import { Box, Button, Text } from "@chakra-ui/react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { FiArrowDown, FiArrowUp } from "react-icons/fi";
@@ -80,6 +82,22 @@ export const DayTimeline = ({
   timeMarkers,
 }: DayTimelineProps) => {
   const { i18n, t: translate } = useTranslation();
+  const rowVirtualizer = useVirtualizer({
+    count: layouts.length,
+    estimateSize: (index) => layouts[index]?.height ?? 0,
+    getItemKey: (index) => layouts[index]?.row.dag_id ?? index,
+    getScrollElement: () => scrollRegionRef.current,
+    overscan: 5,
+  });
+  const rowSizes = layouts.map(({ height }) => height).join(",");
+
+  // Zooming can change the number of overlapping lanes, invalidating cached row heights.
+  useLayoutEffect(() => {
+    rowVirtualizer.measure();
+  }, [rowSizes, rowVirtualizer]);
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const contentHeight = Math.max(chartContentHeight, rowVirtualizer.getTotalSize());
 
   return (
     <Box
@@ -164,31 +182,40 @@ export const DayTimeline = ({
             borderRightColor="border.subtle"
             borderRightWidth="1px"
             data-testid="time-schedule-rows-body"
+            height={`${contentHeight}px`}
+            position="relative"
           >
-            {layouts.map(({ height, row }) => (
-              <Box
-                alignItems="center"
-                borderBottomColor="border.subtle"
-                borderBottomWidth="1px"
-                display="flex"
-                height={`${height}px`}
-                key={row.dag_id}
-                p={3}
-              >
-                <RouterLink style={{ minWidth: 0, width: "100%" }} to={`/dags/${row.dag_id}`}>
-                  <Text
-                    display="block"
-                    fontSize="sm"
-                    fontWeight="medium"
-                    overflow="hidden"
-                    textOverflow="ellipsis"
-                    whiteSpace="nowrap"
-                  >
-                    {row.dag_display_name}
-                  </Text>
-                </RouterLink>
-              </Box>
-            ))}
+            {virtualRows.map(({ index, size, start }) => {
+              const row = layouts[index]?.row;
+
+              return row ? (
+                <Box
+                  alignItems="center"
+                  borderBottomColor="border.subtle"
+                  borderBottomWidth="1px"
+                  display="flex"
+                  height={`${size}px`}
+                  key={row.dag_id}
+                  p={3}
+                  position="absolute"
+                  top={`${start}px`}
+                  width="100%"
+                >
+                  <RouterLink style={{ minWidth: 0, width: "100%" }} to={`/dags/${row.dag_id}`}>
+                    <Text
+                      display="block"
+                      fontSize="sm"
+                      fontWeight="medium"
+                      overflow="hidden"
+                      textOverflow="ellipsis"
+                      whiteSpace="nowrap"
+                    >
+                      {row.dag_display_name}
+                    </Text>
+                  </RouterLink>
+                </Box>
+              ) : null;
+            })}
           </Box>
           <Box
             data-testid="time-schedule-chart-body"
@@ -200,9 +227,9 @@ export const DayTimeline = ({
             overflowY="hidden"
             ref={chartBodyRef}
           >
-            <Box minHeight={`${chartContentHeight}px`} minWidth={chartMinWidth} position="relative">
+            <Box minHeight={`${contentHeight}px`} minWidth={chartMinWidth} position="relative">
               <Box
-                height={`${chartContentHeight}px`}
+                height={`${contentHeight}px`}
                 mx={`${TIMELINE_HORIZONTAL_PADDING / 2}px`}
                 position="relative"
                 pt={2}
@@ -220,8 +247,8 @@ export const DayTimeline = ({
                     />
                   </Box>
                 ))}
-                {layouts.flatMap(({ items, top }) =>
-                  items.map(({ item, lane }) => {
+                {virtualRows.flatMap(({ index, start: top }) =>
+                  (layouts[index]?.items ?? []).map(({ item, lane }) => {
                     const start =
                       item.start_date === null ? null : dayjs(item.start_date).tz(selectedTimezone);
                     const end = item.end_date === null ? start : dayjs(item.end_date).tz(selectedTimezone);
@@ -243,6 +270,7 @@ export const DayTimeline = ({
                           item={item}
                           left={getTimelineBarLeft(Math.min(startPosition, endPosition), barWidth)}
                           renderTooltip={renderTooltip}
+                          selectedTimezone={selectedTimezone}
                           testId={`time-schedule-run-bar-${item.dag_run_id}`}
                           width={barWidth}
                         />

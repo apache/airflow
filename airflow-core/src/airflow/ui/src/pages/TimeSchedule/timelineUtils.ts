@@ -22,6 +22,7 @@ import utc from "dayjs/plugin/utc";
 
 import type { TimeScheduleItem } from "openapi/requests/types.gen";
 
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { renderDuration } from "src/utils/datetimeUtils";
 
 import {
@@ -35,6 +36,13 @@ import type { DayRowLayout, RowSortMode, TimeMarker, TimeScale, TimelineRow, Wee
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
+const getTimeFilterValue = (time: string, runAfter: string, selectedTimezone: string) => {
+  const date = dayjs(runAfter).tz(selectedTimezone).format("YYYY-MM-DD");
+  const dateTime = dayjs.tz(`${date}T${time}:00`, selectedTimezone);
+
+  return dateTime.utc().format("HH:mm:ss.SSS[Z]");
+};
 
 const getLocalStartTimeSortValue = (startDate: string | null, selectedTimezone: string) => {
   if (startDate === null) {
@@ -133,13 +141,11 @@ export const buildDayRowLayouts = ({
   rows,
   selectedTimezone,
   timelineWidth,
-}: BuildDayRowLayoutsParams): Array<DayRowLayout> => {
-  let top = 0;
-
-  return rows.map((row) => {
+}: BuildDayRowLayoutsParams): Array<DayRowLayout> =>
+  rows.map((row) => {
     const laneEnds: Array<number> = [];
     const items = row.items
-      .filter((item) => !item.is_placeholder && item.start_date !== null)
+      .filter((item) => item.start_date !== null)
       .sort(
         (left, right) =>
           getLocalStartTimeSortValue(left.start_date, selectedTimezone) -
@@ -164,13 +170,9 @@ export const buildDayRowLayouts = ({
         return { item, lane };
       });
     const height = Math.max(DAY_ROW_MIN_HEIGHT_PX, laneEnds.length * DAY_LANE_HEIGHT_PX + DAY_ROW_PADDING_PX);
-    const layout = { height, items, row, top };
 
-    top += height;
-
-    return layout;
+    return { height, items, row };
   });
-};
 
 type BuildWeekItemLayoutsParams = {
   readonly contentHeight: number;
@@ -259,16 +261,34 @@ export const buildHourMarkers = () =>
     position: (index * 60 * 100) / DAY_MINUTES,
   }));
 
-export const getTimelineItemColorPalette = (item: Pick<TimeScheduleItem, "is_planned" | "state">) =>
-  item.is_planned ? "scheduled" : item.state;
-export const getTimelineItemIconState = ({ state }: Pick<TimeScheduleItem, "state">) => {
-  if (state === "planned") {
-    return "scheduled";
+export const getTimelineItemDestination = (item: TimeScheduleItem, selectedTimezone: string) => {
+  const runsPath = `/dags/${encodeURIComponent(item.dag_id)}/runs`;
+
+  if (item.run_count === 1) {
+    return `${runsPath}/${encodeURIComponent(item.dag_run_id)}`;
   }
 
-  return state === "placeholder" ? undefined : state;
+  const searchParams = new URLSearchParams({
+    [SearchParamsKeys.RUN_AFTER_GTE]: item.run_after_min,
+    [SearchParamsKeys.RUN_AFTER_LTE]: item.run_after_max,
+    [SearchParamsKeys.STATE]: item.state,
+  });
+
+  if (item.start_time_gte !== null && item.start_time_gte !== undefined) {
+    searchParams.set(
+      SearchParamsKeys.START_TIME_GTE,
+      getTimeFilterValue(item.start_time_gte, item.run_after_min, selectedTimezone),
+    );
+  }
+  if (item.start_time_lt !== null && item.start_time_lt !== undefined) {
+    searchParams.set(
+      SearchParamsKeys.START_TIME_LT,
+      getTimeFilterValue(item.start_time_lt, item.run_after_min, selectedTimezone),
+    );
+  }
+  if (item.start_weekday !== null && item.start_weekday !== undefined && item.start_date !== null) {
+    searchParams.set(SearchParamsKeys.START_WEEKDAY, String(dayjs(item.start_date).utc().day()));
+  }
+
+  return `${runsPath}?${searchParams.toString()}`;
 };
-export const getTimelineItemDestination = (item: TimeScheduleItem) =>
-  item.is_planned || item.is_placeholder
-    ? `/dags/${item.dag_id}/runs`
-    : `/dags/${item.dag_id}/runs/${item.dag_run_id}`;

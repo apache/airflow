@@ -398,6 +398,7 @@
   "sourceAssetEvent_one": "Source $t(common:assetEvent_one)",
   "sourceAssetEvent_other": "Source $t(common:assetEvent_other)",
   "startDate": "Start Date",
+  "startWeekday": "Start Weekday",
   "state": "State",
   "states": {
     "awaiting_input": "Awaiting Input",

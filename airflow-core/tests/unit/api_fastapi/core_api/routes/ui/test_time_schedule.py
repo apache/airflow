@@ -128,7 +128,44 @@ def test_time_schedule_filters_paused_dags(test_client, session, paused, expecte
     assert {item["dag_id"] for item in _get_stream_items(response)} == {expected_dag_id}
 
 
-def test_time_schedule_returns_an_empty_stream_when_there_are_no_dag_runs(test_client):
+@pytest.mark.parametrize("show_scheduled_only", [True, False])
+def test_time_schedule_returns_an_empty_stream_when_there_are_no_dag_runs(
+    test_client, dag_maker, session, show_scheduled_only
+):
+    with dag_maker(dag_id="without_runs", schedule="@daily", serialized=True, session=session):
+        pass
+    dag_maker.sync_dagbag_to_db()
+    session.execute(update(DagModel).values(next_dagrun_create_after=pendulum.parse("2026-08-03T09:00:00Z")))
+    session.commit()
+
+    response = test_client.get("/time-schedule", params={"show_scheduled_only": show_scheduled_only})
+
+    assert response.status_code == 200
+    assert response.text == ""
+
+
+@pytest.mark.usefixtures("time_schedule_dags")
+@pytest.mark.parametrize("limit", [1, 2, 3])
+def test_time_schedule_bounds_dags_by_selected_run_count(test_client, limit):
+    response = test_client.get("/time-schedule", params={"limit": limit, "show_scheduled_only": False})
+
+    assert response.status_code == 200
+    batches = [json.loads(line) for line in response.text.splitlines()]
+    items = _get_stream_items(response)
+    assert sum(batch["dag_run_count"] for batch in batches) == limit
+    assert sum(item["run_count"] for item in items) == limit
+    assert len({item["dag_id"] for item in items}) <= limit
+
+
+@pytest.mark.usefixtures("time_schedule_dags")
+def test_time_schedule_does_not_add_dags_excluded_by_run_filters(test_client):
+    response = test_client.get("/time-schedule", params={"state": "queued", "show_scheduled_only": False})
+
+    assert response.status_code == 200
+    assert response.text == ""
+
+
+def test_time_schedule_returns_an_empty_stream_when_there_are_no_dags(test_client):
     response = test_client.get("/time-schedule")
 
     assert response.status_code == 200

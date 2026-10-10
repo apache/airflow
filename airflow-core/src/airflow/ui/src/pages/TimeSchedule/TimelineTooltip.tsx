@@ -26,8 +26,6 @@ import { StateIcon } from "src/components/StateIcon";
 import { useDurationFormat } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
 
-import { getTimelineItemIconState } from "./timelineUtils";
-
 type TimelineTooltipProps = {
   readonly item: TimeScheduleItem;
   readonly selectedTimezone: string;
@@ -40,8 +38,6 @@ export const TimelineTooltip = ({ item, selectedTimezone }: TimelineTooltipProps
   const { t: translate } = useTranslation();
   const { renderDuration } = useDurationFormat();
   const startTime = formatTime(item.start_date, selectedTimezone);
-  const iconState = getTimelineItemIconState(item);
-  const state = iconState ?? item.state;
 
   return (
     <VStack align="start" data-testid="time-schedule-tooltip" gap={1} lineHeight="short" maxWidth="xs">
@@ -56,21 +52,17 @@ export const TimelineTooltip = ({ item, selectedTimezone }: TimelineTooltipProps
         width="100%"
       />
       <HStack gap={1}>
-        <StateIcon color="currentColor" size={12} state={iconState} />
+        <StateIcon color="currentColor" size={12} state={item.state} />
         <Text fontSize="xs" fontWeight="medium">
-          {translate(`states.${state}`)}
+          {translate(`states.${item.state}`)}
         </Text>
       </HStack>
       <Text fontSize="xs">
-        {item.is_planned
-          ? `${translate("dagDetails.nextRun")}: ${startTime}`
-          : `${startTime} – ${formatTime(item.end_date, selectedTimezone)}`}
+        {startTime} – {formatTime(item.end_date, selectedTimezone)}
       </Text>
-      {!item.is_planned && !item.is_placeholder ? (
-        <Text fontSize="xs">
-          {item.run_count} {translate("dagRun", { count: item.run_count })}
-        </Text>
-      ) : undefined}
+      <Text fontSize="xs">
+        {item.run_count} {translate("dagRun", { count: item.run_count })}
+      </Text>
       {item.duration_ms > 0 ? <Text fontSize="xs">{renderDuration(item.duration_ms / 1000)}</Text> : null}
     </VStack>
   );

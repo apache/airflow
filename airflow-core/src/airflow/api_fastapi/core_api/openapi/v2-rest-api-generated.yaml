@@ -2511,6 +2511,38 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lt
+      - name: start_time_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: time
+          - type: 'null'
+          title: Start Time Gte
+      - name: start_time_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: time
+          - type: 'null'
+          title: Start Time Lt
+      - name: start_weekday
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: integer
+              maximum: 6
+              minimum: 0
+          - type: 'null'
+          description: Match any selected weekday. Sunday=0, Saturday=6.
+          title: Start Weekday
+        description: Match any selected weekday. Sunday=0, Saturday=6.
       - name: duration_gte
         in: query
         required: false

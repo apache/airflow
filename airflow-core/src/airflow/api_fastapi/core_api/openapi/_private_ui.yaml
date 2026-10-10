@@ -5690,12 +5690,6 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
-        is_placeholder:
-          type: boolean
-          title: Is Placeholder
-        is_planned:
-          type: boolean
-          title: Is Planned
         is_time_scheduled:
           type: boolean
           title: Is Time Scheduled
@@ -5705,6 +5699,14 @@ components:
         run_count:
           type: integer
           title: Run Count
+        run_after_min:
+          type: string
+          format: date-time
+          title: Run After Min
+        run_after_max:
+          type: string
+          format: date-time
+          title: Run After Max
         start_date:
           anyOf:
           - type: string
@@ -5712,24 +5714,33 @@ components:
           - type: 'null'
           title: Start Date
         state:
+          $ref: '#/components/schemas/DagRunState'
+        start_time_gte:
           anyOf:
-          - $ref: '#/components/schemas/DagRunState'
           - type: string
-            enum:
-            - placeholder
-            - planned
-          title: State
+          - type: 'null'
+          title: Start Time Gte
+        start_time_lt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Start Time Lt
+        start_weekday:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Start Weekday
       type: object
       required:
       - dag_id
       - dag_run_id
       - duration_ms
       - end_date
-      - is_placeholder
-      - is_planned
       - is_time_scheduled
       - dag_display_name
       - run_count
+      - run_after_min
+      - run_after_max
       - start_date
       - state
       title: TimeScheduleItem

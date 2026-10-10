@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from datetime import timedelta
-from itertools import groupby
 from typing import Annotated, Literal
 
 import pendulum
@@ -49,7 +48,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.time_schedule import TimeSchedul
 from airflow.api_fastapi.core_api.security import ReadableDagsFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.time_schedule import aggregate_time_schedule_items
 from airflow.models import DagModel, DagRun
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.utils.helpers import chunks
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 
@@ -68,11 +67,11 @@ def _build_run_item(dag_run: DagRun, *, dag_display_name: str, is_time_scheduled
         dag_run_id=dag_run.run_id,
         duration_ms=duration_ms,
         end_date=end_date,
-        is_placeholder=False,
-        is_planned=False,
         is_time_scheduled=is_time_scheduled,
         dag_display_name=dag_display_name,
         run_count=1,
+        run_after_min=dag_run.run_after,
+        run_after_max=dag_run.run_after,
         start_date=start_date,
         state=dag_run.state or DagRunState.QUEUED,
     )
@@ -199,8 +198,7 @@ def get_time_schedule_stream(
             run_ids_by_dag.setdefault(dag_id, []).append(run_id)
         dag_ids_with_runs = sorted(run_ids_by_dag)
 
-        for batch_start in range(0, len(dag_ids_with_runs), _DAG_BATCH_SIZE):
-            dag_id_batch = dag_ids_with_runs[batch_start : batch_start + _DAG_BATCH_SIZE]
+        for dag_id_batch in chunks(dag_ids_with_runs, _DAG_BATCH_SIZE):
             run_id_batch = [run_id for dag_id in dag_id_batch for run_id in run_ids_by_dag[dag_id]]
             with create_session(scoped=False) as session:
                 rows = session.execute(
@@ -210,119 +208,20 @@ def get_time_schedule_stream(
                     .order_by(DagRun.dag_id, func.coalesce(DagRun.start_date, DagRun.run_after).desc())
                 ).all()
 
-            batch_items: list[TimeScheduleItem] = []
-            for _, dag_rows_iterator in groupby(rows, key=lambda row: row[0].dag_id):
-                dag_rows = list(dag_rows_iterator)
-                run_items = [
+            batch_items = aggregate_time_schedule_items(
+                aggregation_mode=aggregation_mode,
+                items=[
                     _build_run_item(
                         dag_run,
                         dag_display_name=dag.dag_display_name,
                         is_time_scheduled=dag.timetable_periodic,
                     )
-                    for dag_run, dag in dag_rows
-                ]
-                batch_items.extend(
-                    aggregate_time_schedule_items(
-                        aggregation_mode=aggregation_mode,
-                        items=run_items,
-                        time_scale=time_scale,
-                        timezone=timezone,
-                        view_mode=view_mode,
-                    )
-                )
-            yield TimeScheduleBatch(dag_run_count=len(rows), items=batch_items).model_dump_json() + "\n"
-
-        last_dag_id: str | None = None
-        while True:
-            with create_session(scoped=False) as session:
-                dags_without_runs_query = dag_ids_query
-                if dag_ids_with_runs:
-                    dags_without_runs_query = dags_without_runs_query.where(
-                        DagModel.dag_id.not_in(dag_ids_with_runs)
-                    )
-                if last_dag_id is not None:
-                    dags_without_runs_query = dags_without_runs_query.where(DagModel.dag_id > last_dag_id)
-                dags_without_runs = list(
-                    session.scalars(dags_without_runs_query.order_by(DagModel.dag_id).limit(_DAG_BATCH_SIZE))
-                )
-                planned_dags = [
-                    dag
-                    for dag in dags_without_runs
-                    if dag.timetable_periodic
-                    and dag.timetable_summary is not None
-                    and dag.next_dagrun_create_after is not None
-                ]
-                serialized_dags = {
-                    serialized_dag.dag_id: serialized_dag.dag
-                    for serialized_dag in SerializedDagModel.get_latest_serialized_dags(
-                        dag_ids=[dag.dag_id for dag in planned_dags], session=session
-                    )
-                }
-
-            if not dags_without_runs:
-                break
-
-            remaining_items: list[TimeScheduleItem] = []
-            for dag in planned_dags:
-                serialized_dag = serialized_dags.get(dag.dag_id)
-                duration = serialized_dag.dagrun_timeout if serialized_dag is not None else None
-                duration_ms = duration.total_seconds() * 1000 if duration is not None else 0
-                start_date = dag.next_dagrun_create_after
-                if start_date is None:
-                    continue
-                remaining_items.append(
-                    TimeScheduleItem(
-                        dag_id=dag.dag_id,
-                        dag_run_id=f"{dag.dag_id}-planned",
-                        duration_ms=duration_ms,
-                        end_date=start_date + timedelta(milliseconds=duration_ms),
-                        is_placeholder=False,
-                        is_planned=True,
-                        is_time_scheduled=True,
-                        dag_display_name=dag.dag_display_name,
-                        run_count=0,
-                        start_date=start_date,
-                        state="planned",
-                    )
-                )
-
-            if view_mode == "day" and not show_scheduled_only:
-                placeholder_start = pendulum.now(timezone).start_of("day")
-                planned_dag_ids = {dag.dag_id for dag in planned_dags}
-                remaining_items.extend(
-                    TimeScheduleItem(
-                        dag_id=dag.dag_id,
-                        dag_run_id=f"{dag.dag_id}-placeholder",
-                        duration_ms=0,
-                        end_date=None,
-                        is_placeholder=True,
-                        is_planned=False,
-                        is_time_scheduled=False,
-                        dag_display_name=dag.dag_display_name,
-                        run_count=0,
-                        start_date=placeholder_start,
-                        state="placeholder",
-                    )
-                    for dag in dags_without_runs
-                    if dag.dag_id not in planned_dag_ids
-                )
-
-            aggregated_remaining_items = aggregate_time_schedule_items(
-                aggregation_mode=aggregation_mode,
-                items=[item for item in remaining_items if not item.is_placeholder],
+                    for dag_run, dag in rows
+                ],
                 time_scale=time_scale,
                 timezone=timezone,
                 view_mode=view_mode,
             )
-            placeholders = [item for item in remaining_items if item.is_placeholder]
-            if aggregated_remaining_items or placeholders:
-                yield (
-                    TimeScheduleBatch(
-                        dag_run_count=0, items=[*aggregated_remaining_items, *placeholders]
-                    ).model_dump_json()
-                    + "\n"
-                )
-
-            last_dag_id = dags_without_runs[-1].dag_id
+            yield TimeScheduleBatch(dag_run_count=len(rows), items=batch_items).model_dump_json() + "\n"
 
     return StreamingResponse(content=_generate(), media_type="application/x-ndjson")

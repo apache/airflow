@@ -33,11 +33,11 @@ def _make_item(*, start: pendulum.DateTime, duration_minutes: int, run_id: str) 
         dag_run_id=run_id,
         duration_ms=duration_minutes * 60_000,
         end_date=start + timedelta(minutes=duration_minutes),
-        is_placeholder=False,
-        is_planned=False,
         is_time_scheduled=True,
         dag_display_name="example_dag",
         run_count=1,
+        run_after_min=start,
+        run_after_max=start,
         start_date=start,
         state=DagRunState.SUCCESS,
     )
@@ -70,6 +70,8 @@ def test_aggregate_time_schedule_items_uses_selected_duration_rule(
     assert result.start_date == pendulum.parse(expected_start)
     assert result.end_date == pendulum.parse(expected_end)
     assert result.run_count == 2
+    assert result.start_time_gte == "09:00"
+    assert result.start_time_lt == "10:00"
 
 
 def test_aggregate_time_schedule_items_only_groups_week_items_from_the_same_weekday():
@@ -87,6 +89,12 @@ def test_aggregate_time_schedule_items_only_groups_week_items_from_the_same_week
 
     assert len(day_items) == 1
     assert day_items[0].run_count == 2
+    assert day_items[0].run_after_min == pendulum.parse("2026-08-03T09:00:00Z")
+    assert day_items[0].run_after_max == pendulum.parse("2026-08-04T09:00:00Z")
+    assert day_items[0].start_time_gte == "09:00"
+    assert day_items[0].start_time_lt == "10:00"
+    assert day_items[0].start_weekday is None
+    assert {item.start_weekday for item in week_items} == {1, 2}
     assert len(week_items) == 2
     assert {item.run_count for item in week_items} == {1}
 
@@ -104,3 +112,19 @@ def test_aggregate_time_schedule_items_preserves_a_duration_across_midnight():
 
     assert result.duration_ms == 20 * 60_000
     assert result.end_date == pendulum.parse("2026-08-04T00:10:00Z")
+    assert result.start_time_lt == "24:00"
+
+
+def test_aggregate_time_schedule_items_caps_the_last_local_bucket_at_midnight():
+    [result] = aggregate_time_schedule_items(
+        aggregation_mode="mean",
+        items=[
+            _make_item(start=pendulum.parse("2026-08-03T14:27:00Z"), duration_minutes=6, run_id="last-bucket")
+        ],
+        time_scale=50,
+        timezone="Asia/Seoul",
+        view_mode="week",
+    )
+    assert result.start_time_gte == "23:20"
+    assert result.start_time_lt == "24:00"
+    assert result.start_weekday == 1

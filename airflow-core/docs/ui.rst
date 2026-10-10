@@ -621,22 +621,23 @@ specific calendar week. Overlapping bars share the width of their weekday column
 Timeline Bars
 '''''''''''''
 
-Each bar represents one or more Dag runs at a similar time. A bar can also represent the next expected run when a
-scheduled Dag has no matching run.
+Each bar represents one or more matching Dag runs at a similar time.
+
+Times use the selected UI timezone and each run's start time, falling back to **Run After** for runs that have not started.
 
 Bar colors and state icons indicate state:
 
 - Successful runs are green.
 - Failed runs are red.
-- Running runs are orange.
-- Scheduled Dags without a matching Dag run are gray.
+- Running runs are cyan.
 
 Available interactions:
 
 - Hover over a bar to see its Dag ID, state, timing, and aggregated Dag run count. The tooltip separates the Dag ID
   from the run details and remains readable in light and dark themes.
-- Select a Dag run bar to open that run.
-- Select an expected run to open the Dag's **Runs** tab.
+- Select a bar representing one Dag run to open that run.
+- Select an aggregated bar to open the Dag's **Runs** tab with **State**, **Run After**, and **Start Time** filters.
+  The **Week** view also applies **Start Weekday**. Matching runs outside the selected limit can also appear.
 
 Zoom controls
 '''''''''''''

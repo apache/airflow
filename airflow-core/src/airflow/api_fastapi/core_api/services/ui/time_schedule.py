@@ -51,7 +51,7 @@ def aggregate_time_schedule_items(
     groups: dict[tuple[str, int | None, int, object], list[TimeScheduleItem]] = defaultdict(list)
 
     for item in items:
-        if item.is_placeholder or item.start_date is None:
+        if item.start_date is None:
             continue
         local_start = pendulum.instance(item.start_date).in_timezone(timezone)
         minute = local_start.hour * 60 + local_start.minute
@@ -60,7 +60,8 @@ def aggregate_time_schedule_items(
         groups[(item.dag_id, weekday, bucket_minute, item.state)].append(item)
 
     aggregated_items: list[TimeScheduleItem] = []
-    for group in groups.values():
+    for (_, weekday, bucket_minute, _), group in groups.items():
+        bucket_end_minute = min(bucket_minute + time_scale, 1440)
         representative = group[0]
         if representative.start_date is None:
             continue
@@ -96,8 +97,13 @@ def aggregate_time_schedule_items(
                 update={
                     "duration_ms": (aggregated_end - aggregated_start).total_seconds() * 1000,
                     "end_date": aggregated_end,
-                    "run_count": sum(not item.is_planned for item in group),
+                    "run_count": len(group),
+                    "run_after_min": min(item.run_after_min for item in group),
+                    "run_after_max": max(item.run_after_max for item in group),
                     "start_date": aggregated_start,
+                    "start_time_gte": f"{bucket_minute // 60:02d}:{bucket_minute % 60:02d}",
+                    "start_time_lt": f"{bucket_end_minute // 60:02d}:{bucket_end_minute % 60:02d}",
+                    "start_weekday": weekday,
                 }
             )
         )

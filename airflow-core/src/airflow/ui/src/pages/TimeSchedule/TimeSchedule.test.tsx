@@ -41,12 +41,15 @@ type StreamItem = {
   readonly dag_run_id: string;
   readonly duration_ms: number;
   readonly end_date: string | null;
-  readonly is_placeholder: boolean;
-  readonly is_planned: boolean;
   readonly is_time_scheduled: boolean;
+  readonly run_after_max: string;
+  readonly run_after_min: string;
   readonly run_count: number;
   readonly start_date: string | null;
-  readonly state: "failed" | "planned" | "success";
+  readonly start_time_gte?: string;
+  readonly start_time_lt?: string;
+  readonly start_weekday?: number;
+  readonly state: "failed" | "success";
 };
 
 type StreamBatch = {
@@ -72,9 +75,9 @@ const createStreamItem = (overrides: Partial<StreamItem> = {}): StreamItem => ({
   dag_run_id: "run-1",
   duration_ms: 60_000,
   end_date: "2024-01-01T00:01:00Z",
-  is_placeholder: false,
-  is_planned: false,
   is_time_scheduled: true,
+  run_after_max: "2024-01-01T00:00:00Z",
+  run_after_min: "2024-01-01T00:00:00Z",
   run_count: 1,
   start_date: "2024-01-01T00:00:00Z",
   state: "success",
@@ -165,6 +168,9 @@ vi.mock("src/queries/useDagTimetableTypesInfinite", () => ({
 
 describe("TimeSchedule page", () => {
   beforeEach(() => {
+    // happy-dom has no layout; provide a viewport for the real row virtualizer.
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(480);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1000);
     configResponse.current.multi_team = false;
     TIME_SCHEDULE_STORAGE_KEYS.forEach((key) => globalThis.localStorage.removeItem(key));
     globalThis.localStorage.setItem(TIMEZONE_KEY, JSON.stringify("UTC"));
@@ -176,6 +182,7 @@ describe("TimeSchedule page", () => {
   afterEach(() => {
     TIME_SCHEDULE_STORAGE_KEYS.forEach((key) => globalThis.localStorage.removeItem(key));
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("renders streamed batches progressively on the Day timeline", async () => {
@@ -191,6 +198,65 @@ describe("TimeSchedule page", () => {
       "href",
       "/dags/another_dag/runs/run-2",
     );
+  });
+
+  it("virtualizes Dag labels and bars together while scrolling", async () => {
+    fetchTimeSchedule.mockResolvedValue(
+      createStreamResponse([
+        {
+          dag_run_count: 200,
+          items: Array.from({ length: 200 }, (_, index) => {
+            const dagId = `dag_${String(index).padStart(3, "0")}`;
+
+            return createStreamItem({ dag_display_name: dagId, dag_id: dagId, dag_run_id: dagId });
+          }),
+        },
+      ]),
+    );
+
+    render();
+
+    expect(await screen.findByRole("link", { name: "dag_000: Success, 1 Dag Run" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "dag_199" })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId(/^time-schedule-run-bar-/u).length).toBeLessThan(200);
+
+    fireEvent.scroll(screen.getByTestId("time-schedule-scroll-region"), { target: { scrollTop: 9200 } });
+
+    expect(await screen.findByRole("link", { name: "dag_199" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "dag_199: Success, 1 Dag Run" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "dag_000" })).not.toBeInTheDocument();
+  });
+
+  it("updates virtual row heights when zooming changes overlapping lanes", async () => {
+    fetchTimeSchedule.mockResolvedValue(
+      createStreamResponse([
+        {
+          dag_run_count: 3,
+          items: [
+            createStreamItem(),
+            createStreamItem({
+              dag_run_id: "run-overlap",
+              end_date: "2024-01-01T00:36:00Z",
+              start_date: "2024-01-01T00:35:00Z",
+              state: "failed",
+            }),
+            createStreamItem({ dag_display_name: "next_dag", dag_id: "next_dag", dag_run_id: "next-run" }),
+          ],
+        },
+      ]),
+    );
+
+    render();
+
+    const nextRow = (await screen.findByRole("link", { name: /^next_dag$/u })).parentElement;
+
+    expect(nextRow).toHaveStyle({ top: "56px" });
+    expect(screen.getByTestId("time-schedule-run-bar-next-run").parentElement).toHaveStyle({ top: "72px" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+
+    await waitFor(() => expect(nextRow).toHaveStyle({ top: "48px" }));
+    expect(screen.getByTestId("time-schedule-run-bar-next-run").parentElement).toHaveStyle({ top: "64px" });
   });
 
   it("requests one server stream for the selected view and aggregation", async () => {
@@ -272,19 +338,20 @@ describe("TimeSchedule page", () => {
     await waitFor(() => expect(getLatestRequest().searchParams.get("show_scheduled_only")).toBe("false"));
   });
 
-  it("renders a planned item returned by the server", async () => {
+  it("links aggregated items to the runs table filtered by state, run period, and local start bucket", async () => {
     fetchTimeSchedule.mockResolvedValue(
       createStreamResponse([
         {
-          dag_run_count: 0,
+          dag_run_count: 2,
           items: [
             createStreamItem({
-              dag_display_name: "planned_dag",
-              dag_id: "planned_dag",
-              dag_run_id: "planned_dag-planned",
-              is_planned: true,
-              run_count: 0,
-              state: "planned",
+              end_date: "2024-01-01T00:23:00Z",
+              run_after_max: "2024-01-02T00:00:00Z",
+              run_count: 2,
+              start_date: "2024-01-01T00:22:00Z",
+              start_time_gte: "00:00",
+              start_time_lt: "01:00",
+              start_weekday: 1,
             }),
           ],
         },
@@ -293,9 +360,9 @@ describe("TimeSchedule page", () => {
 
     render();
 
-    expect(await screen.findByRole("link", { name: "planned_dag: Scheduled, 0 Dag Runs" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "example_dag: Success, 2 Dag Runs" })).toHaveAttribute(
       "href",
-      "/dags/planned_dag/runs",
+      "/dags/example_dag/runs?run_after_gte=2024-01-01T00%3A00%3A00Z&run_after_lte=2024-01-02T00%3A00%3A00Z&state=success&start_time_gte=00%3A00%3A00.000Z&start_time_lt=01%3A00%3A00.000Z&start_weekday=1",
     );
   });
 
