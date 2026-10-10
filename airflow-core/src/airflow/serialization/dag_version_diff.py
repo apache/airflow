@@ -885,10 +885,10 @@ def _canonicalize_value(value: Any, *, path: tuple[str, ...]) -> Any:
             value = {"name": None, **value}
             interval = value.get("interval")
             if isinstance(interval, (int, float)) and not isinstance(interval, bool):
-                # Diff schema v1 uses the SDK's version-2 timedelta encoding for legacy seconds.
+                # Diff schema v1 uses the SDK's version-3 timedelta encoding for legacy seconds.
                 value["interval"] = {
                     "__classname__": "datetime.timedelta",
-                    "__version__": 2,
+                    "__version__": 3,
                     "__data__": timedelta(seconds=interval).total_seconds(),
                 }
         return {
