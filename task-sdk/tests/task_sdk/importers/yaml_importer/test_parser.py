@@ -134,6 +134,20 @@ def test_both_bodies_is_error():
         _task("- {id: t, uses: X, run: {}}")
 
 
+@pytest.mark.parametrize(
+    "task",
+    [
+        pytest.param("{id: t, uses: null}", id="uses-null"),
+        pytest.param('{id: t, uses: ""}', id="uses-empty"),
+        pytest.param("{id: t, run: null}", id="run-null"),
+    ],
+)
+def test_empty_body_is_error(task):
+    # A present-but-empty body (null / "") is not a usable body, even though the key exists.
+    with pytest.raises(YamlDagParseError, match="must not be empty"):
+        _task(f"- {task}")
+
+
 def test_python_field_names_not_accepted_as_aliases():
     with pytest.raises(YamlDagParseError):
         _one("tasks:\n  - {id_: t, run: {}}")  # 'id_' is not 'id' -> id missing

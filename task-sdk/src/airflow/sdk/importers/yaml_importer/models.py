@@ -230,6 +230,8 @@ class Task(BaseModel):
                     f"task {data.get('id')!r} must have exactly one of 'uses' or 'run'"
                     + (f"; got {bodies}" if bodies else "")
                 )
+            if data[bodies[0]] is None or data[bodies[0]] == "":  # present but empty is not a body
+                raise ValueError(f"task {data.get('id')!r}: {bodies[0]!r} must not be empty")
         return data
 
     @classmethod
