@@ -77,6 +77,9 @@ class DagDef(
    * mismatched value types are rejected on the call, so mistakes surface where
    * the Dag is defined.
    *
+   * `"queue"` is the one key Airflow's Dag has no setting for: it is the queue
+   * every task of the Dag runs on, unless the task sets its own `"queue"`.
+   *
    * @param key Airflow Dag setting name.
    * @param value Value matching the key's schema type. Durations take
    *    [java.time.Duration], date-times [java.time.OffsetDateTime] or

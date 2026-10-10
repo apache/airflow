@@ -175,6 +175,7 @@ internal class DagDefTest {
         .config("dagrun_timeout", Duration.ofMinutes(5))
         .config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00Z"))
         .config("tags", listOf("a", "b"))
+        .config("queue", "java")
 
     Assertions.assertEquals(
       mapOf(
@@ -185,6 +186,7 @@ internal class DagDefTest {
         "dagrun_timeout" to Duration.ofMinutes(5),
         "start_date" to OffsetDateTime.parse("2026-01-01T00:00:00Z"),
         "tags" to listOf("a", "b"),
+        "queue" to "java",
       ),
       dag.dagConfig,
     )

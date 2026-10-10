@@ -107,7 +107,10 @@ internal fun serializeDag(
       "relative_fileloc" to relativeFileloc,
       "timezone" to dagTimezone(dag.dagConfig),
       "timetable" to serializeTimetable(dag.id, dag.dagConfig),
-      "tasks" to dag.tasks.map { (taskId, def) -> serializeTask(taskId, def, downstream[taskId]) },
+      "tasks" to
+        dag.tasks.map { (taskId, def) ->
+          serializeTask(taskId, def, downstream[taskId], dag.dagConfig["queue"] as String?)
+        },
       "dag_dependencies" to serializeDagDependencies(dag),
       "task_group" to serializeTaskGroups(dag, expansion),
       "edge_info" to emptyMap<String, Any?>(),
@@ -122,11 +125,13 @@ internal fun serializeDag(
 /**
  * Converts one task to the Airflow serialization format. `downstream` is the
  * inverted view of the Dag's upstream edges, sorted for stable JSON.
+ * `dagQueue` is the Dag's queue, which the task takes unless it sets its own.
  */
 private fun serializeTask(
   taskId: String,
   def: TaskDef,
   downstream: List<String>?,
+  dagQueue: String?,
 ): Map<String, Any?> {
   val data = linkedMapOf<String, Any?>("task_id" to taskId)
   val trigger = def.trigger
@@ -154,7 +159,11 @@ private fun serializeTask(
   // __type encoding is stripped. If core grows a task-level fill_config_defaults,
   // every SDK has to keep explicitly set values instead, or an explicit retries=0
   // reads as unset and picks up the configured default.
-  def.configValues.forEach { (key, value) ->
+  // The Dag's queue is merged in first, so one equal to the schema default is
+  // left out too. A trigger task takes it as well, because the Java runtime runs it.
+  val config =
+    if (dagQueue == null || "queue" in def.configValues) def.configValues else def.configValues + ("queue" to dagQueue)
+  config.forEach { (key, value) ->
     if (key !in OMITTED_TASK_KEYS && !matchesSchemaDefault(SchemaFields.TASK[key], value)) {
       data[key] = unwrapTypeEncoding(serializeValue(value))
     }

@@ -461,6 +461,23 @@ abstract class GenerateDagDslTask : DefaultTask() {
                         "`\"@once\"`, `\"@continuous\"`, a cron expression, or empty for no schedule.",
                     ),
                 )
+                // The schema has no Dag-level queue; a Python Dag sets one through
+                // default_args instead. Every task of a Java Dag runs on the Java
+                // coordinator, so one queue on the Dag routes all of them there.
+                if (!dagProps.path("queue").isMissingNode) {
+                    throw GradleException("The schema now has a Dag-level 'queue'; resolve it from the schema instead")
+                }
+                add(
+                    DslField(
+                        "queue",
+                        "queue",
+                        "STRING",
+                        "String",
+                        quote(""),
+                        null,
+                        "Queue each task of the Dag runs on, unless the task sets its own `queue`.",
+                    ),
+                )
                 dagAllowlist.forEach { key ->
                     val prop = dagProps.path(key)
                     if (prop.isMissingNode) {
