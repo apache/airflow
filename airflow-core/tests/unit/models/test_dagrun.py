@@ -36,6 +36,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
+    create_mock_engine,
     event,
     func,
     inspect as sa_inspect,
@@ -5537,3 +5538,20 @@ class TestGetOrCreateDagrun:
             select(func.count()).select_from(TaskInstance).where(TaskInstance.run_id == "manual__existing")
         )
         assert existing_ti_count == 1
+
+
+@pytest.mark.parametrize(
+    ("dialect", "expected"),
+    [("mysql", False), ("postgresql", True), ("sqlite", True)],
+)
+def test_queued_dags_index_is_created_only_where_partial_indexes_exist(dialect, expected):
+    statements = []
+    engine = create_mock_engine(
+        f"{dialect}://",
+        lambda sql, *args, **kwargs: statements.append(str(sql.compile(dialect=engine.dialect))),
+    )
+    DagRun.__table__.create(engine)
+
+    created = [s for s in statements if s.strip().startswith("CREATE INDEX")]
+    assert any("idx_dag_run_running_dags" in s for s in created)
+    assert any("idx_dag_run_queued_dags" in s for s in created) is expected
