@@ -270,13 +270,16 @@ def test_unquoted_date_schema_is_coerced_to_url():
 @pytest.mark.parametrize(
     "schema_value",
     [
+        pytest.param("null", id="null"),
+        pytest.param('""', id="empty-string"),
+        pytest.param("false", id="false"),
         pytest.param("123", id="int"),
         pytest.param("[a, b]", id="list"),
     ],
 )
-def test_schema_must_be_a_string_or_date(schema_value):
-    # Other non-string $schema values are a parse error, not an unhandled TypeError.
-    with pytest.raises(YamlDagParseError, match="must be a string or a date"):
+def test_schema_must_be_a_non_empty_string_or_date(schema_value):
+    # A present-but-falsy or wrong-typed $schema is reported as such, not as "missing".
+    with pytest.raises(YamlDagParseError, match="must be a non-empty string or a date"):
         list(parse_documents(f"$schema: {schema_value}\ndag_id: d\ntasks: []"))
 
 
