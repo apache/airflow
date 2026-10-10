@@ -35,6 +35,22 @@
       "wednesday": "Wed"
     }
   },
+  "callbacks": {
+    "allCallbacks": "All callbacks",
+    "callback_one": "Callback",
+    "callback_other": "Callbacks",
+    "columns": {
+      "alertName": "Deadline Alert",
+      "callback": "Callback",
+      "deadlineTime": "Deadline Time",
+      "missedBy": "Missed by",
+      "type": "Type"
+    },
+    "types": {
+      "executor": "Sync",
+      "triggerer": "Async"
+    }
+  },
   "code": {
     "bundleUrl": "Bundle Url",
     "noCode": "No Code Found",
@@ -212,6 +228,7 @@
     "auditLog": "Audit Log",
     "backfills": "Backfills",
     "calendar": "Calendar",
+    "callbacks": "Callbacks",
     "code": "Code",
     "details": "Details",
     "logs": "Logs",

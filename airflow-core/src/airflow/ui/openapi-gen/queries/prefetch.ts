@@ -2114,7 +2114,7 @@ export const prefetchUseDashboardServiceDagStats = (queryClient: QueryClient) =>
 * @param data.dagRunId
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name, callback_state, callback_type`
 * @param data.missed
 * @param data.deadlineTimeGte
 * @param data.deadlineTimeGt
@@ -2164,6 +2164,23 @@ export const prefetchUseDeadlinesServiceGetDagDeadlineAlerts = (queryClient: Que
   orderBy?: string[];
   versionNumber?: number;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy, versionNumber }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy, versionNumber }) });
+/**
+* Get Callback Logs
+* Get the execution logs of a deadline callback.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.callbackId
+* @param data.accept
+* @returns TaskInstancesLogResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseDeadlinesServiceGetCallbackLogs = (queryClient: QueryClient, { accept, callbackId, dagId, dagRunId }: {
+  accept?: "application/json" | "*/*" | "application/x-ndjson";
+  callbackId: string;
+  dagId: string;
+  dagRunId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetCallbackLogsKeyFn({ accept, callbackId, dagId, dagRunId }), queryFn: () => DeadlinesService.getCallbackLogs({ accept, callbackId, dagId, dagRunId }) });
 /**
 * Structure Data
 * Get Structure Data.

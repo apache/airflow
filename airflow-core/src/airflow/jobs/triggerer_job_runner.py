@@ -429,7 +429,8 @@ The types of messages that the async Trigger Runner can send back up to the supe
 class TriggerLoggingFactory:
     log_path: str
 
-    ti: RuntimeTI = attrs.field(repr=False)
+    # Callback triggers have no task instance; ``upload_to_remote`` accepts ``ti=None``.
+    ti: RuntimeTI | None = attrs.field(default=None, repr=False)
 
     bound_logger: WrappedLogger = attrs.field(init=False, repr=False)
 
@@ -850,6 +851,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             if trigger.assets:
                 watched_assets = {a.name: a.uri for a in trigger.assets}
+
+            if callback := getattr(trigger, "callback", None):
+                # Log callback triggers to a file the UI callback logs endpoint can read.
+                callback_data = callback.data or {}
+                context = (callback_data.get("kwargs") or {}).get("context") or {}
+                dag_run_data = context.get("dag_run") or {}
+                dag_id = callback_data.get("dag_id") or dag_run_data.get("dag_id") or "unknown"
+                run_id = dag_run_data.get("dag_run_id") or "unknown"
+                self.logger_cache[trigger.id] = TriggerLoggingFactory(
+                    log_path=f"triggerer_callbacks/{dag_id}/{run_id}/{callback.id}",
+                )
 
             return workloads.RunTrigger(
                 id=trigger.id,

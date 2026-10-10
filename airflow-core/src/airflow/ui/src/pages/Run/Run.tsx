@@ -18,11 +18,11 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { FiCode, FiDatabase } from "react-icons/fi";
+import { FiCode, FiDatabase, FiPhoneCall } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRun } from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
@@ -40,15 +40,6 @@ export const Run = () => {
   // Get external views with dag_run destination
   const externalTabs = usePluginTabs("dag_run");
 
-  const tabs = [
-    { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
-    { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
-    { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
-    { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
-    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
-    ...externalTabs,
-  ];
-
   const refetchInterval = useAutoRefresh({ dagId });
 
   const {
@@ -65,6 +56,36 @@ export const Run = () => {
       refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
     },
   );
+
+  // Like Required Actions, the Callbacks tab only shows when the run has callbacks (one per deadline).
+  const { data: deadlines } = useDeadlinesServiceGetDeadlines(
+    { dagId, dagRunId: runId, limit: 1 },
+    undefined,
+    {
+      refetchInterval: isStatePending(dagRun?.state) && refetchInterval,
+    },
+  );
+  const hasCallbacks = (deadlines?.total_entries ?? 0) > 0;
+
+  const tabs = [
+    { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
+    { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
+    // matchPaths keeps the tab active on a callback's logs page.
+    ...(hasCallbacks
+      ? [
+          {
+            icon: <FiPhoneCall />,
+            label: translate("tabs.callbacks"),
+            matchPaths: ["logs"],
+            value: "callbacks",
+          },
+        ]
+      : []),
+    { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+    { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
+    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    ...externalTabs,
+  ];
 
   return (
     <ReactFlowProvider>
