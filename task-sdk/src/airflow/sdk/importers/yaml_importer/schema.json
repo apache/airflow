@@ -57,11 +57,17 @@
           "type": "array"
         },
         "extends": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Extends",
-          "type": "array"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "with": {
           "additionalProperties": {

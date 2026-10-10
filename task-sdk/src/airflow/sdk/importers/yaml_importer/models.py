@@ -235,6 +235,9 @@ class Task(BaseModel):
         value_schema = schema["properties"]["with"]["additionalProperties"]
         schema["properties"]["uses"] = {"type": "string"}
         schema["properties"]["run"] = {"type": "object", "additionalProperties": value_schema}
+        schema["properties"]["extends"] = {
+            "anyOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
+        }
         schema["not"] = {"required": ["uses", "run"]}
         schema["anyOf"] = [{"required": ["uses"]}, {"required": ["run"]}, {"required": ["extends"]}]
         return schema
@@ -290,9 +293,15 @@ def _merge_task(base: dict, over: dict) -> dict:
 
 
 def _validate_extends(value: Any, *, where: str) -> list[str]:
-    """Return *value* as the list of template names it must be, or raise a clear ``ValueError``."""
+    """
+    Return *value* as the list of template names it must be, or raise a clear ``ValueError``.
+
+    A bare string is accepted as shorthand for a single-element list.
+    """
     if value is None:
         return []
+    if isinstance(value, str):
+        return [value]
     if not isinstance(value, list) or not all(isinstance(name, str) for name in value):
         raise ValueError(f"{where}: 'extends' must be a list of template names, got {value!r}")
     return value

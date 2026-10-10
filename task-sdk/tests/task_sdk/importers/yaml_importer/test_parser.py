@@ -212,22 +212,28 @@ def test_template_cycle_errors():
     [
         pytest.param("tasks:\n  - {id: t, run: {}, extends: [[base]]}", id="task-extends-nested-list"),
         pytest.param("tasks:\n  - {id: t, run: {}, extends: [{base: 1}]}", id="task-extends-dict-element"),
-        pytest.param("tasks:\n  - {id: t, run: {}, extends: base}", id="task-extends-bare-string"),
+        pytest.param("tasks:\n  - {id: t, run: {}, extends: 1}", id="task-extends-non-string"),
     ],
 )
-def test_task_extends_must_be_list_of_strings(body):
-    # Non-string entries would TypeError on the template lookup; a bare string would iterate by
-    # character. Both are rejected as a parse error instead.
+def test_task_extends_must_be_a_name_or_list_of_names(body):
+    # A non-string entry (or a non-string/non-list value) is a parse error, not a TypeError.
     with pytest.raises(YamlDagParseError, match="extends"):
         _one(body)
 
 
-def test_template_extends_must_be_list_of_strings():
-    # A template's own 'extends' given as a bare string must not be iterated character by character.
+def test_template_extends_must_be_a_name_or_list_of_names():
     with pytest.raises(YamlDagParseError, match="extends"):
         _one(
-            "templates: {base: {retries: 1}, child: {extends: base}}\ntasks: [{id: t, extends: [child], run: {}}]"
+            "templates: {base: {retries: 1}, child: {extends: [[base]]}}\ntasks: [{id: t, extends: [child], run: {}}]"
         )
+
+
+def test_extends_accepts_a_bare_string():
+    # `extends: base` is shorthand for `extends: [base]`, at both task and template level.
+    doc = _one(
+        "templates:\n  gp: {retries: 3}\n  base: {extends: gp}\ntasks:\n  - {id: t, extends: base, uses: X}"
+    )
+    assert doc.tasks[0].model_extra["retries"] == 3  # merged gp -> base -> task
 
 
 def test_unknown_needs_rejected():
