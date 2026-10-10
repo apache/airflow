@@ -107,6 +107,65 @@ cache:
    never replays responses that belong to a different conversation.
 4. After successful completion, the cached steps are deleted.
 
+Plain JSON arguments and settings are fingerprinted exactly as before. Anything
+else is fingerprinted from pydantic's JSON rendering, so ordinary types that are
+not JSON -- a ``datetime`` or ``Decimal`` tool argument, a dataclass in
+``tool_choice``, the bytes in a ``BinaryContent``, a dict keyed by date --
+fingerprint normally. Bytes in tool arguments and settings are rendered as base64,
+so binary data that is not valid UTF-8 fingerprints too; bytes inside a pydantic
+model follow that model's ``ser_json_bytes`` setting instead, which renders them as
+UTF-8 text by default. Because a tool call is fingerprinted from how its arguments
+render, a field excluded from serialization and a secret value, which renders
+masked, take no part in it.
+
+A step whose request cannot be fingerprinted is not cached, and on retry it runs
+live rather than replaying an unverified entry. That happens when pydantic cannot
+render a value at all; when two distinct dict keys render alike, such as ``1`` and
+``"1"``, because the fingerprint would then be unable to tell those payloads apart;
+when a set of strings cannot be found in the rendering, because a serializer that
+applies only in JSON mode renamed or reshaped it, so its order would differ on the
+next attempt; and when a value would render through an iterator, since rendering it
+would consume it. A tool argument or a setting that holds a set of models or
+dataclass instances, or a dict keyed by one, is not fingerprinted either, as
+before; in the message history pydantic renders those, and they hash as they
+always did. A parameter
+annotated ``Iterable[...]`` is the usual iterator: pydantic validates it lazily,
+and reading it in order to hash it would consume the input the tool itself has not
+read yet. Tool arguments are rendered from copies, so fingerprinting never changes
+what the tool receives, and an argument that cannot be copied is not fingerprinted
+either. Such a step counts among the steps the end-of-run summary reports as not
+cached.
+
+Apart from those, a step that an earlier version could already fingerprint hashes
+the same way as before, so its cached entry still matches, with one exception: the
+members of a ``set`` are now ordered before hashing, so that a set matches on a
+later attempt. A history holding a set whose order was already stable, such as a
+set of integers returned by a tool, can therefore re-run from that step once, on
+the first retry after upgrading. A list that a serializer produces is hashed as the
+serializer produced it, so a set that a serializer turns into a list may not match
+on retry. The one list that is re-sorted is the output of a serializer that applies
+only in JSON mode (``when_used="json"``) and returns the members of a set: it cannot
+be told from the set itself, so ``["z-first", "a"]`` hashes as ``["a", "z-first"]``.
+
+On the model path a request that cannot be fingerprinted is rarely confined to a
+single step. The value at fault is usually in ``model_settings``, which is attached
+to every request, in the tool definitions the request carries, or in the message
+history, which every later request carries forward, so it usually degrades every
+model step from that point on, and the retry re-runs the agent from there at full
+cost. For the settings and the tool definitions that point is normally the first
+request, though settings given as a function of the run context, or a tool's
+``prepare`` function, can bring such a value in later and drop it again; for the
+history it is the step where the value entered, for example in a tool return. Each
+``could not fingerprint model request`` warning names its step, so the first one
+shows where this began.
+
+A tool call is fingerprinted from its name, arguments and call id alone, so none
+of those causes reaches it. One that cannot be fingerprinted is reported
+as ``could not fingerprint tool call``. It costs that call, and -- if the live
+re-run returns something different from the first attempt -- the model steps
+after it, because the result becomes part of the message history they
+fingerprint, the same cascade step 3 describes for a changed agent.
+
 Replay verification compares the **requests** sent to models and tools, not
 the code behind them. Editing a tool's implementation between attempts does
 not invalidate an already-cached result for an identical call, and pointing
