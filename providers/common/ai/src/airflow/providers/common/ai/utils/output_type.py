@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+import json
+from typing import Any, get_origin
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
@@ -39,12 +40,26 @@ def rehydrate_pydantic_output(
     pydantic ``TypeAdapter``. When validation fails (reviewer edited the string
     into something the type rejects), returns ``raw`` unchanged.
 
+    pydantic-ai also accepts an ``output_type`` that is neither a class nor a
+    generic alias: a list of output types, an output marker such as
+    ``ToolOutput``, or an output function. For these output types, ``raw`` is
+    parsed with ``json.loads`` instead, and ``raw`` is returned unchanged when
+    it is not JSON.
+
     When ``serialize_output`` is ``True``, returns the model dumped to a
     ``dict`` -- matches the operator's ``serialize_output=True`` opt-in for
     consumers that want the dict shape.
     """
     if output_type is str:
         return raw
+    if not isinstance(output_type, type) and get_origin(output_type) is None:
+        # TypeAdapter raises for a list of output types or for a marker. For an output function, TypeAdapter
+        # builds a schema for the function's arguments, so validating the reviewed text would call the
+        # function again with that text as its arguments.
+        try:
+            return json.loads(raw)
+        except (ValueError, TypeError):
+            return raw
     try:
         rehydrated = TypeAdapter(output_type).validate_json(raw)
     except (ValidationError, ValueError, TypeError):

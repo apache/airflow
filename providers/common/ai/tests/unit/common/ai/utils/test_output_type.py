@@ -18,12 +18,17 @@ from __future__ import annotations
 
 import pytest
 from pydantic import BaseModel
+from pydantic_ai import ToolOutput
 
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 
 
 class A(BaseModel):
     x: int
+
+
+class B(BaseModel):
+    y: str
 
 
 class TestRehydratePydanticOutput:
@@ -60,3 +65,26 @@ class TestRehydratePydanticOutput:
         # ``A`` requires ``x: int`` -- this payload should fail validation
         result = rehydrate_pydantic_output(A, '{"y": "no-x-field"}', serialize_output=False)
         assert result == '{"y": "no-x-field"}'
+
+    @pytest.mark.parametrize(
+        ("output_type", "raw", "expected"),
+        [
+            pytest.param([A, B], '{"x": 7}', {"x": 7}, id="list-of-output-types"),
+            pytest.param(ToolOutput(A), '{"x": 7}', {"x": 7}, id="output-marker"),
+            pytest.param([A, B], "not-json", "not-json", id="not-json"),
+        ],
+    )
+    def test_parses_output_type_that_is_not_a_type_as_json(self, output_type, raw, expected):
+        assert rehydrate_pydantic_output(output_type, raw, serialize_output=False) == expected
+
+    def test_does_not_call_an_output_function_again(self):
+        calls = []
+
+        def make_a(x: int) -> A:
+            calls.append(x)
+            return A(x=x)
+
+        result = rehydrate_pydantic_output(make_a, '{"x": 7}', serialize_output=False)
+
+        assert result == {"x": 7}
+        assert calls == []
