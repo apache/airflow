@@ -19,11 +19,11 @@
 name: "Scheduled legacy PROD image canary"
 # The default PROD images are hardened and based on Debian trixie, and that is all that PR and canary
 # builds test. The "legacy" flavor - Python compiled from sources on Debian bookworm - is still
-# published for the 3.4.x line, so this checks once a week that it can still be built and passes the
-# PROD image checks, instead of finding out only when a release is being prepared.
+# published for the 3.4.x line, so once a week this builds legacy bookworm PROD images and runs the
+# regular PROD image tests against them, instead of finding out only when a release is being prepared.
 #
-# The image is built the way release images are: with the Airflow version released to PyPI and its
-# constraints, on top of the Dockerfile from the checked-out branch.
+# It reuses the PROD image workflows of the main CI build. The constraints those workflows normally get
+# from the CI image are taken from the constraints branch instead, so no CI image has to be built.
 on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '43 2 * * 0'
@@ -34,53 +34,149 @@ concurrency:
   group: scheduled-legacy-prod-image-canary-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  python-versions:
-    name: "Python versions to test"
-    runs-on: ["ubuntu-slim"]
+  build-info:
+    name: "Build info"
+    runs-on: ["ubuntu-22.04"]
     if: github.repository == 'apache/airflow' || github.event_name == 'workflow_dispatch'
-    timeout-minutes: 10
+    timeout-minutes: 15
     outputs:
-      python-versions: ${{ steps.versions.outputs.python-versions }}
-      airflow-version: ${{ steps.versions.outputs.airflow-version }}
+      canary-run: ${{ steps.source-run-info.outputs.canary-run }}
+      debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
+      default-branch: ${{ steps.selective-checks.outputs.default-branch }}
+      default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      default-kubernetes-version: ${{ steps.selective-checks.outputs.default-kubernetes-version }}
+      default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
+      disable-airflow-repo-cache: ${{ steps.selective-checks.outputs.disable-airflow-repo-cache }}
+      include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
+      java-sdk-version: ${{ steps.selective-checks.outputs.java-sdk-version }}
+      kubernetes-combos: ${{ steps.selective-checks.outputs.kubernetes-combos }}
+      providers-compatibility-tests-matrix: >
+        ${{ steps.selective-checks.outputs.providers-compatibility-tests-matrix }}
+      python-versions: ${{ steps.selective-checks.outputs.python-versions }}
+      python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
+      run-airflow-ctl-integration-tests: >-
+        ${{ steps.selective-checks.outputs.run-airflow-ctl-integration-tests }}
+      run-event-driven-e2e-tests: ${{ steps.selective-checks.outputs.run-event-driven-e2e-tests }}
+      run-go-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-go-sdk-e2e-tests }}
+      run-java-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-java-sdk-e2e-tests }}
+      run-openlineage-e2e-compat-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-compat-tests }}
+      run-openlineage-e2e-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-tests }}
+      run-remote-logging-elasticsearch-e2e-tests: >-
+        ${{ steps.selective-checks.outputs.run-remote-logging-elasticsearch-e2e-tests }}
+      run-remote-logging-opensearch-e2e-tests: >-
+        ${{ steps.selective-checks.outputs.run-remote-logging-opensearch-e2e-tests }}
+      run-remote-logging-s3-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-s3-e2e-tests }}
+      run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
+      run-ts-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-ts-sdk-e2e-tests }}
+      run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
+      use-uv: ${{ steps.selective-checks.outputs.force-pip == 'true' && 'false' || 'true' }}
     steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          fetch-depth: 2
           persist-credentials: false
-      - name: "Install uv"
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
-        with:
-          version-file: uv.lock
-      - name: "Get Python versions and the latest released Airflow version"
-        id: versions
-        run: |
-          python_versions=$(uv run --project dev/breeze python -c "
-          import json
-          from airflow_breeze.global_constants import CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
-          print(json.dumps(CURRENT_PYTHON_MAJOR_MINOR_VERSIONS))
-          ")
-          airflow_version=$(curl -fsSL --retry 3 https://pypi.org/pypi/apache-airflow/json \
-            | jq -r .info.version)
-          echo "python-versions=${python_versions}" >> "${GITHUB_OUTPUT}"
-          echo "airflow-version=${airflow_version}" >> "${GITHUB_OUTPUT}"
-          echo "Python versions: ${python_versions}, Airflow version: ${airflow_version}"
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Save github context to file"
+        # Same as in ci-amd.yml: a scheduled or dispatched run has no attacker-controlled context, and
+        # the single-quoted heredoc disables every shell expansion of the JSON anyway.
+        shell: bash
+        run: |  # zizmor: ignore[template-injection]
+          cat > "${RUNNER_TEMP}/github_context.json" << '__GITHUB_CONTEXT_END__'
+          ${{ toJson(github) }}
+          __GITHUB_CONTEXT_END__
+      - name: "Get information about the Workflow"
+        id: source-run-info
+        run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
+        env:
+          SKIP_BREEZE_SELF_UPGRADE_CHECK: "true"
+          GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+      - name: "Selective checks"
+        id: selective-checks
+        env:
+          COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
+          GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+          PLATFORM: "linux/amd64"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
 
-  legacy-prod-image:
-    name: "Legacy bookworm PROD image ${{ matrix.python-version }}"
-    needs: [python-versions]
+  constraints:
+    name: "Constraints ${{ matrix.python-version }}"
+    needs: [build-info]
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python-version: ${{ fromJSON(needs.build-info.outputs.python-versions) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+    steps:
+      - name: "Download constraints from ${{ env.CONSTRAINTS_BRANCH }}"
+        run: |
+          base_url="https://raw.githubusercontent.com/apache/airflow/${CONSTRAINTS_BRANCH}"
+          target_dir="files/constraints-${PYTHON_MAJOR_MINOR_VERSION}"
+          mkdir -p "${target_dir}"
+          for prefix in constraints constraints-no-providers constraints-source-providers; do
+            file="${prefix}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+            curl -fsSL --retry 5 "${base_url}/${file}" -o "${target_dir}/${file}"
+          done
+          ls -l "files/constraints-${PYTHON_MAJOR_MINOR_VERSION}"
+      # Same artifact name and layout as generate-constraints.yml uploads, which is what the PROD image
+      # build downloads.
+      - name: "Upload constraint artifacts"
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: constraints-${{ matrix.python-version }}
+          path: ./files/constraints-${{ matrix.python-version }}/constraints-*.txt
+          retention-days: 7
+          if-no-files-found: error
+
+  build-prod-images:
+    name: "Build legacy bookworm PROD images"
+    needs: [build-info, constraints]
+    uses: ./.github/workflows/prod-image-build.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runners: '["ubuntu-22.04"]'
+      platform: "linux/amd64"
+      build-type: "Legacy"
+      debian-version: "bookworm"
+      image-flavor: "legacy"
+      push-image: "false"
+      upload-image-artifact: "true"
+      upload-package-artifact: "true"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      branch: ${{ needs.build-info.outputs.default-branch }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      upgrade-to-newer-dependencies: "false"
+      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+      # The cache in the registry is the one of the hardened images - it would not match anyway.
+      docker-cache: "disabled"
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
+      prod-image-build: "true"
+
+  verify-legacy-flavor:
+    name: "Verify legacy bookworm flavor ${{ matrix.python-version }}"
+    needs: [build-info, build-prod-images]
     runs-on: ["ubuntu-22.04"]
-    timeout-minutes: 90
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJSON(needs.python-versions.outputs.python-versions) }}
+        python-version: ${{ fromJSON(needs.build-info.outputs.python-versions) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      AIRFLOW_VERSION: ${{ needs.python-versions.outputs.airflow-version }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -89,32 +185,78 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - name: "Make /mnt writeable"
-        run: ./scripts/ci/make_mnt_writeable.sh
-      - name: "Move docker to /mnt"
-        run: ./scripts/ci/move_docker_to_mnt.sh
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: "Build legacy bookworm PROD image ${{ matrix.python-version }}"
-        run: >
-          breeze prod-image build
-          --python "${PYTHON_MAJOR_MINOR_VERSION}"
-          --image-flavor legacy
-          --debian-version bookworm
-          --installation-method apache-airflow
-          --install-airflow-version "${AIRFLOW_VERSION}"
-          --airflow-constraints-reference "constraints-${AIRFLOW_VERSION}"
-          --docker-cache disabled
+      - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          image-type: "prod"
+          python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          use-uv: ${{ needs.build-info.outputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+      # Guards against the canary silently testing the default flavor if the flavor or Debian version
+      # stop being passed through to the build.
       - name: "Verify the image is the legacy bookworm flavor"
+        env:
+          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
         run: |
-          image="ghcr.io/${GITHUB_REPOSITORY,,}/main/prod/python${PYTHON_MAJOR_MINOR_VERSION}"
+          image="ghcr.io/${GITHUB_REPOSITORY,,}/${DEFAULT_BRANCH}/prod/python${PYTHON_MAJOR_MINOR_VERSION}"
           flavor=$(docker inspect "${image}" \
             --format '{{ index .Config.Labels "org.apache.airflow.image.flavor" }}')
           codename=$(docker run --rm --entrypoint /bin/bash "${image}" \
             -c '. /etc/os-release && echo "${VERSION_CODENAME}"')
           echo "Image flavor: ${flavor}, Debian: ${codename}"
           [[ "${flavor}" == "legacy" && "${codename}" == "bookworm" ]]
-      - name: "Verify PROD image ${{ matrix.python-version }}"
-        run: breeze prod-image verify --python "${PYTHON_MAJOR_MINOR_VERSION}"
-      - name: "Test docker-compose quick start ${{ matrix.python-version }}"
-        run: breeze testing docker-compose-tests --python "${PYTHON_MAJOR_MINOR_VERSION}"
+
+  additional-prod-image-tests:
+    name: "PROD image tests"
+    needs: [build-info, build-prod-images, constraints]
+    uses: ./.github/workflows/additional-prod-image-tests.yml
+    with:
+      runners: '["ubuntu-22.04"]'
+      platform: "linux/amd64"
+      default-branch: ${{ needs.build-info.outputs.default-branch }}
+      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+      upgrade-to-newer-dependencies: "false"
+      docker-cache: "disabled"
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      run-task-sdk-integration-tests: ${{ needs.build-info.outputs.run-task-sdk-integration-tests }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
+      run-remote-logging-elasticsearch-e2e-tests: >-
+        ${{ needs.build-info.outputs.run-remote-logging-elasticsearch-e2e-tests }}
+      run-remote-logging-opensearch-e2e-tests: >-
+        ${{ needs.build-info.outputs.run-remote-logging-opensearch-e2e-tests }}
+      run-remote-logging-s3-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-s3-e2e-tests }}
+      run-event-driven-e2e-tests: ${{ needs.build-info.outputs.run-event-driven-e2e-tests }}
+      run-java-sdk-e2e-tests: ${{ needs.build-info.outputs.run-java-sdk-e2e-tests }}
+      java-sdk-version: ${{ needs.build-info.outputs.java-sdk-version }}
+      run-go-sdk-e2e-tests: ${{ needs.build-info.outputs.run-go-sdk-e2e-tests }}
+      run-openlineage-e2e-tests: ${{ needs.build-info.outputs.run-openlineage-e2e-tests }}
+      run-openlineage-e2e-compat-tests: ${{ needs.build-info.outputs.run-openlineage-e2e-compat-tests }}
+      providers-compatibility-tests-matrix: >
+        ${{ needs.build-info.outputs.providers-compatibility-tests-matrix }}
+      run-ts-sdk-e2e-tests: ${{ needs.build-info.outputs.run-ts-sdk-e2e-tests }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
+      run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
+
+  tests-kubernetes:
+    name: "Kubernetes tests"
+    needs: [build-info, build-prod-images]
+    uses: ./.github/workflows/k8s-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runners: '["ubuntu-22.04"]'
+      platform: "linux/amd64"
+      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      kubernetes-combos: ${{ needs.build-info.outputs.kubernetes-combos }}
+      java-sdk-version: ${{ needs.build-info.outputs.java-sdk-version }}
+      # yamllint disable rule:line-length
+      lang-sdk-kubernetes-combo: >-
+        ${{ needs.build-info.outputs.default-python-version }}-${{ needs.build-info.outputs.default-kubernetes-version }}
+      # yamllint enable rule:line-length

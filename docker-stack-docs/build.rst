@@ -913,8 +913,10 @@ previous images that can matter when you extend or run the image are:
 * **Python is built without profile-guided optimization.** The previous images were built with
   ``--enable-optimizations`` and ``--with-lto``; the hardened Python uses only ``--with-lto``, so CPU-bound Python code
   can run measurably slower.
-* **Python lives in** ``/opt/python``. ``/usr/python`` and the ``/usr/local/bin`` links point to it, so
-  the paths used before keep working. The standard library ships without ``.pyc`` files, so the build
+* **Python lives under** ``/usr``. The Debian 13 hardened images install Python as Debian packages
+  (``python-3.13``, ``libpython-3.13``, ...), so it is ``/usr/bin/python3`` with the standard library in
+  ``/usr/lib/python3.13`` (the Debian 12 ones used ``/opt/python``). ``/usr/python`` and the
+  ``/usr/local/bin`` links point to it, so the paths used before keep working. The standard library ships without ``.pyc`` files, so the build
   compiles it into the image.
 * **The OS is minimal.** The base ships no compiler, ``curl``, ``wget``, ``git``, ``gzip``, ``which`` or
   ``ldconfig``, no ``dash`` (``/bin/sh`` is ``bash``) and a stripped ``/etc`` - for example without
