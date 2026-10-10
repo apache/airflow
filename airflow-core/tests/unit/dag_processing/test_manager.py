@@ -2322,7 +2322,7 @@ class TestDagFileProcessorManager:
         last_runtime = manager._file_stats[file_info].last_duration
         statsd_timing_mock.assert_any_call(
             "dag_processing.last_duration",
-            last_runtime,
+            timedelta(seconds=last_runtime),
             tags={"bundle_name": bundle_name, "file_name": dag_filename[:-3]},
         )
 
@@ -4721,7 +4721,7 @@ class TestMultiTeamMetrics:
 
         mock_timing.assert_called_once_with(
             "dag_processing.last_duration",
-            1.5,
+            timedelta(seconds=1.5),
             tags={"bundle_name": "testing", "file_name": "dag", "team_name": "team_alpha"},
         )
 
@@ -4743,7 +4743,7 @@ class TestMultiTeamMetrics:
 
         mock_timing.assert_called_once_with(
             "dag_processing.last_duration",
-            1.5,
+            timedelta(seconds=1.5),
             tags={"bundle_name": "testing", "file_name": "dag"},
         )
 
