@@ -36,7 +36,7 @@ from uuid6 import uuid7
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.dag_processing.dagbag import _get_bundle_team_name, _validate_executor_fields
+from airflow.dag_processing.dagbag import _validate_executor_fields
 from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
@@ -186,6 +186,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_path: Path,
         bundle_name: str,
         dag_file_rel_path: str,
+        team_name: str | None = None,
         **kwargs,
     ) -> Self:
         listeners: dict[_Channel, socket] = {"comm": _start_server(), "logs": _start_server()}
@@ -193,7 +194,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             for listener in listeners.values():
                 listener.setblocking(False)
             parse_request = DagFileParseRequest(
-                file=os.fspath(path), bundle_path=bundle_path, bundle_name=bundle_name
+                file=os.fspath(path), bundle_path=bundle_path, bundle_name=bundle_name, team_name=team_name
             )
             proc = super().start(
                 target=_start_runtime_entrypoint,
@@ -238,6 +239,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_name: str,
         dag_file_rel_path: str,
         logger: FilteringBoundLogger,
+        team_name: str | None = None,
     ) -> DagFileParsingResult:
         """
         Parse *path* outside the Dag processor and wait for the result.
@@ -253,6 +255,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
                 path=path,
                 bundle_path=bundle_path,
                 bundle_name=bundle_name,
+                team_name=team_name,
                 dag_file_rel_path=dag_file_rel_path,
                 selector=selector,
                 logger=logger,
@@ -459,8 +462,9 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
 
         :raises UnknownExecutorException: if a task's executor is not available to the team or globally.
         """
-        _validate_executor_fields(dag, self.bundle_name)
-        if not (team_name := _get_bundle_team_name(self.bundle_name)):
+        _validate_executor_fields(dag, self.bundle_name, self._parse_request.team_name)
+        team_name = self._parse_request.team_name if conf.getboolean("core", "multi_team") else None
+        if not team_name:
             return
         tasks = {task.task_id: task for task in dag.tasks}
         for encoded in data["dag"]["tasks"]:
