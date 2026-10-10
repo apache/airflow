@@ -395,7 +395,7 @@ After the trigger has finished executing, the task may be sent back to the worke
             start_from_trigger: bool,
             **kwargs: dict[str, Any],
         ) -> None:
-            # This whole method will be skipped during dynamic task mapping.
+            # This whole method will be skipped during task mapping.
 
             super().__init__(*args, **kwargs)
             self.start_trigger_args.trigger_kwargs = trigger_kwargs
