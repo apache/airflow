@@ -227,6 +227,7 @@ Extra            Dependencies
 ``mcp``          ``pydantic-ai-slim[mcp]>=2.33.0``
 ``modal``        ``apache-airflow-providers-modal``, ``modal>=1.5.2``
 ``opensandbox``  ``opensandbox>=1.1.0``
+``boat``         ``boat-sdk>=1.5.0``
 ``code-mode``    ``pydantic-ai-harness[codemode]>=0.24.0``
 ``shields``      ``pydantic-ai-shields>=0.3.4``
 ``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``

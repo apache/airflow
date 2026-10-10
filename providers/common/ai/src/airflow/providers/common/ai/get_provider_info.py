@@ -81,6 +81,7 @@ def get_provider_info():
                 "external-doc-url": "https://open-sandbox.ai/",
                 "tags": ["software"],
             },
+            {"integration-name": "Boat", "external-doc-url": "https://docs.boat.dev/", "tags": ["service"]},
         ],
         "hooks": [
             {

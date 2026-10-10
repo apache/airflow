@@ -28,11 +28,13 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxTerminalError,
     dag_run_owner,
 )
+from airflow.providers.common.ai.sandbox.boat import BoatSandboxBackend
 from airflow.providers.common.ai.sandbox.opensandbox import OpenSandboxBackend
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
     "AttachableSandboxBackend",
+    "BoatSandboxBackend",
     "OpenSandboxBackend",
     "ModalSandboxBackend",
     "SandboxBackend",

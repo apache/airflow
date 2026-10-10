@@ -354,8 +354,9 @@ toolset's own.
 
 **Which backends.** Modal sandboxes can be found by id from any process, so
 ``ModalSandboxBackend`` supports this. ``sbx`` runs a microVM on the worker that
-created it and cannot be reached from another task, and ``OpenSandboxBackend``
-has nowhere on a sandbox to keep the owner and holder, so both refuse
+created it and cannot be reached from another task, and ``OpenSandboxBackend`` and
+``BoatSandboxBackend`` have nowhere on a sandbox to keep the owner and holder, so all
+three refuse
 ``SandboxSpec.owner`` and ``attach_to``. A backend of your own opts in by
 implementing :class:`~airflow.providers.common.ai.sandbox.AttachableSandboxBackend`
 (:ref:`sandbox-byo`).
