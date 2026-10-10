@@ -243,6 +243,16 @@ function keep_image_conffiles() {
     printf '%s\n' force-confdef force-confold > /etc/dpkg/dpkg.cfg.d/airflow-keep-conffiles
 }
 
+function refresh_ldconfig_after_dpkg() {
+    # The hardened base images ship libc-bin without its dpkg trigger, so installing a shared library
+    # does not refresh the ldconfig cache and ctypes.util.find_library() - which reads that cache -
+    # cannot find it (for example pyenchant's "The 'enchant' C library was not found"). The hook covers
+    # every apt run - this build's and those of images extending it.
+    mkdir -p /etc/apt/apt.conf.d
+    echo 'DPkg::Post-Invoke { "if [ -x /sbin/ldconfig ]; then /sbin/ldconfig; fi"; };' \
+        > /etc/apt/apt.conf.d/99airflow-ldconfig
+}
+
 function restore_debian_base_files() {
     # The hardened base images ship a minimal /etc, but Debian maintainer scripts assume the files
     # a stock Debian has: sasl2-bin chowns its run directory to the "sasl" group from base-passwd,
@@ -275,6 +285,7 @@ function restore_debian_base_files() {
 function install_debian_dev_dependencies() {
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         keep_image_conffiles
+        refresh_ldconfig_after_dpkg
     fi
     apt-get update
     apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
@@ -521,6 +532,7 @@ function install_python() {
 function install_debian_runtime_dependencies() {
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         keep_image_conffiles
+        refresh_ldconfig_after_dpkg
     fi
     apt-get update
     apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
