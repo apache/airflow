@@ -2359,6 +2359,26 @@ class TestIterableOperator:
         assert done.is_set()
         assert seen == {"on_running_loop": False, "on_main": False}
 
+    def test_on_kill_takes_no_lock_of_the_iteration_state(self):
+        """
+        The runner's SIGTERM handler runs ``on_kill()`` on the main thread, between two bytecodes of
+        the loop thread, which may be inside ``register``/``unregister`` and hold the state's lock:
+        ``on_kill()`` returns at once while the lock is held and the kill follows once it is free.
+        """
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{}]), task_id="on_kill_locked", operator_class=MockOnKillOperator
+            )
+        active_operator = MockOnKillOperator(task_id="active_sub_task")
+        iterable_op._state.register(active_operator)
+
+        with iterable_op._state._lock:
+            iterable_op.on_kill()
+            assert iterable_op._state.stop_requested()
+            assert not active_operator.killed
+
+        assert wait_until(lambda: active_operator.killed)
+
     def test_on_kill_is_noop_when_no_sub_operators_are_active(self):
         """on_kill() must not raise when called with no in-flight sub-tasks (e.g. the
         IterableOperator is killed before any sub-task has started, or after all finished)."""
@@ -2886,6 +2906,22 @@ class TestIterationState:
         assert state.stop_requested()
         state.request_stop()
         assert state.stop_requested()
+
+    def test_the_calls_a_signal_handler_makes_take_no_lock(self):
+        """``request_stop`` and ``start_kill`` run in the SIGTERM handler, on the thread that may hold the lock."""
+        state = IterationState()
+        op = MockOperator(task_id="op")
+        state.register(op)
+        taken: list[BaseOperator] = []
+
+        with state._lock:
+            state.request_stop()
+            state.start_kill(lambda: taken.extend(state.take_in_flight()))
+            assert state.stop_requested()
+            assert taken == []
+
+        state.await_kill(5)
+        assert taken == [op]
 
     def test_a_copy_is_a_fresh_state(self):
         import copy

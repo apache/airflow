@@ -174,7 +174,12 @@ class IterationState:
         # The runner calls on_kill() again after the execution timeout that made _run_tasks call
         # it first, and a sub-operator is killed once.
         self._killed: set[int] = set()
-        self._stop_requested = threading.Event()
+        # A plain flag and a plain list, not an Event and not guarded by the lock: on_kill() runs in
+        # the runner's SIGTERM handler, on the main thread, between two bytecodes of whatever the
+        # loop thread was doing, register() or unregister() under the lock included. A lock the
+        # handler takes that its own thread holds would hang it, so request_stop() and start_kill()
+        # take none; take_in_flight() is called from the kill thread instead.
+        self._stop_requested = False
         # The threads on_kill() started to kill the sub-operators in flight; see await_kill.
         self._kill_threads: list[threading.Thread] = []
         #: The input resolved for this task instance, once ``aresolve`` returned.
@@ -208,16 +213,18 @@ class IterationState:
         return operators
 
     def request_stop(self) -> None:
-        """Ask the iteration to start nothing else; see :meth:`stop_requested`."""
-        self._stop_requested.set()
+        """Ask the iteration to start nothing else; see :meth:`stop_requested`. Takes no lock."""
+        self._stop_requested = True
 
-    def start_kill(self, kill: Callable[[list[BaseOperator]], None], operators: list[BaseOperator]) -> None:
-        """Run ``kill`` over ``operators`` in a thread of its own, kept so that :meth:`await_kill` can wait for it."""
-        thread = threading.Thread(
-            target=kill, args=(operators,), name="iterable-operator-on-kill", daemon=True
-        )
-        with self._lock:
-            self._kill_threads.append(thread)
+    def start_kill(self, kill: Callable[[], None]) -> None:
+        """
+        Run ``kill`` in a thread of its own, kept so that :meth:`await_kill` can wait for it.
+
+        Takes no lock, so it can be called from a signal handler; ``kill`` takes the sub-operators
+        in flight itself, with :meth:`take_in_flight`, on its thread.
+        """
+        thread = threading.Thread(target=kill, name="iterable-operator-on-kill", daemon=True)
+        self._kill_threads.append(thread)
         thread.start()
 
     def await_kill(self, timeout: float) -> None:
@@ -230,14 +237,12 @@ class IterationState:
         holds the run for ``timeout`` at most, and the supervisor's SIGKILL bounds the rest.
         """
         deadline = time.monotonic() + timeout
-        with self._lock:
-            threads = list(self._kill_threads)
-        for thread in threads:
+        for thread in list(self._kill_threads):
             thread.join(max(0.0, deadline - time.monotonic()))
 
     def stop_requested(self) -> bool:
         """Whether :meth:`request_stop` was called; passed to the executor as its ``stop``."""
-        return self._stop_requested.is_set()
+        return self._stop_requested
 
     @property
     def length(self) -> int | None:
@@ -838,19 +843,20 @@ class IterableOperator(BaseOperator):
         # (SIGTERM) or hit its execution_timeout: propagate to each active sub-operator instead.
         # First stop the iteration from starting anything else: the killed indexed tasks come back
         # as failures and free their slots, which would otherwise be filled with the next ones.
-        self._state.request_stop()
-        active_operators = self._state.take_in_flight()
-        if not active_operators:
-            return
-        # Always in a thread of its own. The runner's SIGTERM handler calls this on the main thread,
-        # where the event loop either runs, and a synchronous SDK call in a sub-operator's on_kill
-        # would raise DeadlockImminentError, or is paused between two run_until_complete calls
-        # while a result is handed to the consumer, and the same call would wait for a lock a
-        # parked asend holds, which only the paused loop can release. In its own thread the call
-        # waits its turn in both cases, and the loop goes on serving the sub-tasks. _run_tasks
-        # kills what is in flight through _kill directly, from a thread the loop drives, and waits
-        # for this thread before the run concludes (see IterationState.await_kill).
-        self._state.start_kill(self._kill, active_operators)
+        state = self._state
+        state.request_stop()
+        # Always in a thread of its own, which takes the sub-operators in flight itself. The
+        # runner's SIGTERM handler calls this on the main thread, between two bytecodes of the loop
+        # thread: a lock taken here that register() or unregister() holds at that moment would
+        # hang the handler, so nothing here takes one (see IterationState). On that thread the
+        # event loop either runs, and a synchronous SDK call in a sub-operator's on_kill would
+        # raise DeadlockImminentError, or is paused between two run_until_complete calls while a
+        # result is handed to the consumer, and the same call would wait for a lock a parked asend
+        # holds, which only the paused loop can release. In its own thread the call waits its turn
+        # in both cases, and the loop goes on serving the sub-tasks. _run_tasks kills what is in
+        # flight through _kill directly, from a thread the loop drives, and waits for this thread
+        # before the run concludes (see IterationState.await_kill).
+        state.start_kill(lambda: self._kill(state.take_in_flight()))
 
     def _kill(self, operators: list[BaseOperator]) -> None:
         # One sub-operator's on_kill must not keep the kill from the others: DeadlockImminentError
