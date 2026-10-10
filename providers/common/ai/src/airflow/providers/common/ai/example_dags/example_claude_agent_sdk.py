@@ -37,6 +37,7 @@ Before running:
 
 from __future__ import annotations
 
+import asyncio
 import os
 
 from claude_agent_sdk import query
@@ -58,7 +59,7 @@ def example_claude_agent_sdk():
     """Answer a question about a database with the Claude Agent SDK's agent loop."""
 
     @task
-    async def ask_the_warehouse(question: str = DEFAULT_QUESTION) -> str | None:
+    def ask_the_warehouse(question: str = DEFAULT_QUESTION) -> str | None:
         llm = BaseHook.get_connection(LLM_CONN_ID)
         tools = AirflowTools(SQLToolset(db_conn_id=DB_CONN_ID))
         options = tools.build_options(
@@ -72,8 +73,11 @@ def example_claude_agent_sdk():
             max_turns=10,
             env={"ANTHROPIC_API_KEY": llm.password},
         )
-        result = await tools.run(query(prompt=question, options=options))
-        return result.result
+
+        async def ask():
+            return await tools.run(query(prompt=question, options=options))
+
+        return asyncio.run(ask()).result
 
     ask_the_warehouse()
 
