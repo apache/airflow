@@ -29,9 +29,12 @@ from click.testing import CliRunner
 from airflow_breeze.commands.verify_commands import (
     find_default_base_ref,
     get_changed_files_against,
-    has_merged_commits_missing_from,
+    has_target_branch_commits_missing_from,
+    run_verification_commands,
     verify,
 )
+from airflow_breeze.utils import shared_options
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -44,6 +47,10 @@ def _no_merged_commits_missing(base_ref: str) -> bool:
     return False
 
 
+def _run_nothing(commands: list[str]) -> list[int]:
+    return [0] * len(commands)
+
+
 @pytest.fixture(autouse=True)
 def _no_git_lookups_against_the_checkout():
     """Keep CLI tests independent of the developer's remotes; tests that need these patch them again."""
@@ -51,10 +58,22 @@ def _no_git_lookups_against_the_checkout():
     with (
         patch("airflow_breeze.commands.verify_commands.find_default_base_ref", new=_default_base_ref),
         patch(
-            "airflow_breeze.commands.verify_commands.has_merged_commits_missing_from",
+            "airflow_breeze.commands.verify_commands.has_target_branch_commits_missing_from",
             new=_no_merged_commits_missing,
         ),
     ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _dry_run_off(monkeypatch):
+    # --dry-run sets process-wide state that would otherwise leak into the next test.
+    monkeypatch.setattr(shared_options._SharedOptions, "dry_run_value", False)
+
+
+@pytest.fixture(autouse=True)
+def _no_commands_run_for_real():
+    with patch("airflow_breeze.commands.verify_commands.run_verification_commands", new=_run_nothing):
         yield
 
 
@@ -236,7 +255,7 @@ def test_verify_compares_with_the_default_base_ref(found, compared_with: str, wa
             "airflow_breeze.commands.verify_commands.find_default_base_ref", autospec=True, return_value=found
         ),
         patch(
-            "airflow_breeze.commands.verify_commands.has_merged_commits_missing_from",
+            "airflow_breeze.commands.verify_commands.has_target_branch_commits_missing_from",
             autospec=True,
             return_value=False,
         ),
@@ -275,20 +294,25 @@ def _git(repo, *args: str) -> None:
 
 
 def _commit(repo, name: str) -> None:
+    (repo / name).parent.mkdir(parents=True, exist_ok=True)
     (repo / name).write_text(name)
     _git(repo, "add", name)
     _git(repo, "commit", "-m", name)
 
 
 @pytest.mark.parametrize(
-    ("merge_main", "base", "expected"),
+    ("update", "base", "expected"),
     [
-        pytest.param(False, "stale-copy", False, id="never-merged"),
-        pytest.param(True, "stale-copy", True, id="merged-newer-than-base"),
-        pytest.param(True, "main", False, id="merged-and-base-fetched"),
+        pytest.param(None, "stale-copy", False, id="never-updated"),
+        pytest.param("merge", "stale-copy", True, id="merged-newer-than-base"),
+        pytest.param("merge", "upstream/main", False, id="merged-and-base-fetched"),
+        pytest.param("rebase", "stale-copy", True, id="rebased-newer-than-base"),
+        pytest.param("rebase", "upstream/main", False, id="rebased-and-base-fetched"),
     ],
 )
-def test_detects_merged_commits_the_base_does_not_have(tmp_path, merge_main: bool, base: str, expected: bool):
+def test_detects_target_branch_commits_the_base_does_not_have(
+    tmp_path, update: str | None, base: str, expected: bool
+):
     _git(tmp_path, "init", "-b", "main")
     _commit(tmp_path, "B")
     _git(tmp_path, "branch", "stale-copy")
@@ -296,16 +320,43 @@ def test_detects_merged_commits_the_base_does_not_have(tmp_path, merge_main: boo
     _commit(tmp_path, "X")
     _git(tmp_path, "switch", "main")
     _commit(tmp_path, "C")
+    _git(tmp_path, "update-ref", "refs/remotes/upstream/main", "main")
     _git(tmp_path, "switch", "feature")
-    if merge_main:
-        _git(tmp_path, "merge", "--no-edit", "main")
+    if update:
+        _git(tmp_path, update, *(["--no-edit"] if update == "merge" else []), "upstream/main")
+    with (
+        patch("airflow_breeze.commands.verify_commands.AIRFLOW_ROOT_PATH", tmp_path),
+        patch(
+            "airflow_breeze.commands.verify_commands.find_default_base_ref",
+            autospec=True,
+            return_value="upstream/main",
+        ),
+    ):
+        assert has_target_branch_commits_missing_from(base) is expected
+
+
+def test_dry_run_still_reads_the_changed_files_from_git(tmp_path):
+    _git(tmp_path, "init", "-b", "main")
+    _commit(tmp_path, "B")
+    _git(tmp_path, "switch", "-c", "feature")
+    _commit(tmp_path, "airflow-core/docs/index.rst")
     with patch("airflow_breeze.commands.verify_commands.AIRFLOW_ROOT_PATH", tmp_path):
-        assert has_merged_commits_missing_from(base) is expected
+        result = CliRunner().invoke(verify, ["--dry-run", "--base-ref", "main"])
+    assert result.exit_code == 0, result.output
+    assert "1 changed file(s) against main" in " ".join(ANSI.sub("", result.output).split())
 
 
-@pytest.mark.parametrize("as_json", [False, True])
+@pytest.mark.parametrize(
+    ("args", "exit_code"),
+    [
+        pytest.param([], 1, id="run"),
+        pytest.param(["--dry-run"], 0, id="dry-run"),
+        pytest.param(["--json"], 0, id="json"),
+    ],
+)
+@patch("airflow_breeze.commands.verify_commands.run_verification_commands", autospec=True)
 @patch(
-    "airflow_breeze.commands.verify_commands.has_merged_commits_missing_from",
+    "airflow_breeze.commands.verify_commands.has_target_branch_commits_missing_from",
     autospec=True,
     return_value=True,
 )
@@ -314,14 +365,97 @@ def test_detects_merged_commits_the_base_does_not_have(tmp_path, merge_main: boo
     autospec=True,
     return_value=("airflow-core/docs/index.rst",),
 )
-def test_merged_commits_missing_from_the_base_are_warned_about(mock_files, mock_merged, as_json: bool):
-    result = CliRunner().invoke(
-        verify, ["--base-ref", "upstream/main", *(["--json"] if as_json else [])], catch_exceptions=False
-    )
-    assert result.exit_code == 0
-    mock_merged.assert_called_once_with("upstream/main")
-    warning = "Your branch has merged commits that are not in upstream/main"
-    stream = result.stderr if as_json else result.stdout
-    assert warning in " ".join(ANSI.sub("", stream).split())
-    if as_json:
+def test_a_stale_base_is_warned_about_and_never_run(
+    mock_files, mock_stale, mock_run, args: list[str], exit_code: int
+):
+    result = CliRunner().invoke(verify, ["--base-ref", "upstream/main", *args], catch_exceptions=False)
+    mock_stale.assert_called_once_with("upstream/main")
+    mock_run.assert_not_called()
+    assert result.exit_code == exit_code
+    stream = " ".join(ANSI.sub("", result.stderr if "--json" in args else result.stdout).split())
+    assert "upstream/main is older than the target-branch commits your branch already has" in stream
+    assert ("Not running the list, because upstream/main is out of date" in stream) is (exit_code == 1)
+    if "--json" in args:
         assert json.loads(result.stdout)["base_ref"] == "upstream/main"
+
+
+@patch("airflow_breeze.commands.verify_commands.run_command", autospec=True)
+def test_verification_commands_run_in_a_shell_and_carry_on_after_a_failure(mock_run):
+    mock_run.side_effect = [CompletedProcess(args=[], returncode=1), CompletedProcess(args=[], returncode=0)]
+    assert run_verification_commands(["false", "cd dev && true"]) == [1, 0]
+    assert [call.args[0] for call in mock_run.call_args_list] == [
+        ["bash", "-c", "false"],
+        ["bash", "-c", "cd dev && true"],
+    ]
+    assert all(call.kwargs == {"check": False, "cwd": AIRFLOW_ROOT_PATH} for call in mock_run.call_args_list)
+
+
+def _plan(items: list[str], manual_prek_hooks: list[str]) -> dict:
+    return {
+        "base_ref": "main",
+        "default_python_version": "3.10",
+        "full_tests_needed": False,
+        "changed_files": ["airflow-core/docs/index.rst"],
+        "items": [{"kind": "unit", "command": command, "runs_in": "host"} for command in items],
+        "manual_prek_hooks": manual_prek_hooks,
+    }
+
+
+@pytest.mark.parametrize(
+    ("return_codes", "exit_code", "summary"),
+    [
+        ([0, 0, 0], 0, "All 3 command(s) passed."),
+        ([0, 1, 0], 1, "1 of 3 command(s) failed: second command"),
+    ],
+)
+@patch("airflow_breeze.commands.verify_commands.run_verification_commands", autospec=True)
+@patch(
+    "airflow_breeze.commands.verify_commands.build_local_verification_plan",
+    autospec=True,
+    return_value=_plan(["first command", "second command"], ["migration-round-trip"]),
+)
+@patch(
+    "airflow_breeze.commands.verify_commands.get_changed_files_against",
+    autospec=True,
+    return_value=("airflow-core/docs/index.rst",),
+)
+def test_verify_runs_the_listed_commands_and_the_manual_prek_hooks(
+    mock_files, mock_plan, mock_run, return_codes, exit_code: int, summary: str
+):
+    mock_run.return_value = return_codes
+    result = CliRunner().invoke(verify, ["--base-ref", "my branch"], catch_exceptions=False)
+    mock_run.assert_called_once_with(
+        [
+            "first command",
+            "second command",
+            "prek run --stage manual migration-round-trip --from-ref 'my branch'",
+        ]
+    )
+    assert result.exit_code == exit_code
+    assert summary in " ".join(ANSI.sub("", result.output).split())
+
+
+@pytest.mark.parametrize(
+    ("items", "args", "message"),
+    [
+        pytest.param([], [], "Nothing to run.", id="empty-list"),
+        pytest.param(["first command"], ["--dry-run"], None, id="dry-run"),
+        pytest.param(["first command"], ["--json"], None, id="json"),
+    ],
+)
+@patch("airflow_breeze.commands.verify_commands.run_verification_commands", autospec=True)
+@patch("airflow_breeze.commands.verify_commands.build_local_verification_plan", autospec=True)
+@patch(
+    "airflow_breeze.commands.verify_commands.get_changed_files_against",
+    autospec=True,
+    return_value=("airflow-core/docs/index.rst",),
+)
+def test_nothing_is_run_for_an_empty_list_a_dry_run_or_json(
+    mock_files, mock_plan, mock_run, items: list[str], args: list[str], message: str | None
+):
+    mock_plan.return_value = _plan(items, [])
+    result = CliRunner().invoke(verify, args, catch_exceptions=False)
+    assert result.exit_code == 0
+    mock_run.assert_not_called()
+    if message:
+        assert message in ANSI.sub("", result.output)

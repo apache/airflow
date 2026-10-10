@@ -321,19 +321,21 @@ Finding out what CI will run for your change
 
 ``breeze verify`` reads the files changed against the target branch (the merge-base of
 ``--base-ref`` and ``HEAD``, plus untracked files), runs the same selective-checks logic CI uses
-and lists the commands to run locally for the change. Nothing is executed. The only non-zero exit
-is a usage error such as a base ref git cannot resolve.
+and runs the commands it selects for the change. Pass ``--dry-run`` to only list them.
 
 By default ``--base-ref`` is ``main`` on the git remote that points at apache/airflow (``upstream``
 if several do), the same base GitHub compares a PR with. A local ``main`` that is behind the
 ``main`` your branch has merged would count every merged-in commit as your change. Without such a
 remote, ``breeze verify`` falls back to the local ``main`` branch and says so. It also warns when
-the branch has merged commits the base does not have, for example after GitHub's "Update branch"
-when the remote was not fetched since. With ``--json`` the warnings go to stderr.
+the branch already has ``main`` commits the base lacks, for example after GitHub's "Update branch"
+when the remote was not fetched since, or after a rebase compared with an older local ``main``.
+Then the list includes commits that are not yours, so it is printed but not run. With ``--json``
+the warnings go to stderr.
 
 .. code-block:: bash
 
      breeze verify
+     breeze verify --dry-run
      breeze verify --json
      breeze verify --full
      breeze verify --base-ref main
@@ -345,10 +347,14 @@ check is never listed: CI runs it with ``|| true``, so it cannot fail a PR.
 Static checks are not listed either: ``prek`` already picks the hooks to run for the changed files,
 so run it as usual. The exception is the ``mypy-providers`` and ``migration-round-trip`` hooks,
 which CI runs but a default ``prek install`` does not (they are ``pre-push`` or ``manual`` stage
-hooks). When the change triggers them, ``breeze verify`` prints the
-``prek run --stage manual <hook> --from-ref <base>`` command to run each one, and ``--json``
-lists them under ``manual_prek_hooks``.
+hooks). When the change triggers them, ``breeze verify`` lists and runs
+``prek run --stage manual <hook> --from-ref <base>`` for each one, and ``--json`` lists them
+under ``manual_prek_hooks``.
 Use ``--json`` for machine-readable output with the same fields.
+
+The listed commands run one after another from the repository root, the manual prek hooks
+included, and a failure does not stop the rest. ``breeze verify`` ends with the commands that
+failed and exits non-zero if any did. ``--dry-run`` and ``--json`` only list them.
 
 When a change touches CI tooling or dependency files, selective checks make CI run the full suite.
 The default list leaves that expansion out and only shows what the changed files match themselves,
