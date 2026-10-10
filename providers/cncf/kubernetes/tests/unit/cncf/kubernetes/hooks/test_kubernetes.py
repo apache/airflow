@@ -664,12 +664,12 @@ class TestKubernetesHook:
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
     def test_get_job_status(self, mock_client, mock_kube_config_merger, mock_kube_config_loader):
-        job_expected = mock_client.read_namespaced_job_status.return_value
+        job_expected = mock_client.read_namespaced_job.return_value
 
         hook = KubernetesHook()
         job_actual = hook.get_job_status(job_name=JOB_NAME, namespace=NAMESPACE)
 
-        mock_client.read_namespaced_job_status.assert_called_once_with(
+        mock_client.read_namespaced_job.assert_called_once_with(
             name=JOB_NAME, namespace=NAMESPACE, pretty=True
         )
         assert job_actual == job_expected
@@ -1993,7 +1993,7 @@ class TestAsyncKubernetesHook:
         mock_to_thread.assert_awaited_once_with(_split_log_bytes, raw_bytes)
 
     @pytest.mark.asyncio
-    @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))
+    @mock.patch(KUBE_BATCH_API.format("read_namespaced_job"))
     async def test_get_job_status(self, lib_method, kube_config_loader):
         lib_method.return_value = self.mock_await_result(None)
 
