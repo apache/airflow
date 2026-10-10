@@ -17,28 +17,12 @@
  * under the License.
  */
 
-/** @module Authoring */
-
-export {
-  Bundle,
-  Dag,
-  getClient,
-  getContext,
-  NEVER_EXPIRE,
-  TaskHandler,
-  triggerDagRun,
-  withArgNames,
-} from "../src/index.js";
-export type {
-  ArgNameMap,
-  DagSpec,
-  Registerable,
-  TaskClient,
-  TaskContext,
-  TaskFunction,
-  TaskInputs,
-  TaskOptions,
-  TaskRef,
-  TaskSpec,
-  TaskStateStore,
-} from "../src/index.js";
+/** Internal: a boolean Airflow option from the environment, read as `conf.getboolean` does. */
+export function getBooleanEnv(name: string, fallback: boolean): boolean {
+  const raw = process.env[name];
+  if (raw === undefined) return fallback;
+  const value = raw.trim().toLowerCase();
+  if (value === "t" || value === "true" || value === "1") return true;
+  if (value === "f" || value === "false" || value === "0") return false;
+  throw new Error(`${name} is ${JSON.stringify(raw)}, which is not a boolean; use true or false`);
+}

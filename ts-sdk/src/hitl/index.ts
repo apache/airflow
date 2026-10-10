@@ -17,28 +17,14 @@
  * under the License.
  */
 
-/** @module Authoring */
-
-export {
-  Bundle,
-  Dag,
-  getClient,
-  getContext,
-  NEVER_EXPIRE,
-  TaskHandler,
-  triggerDagRun,
-  withArgNames,
-} from "../src/index.js";
+export { approval, hitl } from "./spec.js";
 export type {
-  ArgNameMap,
-  DagSpec,
-  Registerable,
-  TaskClient,
-  TaskContext,
-  TaskFunction,
-  TaskInputs,
-  TaskOptions,
-  TaskRef,
-  TaskSpec,
-  TaskStateStore,
-} from "../src/index.js";
+  ApprovalSpec,
+  HITLParam,
+  HITLResult,
+  HITLSpec,
+  HITLTask,
+  HITLText,
+  HITLTextArgs,
+  HITLUser,
+} from "./spec.js";
