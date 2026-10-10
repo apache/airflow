@@ -23,7 +23,7 @@ from typing import Any
 
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.manager import _get_configured_bundle_team_names
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
@@ -52,7 +52,7 @@ def _get_team_names(bundle_names: list[str] | None) -> list[str]:
     if not conf.getboolean("core", "multi_team"):
         return []
 
-    configured = _get_configured_bundle_team_names()
+    configured = DagBundlesManager().get_configured_bundle_team_names()
     names = bundle_names or list(configured)
     return sorted({team for name in names if (team := configured.get(name)) is not None})
 

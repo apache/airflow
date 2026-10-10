@@ -1691,11 +1691,12 @@ class TestDagFileProcessorManager:
             mock.patch.object(LangSDKDagFileProcessorProcess, "start", autospec=True) as mock_start,
         ):
             manager = DagFileProcessorManager(max_runs=1)
-            manager._create_process(dag_file)
+            manager._create_process(dag_file, team_name="team_a")
 
         kwargs = mock_start.call_args.kwargs
         assert (kwargs["path"], kwargs["dag_file_rel_path"]) == (tmp_path / "dags.native", "dags.native")
         assert kwargs["client"] is manager.client
+        assert kwargs["team_name"] == "team_a"
 
     @pytest.mark.parametrize("rel_path", ["my_dag.py", "dags.fake"])
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)

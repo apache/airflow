@@ -397,6 +397,9 @@ type DagFileParseRequest struct {
 	// File corresponds to the JSON schema field "file".
 	File string `msgpack:"file"`
 
+	// TeamName corresponds to the JSON schema field "team_name".
+	TeamName interface{} `msgpack:"team_name,omitempty"`
+
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
@@ -1892,10 +1895,6 @@ type UpdateHITLDetail struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type VersionData map[string]interface{}
-
-type Warnings []interface{}
-
 // Variable schema for responses with fields that are needed for Runtime.
 type VariableResponse struct {
 	// Key corresponds to the JSON schema field "key".
@@ -1904,6 +1903,10 @@ type VariableResponse struct {
 	// Value corresponds to the JSON schema field "value".
 	Value interface{} `msgpack:"value"`
 }
+
+type Warnings []interface{}
+
+type VersionData map[string]interface{}
 
 type ValidateInletsAndOutlets struct {
 	// TIID corresponds to the JSON schema field "ti_id".

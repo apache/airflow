@@ -1546,7 +1546,7 @@ def _native_runtime(**results_by_file: list[str] | DagFileParsingResult):
     A list names the Dags to serialize; a ``DagFileParsingResult`` is returned as it is.
     """
 
-    def run(*, path, bundle_path, bundle_name, dag_file_rel_path, logger):
+    def run(*, path, bundle_path, bundle_name, dag_file_rel_path, logger, team_name=None):
         result = results_by_file[Path(path).stem]
         if isinstance(result, DagFileParsingResult):
             return result
@@ -1565,11 +1565,12 @@ def _native_runtime(**results_by_file: list[str] | DagFileParsingResult):
         yield mock_run
 
 
-def _native_bag(tmp_path, dag_folder=None) -> DagBag:
+def _native_bag(tmp_path, dag_folder=None, team_name=None) -> DagBag:
     return DagBag(
         dag_folder=os.fspath(dag_folder or tmp_path),
         bundle_path=tmp_path,
         bundle_name="testing",
+        team_name=team_name,
         parse_lang_sdk_files=True,
     )
 
@@ -1627,12 +1628,13 @@ class TestCoordinatorParsedFiles:
         native = write_native_file(tmp_path / "sub" / "dags.native")
 
         with _native_runtime(dags=["native_a"]) as mock_run:
-            _native_bag(tmp_path)
+            _native_bag(tmp_path, team_name="team_a")
 
         mock_run.assert_called_once_with(
             path=os.fspath(native),
             bundle_path=tmp_path,
             bundle_name="testing",
+            team_name="team_a",
             dag_file_rel_path="sub/dags.native",
             logger=mock.ANY,
         )

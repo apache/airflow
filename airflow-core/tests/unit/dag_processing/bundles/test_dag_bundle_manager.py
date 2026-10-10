@@ -34,7 +34,11 @@ from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
     _guess_best_bundle_for_fileloc,
 )
-from airflow.dag_processing.bundles.provider import DagBundleMetadata, DagBundleProvider
+from airflow.dag_processing.bundles.provider import (
+    ConfigDagBundleProvider,
+    DagBundleMetadata,
+    DagBundleProvider,
+)
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -246,6 +250,31 @@ def test_get_bundle():
     assert isinstance(bundle, BasicBundle)
     assert bundle.name == "my-test-bundle"
     assert bundle.version is None
+
+
+@conf_vars({("core", "load_examples"): "False"})
+@patch.object(DagBundlesManager, "_load_bundle_provider", autospec=True)
+def test_is_bundle_configured_uses_current_provider_metadata(mock_load):
+    provider = mock.create_autospec(DagBundleProvider, instance=True)
+    mock_load.return_value = provider
+    provider.get_configured_bundle_metadata.return_value = [DagBundleMetadata(name="custom-bundle")]
+
+    assert DagBundlesManager.is_bundle_configured("custom-bundle") is True
+    provider.get_configured_bundle_metadata.return_value = []
+    assert DagBundlesManager.is_bundle_configured("custom-bundle") is False
+    provider.get_bundle.assert_not_called()
+
+
+@conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)})
+@patch("airflow.dag_processing.bundles.provider.import_string", autospec=True, return_value=BasicBundle)
+def test_config_provider_imports_only_requested_bundle(mock_import):
+    provider = ConfigDagBundleProvider()
+    assert provider.get_configured_bundle_metadata() == [DagBundleMetadata(name="my-test-bundle")]
+    mock_import.assert_not_called()
+
+    assert isinstance(provider.get_bundle("my-test-bundle"), BasicBundle)
+    assert isinstance(provider.get_bundle("my-test-bundle", version="v1"), BasicBundle)
+    mock_import.assert_called_once_with(BASIC_BUNDLE_CONFIG[0]["classpath"])
 
 
 def _bundle_config_env(config) -> dict[str, str]:

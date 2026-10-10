@@ -402,6 +402,7 @@ class DagBag(LoggingMixin):
             path=fileloc,
             bundle_path=self._bundle.path,
             bundle_name=self._bundle.name,
+            team_name=self.team_name,
             dag_file_rel_path=relative_loc,
             logger=structlog.get_logger(logger_name=__name__),
         )
