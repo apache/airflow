@@ -359,10 +359,12 @@ class TestDag:
             }
         ):
             instantiated: list[str] = []
+            dag_folders: list[str | None] = []
             real_init = BundleDagBag.__init__
 
             def _spy(self, *args, **kwargs):
                 instantiated.append(kwargs.get("bundle_name", ""))
+                dag_folders.append(kwargs.get("dag_folder"))
                 real_init(self, *args, **kwargs)
 
             with mock.patch.object(BundleDagBag, "__init__", _spy):
@@ -372,6 +374,7 @@ class TestDag:
         # Only the owning bundle should have been parsed.
         assert "testing" in instantiated
         assert "unrelated" not in instantiated
+        assert dag_folders == [parent.fileloc]
 
     def test_dag_test_runtime_start_date_decoupled_from_logical_date(self, dag_maker, time_machine):
         """
