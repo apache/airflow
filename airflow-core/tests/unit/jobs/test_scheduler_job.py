@@ -15594,19 +15594,85 @@ def test_partition_cap_short_fetch_under_row_lock_keeps_episode(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
+@pytest.mark.parametrize(
+    ("extra_resolved", "expect_episode_kept"),
+    [
+        pytest.param(0, True, id="count-above-cap-keeps-episode"),
+        pytest.param(2, False, id="count-at-or-below-cap-ends-episode"),
+    ],
+)
+def test_partition_cap_empty_fetch_under_row_lock_needs_count_to_end_episode(
+    dag_maker: DagMaker, session: Session, caplog, extra_resolved: int, expect_episode_kept: bool
+):
+    """
+    An empty fetch under ``skip_locked`` must not end the backlog episode on its own.
+
+    With three or more schedulers the others can hold every row lock, so an empty fetch is as
+    ambiguous as a short one: only an unlocked count at or below the cap ends the episode.
+    """
+    asset = Asset(name="asset-cap-empty-fetch")
+    apdrs = _make_n_satisfied_apdrs(
+        consumer_dag_id="cap-consumer-empty-fetch",
+        asset=asset,
+        partition_keys=["k1", "k2", "k3", "k4", "k5"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    base = timezone.utcnow()
+    for i, apdr in enumerate(apdrs):
+        apdr.created_at = base + timedelta(seconds=i)
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._max_partition_dag_runs_per_loop = 2
+    caplog.set_level("DEBUG", logger="airflow.jobs.scheduler_job_runner.SchedulerJobRunner")
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 1: 5 pending, cap 2
+    assert _get_cap_reached_levels(caplog) == ["warning"]
+    assert _count_audit_log(session) == 1
+    assert runner._partition_cap_backlog_reported is True
+
+    # Resolve some of the remaining 3 pending APDRs so the count lands on the side under test.
+    for apdr in apdrs[2 : 2 + extra_resolved]:
+        apdr.created_dag_run_id = apdrs[0].created_dag_run_id
+    session.commit()
+
+    # SQLite ignores row locks, so emulate other schedulers holding every remaining row.
+    with mock.patch(
+        "airflow.jobs.scheduler_job_runner.with_row_locks",
+        side_effect=lambda query, **kwargs: query.limit(0),
+    ):
+        result = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert result == set()
+    assert _get_cap_reached_levels(caplog) == ["warning"]
+    assert runner._partition_cap_backlog_reported is expect_episode_kept
+    assert _count_audit_log(session) == 1
+
+    if expect_episode_kept:
+        # The next normal full fetch belongs to the same episode: debug, no second audit row.
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+        assert _get_cap_reached_levels(caplog) == ["warning", "debug"]
+        assert _count_audit_log(session) == 1
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
 def test_partition_cap_backlog_reset_on_full_drain_to_empty(dag_maker: DagMaker, session: Session, caplog):
     """
     Regression test: the backlog-reported flag must reset even when the backlog drains to
     literally zero pending APDRs, not just when it drops to some smaller-than-cap-but-still
     -nonzero count.
 
-    ``_partition_cap_backlog_reported`` is otherwise cleared only after the backlog count; a tick
-    whose query returns *zero* rows short-circuits via an early ``return set()`` before the count
-    ever runs. If the last pending APDR of an episode gets resolved by
-    something other than this function's own firing (e.g. a concurrent HA scheduler winning the
-    ``skip_locked`` race), the very next tick sees an empty ``pending_apdrs`` and, without the
-    fix, the stale ``True`` flag survives — so a brand new backlog that re-crosses the cap is
-    wrongly logged at ``debug`` and skips writing a second audit row.
+    A tick whose fetch returns *zero* rows short-circuits via an early ``return set()``; while the
+    flag is ``True`` an unlocked count decides there whether the episode is over. If the last
+    pending APDR of an episode gets resolved by something other than this function's own firing
+    (e.g. a concurrent HA scheduler winning the ``skip_locked`` race), the very next tick sees an
+    empty ``pending_apdrs``, the count is zero, and the flag must reset — otherwise a brand new
+    backlog that re-crosses the cap is wrongly logged at ``debug`` and skips writing a second
+    audit row.
     """
     asset = Asset(name="asset-cap-drain-empty")
     apdrs = _make_n_satisfied_apdrs(
@@ -15640,8 +15706,7 @@ def test_partition_cap_backlog_reset_on_full_drain_to_empty(dag_maker: DagMaker,
     assert apdrs[2].created_dag_run_id is None
     # Simulate the one leftover APDR being resolved by something other than this function's own
     # firing this tick (e.g. a concurrent HA scheduler winning the `skip_locked` race), so the
-    # *next* tick's query returns zero rows and hits the early-return path directly instead of
-    # the count-based reset.
+    # *next* tick's query returns zero rows and takes the empty-fetch path, where the count is 0.
     apdrs[2].created_dag_run_id = apdrs[0].created_dag_run_id
     session.commit()
 
@@ -15649,7 +15714,7 @@ def test_partition_cap_backlog_reset_on_full_drain_to_empty(dag_maker: DagMaker,
     assert result == set()
     assert _count_audit_log(session) == 1, "the zero-pending tick itself must not write another audit row"
     assert runner._partition_cap_backlog_reported is False, (
-        "the backlog-reported flag must reset even on the zero-pending early-return path"
+        "the backlog-reported flag must reset when the empty-fetch count is zero"
     )
 
     # A fresh backlog episode for the same consumer Dag: three more satisfied APDRs push the
