@@ -27,6 +27,7 @@ constructors validate those at import time.
 from __future__ import annotations
 
 import collections
+import datetime
 import itertools
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar
 
@@ -154,7 +155,7 @@ class _Literal(RootModel):
     through. A ``$``-prefixed key here is a misused marker, so it is rejected.
     """
 
-    root: dict[str, Value] | list[Value] | str | int | float | bool | None
+    root: dict[str, Value] | list[Value] | str | int | float | bool | datetime.datetime | datetime.date | None
 
     model_config = ConfigDict(
         json_schema_extra={

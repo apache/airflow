@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import datetime
 import io
 import json
 import pathlib
@@ -60,6 +61,14 @@ def test_literal_by_default():
     assert t.run["region"].root == "eu"
     assert t.run["n"].root == 5
     assert t.run["flag"].root is True
+
+
+def test_date_and_datetime_literals():
+    # Unquoted YAML dates/datetimes are valid literal values; a quoted one stays a string.
+    t = _task("- {id: t, run: {d: 2026-01-01, dt: 2026-01-01T12:30:00, s: '2026-01-01'}}")
+    assert t.run["d"].root == datetime.date(2026, 1, 1)
+    assert t.run["dt"].root == datetime.datetime(2026, 1, 1, 12, 30)
+    assert t.run["s"].root == "2026-01-01"
 
 
 def test_xcom_short_long_and_keyed():

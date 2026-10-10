@@ -295,6 +295,14 @@
           "type": "boolean"
         },
         {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
           "type": "null"
         }
       ],
