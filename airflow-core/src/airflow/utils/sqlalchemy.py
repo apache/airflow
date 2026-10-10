@@ -238,6 +238,53 @@ def _default_json_contains(element, compiler, **kw):
     return compiler.process(and_(*clauses), **kw)
 
 
+class JsonArrayContains(ColumnElement):
+    """
+    Dialect-aware JSON array membership check.
+
+    Tests whether a JSON array column contains the given string element.
+    Compiles to the ``?`` operator on PostgreSQL (over a JSONB cast),
+    ``JSON_CONTAINS`` on MySQL, and a ``json_each`` EXISTS subquery on SQLite.
+
+    All dialects use bound parameters to avoid SQL injection.
+    """
+
+    inherit_cache = False
+    type = NullType()
+
+    def __init__(self, column, value: str):
+        self.column = column
+        self.value = value
+
+
+@compiles(JsonArrayContains, "postgresql")
+def _pg_json_array_contains(element, compiler, **kw):
+    from sqlalchemy import bindparam, cast
+
+    col = cast(element.column, JSONB)
+    param = bindparam(None, element.value, expanding=False)
+    return compiler.process(col.op("?")(param), **kw)
+
+
+@compiles(JsonArrayContains, "mysql")
+def _mysql_json_array_contains(element, compiler, **kw):
+    from sqlalchemy import bindparam, func
+
+    param = bindparam(None, json.dumps(element.value), expanding=False)
+    expr = func.JSON_CONTAINS(element.column, param)
+    return compiler.process(expr == 1, **kw)
+
+
+@compiles(JsonArrayContains)
+def _default_json_array_contains(element, compiler, **kw):
+    # SQLite (and any other dialect): scan the array elements via json_each.
+    from sqlalchemy import bindparam, func, select
+
+    each = func.json_each(element.column).table_valued("key", "value")
+    subq = select(1).select_from(each).where(each.c.value == bindparam(None, element.value, expanding=False))
+    return compiler.process(subq.exists(), **kw)
+
+
 class UtcDateTime(TypeDecorator):
     """
     Similar to :class:`~sqlalchemy.types.TIMESTAMP` with ``timezone=True`` option, with some differences.

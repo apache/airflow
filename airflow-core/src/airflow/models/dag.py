@@ -74,7 +74,7 @@ from airflow.timetables.base import DataInterval, PartitionMapperInfo, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
+from airflow.utils.sqlalchemy import JsonArrayContains, UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
@@ -830,7 +830,22 @@ class DagModel(Base):
                 or_(
                     cls.dag_id.in_(asset_triggered_dag_ids),
                     and_(cls.dag_id.in_(asset_gated_ready_dag_ids), time_due),
-                    and_(cls.timetable_asset_gated == expression.false(), time_due),
+                    and_(
+                        cls.timetable_asset_gated == expression.false(),
+                        time_due,
+                        # Dags that disallow scheduled runs (e.g. an AssetOrTimeSchedule
+                        # Dag restricted to asset-triggered runs) must not consume
+                        # scheduled-run creation batch slots; see #74428.
+                        or_(
+                            cls.allowed_run_types.is_(None),
+                            # NB: SQLAlchemy persists Python None as JSON null,
+                            # not SQL NULL, for JSON columns; compare the JSON
+                            # text form, which renders as 'null' on SQLite,
+                            # Postgres (jsonb::text) and MySQL (CAST AS CHAR).
+                            sa.cast(cls.allowed_run_types, Text) == "null",
+                            JsonArrayContains(cls.allowed_run_types, DagRunType.SCHEDULED.value),
+                        ),
+                    ),
                 ),
             )
             .order_by(cls.next_dagrun_create_after)
