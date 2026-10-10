@@ -50,13 +50,13 @@ from airflow.providers.common.ai.observability import (
     make_task_instance_run_key,
     stamp_identity_on_agent_spans,
 )
+from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import (
     MODEL_NAME_XCOM_KEY,
     format_usage_for_xcom,
     log_run_summary,
     log_run_usage,
-    wrap_toolsets_for_logging,
 )
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
@@ -167,24 +167,19 @@ def _replace_capability_toolset(
     return capability
 
 
-def _contains_code_mode(capabilities: Iterable[AgentCapability[Any]]) -> bool:
+def _contains_capability(
+    capabilities: Iterable[AgentCapability[Any]], capability_type: type[AbstractCapability[Any]]
+) -> bool:
     """
-    Whether any capability, or one nested inside a combined or wrapper capability, is ``CodeMode``.
+    Whether any capability, or one nested inside a combined or wrapper capability, has the given type.
 
     A capability function, or a ``DynamicCapability``, builds its capability when the run
     starts, so there is nothing to inspect here.
     """
-    # CodeMode's own module is in sys.modules once CodeMode has been imported, and only then.
-    # The pydantic_ai_harness package root is not a safe place to look: it exports CodeMode
-    # through a module __getattr__ that imports that module, which fails without the
-    # ``code-mode`` extra.
-    code_mode_cls = getattr(sys.modules.get("pydantic_ai_harness.code_mode"), "CodeMode", None)
-    if code_mode_cls is None:
-        return False
     pending = [capability for capability in capabilities if isinstance(capability, AbstractCapability)]
     while pending:
         capability = pending.pop()
-        if isinstance(capability, code_mode_cls):
+        if isinstance(capability, capability_type):
             return True
         if isinstance(capability, WrapperCapability):
             # apply() does not visit a wrapper's single wrapped capability, only a combined one's children.
@@ -194,6 +189,16 @@ def _contains_code_mode(capabilities: Iterable[AgentCapability[Any]]) -> bool:
             capability.apply(children.append)
             pending.extend(child for child in children if child is not capability)
     return False
+
+
+def _contains_code_mode(capabilities: Iterable[AgentCapability[Any]]) -> bool:
+    """Whether the declared capabilities contain ``CodeMode``."""
+    # CodeMode's own module is in sys.modules once CodeMode has been imported, and only then.
+    # The pydantic_ai_harness package root is not a safe place to look: it exports CodeMode
+    # through a module __getattr__ that imports that module, which fails without the
+    # ``code-mode`` extra.
+    code_mode_cls = getattr(sys.modules.get("pydantic_ai_harness.code_mode"), "CodeMode", None)
+    return code_mode_cls is not None and _contains_capability(capabilities, code_mode_cls)
 
 
 def _declares_agent_template_fields(toolset: Any) -> bool:
@@ -268,9 +273,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         ``agent_params`` still works, but stores each capability's repr
         in the serialized Dag, and cannot be combined with this argument (the
         task fails when it runs).
-    :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
-        ``LoggingToolset`` that logs tool calls with timing at INFO level and
-        arguments at DEBUG level. Set to ``False`` to disable.
+    :param enable_tool_logging: When ``True`` (default), wraps the agent's
+        assembled function toolset in a ``LoggingToolset`` that logs tool calls
+        with timing at INFO level and arguments at DEBUG level. This includes
+        tools supplied through ``toolsets=``, ``agent_params["tools"]``, and
+        capabilities, but not output tools, provider-native tools that run
+        server-side, or tools another capability adds through its own wrapper
+        (code mode's ``run_code``, ToolSearch's ``search_tools``). Set to
+        ``False`` to disable.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
     :param usage_limits: Optional pydantic-ai
@@ -711,8 +721,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             toolsets: list[AbstractToolset] = [ensure_masked(ts) for ts in self.toolsets]
             if self.durable and storage is not None and counter is not None:
                 toolsets = self._build_durable_toolsets(toolsets, storage, counter)
-            if self.enable_tool_logging:
-                toolsets = wrap_toolsets_for_logging(toolsets, self.log)
             extra_kwargs["toolsets"] = toolsets
         elif extra_kwargs.get("toolsets"):
             extra_kwargs["toolsets"] = [ensure_masked(ts) for ts in extra_kwargs["toolsets"]]
@@ -727,6 +735,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             capabilities = self._build_durable_capabilities(capabilities, storage, counter)
         if self.cache_prompt:
             capabilities.append(PromptCaching())
+        if self.enable_tool_logging and not _contains_capability(capabilities, ToolLoggingCapability):
+            # ToolLoggingCapability's innermost ordering keeps logging inside capability wrappers,
+            # including CodeModeToolset where code mode expects the wrapped tools.
+            capabilities.append(ToolLoggingCapability(logger=self.log))
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
         return self.llm_hook.create_agent(

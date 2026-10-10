@@ -373,9 +373,12 @@ Parameters
   ``AgentSkillsToolset`` for :ref:`agent-skills`, etc.).
 - ``capabilities``: List of pydantic-ai capabilities (``Thinking``, ``WebSearch``, guardrails,
   etc.). See :ref:`capabilities`.
-- ``enable_tool_logging``: Wrap each toolset in
+- ``enable_tool_logging``: Wrap the assembled function toolset in
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
-  every tool call is logged in real time. Default ``True``.
+  tools supplied through ``toolsets=``, ``agent_params={"tools": [...]}``, and
+  capabilities are logged in real time. Output tools, provider-native tools, and
+  tools another capability adds through its own wrapper (code mode's ``run_code``,
+  ToolSearch's ``search_tools``) are not covered. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
 - .. _agent-usage-budget:
@@ -458,8 +461,8 @@ Logging
 -------
 
 All AI operators automatically log a post-run summary after ``run_sync()``
-completes. ``AgentOperator`` additionally wraps toolsets for real-time
-per-tool-call logging (controlled by ``enable_tool_logging``).
+completes. ``AgentOperator`` additionally wraps the assembled function toolset
+for real-time per-tool-call logging (controlled by ``enable_tool_logging``).
 
 **Real-time tool call logging** (AgentOperator only): each tool call is
 logged as it happens:

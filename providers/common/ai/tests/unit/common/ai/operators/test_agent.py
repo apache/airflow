@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import json
 import logging
@@ -26,6 +27,7 @@ from decimal import Decimal
 from types import ModuleType, SimpleNamespace
 from typing import Any
 from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
+from uuid import UUID
 
 import pytest
 from pydantic import BaseModel
@@ -73,7 +75,7 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxExecResult,
 )
 from airflow.providers.common.ai.toolsets.hook import HookToolset
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -777,9 +779,12 @@ class TestAgentOperatorExecute:
         )
         # On 3.3+ the agent may also end on a tool call awaiting approval.
         expected_output_type = [str, DeferredToolRequests] if AIRFLOW_V_3_3_PLUS else str
-        mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
-            output_type=expected_output_type, instructions="You are helpful.", capabilities=[PromptCaching()]
-        )
+        create_agent_kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
+        assert create_agent_kwargs["output_type"] == expected_output_type
+        assert create_agent_kwargs["instructions"] == "You are helpful."
+        assert len(create_agent_kwargs["capabilities"]) == 2
+        assert create_agent_kwargs["capabilities"][0] == PromptCaching()
+        assert isinstance(create_agent_kwargs["capabilities"][1], ToolLoggingCapability)
         mock_agent.run_sync.assert_called_once_with(
             "What is the answer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
@@ -815,11 +820,9 @@ class TestAgentOperatorExecute:
         op.execute(context=MagicMock())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        passed_toolsets = create_call[1]["toolsets"]
-        assert len(passed_toolsets) == 1
-        assert isinstance(passed_toolsets[0], LoggingToolset)
-        assert isinstance(passed_toolsets[0].wrapped, MaskingToolset)
-        assert passed_toolsets[0].wrapped.wrapped is mock_toolset
+        assert create_call[1]["toolsets"] == [MaskingToolset(wrapped=mock_toolset)]
+        assert create_call[1]["capabilities"][0] == PromptCaching()
+        assert isinstance(create_call[1]["capabilities"][1], ToolLoggingCapability)
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_enable_tool_logging_false_skips_wrapping(self, mock_hook_cls, make_mock_run_result):
@@ -840,6 +843,126 @@ class TestAgentOperatorExecute:
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["toolsets"] == [MaskingToolset(wrapped=mock_toolset)]
+        assert create_call[1]["capabilities"] == [PromptCaching()]
+
+    @pytest.mark.parametrize("tool_source", ["tools", "agent_params", "capabilities"])
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_tool_logging_wraps_tools_from_all_sources(self, mock_hook_cls, caplog, tool_source):
+        """Tool logging wraps the complete toolset assembled by pydantic-ai."""
+
+        def my_tool() -> str:
+            return "tool-result"
+
+        def model_fn(messages, info):
+            saw_return = any(isinstance(p, ToolReturnPart) for m in messages for p in getattr(m, "parts", []))
+            if saw_return:
+                return ModelResponse(parts=[TextPart(content="done")])
+            return ModelResponse(parts=[ToolCallPart(tool_name="my_tool", args={}, tool_call_id="c1")])
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(model_fn), **kw
+        )
+        if tool_source == "tools":
+            kwargs = {"agent_params": {"tools": [my_tool]}}
+        else:
+            capability = Toolset(FunctionToolset([my_tool]))
+            kwargs = (
+                {"agent_params": {"capabilities": [capability]}}
+                if tool_source == "agent_params"
+                else {"capabilities": [capability]}
+            )
+        op = AgentOperator(
+            task_id="test",
+            prompt="Do something",
+            llm_conn_id="my_llm",
+            **kwargs,
+        )
+
+        with caplog.at_level(logging.INFO):
+            result = op.execute(context=_make_context())
+
+        assert result == "done"
+        assert any(record.message == "::group::Tool call: my_tool" for record in caplog.records)
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_tool_logging_closes_groups_when_parallel_tool_fails(self, mock_hook_cls, caplog):
+        slow_cancelled = False
+
+        async def boom() -> str:
+            await asyncio.sleep(0)
+            raise RuntimeError("boom")
+
+        async def slow() -> None:
+            nonlocal slow_cancelled
+            try:
+                await asyncio.sleep(60)
+            except asyncio.CancelledError:
+                slow_cancelled = True
+                raise
+
+        def model_fn(messages, info):
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(tool_name="boom", args={}, tool_call_id="c-boom"),
+                    ToolCallPart(tool_name="slow", args={}, tool_call_id="c-slow"),
+                ]
+            )
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(model_fn), **kw
+        )
+        op = AgentOperator(
+            task_id="test",
+            prompt="Do something",
+            llm_conn_id="my_llm",
+            agent_params={"tools": [boom, slow]},
+        )
+
+        with caplog.at_level(logging.INFO):
+            with pytest.raises(RuntimeError, match="boom"):
+                op.execute(context=_make_context())
+
+        assert slow_cancelled
+        messages = [record.message for record in caplog.records]
+        assert sum(message.startswith("::group::Tool call:") for message in messages) == 2
+        assert messages.count("::endgroup::") == 2
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_tool_logging_handles_non_json_mapping_keys(self, mock_hook_cls, caplog):
+        def my_tool(values: dict[UUID, int]) -> int:
+            return sum(values.values())
+
+        def model_fn(messages, info):
+            saw_return = any(isinstance(p, ToolReturnPart) for m in messages for p in getattr(m, "parts", []))
+            if saw_return:
+                return ModelResponse(parts=[TextPart(content="done")])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="my_tool",
+                        args={"values": {"12345678-1234-5678-1234-567812345678": 1}},
+                        tool_call_id="c1",
+                    )
+                ]
+            )
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(model_fn), **kw
+        )
+        op = AgentOperator(
+            task_id="test",
+            prompt="Do something",
+            llm_conn_id="my_llm",
+            agent_params={"tools": [my_tool]},
+        )
+
+        with caplog.at_level(logging.DEBUG, logger="airflow.task"):
+            result = op.execute(context=_make_context())
+
+        assert result == "done"
+        assert any(
+            "UUID('12345678-1234-5678-1234-567812345678')" in record.message for record in caplog.records
+        )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_agent_params(self, mock_hook_cls, make_mock_run_result):
@@ -873,6 +996,7 @@ class TestAgentOperatorExecute:
             llm_conn_id="my_llm",
             toolsets=[MagicMock(spec=AbstractToolset)],
             cache_prompt=False,
+            enable_tool_logging=False,
         )
         op.execute(context=_make_context())
 
@@ -887,7 +1011,11 @@ class TestAgentOperatorExecute:
         )
 
         op = AgentOperator(
-            task_id="t", prompt="hi", llm_conn_id="my_llm", agent_params={"capabilities": ["existing"]}
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            agent_params={"capabilities": ["existing"]},
+            enable_tool_logging=False,
         )
         op.execute(context=_make_context())
 
@@ -1207,11 +1335,50 @@ class TestAgentOperatorCapabilities:
         )
         thinking, search = Thinking(effort="high"), WebSearch()
 
-        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[thinking, search])
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="llm",
+            capabilities=[thinking, search],
+            enable_tool_logging=False,
+        )
         op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call.kwargs["capabilities"] == [thinking, search, PromptCaching()]
+
+    @pytest.mark.parametrize(
+        "wrap",
+        [
+            pytest.param(lambda capability: capability, id="direct"),
+            pytest.param(lambda capability: CombinedCapability([Thinking(), capability]), id="combined"),
+            pytest.param(lambda capability: PrefixTools(wrapped=capability, prefix="custom"), id="wrapped"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_declared_tool_logging_capability_prevents_default(
+        self, mock_hook_cls, make_mock_run_result, wrap
+    ):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            "ok", make_mock_run_result
+        )
+        custom_logging = ToolLoggingCapability(logger=MagicMock(spec=logging.Logger))
+        declared = wrap(custom_logging)
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="llm",
+            capabilities=[declared],
+        )
+
+        op.execute(context=_make_context())
+
+        capabilities = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["capabilities"]
+        assert capabilities[0] is declared
+        assert not any(
+            isinstance(capability, ToolLoggingCapability) and capability is not custom_logging
+            for capability in capabilities
+        )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_capabilities_in_both_places_are_refused(self, mock_hook_cls):
@@ -1519,6 +1686,36 @@ class TestAgentOperatorDurable:
         )
 
         assert result[0] is cap
+
+    @pytest.mark.parametrize("passed_as", ["capabilities", "agent_params"])
+    def test_toolset_capability_logging_wraps_durable_cache(self, passed_as):
+        """Concrete ``Toolset`` capabilities receive durable caching before agent creation."""
+        inner = FunctionToolset()
+        capability = Toolset(inner)
+        kwargs = (
+            {"capabilities": [capability]}
+            if passed_as == "capabilities"
+            else {"agent_params": {"capabilities": [capability]}}
+        )
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            durable=True,
+            **kwargs,
+        )
+        op._durable_storage = MagicMock(spec=DurableStorageProtocol)
+        op._durable_counter = DurableStepCounter()
+        hook = MagicMock(spec=["create_agent"])
+        op.llm_hook = hook
+
+        op._build_agent()
+
+        capabilities = hook.create_agent.call_args.kwargs["capabilities"]
+        assert isinstance(capabilities[0].toolset, CachingToolset)
+        assert isinstance(capabilities[0].toolset.wrapped, MaskingToolset)
+        assert capabilities[0].toolset.wrapped.wrapped is inner
+        assert isinstance(capabilities[-1], ToolLoggingCapability)
 
     def test_toolset_capability_tool_replayed_on_retry(self):
         """A tool supplied via a ``Toolset`` capability is cached and replayed on a
