@@ -3772,6 +3772,24 @@ class TestIterableOperatorCopy:
         assert in_flight in iterable_op._state
         assert iterable_op._state.stop_requested()
 
+    def test_the_copy_prepared_for_execution_gets_its_own_state(self):
+        """
+        ``prepare_for_execution`` copies with ``copy.copy``. A kill in one attempt must not stop the
+        next one, which ``dag.test()`` prepares from the same Dag operator.
+        """
+        iterable_op = self._dag().task_dict["f"]
+
+        first = iterable_op.prepare_for_execution()
+        first.on_kill()
+        second = iterable_op.prepare_for_execution()
+
+        assert first._state is not iterable_op._state
+        assert first._state.stop_requested()
+        assert not iterable_op._state.stop_requested()
+        assert second._state is not first._state
+        assert not second._state.stop_requested()
+        assert second._lock_for_execution
+
     def test_partial_subset_keeps_the_iterated_task(self):
         dag = self._dag()
 

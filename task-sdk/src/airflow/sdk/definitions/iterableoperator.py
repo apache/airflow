@@ -159,8 +159,9 @@ class IterationState:
     stop flag a kill sets, which the executor consults before starting the next indexed task;
     and the resolved input. What the indexed tasks ended with is :class:`IndexedTaskOutcomes`.
 
-    A deep copy of the operator (``dag.partial_subset``, ``prepare_for_execution``) is another
-    task with nothing in flight and no kill pending, so copying the state gives a fresh one. The
+    A copy of the operator (``copy.copy`` in ``prepare_for_execution``, the deep copy of
+    ``dag.partial_subset``) is another task with nothing in flight and no kill pending, so copying
+    the state gives a fresh one. The
     operator renews it once a run ended, not when one starts: a rerun in the same process starts
     clean, while a kill that arrives before the run sets the stop flag on the state the run uses.
     """
@@ -178,6 +179,9 @@ class IterationState:
         self._kill_threads: list[threading.Thread] = []
         #: The input resolved for this task instance, once ``aresolve`` returned.
         self.resolved: Resolved | None = None
+
+    def __copy__(self) -> IterationState:
+        return IterationState()
 
     def __deepcopy__(self, memo: dict[int, Any]) -> IterationState:
         return IterationState()
@@ -815,6 +819,14 @@ class IterableOperator(BaseOperator):
         # What one run remembers while it is going (see IterationState); fresh for every run and
         # for every copy of the operator.
         self._state = IterationState()
+
+    def __copy__(self) -> IterableOperator:
+        # prepare_for_execution copies the operator with copy.copy, which would share the state of
+        # the run with the Dag's operator: a kill in one attempt would then stop the next one under
+        # dag.test(). The copy is another run and starts with a state of its own (see IterationState).
+        other = type(self).__new__(type(self))
+        other.__setstate__({**self.__getstate__(), "_state": IterationState()})
+        return other
 
     # How long the run waits for its threads to end once it is over: the executor's worker and
     # coroutine shutdown, and the thread on_kill() kills the sub-operators from.
