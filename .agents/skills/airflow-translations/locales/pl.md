@@ -130,15 +130,15 @@ Preserve all `{{variable}}` placeholders. Adjust word order for natural Polish:
 **English source:**
 
 ```json
-"title": "Delete {{count}} connections"
+"title": "Delete {{count, number}} connections"
 ```
 
 **Correct:**
 
 ```json
 "deleteConnection_one": "Usuń 1 połączenie",
-"deleteConnection_few": "Usuń {{count}} połączenia",
-"deleteConnection_many": "Usuń {{count}} połączeń"
+"deleteConnection_few": "Usuń {{count, number}} połączenia",
+"deleteConnection_many": "Usuń {{count, number}} połączeń"
 ```
 
 **Incorrect:**

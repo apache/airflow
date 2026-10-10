@@ -23,6 +23,11 @@ import kotlinx.coroutines.CancellationException
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
+import org.apache.airflow.sdk.DeciderDef
+import org.apache.airflow.sdk.SKIPMIXIN_SKIPPED
+import org.apache.airflow.sdk.SKIPMIXIN_XCOM_KEY
+import org.apache.airflow.sdk.Task
+import org.apache.airflow.sdk.TaskDef
 import org.apache.airflow.sdk.execution.comm.AssetProfile
 import org.apache.airflow.sdk.execution.comm.RetryTask
 import org.apache.airflow.sdk.execution.comm.StartupDetails
@@ -66,6 +71,26 @@ internal object TaskResult {
   fun failure(shouldRetry: Boolean) = if (shouldRetry) retry() else of(TaskState.State.FAILED)
 }
 
+/**
+ * Runs a deciding task: Airflow skips every case it did not choose, and its
+ * choice becomes the task's return value.
+ */
+private fun decide(
+  decider: DeciderDef,
+  taskDef: TaskDef,
+  instance: Task,
+  context: Context,
+  client: Client,
+) {
+  val decision = decider.decide(taskDef, instance, context, client)
+  if (decision.skipped.isNotEmpty()) {
+    // Written before the skip so a cleared case is skipped again, as SkipMixin does.
+    client.setXCom(SKIPMIXIN_XCOM_KEY, mapOf(SKIPMIXIN_SKIPPED to decision.skipped))
+    client.impl.skipDownstreamTasks(decision.skipped)
+  }
+  client.setXCom(value = decision.value)
+}
+
 internal object TaskRunner {
   val logger = Logger(TaskRunner::class)
 
@@ -74,9 +99,23 @@ internal object TaskRunner {
     request: StartupDetails,
     client: Client,
   ): Any {
-    val definition =
-      bundle.taskDef(request.ti.dagId, request.ti.taskId)?.definition
+    val taskDef =
+      bundle.taskDef(request.ti.dagId, request.ti.taskId)
         ?: return TaskResult.of(TaskState.State.REMOVED)
+    taskDef.trigger?.let { trigger ->
+      return try {
+        TriggerRunner.run(trigger, request, client)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Throwable) {
+        logger.error(
+          "Error triggering Dag run",
+          mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()),
+        )
+        TaskResult.failure(request.tiContext.shouldRetry)
+      }
+    }
+    val definition = taskDef.definition
     val instance =
       try {
         definition.getDeclaredConstructor().newInstance()
@@ -103,7 +142,9 @@ internal object TaskRunner {
         return TaskResult.failure(request.tiContext.shouldRetry)
       }
     return try {
-      instance.execute(Context.from(request), client)
+      val context = Context.from(request, taskDef)
+      val decider = taskDef.decider
+      if (decider == null) instance.execute(context, client) else decide(decider, taskDef, instance, context, client)
       TaskResult.success()
     } catch (e: CancellationException) {
       throw e // Let coroutine cancellation propagate so the task coroutine unwinds.

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 import pytest
@@ -150,7 +150,7 @@ class TestValidateExtractedOutputStructuredSuccess:
         spec = build_output_spec(Event)
         extracted = ExtractedOutput(
             kind="json_value",
-            value={"happened_at": datetime(2026, 9, 11, tzinfo=timezone.utc), "severity": Severity.HIGH},
+            value={"happened_at": datetime(2026, 9, 11, tzinfo=UTC), "severity": Severity.HIGH},
         )
         outcome = validate_extracted_output(extracted, spec)
         assert outcome.ok is True

@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from airflow_breeze.commands.ui_commands import (
     LocaleFiles,
     LocaleKeySet,
@@ -80,6 +82,13 @@ class TestPluralHandling:
         assert "warning_other" in expanded
         assert "warning_few" in expanded
         assert "warning_many" in expanded
+
+    @pytest.mark.parametrize("placeholder", ["{{count}}", "{{count, number}}", "{{ count , number }}"])
+    def test_expand_plural_keys_expands_single_en_form_with_count_placeholder(self, placeholder):
+        keys = {"warning_other"}
+        en_key_to_value = {"warning_other": f"{placeholder} Warnings"}
+        expanded = expand_plural_keys(keys, "pl", en_key_to_value)
+        assert expanded == {"warning_one", "warning_few", "warning_many", "warning_other"}
 
     def test_expand_plural_keys_expands_when_en_has_multiple_plural_forms(self):
         # Even without {{count}} in EN values, plural selection is still active when

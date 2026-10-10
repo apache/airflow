@@ -30,12 +30,15 @@ Curated toolset wrapping
    * - ``list_tables``
      - Lists available table names (filtered by ``allowed_tables`` if set)
    * - ``get_schema``
-     - Returns column names and types for a table
+     - Returns a table's columns as JSON, with a ``name_contains`` filter and a
+       bounded summary on very wide tables (see :ref:`bounded-schema-results`)
    * - ``query``
      - Executes a SQL query and returns bounded, columnar JSON (see
        :ref:`bounded-query-results`)
    * - ``check_query``
-     - Validates SQL syntax without executing it
+     - Validates SQL syntax without executing it, with the same statement and
+       ``allowed_tables`` rules as ``query``, so it accepts writes only when
+       ``allow_writes=True``
 
 .. code-block:: python
 
@@ -63,6 +66,119 @@ rejects by scanning the parsed statement for write operations. When
 ``allowed_tables`` is set it scopes these statements too: a ``DESCRIBE`` names a
 table, so its target must be on the list, while ``SHOW`` enumerates objects beyond
 any single table and is rejected outright (see :ref:`allowed-tables-enforcement`).
+
+The read-only check inspects statement types, not what a function does. By default
+(no ``allowed_tables``) a function call inside a ``SELECT`` is not examined, so
+``SELECT nextval('seq')``, ``SELECT pg_terminate_backend(pid)`` or
+``SELECT dblink_exec(...)`` pass validation and run with the connection's
+privileges. Setting ``allowed_tables`` turns on the function check: every function
+sqlglot cannot type is rejected unless it is listed in ``allowed_functions``. The
+check rejects only functions sqlglot cannot type; typed syntax such as T-SQL
+``NEXT VALUE FOR seq`` or Snowflake ``seq.nextval`` still passes, so
+``allowed_tables`` is not a guarantee against side-effecting functions. Either way,
+point the connection at a least-privilege role and, where the database supports it,
+a read-only default for that role or session (for example
+``ALTER ROLE <role> SET default_transaction_read_only = on`` on PostgreSQL). The
+toolset opens its own connection per call, so you cannot set a transaction from the
+Dag, and a read-only setting is defense in depth: it does not stop every
+side-effecting function.
+
+.. _sql-toolset-restricted:
+
+Restricting the agent
+---------------------
+
+Every limit can be set on one task: the toolset holds most of them, and the
+operator holds the tool-call limit. This agent can query two tables, cannot write, gets
+bounded results, and has a budget for both refused and successful calls:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sql_toolset.py
+    :language: python
+    :start-after: [START howto_toolset_sql_restricted]
+    :end-before: [END howto_toolset_sql_restricted]
+
+A refused query never reaches the database. The model gets the reason back as an
+error it can correct, and the run carries on. Run against a Postgres warehouse that
+also holds a ``secrets`` table, these queries were refused with these messages:
+
+``SELECT token FROM secrets``
+    ``The query tool failed: Query references tables that are not in the allowed
+    tables list: secrets. Use list_tables to see the allowed tables.``
+
+``SELECT pg_read_file('/etc/passwd')``
+    ``The query tool failed: Query uses a data source that cannot be checked against
+    allowed_tables: function(s) the parser cannot verify against allowed_tables
+    (pg_read_file); if these functions are trusted, permit them via
+    allowed_functions. Query the allowed tables directly: use list_tables to see
+    them.``
+
+``DELETE FROM orders``
+    ``The query tool failed: Statement type 'Delete' is not allowed. Allowed types:
+    Select, Union, Intersect, Except, Describe, Show``
+
+Each message ends with the same two lines:
+
+.. code-block:: text
+
+    Use the list_tables and get_schema tools to inspect the database, then fix the query and try again.
+
+    Fix the errors and try again.
+
+This query runs, because the example lists ``json_build_object`` in
+``allowed_functions``:
+
+.. code-block:: sql
+
+    SELECT c.region, json_build_object('revenue', sum(o.amount)) AS revenue
+    FROM orders o JOIN customers c ON c.id = o.customer_id
+    GROUP BY c.region ORDER BY c.region
+
+It returns:
+
+.. code-block:: json
+
+    {"columns":["region","revenue"],"rows":[["AMER",{"revenue":50}],["EMEA",{"revenue":200}]],"row_count":2}
+
+Without ``allowed_functions``, the same query is refused with the same message as
+``pg_read_file``, naming ``json_build_object``.
+
+The two budgets count different calls, and running out of either fails the task.
+``max_retries`` counts refused and failed calls, and a fourth refused ``query`` call
+in a row ends the run with ``UnexpectedModelBehavior``:
+
+.. code-block:: text
+
+    Tool 'query' exceeded max retries count of 3. Consider raising the retry limit, or see the docs on tool retries: https://pydantic.dev/docs/ai/tools-toolsets/tools-advanced/#tool-retries
+
+``tool_calls_limit`` counts successful calls only, and fails the run with
+``UsageLimitExceeded`` before any call that would take the count past 20:
+
+.. code-block:: text
+
+    The next tool call(s) would exceed the tool_calls_limit of 20 (tool_calls=21). Consider raising the limit, or see the docs on usage limits for budget-aware patterns: https://pydantic.dev/docs/ai/core-concepts/agent/#usage-limits
+
+The task's own ``retries`` then decide whether it runs again, and the budgets differ
+there too. ``max_retries`` starts again on each attempt. On Airflow 3.3 and later,
+``usage_limits`` counts across every attempt, so a retry after ``tool_calls_limit``
+ran out fails at its first tool call; see
+:ref:`the usage budget <agent-usage-budget>`. ``UsageLimits`` also keeps
+pydantic-ai's default ``request_limit`` of 50 model requests, which refused calls
+use up too.
+
+``allowed_tables`` works by parsing the SQL, so a query the parser reads differently
+from the database, or a function listed in ``allowed_functions``, can get past it.
+The connection's role is the limit that holds regardless. The example's
+``warehouse_agent_reader`` connection logs in as a role created with:
+
+.. code-block:: sql
+
+    CREATE ROLE warehouse_agent_reader LOGIN PASSWORD '...';
+    GRANT SELECT ON orders, customers TO warehouse_agent_reader;
+
+With that role and no ``allowed_tables``, ``SELECT token FROM secrets`` reaches
+Postgres, which refuses it, and the model gets ``The query tool failed: permission
+denied for table secrets``. :ref:`allowed-tables-enforcement` lists what the parser
+checks and where it stops.
 
 Multi-schema warehouses
 -------------------------
@@ -199,12 +315,22 @@ Parameters
   introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
   Default ``False`` -- only SELECT-family and read-only metadata
-  (``DESCRIBE``/``SHOW``) statements are permitted.
+  (``DESCRIBE``/``SHOW``) statements are permitted. To have a person approve a
+  ``query`` call before it runs, wrap the toolset with ``.approval_required()`` and
+  return ``tool_def.name == "query"`` from its function. Reads and writes both go
+  through ``query``, and a task instance can pause for approval once per Dag run, so
+  this fits an agent that runs one query, such as a single write; see
+  :doc:`../tool_approval`.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
   Rows beyond it are not read out of a DBAPI cursor; what the driver has already
   transferred is its own call. See :ref:`bounded-query-results`.
-- ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
-  See :ref:`bounded-query-results`.
+- ``max_result_bytes``: Budget for the serialized ``query`` result, and the byte backstop
+  that also triggers the ``get_schema`` summary. Default 64 KiB.
+  See :ref:`bounded-query-results` and :ref:`bounded-schema-results`.
+- ``max_columns``: Maximum columns ``get_schema`` returns in full. Default ``100``.
+  Above it the result becomes a bounded summary. See :ref:`bounded-schema-results`.
+- ``max_retries``: How many times the model may correct a failed call to these
+  tools. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
 .. _bounded-query-results:
 
@@ -261,6 +387,37 @@ result several-fold, so results that fit before still fit. Lower ``max_result_by
 when an agent makes many queries in one run, since every result is re-paid on every
 later request.
 
+.. _bounded-schema-results:
+
+Bounded schema results
+----------------------
+
+``get_schema`` has the same context problem as ``query`` but cannot be solved the same
+way. Column names are what the agent needs to write SQL, so truncating to the first N
+columns would leave it unable to reference or discover the rest. The tool filters and
+summarizes instead.
+
+**Filter with** ``name_contains``. Pass a case-insensitive substring to get back only
+the columns whose name contains it, so on a very wide table the agent asks for the
+columns relevant to its question rather than all of them.
+
+**A summary replaces a very wide list.** Above ``max_columns`` (default ``100``), or when
+the serialized columns exceed ``max_result_bytes``, the full list is replaced by a
+summary that reports the shape and points at the filter:
+
+.. code-block:: json
+
+    {"column_count": 3200, "truncated": true, "truncated_by": "max_columns",
+     "hint": "...", "type_histogram": {"VARCHAR": 2000, "NUMBER": 1200},
+     "sample_columns": [{"name": "id", "type": "NUMBER"}]}
+
+``truncated_by`` is ``max_columns`` or ``max_result_bytes``. ``type_histogram`` counts
+columns per type (capped to the most common, the tail folded into one entry), and
+``sample_columns`` previews the first columns -- both only while they fit the budget, so
+a pathologically small budget still returns the ``column_count`` and ``hint``. A filtered
+call echoes ``name_contains`` and adds ``total_columns`` so a subset is never mistaken for
+the whole table.
+
 When to choose it
 -----------------
 
@@ -296,7 +453,7 @@ subqueries and joins.
 - It does not classify failures. A connection error or a typo in a column
   name reaching ``list_tables``, ``get_schema`` or ``query`` becomes one
   ``ModelRetry``, so the two are treated the same way until the retry budget
-  runs out and the task fails for Airflow to retry. Two paths do not raise:
+  (:ref:`toolset-retry-budget`) runs out and the task fails for Airflow to retry. Two paths do not raise:
   ``check_query`` catches its own errors and reports them back as a normal
   ``{"valid": false, ...}`` result, and ``get_schema`` returns a normal
   ``{"error": ...}`` result instead of raising when the requested table is

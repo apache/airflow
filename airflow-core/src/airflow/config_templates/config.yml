@@ -312,7 +312,9 @@ core:
     killed_task_cleanup_time:
       description: |
         When a task is killed forcefully, this is the amount of time in seconds that
-        it has to cleanup after it is sent a SIGTERM, before it is SIGKILLED
+        it has to cleanup after it is sent a SIGTERM, before it is SIGKILLED.
+        The task supervisor also waits this long after ``execution_timeout`` elapses before
+        it sends SIGTERM to a task process that has not stopped on its own.
       version_added: ~
       type: integer
       example: ~
@@ -555,8 +557,9 @@ core:
     execution_api_server_url:
       description: |
         The url of the execution api server. Default is ``{BASE_URL}/execution/``
-        where ``{BASE_URL}`` is the base url of the API Server. If ``{BASE_URL}`` is not set,
-        it will use ``http://localhost:8080`` as the default base url.
+        where ``{BASE_URL}`` is the base url of the API Server. If ``{BASE_URL}`` is not set
+        or is a relative path such as ``/airflow``, it is prefixed with ``http://localhost:{PORT}``,
+        where ``{PORT}`` is ``[api] port``.
       version_added: 3.0.0
       type: string
       example: ~
@@ -759,9 +762,9 @@ database:
       default: ~
     max_db_retries:
       description: |
-        Number of times the code should be retried in case of DB Operational Errors.
-        Not all transactions will be retried as it can cause undesired state.
-        Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
+        Maximum number of attempts, including the first one, for operations retried on DB
+        operational errors. The default of 3 means one initial attempt plus up to 2 retries.
+        Not all transactions are retried, since retrying some of them can leave undesired state.
       version_added: 2.3.0
       type: integer
       example: ~
@@ -1600,22 +1603,6 @@ secrets:
       sensitive: true
       example: ~
       default: ""
-    backends_order:
-      description: |
-        .. note:: |experimental|
-
-        Comma-separated list of secret backends. These backends will be used in the order they are specified.
-        Please note that the ``environment_variable`` and ``metastore`` are required values and cannot be
-        removed from the list. Supported values are:
-
-        * ``custom``: Custom secret backend specified in the ``secrets[backend]`` configuration option.
-        * ``environment_variable``: Standard environment variable backend
-          ``airflow.secrets.environment_variables.EnvironmentVariablesBackend``.
-        * ``metastore``: Standard metastore backend ``airflow.secrets.metastore.MetastoreBackend``.
-      version_added: 3.3.0
-      type: string
-      example: ~
-      default: "custom,environment_variable,metastore"
     use_cache:
       description: |
         .. note:: |experimental|
@@ -2105,24 +2092,6 @@ workers:
       type: string
       example: "mypackage.state.S3StateBackend"
       default: ""
-    backends_order:
-      description: |
-        .. note:: |experimental|
-
-        Comma-separated list of secret backends for workers. These backends will be used in the order they are
-        specified. Please note that the ``environment_variable`` and ``execution_api`` are required values and
-        cannot be removed from the list. Supported values are:
-
-        * ``custom``: Custom secret backend specified in the ``workers[secrets_backend]`` configuration
-          option.
-        * ``environment_variable``: Standard environment variable backend
-          ``airflow.secrets.environment_variables.EnvironmentVariablesBackend``.
-        * ``execution_api``: Standard execution_api backend
-          ``airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend``.
-      version_added: 3.3.0
-      type: string
-      example: ~
-      default: "custom,environment_variable,execution_api"
     min_heartbeat_interval:
       description: |
         The minimum interval (in seconds) at which the worker checks the task instance's
@@ -2225,6 +2194,19 @@ sdk:
         example, two ``JavaCoordinator`` instances pinned to different JDK
         versions).
 
+        The language SDK coordinators read the task handlers for the
+        ``@task.stub`` tasks of a Python Dag from the Dag bundle named by the
+        ``task_handler_bundle_name`` kwarg. Dags defined natively in a language
+        SDK do not use it. It must name a bundle in
+        ``[dag_processor] dag_bundle_config_list`` and is checked when this
+        option is loaded. When it is unset, a task reads its handlers from its
+        own Dag bundle.
+
+        The Dag processor needs this option too, with the language runtime the
+        coordinator starts and the files of that Dag bundle, because it checks
+        the stub tasks of each Python Dag against the task handlers those files
+        register. The API server does not need it.
+
         An entry may also carry an optional ``extra`` object for additional
         information associated with the coordinator that the coordinator itself
         does not receive; other components read it as needed. For example,
@@ -2239,7 +2221,7 @@ sdk:
           "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
             "kwargs": {
-              "jars_root": ["/opt/airflow/java-bundles"],
+              "task_handler_bundle_name": "java-task-handlers",
               "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
               "jvm_args": ["-Xmx1024m"]
             },
@@ -2252,7 +2234,7 @@ sdk:
           "go-sdk": {
             "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
             "kwargs": {
-              "executables_root": ["/opt/airflow/executable-bundles"]
+              "task_handler_bundle_name": "go-task-handlers"
             }
           }
         }
@@ -2269,6 +2251,20 @@ sdk:
       version_added: 3.3.0
       type: string
       example: '{"legacy-java": "jdk-11", "modern-java": "jdk-17"}'
+      default: ~
+    dag_bundle_to_coordinator:
+      description: |
+        JSON object mapping a Dag bundle name to one key of ``[sdk] coordinators``. It picks the coordinator
+        that parses the bundle's native Dag files when several coordinators of that runtime are configured.
+
+        With one coordinator of a runtime, that coordinator parses the runtime's native Dag files in every
+        Dag bundle, and this option is not read. With several, a bundle that holds such files must map to
+        one of them, otherwise each file fails to parse with an import error. A bundle maps to one
+        coordinator, so it can hold native Dag files of only one runtime that has several coordinators.
+        Tasks do not read this option; ``queue_to_coordinator`` routes them.
+      version_added: 3.4.0
+      type: string
+      example: '{"dags-folder": "java-native"}'
       default: ~
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
@@ -3257,6 +3253,10 @@ dag_processor:
 
         The default is the dags folder dag bundle.
 
+        A backend config may also supply ``importers`` (experimental): Dag importers for that
+        bundle only, in the format of ``[dag_processor] dag_importer_configs``, taking precedence
+        over it.
+
         Note: As shown below, you can split your json config over multiple lines by indenting.
         See configparser documentation for an example:
         https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
@@ -3282,9 +3282,46 @@ dag_processor:
                 "kwargs": {{}}
               }}
             ]
+
+    dag_importer_configs:
+      description: |
+        .. note:: |experimental|
+
+        List of Dag importer configs. Each entry must supply ``classpath`` and may supply
+        ``extensions`` and ``kwargs``.
+
+        Importers turn the contents of a bundle into Dag definitions. Airflow registers
+        importers for ``.py`` and ``.zip`` out of the box; use this option to register
+        importers for other formats, or to replace a built-in one.
+
+        An importer registered here applies to every bundle. To register an importer for a
+        single bundle only, add an ``importers`` key to that bundle's entry in
+        ``dag_bundle_config_list``, which takes the same format and takes precedence over
+        this option.
+
+        If ``extensions`` is omitted, the extensions declared by the importer class are used.
+
+        An entry may also be given as a bare classpath string when it needs no other
+        settings, so ``["my_company.importers.YamlDagImporter"]`` is equivalent to
+        ``[{"classpath": "my_company.importers.YamlDagImporter"}]``.
+      version_added: 3.4.0
+      type: string
+      example: >
+        [
+              {
+                "classpath": "my_company.importers.YamlDagImporter",
+                "extensions": [".yaml", ".yml"],
+                "kwargs": {}
+              }
+            ]
+      default: ~
     refresh_interval:
       description: |
         How often (in seconds) to refresh, or look for new files, in a DAG bundle.
+
+        When this option and ``dag_bundle_config_list`` are left at their defaults, ``airflow standalone``
+        refreshes the Dags folder every ``bundle_refresh_check_interval`` seconds instead, so new Dag
+        files show up within seconds.
       version_added: ~
       type: integer
       example: ~

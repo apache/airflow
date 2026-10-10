@@ -50,6 +50,29 @@ export interface SetXComOpts {
   mapIndex?: number | null;
 }
 
+/**
+ * Pass as {@link TaskStateStoreSetOpts.retentionMs} to store a task state store
+ * key with no expiry, regardless of the deployment default.
+ *
+ * A symbol rather than a number, so a retention that reaches `Infinity` by
+ * accident (a division by zero, for example) is rejected instead of silently
+ * storing a key forever.
+ */
+export const NEVER_EXPIRE: unique symbol = Symbol("apache-airflow-ts-sdk/NEVER_EXPIRE");
+
+/** Options for a task state store write. */
+export interface TaskStateStoreSetOpts {
+  /**
+   * Milliseconds to retain the key, counted from the write; `0` expires it
+   * immediately.
+   *
+   * Omitting it follows the deployment's `[state_store] default_retention_days`,
+   * which the coordinator passes to the runtime. Pass {@link NEVER_EXPIRE} to
+   * store the key with no expiry regardless of that default.
+   */
+  retentionMs?: number | typeof NEVER_EXPIRE;
+}
+
 /** Airflow Connection details returned by a task client. */
 export interface ConnectionResult {
   id: string;

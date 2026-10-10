@@ -1080,7 +1080,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
-def reflect_tables(tables: list[MappedClassProtocol | str] | None, session, schema: str | None = None):
+def reflect_tables(tables: Sequence[MappedClassProtocol | str] | None, session, schema: str | None = None):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the database.
 
@@ -1517,7 +1517,7 @@ def _handle_fab_downgrade(*, session: Session) -> None:
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
     except ImportError:
         raise RuntimeError(
-            "Import error occurred while importing FABDBManager. The apache-airflow-provider-fab package must be installed before we can "
+            "Import error occurred while importing FABDBManager. The apache-airflow-providers-fab package must be installed before we can "
             "downgrade to <3.0.0."
         )
 

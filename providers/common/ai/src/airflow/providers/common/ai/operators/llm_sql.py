@@ -50,6 +50,11 @@ class LLMSQLQueryOperator(LLMOperator):
     """
     Generate SQL queries from natural language using an LLM.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Inherits from :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     for LLM access and optionally uses a
     :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook`
@@ -123,7 +128,10 @@ class LLMSQLQueryOperator(LLMOperator):
         datasource_config: DataSourceConfig | None = None,
         **kwargs: Any,
     ) -> None:
-        kwargs.pop("output_type", None)  # SQL operator always returns str
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMSQLQueryOperator does not accept 'output_type'; it always returns the generated SQL as str."
+            )
         super().__init__(**kwargs)
         self.db_conn_id = db_conn_id
         self.table_names = table_names

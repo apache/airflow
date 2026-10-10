@@ -56,9 +56,10 @@ from airflow.sdk.execution_time.supervisor import (
 )
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from pydantic import BaseModel
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
 

@@ -22,7 +22,7 @@
 //
 // Reads the vendored Dag serialization schema (`schema/dag-schema.json`, kept
 // in sync with `airflow-core/src/airflow/serialization/schema.json` by the
-// `sync-ts-sdk-dag-schema` prek hook) and emits
+// `sync-ts-sdk-schemas` prek hook) and emits
 // `src/generated/dag-schema-fields.ts`: the two field interfaces plus the
 // table of schema keys and defaults the serializer needs.
 //

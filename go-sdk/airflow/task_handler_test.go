@@ -42,15 +42,15 @@ func literalArg(name, jsonType string, value any) map[string]any {
 }
 
 func startupDetails(
-	dagId, taskId string,
+	dagID, taskID string,
 	args ...genmodels.TaskArgBinding,
 ) *genmodels.StartupDetails {
 	mapIndex := -1
 	details := &genmodels.StartupDetails{
 		TI: genmodels.TaskInstance{
 			ID:        "550e8400-e29b-41d4-a716-446655440000",
-			DagID:     dagId,
-			TaskID:    taskId,
+			DagID:     dagID,
+			TaskID:    taskID,
 			RunID:     "run1",
 			TryNumber: 2,
 			MapIndex:  &mapIndex,
@@ -85,6 +85,10 @@ func panicMessage(t *testing.T, f func()) (msg string) {
 	return ""
 }
 
+type taskError struct{}
+
+func (*taskError) Error() string { return "task error" }
+
 func TestTaskHandlerPanicsOnBadHandler(t *testing.T) {
 	var unassigned func(Context) error
 
@@ -114,6 +118,11 @@ func TestTaskHandlerPanicsOnBadHandler(t *testing.T) {
 			name: "no error result",
 			fn:   func(Context) int { return 0 },
 			want: "last return value to return error but found int",
+		},
+		{
+			name: "error result of a concrete type",
+			fn:   func(Context) (int, *taskError) { return 0, nil },
+			want: "must declare its last result as error, not *airflow.taskError",
 		},
 		{
 			name: "parameter that cannot hold an argument",

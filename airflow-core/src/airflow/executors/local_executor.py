@@ -38,6 +38,7 @@ import structlog
 
 from airflow.executors.base_executor import BaseExecutor, get_execution_api_server_url
 from airflow.executors.workloads import WorkloadType
+from airflow.executors.workloads.types import state_class_for_key
 
 # add logger to parameter of setproctitle to support logging
 if sys.platform == "darwin":
@@ -49,7 +50,10 @@ else:
 
 if TYPE_CHECKING:
     from airflow.executors.workloads import ExecutorWorkload
-    from airflow.executors.workloads.types import WorkloadResultType
+    from airflow.executors.workloads.types import WorkloadKey, WorkloadState
+    from airflow.models.taskinstance import TaskInstance
+
+    LocalResult = tuple[int, WorkloadKey, WorkloadState | None, Exception | None]
 
 
 def _get_executor_process_title_prefix(team_name: str | None) -> str:
@@ -65,7 +69,7 @@ def _get_executor_process_title_prefix(team_name: str | None) -> str:
 def _run_worker(
     logger_name: str,
     input: SimpleQueue[ExecutorWorkload | None],
-    output: Queue[WorkloadResultType],
+    output: Queue[LocalResult],
     unread_messages: multiprocessing.sharedctypes.Synchronized[int],
     team_conf,
 ):
@@ -97,8 +101,8 @@ def _run_worker(
         with unread_messages:
             unread_messages.value -= 1
 
-        if workload.running_state is not None:
-            output.put((workload.key, workload.running_state, None))
+        key = LocalExecutor.get_workload_key(workload)
+        output.put((os.getpid(), key, workload.running_state, None))
 
         try:
             BaseExecutor.run_workload(
@@ -107,10 +111,10 @@ def _run_worker(
                 proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
                 subprocess_logs_to_stdout=True,
             )
-            output.put((workload.key, workload.success_state, None))
+            output.put((os.getpid(), key, workload.success_state, None))
         except Exception as e:
             log.exception("Workload execution failed.", workload_type=type(workload).__name__)
-            output.put((workload.key, workload.failure_state, e))
+            output.put((os.getpid(), key, workload.failure_state, e))
 
 
 class LocalExecutor(BaseExecutor):
@@ -126,6 +130,7 @@ class LocalExecutor(BaseExecutor):
     is_mp_using_fork: bool
 
     supports_multi_team: bool = True
+    supports_task_instance_uuid = True
     serve_logs: bool = True
     # The connection-test supervisor uses ``signal.SIGALRM`` (via ``TimeoutPosix``) to bound hook
     # execution, so ``TEST_CONNECTION`` support requires a POSIX worker (LocalExecutor runs on the host).
@@ -134,12 +139,14 @@ class LocalExecutor(BaseExecutor):
     )
 
     activity_queue: SimpleQueue[ExecutorWorkload | None]
-    result_queue: SimpleQueue[WorkloadResultType]
+    result_queue: SimpleQueue[LocalResult]
     workers: dict[int, multiprocessing.Process]
     _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._worker_tasks: dict[int, WorkloadKey] = {}
+        self._dispatch_counts: dict[WorkloadKey, int] = {}
 
         # Resolve the start method at instantiation, not at import: the component CLI entry may have
         # set it via [<component>]/[core] mp_start_method before the executor is created.
@@ -163,6 +170,8 @@ class LocalExecutor(BaseExecutor):
         self.activity_queue = SimpleQueue()
         self.result_queue = SimpleQueue()
         self.workers = {}
+        self._worker_tasks.clear()
+        self._dispatch_counts.clear()
 
         # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
         # (it looks like an int to python)
@@ -175,10 +184,16 @@ class LocalExecutor(BaseExecutor):
             self._spawn_workers_with_gc_freeze(self.parallelism)
 
     def _check_workers(self):
+        self._read_results()
         # Reap any dead workers
         to_remove = set()
         for pid, proc in self.workers.items():
             if not proc.is_alive():
+                self._read_results()
+                # A worker killed between dequeue and START has no entry here; the scheduler's
+                # stuck-in-queued handling releases that workload through revoke_task.
+                if (key := self._worker_tasks.pop(pid, None)) is not None:
+                    self._finish_dispatch(key, state_class_for_key(key).FAILED)
                 to_remove.add(pid)
                 proc.close()
 
@@ -244,14 +259,21 @@ class LocalExecutor(BaseExecutor):
 
     def sync(self) -> None:
         """Sync will get called periodically by the heartbeat method."""
-        self._read_results()
         self._check_workers()
 
     def _read_results(self):
         try:
             while not self.result_queue.empty():
-                key, state, exc = self.result_queue.get()
-                self.change_state(key, state)
+                pid, key, state, exc = self.result_queue.get()
+                if pid not in self.workers or key not in self.running:
+                    continue
+                if state is None or state == "running":
+                    self._worker_tasks[pid] = key
+                    if state is not None:
+                        self.change_state(key, state, remove_running=False)
+                elif self._worker_tasks.get(pid) == key:
+                    del self._worker_tasks[pid]
+                    self._finish_dispatch(key, state)
         except (OSError, EOFError):
             self.log.exception("Error reading from result queue")
 
@@ -314,10 +336,44 @@ class LocalExecutor(BaseExecutor):
 
     def _process_workloads(self, workload_list):
         for workload in workload_list:
+            key = self.get_workload_key(workload)
             self.activity_queue.put(workload)
-            removed = self.executor_queues[workload.type].pop(workload.key, None)
+            removed = self.executor_queues[workload.type].pop(key, None)
             if not removed:
-                raise KeyError(f"Workload {workload.key} was not found in any queue")
+                raise KeyError(f"Workload {key} was not found in any queue")
+            self.running.add(key)
+            self._dispatch_counts[key] = self._dispatch_counts.get(key, 0) + 1
         with self._unread_messages:
             self._unread_messages.value += len(workload_list)
         self._check_workers()
+
+    def _finish_dispatch(self, key: WorkloadKey, state: WorkloadState) -> None:
+        # A resumed attempt reuses its key, so the previous dispatch can finish while the next one is live.
+        remaining = self._dispatch_counts.pop(key, 1) - 1
+        if remaining > 0:
+            self._dispatch_counts[key] = remaining
+        super().change_state(key, state, remove_running=remaining <= 0)
+
+    def _forget_workload(self, key: WorkloadKey) -> None:
+        self._dispatch_counts.pop(key, None)
+        self._worker_tasks = {
+            pid: task_key for pid, task_key in self._worker_tasks.items() if task_key != key
+        }
+
+    def change_state(self, key, state, info=None, remove_running=True) -> None:
+        if remove_running:
+            self._forget_workload(key)
+        super().change_state(key, state, info=info, remove_running=remove_running)
+
+    def fail_connection_test(self, key) -> None:
+        self._forget_workload(key)
+        super().fail_connection_test(key)
+
+    def revoke_task(self, *, ti: TaskInstance) -> None:
+        key = self.get_task_key(ti)
+        self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key, None)
+        for pid, task_key in self._worker_tasks.items():
+            if task_key == key:
+                self._terminate_worker_process(self.workers[pid])
+        self._forget_workload(key)
+        self.running.discard(key)

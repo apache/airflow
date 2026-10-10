@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} / {{total}} 个资源事件已更新",
+  "assetSchedule": "{{count, number}} / {{total, number}} 个资源事件已更新",
   "dagActions": {
     "delete": {
       "button": "删除 Dag",
@@ -10,8 +10,6 @@
   "filters": {
     "allRunTypes": "全部执行类型",
     "allStates": "全部状态",
-    "anyRunState": "任意执行",
-    "anyRunStatePlaceholder": "选择任意执行的状态...",
     "favorite": {
       "all": "全部",
       "favorite": "已加入收藏",
@@ -19,8 +17,6 @@
     },
     "favoriteState": "收藏状态",
     "favoriteStatePlaceholder": "选择收藏状态...",
-    "lastRunState": "上次执行",
-    "lastRunStatePlaceholder": "选择上次执行的状态...",
     "noTimetableTypesFound": "找不到时间表类型",
     "paused": {
       "active": "已启用",
@@ -37,7 +33,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "找不到任务。",
-      "title": "受影响的任务：{{count}}"
+      "title": "受影响的任务：{{count, number}}"
     },
     "clear": {
       "button": "清除 {{type}}",

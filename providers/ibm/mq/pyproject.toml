@@ -45,14 +45,13 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -72,7 +71,9 @@ dependencies = [
     # Required at Runtime
     # IBM MQ ships its native C client only for Linux x86_64 / Windows x64, so the `ibmmq`
     # bindings cannot be built on ARM. Skip it there (mirrors provider.yaml excluded-platforms).
-    "ibmmq>=2.0.6; platform_machine != \"aarch64\" and platform_machine != \"arm64\"",
+    # 2.1.0 is the first release with a Linux x86_64 wheel; older ones are sdist-only and need the
+    # IBM MQ C client to build.
+    "ibmmq>=2.1.0; platform_machine != \"aarch64\" and platform_machine != \"arm64\"",
 ]
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=2.0.0"

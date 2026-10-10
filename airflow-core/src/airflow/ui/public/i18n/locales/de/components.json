@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "1 Lauf wird ausgelöst.",
-    "affected_other": "{{count}} Läufe werden ausgelöst.",
+    "affected_other": "{{count, number}} Läufe werden ausgelöst.",
     "affectedNone": "Keine Läufe entsprechen den Kriterien.",
     "allRuns": "Alle Läufe",
     "backwards": "Verarbeitung in Rückwärtiger Reihenfolge",
@@ -18,8 +18,8 @@
     "notCreatedReason": "Grund für die Nichterstellung",
     "overrideExistingParams": "Parameter bei bestehenden Läufen überschreiben",
     "partitionRange": "Partitionsbereich",
-    "partitionsAffected_one": "{{count}} Partition wird aufgefüllt:",
-    "partitionsAffected_other": "{{count}} Partitionen werden aufgefüllt:",
+    "partitionsAffected_one": "{{count, number}} Partition wird aufgefüllt:",
+    "partitionsAffected_other": "{{count, number}} Partitionen werden aufgefüllt:",
     "partitionsNone": "Keine Partitionen entsprechen dem ausgewählten Bereich.",
     "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
@@ -35,7 +35,6 @@
         "title": "Auffüllung gestartet"
       }
     },
-    "unpause": "Dag {{dag_display_name}} beim Start der Auffüllung aktiv schalten",
     "validation": {
       "datesRequired": "Sowohl Start- als auch Enddatum müssen angegeben werden.",
       "startBeforeEnd": "Das Startdatum muss vor oder auf dem Enddatum liegen."
@@ -53,7 +52,6 @@
   },
   "close": "Schließen",
   "configForm": {
-    "advancedOptions": "Erweiterte Optionen",
     "configJson": "JSON der Konfiguration",
     "invalidJson": "Ungültiges JSON Format: {{errorMessage}}"
   },
@@ -61,7 +59,7 @@
     "error_one": "1 Fehler",
     "errorAndWarning": "1 Fehler und {{warningText}}",
     "warning_one": "1 Warnung",
-    "warning_other": "{{count}} Warnungen"
+    "warning_other": "{{count, number}} Warnungen"
   },
   "dateRangeFilter": {
     "validation": {
@@ -73,9 +71,9 @@
   "durationChart": {
     "duration": "Laufzeit (Sekunden)",
     "lastDagRun_one": "Letzter Dag Lauf",
-    "lastDagRun_other": "Letzte {{count}} Dag Läufe",
+    "lastDagRun_other": "Letzte {{count, number}} Dag Läufe",
     "lastTaskInstance_one": "Letzte Task Instanz",
-    "lastTaskInstance_other": "Letzte {{count}} Task Instanzen",
+    "lastTaskInstance_other": "Letzte {{count, number}} Task Instanzen",
     "medianTotalDuration": "Gesamt: {{duration}}",
     "queuedDuration": "Zeit in der Warteschlange",
     "runAfter": "Lauf ab",
@@ -83,7 +81,7 @@
   },
   "fileUpload": {
     "files_one": "1 Datei",
-    "files_other": "{{count}} Dateien"
+    "files_other": "{{count, number}} Dateien"
   },
   "flexibleForm": {
     "durationPlaceholder": "Dauer im ISO-8601-Format (z.B. 'PT1H30M' für 1 Stunde und 30 Minuten)",
@@ -106,20 +104,24 @@
     "downloadImageError": "Herunterladen des Graph-Bildes fehlgeschlagen.",
     "downloadImageErrorTitle": "Herunterladen fehlgeschlagen",
     "otherDagRuns": "+Weitere Dag Läufe",
-    "taskCount_one": "{{count}} Task",
-    "taskCount_other": "{{count}} Tasks",
+    "taskCount_one": "{{count, number}} Task",
+    "taskCount_other": "{{count, number}} Tasks",
     "taskGroup": "Task Gruppe",
     "zoomToTask": "Zum ausgewählten Task zoomen"
   },
-  "limitedList": "+{{count}} mehr",
-  "limitedList.allItems": "Alle {{count}} Einträge:",
-  "limitedList.allTags_one": "Alle Markierungen ({{count}})",
-  "limitedList.allTags_other": "Alle Markierungen ({{count}})",
+  "jsonPreview": {
+    "items_one": "{{count, number}} Element",
+    "items_other": "{{count, number}} Elemente"
+  },
+  "limitedList": "+{{count, number}} mehr",
+  "limitedList.allItems": "Alle {{count, number}} Einträge:",
+  "limitedList.allTags_one": "Alle Markierungen ({{count, number}})",
+  "limitedList.allTags_other": "Alle Markierungen ({{count, number}})",
   "limitedList.clickToInteract": "Klicken Sie auf eine Markierung, um Dags zu filtern",
-  "limitedList.clickToOpenFull": "Klicken Sie auf \"+{{count}} mehr\" für die vollständige Ansicht",
+  "limitedList.clickToOpenFull": "Klicken Sie auf \"+{{count, number}} mehr\" für die vollständige Ansicht",
   "limitedList.copyPasteText": "Sie können den obigen Text kopieren und einfügen",
-  "limitedList.showingItems_one": "{{count}} Eintrag wird angezeigt",
-  "limitedList.showingItems_other": "{{count}} Einträge werden angezeigt",
+  "limitedList.showingItems_one": "{{count, number}} Eintrag wird angezeigt",
+  "limitedList.showingItems_other": "{{count, number}} Einträge werden angezeigt",
   "logs": {
     "file": "Datei",
     "location": "Zeile {{line}} in {{name}}"
@@ -128,11 +130,23 @@
     "hide": "Wert ausblenden",
     "show": "Wert anzeigen"
   },
+  "pausedDag": {
+    "drain": "Auslaufend",
+    "drainDescription": "Nicht beendete Läufe werden fortgesetzt, aber es werden keine neuen geplanten Läufe erstellt. Pausierte Läufe bleiben pausiert. Das Dag pausiert wieder sobald alle Läufe komplett sind.",
+    "keepPaused": "Pausiert lassen",
+    "keepPausedDescription": "Neue und nicht beendete Läufe warten bis die Dag-Pause beendet ist.",
+    "title": "Dag ist pausiert",
+    "unfinishedRunsWillRun_one": "{{count, number}} offener Dag Lauf wird starten oder weiterlaufen.",
+    "unfinishedRunsWillRun_other": "{{count, number}} offene Dag Läufe werden starten oder weiterlaufen.",
+    "unpause": "Unpausieren",
+    "unpauseDescription": "Das Dag wird aktiv: nicht komplettierte Läufe starten wieder und die Planung neuer Dag Läufe wird aufgenommen. Pausierte Auffüllungen bleiben pausiert."
+  },
   "reparseDag": "Dag neu parsen",
   "slowestTaskInstances": {
     "empty": "Keine abgeschlossenen Task Instanzen in diesem Bereich",
     "title": "Langsamste Task Instanzen"
   },
+  "sortMultiColumnHint": "Mit Großschreibtaste klicken um mehrere Spalten zur Sortierung zu verwenden",
   "sortedAscending": "aufsteigend sortiert",
   "sortedDescending": "absteigend sortiert",
   "sortedUnsorted": "unsortiert",
@@ -171,8 +185,7 @@
         "title": "Dag-Lauf ausgelöst"
       }
     },
-    "triggerAgainWithConfig": "Erneut mit dieser Konfiguration auslösen",
-    "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
+    "triggerAgainWithConfig": "Erneut mit dieser Konfiguration auslösen"
   },
   "trimText": {
     "details": "Details",
@@ -189,6 +202,7 @@
   "versionSelect": {
     "allVersions": "Alle Versionen",
     "dagVersion": "Dag Version",
+    "placeholder": "Version wählen",
     "versionCode": "v{{versionCode}}"
   }
 }

@@ -19,6 +19,8 @@ services:
   pinot:
     image: apachepinot/pinot:0.8.0
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for Apache Pinot hooks."
     ports:
       - "9080:9080"

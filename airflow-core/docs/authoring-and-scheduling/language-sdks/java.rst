@@ -41,8 +41,8 @@ Prerequisites
 
 * JDK 11 or later is required on the machine that builds the Java project. A local Gradle installation is only
   needed to generate the Gradle Wrapper for a new project.
-* JRE 11 or later must be available on the Airflow worker nodes.
-* The compiled task JAR(s) and JVM dependencies must be accessible from the worker.
+* JRE 11 or later must be available on the Airflow worker nodes and the Dag processor.
+* The compiled task JAR(s) and JVM dependencies must be accessible from the worker and the Dag processor.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator;
   no additional Python packages are needed.
 
@@ -56,7 +56,8 @@ deployment process are the same. See :ref:`java-sdk/interface-api` for the inter
 
 The Python Dag source and the Java Gradle project are independent. They do not need to be in the same
 repository or have any particular relative filesystem layout. The Dag follows the deployment's normal Dag
-delivery process; only the compiled Java bundle is deployed from the Gradle project to ``jars_root``.
+delivery process; only the compiled Java bundle is deployed from the Gradle project, into a separate Dag
+bundle that holds the JARs.
 
 Define the Python Dag
 ~~~~~~~~~~~~~~~~~~~~~
@@ -245,29 +246,71 @@ Deploy ``sales_pipeline.py`` separately through the deployment's normal Dag deli
 that process might sync it to ``${AIRFLOW_HOME}/dags/`` or package it in a Dag bundle; neither location is
 inside or relative to ``sales-pipeline-java/``.
 
-Configure Airflow so the coordinator scans the parent JAR directory recursively and routes the ``java`` queue
-to it. Add the following ``[sdk]`` section to the file selected by ``AIRFLOW_CONFIG`` (by default,
-``${AIRFLOW_HOME}/airflow.cfg``), or set the equivalent ``AIRFLOW__SDK__*`` environment variables:
+Configure Airflow to register the JAR directory as a Dag bundle, point the coordinator at it, and route the
+``java`` queue to the coordinator. Add the following sections to the file selected by ``AIRFLOW_CONFIG`` (by
+default, ``${AIRFLOW_HOME}/airflow.cfg``), or set the equivalent ``AIRFLOW__*`` environment variables:
 
 .. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}},
+        {
+          "name": "java-task-handlers",
+          "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+          "kwargs": {"path": "/opt/airflow/jars/sales-pipeline"}
+        }
+      ]
 
     [sdk]
     coordinators = {
       "java": {
         "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-        "kwargs": {"jars_root": ["/opt/airflow/jars"]}
+        "kwargs": {"task_handler_bundle_name": "java-task-handlers"}
       }
     }
     queue_to_coordinator = {"java": "java"}
 
 ``java`` is a user-chosen coordinator name, not a reserved value. The value assigned to the queue in
-``queue_to_coordinator`` must match a key in ``coordinators``.
+``queue_to_coordinator`` must match a key in ``coordinators``, and ``task_handler_bundle_name`` must match a
+Dag bundle name in ``dag_bundle_config_list``. See :ref:`java-sdk/coordinator-config` for how JARs are
+located.
 
-Restart the affected Airflow components after changing this configuration. The coordinator config and JARs
-must be available wherever tasks execute. With ``CeleryExecutor``, that means the Celery workers; with
-``LocalExecutor``, tasks run in subprocesses on the scheduler's host. The API server and Dag processor do not
-need the JARs, while the Dag processor must receive ``sales_pipeline.py`` through the separate Dag delivery
-process.
+Restart the affected Airflow components after changing this configuration. The coordinator config, the JARs
+and a JRE must be available wherever tasks execute and on the Dag processor. With ``CeleryExecutor``, tasks
+execute on the Celery workers; with ``LocalExecutor``, they run in subprocesses on the scheduler's host. The
+Dag processor checks the stub tasks of ``sales_pipeline.py`` against the task handlers the JARs register, so
+it runs them too. The API server does not need any of it. Register the Dag bundle in
+``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker and
+the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read
+it is rejected if the name is missing there. The Dag processor still receives ``sales_pipeline.py`` through
+the separate Dag delivery process.
+
+A Dag processor with this ``[sdk]`` configuration also parses the executable JARs of every Dag bundle,
+and needs a JRE to do so (see :ref:`java-sdk/native-dag-parsing`). Keep it from parsing a bundle's JARs
+with that bundle's ``.airflowignore``, whose pattern syntax follows ``[core] dag_ignore_file_syntax``.
+
+With ``task_handler_bundle_name`` set to its own bundle, as above, ``java-task-handlers`` holds only the
+JARs the Python Dag's tasks run, so ignoring everything in it is safe:
+
+.. code-block:: bash
+
+    # [core] dag_ignore_file_syntax = glob (the default)
+    echo '*' > /opt/airflow/jars/sales-pipeline/.airflowignore
+
+    # [core] dag_ignore_file_syntax = regexp; a bare * is not a valid pattern and is dropped
+    echo '.' > /opt/airflow/jars/sales-pipeline/.airflowignore
+
+With ``task_handler_bundle_name`` unset, the JAR sits in the same Dag bundle as ``sales_pipeline.py``, so
+ignore only the JAR, not the whole bundle:
+
+.. code-block:: bash
+
+    # [core] dag_ignore_file_syntax = glob (the default)
+    echo '*.jar' >> /opt/airflow/dags/.airflowignore
+
+    # [core] dag_ignore_file_syntax = regexp
+    echo '\.jar$' >> /opt/airflow/dags/.airflowignore
 
 After Airflow has parsed the Dag, trigger it from the UI or command line:
 
@@ -306,6 +349,17 @@ Annotate a plain Java class and let the SDK generate the boilerplate at compile 
        ``dag`` must match the ``dag_id`` and ``task`` the stub function name; omitting ``task``
        derives it from the method name.  There is no class-level annotation on this surface — the
        Dag is the Python file's, so the handler names the pair it binds to.
+   * - ``@Builder.Dag(id = "...")``
+     - Marks a class as a Dag that Java itself owns.  Attributes (``schedule``, ``description``,
+       ``tags``, ``catchup``, …) are Airflow's own Dag settings; only attributes written
+       explicitly are applied.  See :ref:`java-sdk/native-dags`.
+   * - ``@Builder.Task(id = "...")``
+     - Marks a method as a task of a Java-owned Dag.  If ``id`` is omitted the method name is
+       used.  Further attributes (``retries``, ``queue``, ``retryDelay``, …) are Airflow's own
+       task settings; only attributes written explicitly are applied.
+   * - ``@Builder.Deps``
+     - Marks the nested class that declares the task graph in Java, TaskFlow-style.  Required for
+       a Dag that Java owns end to end.  See :ref:`java-sdk/native-dags`.
    * - ``TaskInput`` / ``@ArgName("...")``
      - Marks a class as a task's input, so keyword arguments bind by name instead of by position:
        each public field receives the argument whose name matches it, ignoring case and
@@ -348,7 +402,8 @@ Interface-based API
 ~~~~~~~~~~~~~~~~~~~
 
 Implement the ``Task`` interface directly for full control over how tasks are registered and how XComs are
-read.  Each task is registered as a ``TaskDef`` on a ``DagDef``.
+read.  Each task is registered as a ``TaskDef`` on a ``DagDef``; both carry a fluent
+``config(key, value)`` whose keys are Airflow's own setting names.
 
 The runner creates a fresh instance of the task class through reflection for every task-instance run,
 which puts four constraints on the class:
@@ -537,16 +592,15 @@ calls with no arguments.
 Native Java Dags
 ----------------
 
-A Dag can also be authored entirely in Java, with no Python stub file: the ``DagDef`` and
-``TaskDef`` objects hold the tasks, and Java declares the graph.
+A Dag can also be authored entirely in Java: the annotations (or the ``DagDef`` / ``TaskDef``
+objects) carry the configuration, and Java declares the graph.
 
 Building the Dag in Java
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-``dag.task(...)`` registers a task as it creates it and hands back a handle, so there is no second
-``addTask`` call to forget.  ``before`` and ``after`` draw every edge on this surface — Python's
-``a >> b`` and ``b << a`` — and the task body moves the data itself, by reading the upstream's XCom
-through ``Client``:
+``dag.task(...)`` registers a task as it creates it and hands back a handle.  ``before`` and
+``after`` draw every edge on this surface, and the task body moves the data itself, by reading the
+upstream's XCom through ``Client``:
 
 .. code-block:: java
 
@@ -565,6 +619,258 @@ their own receiver, so a chain reads from one task outwards.  ``Flow.of(a, b).be
 Edges are checked when the Dag is registered with a ``Bundle``: an upstream that belongs to another
 Dag, or to no Dag, and a cycle anywhere in the graph both fail there rather than at the first task
 run.
+
+Wiring the graph with ``@Builder.Deps``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For a Dag written with annotations, the graph is declared by a nested ``@Builder.Deps`` class.  The
+annotation processor generates a ``<ClassName>Deps`` interface, the *wiring view*, with one method
+per ``@Builder.Task`` method: the injected ``Client`` and ``Context`` parameters are dropped, each
+data parameter becomes an ``Arg<T>``, and the return value becomes a ``TaskRef<T>``.  Calling a view
+method registers its task, and passing the handle one returned into another feeds the upstream's
+output into the downstream's parameter *and* wires the data edge.  The call graph is the task graph,
+and ``javac`` type-checks it.
+
+Declare the wiring class as a ``static`` nested class of the Dag class that ``implements`` the
+generated view, with a no-argument ``depends()`` method:
+
+.. code-block:: java
+
+    @Builder.Dag(
+        id = "java_etl",
+        schedule = "@daily",
+        description = "Pure-Java Dag built with annotations",
+        tags = {"example", "java-sdk"})
+    public class EtlPipeline {
+
+      @Builder.Task(id = "extract", retries = 2)
+      public long extract() {
+        return 42L;
+      }
+
+      @Builder.Task(id = "transform")
+      public long transform(long extracted, double factor) {
+        return (long) (extracted * factor);
+      }
+
+      @Builder.Task(id = "load")
+      public void load(long transformed) {
+        // implement task logic
+      }
+
+      @Builder.Task(id = "audit")
+      public void audit() {
+        // side effect only, no data in or out
+      }
+
+      @Builder.Deps
+      static class Wiring implements EtlPipelineDeps {
+        void depends() {
+          var rows = extract();
+          load(transform(rows, lit(0.9)));
+          rows.before(audit()); // ordering-only edge: audit waits for extract
+        }
+      }
+    }
+
+Every ``@Builder.Task`` method must be called in the wiring class; a task the wiring missed fails at
+Dag-parse time.  ``lit(...)`` wires an inline constant where no upstream feeds a parameter.  A bare
+``double`` cannot be an ``Arg``, so a constant is wrapped.  Airflow records what each task is called
+with, and that record travels as JSON, so a constant has to be a string, number, boolean, list or
+map.  A view method that takes no arguments
+returns the same handle every time, so it names one node wherever it appears; one that takes
+arguments is called once, and the wiring fails if it is called again with arguments, so hold its
+handle in a local and reuse that.
+
+``before``, ``after`` and ``Flow.of`` work here exactly as they do on the interface surface; inside
+the wiring class ``Flow`` is inherited by simple name, so it needs no import and never collides with
+``java.util.concurrent.Flow``.
+
+Every ``@Builder.Dag`` class declares a wiring class, because the graph is what the Dag owns.  A
+class that supplies only task bodies, for a Dag a Python file declares, carries
+``@Builder.TaskHandler`` instead and contributes no Dag.
+
+.. note::
+
+   A native Java Dag binds its task arguments from its own wiring, and the ``_arg_bindings`` it
+   serializes are what Airflow records and shows.  Runtime bindings (see :ref:`java-sdk/arg-binding`)
+   are what a ``@Builder.TaskHandler`` class reads, for a task whose Dag a Python file declares.
+
+Task groups
+~~~~~~~~~~~
+
+A task group gathers tasks that the Airflow UI shows as one node, as Python's ``TaskGroup`` does.
+Everything declared in a group carries the group's ID as a prefix, so task ``stage`` in group
+``staging`` is the task ``staging.stage``.  On the interface surface, ``taskGroup`` declares a group on
+the Dag or inside another group, and the group declares its tasks:
+
+.. code-block:: java
+
+    var staging = dag.taskGroup("staging");
+    var stage = staging.task("stage", Stage.class);              // "staging.stage"
+    staging.taskGroup("checks").task("nulls", Nulls.class).after(stage); // "staging.checks.nulls"
+    extract.before(staging);
+
+With annotations, a ``@Builder.TaskGroup`` class holds the tasks of one group, and nesting one in
+another nests the groups:
+
+.. code-block:: java
+
+    @Builder.TaskGroup                      // the group "Staging", after the class
+    static class Staging {
+      @Builder.Task
+      public long stage(long rows) { ... }  // the task "Staging.stage"
+
+      @Builder.TaskGroup(id = "checks")
+      static class Checks {
+        @Builder.Task
+        public void nulls(long staged) { ... }   // "Staging.checks.nulls"
+      }
+    }
+
+    @Builder.Deps
+    static class Wiring implements EtlPipelineDeps {
+      void depends() {
+        var rows = extract();
+        load(transform(rows, lit(0.9)));
+        rows.before(audit());
+        var staged = staging().stage(rows);
+        staging().checks().nulls(staged);
+        extract().before(staging());
+      }
+    }
+
+The generated view nests the same way, so a group is both the namespace of what it holds and a point
+in the flow: ``staging().checks().nulls(staged)`` reaches a task, and ``extract().before(staging())``
+orders the whole group.  Task method names scope to their own group, so two groups can each declare
+``run()``.  A group class is ``static``, non-private, and needs a no-argument constructor, because the
+generated task bodies instantiate it.
+
+A group stands at either end of ``before``, ``after`` and ``Flow.of``.  As an upstream it stands for
+its leaves, the tasks nothing else in the group runs after; as a downstream, for its roots, the tasks
+that run after nothing else in the group.  A group ID contains only ASCII letters, digits,
+underscores, or dashes, and no task or other group in the Dag can share it.
+
+.. note::
+
+    What a group holds is read once, when the Dag is serialized, which is what lets the wiring class
+    above order a whole group before any of its tasks are declared, as ``extract().before(staging())``
+    does.  Python instead reads it at each ``>>``.  Edges are still resolved in the order they were
+    drawn, as Python resolves them, so drawing an inner edge before or after an outer one gives
+    different upstreams.
+
+Configuration attributes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``@Builder.Dag`` and ``@Builder.Task`` configuration attributes, and the keys accepted by
+``DagDef.config`` and ``TaskDef.config``, are Airflow's own Dag and task settings, under the names
+Airflow uses.  Annotation attributes are ``camelCase`` (``retryDelay``); ``config`` keys are those
+names as Airflow writes them (``"retry_delay"``).
+Only attributes written explicitly at the use site are applied, so Airflow's own defaults still
+apply to everything left out.
+
+Durations and date-times are ISO-8601 strings in annotations (``retryDelay = "PT5M"``,
+``startDate = "2026-01-01T00:00:00Z"``, validated at compile time) and ``java.time.Duration`` /
+``java.time.OffsetDateTime`` values in ``config`` calls.  An unknown key or a mismatched value type
+fails the build for an annotation, and the ``config`` call itself for an object.
+
+A Dag with a cron ``schedule`` runs in the time zone of its ``startDate``.  With no ``startDate`` it
+is scheduled in UTC, so set ``startDate`` to pin the zone.
+
+.. _java-sdk/task-state-store:
+
+Task state store
+~~~~~~~~~~~~~~~~
+
+``client.getTaskStateStore()`` gives a task key-value state that is scoped to the task instance and
+survives retry attempts within the same Dag run (see :doc:`/core-concepts/task-state-store`). Use it to
+remember things like an external job ID so a retried task can resume instead of starting over:
+
+.. code-block:: java
+
+    @Builder.Task(id = "submit")
+    public void submit(Client client) throws Exception {
+      var store = client.getTaskStateStore();
+      var jobId = (String) store.get("job_id");
+      if (jobId == null) {
+        jobId = submitJob();
+        store.set("job_id", jobId, Duration.ofHours(6));
+      }
+      waitForJob(jobId);
+      store.delete("job_id");
+    }
+
+``get`` returns ``null`` when the key is not set. ``set`` stores any JSON-serializable value. Pass a positive
+``java.time.Duration`` to expire the key after that long, ``TaskStateStore.NEVER_EXPIRE`` for a key that
+garbage collection skips, or omit the retention to use the deployment's ``[state_store] default_retention_days``
+(0 means never expire). The coordinator passes that setting to the JVM as
+``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``. A zero or negative retention is rejected. ``delete`` removes
+one key and ``clear`` removes every key for the task instance. The Java SDK does not use a
+``[workers] state_store_backend``: values always go to the metadata database as-is, so keys written by Python
+tasks through a custom backend are returned to Java as the raw reference marker rather than the stored value.
+
+.. _java-sdk/native-dag-parsing:
+
+Parsing native Java Dags
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+To have Airflow parse the Dags a bundle JAR declares,
+put the JAR in a Dag bundle and configure a :class:`~airflow.sdk.coordinators.java.JavaCoordinator`.
+The Dag processor runs the JAR's main class to list its Dags, so it needs a Java executable, as the workers do:
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {
+      "java-native": {
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {"java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java"}
+      }
+    }
+    queue_to_coordinator = {"java-native": "java-native"}
+
+Once a ``JavaCoordinator`` is configured, the Dag processor parses the executable JARs of every Dag bundle,
+so it needs this ``[sdk]`` configuration and a JRE. With one ``JavaCoordinator``, it parses them all.
+With several, map each Dag bundle that holds native Java Dags to one of them in ``[sdk] dag_bundle_to_coordinator``.
+A JAR in a bundle that has no entry, or an entry that names no ``JavaCoordinator``, fails to parse with an import error:
+
+.. code-block:: ini
+
+    [sdk]
+    dag_bundle_to_coordinator = {"dags-folder": "java-native"}
+
+A Dag bundle that holds only the JARs that Python Dags' tasks run should list ``*`` in its ``.airflowignore``
+either way: with one ``JavaCoordinator`` its JARs are still parsed on every loop, and a JAR built with a Java
+SDK older than schema ``2026-10-30``, every released one today, fails to parse as an import error. With
+several Java coordinators, an unmapped bundle's JARs fail to parse too.
+
+* Every JAR in the bundle whose manifest sets ``Main-Class`` is parsed. Each Dag its main class
+  declares, through ``Bundle.register`` of a ``DagDef`` or an ``@Builder.Dag`` class, is stored with
+  that JAR as its file. Task handlers for a Python Dag are not Dags. A JAR without ``Main-Class`` is
+  skipped, but many dependency JARs set one (the PostgreSQL JDBC driver and H2 do, for example), so a
+  thin bundle should set ``main_class`` or list its dependency JARs in ``.airflowignore``.
+* Parsing needs a JAR built with a Java SDK whose supervisor schema version (the
+  ``Airflow-Supervisor-Schema-Version`` manifest attribute) is ``2026-10-30`` or later. An older JAR
+  fails to parse, so list it in ``.airflowignore``; its tasks still find it, because tasks do not read
+  ``.airflowignore``.
+* Do not declare a Dag in Java that a Python file in the same bundle also defines.
+* Keep one executable JAR per bundle, or set ``main_class``, so that only JARs with that
+  ``Main-Class`` are parsed. List JARs that should not be parsed in ``.airflowignore``.
+* Two JARs in the bundle that set the same ``Main-Class`` fail to parse, because the JVM would load
+  the classes of only one of them. Keep one in the bundle.
+* Set ``queue`` on every task, with ``@Builder.Task(queue = "java-native")`` or
+  ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
+  Dag-level queue yet.
+* A task runs the JAR of its Dag on the ``JavaCoordinator`` that its queue routes to,
+  which need not be the one that parsed the JAR. For example, a queue can route to a coordinator that uses another JDK.
+  A task whose queue routes to another kind of coordinator fails without retries. A task whose JAR is missing,
+  or that the coordinator cannot run (for example, because ``main_class`` does not match the JAR's ``Main-Class``),
+  fails and retries while it has retries left.
+* The Code view shows the source of the JAR's main class, which the Gradle plugin packs into the JAR.
+* Cluster policies (``dag_policy``, ``task_policy``) are not applied to a native Java Dag.
+* ``airflow dags reserialize`` does not store the Dags of a JAR, which only the Dag processor stores.
+  ``airflow dags test``, ``tasks test`` and ``tasks render`` refuse a native Java Dag.
+  ``airflow tasks list`` lists its tasks by running the JAR's main class, so it needs a JRE.
 
 .. _java-sdk/logging:
 
@@ -703,7 +1009,7 @@ configuration):
       "java-jdk17": {
         "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
         "kwargs": {
-          "jars_root": ["/opt/airflow/jars"],
+          "task_handler_bundle_name": "java-task-handlers",
           "jvm_args": ["-Djava.util.logging.config.file=/opt/airflow/logging.properties"]
         }
       }
@@ -828,9 +1134,19 @@ Then run:
 
     ./gradlew bundle
 
-The ``build/bundle/`` directory contains all required JAR(s). Copy or mount it into the directory pointed to
-by ``jars_root`` in the coordinator configuration. :class:`~airflow.sdk.coordinators.java.JavaCoordinator`
-scans ``jars_root`` recursively and builds the classpath automatically.
+The ``build/bundle/`` directory contains all required JAR(s). Copy or mount it into the Dag bundle named by
+``task_handler_bundle_name`` in the coordinator configuration.
+:class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans that Dag bundle recursively and builds the
+classpath automatically.
+
+The plugin also packs the source file of ``mainClass``, and of each class that declares a Dag in Java,
+into the bundle JAR, so the Airflow UI can show the source of a native Java Dag (see
+:ref:`java-sdk/native-dag-parsing`). To find those classes, the plugin runs ``mainClass`` once at build
+time. If that run fails, the build logs a warning and packs only the ``mainClass`` source.
+
+A Dag is recorded against the class that constructed it. A Dag built by a factory therefore maps to the
+factory's class, and one built by a factory in a dependency JAR has no source in the project and falls
+back to the ``mainClass`` source.
 
 .. note::
 
@@ -842,8 +1158,7 @@ scans ``jars_root`` recursively and builds the classpath automatically.
   The plugin generates a fat JAR with the `Shadow <https://gradleup.com/shadow/>`__ plugin by default. This is
   generally a good idea since you only deploy one JAR file to avoid dependency issues between projects. If this
   does not suit you, set ``fatJar = false`` in ``airflowBundle`` to produce thin JARs instead. The rest of the
-  process stays the same, but you will need to put all dependency JARs somewhere Airflow can find with
-  ``jars_root``.
+  process stays the same, but you will need to put all dependency JARs in the same Dag bundle.
 
 .. _java-sdk/build/maven:
 
@@ -933,8 +1248,8 @@ Then run:
 
     mvn package
 
-The fat JAR is written to ``target/<artifactId>-<version>.jar``. Copy it to the directory configured as
-``jars_root`` in your coordinator.
+The fat JAR is written to ``target/<artifactId>-<version>.jar``. Copy it into the Dag bundle named by
+``task_handler_bundle_name`` in your coordinator.
 
 **Option 2: thin JAR with separate dependencies**
 
@@ -994,8 +1309,8 @@ Then run:
 
     mvn package
 
-``target/bundle/`` will contain the thin JAR and all runtime dependency JARs. Point ``jars_root`` at
-this directory.
+``target/bundle/`` will contain the thin JAR and all runtime dependency JARs. Copy or mount this
+directory into the Dag bundle named by ``task_handler_bundle_name``.
 
 .. note::
 
@@ -1005,6 +1320,32 @@ this directory.
 
   Unlike the Gradle plugin, Maven has no equivalent of the ``verifyBundleMainClass`` validation step.
   A wrong ``<mainClass>`` value will not be caught until runtime.
+
+To show the source of a native Java Dag in the Airflow UI, pack the main class's source file under
+``META-INF/airflow/sources/`` with an index that names it, ``src/main/resources/META-INF/airflow/sources.json``:
+
+.. code-block:: json
+
+    {"entrypoint_path": "com/example/Main.java"}
+
+.. code-block:: xml
+
+    <build>
+        <resources>
+            <!-- Declaring resources replaces the default, so keep it. -->
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>src/main/java/com/example</directory>
+                <includes><include>Main.java</include></includes>
+                <targetPath>META-INF/airflow/sources/com/example</targetPath>
+            </resource>
+        </resources>
+    </build>
+
+Then add ``<Airflow-Java-SDK-Sources>META-INF/airflow/sources.json</Airflow-Java-SDK-Sources>`` to the
+``manifestEntries`` of ``maven-shade-plugin`` or ``maven-jar-plugin`` shown above.
 
 .. _java-sdk/coordinator-config:
 
@@ -1021,10 +1362,13 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - Parameter
      - Default
      - Description
-   * - ``jars_root``
-     - *(required)*
-     - One or more directories scanned recursively for ``.jar`` files. Accepts a string,
-       a path, or a list of strings/paths.
+   * - ``task_handler_bundle_name``
+     - *(task's own Dag bundle)*
+     - Name of the Dag bundle scanned recursively for ``.jar`` files. It is used only by
+       mixed-language Dags, to locate the task handlers for the ``@task.stub`` tasks of a Python Dag;
+       Dags defined natively in a language SDK do not use it. It must be registered in
+       ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]`` configuration is
+       loaded, so a typo fails there rather than on the first task.
    * - ``java_executable``
      - ``"java"``
      - Path to the ``java`` binary.  Defaults to ``java`` on ``$PATH``.
@@ -1033,10 +1377,11 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Extra JVM arguments such as ``["-Xmx1g", "-Dsome.property=value"]``.
    * - ``main_class``
      - *(auto-detect)*
-     - Explicit entry-point class. If omitted,
-       :class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans ``jars_root`` for a
-       JAR whose manifest sets ``Main-Class``. If multiple executable JARs are found the
-       result is non-deterministic; set ``main_class`` explicitly in that case.
+     - Explicit entry-point class. If omitted, the coordinator scans the Dag bundle for a JAR
+       whose manifest sets ``Main-Class``. If more than one JAR in that Dag bundle sets it, the first
+       by path is used, so set ``main_class`` explicitly in that case.
+       A task of a native Java Dag runs the JAR the Dag was parsed from.
+       When the coordinator parses native Java Dags, only JARs with this ``Main-Class`` are parsed.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
@@ -1044,10 +1389,29 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
 .. note::
 
+  **Locating JARs.** The JARs for the ``@task.stub`` tasks of a Python Dag are read from a Dag bundle, so
+  they are delivered, refreshed and versioned by the same machinery as your Dags.
+
+  * The expected layout is a separate Dag bundle for the JARs, named by ``task_handler_bundle_name``,
+    rather than the Dag bundle that holds your ``.py`` files. The task uses the version that Dag bundle
+    is on when it starts, pinned for the whole task.
+  * If ``task_handler_bundle_name`` is unset, JARs are read from the **task's own** Dag bundle, pinned
+    to the version the run was created with.
+  * Every JAR in the Dag bundle goes on one classpath, so all handlers in it share one set of
+    dependencies. To isolate conflicting dependency versions, put the handlers in a second Dag bundle
+    served by a second coordinator on its own queue.
+
+  A task of a native Java Dag ignores ``task_handler_bundle_name``:
+  it runs the JAR of its Dag from the Dag's own bundle, at the version the run was created with.
+  See :ref:`java-sdk/native-dag-parsing`.
+
+.. note::
+
   The ``[sdk]`` configuration is read at startup, so changes to ``coordinators`` or
   ``queue_to_coordinator`` (for example adding ``jvm_args``) only take effect after you restart the
-  scheduler (or ``airflow standalone``). A rebuilt bundle JAR, by contrast, is picked up on the next
-  task launch without a restart, because a fresh JVM is spawned per task instance.
+  components that read it: the workers (the scheduler with ``LocalExecutor``), the Dag processor, or
+  ``airflow standalone``. A rebuilt bundle JAR, by contrast, is picked up on the next task launch without a
+  restart, because a fresh JVM is spawned per task instance.
 
 .. _java-sdk/java-executable:
 
@@ -1069,7 +1433,7 @@ point ``java_executable`` at it explicitly:
       "java-jdk17": {
         "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
         "kwargs": {
-          "jars_root": ["/opt/airflow/jars"],
+          "task_handler_bundle_name": "java-task-handlers",
           "java_executable": "/opt/homebrew/opt/openjdk@17/bin/java"
         }
       }

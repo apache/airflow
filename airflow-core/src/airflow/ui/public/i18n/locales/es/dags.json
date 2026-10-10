@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} de {{total}} assets actualizados",
+  "assetSchedule": "{{count, number}} de {{total, number}} assets actualizados",
   "dagActions": {
     "delete": {
       "button": "Eliminar Dag",
@@ -10,8 +10,6 @@
   "filters": {
     "allRunTypes": "Todos los Tipos de Ejecución",
     "allStates": "Todos los Estados",
-    "anyRunState": "Cualquier Ejecución",
-    "anyRunStatePlaceholder": "Seleccionar cualquier estado de ejecución…",
     "favorite": {
       "all": "Todos",
       "favorite": "Favoritos",
@@ -19,8 +17,6 @@
     },
     "favoriteState": "Estado de Favorito",
     "favoriteStatePlaceholder": "Seleccionar estado de favorito…",
-    "lastRunState": "Última Ejecución",
-    "lastRunStatePlaceholder": "Seleccionar estado de la última ejecución…",
     "noTimetableTypesFound": "No se encontraron tipos de programación",
     "paused": {
       "active": "Activo",
@@ -37,7 +33,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No se encontraron tareas.",
-      "title": "Tareas Afectadas: {{count}}"
+      "title": "Tareas Afectadas: {{count, number}}"
     },
     "clear": {
       "button": "Limpiar {{type}}",

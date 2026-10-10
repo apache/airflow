@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} מתוך {{total}} נכסים עודכנו",
+  "assetSchedule": "{{count, number}} מתוך {{total, number}} נכסים עודכנו",
   "dagActions": {
     "delete": {
       "button": "מחק Dag",
@@ -10,13 +10,11 @@
   "filters": {
     "allRunTypes": "כל סוגי הריצות",
     "allStates": "כל המצבים",
-    "anyRunState": "ריצה כלשהי",
     "favorite": {
       "all": "הכל",
       "favorite": "מועדף",
       "unfavorite": "לא מועדף"
     },
-    "lastRunState": "ריצה אחרונה",
     "paused": {
       "active": "פעיל",
       "all": "הכל",
@@ -28,7 +26,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "לא נמצאו משימות.",
-      "title": "משימות שהושפעו: {{count}}"
+      "title": "משימות שהושפעו: {{count, number}}"
     },
     "clear": {
       "button": "נקה {{type}}",

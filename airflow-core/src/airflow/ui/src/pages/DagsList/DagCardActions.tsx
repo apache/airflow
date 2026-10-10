@@ -38,7 +38,6 @@ export const DagCardActions = ({ dag }: { readonly dag: DAGWithLatestDagRunsResp
       allowedRunTypes={dag.allowed_run_types}
       dagDisplayName={dag.dag_display_name}
       dagId={dag.dag_id}
-      isPaused={dag.is_paused}
     />
     <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />
     <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />

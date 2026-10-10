@@ -184,8 +184,8 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Varlık Etkinlikleri Alındı"
   },
-  "pendingDagRun_one": "{{count}} Bekleyen Dag Çalıştırması",
-  "pendingDagRun_other": "{{count}} Bekleyen Dag Çalıştırması",
+  "pendingDagRun_one": "{{count, number}} Bekleyen Dag Çalıştırması",
+  "pendingDagRun_other": "{{count, number}} Bekleyen Dag Çalıştırması",
   "reset": "Sıfırla",
   "runId": "Çalıştırma Kimliği",
   "runTypes": {
@@ -326,21 +326,21 @@
     "bulkClear": {
       "error": "Toplu {{resourceName}} Temizleme İsteği Başarısız",
       "success": {
-        "description": "{{count}} {{resourceName}} başarıyla temizlendi. Anahtarlar: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} başarıyla temizlendi. Anahtarlar: {{keys}}",
         "title": "Toplu {{resourceName}} Temizleme İsteği Gönderildi"
       }
     },
     "bulkDelete": {
       "error": "Toplu {{resourceName}} Silme İsteği Başarısız",
       "success": {
-        "description": "{{count}} {{resourceName}} başarıyla silindi. Anahtarlar: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} başarıyla silindi. Anahtarlar: {{keys}}",
         "title": "Toplu {{resourceName}} Silme İsteği Gönderildi"
       }
     },
     "bulkUpdate": {
       "error": "Toplu {{resourceName}} Güncelleme İsteği Başarısız",
       "success": {
-        "description": "{{count}} {{resourceName}} başarıyla güncellendi. Anahtarlar: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} başarıyla güncellendi. Anahtarlar: {{keys}}",
         "title": "Toplu {{resourceName}} Güncelleme İsteği Gönderildi"
       }
     },
@@ -361,7 +361,7 @@
     "import": {
       "error": "{{resourceName}} İçe Aktarma İsteği Başarısız",
       "success": {
-        "description": "{{count}} {{resourceName}} başarıyla içe aktarıldı.",
+        "description": "{{count, number}} {{resourceName}} başarıyla içe aktarıldı.",
         "title": "{{resourceName}} İçe Aktarma İsteği Gönderildi"
       }
     },

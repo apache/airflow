@@ -23,7 +23,8 @@ Human-in-the-loop (HITL) review for agents
 HITL Review adds an interactive feedback loop to agentic operators. After the
 LLM Agent produces an initial output, a human reviewer can **approve**, **reject**, or
 **request changes** through a chat UI. The operator blocks until a
-terminal action, or until a timeout is reached or max_iterations reached.
+terminal action, or until a timeout is reached, max_iterations is reached, or
+polling the review XCom keeps failing.
 
 This document describes the architecture, workflow, API, XCom schema, and usage.
 
@@ -50,7 +51,8 @@ the API server and accesses the metadata database.
 
 .. important::
    **Worker slot usage**: Each HITL task **holds a worker slot for the entire
-   review duration** (until approve, reject, or timeout or max_iterations). The operator polls
+   review duration** (until approve, reject, timeout, max_iterations, or
+   repeated XCom polling failures). The operator polls
    XCom with ``time.sleep``; it does not defer. With a 10-second poll interval
    and review times of 30+ minutes, the worker is occupied for the duration.
 
@@ -63,32 +65,43 @@ carries no in-process state.
 Workflow
 --------
 
-.. code-block:: text
+The operator and the plugin never talk to each other directly — every
+arrow below crosses the XCom store. The operator holds its worker slot for
+the whole loop; it polls instead of deferring because the agent's message
+history and tool state live in-process.
 
-    [Operator]                    [API Server / Plugin]
-         |                                 |
-         | 1. Generate output              |
-         | 2. Push session + output_1      |
-         |    to XCom                      |
-         |                                 |
-         | 3. Poll XCOM_HUMAN_ACTION       |
-         |    (sleep, poll, repeat)        |
-         |                                 | 4. Reviewer opens chat UI,
-         |                                 |    submits feedback / approve / reject
-         |                                 | 5. Plugin writes human action
-         |                                 |    to XCom
-         | 6. Read action from XCom        |
-         |                                 |
-         | 7a. approve → return output     |
-         | 7b. reject  → raise HITLRejectException
-         | 7c. changes_requested           |
-         |     → regenerate_with_feedback  |
-         |     → push output_2, loop to 3  |
-         | 7d. max_iterations reached      |
-         |     (iteration >= max, human requests changes) |
-         |     → push status max_iterations_exceeded, raise HITLMaxIterationsError
-         | 7e. hitl_timeout elapsed        |
-         |     → push status timeout_exceeded, raise HITLTimeoutError
+.. mermaid::
+
+    sequenceDiagram
+        participant Op as Operator (worker)
+        participant X as XCom
+        participant P as API server / plugin
+        participant H as Reviewer
+
+        Op->>X: push agent_session + agent_output_1
+        loop until a terminal action
+            Op->>X: poll airflow_hitl_review_human_action
+            H->>P: open chat UI, submit action
+            P->>X: write human_action + feedback
+            X-->>Op: read action
+            Op->>Op: handle action (see below)
+        end
+
+Once the operator reads a human action, it resolves to one of five outcomes:
+
+.. mermaid::
+
+    flowchart TD
+        A[Read human_action] --> B{action}
+        B -->|approve| C[Return output]
+        B -->|reject| D[Raise HITLRejectException]
+        B -->|changes_requested| E[regenerate_with_feedback]
+        E --> F["Push agent_output_N<br/>status: pending_review"]
+        F -.loop.-> A
+        B -->|"iteration &ge; max_hitl_iterations"| G["Push status:<br/>max_iterations_exceeded"]
+        G --> H[Raise HITLMaxIterationsError]
+        B -->|hitl_timeout elapsed| I["Push status:<br/>timeout_exceeded"]
+        I --> J[Raise HITLTimeoutError]
 
 Using HITL review with ``AgentOperator``
 ----------------------------------------
@@ -122,7 +135,8 @@ Enable the review loop with ``enable_hitl_review=True``:
   changes at iterations 1 to 4; the fifth output must be either approved or
   rejected. Default ``5``.
 - ``hitl_timeout``: Maximum wall-clock time to wait for all review rounds.
-  ``None`` = no timeout (blocks until a terminal action).
+  ``None`` = no wall-clock timeout. The task still fails, re-raising the XCom error, if polling
+  the human action XCom fails 10 times in a row.
 - ``hitl_poll_interval``: Seconds between XCom polls while waiting for a
   human response. Default ``10``.
 

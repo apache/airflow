@@ -147,6 +147,12 @@ class TestLLMSchemaCompareOperator:
         op = LLMSchemaCompareOperator(**_BASE_KWARGS, **kwargs)
         assert op.context_strategy == "full"
 
+    def test_output_type_rejected(self):
+        with pytest.raises(TypeError, match="LLMSchemaCompareOperator does not accept 'output_type'"):
+            LLMSchemaCompareOperator(
+                **_BASE_KWARGS, db_conn_ids=["conn_a", "conn_b"], table_names=["t"], output_type=int
+            )
+
     def test_init_succeeds_with_all_parameters(self):
         ds = _make_ds_config(conn_id="ds")
         op = LLMSchemaCompareOperator(

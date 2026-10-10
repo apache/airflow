@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -117,16 +118,176 @@ func TestRegisterRejectsDuplicateTask(t *testing.T) {
 	)
 }
 
+func TestRegisterTakesTaskHandlersAndDagsTogether(t *testing.T) {
+	etl := Dag("etl")
+	etl.Task(extract)
+
+	b := Bundle()
+	b.Register(TaskHandler("py_etl", "transform", noop), etl)
+
+	_, ok := b.taskHandlers.LookupTask("py_etl", "transform")
+	assert.True(t, ok)
+	assert.Same(t, etl, b.dags.dags["etl"])
+	assert.True(t, etl.registered)
+}
+
+func TestRegisterRejectsDuplicateDag(t *testing.T) {
+	etl := Dag("etl")
+	b := Bundle()
+	b.Register(etl)
+
+	want := `airflow.BundleRef.Register: Dag "etl" is already registered`
+	assert.PanicsWithValue(t, want, func() { b.Register(etl) })
+	second := Dag("etl")
+	assert.PanicsWithValue(t, want, func() { b.Register(second) })
+	assert.Same(t, etl, b.dags.dags["etl"])
+	assert.False(t, second.registered, "a Dag that Register rejects can still take tasks")
+}
+
+func TestRegisterRejectsADagWithTheDagIDOfATaskHandler(t *testing.T) {
+	tests := []struct {
+		name     string
+		register func(b *BundleRef, handler Registerable, dag *DagRef)
+	}{
+		{
+			name: "separate calls",
+			register: func(b *BundleRef, handler Registerable, dag *DagRef) {
+				b.Register(handler)
+				b.Register(dag)
+			},
+		},
+		{
+			name: "one call",
+			register: func(b *BundleRef, handler Registerable, dag *DagRef) {
+				b.Register(handler, dag)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := Bundle()
+			dag := Dag("etl")
+
+			want := `airflow.BundleRef.Register: Dag "etl" already has task handlers from ` +
+				`airflow.TaskHandler, so it cannot also be registered as a Dag from airflow.Dag`
+			assert.PanicsWithValue(t, want, func() {
+				tt.register(b, TaskHandler("etl", "transform", noop), dag)
+			})
+			_, ok := b.taskHandlers.LookupTask("etl", "transform")
+			assert.True(t, ok)
+			assert.NotContains(t, b.dags.dags, "etl")
+			assert.NotPanics(t, func() { dag.Task(extract) },
+				"a Dag that Register rejects can still take tasks")
+		})
+	}
+}
+
+func TestRegisterRejectsATaskHandlerWithTheDagIDOfADag(t *testing.T) {
+	tests := []struct {
+		name     string
+		register func(b *BundleRef, handler Registerable, dag *DagRef)
+	}{
+		{
+			name: "separate calls",
+			register: func(b *BundleRef, handler Registerable, dag *DagRef) {
+				b.Register(dag)
+				b.Register(handler)
+			},
+		},
+		{
+			name: "one call",
+			register: func(b *BundleRef, handler Registerable, dag *DagRef) {
+				b.Register(dag, handler)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := Bundle()
+			dag := Dag("etl")
+
+			want := `airflow.BundleRef.Register: Dag "etl" is already registered as a Dag from ` +
+				`airflow.Dag, so it cannot also have task handlers from airflow.TaskHandler`
+			assert.PanicsWithValue(t, want, func() {
+				tt.register(b, TaskHandler("etl", "transform", noop), dag)
+			})
+			assert.Same(t, dag, b.dags.dags["etl"])
+			assert.NotContains(t, b.taskHandlers.handlers, "etl")
+			assert.Empty(t, b.taskHandlers.ListTaskHandlers())
+		})
+	}
+}
+
+// TestRegisterRejectsACycle covers the check that reads a Dag's edges as a whole. Before and
+// After record an edge without walking the graph, so a cycle between other tasks is Register's to
+// find, and every edge of the call that closed it is recorded until then.
+func TestRegisterRejectsACycle(t *testing.T) {
+	dag := Dag("etl")
+	extracted := orderedTask(t, dag, "extract")
+	loaded := orderedTask(t, dag, "load")
+	notified := orderedTask(t, dag, "notify")
+	extracted.Before(loaded)
+	loaded.Before(notified, extracted)
+
+	assert.PanicsWithValue(t,
+		`airflow.BundleRef.Register: the task dependencies of Dag "etl" contain a cycle: `+
+			`extract -> load -> extract`,
+		func() { Bundle().Register(dag) },
+	)
+	// The verbs recorded what they were given, and the Dag can still be corrected.
+	assertTasks(t, loaded.downstreams, notified, extracted)
+	assert.False(t, dag.registered)
+}
+
+// TestRegisterRejectsACycleThroughAnInputsEdge pins that the check sees the edges Inputs
+// declared, which is what DagRef.Task recording them is for. It is the case ADR-0008 names:
+// b := dag.Task(B, Inputs(a)) followed by b.Before(a) is a genuine cycle in accepted syntax.
+func TestRegisterRejectsACycleThroughAnInputsEdge(t *testing.T) {
+	dag := Dag("etl")
+	read := dag.Task(readRows)
+	counted := dag.Task(countRows, Inputs(read))
+	notified := orderedTask(t, dag, "notify")
+	counted.Before(notified)
+	counted.Before(read)
+
+	assert.PanicsWithValue(t,
+		`airflow.BundleRef.Register: the task dependencies of Dag "etl" contain a cycle: `+
+			`readRows -> countRows -> readRows`,
+		func() { Bundle().Register(dag) },
+	)
+}
+
+// TestRegisterTakesADagWhoseTasksShareADownstream pins that the walk follows a diamond, where a
+// task is reached twice without any cycle.
+func TestRegisterTakesADagWhoseTasksShareADownstream(t *testing.T) {
+	dag := Dag("etl")
+	extracted := orderedTask(t, dag, "extract")
+	notified := orderedTask(t, dag, "notify")
+	cleaned := orderedTask(t, dag, "cleanup")
+	done := orderedTask(t, dag, "done")
+	extracted.Before(notified, cleaned).Before(done)
+
+	Bundle().Register(dag)
+
+	assert.True(t, dag.registered)
+}
+
+func TestRegisterRejectsNilDag(t *testing.T) {
+	var dag *DagRef
+	assert.PanicsWithValue(t, "airflow.BundleRef.Register: cannot register a nil *airflow.DagRef",
+		func() { Bundle().Register(dag) },
+	)
+}
+
 func TestRegisterAfterServePanics(t *testing.T) {
 	b := Bundle()
 	b.Register(TaskHandler("py_etl", "transform", noop))
 	require.NoError(t, b.serve([]string{"--airflow-metadata"}, io.Discard))
 
-	assert.PanicsWithValue(
-		t,
-		"airflow.BundleRef.Register: Serve has already been called; register everything before Serve",
-		func() { b.Register(TaskHandler("py_etl", "load", noop)) },
-	)
+	want := "airflow.BundleRef.Register: Serve has already been called; " +
+		"register everything before Serve"
+	assert.PanicsWithValue(t, want, func() { b.Register(TaskHandler("py_etl", "load", noop)) })
+	assert.PanicsWithValue(t, want, func() { b.Register(Dag("etl")) })
 }
 
 // The flag lives on the bundle, not on the task-handler map, so a kind of item added to
@@ -160,6 +321,7 @@ func TestRegisterIsSafeForConcurrentUse(t *testing.T) {
 			defer wg.Done()
 			for i := range perWorker {
 				b.Register(TaskHandler("py_etl", fmt.Sprintf("task_%d_%d", worker, i), noop))
+				b.Register(Dag(fmt.Sprintf("dag_%d_%d", worker, i)))
 				b.taskHandlers.LookupTask("py_etl", "task_0_0")
 				b.taskHandlers.ListTaskHandlers()
 			}
@@ -168,6 +330,44 @@ func TestRegisterIsSafeForConcurrentUse(t *testing.T) {
 	wg.Wait()
 
 	assert.Len(t, b.taskHandlers.ListTaskHandlers(), workers*perWorker)
+	assert.Len(t, b.dags.dags, workers*perWorker)
+}
+
+// For each dag_id, one goroutine registers a task handler and another registers a Dag at the
+// same time, and exactly one of the two calls must succeed. Without BundleRef.mu both can
+// succeed. A run with -race does not report that, because every map access still takes the
+// map's lock.
+func TestRegisterGivesEachDagIDToOneKindUnderConcurrentUse(t *testing.T) {
+	const dagCount = 200
+
+	b := Bundle()
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	register := func(item Registerable) {
+		defer wg.Done()
+		defer func() { recover() }()
+		<-start
+		b.Register(item)
+	}
+	dags := make([]*DagRef, dagCount)
+	for i := range dags {
+		dags[i] = Dag(fmt.Sprintf("dag_%d", i))
+		wg.Add(2)
+		go register(TaskHandler(dags[i].dagID, "transform", noop))
+		go register(dags[i])
+	}
+	close(start)
+	wg.Wait()
+
+	var wrong []string
+	for _, dag := range dags {
+		_, hasHandler := b.taskHandlers.LookupTask(dag.dagID, "transform")
+		if hasHandler == dag.registered {
+			wrong = append(wrong, dag.dagID)
+		}
+	}
+	assert.Empty(t, wrong,
+		"each dag_id must end up with a task handler or a Dag, not both or neither")
 }
 
 func TestRegisterRejectsNilItem(t *testing.T) {
@@ -212,4 +412,128 @@ func TestRegisterableRejectsForeignTypes(t *testing.T) {
 	require.Error(t, err, "a type defined outside package airflow must not compile as an item")
 	assert.Contains(t, string(out), "foreignItem does not implement airflow.Registerable")
 	assert.Contains(t, string(out), "unexported method registerable")
+}
+
+func TestSerializeDagsKeepsTheOtherDagsWhenADagCannotBeSerialized(t *testing.T) {
+	b := Bundle()
+	etl := Dag("etl")
+	etl.Task(noop)
+	b.Register(etl)
+	// A Dag that skipped Register stands in for one the serializer fails on.
+	broken := Dag("broken")
+	b.dags.dags["broken"] = broken
+	b.dags.order = append(b.dags.order, broken)
+	reports := Dag("reports")
+	reports.Task(noop)
+	b.Register(reports)
+
+	serialized := b.dags.serialize("/bundles/go/etl", "etl")
+
+	require.Len(t, serialized, 3)
+	assert.Equal(t, bundle.SerializedDag{
+		DagID: "etl",
+		Data:  etl.serialize("/bundles/go/etl", "etl"),
+	}, serialized[0])
+	assert.Equal(t, "broken", serialized[1].DagID)
+	assert.Nil(t, serialized[1].Data)
+	assert.ErrorContains(t, serialized[1].Err, `Dag "broken" is not registered`)
+	assert.Equal(t, bundle.SerializedDag{
+		DagID: "reports",
+		Data:  reports.serialize("/bundles/go/etl", "etl"),
+	}, serialized[2])
+}
+
+func TestSerializeDagsLeavesOutADagThatRegisterRejected(t *testing.T) {
+	b := Bundle()
+	cyclic := Dag("cyclic")
+	extracted := orderedTask(t, cyclic, "extract")
+	loaded := orderedTask(t, cyclic, "load")
+	extracted.Before(loaded)
+	loaded.Before(extracted)
+	require.Panics(t, func() { b.Register(cyclic) })
+
+	assert.Empty(t, b.dags.serialize("/bundles/go/etl", "etl"))
+}
+
+func TestServeLooksUpTheTasksOfDagsAndTaskHandlers(t *testing.T) {
+	dag := Dag("native_etl")
+	dag.Task(ping, TaskSpec{TaskID: "extract"})
+	dag.Task(
+		TriggerDagRun(TriggerDagRunSpec{DagID: "downstream_etl"}),
+		TaskSpec{TaskID: "trigger"},
+	)
+	b := Bundle()
+	b.Register(dag, TaskHandler("py_etl", "load", noop))
+	source := coordinatorSource{&b.taskHandlers, &b.dags}
+
+	for _, id := range [][2]string{{"native_etl", "extract"}, {"py_etl", "load"}} {
+		task, ok := source.LookupTask(id[0], id[1])
+		assert.True(t, ok, "%s.%s", id[0], id[1])
+		assert.NotNil(t, task)
+	}
+	for _, id := range [][2]string{
+		{"native_etl", "load"},
+		{"py_etl", "extract"},
+		{"unknown", "extract"},
+	} {
+		_, ok := source.LookupTask(id[0], id[1])
+		assert.False(t, ok, "%s.%s", id[0], id[1])
+	}
+}
+
+func TestServeLooksUpATriggerDagRunTaskWithACopyOfItsSpec(t *testing.T) {
+	poke := 30 * time.Second
+	logicalDate := time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC)
+	dag := Dag("native_etl")
+	dag.Task(TriggerDagRun(TriggerDagRunSpec{
+		DagID:                 "downstream_etl",
+		RunID:                 "etl_downstream",
+		Note:                  "from etl",
+		Conf:                  map[string]any{"tables": []any{"rows"}},
+		LogicalDate:           logicalDate,
+		ResetDagRun:           true,
+		WaitForCompletion:     true,
+		SkipWhenAlreadyExists: true,
+		FailWhenDagIsPaused:   true,
+		PokeInterval:          &poke,
+		AllowedStates:         []DagRunState{DagRunStateSuccess, DagRunStateQueued},
+		FailedStates:          []DagRunState{},
+		Deferrable:            ptr(true),
+	}), TaskSpec{TaskID: "trigger"})
+	dag.Task(TriggerDagRun(TriggerDagRunSpec{DagID: "bare"}), TaskSpec{TaskID: "bare"})
+	b := Bundle()
+	b.Register(dag)
+	source := coordinatorSource{&b.taskHandlers, &b.dags}
+
+	task, ok := source.LookupTask("native_etl", "trigger")
+	require.True(t, ok)
+	trigger, ok := task.(*bundle.TriggerTask)
+	require.True(t, ok, "got %T", task)
+	assert.Equal(t, bundle.TriggerSpec{
+		DagID:                 "downstream_etl",
+		RunID:                 "etl_downstream",
+		Note:                  "from etl",
+		Conf:                  map[string]any{"tables": []any{"rows"}},
+		LogicalDate:           logicalDate,
+		ResetDagRun:           true,
+		WaitForCompletion:     true,
+		SkipWhenAlreadyExists: true,
+		FailWhenDagIsPaused:   true,
+		PokeInterval:          &poke,
+		AllowedStates:         []string{"success", "queued"},
+		FailedStates:          []string{},
+		Deferrable:            ptr(true),
+	}, trigger.Spec)
+
+	// The runtime gets a copy, so that nothing it does changes the task.
+	trigger.Spec.Conf["tables"].([]any)[0] = "changed"
+	again, _ := source.LookupTask("native_etl", "trigger")
+	assert.Equal(t, []any{"rows"}, again.(*bundle.TriggerTask).Spec.Conf["tables"])
+
+	task, ok = source.LookupTask("native_etl", "bare")
+	require.True(t, ok)
+	spec := task.(*bundle.TriggerTask).Spec
+	assert.Nil(t, spec.AllowedStates)
+	assert.Nil(t, spec.FailedStates, "an unset FailedStates stays nil, which means the default")
+	assert.Nil(t, spec.Conf)
 }

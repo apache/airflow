@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} sur {{total}} assets mis à jour",
+  "assetSchedule": "{{count, number}} sur {{total, number}} assets mis à jour",
   "dagActions": {
     "delete": {
       "button": "Supprimer le Dag",
@@ -10,27 +10,39 @@
   "filters": {
     "allRunTypes": "Tous les types de Run",
     "allStates": "Tous les états",
-    "anyRunState": "N'importe quel Run",
     "favorite": {
       "all": "Tous",
       "favorite": "Favoris",
       "unfavorite": "Non favoris"
     },
-    "lastRunState": "Dernier Run",
+    "favoriteState": "État favori",
+    "favoriteStatePlaceholder": "Sélectionner l'état favori…",
     "noTimetableTypesFound": "Aucun type de calendrier trouvé",
     "paused": {
       "active": "Actif",
       "all": "Tous",
       "paused": "En pause"
     },
+    "pausedPlaceholder": "Sélectionner l'état de pause…",
+    "pausedState": "État de pause",
+    "requiresHitlAction": "Nécessite une action HITL",
     "runIdPatternFilter": "Rechercher des exécutions de Dag",
+    "runState": "État d'exécution",
+    "runStatePlaceholder": "Sélectionner l'état d'exécution…",
     "timetableType": "Type de calendrier"
+  },
+  "folders": {
+    "all": "Tous les Dags",
+    "empty": "Aucun dossier",
+    "hide": "Masquer les dossiers",
+    "show": "Afficher les dossiers",
+    "title": "Dossiers"
   },
   "ownerLink": "Lien du propriétaire pour {{owner}}",
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Aucune tâche trouvée.",
-      "title": "Tâches concernées : {{count}}"
+      "title": "Tâches concernées : {{count, number}}"
     },
     "clear": {
       "button": "Réinitialiser {{type}}",
@@ -72,11 +84,13 @@
       "downstream": "En aval",
       "existingTasks": "Réinitialiser les tâches existantes",
       "future": "Futur",
+      "keepTaskState": "Conserver l'état des tâches et reprendre",
       "onlyFailed": "Réinitialiser uniquement les tâches échouées",
       "past": "Passé",
       "preventRunningTasks": "Empêcher la réexécution si la tâche est en cours",
       "queueNew": "Ajouter de nouvelles tâches en file d'attente",
       "runOnLatestVersion": "Exécuter avec la dernière version du bundle",
+      "runOnLatestVersionForced": "Utilise toujours la plus récente — il n'y a pas de version antérieure vers laquelle revenir",
       "upstream": "En amont"
     }
   },
@@ -84,6 +98,25 @@
     "label": "États des Runs",
     "loading": "Chargement du décompte des états des Runs",
     "tooltip": "{{state}} : {{formattedCount}} — cliquez pour filtrer les Runs"
+  },
+  "schedulingActions": {
+    "cancelDrain": "Annuler le drainage",
+    "drain": "Drainer puis mettre en pause",
+    "drainPrompt": "Ce Dag a des exécutions de Dag en cours. Le drainage les laisse se terminer avant la mise en pause du Dag ; la mise en pause immédiate arrête la planification tout de suite sans les attendre.",
+    "pauseNow": "Mettre en pause maintenant",
+    "pauseSelected": "Mettre en pause / Drainer"
+  },
+  "schedulingBanner": {
+    "message": "Ce Dag est en cours de drainage. Il se mettra en pause une fois ses exécutions de Dag en cours terminées."
+  },
+  "schedulingState": {
+    "active": "Actif",
+    "draining": "Drainage en cours",
+    "drainingBadgeTooltip": "Ce Dag se met en pause une fois ses exécutions de Dag en cours terminées.",
+    "drainingTooltip": "Drainage de {{dagDisplayName}} — se met en pause une fois les exécutions de Dag en cours terminées. Cliquez pour reprendre.",
+    "label": "État de planification",
+    "paused": "En pause",
+    "placeholder": "Sélectionner l'état de planification…"
   },
   "search": {
     "advanced": "Recherche avancée",

@@ -52,7 +52,7 @@ IN_CLUSTER = False
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
 STARTUP_CHECK_INTERVAL_SECS = 0.1
-TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.timezone.utc)
+TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.UTC)
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
 BASE_CONTAINER_NAME = "base"
 ON_FINISH_ACTION = "delete_pod"
@@ -431,7 +431,7 @@ class TestKubernetesPodTrigger:
         """
         If log interval given, check that the trigger fetches logs at the right times.
         """
-        fixed_now = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
+        fixed_now = datetime.datetime(2022, 1, 1, tzinfo=datetime.UTC)
         mock_datetime.datetime.now.side_effect = [
             fixed_now,
             fixed_now + datetime.timedelta(seconds=1),

@@ -28,6 +28,7 @@ from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets.function import FunctionToolset
+from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.exceptions import (
     ToolApprovalAlreadyRequestedError,
@@ -42,6 +43,7 @@ from airflow.providers.common.ai.operators.agent import (
 from airflow.providers.common.ai.sandbox.base import SandboxBackend
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY, dump_run_usage
 from airflow.providers.standard.exceptions import HITLTimeoutError
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
@@ -125,7 +127,9 @@ def _operator(model_fn, toolsets, **kwargs) -> AgentOperator:
 
 def _context(store: _FakeTaskStateStore, *, try_number: int = 1) -> Any:  # a Context stand-in
     ti = MagicMock(spec=["id", "dag_id", "task_id", "run_id", "map_index", "try_number", "xcom_push"])
-    ti.configure_mock(id="ti-1", dag_id="d", task_id="t", run_id="r", map_index=-1, try_number=try_number)
+    ti.configure_mock(
+        id="ti-1", dag_id="d", task_id="t", run_id="r", map_index=-1, try_number=try_number, max_tries=0
+    )
     return {"task_instance": ti, "task_state_store": store}
 
 
@@ -476,6 +480,45 @@ class TestResume:
         assert "order 1 costs $10" in pushed["message_history"]
         assert "refunded order 1" in pushed["message_history"]
 
+    @staticmethod
+    def _seed_earlier_attempts_spend(store: _FakeTaskStateStore, requests: int) -> None:
+        store.data[USAGE_BUDGET_KEY] = {
+            "version": 1,
+            "max_tries": 0,
+            "usage": dump_run_usage(RunUsage(requests=requests)),
+        }
+
+    def test_usage_output_covers_this_attempt_on_both_sides_of_the_pause(self):
+        """Earlier attempts' spend stays out of ``usage``; this attempt's pre-pause request stays in."""
+        shop, store = _Shop(), _FakeTaskStateStore()
+        self._seed_earlier_attempts_spend(store, requests=5)
+        limits = {"request_limit": 10}
+        paused = _pause(_operator(_lookup_and_refund, [shop.toolset()], usage_limits=limits), _context(store))
+        ctx = _context(store)
+
+        _operator(_lookup_and_refund, [shop.toolset()], usage_limits=limits).resume_after_tool_approval(
+            ctx, **paused.kwargs, event=APPROVE
+        )
+
+        pushed = {c.kwargs["key"]: c.kwargs["value"] for c in ctx["task_instance"].xcom_push.call_args_list}
+        assert pushed["usage"]["requests"] == 2
+
+    def test_a_continuation_without_attempt_usage_reports_only_the_resumed_side(self):
+        """A task paused by a provider version that did not save ``attempt_usage`` still resumes."""
+        shop, store = _Shop(), _FakeTaskStateStore()
+        self._seed_earlier_attempts_spend(store, requests=5)
+        limits = {"request_limit": 10}
+        paused = _pause(_operator(_lookup_and_refund, [shop.toolset()], usage_limits=limits), _context(store))
+        kwargs = {k: v for k, v in paused.kwargs.items() if k != "attempt_usage"}
+        ctx = _context(store)
+
+        _operator(_lookup_and_refund, [shop.toolset()], usage_limits=limits).resume_after_tool_approval(
+            ctx, **kwargs, event=APPROVE
+        )
+
+        pushed = {c.kwargs["key"]: c.kwargs["value"] for c in ctx["task_instance"].xcom_push.call_args_list}
+        assert pushed["usage"]["requests"] == 1
+
 
 class _NoopBackend(SandboxBackend):
     """A backend that is never reached: these tests stop before any run."""
@@ -508,7 +551,6 @@ class TestWhenApprovalApplies:
         "kwargs",
         [
             pytest.param({"durable": True}, id="durable"),
-            pytest.param({"code_mode": True}, id="code_mode"),
             pytest.param({"enable_hitl_review": True}, id="hitl_review"),
             pytest.param({"toolsets": [SandboxToolset(_NoopBackend())]}, id="sandbox"),
             pytest.param(

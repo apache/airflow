@@ -76,18 +76,53 @@ No single layer is sufficient on its own. They work together.
        The LLM agent cannot see API keys or database passwords.
      - Does not prevent the agent from using the connection to access data
        the connection has access to.
+   * - **Secret masking of tool output**
+     - What a tool returns, and the error text handed to the model so it can correct a
+       call, pass through Airflow's secret masker first. A connection password that shows
+       up in a database error or a hook's return value reaches the model, the model
+       provider and any trace as ``***``. ``AgentOperator`` applies this to the toolsets
+       you pass in ``toolsets``, in ``agent_params["toolsets"]`` and in a ``Toolset``
+       capability, including your own. The SQL, hook, object storage, DataFusion, MCP,
+       sandbox and managed-agent toolsets apply it wherever they run, including in a Pydantic AI agent
+       you build yourself.
+     - Masks only secrets Airflow has registered, such as connection passwords and
+       sensitive connection extras. A credential that exists only in the data itself is
+       not recognized. Not masked: prompts, model output, function tools passed as
+       ``agent_params["tools"]``, a ``Toolset`` capability built by a function, a
+       framework's own tools, and MCP servers a framework connects to itself. In a
+       sandbox, the model writes the commands, so it can print a secret in a form the
+       masker does not recognize; masking there guards against accidents only.
+   * - **ObjectStorageToolset: one read-only root**
+     - The agent can list and read files under ``path`` and nothing else: it cannot write,
+       and a path that is absolute, carries a scheme or climbs out with ``..`` is refused.
+       On a local root, so is a symbolic link that leads out of it.
+     - The check is on the path the model supplies. What the connection may read is the
+       real limit, so scope its role or key to the prefix you pass as ``path``. On a
+       filesystem that follows symlinks on the server side, such as SFTP, the path check
+       cannot see where a link leads.
    * - **HookToolset: explicit allow-list**
      - Only methods listed in ``allowed_methods`` are exposed as tools.
        Auto-discovery is not supported. Methods are validated at Dag parse
        time.
-     - Does not restrict what arguments the agent passes to allowed methods.
+     - Restricts only the arguments named in ``pinned_arguments``, and only by parameter
+       name; the agent chooses every other argument of an allowed method.
    * - **SQLToolset: read-only by default**
      - ``allow_writes=False`` (default) validates every SQL query through
        ``validate_sql()``: SELECT-family and read-only metadata
        (``DESCRIBE``/``SHOW``) statements pass; INSERT, UPDATE, DELETE, DROP,
        and writes hidden behind ``EXPLAIN`` are rejected.
      - Does not prevent the agent from reading sensitive data that the
-       database user has SELECT access to.
+       database user has SELECT access to. Without ``allowed_tables`` the check is
+       statement-level only: a side-effecting function inside a SELECT
+       (``nextval``, ``pg_terminate_backend``, ``dblink_exec``) is not blocked.
+       Setting ``allowed_tables`` adds a function check, but it rejects only functions
+       sqlglot cannot type; typed syntax such as T-SQL ``NEXT VALUE FOR`` or Snowflake
+       ``seq.nextval`` still passes. Use a least-privilege role and, where the database
+       supports it, a read-only default for that role or session (for example
+       ``ALTER ROLE <role> SET default_transaction_read_only = on`` on PostgreSQL).
+       The toolset opens its own connection per call, so you cannot set a transaction
+       from the Dag, and a read-only setting is defense in depth: it does not stop every
+       side-effecting function.
    * - **DataFusionToolset: read-only by default**
      - ``allow_writes=False`` (default) validates every SQL query through
        ``validate_sql()`` and rejects CREATE TABLE, CREATE VIEW, INSERT
@@ -211,7 +246,8 @@ database user with the minimum privileges required.
   ``get_connection()``: these give broad access.
 - Prefer read-only methods (``list_*``, ``get_*``, ``describe_*``).
 - The agent controls arguments. If a method accepts a ``path`` parameter,
-  the agent can pass any path the hook has access to.
+  the agent can pass any path the hook has access to, unless the Dag author pins it with
+  ``pinned_arguments`` (see :doc:`toolsets/hook`).
 
 .. code-block:: python
 
@@ -266,7 +302,7 @@ Before deploying an agent task to production:
 2. **Database permissions**: Create a dedicated database user with minimum
    required grants. Don't reuse the admin connection.
 3. **Tool allow-list**: Review ``allowed_methods`` / ``allowed_tables``. The
-   agent can call any exposed tool with any arguments.
+   agent can call any exposed tool with any arguments it does not pin.
 4. **Read-only default**: Keep ``allow_writes=False`` unless the task
    specifically requires writes.
 5. **Result limits**: Set ``max_rows`` and ``max_result_bytes`` appropriate to

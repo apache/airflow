@@ -23,9 +23,14 @@ export type DateRangeValue = {
   startDate?: string;
 };
 
+// Value of a composite filter (one whose config sets ``fromSearchParams``/``toSearchParams``).
+// Its concrete shape is private to that filter's editor and projections; the bar treats it opaquely.
+export type CompositeFilterValue = Record<string, string>;
+
 // A ``boolean`` filter's value is the string ``"true"``; absent means off. Keeping it a
 // string avoids ``isValidFilterValue`` treating ``false`` as a value worth writing to the URL.
-export type FilterValue = Array<string> | Date | DateRangeValue | number | string | null | undefined;
+export type FilterValue =
+  Array<string> | CompositeFilterValue | Date | DateRangeValue | number | string | null | undefined;
 
 export type FilterConfig = {
   readonly defaultValue?: FilterValue;
@@ -34,6 +39,12 @@ export type FilterConfig = {
   // render callback so the editor can own its own hooks.
   readonly EditorComponent?: ComponentType<FilterPluginProps>;
   readonly endKey?: string;
+  // Composite filters span several URL params (e.g. one pill writing a state param plus a time
+  // bound). ``fromSearchParams`` reads the pill's value from the URL, undefined meaning no filter;
+  // ``toSearchParams`` projects a value onto the params the filter manages and must enumerate
+  // every one of them (mapped to undefined to clear), so removing the pill wipes them all.
+  // Filters without these hooks read and write ``key`` directly.
+  readonly fromSearchParams?: (params: URLSearchParams) => FilterValue;
   readonly hotkeyDisabled?: boolean;
   readonly icon?: ReactNode;
   // Multiselect only: accept free-text values that are not in ``options``.
@@ -52,6 +63,7 @@ export type FilterConfig = {
   // and ``*_prefix_pattern`` (prefix) variants. The pill renders a toggle that
   // controls which one the consuming page uses, via ``useAdvancedSearch``.
   readonly supportsAdvancedSearch?: boolean;
+  readonly toSearchParams?: (value: FilterValue) => Record<string, string | undefined>;
   readonly type: "boolean" | "date" | "daterange" | "multiselect" | "number" | "select" | "text";
 };
 

@@ -26,6 +26,67 @@
 Changelog
 ---------
 
+.. warning::
+  ``S3DagBundle`` now appends ``/`` to non-empty directory prefixes when downloading Dags.
+  For a configured prefix of ``dags``, listing requests now use ``dags/``. IAM policies
+  that restrict ``s3:prefix`` by exact value must permit the directory prefix with its
+  trailing slash. Empty prefixes and prefixes that already end in ``/`` are unchanged.
+
+9.38.0
+......
+
+Features
+~~~~~~~~
+
+* ``Bind the AWS auth manager SAML response to the browser that started the login (#73698)``
+* ``Carry task attempt UUIDs through remote executor providers (#73917)``
+* ``Add a vendor-neutral managed-agent hook contract to Common AI (#73532)``
+* ``Add DuckDB support to the Amazon provider (#73301)``
+* ``Add EmrServerlessStartSessionOperator to Amazon provider (#70763)``
+* ``AIP-82: Add KinesisMessageQueueProvider (#73509)``
+* ``Support unexposed CreateWorkflow and UpdateWorkflow inputs in MWAA Serverless operators (#73408)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Document that DuckDB extension installs need a HOME directory (#74301)``
+* ``Keep S3 Dag bundle downloads within the configured directory (#73756)``
+* ``Distinguish credential failures from AWS waiter exhaustion (#73870)``
+* ``Handle plain Step Functions execution errors (#73881)``
+* ``Retry S3Hook.delete_bucket when a late write leaves bucket non-empty (#73930)``
+* ``Read the AWS task logs once more after the fetcher is stopped (#73211)``
+* ``Use POSIX-compliant tail to extract token line in EKS command (#73690)``
+* ``Fix unreachable success log in EksDeleteClusterOperator.execute_complete (#73109)``
+* ``Skip Azure Blob folder-marker keys in AzureBlobStorageToS3Operator (#72892)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Exclude SQLAlchemy 2.1.0 (#73865)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Fix docstring cross-references that Sphinx 9 cannot resolve (#74169)``
+* ``Document override semantics for EcsRunTaskOperator (#73860)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Verify SSH host keys by default in SSH and SFTP hooks (#73419)``
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+   * ``Require moto 5.2.2 or newer for the Amazon provider tests (#74224)``
+   * ``Create the Athena Spark work group and results bucket in the system test (#73929)``
+   * ``Run the deferred AWS hook configuration check as a prek hook (#73681)``
+   * ``Fix example_neptune_analytics by pinning an explicit region (#73851)``
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Keep the AWS no-credentials tests hermetic on EC2 and developer hosts (#73707)``
+   * ``Fix example_neptune_analytics system test in deferrable mode (#73685)``
+   * ``Raise curated dependency floors in ci upgrade runs (#73657)``
+
 9.37.0
 ......
 

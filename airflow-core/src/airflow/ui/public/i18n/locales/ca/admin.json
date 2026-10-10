@@ -25,7 +25,7 @@
     "connection_other": "Connexions",
     "delete": {
       "deleteConnection_one": "Eliminar 1 connexió",
-      "deleteConnection_other": "Eliminar {{count}} connexions",
+      "deleteConnection_other": "Eliminar {{count, number}} connexions",
       "firstConfirmMessage_one": "Estàs a punt d'eliminar la següent connexió:",
       "firstConfirmMessage_other": "Estàs a punt d'eliminar les següents connexions:",
       "title": "Eliminar connexió"
@@ -35,7 +35,6 @@
       "connectionIdRequired": "L'ID de connexió és obligatori",
       "connectionIdRequirement": "L'ID de connexió no pot tenir únicament espais",
       "connectionTypeRequired": "El tipus de connexió és obligatori",
-      "extraFields": "Camps addicionals",
       "extraFieldsJson": "Camps addicionals JSON",
       "helperText": "Falta el tipus de connexió? Assegureu-vos d'haver instal·lat el paquet de proveïdors d'Airflow corresponent.",
       "helperTextForRedactedFields": "Els camps redactats ('***') romandran sense canvis si no es modifiquen.",
@@ -153,7 +152,7 @@
     },
     "delete": {
       "deleteVariable_one": "Eliminar 1 Variable",
-      "deleteVariable_other": "Eliminar {{count}} Variables",
+      "deleteVariable_other": "Eliminar {{count, number}} Variables",
       "firstConfirmMessage_one": "Estàs a punt d'eliminar la següent variable:",
       "firstConfirmMessage_other": "Estàs a punt d'eliminar les següents variables:",
       "title": "Eliminar Variable",

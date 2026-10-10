@@ -22,11 +22,11 @@ package org.apache.airflow.example.nativedag;
 
 import static java.lang.System.Logger.Level.INFO;
 
+import java.util.List;
 import org.apache.airflow.sdk.*;
 
-// A Dag defined entirely in Java, interface-style: no Python stub file
-// describes it. dag.task registers a task as it creates it and hands back the
-// handle, and `before`/`after` wire the graph -- Java's spelling of `>>` and `<<`.
+// A Dag defined entirely in Java, interface-style. dag.task registers a task as
+// it creates it and hands back the handle, and `before`/`after` wire the graph.
 public class InterfaceExample {
   private static final System.Logger log = System.getLogger(InterfaceExample.class.getName());
 
@@ -55,14 +55,77 @@ public class InterfaceExample {
     }
   }
 
-  public static DagDef build() {
-    var dag = new DagDef("java_native_interface_example");
+  public static class LoadEmpty implements Task {
+    @Override
+    public void execute(Context context, Client client) {
+      log.log(INFO, "Nothing to load");
+    }
+  }
 
-    var extract = dag.task("extract", Extract.class);
+  // A condition: its boolean picks one of the two loads, and the other is
+  // skipped.
+  public static class HasRows implements ConditionTask {
+    @Override
+    public boolean decide(Context context, Client client) {
+      return ((Number) client.getXCom("transform")).longValue() > 0;
+    }
+  }
+
+  public static class ReportLong implements Task {
+    @Override
+    public void execute(Context context, Client client) {
+      log.log(INFO, "Long report");
+    }
+  }
+
+  public static class ReportShort implements Task {
+    @Override
+    public void execute(Context context, Client client) {
+      log.log(INFO, "Short report");
+    }
+  }
+
+  // A switch: it names the one case that runs by its class, and every other
+  // case is skipped.
+  public static class PickReport implements SwitchTask {
+    @Override
+    public Class<? extends Task> choose(Context context, Client client) {
+      return ((Number) client.getXCom("transform")).longValue() > 100
+          ? ReportLong.class
+          : ReportShort.class;
+    }
+  }
+
+  public static DagDef build() {
+    var dag =
+        new DagDef("java_native_interface_example")
+            .config("description", "Pure-Java Dag authored with the interface API")
+            .config("schedule", "@daily")
+            .config("catchup", false)
+            .config("tags", List.of("example", "java-sdk"));
+
+    var extract =
+        dag.task("extract", Extract.class)
+            .config("retries", 2)
+            .config("doc_md", "Extracts a value and pushes it as an XCom.");
     var transform = dag.task("transform", Transform.class);
     var load = dag.task("load", Load.class);
+    var loadEmpty = dag.task("load_empty", LoadEmpty.class);
 
-    transform.after(extract).before(load);
+    var reportLong = dag.task("report_long", ReportLong.class);
+    var reportShort = dag.task("report_short", ReportShort.class);
+    // A task that starts a run of another Dag; it runs no Java code.
+    var trigger =
+        dag.task(
+            "trigger_downstream",
+            new TriggerDagRun("java_native_target_example").config("wait_for_completion", false));
+
+    transform.after(extract);
+    // With no task id given, a decider takes one from its class: "hasRows" and
+    // "pickReport".
+    dag.If(HasRows.class).after(transform).Then(load).Else(loadEmpty);
+    dag.Switch(PickReport.class).after(transform).Case(reportLong).Case(reportShort);
+    load.before(trigger);
     return dag;
   }
 }

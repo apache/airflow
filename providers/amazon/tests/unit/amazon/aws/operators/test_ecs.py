@@ -191,32 +191,6 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         assert fetcher.hook.region_name == "region"
 
-    def test_template_fields_overrides(self):
-        assert self.ecs.template_fields == (
-            "task_definition",
-            "cluster",
-            "overrides",
-            "launch_type",
-            "capacity_provider_strategy",
-            "volume_configurations",
-            "group",
-            "placement_constraints",
-            "placement_strategy",
-            "platform_version",
-            "network_configuration",
-            "tags",
-            "awslogs_group",
-            "awslogs_region",
-            "awslogs_stream_prefix",
-            "awslogs_fetch_interval",
-            "container_name",
-            "propagate_tags",
-            "reattach",
-            "number_logs_exception",
-            "wait_for_completion",
-            "deferrable",
-        )
-
     @pytest.mark.parametrize(
         (
             "launch_type",

@@ -20,6 +20,11 @@
 Durable execution
 =================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Agent tasks can involve multiple LLM calls and tool invocations. If a task
 fails mid-run (network error, timeout, transient API failure), a plain retry
 re-executes every LLM call and tool call from scratch -- repeating work that
@@ -108,8 +113,9 @@ not invalidate an already-cached result for an identical call, and pointing
 ``llm_conn_id`` at a different endpoint serving the same model name does not
 invalidate cached responses -- clear the cache to force a fully fresh run.
 
-After the run, a single INFO summary line reports how many steps were
-replayed vs executed fresh. Per-step detail is available at DEBUG level.
+When the run ends, successfully or not, an INFO line reports how many steps
+were replayed from the cache and how many new steps were cached. Per-step
+detail is available at DEBUG level.
 
 The cache is scoped to a single task instance (Dag id, run id, task id, and
 map index), so each run replays only its own steps. On Airflow >= 3.3 the cache
@@ -147,9 +153,12 @@ example, check whether the operation already completed before acting, or
 use database constraints to prevent duplicate writes.
 
 Tool results must be JSON-serializable to be cached. If a tool returns a
-non-serializable value (e.g. ``BinaryContent`` from MCP tools), that step is
-skipped with a warning and will re-execute on retry instead of replaying from
-cache. The task itself still succeeds.
+non-serializable value (e.g. ``BinaryContent`` from MCP tools), or a write to
+the task state store fails, the step is not cached and runs again on retry
+instead of replaying. The step itself still succeeds. Each such step logs a
+WARNING naming the tool, and the end-of-run summary lists every tool that was
+not cached. A step that re-runs can change what the model sees next, so the
+steps after it may re-run too.
 
 See also
 --------

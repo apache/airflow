@@ -37,9 +37,9 @@ from airflow.providers.common.sql.config import DataSourceConfig
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
-    # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer to
+    # On Airflow 3.3+ require_approval pauses the task in AWAITING_INPUT; older Airflow versions defer to
     # HITLTrigger. Both signals carry method_name/kwargs/timeout, so the approval tests assert
-    # against whichever pause signal the running core uses.
+    # against whichever pause signal the running Airflow version uses.
     from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
 else:
     ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
@@ -191,6 +191,10 @@ class TestLLMSQLQueryOperator:
         from airflow.providers.common.ai.operators.llm import LLMOperator
 
         assert issubclass(LLMSQLQueryOperator, LLMOperator)
+
+    def test_output_type_rejected(self):
+        with pytest.raises(TypeError, match="LLMSQLQueryOperator does not accept 'output_type'"):
+            LLMSQLQueryOperator(task_id="test", prompt="get users", llm_conn_id="my_llm", output_type=int)
 
     def test_template_fields_include_parent_and_sql_specific(self):
         expected = {

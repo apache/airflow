@@ -27,10 +27,10 @@ from unittest import mock
 
 import pendulum
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import joinedload
 
+from airflow._shared.secrets_masker import mask_secret
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -44,7 +44,6 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import uuid7
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.sdk import BaseOperator, TaskGroup
@@ -176,11 +175,22 @@ class TestTaskInstanceEndpoint:
                 session.merge(ti)
                 session.flush()
             dag.clear(session=session)
+            successors = []
             for ti in tis:
-                assert ti.try_number == 2, "pre-condition: dag-clear moved tries along"
-                ti.queue = "default_queue"
-                session.merge(ti)
+                current = session.scalar(
+                    select(TaskInstance).where(
+                        TaskInstance.dag_id == ti.dag_id,
+                        TaskInstance.task_id == ti.task_id,
+                        TaskInstance.run_id == ti.run_id,
+                        TaskInstance.map_index == ti.map_index,
+                    )
+                )
+                assert current.id != ti.id
+                assert current.try_number == 2
+                current.queue = "default_queue"
+                successors.append(current)
                 session.flush()
+            tis = successors
         session.commit()
         return tis
 
@@ -245,7 +255,39 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
+            "state_reason": None,
         }
+
+    def test_should_include_state_reason(self, test_client, session):
+        self.create_task_instances(session, task_instances=[{"retry_reason": "auth error, do not retry"}])
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+        assert response.status_code == 200
+        assert response.json()["state_reason"] == "auth error, do not retry"
+
+    @pytest.fixture
+    def masked_secret(self):
+        """The masker is a cached process global, so drop the pattern again for the next test."""
+        from airflow._shared.secrets_masker import _secrets_masker
+
+        masker = _secrets_masker()
+        patterns, replacer = set(masker.patterns), masker.replacer
+        mask_secret("hunter2")
+        yield
+        masker.patterns, masker.replacer = patterns, replacer
+
+    @pytest.mark.enable_redact
+    def test_should_redact_secrets_in_state_reason(self, test_client, session, masked_secret):
+        """A policy may compose the reason from an unredacted exception, so mask on the way out."""
+        self.create_task_instances(
+            session, task_instances=[{"retry_reason": "auth: the token hunter2 expired"}]
+        )
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+        assert response.status_code == 200
+        assert response.json()["state_reason"] == "auth: the token *** expired"
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_should_include_team_name(self, test_client, session):
@@ -330,6 +372,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
+            "state_reason": None,
             "dag_version": {
                 "id": response_data["dag_version"]["id"],
                 "version_number": expected_version_number,
@@ -426,6 +469,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
             },
             "team_name": None,
+            "state_reason": None,
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
@@ -480,6 +524,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
+            "state_reason": None,
         }
 
     def test_should_respond_200_task_instance_with_rendered(self, test_client, session):
@@ -537,6 +582,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
+            "state_reason": None,
         }
 
     def test_raises_404_for_nonexistent_task_instance(self, test_client):
@@ -599,10 +645,11 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
             ti = TaskInstance(
                 task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
             )
-            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note", "try_number"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
+            session.flush()
+            session.add(RTIF(ti, render_templates=False))
         session.commit()
 
         # in each loop, we should get the right mapped TI back
@@ -658,6 +705,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
                 "team_name": None,
+                "state_reason": None,
             }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -831,7 +879,7 @@ class TestGetMappedTaskInstances:
         assert response.json() == {"detail": "The Dag with ID: `mapped_tis` was not found"}
 
     def test_should_respond_200(self, one_task_with_many_mapped_tis, test_client):
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get(
                 "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
             )
@@ -883,7 +931,7 @@ class TestGetMappedTaskInstances:
     ):
         from airflow.configuration import conf
 
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get(
                 "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
                 params=params,
@@ -1169,7 +1217,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/~/taskInstances",
                 {"logical_date_lte": DEFAULT_DATETIME_1},
                 1,
-                5,
+                6,
                 id="test logical date filter",
             ),
             pytest.param(
@@ -1182,7 +1230,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/~/taskInstances",
                 {"start_date_gte": DEFAULT_DATETIME_1, "start_date_lte": DEFAULT_DATETIME_STR_2},
                 2,
-                5,
+                6,
                 id="test start date filter",
             ),
             pytest.param(
@@ -1198,7 +1246,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                     "start_date_lt": DEFAULT_DATETIME_STR_2,
                 },
                 1,
-                5,
+                6,
                 id="test start date gt and lt filter",
             ),
             pytest.param(
@@ -1211,7 +1259,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/~/taskInstances?",
                 {"end_date_gte": DEFAULT_DATETIME_1, "end_date_lte": DEFAULT_DATETIME_STR_2},
                 2,
-                5,
+                6,
                 id="test end date filter",
             ),
             pytest.param(
@@ -1227,7 +1275,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                     "end_date_lt": (DEFAULT_DATETIME_2 + dt.timedelta(hours=1)).isoformat(),
                 },
                 1,
-                5,
+                6,
                 id="test end date gt and lt filter",
             ),
             pytest.param(
@@ -1240,7 +1288,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances",
                 {"duration_gte": 100, "duration_lte": 200},
                 3,
-                7,
+                8,
                 id="test duration filter",
             ),
             pytest.param(
@@ -1253,7 +1301,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"duration_gte": 100, "duration_lte": 200},
                 3,
-                3,
+                4,
                 id="test duration filter ~",
             ),
             pytest.param(
@@ -1266,7 +1314,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"duration_gt": 100, "duration_lt": 200},
                 1,
-                3,
+                4,
                 id="test duration gt and lt filter ~",
             ),
             pytest.param(
@@ -1280,7 +1328,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"state": ["running", "queued", "none"]},
                 3,
-                7,
+                8,
                 id="test state filter",
             ),
             pytest.param(
@@ -1294,7 +1342,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"state": ["no_status"]},
                 1,
-                7,
+                8,
                 id="test no_status state filter",
             ),
             pytest.param(
@@ -1308,7 +1356,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {},
                 4,
-                7,
+                8,
                 id="test null states with no filter",
             ),
             pytest.param(
@@ -1317,7 +1365,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances",
                 {"start_date_gte": DEFAULT_DATETIME_STR_1},
                 1,
-                7,
+                8,
                 id="test start_date coalesce with null",
             ),
             pytest.param(
@@ -1330,7 +1378,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"pool": ["test_pool_1", "test_pool_2"]},
                 2,
-                7,
+                8,
                 id="test pool filter",
             ),
             pytest.param(
@@ -1343,7 +1391,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"pool": ["test_pool_1", "test_pool_2"]},
                 2,
-                3,
+                4,
                 id="test pool filter ~",
             ),
             pytest.param(
@@ -1356,7 +1404,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"pool_name_pattern": "test_pool"},
                 3,
-                3,
+                4,
                 id="test pool_name_pattern filter",
             ),
             pytest.param(
@@ -1369,7 +1417,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"pool_name_prefix_pattern": "test_pool"},
                 3,
-                3,
+                4,
                 id="test pool_name_prefix_pattern filter",
             ),
             pytest.param(
@@ -1382,7 +1430,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances",
                 {"queue": ["test_queue_1", "test_queue_2"]},
                 2,
-                7,
+                8,
                 id="test queue filter",
             ),
             pytest.param(
@@ -1395,7 +1443,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"queue": ["test_queue_1", "test_queue_2"]},
                 2,
-                3,
+                4,
                 id="test queue filter ~",
             ),
             pytest.param(
@@ -1410,7 +1458,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"queue_name_pattern": "test"},
                 3,
-                3,
+                4,
                 id="test queue_name_pattern filter",
             ),
             pytest.param(
@@ -1425,7 +1473,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"queue_name_prefix_pattern": "test"},
                 3,
-                3,
+                4,
                 id="test queue_name_prefix_pattern filter",
             ),
             pytest.param(
@@ -1438,7 +1486,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"executor": ["test_exec_1", "test_exec_2"]},
                 2,
-                7,
+                8,
                 id="test_executor_filter",
             ),
             pytest.param(
@@ -1451,7 +1499,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"executor": ["test_exec_1", "test_exec_2"]},
                 2,
-                3,
+                4,
                 id="test executor filter ~",
             ),
             pytest.param(
@@ -1464,7 +1512,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"task_display_name_pattern": "task_name"},
                 2,
-                3,
+                4,
                 id="test task_display_name_pattern filter",
             ),
             pytest.param(
@@ -1477,7 +1525,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"task_display_name_prefix_pattern": "task_name"},
                 2,
-                3,
+                4,
                 id="test task_display_name_prefix_pattern filter",
             ),
             pytest.param(
@@ -1486,7 +1534,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"task_group_id": "section_1"},
                 3,
-                7,
+                8,
                 id="test task_group filter with exact match",
             ),
             pytest.param(
@@ -1495,7 +1543,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"task_group_id": "section_2"},
                 4,  # section_2 has 4 tasks: task_1 + inner_section_2 (task_2, task_3, task_4)
-                7,
+                8,
                 id="test task_group filter exact match on group_id",
             ),
             pytest.param(
@@ -1508,7 +1556,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"task_id": "task_match_id_2"},
                 1,
-                3,
+                4,
                 id="test task_id filter",
             ),
             pytest.param(
@@ -1519,7 +1567,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"version_number": [2]},
                 2,
-                3,
+                4,
                 id="test version number filter",
             ),
             pytest.param(
@@ -1531,7 +1579,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"version_number": [1, 2, 3]},
                 7,  # apart from the TIs in the fixture, we also get one from
                 # the create_task_instances method
-                3,
+                4,
                 id="test multiple version numbers filter",
             ),
             pytest.param(
@@ -1547,7 +1595,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"try_number": [0, 1]},
                 5,
-                7,
+                8,
                 id="test_try_number_filter",
             ),
             pytest.param(
@@ -1566,7 +1614,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"operator": ["FirstOperator", "SecondOperator"]},
                 5,
-                3,
+                4,
                 id="test operator type filter filter",
             ),
             pytest.param(
@@ -1581,7 +1629,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"operator_name_pattern": "Custom"},
                 2,
-                3,
+                4,
                 id="test operator_name_pattern filter",
             ),
             pytest.param(
@@ -1596,7 +1644,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"operator_name_prefix_pattern": "Custom"},
                 2,
-                3,
+                4,
                 id="test operator_name_prefix_pattern filter",
             ),
             pytest.param(
@@ -1614,7 +1662,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"map_index": [0, 1]},
                 2,
-                3,
+                4,
                 id="test map_index filter",
             ),
             pytest.param(
@@ -1628,7 +1676,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"rendered_map_index_prefix_pattern": "table_"},
                 2,
-                3,
+                4,
                 id="test rendered_map_index_prefix_pattern filter",
             ),
             pytest.param(
@@ -1642,7 +1690,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"rendered_map_index_pattern": "_users|table_orders"},
                 2,
-                3,
+                4,
                 id="test rendered_map_index_pattern filter",
             ),
             pytest.param(
@@ -1654,7 +1702,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"run_id_pattern": "TEST_DAG_"},
                 1,  # apart from the TIs in the fixture, we also get one from
                 # the create_task_instances method
-                3,
+                4,
                 id="test run_id_pattern filter",
             ),
             pytest.param(
@@ -1665,7 +1713,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"run_id_prefix_pattern": "TEST_DAG_"},
                 1,
-                3,
+                4,
                 id="test run_id_prefix_pattern filter",
             ),
             pytest.param(
@@ -1674,7 +1722,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "example_python_operator"},
                 14,  # Based on test failure - example_python_operator creates 14 task instances
-                3,
+                4,
                 id="test dag_id_pattern exact match",
             ),
             pytest.param(
@@ -1683,7 +1731,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "example_%"},
                 22,  # Based on test failure - both DAGs together create 22 task instances
-                3,
+                4,
                 id="test dag_id_pattern wildcard prefix",
             ),
             pytest.param(
@@ -1692,7 +1740,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "%skip%"},
                 8,  # Based on test failure - example_skip_dag creates 8 task instances
-                3,
+                4,
                 id="test dag_id_pattern wildcard contains",
             ),
             pytest.param(
@@ -1710,7 +1758,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_prefix_pattern": "example_python_operator"},
                 14,
-                3,
+                4,
                 id="test dag_id_prefix_pattern exact match",
             ),
             pytest.param(
@@ -1719,7 +1767,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_prefix_pattern": "example_"},
                 22,
-                3,
+                4,
                 id="test dag_id_prefix_pattern prefix",
             ),
             pytest.param(
@@ -1728,7 +1776,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_prefix_pattern": "example_skip"},
                 8,
-                3,
+                4,
                 id="test dag_id_prefix_pattern specific prefix",
             ),
             pytest.param(
@@ -2515,7 +2563,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             update_extras=update_extras,
             task_instances=task_instances,
         )
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.post(
                 "/dags/~/dagRuns/~/taskInstances/list",
                 json=payload,
@@ -2806,7 +2854,43 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
+            "state_reason": None,
         }
+
+    def test_should_include_state_reason_from_history(self, test_client, session):
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.SUCCESS, "retry_reason": "auth error, do not retry"}],
+            with_ti_history=True,
+        )
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
+        )
+        assert response.status_code == 200
+        assert response.json()["state_reason"] == "auth error, do not retry"
+
+    @pytest.fixture
+    def masked_secret(self):
+        from airflow._shared.secrets_masker import _secrets_masker
+
+        masker = _secrets_masker()
+        patterns, replacer = set(masker.patterns), masker.replacer
+        mask_secret("hunter2")
+        yield
+        masker.patterns, masker.replacer = patterns, replacer
+
+    @pytest.mark.enable_redact
+    def test_should_redact_secrets_in_state_reason_from_history(self, test_client, session, masked_secret):
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.SUCCESS, "retry_reason": "auth: the token hunter2 expired"}],
+            with_ti_history=True,
+        )
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
+        )
+        assert response.status_code == 200
+        assert response.json()["state_reason"] == "auth: the token *** expired"
 
     @pytest.mark.parametrize("try_number", [1, 2])
     def test_should_respond_200_with_different_try_numbers(self, test_client, try_number, session):
@@ -2852,6 +2936,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
+            "state_reason": None,
         }
 
     @pytest.mark.parametrize("try_number", [1, 2])
@@ -2864,19 +2949,23 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             ti = TaskInstance(
                 task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
             )
-            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             ti.try_number = 1
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note", "try_number"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
+            session.flush()
+            session.add(RTIF(ti, render_templates=False))
         session.commit()
         tis = session.scalars(select(TaskInstance)).all()
         # Record the task instance history
         from airflow.models.taskinstance import clear_task_instances
 
-        clear_task_instances(tis, session)
-        for ti in tis:
+        successors = clear_task_instances(tis, session)
+        for old_ti, ti in zip(tis, successors):
             if ti.map_index > 0:
+                assert old_ti.working_set is None
+                assert old_ti.try_number == 1
+                assert ti.id != old_ti.id
                 assert ti.try_number == 2
                 ti.queue = "default_queue"
                 session.merge(ti)
@@ -2928,6 +3017,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                     "id": response_data["dag_version"]["id"],
                     "version_number": 1,
                 },
+                "state_reason": None,
             }
 
     def test_should_respond_200_with_task_state_in_deferred(self, test_client, session):
@@ -2945,14 +3035,12 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         ti.try_number = 1
         session.merge(ti)
         session.flush()
-        ti.prepare_db_for_next_try(session=session)
-        ti.state = None
+        successor = ti.prepare_db_for_next_try(session=session)
+        successor.state = None
         session.flush()
-        # Set duration and end_date in TaskInstanceHistory for easy testing
-        tih = session.scalars(select(TaskInstanceHistory).limit(1)).one()
-        tih.duration = 10000
-        tih.end_date = self.default_time + dt.timedelta(days=2)
-        session.merge(tih)
+        ti.duration = 10000
+        ti.end_date = self.default_time + dt.timedelta(days=2)
+        session.merge(ti)
         session.commit()
         # Get the task instance details from TIHistory:
         response = test_client.get(
@@ -2996,6 +3084,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
+            "state_reason": None,
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
@@ -3043,6 +3132,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
+            "state_reason": None,
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -3118,6 +3208,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
+            "state_reason": None,
         }
 
     def test_should_not_return_duplicate_runs(self, test_client, session):
@@ -3855,6 +3946,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
                 "team_name": None,
+                "state_reason": None,
                 "try_number": 1,
                 "unixname": getuser(),
             },
@@ -4222,12 +4314,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "only_failed": True,
             "only_running": False,
         }
-        self.create_task_instances(
+        old_ti = self.create_task_instances(
             session,
             dag_id=dag_id,
             task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
             update_extras=False,
-        )
+        )[0]
         response = test_client.post(
             f"/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -4236,6 +4328,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         response_data = response.json()
         assert response_data["total_entries"] == 1
         ti_id = response_data["task_instances"][0]["id"]
+        assert ti_id != str(old_ti.id)
+        _check_task_instance_note(session, old_ti.id, {"content": "placeholder-note", "user_id": None})
         _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
 
     @pytest.mark.db_test
@@ -4265,6 +4359,123 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response_data["total_entries"] == 1
         ti_id = response_data["task_instances"][0]["id"]
         _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
+
+    def _seed_task_state(self, session, dag_id, task_id=None, map_index=None):
+        """Store one task state key for the TI matching the given task_id/map_index."""
+        stmt = select(TaskInstance).where(TaskInstance.dag_id == dag_id)
+        if task_id is not None:
+            stmt = stmt.where(TaskInstance.task_id == task_id)
+        if map_index is not None:
+            stmt = stmt.where(TaskInstance.map_index == map_index)
+        ti = session.scalars(stmt).one()
+        MetastoreBackend().set(
+            TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
+            "job_id",
+            "app_1234",
+            session=session,
+        )
+        session.commit()
+
+    def _task_state_rows(self, session, dag_id, task_id=None, map_index=None):
+        stmt = select(TaskStateStoreModel).where(TaskStateStoreModel.dag_id == dag_id)
+        if task_id is not None:
+            stmt = stmt.where(TaskStateStoreModel.task_id == task_id)
+        if map_index is not None:
+            stmt = stmt.where(TaskStateStoreModel.map_index == map_index)
+        return session.scalars(stmt).all()
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("payload_extra", "expect_kept"),
+        [
+            pytest.param({}, False, id="default-discards"),
+            pytest.param({"keep_task_state": True}, True, id="keep-preserves"),
+            pytest.param({"keep_task_state": False}, False, id="explicit-false-discards"),
+        ],
+    )
+    def test_clear_task_state_store(self, test_client, session, payload_extra, expect_kept):
+        """Clearing one mapped index discards only that index's task state, unless kept."""
+        dag_id = "example_task_mapping_second_order"
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[
+                {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                {
+                    "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                    "state": State.FAILED,
+                    "map_indexes": (0, 1),
+                },
+            ],
+            update_extras=False,
+        )
+        self._seed_task_state(session, dag_id, "times_2", 0)
+        self._seed_task_state(session, dag_id, "times_2", 1)
+        assert self._task_state_rows(session, dag_id, "times_2", 0)
+        assert self._task_state_rows(session, dag_id, "times_2", 1)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={
+                "dry_run": False,
+                "reset_dag_runs": False,
+                "only_failed": True,
+                "task_ids": [["times_2", 0]],
+                **payload_extra,
+            },
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        assert bool(self._task_state_rows(session, dag_id, "times_2", 0)) is expect_kept
+        # The untargeted map index is never touched, regardless of keep_task_state.
+        assert self._task_state_rows(session, dag_id, "times_2", 1)
+
+    @pytest.mark.db_test
+    def test_clear_dry_run_does_not_discard_task_state(self, test_client, session):
+        """A dry run previews the clear and must not touch task state."""
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        self._seed_task_state(session, dag_id)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={"dry_run": True, "reset_dag_runs": False, "only_failed": True},
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+        session.expire_all()
+        assert self._task_state_rows(session, dag_id)
+
+    @pytest.mark.db_test
+    @mock.patch.object(MetastoreBackend, "clear", side_effect=RuntimeError("boom"))
+    def test_clear_task_state_store_discard_failure_fails_request(self, mock_clear, test_client, session):
+        """A backend.clear() failure fails the whole request instead of reporting a partial clear as success."""
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        self._seed_task_state(session, dag_id)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            test_client.post(
+                f"/dags/{dag_id}/clearTaskInstances",
+                json={"dry_run": False, "reset_dag_runs": False, "only_failed": True},
+            )
+
+        session.expire_all()
+        assert self._task_state_rows(session, dag_id)
+        ti = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag_id)).one()
+        assert ti.state == State.FAILED
 
     @pytest.mark.parametrize(
         ("task_group_id", "expected_task_ids"),
@@ -4364,6 +4575,27 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
 
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
+    def test_history_without_dag_version_serializes_null(self, test_client, session):
+        self.create_task_instances(
+            session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
+        )
+        historical = session.scalar(
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .execution_options(include_all_attempts=True)
+        )
+        historical.dag_version_id = None
+        session.commit()
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
+        )
+
+        assert response.status_code == 200
+        attempts = {item["try_number"]: item for item in response.json()["task_instances"]}
+        assert attempts[1]["dag_version"] is None
+        assert attempts[2]["dag_version"] is not None
+
     def test_should_respond_200(self, test_client, session):
         self.create_task_instances(
             session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
@@ -4414,6 +4646,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "id": response_data["task_instances"][0]["dag_version"]["id"],
                         "version_number": 1,
                     },
+                    "state_reason": None,
                 },
                 {
                     "dag_id": "example_python_operator",
@@ -4451,6 +4684,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "id": response_data["task_instances"][1]["dag_version"]["id"],
                         "version_number": 1,
                     },
+                    "state_reason": None,
                 },
             ],
             "total_entries": 2,
@@ -4503,9 +4737,12 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         # Record the task instance history
         from airflow.models.taskinstance import clear_task_instances
 
-        clear_task_instances(tis, session)
-        for ti in tis:
+        successors = clear_task_instances(tis, session)
+        for old_ti, ti in zip(tis, successors):
             if ti.map_index > 0:
+                assert old_ti.working_set is None
+                assert old_ti.try_number == 1
+                assert ti.id != old_ti.id
                 assert ti.try_number == 2
                 ti.queue = "default_queue"
                 session.merge(ti)
@@ -4563,6 +4800,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                             "id": response_data["task_instances"][0]["dag_version"]["id"],
                             "version_number": 1,
                         },
+                        "state_reason": None,
                     },
                     {
                         "dag_id": "example_python_operator",
@@ -4600,6 +4838,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                             "id": response_data["task_instances"][1]["dag_version"]["id"],
                             "version_number": 1,
                         },
+                        "state_reason": None,
                     },
                 ],
                 "total_entries": 2,
@@ -4667,6 +4906,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
+            "state_reason": None,
         }
 
 
@@ -4792,6 +5032,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5070,6 +5311,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "trigger": None,
                             "triggerer_job": None,
                             "team_name": None,
+                            "state_reason": None,
                         }
                     ],
                     "total_entries": 1,
@@ -5210,6 +5452,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5275,6 +5518,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5309,10 +5553,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             ti = TaskInstance(
                 task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
             )
-            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note", "try_number"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
+            session.flush()
+            session.add(RTIF(ti, render_templates=False))
         session.commit()
 
         # in each loop, we should get the right mapped TI back
@@ -5372,6 +5617,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "trigger": None,
                         "triggerer_job": None,
                         "team_name": None,
+                        "state_reason": None,
                     }
                 ],
                 "total_entries": 1,
@@ -5394,10 +5640,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             ti = TaskInstance(
                 task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
             )
-            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note", "try_number"]:
                 setattr(ti, attr, getattr(old_ti, attr))
             session.add(ti)
+            session.flush()
+            session.add(RTIF(ti, render_templates=False))
         session.commit()
 
         new_note_value = "My super cool TaskInstance note"
@@ -5457,6 +5704,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
                 "team_name": None,
+                "state_reason": None,
             }
 
             _check_task_instance_note(
@@ -5653,6 +5901,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5943,6 +6192,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "trigger": None,
                             "triggerer_job": None,
                             "team_name": None,
+                            "state_reason": None,
                         }
                     ],
                     "total_entries": 1,
@@ -6181,6 +6431,76 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     BASH_DAG_ID = "example_bash_operator"
     BASH_TASK_ID = "also_run_this"
     WILDCARD_ENDPOINT = "/dags/~/dagRuns/~/taskInstances"
+
+    @pytest.mark.parametrize("delete_mode", ["single", "bulk-exact", "bulk-all"])
+    def test_delete_removes_current_and_archived_tries(self, test_client, session, delete_mode):
+        current_tis = self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.TASK_ID, "state": State.SUCCESS, "map_indexes": (0, 1, 2)}],
+            with_ti_history=True,
+        )
+        session.delete(next(ti for ti in current_tis if ti.map_index == 2))
+        session.flush()
+        task_rows = session.scalars(
+            select(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id == self.TASK_ID,
+            )
+            .execution_options(include_all_attempts=True)
+        ).all()
+        ids_by_index = {
+            map_index: {ti.id for ti in task_rows if ti.map_index == map_index} for map_index in (0, 1, 2)
+        }
+        assert [len(ids_by_index[index]) for index in (0, 1, 2)] == [2, 2, 1]
+        session.commit()
+
+        if delete_mode == "single":
+            assert (
+                test_client.delete(f"{self.ENDPOINT_URL}/{self.TASK_ID}", params={"map_index": 2}).status_code
+                == 404
+            )
+            assert (
+                session.scalar(
+                    select(TaskInstance.id)
+                    .where(TaskInstance.id.in_(ids_by_index[2]))
+                    .execution_options(include_all_attempts=True)
+                )
+                in ids_by_index[2]
+            )
+            response = test_client.delete(f"{self.ENDPOINT_URL}/{self.TASK_ID}", params={"map_index": 0})
+        else:
+            entity = {"task_id": self.TASK_ID}
+            if delete_mode == "bulk-exact":
+                entity["map_index"] = 0
+            response = test_client.patch(
+                self.ENDPOINT_URL,
+                json={"actions": [{"action": "delete", "entities": [entity]}]},
+            )
+        assert response.status_code == 200
+        if delete_mode != "single":
+            expected_indexes = {0, 1} if delete_mode == "bulk-all" else {0}
+            assert set(response.json()["delete"]["success"]) == {
+                f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[{index}]" for index in expected_indexes
+            }
+
+        session.expire_all()
+        remaining_ids = ids_by_index[1] | ids_by_index[2] if delete_mode != "bulk-all" else set()
+        assert (
+            set(
+                session.scalars(
+                    select(TaskInstance.id)
+                    .where(
+                        TaskInstance.dag_id == self.DAG_ID,
+                        TaskInstance.run_id == self.RUN_ID,
+                        TaskInstance.task_id == self.TASK_ID,
+                    )
+                    .execution_options(include_all_attempts=True)
+                )
+            )
+            == remaining_ids
+        )
 
     @pytest.fixture(autouse=True)
     def clean_db(self, session):
@@ -6875,38 +7195,31 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.patch(
-                self.WILDCARD_ENDPOINT,
-                json={
-                    "actions": [
-                        {
-                            "action": "update",
-                            "entities": [
-                                {
-                                    "dag_id": self.BASH_DAG_ID,
-                                    "dag_run_id": self.RUN_ID,
-                                    "task_id": self.BASH_TASK_ID,
-                                    "new_state": "success",
-                                },
-                                {
-                                    "dag_id": self.DAG_ID,
-                                    "dag_run_id": self.RUN_ID,
-                                    "task_id": self.TASK_ID,
-                                    "new_state": "success",
-                                },
-                            ],
-                        }
-                    ]
-                },
-            )
+        response = test_client.patch(
+            self.WILDCARD_ENDPOINT,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "dag_id": self.BASH_DAG_ID,
+                                "dag_run_id": self.RUN_ID,
+                                "task_id": self.BASH_TASK_ID,
+                                "new_state": "success",
+                            },
+                            {
+                                "dag_id": self.DAG_ID,
+                                "dag_run_id": self.RUN_ID,
+                                "task_id": self.TASK_ID,
+                                "new_state": "success",
+                            },
+                        ],
+                    }
+                ]
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 200
         assert response.json()["update"]["success"] == [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"]
@@ -6950,36 +7263,29 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.patch(
-                self.WILDCARD_ENDPOINT,
-                json={
-                    "actions": [
-                        {
-                            "action": "delete",
-                            "entities": [
-                                {
-                                    "dag_id": self.BASH_DAG_ID,
-                                    "dag_run_id": self.RUN_ID,
-                                    "task_id": self.BASH_TASK_ID,
-                                },
-                                {
-                                    "dag_id": self.DAG_ID,
-                                    "dag_run_id": self.RUN_ID,
-                                    "task_id": self.TASK_ID,
-                                },
-                            ],
-                        }
-                    ]
-                },
-            )
+        response = test_client.patch(
+            self.WILDCARD_ENDPOINT,
+            json={
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [
+                            {
+                                "dag_id": self.BASH_DAG_ID,
+                                "dag_run_id": self.RUN_ID,
+                                "task_id": self.BASH_TASK_ID,
+                            },
+                            {
+                                "dag_id": self.DAG_ID,
+                                "dag_run_id": self.RUN_ID,
+                                "task_id": self.TASK_ID,
+                            },
+                        ],
+                    }
+                ]
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 200
         assert response.json()["delete"]["success"] == [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"]
@@ -6992,12 +7298,9 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
 
     @pytest.mark.parametrize("task_count", [5, 10, 20])
     def test_bulk_delete_query_count_scales_linearly_with_task_count(self, test_client, session, task_count):
-        # Regression guard for the N+1 fix in BulkTaskInstanceService.handle_bulk_delete:
-        # each extra task instance must add exactly QUERIES_PER_TASK_INSTANCE query (its DELETE),
-        # not 2 (DELETE + re-SELECT). A regression that re-queries inside the loop would make
-        # each run strictly exceed BASE_QUERY_COUNT + task_count * QUERIES_PER_TASK_INSTANCE.
+        # Each extra task instance adds one coordinate DELETE, with no per-instance re-SELECT.
         QUERIES_PER_TASK_INSTANCE = 1
-        BASE_QUERY_COUNT = 4
+        BASE_QUERY_COUNT = 2
 
         self.create_task_instances(
             session,
@@ -7386,6 +7689,7 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
                 TaskInstance.task_id.in_(downstream_task_ids),
             )
         ).all()
+        assert {ti.task_id for ti in downstream_tis} == set(downstream_task_ids)
         for ti in downstream_tis:
             assert ti.state != TaskInstanceState.UPSTREAM_FAILED, (
                 f"Expected {ti.task_id} to be cleared from upstream_failed, got {ti.state}"

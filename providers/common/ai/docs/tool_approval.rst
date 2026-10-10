@@ -20,6 +20,11 @@
 Approve an agent's tool calls
 =============================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 .. seealso::
     To approve, edit or reject an LLM operator's output instead, see :doc:`approval_gates`;
     to review an agent's final answer over several rounds, see :doc:`hitl_review`.
@@ -122,10 +127,16 @@ Requirements and limits
 
 - Airflow 3.3 or later. On older versions a tool marked for approval fails the
   task, as it did before.
-- Not together with ``durable=True``, ``enable_hitl_review=True``,
-  ``code_mode=True``, or a ``SandboxToolset``. Each assumes the run finishes in one
-  go; a sandbox, for one, is destroyed when the run pauses. With any of them, a
-  marked tool fails the task.
+- Not together with ``durable=True``, ``enable_hitl_review=True``, a ``CodeMode``
+  capability, or a ``SandboxToolset`` that
+  provisions its own sandbox. Each
+  assumes the run finishes in one go; that sandbox, for one, is destroyed when the
+  run pauses. With any of them, a marked tool fails the task, except under code mode,
+  where a marked tool called from ``run_code`` does not run and the model may carry on
+  without it (see :doc:`code_mode`). A ``SandboxToolset``
+  attached to a sandbox another task owns keeps its files through the pause, so it
+  is allowed; the wait spends that sandbox's lifetime
+  (:ref:`sandbox-attach`).
 - Tools that hand work to an external system (pydantic-ai's ``CallDeferred``) are
   not supported; the task fails without retrying.
 - The conversation so far, including tool results, is kept in the task's
