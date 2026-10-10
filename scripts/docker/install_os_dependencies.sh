@@ -42,6 +42,8 @@ if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
     # The Debian 12 hardened images ship Python under /opt/python, the Debian 13 ones install it as
     # Debian packages under /usr - so ask the base image's Python where it lives.
     PYTHON_HOME=${PYTHON_HOME:-$(python3 -c 'import sys; print(sys.base_prefix)')}
+    # Read before apt runs: a package depending on python3 can pull another Python version in.
+    BASE_PYTHON_MAJOR_MINOR=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
 elif [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then
     PYTHON_HOME=${PYTHON_HOME:-/usr/python}
 else
@@ -347,6 +349,23 @@ function check_no_system_python() {
     # /usr/python/lib/python3.11/lib-dynload/_ssl.cpython-311-aarch64-linux-gnu.so: undefined symbol: _PyModule_Add
     # Debian names its Python libraries "libpython3.13". The trixie hardened images register their own
     # Python with dpkg as "libpython-3.13", which is the Python we want, so it must not match.
+    # Debian 13 hardened images package their Python as "python-3.13" and serve other versions from
+    # their apt repository, so a package depending on python3 can also pull in a hardened Python of a
+    # different version than the image's own.
+    local other_hardened_python=""
+    if [[ -n "${BASE_PYTHON_MAJOR_MINOR=}" ]]; then
+        other_hardened_python=$(dpkg -l | awk '/^ii  (lib)?python-3\.[0-9]+/ {print $2}' \
+            | grep -v -E "python-${BASE_PYTHON_MAJOR_MINOR//./\\.}(-|:|$)" || true)
+    fi
+    if [[ -n "${other_hardened_python}" ]]; then
+        echo
+        echo "ERROR! A Python other than the image's ${BASE_PYTHON_MAJOR_MINOR} was installed: ${other_hardened_python//$'\n'/ }"
+        echo
+        apt-get install -yqq aptitude >/dev/null
+        aptitude why "$(echo "${other_hardened_python}" | head -1 | cut -d: -f1)"
+        echo
+        exit 1
+    fi
     if dpkg -l | grep -E '^ii  libpython3\.[0-9]+' >/dev/null; then
         echo
         echo "ERROR! System python is installed by one of the previous steps"
