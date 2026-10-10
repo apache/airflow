@@ -2106,8 +2106,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
-            if self._scheduler_use_job_schedule:
-                self._create_dagruns_for_dags(guard, session)
+            self._create_dagruns_for_dags(guard, session)
 
             self._start_queued_dagruns(session)
             guard.commit()
@@ -2571,7 +2570,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
         partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(session)
 
-        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(
+            session, include_scheduled=self._scheduler_use_job_schedule
+        )
         all_dags_needing_dag_runs = set(query.all())
         asset_triggered_dags = [d for d in all_dags_needing_dag_runs if d.dag_id in triggered_date_by_dag]
         non_asset_dags = {
