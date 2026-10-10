@@ -27,7 +27,7 @@ import os
 import sys
 import threading
 import time
-from asyncio import CancelledError, to_thread, wait_for
+from asyncio import CancelledError
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import dataclass, replace
@@ -2880,24 +2880,10 @@ async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Lo
 
     ctx = contextvars.copy_context()
     ctx.run(ExecutorSafeguard.tracker.set, task)
-    coro = ctx.run(lambda: task.aexecute(context=context))
-    if not task.execution_timeout:
-        result = await coro
-    else:
-        timeout = task.execution_timeout.total_seconds()
-        started = time.monotonic()
-        try:
-            result = await wait_for(coro, timeout=timeout)
-        except TimeoutError:
-            # Only the limit running out kills the task. Since Python 3.11 this is the built-in
-            # TimeoutError, which the operator may raise itself (a socket or HTTP timeout), and
-            # that is an ordinary failure of the operator, not a reason to call on_kill().
-            if time.monotonic() - started >= timeout:
-                # Off the loop thread: a synchronous SDK call in on_kill (cancelling a remote job
-                # through a sync hook) would raise DeadlockImminentError here, and the indexed task's
-                # timeout would become a failure without a retry, with the job left running.
-                await to_thread(task.on_kill)
-            raise
+    # Under the parent's execution_timeout only, as a sync indexed task is: the operator's own limit
+    # is the same value, started later, so enforcing it here too would never fire first and would
+    # race the parent's kill when the two coincide.
+    result = await ctx.run(lambda: task.aexecute(context=context))
 
     _run_post_execute(task, context, outlet_events, result, log)
     return result

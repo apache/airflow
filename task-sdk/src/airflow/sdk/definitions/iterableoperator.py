@@ -23,7 +23,6 @@ import json
 import os
 import threading
 import time
-import warnings
 from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Mapping, Sequence
 from functools import partial
 from typing import TYPE_CHECKING, Any
@@ -35,7 +34,7 @@ except NameError:
     from exceptiongroup import BaseExceptionGroup
 
 from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
-from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
+from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
 from airflow.sdk.bases.xcom import XComIterable
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision
@@ -658,20 +657,17 @@ class IterableOperator(BaseOperator):
         which :meth:`on_kill` runs off the loop thread.
 
     .. warning::
-        **``execution_timeout`` caps the whole iteration; per-sub-task enforcement is async-only.**
+        **``execution_timeout`` caps the whole iteration, not each indexed task.**
 
         The IterableOperator keeps the wrapped operator's ``execution_timeout`` as a wall-clock limit
         on the entire task instance. The runner enforces it on the main thread exactly as for any
         other task, so an iteration that overruns fails with ``AirflowTaskTimeout`` and
         :meth:`on_kill` is propagated to every sub-task still in flight. Since ``.iterate()`` runs
-        all indexed tasks in one task instance, this is the per-instance limit of ``.expand()`` applied to
-        the whole iteration rather than to each indexed task.
-
-        Per indexed task, only async sub-tasks (instances of :class:`~airflow.sdk.bases.operator.BaseAsyncOperator`)
-        are additionally limited, via ``asyncio.wait_for``. Sync sub-tasks run in worker threads and rely
-        on :class:`~airflow.sdk.execution_time.timeout.TimeoutPosix`, which requires ``signal.SIGALRM`` and
-        only works in the main thread, so no limit per indexed task applies to them. Use
-        :class:`~airflow.sdk.bases.operator.BaseAsyncOperator` if per-sub-task time limits are required.
+        all indexed tasks in one task instance, this is the per-instance limit of ``.expand()`` applied
+        to the whole iteration rather than to each indexed task: no limit applies per indexed task,
+        sync or async (one of the same value, started later, could never fire first). An
+        ``AirflowTaskTimeout`` a sync sub-task raises itself (a hook that gave up waiting) is that
+        sub-task's own failure, as it is the mapped task instance's under ``.expand()``.
     """
 
     _operator: MappedOperator
@@ -755,7 +751,7 @@ class IterableOperator(BaseOperator):
                 "pool": operator.pool,
                 "pool_slots": operator.pool_slots,
                 # Kept as the wall-clock cap on the whole iteration, enforced by the runner (see the
-                # class docstring); enforcement per indexed task stays with the sub-tasks.
+                # class docstring); no limit applies per indexed task.
                 "execution_timeout": operator.execution_timeout,
                 "trigger_rule": operator.trigger_rule,
                 "resources": operator.resources,
@@ -802,15 +798,6 @@ class IterableOperator(BaseOperator):
             raise ValueError(f"task_concurrency must be at least 1, got {task_concurrency}")
         # pool_slots is reserved once for the task instance, not per iteration: see the class docstring.
         self.max_workers = task_concurrency if task_concurrency is not None else (os.cpu_count() or 1)
-        if operator.execution_timeout and not issubclass(operator.operator_class, BaseAsyncOperator):
-            warnings.warn(
-                f"Operator {operator.task_id!r} has execution_timeout set, but sync operators run in "
-                "worker threads where TimeoutPosix (SIGALRM) cannot be delivered. "
-                "It caps the whole iteration but is not enforced per sync sub-task inside IterableOperator. "
-                "Use BaseAsyncOperator if per-sub-task time limits are required.",
-                UserWarning,
-                stacklevel=2,
-            )
         # unmap() would normally apply these three flags to each generated sub-operator, and
         # __attrs_post_init__ would apply them (plus the upstream-relationship wiring below) to the
         # MappedOperator itself; since IterableOperator skips __attrs_post_init__ entirely (it isn't a

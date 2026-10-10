@@ -57,7 +57,6 @@ from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOpe
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sdk import (
     DAG,
-    BaseAsyncOperator,
     BaseOperator,
     BaseOperatorLink,
     Connection,
@@ -194,7 +193,6 @@ from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
     _defer_task,
-    _execute_async_task,
     _execute_task,
     _find_native_dag_importer,
     _make_task_span,
@@ -1884,8 +1882,7 @@ def test_execution_timeout_caps_iterated_task_with_sync_sub_tasks(create_runtime
         mapped = SleepyOperator.partial(
             task_id="sleepy", dag=dag, task_concurrency=1, execution_timeout=timedelta(milliseconds=200)
         )._expand(expand_input, strict=True, register_with_dag=False)
-        with pytest.warns(UserWarning, match="caps the whole iteration"):
-            op = IterableOperator(operator=mapped, expand_input=expand_input, dag=dag)
+        op = IterableOperator(operator=mapped, expand_input=expand_input, dag=dag)
     assert op.execution_timeout == timedelta(milliseconds=200)
 
     ti = create_runtime_ti(task=op, dag_id="dag_iterate_execution_timeout")
@@ -3387,49 +3384,6 @@ class TestIndexedTaskRunner:
         executor.report_skip()
 
         assert fired == []
-
-
-class TestExecuteAsyncTask:
-    """``on_kill()`` runs when the execution timeout runs out, not for a TimeoutError the operator raises."""
-
-    class _Operator(BaseAsyncOperator):
-        def __init__(self, behaviour: str, **kwargs):
-            super().__init__(**kwargs)
-            self.behaviour = behaviour
-            self.killed = False
-
-        async def aexecute(self, context):
-            if self.behaviour == "raise":
-                raise TimeoutError("the remote host did not answer")
-            await asyncio.sleep(60)
-
-        def on_kill(self):
-            self.killed = True
-            self.killed_on_the_loop_thread = asyncio._get_running_loop() is not None
-
-    async def _run(self, make_indexed_ti, behaviour, execution_timeout):
-        operator = self._Operator(
-            behaviour=behaviour, task_id="async_task", execution_timeout=execution_timeout
-        )
-        ti = make_indexed_ti(is_async=True)
-        ti.task = operator
-        # The limit raises asyncio.TimeoutError, the built-in TimeoutError only from Python 3.11 on.
-        with pytest.raises((TimeoutError, asyncio.TimeoutError)):
-            await _execute_async_task({}, ti, mock.MagicMock())
-        return operator
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("execution_timeout", [None, timedelta(minutes=5)], ids=["no-limit", "limit"])
-    async def test_operators_own_timeout_error_does_not_kill_it(self, make_indexed_ti, execution_timeout):
-        operator = await self._run(make_indexed_ti, "raise", execution_timeout)
-        assert operator.killed is False
-
-    @pytest.mark.asyncio
-    async def test_running_out_of_the_limit_kills_it_off_the_loop_thread(self, make_indexed_ti):
-        """A sync SDK call in on_kill (cancelling a remote job) raises on the loop thread."""
-        operator = await self._run(make_indexed_ti, "sleep", timedelta(milliseconds=50))
-        assert operator.killed is True
-        assert operator.killed_on_the_loop_thread is False
 
 
 class TestSerializeOutletEvents:
