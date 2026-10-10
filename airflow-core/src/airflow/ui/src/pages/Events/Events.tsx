@@ -22,7 +22,7 @@ import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { useEventLogServiceGetEventLogs, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { useEventLogServiceGetEventLogs } from "openapi/queries";
 import type { EventLogResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
@@ -185,20 +185,9 @@ const {
 
 export const Events = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
-  const { dagId, mapIndex = "-1", runId, taskId } = useParams();
+  const { dagId, runId, taskId } = useParams();
   const coordinates = useTaskInstanceCoordinates();
   const regional = taskId !== undefined && coordinates.regionId !== undefined;
-  const { data: selectedTask } = useTaskInstanceServiceGetMappedTaskInstance(
-    {
-      ...coordinates,
-      dagId: dagId ?? "",
-      dagRunId: runId ?? "",
-      mapIndex: Number(mapIndex),
-      taskId: taskId ?? "",
-    },
-    undefined,
-    { enabled: regional },
-  );
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   // Only the standalone audit-log page owns the tab title; nested tabs inherit their parent page's title.
@@ -270,20 +259,21 @@ export const Events = () => {
       ...dagIdArg,
       ...eventArg,
       limit: pagination.pageSize,
+      // A loop pass shares its public map index with every other pass, so its coordinates select it.
       mapIndex: regional ? undefined : mapIndexNumber,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
-      taskInstanceId: regional ? selectedTask?.id : undefined,
       ...ownerArg,
+      regionId: regional ? coordinates.regionId : undefined,
+      regionIndex: regional ? coordinates.regionIndex : undefined,
       runId: runId ?? undefined,
       ...runIdArg,
       taskId: taskId ?? undefined,
       ...taskIdArg,
       teams: teams.length > 0 ? teams : undefined,
-      tryNumber: regional ? undefined : tryNumberNumber,
+      tryNumber: tryNumberNumber,
     },
     undefined,
-    { enabled: !regional || selectedTask !== undefined },
   );
 
   const eventLogs = data?.event_logs ?? [];
