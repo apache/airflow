@@ -192,12 +192,19 @@ class DagBag(LoggingMixin):
         bundle_path: Path | None = None,
         bundle_name: str | None = None,
         parse_lang_sdk_files: bool = False,
-        team_name: str | None = None,
+        team_name: str | None | ArgNotSet = NOTSET,
     ):
         super().__init__()
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
         self.parse_lang_sdk_files = parse_lang_sdk_files
+        # Explicit ownership, including None, avoids provider I/O in isolated processes.
+        if not is_arg_set(team_name):
+            team_name = None
+            if bundle_name and conf.getboolean("core", "multi_team"):
+                from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+                team_name = DagBundlesManager().get_configured_bundle_team_names().get(bundle_name)
         self.team_name = team_name
 
         dag_folder = dag_folder or settings.DAGS_FOLDER

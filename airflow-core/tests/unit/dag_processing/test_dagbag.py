@@ -1792,3 +1792,25 @@ class TestCoordinatorParsedFiles:
 
         assert dagbag.dags == {}
         assert dagbag.import_errors == {"dags.native": message}
+
+
+@conf_vars({("core", "multi_team"): "True"})
+@mock.patch("airflow.dag_processing.bundles.manager.DagBundlesManager", autospec=True)
+def test_dagbag_resolves_omitted_team_once(mock_manager):
+    mock_manager.return_value.get_configured_bundle_team_names.return_value = {"team_bundle": "team_a"}
+
+    bag = DagBag(bundle_name="team_bundle", collect_dags=False)
+
+    assert bag.team_name == "team_a"
+    mock_manager.assert_called_once_with()
+    mock_manager.return_value.get_configured_bundle_team_names.assert_called_once_with()
+
+
+@conf_vars({("core", "multi_team"): "True"})
+@pytest.mark.parametrize("team_name", [None, "team_a"])
+@mock.patch("airflow.dag_processing.bundles.manager.DagBundlesManager", autospec=True)
+def test_dagbag_does_not_discover_explicit_team(mock_manager, team_name):
+    bag = DagBag(bundle_name="team_bundle", team_name=team_name, collect_dags=False)
+
+    assert bag.team_name == team_name
+    mock_manager.assert_not_called()

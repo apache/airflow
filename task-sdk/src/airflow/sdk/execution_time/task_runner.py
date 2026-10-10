@@ -1072,6 +1072,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         load_op_links=False,
         bundle_path=bundle_instance.path,
         bundle_name=bundle_info.name,
+        team_name=what.ti_context.dag_run.team_name,
     )
     dag_file_parse_ms = int((time.monotonic() - dag_file_parse_start) * 1000)
     if TYPE_CHECKING:
