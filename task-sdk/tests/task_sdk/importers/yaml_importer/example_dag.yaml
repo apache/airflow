@@ -1,0 +1,69 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Fixture: a realistic two-document YAML DAG for the parser integration test.
+---
+$schema: https://airflow.apache.org/schemas/dag/2026-10-30.json
+dag_id: retail_daily_sales
+schedule: "0 3 * * *"
+start_date: "2025-01-01"
+catchup: false
+tags: [retail, etl]
+params:
+  target_schema: public
+templates:
+  retryable:
+    retries: 2
+    retry_delay: "5m"
+  redshift_load:
+    extends: [retryable]
+    uses: airflow.providers.amazon.aws.transfers.s3_to_redshift.S3ToRedshiftOperator
+    with:
+      schema: {$t: "{{ params.target_schema }}"}
+      redshift_conn_id: redshift_default
+tasks:
+  - id: wait_for_export
+    extends: [retryable]
+    uses: airflow.providers.standard.sensors.time_delta.TimeDeltaSensor
+    with: {delta: "1h"}
+  - id: load_sales
+    extends: [redshift_load]
+    needs: [wait_for_export]
+    with:
+      table: sales
+      s3_key: {$t: "sales/{{ ds }}.csv"}
+---
+$schema: https://airflow.apache.org/schemas/dag/2026-10-30.json
+dag_id: events_pipeline
+schedule: "@hourly"
+start_date: "2025-01-01"
+catchup: false
+tasks:
+  - id: extract
+    run: {}
+    queue: extract-workers
+  - id: transform
+    run:
+      region: "eu"
+      events: {$x: extract}
+    queue: jvm-workers
+  - id: load
+    uses: airflow.providers.amazon.aws.transfers.s3_to_redshift.S3ToRedshiftOperator
+    needs: [transform]
+    with:
+      table: events
+      s3_key: {$t: "events/{{ ts_nodash }}.json"}
