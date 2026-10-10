@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Unit tests for the YAML DAG version migrator (airflow.sdk.importers.yaml_importer.migrator)."""
+"""Unit tests for the YAML Dag version migrator (airflow.sdk.importers.yaml_importer.migrator)."""
 
 from __future__ import annotations
 

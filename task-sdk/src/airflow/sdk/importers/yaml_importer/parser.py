@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Parse a YAML/JSON DAG file into validated :class:`~.models.DagDocument` objects."""
+"""Parse a YAML/JSON Dag file into validated :class:`~.models.DagDocument` objects."""
 
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ class YamlDagParseError(ValueError):
 def _resolve_and_migrate(raw: dict[str, Any], *, source: str) -> dict[str, Any]:
     """Resolve the ``$schema`` version and migrate to the head shape."""
     if not isinstance(raw, collections.abc.Mapping):
-        raise YamlDagParseError(f"{source}: a DAG document must be a mapping, got {type(raw).__name__}")
+        raise YamlDagParseError(f"{source}: a Dag document must be a mapping, got {type(raw).__name__}")
     if "$schema" not in raw:
         raise YamlDagParseError(f"{source}: missing required key '$schema'")
     schema = raw["$schema"]

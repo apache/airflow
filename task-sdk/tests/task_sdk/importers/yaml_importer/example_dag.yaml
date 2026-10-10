@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Fixture: a realistic two-document YAML DAG for the parser integration test.
+# Fixture: a realistic two-document YAML Dag for the parser integration test.
 ---
 $schema: https://airflow.apache.org/schemas/dag/2026-10-30.json
 dag_id: retail_daily_sales

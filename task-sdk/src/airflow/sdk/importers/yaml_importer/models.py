@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Pydantic models for the YAML/JSON DAG format.
+Pydantic models for the YAML/JSON Dag format.
 
 These are the single source of truth for the format; they validate an authored
 document (rich Pydantic errors) and back the published JSON Schema. Only the
