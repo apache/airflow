@@ -49,6 +49,10 @@ class _UniqueKeySafeLoader(yaml.SafeLoader):
     def construct_mapping(self, node: MappingNode, deep: bool = False) -> dict[Hashable, Any]:
         seen: set[Hashable] = set()
         for key_node, _ in node.value:
+            # Let the superclass expand merge keys (<<). It's a valid use case
+            # for the mapping to explicitly override a key supplied by a merge.
+            if key_node.tag == "tag:yaml.org,2002:merge":
+                continue
             key = self.construct_object(key_node, deep=deep)
             if not isinstance(key, collections.abc.Hashable):
                 continue

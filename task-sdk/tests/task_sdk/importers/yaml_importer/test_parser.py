@@ -338,6 +338,22 @@ def test_duplicate_keys_rejected(body):
         _one(body)
 
 
+def test_yaml_merge_keys_supported():
+    # ``<<`` merge keys resolve via flatten_mapping; the duplicate-key loader must skip the merge
+    # tag rather than choke on it. Explicit keys still win over merged ones, and genuine duplicate
+    # explicit keys are still rejected (covered by test_duplicate_keys_rejected).
+    t = _task(
+        """
+        - id: a
+          run:
+            <<: &defaults {retries: 2, region: eu}
+            region: us
+        """
+    )
+    assert t.run["retries"].root == 2  # pulled in from the merge source
+    assert t.run["region"].root == "us"  # explicit key overrides the merged value
+
+
 def test_unknown_schema_version_is_rejected():
     # Strict exact match (mirroring the supervisor migrator): any version that is not published --
     # newer, ancient, or unreadable -- is rejected rather than guessed.
