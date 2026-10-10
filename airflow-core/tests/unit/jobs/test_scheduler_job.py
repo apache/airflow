@@ -15121,7 +15121,7 @@ def test_partition_cap_at_exactly_n_processes_all(dag_maker: DagMaker, session: 
 
 
 @pytest.mark.need_serialized_dag
-@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
 def test_partition_cap_at_n_minus_one_leaves_one_pending(dag_maker: DagMaker, session: Session):
     """
     cap == APDR count - 1: oldest cap APDRs fire, the newest remains pending.
@@ -15379,11 +15379,6 @@ def test_partition_cap_reporting_truncates_dag_id_list_beyond_max(
     The log/audit ``dag_ids`` list is capped at ``MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED``,
     ordered by descending per-dag pending count with a dag_id tie-break — not alphabetically
     truncated — and the audit row's prose notes how many dag_ids were dropped by the cap.
-
-    Built via :func:`_make_n_consumer_dags_each_with_one_pending_apdr` rather than
-    :func:`_make_n_satisfied_apdrs` because that helper's producer dag_id numbering restarts at 1
-    on every call, colliding across these 21 consumer Dags — same issue documented on
-    :func:`test_partition_cap_reporting_lists_all_affected_dag_ids`.
     """
     _make_n_consumer_dags_each_with_one_pending_apdr(
         name_prefix="trunc-low", n=20, session=session, dag_maker=dag_maker
@@ -15440,9 +15435,6 @@ def test_partition_cap_reporting_at_exactly_max_dag_ids_no_truncation(
     Cap-boundary pair to :func:`test_partition_cap_reporting_truncates_dag_id_list_beyond_max`:
     when the backlog's distinct dag_id count equals ``MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED``
     exactly, no dag_id is dropped and the "and N more" suffix is absent.
-
-    Built via :func:`_make_n_consumer_dags_each_with_one_pending_apdr` for the same producer
-    dag_id collision reason documented on the neighboring cap tests above.
     """
     _make_n_consumer_dags_each_with_one_pending_apdr(
         name_prefix="atmax", n=20, session=session, dag_maker=dag_maker
