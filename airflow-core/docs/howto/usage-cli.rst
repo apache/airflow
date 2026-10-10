@@ -259,6 +259,15 @@ You can filter cleanup to specific DAGs using ``--dag-ids`` (comma-separated lis
   The ``--dry-run`` output shows a ``dag_id_column`` for each table it would clean. Where that column is
   ``None``, the DAG filters do not apply to that table.
 
+To clean events for specific assets, pass ``--asset-ids`` with a comma-separated list of positive integer
+asset IDs. This requires explicitly selecting only ``--tables asset_event``; omitted or additional tables
+are rejected. The timestamp cutoff still applies, and any Dag filters further restrict the events by
+``source_dag_id``. Existing cascading deletes, including queued events, still apply.
+
+.. code-block:: bash
+
+    airflow db clean --tables asset_event --asset-ids 1,2 --clean-before-timestamp '2024-01-01T00:00:00+00:00' --dry-run
+
 By default, ``db clean`` will archive purged rows in tables of the form ``_airflow_deleted__<table>__<timestamp>``. Cascading attempt data may use a unique suffix instead of a timestamp. If you don't want the data preserved in this way, you may supply argument ``--skip-archive``.
 
 When you encounter an error without using ``--skip-archive``, an archive table may remain in the DB. You can use ``db drop-archived`` to remove it. ``db export-archived`` and ``db drop-archived`` also accept the pre-upgrade names ``xcom`` and ``task_instance_history`` to find older archives.

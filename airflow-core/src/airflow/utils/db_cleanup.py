@@ -872,12 +872,15 @@ def _confirm_delete(
     tables: list[str],
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
+    asset_ids: list[int] | None = None,
 ) -> None:
     for_tables = f" for tables {tables!r}" if tables else ""
     for_dags = f" for the following dags: {dag_ids!r}" if dag_ids else ""
     excluding_dags = f" excluding the following dags: {exclude_dag_ids!r}" if exclude_dag_ids else ""
+    for_assets = f" for asset IDs {asset_ids!r}" if asset_ids is not None else ""
     question = (
-        f"You have requested that we purge all data prior to {date}{for_tables}{for_dags}{excluding_dags}.\n"
+        f"You have requested that we purge all data prior to "
+        f"{date}{for_tables}{for_dags}{excluding_dags}{for_assets}.\n"
         f"This is irreversible.  Consider backing up the tables first and / or doing a dry run "
         f"with option --dry-run.\n"
         f"Enter 'delete rows' (without quotes) to proceed."
@@ -1023,6 +1026,7 @@ def run_cleanup(
     table_names: list[str] | None = None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
+    asset_ids: list[int] | None = None,
     dry_run: bool = False,
     verbose: bool = False,
     confirm: bool = True,
@@ -1047,6 +1051,8 @@ def run_cleanup(
     :param dag_ids: Optional. List of dag ids to perform maintenance on.  If list not provided,
         will perform maintenance on all dags.
     :param exclude_dag_ids: Optional. List of dag ids to exclude from maintenance.
+    :param asset_ids: Optional. Only clean events for these asset IDs. Requires table_names=["asset_event"].
+        An empty list selects no events.
     :param dry_run: If true, print rows meeting deletion criteria
     :param verbose: If true, may provide more detailed output.
     :param confirm: Require user input to confirm before processing deletions.
@@ -1057,12 +1063,27 @@ def run_cleanup(
         if any per-table cleanup encountered an error. By default errors are suppressed, a warning
         summary is logged, and the command exits 0 even if some tables were not cleaned.
     """
+    if asset_ids is not None and set(table_names or []) != {"asset_event"}:
+        raise SystemExit("--asset-ids requires explicitly selecting only --tables asset_event.")
+
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
 
     # Get all tables to clean (root + dependents)
     effective_table_names, effective_config_dict = _effective_table_names(table_names=table_names)
+    if asset_ids is not None:
+        asset_config = effective_config_dict["asset_event"]
+        effective_config_dict["asset_event"] = dataclasses.replace(
+            asset_config,
+            extra_columns=[*(asset_config.extra_columns or []), "asset_id"],
+            extra_filters=[
+                *(asset_config.extra_filters or []),
+                literal_column(f"{_BASE_TABLE_ALIAS}.asset_id").in_(asset_ids),
+            ],
+        )
     if dry_run:
         print("Performing dry run for db cleanup.")
+        if asset_ids is not None:
+            print(f"Restricting cleanup to asset IDs {asset_ids!r}.")
         print(
             f"Data prior to {clean_before_timestamp} would be purged "
             f"from tables {effective_table_names} with the following config:\n"
@@ -1074,6 +1095,7 @@ def run_cleanup(
             tables=sorted(effective_table_names),
             dag_ids=dag_ids,
             exclude_dag_ids=exclude_dag_ids,
+            asset_ids=asset_ids,
         )
     existing_tables: set[str] = {
         table
