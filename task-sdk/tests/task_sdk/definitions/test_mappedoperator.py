@@ -32,15 +32,12 @@ from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.execution_time.comms import (
-    ErrorResponse,
     GetTICount,
     GetXCom,
-    GetXComSequenceItem,
     GetXComSequenceSlice,
     SetXCom,
     TICount,
     XComResult,
-    XComSequenceIndexResult,
     XComSequenceSliceResult,
 )
 
@@ -679,17 +676,10 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
                 value = [v for k, v in expected_values.items() if k[0] == msg.task_id]
                 return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=value)
         elif isinstance(msg, GetXComSequenceSlice):
-            # Handle sequence slicing for pulling all XCom values from mapped tasks
+            # The aggregated task-group value resolves lazily and is read in chunks: honour the bounds.
             task_id = msg.task_id
             values = [v for k, v in expected_values.items() if k[0] == task_id and k[1] is not None]
-            return XComSequenceSliceResult(root=values)
-        elif isinstance(msg, GetXComSequenceItem):
-            # The aggregated task-group value now resolves lazily, so iterating it fetches one item at a time.
-            task_id = msg.task_id
-            values = [v for k, v in expected_values.items() if k[0] == task_id and k[1] is not None]
-            if 0 <= msg.offset < len(values):
-                return XComSequenceIndexResult(root=values[msg.offset])
-            return ErrorResponse()
+            return XComSequenceSliceResult(root=values[msg.start : msg.stop : msg.step])
         elif isinstance(msg, GetTICount):
             # Handle TI count queries for upstream_map_indexes computation
             if msg.task_ids:

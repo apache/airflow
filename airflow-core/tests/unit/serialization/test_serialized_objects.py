@@ -1821,3 +1821,21 @@ def test_deadline_callback_rejects_field_belonging_to_the_other_subclass(callbac
 
     with pytest.raises(ValueError, match=f"Unexpected deadline callback fields: {foreign_field}"):
         BaseSerialization.deserialize(serialized)
+
+
+def test_operator_iterate_serde_refers_to_the_class_that_runs():
+    """The class an iterated task is serialized under can be imported: the IterableOperator that runs it."""
+    from airflow._shared.module_loading import import_string
+    from airflow.providers.standard.operators.bash import BashOperator
+    from airflow.sdk import DAG
+    from airflow.sdk.definitions.iterableoperator import IterableOperator
+    from airflow.serialization.serialized_objects import OperatorSerialization
+
+    with DAG("iterated"):
+        real_op = BashOperator.partial(task_id="a").iterate(bash_command=["echo 1"])
+
+    serialized = OperatorSerialization.serialize_operator(real_op)
+
+    assert import_string(f"{serialized['_task_module']}.{serialized['task_type']}") is IterableOperator
+    assert serialized["_operator_name"] == "BashOperator"
+    assert OperatorSerialization.deserialize_operator(serialized).operator_name == "BashOperator"
