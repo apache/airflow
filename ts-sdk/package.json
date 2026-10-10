@@ -31,6 +31,10 @@
     "./coordinator": {
       "types": "./dist/coordinator/index.d.ts",
       "import": "./dist/coordinator/index.js"
+    },
+    "./hitl": {
+      "types": "./dist/hitl/index.d.ts",
+      "import": "./dist/hitl/index.js"
     }
   },
   "files": [

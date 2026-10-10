@@ -27,6 +27,7 @@ import type { XComResponse } from "openapi/requests/types.gen";
 import { RouterLink } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
@@ -67,7 +68,7 @@ const getColumns = ({
   multiTeam,
   open,
   translate,
-}: ColumnsProps): Array<ColumnDef<XComResponse>> => [
+}: ColumnsProps): Array<ColumnDef<DataTableFeatures, XComResponse>> => [
   {
     accessorKey: "key",
     header: translate("xcom.columns.key"),

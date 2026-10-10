@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} of {{total}} assets updated",
+  "assetSchedule": "{{count, number}} of {{total, number}} assets updated",
   "dagActions": {
     "delete": {
       "button": "Delete $t(common:dag_one)",
@@ -48,7 +48,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No tasks found.",
-      "title": "Affected Tasks: {{count}}"
+      "title": "Affected Tasks: {{count, number}}"
     },
     "clear": {
       "button": "Clear {{type}}",
@@ -84,6 +84,7 @@
         "failed": "Press shift+f to mark as failed",
         "success": "Press shift+s to mark as success"
       },
+      "skippedInfo": "Marking a task instance as skipped records that it was intentionally not run. Downstream tasks are still evaluated by their trigger rules: with the default \"all_success\" rule they will also be skipped. Only task instances that have not started running can be skipped, and only this task instance is affected.",
       "title": "Mark {{type}} as {{state}}"
     },
     "options": {
@@ -127,6 +128,7 @@
   "search": {
     "advanced": "Advanced Search",
     "clear": "Clear search",
+    "dagRuns": "Search $t(common:dagRun_other)",
     "dags": "Search $t(common:dag_other)",
     "hotkey": "+K",
     "tasks": "Search $t(common:task_other)"

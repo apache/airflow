@@ -391,6 +391,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dataproc._DataprocStartStopClusterBaseOperator",
         "airflow.providers.google.cloud.operators.dataplex.DataplexCatalogBaseOperator",
         "airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaBaseOperator",
+        # Compatibility fallback for GKEPodExecOperator, not a standalone Google operator.
+        "airflow.providers.google.cloud.operators.kubernetes_engine.KubernetesPodExecOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.ray.RayBaseOperator",
         "airflow.providers.google.cloud.operators.ray.RayJobBaseOperator",
@@ -514,8 +516,6 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
-        # S3 Exasol transfer difficult to test, see: https://github.com/apache/airflow/issues/22632
-        "airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator",
         # These operations take a lot of time, there are commented out in the system tests for this reason
         "airflow.providers.amazon.aws.operators.dms.DmsStartReplicationOperator",
         "airflow.providers.amazon.aws.operators.dms.DmsStopReplicationOperator",

@@ -44,8 +44,8 @@
   "deadlineAlerts": {
     "completionRule": "Must complete within {{interval}} of {{reference}}",
     "completionRuleDynamic": "Must complete within a variable interval measured from {{reference}}",
-    "count_one": "{{count}} deadline",
-    "count_other": "{{count}} deadlines",
+    "count_one": "{{count, number}} deadline",
+    "count_other": "{{count, number}} deadlines",
     "referenceType": {
       "AverageRuntimeDeadline": "average runtime",
       "DagRunLogicalDateDeadline": "logical date",
@@ -60,13 +60,13 @@
     "label": "Deadline",
     "met": "Met",
     "missed": "Missed",
-    "missedCount_one": "{{count}} Missed Deadline",
-    "missedCount_other": "{{count}} Missed Deadlines",
-    "mixedCount": "{{missedCount}} Missed, {{upcomingCount}} Upcoming",
+    "missedCount_one": "{{count, number}} Missed Deadline",
+    "missedCount_other": "{{count, number}} Missed Deadlines",
+    "mixedCount": "{{missedCount, number}} Missed, {{upcomingCount, number}} Upcoming",
     "stillRunning": "Still running",
     "upcoming": "Upcoming",
-    "upcomingCount_one": "{{count}} Upcoming Deadline",
-    "upcomingCount_other": "{{count}} Upcoming Deadlines"
+    "upcomingCount_one": "{{count, number}} Upcoming Deadline",
+    "upcomingCount_other": "{{count, number}} Upcoming Deadlines"
   },
   "extraLinks": "Extra Links",
   "grid": {
@@ -96,7 +96,7 @@
     "info": "INFO",
     "noTryNumber": "No try number",
     "search": {
-      "matchCount": "{{current}} of {{total}}",
+      "matchCount": "{{current, number}} of {{total, number}}",
       "noMatches": "No matches",
       "placeholder": "Search logs..."
     },
@@ -215,8 +215,8 @@
     "code": "Code",
     "details": "Details",
     "logs": "Logs",
-    "mappedTaskInstances_one": "Task Instance [{{count}}]",
-    "mappedTaskInstances_other": "Task Instances [{{count}}]",
+    "mappedTaskInstances_one": "Task Instance [{{count, number}}]",
+    "mappedTaskInstances_other": "Task Instances [{{count, number}}]",
     "overview": "Overview",
     "renderedTemplates": "Rendered Templates",
     "requiredActions": "Required Actions",
@@ -300,8 +300,8 @@
     "record_one": "Record",
     "record_other": "Records",
     "selectPrompt": "Select two versions to see what changed between them.",
-    "summary_one": "{{count}} change · serialized schema {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count}} changes · serialized schema {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count, number}} change · serialized schema {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count, number}} changes · serialized schema {{baseSchema}} → {{targetSchema}}",
     "target": "Compare to",
     "truncated": {
       "description": "Changes at paths not shown were dropped to stay within the limit, so the count is a lower bound.",

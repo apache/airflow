@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
@@ -102,8 +102,8 @@ describe("VersionDiff summary", () => {
   it("carries both plural forms, since i18next resolves it with a count", () => {
     // A single `summary` key would render "1 changes" for a one-change comparison.
     expect(dagLocale.versions).not.toHaveProperty("summary");
-    expect(dagLocale.versions.summary_one).toContain("{{count}}");
-    expect(dagLocale.versions.summary_other).toContain("{{count}}");
+    expect(dagLocale.versions.summary_one).toContain("{{count, number}}");
+    expect(dagLocale.versions.summary_other).toContain("{{count, number}}");
   });
 });
 

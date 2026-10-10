@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "1 run will be triggered.",
-    "affected_other": "{{count}} runs will be triggered.",
+    "affected_other": "{{count, number}} runs will be triggered.",
     "affectedNone": "No runs matching selected criteria.",
     "allRuns": "All Runs",
     "backwards": "Run Backwards",
@@ -19,7 +19,7 @@
     "overrideExistingParams": "Override parameters on existing runs",
     "partitionRange": "Partition Range",
     "partitionsAffected_one": "1 partition will be backfilled:",
-    "partitionsAffected_other": "{{count}} partitions will be backfilled:",
+    "partitionsAffected_other": "{{count, number}} partitions will be backfilled:",
     "partitionsNone": "No partitions matching selected range.",
     "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Reprocess Behavior",
@@ -52,7 +52,6 @@
   },
   "close": "Close",
   "configForm": {
-    "advancedOptions": "Advanced Options",
     "configJson": "Configuration JSON",
     "invalidJson": "Invalid JSON format: {{errorMessage}}"
   },
@@ -60,7 +59,7 @@
     "error_one": "1 Error",
     "errorAndWarning": "1 Error and {{warningText}}",
     "warning_one": "1 Warning",
-    "warning_other": "{{count}} Warnings"
+    "warning_other": "{{count, number}} Warnings"
   },
   "dateRangeFilter": {
     "validation": {
@@ -72,16 +71,16 @@
   "durationChart": {
     "duration": "Duration (seconds)",
     "lastDagRun_one": "Last Dag Run",
-    "lastDagRun_other": "Last {{count}} Dag Runs",
+    "lastDagRun_other": "Last {{count, number}} Dag Runs",
     "lastTaskInstance_one": "Last Task Instance",
-    "lastTaskInstance_other": "Last {{count}} Task Instances",
+    "lastTaskInstance_other": "Last {{count, number}} Task Instances",
     "medianTotalDuration": "Total: {{duration}}",
     "queuedDuration": "Queued Duration",
     "runAfter": "Run After",
     "runDuration": "Run Duration"
   },
   "fileUpload": {
-    "files_other": "{{count}} files"
+    "files_other": "{{count, number}} files"
   },
   "flexibleForm": {
     "durationPlaceholder": "Enter Duration in ISO 8601 format",
@@ -104,24 +103,24 @@
     "downloadImageError": "Failed to download graph image.",
     "downloadImageErrorTitle": "Download Failed",
     "otherDagRuns": "+Other Dag Runs",
-    "taskCount_one": "{{count}} Task",
-    "taskCount_other": "{{count}} Tasks",
+    "taskCount_one": "{{count, number}} Task",
+    "taskCount_other": "{{count, number}} Tasks",
     "taskGroup": "Task Group",
     "zoomToTask": "Zoom to selected task"
   },
   "jsonPreview": {
     "items_one": "1 item",
-    "items_other": "{{count}} items"
+    "items_other": "{{count, number}} items"
   },
-  "limitedList": "+{{count}} more",
-  "limitedList.allItems": "All {{count}} items:",
+  "limitedList": "+{{count, number}} more",
+  "limitedList.allItems": "All {{count, number}} items:",
   "limitedList.allTags_one": "All Tags (1)",
-  "limitedList.allTags_other": "All Tags ({{count}})",
+  "limitedList.allTags_other": "All Tags ({{count, number}})",
   "limitedList.clickToInteract": "Click a tag to filter Dags",
-  "limitedList.clickToOpenFull": "Click \"+{{count}} more\" to open full view",
+  "limitedList.clickToOpenFull": "Click \"+{{count, number}} more\" to open full view",
   "limitedList.copyPasteText": "You can copy and paste the text above",
   "limitedList.showingItems_one": "Showing 1 item",
-  "limitedList.showingItems_other": "Showing {{count}} items",
+  "limitedList.showingItems_other": "Showing {{count, number}} items",
   "logs": {
     "file": "File",
     "location": "line {{line}} in {{name}}"
@@ -137,7 +136,7 @@
     "keepPausedDescription": "New and unfinished runs wait until the Dag is unpaused.",
     "title": "Dag is paused",
     "unfinishedRunsWillRun_one": "1 unfinished Dag run will start or resume.",
-    "unfinishedRunsWillRun_other": "{{count}} unfinished Dag runs will start or resume.",
+    "unfinishedRunsWillRun_other": "{{count, number}} unfinished Dag runs will start or resume.",
     "unpause": "Unpause",
     "unpauseDescription": "The Dag becomes active: unfinished runs continue and the schedule resumes. Paused backfills stay paused."
   },

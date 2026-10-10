@@ -147,7 +147,7 @@ Chain can also do *pairwise* dependencies for lists the same size (this is diffe
 Loading Dags
 ------------
 
-Airflow loads Dags from Python source files in Dag bundles. It will take each file, execute it, and then load any Dag objects from that file.
+Airflow loads Dags from Python source files in Dag bundles. It will take each file, execute it, and then load any Dag objects from that file. Other formats can be loaded with a :doc:`Dag importer </administration-and-deployment/dag-importers>`.
 
 This means you can define multiple Dags per Python file, or even spread one very complex Dag across multiple Python files using imports.
 
@@ -706,6 +706,8 @@ This is especially useful if your tasks are built dynamically from configuration
         with TaskGroup("extract", doc_md="### Extract tasks"):
             EmptyOperator(task_id="extract_orders")
 
+
+.. _concepts-packaging-dags:
 
 Packaging Dags
 --------------

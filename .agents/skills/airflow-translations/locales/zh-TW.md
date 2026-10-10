@@ -57,7 +57,7 @@ English words, numbers, or symbols:
 "Dag 執行"        // space between English and Chinese
 "最近 12 小時"     // space around numbers
 "連線 ID"          // space before abbreviation
-"{{count}} 個連線" // space after placeholder
+"{{count, number}} 個連線" // space after placeholder
 ```
 
 **Incorrect:**
@@ -94,9 +94,9 @@ appropriate measure word for each context:
 
 | Measure Word | Usage | Example |
 |---|---|---|
-| `個` | General objects (connections, variables, errors) | `刪除 {{count}} 個連線` |
-| `次` | Occurrences (runs, executions, attempts) | `最近 {{count}} 次 Dag 執行` |
-| `項` | List items | `+ 其他 {{count}} 項` |
+| `個` | General objects (connections, variables, errors) | `刪除 {{count, number}} 個連線` |
+| `次` | Occurrences (runs, executions, attempts) | `最近 {{count, number}} 次 Dag 執行` |
+| `項` | List items | `+ 其他 {{count, number}} 項` |
 
 ## Tone and Formality
 

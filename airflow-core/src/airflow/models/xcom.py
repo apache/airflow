@@ -46,7 +46,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, aliased, foreign, mapped_column, relationship
-from sqlalchemy.schema import conv
 from sqlalchemy.sql.visitors import cloned_traverse
 
 from airflow._shared.timezones import timezone
@@ -99,7 +98,6 @@ class XComModelV1(TaskInstanceDependencies):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
-        CheckConstraint(mapped_length >= 0, name=conv("ck_xcom_mapped_length_not_negative")),
         PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],

@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1790023613
+source-date-epoch: 1791328842
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.38.0
   - 9.37.0
   - 9.36.0
   - 9.35.1
@@ -979,6 +980,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.s3_to_ftp
   - source-integration-name: Exasol
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/transfer/exasol_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.exasol_to_s3
   - source-integration-name: File Transfer Protocol (FTP)
     target-integration-name: Amazon Simple Storage Service (S3)

@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "1 futás lesz elindítva.",
-    "affected_other": "{{count}} futás lesz elindítva.",
+    "affected_other": "{{count, number}} futás lesz elindítva.",
     "affectedNone": "Nincs a kiválasztott feltételeknek megfelelő futás.",
     "allRuns": "Összes futás",
     "backwards": "Futtatás visszafelé",
@@ -41,7 +41,6 @@
   },
   "close": "Bezárás",
   "configForm": {
-    "advancedOptions": "Speciális beállítások",
     "configJson": "Konfiguráció JSON",
     "invalidJson": "Érvénytelen JSON formátum: {{errorMessage}}"
   },
@@ -49,7 +48,7 @@
     "error_one": "1 hiba",
     "errorAndWarning": "1 hiba és {{warningText}}",
     "warning_one": "1 figyelmeztetés",
-    "warning_other": "{{count}} figyelmeztetés"
+    "warning_other": "{{count, number}} figyelmeztetés"
   },
   "dateRangeFilter": {
     "validation": {
@@ -61,16 +60,16 @@
   "durationChart": {
     "duration": "Időtartam (másodperc)",
     "lastDagRun_one": "Utolsó Dag futás",
-    "lastDagRun_other": "Utolsó {{count}} Dag futás",
+    "lastDagRun_other": "Utolsó {{count, number}} Dag futás",
     "lastTaskInstance_one": "Utolsó feladatpéldány",
-    "lastTaskInstance_other": "Utolsó {{count}} feladatpéldány",
+    "lastTaskInstance_other": "Utolsó {{count, number}} feladatpéldány",
     "queuedDuration": "Sorban állási idő",
     "runAfter": "Futás ekkortól",
     "runDuration": "Futás időtartama"
   },
   "fileUpload": {
     "files_one": "1 fájl",
-    "files_other": "{{count}} fájl"
+    "files_other": "{{count, number}} fájl"
   },
   "flexibleForm": {
     "durationPlaceholder": "Időtartam megadása ISO 8601 formátumban",
@@ -93,20 +92,20 @@
     "downloadImageError": "A gráf letöltése sikertelen.",
     "downloadImageErrorTitle": "Sikertelen letöltés",
     "otherDagRuns": "+További Dag futások",
-    "taskCount_one": "{{count}} feladat",
-    "taskCount_other": "{{count}} feladat",
+    "taskCount_one": "{{count, number}} feladat",
+    "taskCount_other": "{{count, number}} feladat",
     "taskGroup": "Feladatcsoport",
     "zoomToTask": "Nagyítás a kiválasztott feladatra"
   },
-  "limitedList": "+{{count}} további",
-  "limitedList.allItems": "Összes {{count}} elem:",
-  "limitedList.allTags_one": "Összes címke ({{count}})",
-  "limitedList.allTags_other": "Összes címke ({{count}})",
+  "limitedList": "+{{count, number}} további",
+  "limitedList.allItems": "Összes {{count, number}} elem:",
+  "limitedList.allTags_one": "Összes címke ({{count, number}})",
+  "limitedList.allTags_other": "Összes címke ({{count, number}})",
   "limitedList.clickToInteract": "Kattintson egy címkére a Dag-ek szűréséhez",
-  "limitedList.clickToOpenFull": "Kattintson a \"+{{count}} további\" gombra a teljes nézethez",
+  "limitedList.clickToOpenFull": "Kattintson a \"+{{count, number}} további\" gombra a teljes nézethez",
   "limitedList.copyPasteText": "A fenti szöveg másolható és beilleszthető",
-  "limitedList.showingItems_one": "{{count}} elem megjelenítve",
-  "limitedList.showingItems_other": "{{count}} elem megjelenítve",
+  "limitedList.showingItems_one": "{{count, number}} elem megjelenítve",
+  "limitedList.showingItems_other": "{{count, number}} elem megjelenítve",
   "logs": {
     "file": "Fájl",
     "location": "{{name}} fájl {{line}}. sora"

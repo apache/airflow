@@ -80,6 +80,18 @@ class TestDag:
 
         assert dag.topological_sort() == ()
 
+    def test_dag_topological_sort_task_group_cycle(self):
+        """A TaskGroup that depends on a sibling in a cycle, although check_cycle passes, still sorts."""
+        with DAG("dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            bridge = BaseOperator(task_id="bridge")
+            with TaskGroup("group"):
+                a = BaseOperator(task_id="a")
+                b = BaseOperator(task_id="b")
+            a >> bridge >> b
+        dag.check_cycle()
+
+        assert [task.task_id for task in dag.topological_sort()] == ["bridge", "group.a", "group.b"]
+
     def test_dag_naive_start_date_string(self):
         DAG("DAG", schedule=None, default_args={"start_date": "2019-06-01"})
 

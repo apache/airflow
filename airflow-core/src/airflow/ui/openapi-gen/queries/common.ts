@@ -961,10 +961,11 @@ export const UseTaskServiceGetTasksKeyFn = ({ dagId, orderBy }: {
 export type TaskServiceGetTaskDefaultResponse = Awaited<ReturnType<typeof TaskService.getTask>>;
 export type TaskServiceGetTaskQueryResult<TData = TaskServiceGetTaskDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskServiceGetTaskKey = "TaskServiceGetTask";
-export const UseTaskServiceGetTaskKeyFn = ({ dagId, taskId }: {
+export const UseTaskServiceGetTaskKeyFn = ({ dagId, taskId, versionNumber }: {
   dagId: string;
   taskId: unknown;
-}, queryKey?: Array<unknown>) => [useTaskServiceGetTaskKey, ...(queryKey ?? [{ dagId, taskId }])];
+  versionNumber?: number;
+}, queryKey?: Array<unknown>) => [useTaskServiceGetTaskKey, ...(queryKey ?? [{ dagId, taskId, versionNumber }])];
 export type VariableServiceGetVariableDefaultResponse = Awaited<ReturnType<typeof VariableService.getVariable>>;
 export type VariableServiceGetVariableQueryResult<TData = VariableServiceGetVariableDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useVariableServiceGetVariableKey = "VariableServiceGetVariable";

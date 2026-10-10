@@ -25,7 +25,7 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property, wraps
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import pendulum
 
@@ -58,15 +58,15 @@ def get_execution_api_server_url(conf_source: AirflowConfigParser | ExecutorConf
         Team-specific executors can pass their own config (e.g. ``ExecutorConf``) to resolve
         a team-specific URL.
     """
+    execution_api_server_url = conf_source.get("core", "execution_api_server_url", fallback=None)
+    if execution_api_server_url is not None:
+        return execution_api_server_url
     base_url = conf_source.get("api", "base_url", fallback="/")
     # ExecutorConf.get() is typed as str | None even when fallback= guarantees a str,
-    # so the `not base_url` guard and the cast() below keep mypy happy.
+    # so the `not base_url` guard keeps mypy happy.
     if not base_url or base_url.startswith("/"):
-        base_url = f"http://localhost:8080{base_url}"
-    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
-    return cast(
-        "str", conf_source.get("core", "execution_api_server_url", fallback=default_execution_api_server)
-    )
+        base_url = f"http://localhost:{conf_source.getint('api', 'port')}{base_url}"
+    return f"{base_url.rstrip('/')}/execution/"
 
 
 if TYPE_CHECKING:

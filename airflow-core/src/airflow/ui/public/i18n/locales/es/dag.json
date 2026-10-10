@@ -43,8 +43,8 @@
   "deadlineAlerts": {
     "completionRule": "Debe completarse dentro de {{interval}} de {{reference}}",
     "completionRuleDynamic": "Debe completarse dentro de un intervalo variable medido desde {{reference}}",
-    "count_one": "{{count}} plazo",
-    "count_other": "{{count}} plazos",
+    "count_one": "{{count, number}} plazo",
+    "count_other": "{{count, number}} plazos",
     "referenceType": {
       "AverageRuntimeDeadline": "duración promedio de ejecución",
       "DagRunLogicalDateDeadline": "fecha lógica",
@@ -59,13 +59,13 @@
     "label": "Plazo",
     "met": "Cumplido",
     "missed": "Incumplido",
-    "missedCount_one": "{{count}} Plazo Incumplido",
-    "missedCount_other": "{{count}} Plazos Incumplidos",
-    "mixedCount": "{{missedCount}} Incumplidos, {{upcomingCount}} Próximos",
+    "missedCount_one": "{{count, number}} Plazo Incumplido",
+    "missedCount_other": "{{count, number}} Plazos Incumplidos",
+    "mixedCount": "{{missedCount, number}} Incumplidos, {{upcomingCount, number}} Próximos",
     "stillRunning": "Aún en ejecución",
     "upcoming": "Próximos",
-    "upcomingCount_one": "{{count}} Plazo Próximo",
-    "upcomingCount_other": "{{count}} Plazos Próximos"
+    "upcomingCount_one": "{{count, number}} Plazo Próximo",
+    "upcomingCount_other": "{{count, number}} Plazos Próximos"
   },
   "extraLinks": "Enlaces Extra",
   "grid": {
@@ -95,7 +95,7 @@
     "info": "INFO",
     "noTryNumber": "No hay número de intento",
     "search": {
-      "matchCount": "{{current}} de {{total}}",
+      "matchCount": "{{current, number}} de {{total, number}}",
       "noMatches": "Sin coincidencias",
       "placeholder": "Buscar en logs..."
     },
@@ -210,8 +210,8 @@
     "code": "Código",
     "details": "Detalles",
     "logs": "Logs",
-    "mappedTaskInstances_one": "Instancia de Tarea [{{count}}]",
-    "mappedTaskInstances_other": "Instancias de Tarea [{{count}}]",
+    "mappedTaskInstances_one": "Instancia de Tarea [{{count, number}}]",
+    "mappedTaskInstances_other": "Instancias de Tarea [{{count, number}}]",
     "overview": "Resumen",
     "renderedTemplates": "Plantillas Renderizadas",
     "requiredActions": "Acciones Requeridas",

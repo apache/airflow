@@ -740,6 +740,31 @@ class TestSFTPOperatorDeferrable:
             operator.execute(context={})
         assert exc.value.trigger.sftp_conn_id == "my_prod_sftp"
 
+    @mock.patch("asyncssh.connect", new_callable=mock.AsyncMock)
+    @mock.patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @mock.patch.dict("os.environ", {"AIRFLOW_CONN_MY_PROD_SFTP": "sftp://user@example.com"})
+    @pytest.mark.asyncio
+    async def test_sftp_operator_defer_keeps_hook_no_host_key_check(self, mock_get_connection, mock_connect):
+        """A host key opt-out set on the supplied hook survives deferral into the trigger's async hook."""
+        mock_get_connection.return_value = Connection(
+            conn_id="my_prod_sftp", conn_type="sftp", host="example.com", login="user"
+        )
+        operator = SFTPOperator(
+            task_id="test_sftp_defer_no_host_key_check",
+            sftp_hook=SFTPHook(ssh_conn_id="my_prod_sftp", no_host_key_check=True),
+            local_filepath="/tmp/test.txt",
+            remote_filepath="/remote/test.txt",
+            operation=SFTPOperation.PUT,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context={})
+
+        trigger = exc.value.trigger
+        assert trigger.serialize()[1]["no_host_key_check"] is True
+        await trigger._get_async_hook()._get_conn()
+        assert mock_connect.call_args.kwargs["known_hosts"] is None
+
     def test_sftp_operator_defer_without_any_conn_id_raises(self):
         operator = SFTPOperator(
             task_id="test_sftp_defer_no_conn_id",
@@ -819,7 +844,9 @@ class TestSFTPTransferTrigger:
             remote_host="explicit-host.example.com",
         )
         trigger._get_async_hook()
-        mock_hook_async.assert_called_once_with(sftp_conn_id="ssh_default", host="explicit-host.example.com")
+        mock_hook_async.assert_called_once_with(
+            sftp_conn_id="ssh_default", host="explicit-host.example.com", no_host_key_check=None
+        )
 
     @mock.patch("airflow.providers.sftp.triggers.sftp.SFTPHookAsync", autospec=True)
     def test_get_async_hook_defaults_remote_host_to_none(self, mock_hook_async):
@@ -831,7 +858,7 @@ class TestSFTPTransferTrigger:
             operation="put",
         )
         trigger._get_async_hook()
-        mock_hook_async.assert_called_once_with(sftp_conn_id="ssh_default", host=None)
+        mock_hook_async.assert_called_once_with(sftp_conn_id="ssh_default", host=None, no_host_key_check=None)
 
     def test_run_success(self):
         """Test run() yields TriggerEvent with status success."""

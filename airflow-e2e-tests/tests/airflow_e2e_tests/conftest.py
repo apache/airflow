@@ -44,6 +44,8 @@ from airflow_e2e_tests.constants import (
     GO_SDK_BUNDLE_NAME,
     GO_SDK_DAGS_PATH,
     GO_SDK_EXAMPLE_BUNDLE_PKG,
+    GO_SDK_NATIVE_BUNDLE_NAME,
+    GO_SDK_NATIVE_BUNDLE_PKG,
     GO_SDK_ROOT_PATH,
     GO_SDK_STATE_STORE_RETENTION_DAYS,
     JAVA_COMPOSE_PATH,
@@ -298,8 +300,8 @@ def _build_dag_bundle_config(artifact_bundles: dict[str, str]) -> str:
     """Return a ``dag_bundle_config_list`` of the Dags folder plus a ``LocalDagBundle`` per artifact path.
 
     Registration is what makes a coordinator's ``task_handler_bundle_name`` resolvable on the
-    worker. The artifact directories are mounted only there; the Dag processor finds no files
-    in them.
+    worker. A mode's compose file decides where the artifact directories are mounted; the Dag
+    processor finds no files in them unless it mounts them too, as ``ts.yml`` does for native Dags.
     """
     local_bundle = "airflow.dag_processing.bundles.local.LocalDagBundle"
     bundles = [{"name": "dags-folder", "classpath": local_bundle, "kwargs": {}}]
@@ -536,10 +538,10 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
-def _run_go_sdk_pack(output_path, *, capture_output=False, native=False):
+def _run_go_sdk_pack(package, output_path, *, capture_output=False, native=False):
     """Run ``go tool airflow-go-pack`` natively or inside the pinned Go toolchain container.
 
-    ``go tool airflow-go-pack`` builds the bundle package, reads its
+    ``go tool airflow-go-pack`` builds the bundle *package*, reads its
     --airflow-metadata, and appends the source + airflow-metadata.yaml + the
     AFBNDL01 trailer, writing a single self-contained executable bundle.
     CGO_ENABLED=0 yields a fully static binary that runs on the stock worker.
@@ -569,7 +571,7 @@ def _run_go_sdk_pack(output_path, *, capture_output=False, native=False):
             "airflow-go-pack",
             "--output",
             str(output_path),
-            GO_SDK_EXAMPLE_BUNDLE_PKG,
+            package,
         ]
     else:
         cwd = None
@@ -600,20 +602,20 @@ def _run_go_sdk_pack(output_path, *, capture_output=False, native=False):
             "airflow-go-pack",
             "--output",
             f"{container_bin_dir}/{output_path.name}",
-            GO_SDK_EXAMPLE_BUNDLE_PKG,
+            package,
         ]
     return subprocess.run(argv, cwd=cwd, env=env, check=True, capture_output=capture_output, text=True)
 
 
-def _pack_go_sdk_example_bundle(*, native=False):
-    """Build the Go SDK example bundle, capturing output so a failure prints the build log."""
-    output_path = GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME
+def _pack_go_sdk_bundle(package, name, *, native=False):
+    """Build a Go SDK bundle, capturing output so a failure prints the build log."""
+    output_path = GO_SDK_BIN_PATH / name
     mode_label = "host toolchain" if native else GO_BUILDER_IMAGE
-    console.print(f"[yellow]Building Go SDK example bundle ({mode_label})...")
+    console.print(f"[yellow]Building Go SDK bundle {package} ({mode_label})...")
     try:
-        completed = _run_go_sdk_pack(output_path, capture_output=True, native=native)
+        completed = _run_go_sdk_pack(package, output_path, capture_output=True, native=native)
     except subprocess.CalledProcessError as e:
-        console.print("[red]Go SDK example bundle build failed:")
+        console.print(f"[red]Go SDK bundle {package} build failed:")
         console.print(e.stdout, e.stderr, sep="\n", markup=False, soft_wrap=True)
         raise
     console.print(completed.stdout, completed.stderr, sep="\n", markup=False, soft_wrap=True)
@@ -627,11 +629,16 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     as the ``go-task-handlers`` Dag bundle, copies the Python stub Dag, and
     writes the coordinator configuration.
 
+    The native-Dag example is packed too, into the Dags folder, where the Dag
+    processor runs it to parse its Dags. Its tasks run on the ``golang`` queue
+    through the same coordinator.
+
     The packed bundle is a statically linked native executable (built with
     ``CGO_ENABLED=0``), so the stock Airflow worker image can exec it directly
     without a Go toolchain or any extra runtime installed -- see ``go.yml``.
     """
-    _pack_go_sdk_example_bundle(native=LANG_SDK_NATIVE_TOOLCHAIN)
+    _pack_go_sdk_bundle(GO_SDK_EXAMPLE_BUNDLE_PKG, GO_SDK_BUNDLE_NAME, native=LANG_SDK_NATIVE_TOOLCHAIN)
+    _pack_go_sdk_bundle(GO_SDK_NATIVE_BUNDLE_PKG, GO_SDK_NATIVE_BUNDLE_NAME, native=LANG_SDK_NATIVE_TOOLCHAIN)
 
     # Copy the compose override into the temp directory.
     copyfile(GO_COMPOSE_PATH, tmp_dir / "go.yml")
@@ -644,13 +651,25 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     packed_bundle = go_bundles_dir / GO_SDK_BUNDLE_NAME
     copyfile(GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME, packed_bundle)
     os.chmod(packed_bundle, 0o755)
+    # This bundle only registers task handlers, so the Dag processor must not parse it if the
+    # directory is ever mounted there. Tasks do not read .airflowignore.
+    (go_bundles_dir / ".airflowignore").write_text("*\n")
+
+    # The native-Dag bundle goes into the Dags folder, where the Dag processor runs it to parse.
+    native_dags_dir = tmp_dir / "dags" / "go"
+    native_dags_dir.mkdir()
+    packed_native_bundle = native_dags_dir / GO_SDK_NATIVE_BUNDLE_NAME
+    copyfile(GO_SDK_BIN_PATH / GO_SDK_NATIVE_BUNDLE_NAME, packed_native_bundle)
+    os.chmod(packed_native_bundle, 0o755)
 
     # Copy the Go SDK example stub Dag so Airflow can discover and serialize it.
     copyfile(GO_SDK_DAGS_PATH / "go_examples.py", tmp_dir / "dags" / "go_examples.py")
 
     # Coordinator registry: maps the logical name "go-sdk" to ExecutableCoordinator,
     # which scans the go-task-handlers Dag bundle for the packed bundle by dag_id.
-    # Queue mapping: routes tasks on the "golang" queue to "go-sdk".
+    # Queue mapping: routes tasks on the "golang" queue to "go-sdk". It is the only
+    # ExecutableCoordinator, so it also parses the native Dags in the Dags folder, and runs
+    # their tasks from that bundle, not from go-task-handlers.
     dag_bundle_config = _build_dag_bundle_config({"go-task-handlers": "/opt/airflow/go-bundles"})
     coordinator_config = json.dumps(
         {
@@ -702,7 +721,8 @@ def _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names):
 
 def _build_ts_sdk_example_bundle(*, native=False):
     build_commands = (
-        "pnpm install --frozen-lockfile && pnpm run build && cd example && pnpm install && pnpm run build"
+        "pnpm install --frozen-lockfile && pnpm run build && cd example && pnpm install"
+        " && pnpm run build && pnpm run build:ai-approval"
     )
     if native:
         console.print("[yellow]Building TypeScript SDK example bundle (host toolchain)...")
@@ -757,6 +777,8 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     ts_bundles_dir.mkdir()
     # Deliberately renamed: the coordinator routes on embedded metadata, not on a fixed name.
     copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / "example.min.mjs")
+    # A native Dag: the Dag processor parses it, so `ts_hitl_ai_approval` has no Python Dag file.
+    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "ai-approval.min.mjs", ts_bundles_dir / "ai-approval.min.mjs")
 
     # Both of the example bundle's Dags: one bundle.mjs provides for two dag_ids,
     # and the tests check that dispatch tells their same-named tasks apart.

@@ -58,7 +58,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
-from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, DeserializationError, TaskNotFound
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
@@ -6114,10 +6114,16 @@ class TestSchedulerJob:
             DagRunType.ASSET_MATERIALIZATION.name,
         ],
     )
-    def test_should_update_dag_next_dagruns_after_run_type(
-        self, run_type, expected, timed_out, session, dag_maker
+    @mock.patch.object(SchedulerJobRunner, "_set_exceeds_max_active_runs", autospec=True)
+    def test_exceeds_max_active_runs_recomputed_for_finished_non_backfill_runs(
+        self, mock_set_exceeds_max_active_runs, run_type, expected, timed_out, session, dag_maker
     ):
-        """Test that whether next dag run is updated depends on run type"""
+        """
+        Test that the scheduler recomputes the exceeds_max_non_backfill flag when a run finishes
+        or times out.
+
+        Backfill runs are the exception because the flag does not count them.
+        """
         with dag_maker(
             schedule="*/1 * * * *",
             max_active_runs=3,
@@ -6145,15 +6151,11 @@ class TestSchedulerJob:
             ti.state = "failed"
         session.flush()
 
-        check_mock = MagicMock()
-        self.job_runner._set_exceeds_max_active_runs = check_mock
-        with patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields") as mock_calc:
-            self.job_runner._schedule_dag_run(
-                dag_run=run,
-                session=session,
-            )
-            assert not mock_calc.called
-        assert check_mock.called == expected
+        self.job_runner._schedule_dag_run(
+            dag_run=run,
+            session=session,
+        )
+        assert mock_set_exceeds_max_active_runs.call_count == expected
 
     def test_create_dag_runs(self, dag_maker):
         """
@@ -7069,6 +7071,44 @@ class TestSchedulerJob:
                 msg == f"Error scheduling DAG run {bad_run.run_id} of {bad_run.dag_id}"
                 for msg in error_messages
             )
+
+    def test_start_queued_dagruns_does_not_crash_on_dag_deserialization_error(
+        self, dag_maker, caplog, session
+    ):
+        """A queued run whose Dag cannot be deserialized must not crash the scheduler.
+
+        A custom timetable that raises in ``deserialize`` (for example ``Variable.get`` on a missing
+        Variable) used to escape ``_start_queued_dagruns`` into the scheduler loop, so every restart hit
+        the same queued run again and no Dag was scheduled at all.
+        """
+        with dag_maker(dag_id="bad_dag", schedule="@once"):
+            EmptyOperator(task_id="bad_task")
+        dag_maker.create_dagrun(state=DagRunState.QUEUED)
+
+        with dag_maker(dag_id="good_dag", schedule="@once"):
+            EmptyOperator(task_id="good_task")
+        dag_maker.create_dagrun(state=DagRunState.QUEUED)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        get_dag_for_run = self.job_runner.scheduler_dag_bag.get_dag_for_run
+
+        def fail_for_bad_dag(dag_run, session):
+            if dag_run.dag_id == "bad_dag":
+                raise DeserializationError("bad_dag") from RuntimeError("Variable not found")
+            return get_dag_for_run(dag_run=dag_run, session=session)
+
+        caplog.clear()
+        with (
+            caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"),
+            patch.object(self.job_runner.scheduler_dag_bag, "get_dag_for_run", side_effect=fail_for_bad_dag),
+        ):
+            self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        states = dict(session.execute(select(DagRun.dag_id, DagRun.state)).all())
+        assert states == {"good_dag": DagRunState.RUNNING, "bad_dag": DagRunState.QUEUED}
+        assert any(r.levelno >= logging.ERROR and "bad_dag" in r.getMessage() for r in caplog.records)
 
     def test_schedule_all_dag_runs_reraises_db_errors(self, dag_maker, session):
         """Test that _schedule_all_dag_runs does not catch DBAPIError, allowing

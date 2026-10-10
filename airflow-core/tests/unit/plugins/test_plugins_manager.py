@@ -337,15 +337,14 @@ class TestPluginsManager:
                 id="not-a-dict",
             ),
             pytest.param(
-                {"dag_tag": ["ml"]},
-                "unknown criteria ['dag_tag'], expected any of "
-                "['dag_ids', 'dag_tags', 'operator_names', 'operators', 'task_ids']",
-                id="unknown-key",
+                {1: ["ml"]},
+                "field paths must be strings, got [1]",
+                id="non-string-key",
             ),
             pytest.param(
-                {1: ["ml"], "dag_tag": ["ml"]},
-                "criterion names must be strings, got [1]",
-                id="non-string-and-unknown-keys",
+                {"": ["ml"]},
+                "field paths must not be empty, got ['']",
+                id="empty-key",
             ),
             pytest.param(
                 {"dag_ids": "my_dag"},
@@ -404,7 +403,11 @@ class TestPluginsManager:
                     "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
-                    "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
+                    "applies_to": {
+                        "dag.tags.name": ["ml"],
+                        "task.class_ref.class_name": ["Op"],
+                        "task_instance.operator": ["Op"],
+                    },
                 }
             ]
 
@@ -416,15 +419,19 @@ class TestPluginsManager:
 
             _, react_apps = plugins_manager._get_ui_plugins()
 
-            # The block is only warned about, never stripped: task criteria are ignored on a
-            # Dag-level page by design so one block can be shared across destinations.
+            # The block is only warned about, never stripped: a path whose root the page lacks
+            # is skipped by design, so one block can be shared across destinations.
             assert react_apps == [
                 {
                     "name": "Scoped",
                     "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
-                    "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
+                    "applies_to": {
+                        "dag.tags.name": ["ml"],
+                        "task.class_ref.class_name": ["Op"],
+                        "task_instance.operator": ["Op"],
+                    },
                 }
             ]
 
@@ -433,9 +440,324 @@ class TestPluginsManager:
                 "airflow.plugins_manager",
                 logging.WARNING,
                 "Plugin 'test_plugin' has a React App 'Scoped' with destination 'dag_run', which cannot "
-                "evaluate ['operators', 'task_ids']. Those criteria will be ignored.",
+                "evaluate ['task.class_ref.class_name', 'task_instance.operator']. Those paths will be "
+                "ignored.",
             ),
         ]
+
+    @pytest.mark.parametrize(
+        ("destination", "path", "error"),
+        [
+            pytest.param(
+                "dag_run",
+                "dag.tags.nme",
+                "'dag.tags.nme' names no field 'nme' on DagTagResponse (did you mean 'name'?)",
+                id="misspelled-nested-leaf",
+            ),
+            pytest.param(
+                "dag_run",
+                "stat",
+                "'stat' names no field 'stat' on DAGRunResponse (did you mean 'state'?)",
+                id="misspelled-own-field",
+            ),
+            pytest.param(
+                "dag_run",
+                "state.length",
+                "'state.length' reads 'length' from DagRunState, which has no fields",
+                id="path-past-a-scalar",
+            ),
+            # Naming the record explicitly leaves no second reading, so a bad field there is
+            # simply wrong -- even though `class_ref` is real on the record it names.
+            pytest.param(
+                "task_instance",
+                "task.class_rf",
+                "'task.class_rf' names no field 'class_rf' on TaskResponse (did you mean 'class_ref'?)",
+                id="misspelled-behind-an-explicit-record",
+            ),
+        ],
+    )
+    def test_withholds_a_view_whose_path_matches_no_field(self, destination, path, error, caplog):
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Scoped",
+                    "href": "/scoped",
+                    "url_route": "/scoped",
+                    "destination": destination,
+                    "applies_to": {path: ["x"]},
+                },
+                {
+                    "name": "Fine",
+                    "href": "/fine",
+                    "url_route": "/fine",
+                    "destination": destination,
+                    "applies_to": {"state": ["failed"]},
+                },
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            # Withheld rather than shown everywhere; its sibling is untouched.
+            assert [view["name"] for view in external_views] == ["Fine"]
+
+        assert caplog.record_tuples == [
+            (
+                "airflow.plugins_manager",
+                logging.ERROR,
+                f"Plugin 'test_plugin' has an external view 'Scoped' with an 'applies_to' path that "
+                f"matches no field: {error}. It could never scope the way it asks to, so the view "
+                f"will not be loaded.",
+            ),
+        ]
+
+    @pytest.mark.parametrize(
+        ("destination", "path"),
+        [
+            # `TaskInstanceResponse.run_id` is serialized as `dag_run_id`; the browser only ever
+            # sees the alias.
+            pytest.param("task_instance", "dag_run_id", id="serialization-alias"),
+            pytest.param("task_instance", "queued_when", id="serialization-alias-datetime"),
+            # A computed field has no `model_fields` entry but is in the response.
+            pytest.param("dag", "is_backfillable", id="computed-field"),
+        ],
+    )
+    def test_accepts_fields_as_the_api_serializes_them(self, destination, path, caplog):
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Scoped",
+                    "href": "/scoped",
+                    "url_route": "/scoped",
+                    "destination": destination,
+                    "applies_to": {path: ["x"]},
+                }
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            plugins_manager._get_ui_plugins()
+
+        assert caplog.record_tuples == []
+
+    def test_rejects_a_python_attribute_name_that_is_not_in_the_response(self, caplog):
+        """`run_id` is the Python attribute; the response carries `dag_run_id`."""
+
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Scoped",
+                    "href": "/scoped",
+                    "url_route": "/scoped",
+                    "destination": "task_instance",
+                    "applies_to": {"run_id": ["manual__1"]},
+                }
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            plugins_manager._get_ui_plugins()
+
+        assert len(caplog.record_tuples) == 1
+        assert "names no field 'run_id' on TaskInstanceResponse" in caplog.record_tuples[0][2]
+
+    def test_drops_a_null_valued_path_keeping_the_rest_of_the_block(self):
+        """A null value is not a ``list[str]``; leaving it in drops the whole plugin."""
+
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Scoped",
+                    "href": "/scoped",
+                    "url_route": "/scoped",
+                    "destination": "dag_run",
+                    "applies_to": {"state": None, "dag.tags.name": ["ml"]},
+                }
+            ]
+
+        with mock_plugin_manager(plugins=[TestPlugin()]):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            assert external_views[0]["applies_to"] == {"dag.tags.name": ["ml"]}
+
+            # The point of dropping it: the block still serializes, so the view survives.
+            from airflow.api_fastapi.core_api.datamodels.plugins import ExternalViewResponse
+
+            assert ExternalViewResponse(**external_views[0]).applies_to.root == {"dag.tags.name": ["ml"]}
+
+    def test_accepts_a_path_through_a_field_the_models_do_not_describe(self, caplog):
+        """A path cannot be checked past a bare ``dict``, so everything below it is accepted."""
+
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Scoped",
+                    "href": "/scoped",
+                    "url_route": "/scoped",
+                    "destination": "task_instance",
+                    # `TaskResponse.class_ref` is a bare dict, and `conf` is dict[str, Any].
+                    "applies_to": {
+                        "task.class_ref.class_name": ["KubernetesPodOperator"],
+                        "dag_run.conf.environment": ["prod"],
+                    },
+                }
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            plugins_manager._get_ui_plugins()
+
+        assert caplog.record_tuples == []
+
+    def test_documented_operator_recipes_load_without_warnings(self, caplog):
+        """The per-destination recipe in plugins.rst must not trip the path validator."""
+
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Pod logs",
+                    "href": "https://example.com/pods",
+                    "url_route": "pod-logs",
+                    "destination": "task_instance",
+                    "applies_to": {"operator": ["KubernetesPodOperator"]},
+                },
+                {
+                    "name": "Pod logs",
+                    "href": "https://example.com/pods",
+                    "url_route": "pod-logs-task",
+                    "destination": "task",
+                    "applies_to": {"class_ref.class_name": ["KubernetesPodOperator"]},
+                },
+                # The portable single-path form the docs lead with, on both destinations.
+                {
+                    "name": "By display name",
+                    "href": "https://example.com/op",
+                    "url_route": "op",
+                    "destination": "task_instance",
+                    "applies_to": {"operator_name": ["KubernetesPodOperator"]},
+                },
+                {
+                    "name": "By display name",
+                    "href": "https://example.com/op",
+                    "url_route": "op-task",
+                    "destination": "task",
+                    "applies_to": {"operator_name": ["KubernetesPodOperator"]},
+                },
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            plugins_manager._get_ui_plugins()
+
+        assert caplog.record_tuples == []
+
+    def test_reports_a_shared_block_path_as_skipped_not_as_widening(self, caplog):
+        """`class_ref.class_name` is meaningless on a task instance but real on a task.
+
+        An author targeting both pages from one block writes exactly that, so saying the view
+        will appear in more places than intended would be untrue -- `operator` is scoping it.
+        """
+
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Pod logs",
+                    "href": "/pods",
+                    "url_route": "/pods",
+                    "destination": "task_instance",
+                    "applies_to": {
+                        "operator": ["KubernetesPodOperator"],
+                        "class_ref.class_name": ["KubernetesPodOperator"],
+                    },
+                }
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            assert [view["name"] for view in external_views] == ["Pod logs"]
+
+        assert len(caplog.record_tuples) == 1
+        assert "'class_ref.class_name' that no task_instance has" in caplog.record_tuples[0][2]
+        assert "more places than intended" not in caplog.record_tuples[0][2]
+
+    def test_does_not_mutate_the_plugin_author_s_applies_to(self):
+        """A plugin may hand the same dict to several views; validation must not rewrite it."""
+        shared = {"operator_name": ["@task.bash"], "task_id": None}
+
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "On task",
+                    "href": "/a",
+                    "url_route": "/a",
+                    "destination": "task",
+                    "applies_to": shared,
+                },
+                {
+                    "name": "On task instance",
+                    "href": "/b",
+                    "url_route": "/b",
+                    "destination": "task_instance",
+                    "applies_to": shared,
+                },
+            ]
+
+        with mock_plugin_manager(plugins=[TestPlugin()]):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            # The null path is dropped from what each view serializes...
+            for view in external_views:
+                assert view["applies_to"] == {"operator_name": ["@task.bash"]}
+
+        # ...but the author's own object still has it.
+        assert shared == {"operator_name": ["@task.bash"], "task_id": None}
 
     def test_does_not_warn_about_valid_applies_to(self, caplog):
         class TestPlugin(AirflowPlugin):
@@ -448,9 +770,9 @@ class TestPluginsManager:
                     "url_route": "/scoped",
                     "destination": "task",
                     "applies_to": {
-                        "dag_tags": ["ml"],
-                        "task_ids": ["train"],
-                        "operator_names": ["@task.bash"],
+                        "dag.tags.name": ["ml"],
+                        "operator_name": ["@task.bash"],
+                        "task_id": ["train"],
                     },
                 }
             ]
@@ -464,9 +786,9 @@ class TestPluginsManager:
             external_views, _ = plugins_manager._get_ui_plugins()
 
             assert external_views[0]["applies_to"] == {
-                "dag_tags": ["ml"],
-                "task_ids": ["train"],
-                "operator_names": ["@task.bash"],
+                "dag.tags.name": ["ml"],
+                "operator_name": ["@task.bash"],
+                "task_id": ["train"],
             }
 
         assert caplog.record_tuples == []

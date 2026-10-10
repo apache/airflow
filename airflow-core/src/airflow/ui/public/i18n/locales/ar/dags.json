@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "تم تحديث {{count}} من أصل {{total}}",
+  "assetSchedule": "تم تحديث {{count, number}} من أصل {{total, number}}",
   "dagActions": {
     "delete": {
       "button": "حذف الDag",
@@ -28,7 +28,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "لم يتم العثور على مهام.",
-      "title": "المهام المتأثرة: {{count}}"
+      "title": "المهام المتأثرة: {{count, number}}"
     },
     "clear": {
       "button": "مسح {{type}}",

@@ -1,16 +1,26 @@
 {
   "backfill": {
     "affected_one": "1 εκτέλεση θα ενεργοποιηθεί.",
-    "affected_other": "{{count}} εκτελέσεις θα ενεργοποιηθούν.",
+    "affected_other": "{{count, number}} εκτελέσεις θα ενεργοποιηθούν.",
     "affectedNone": "Δεν βρέθηκαν εκτελέσεις που να ταιριάζουν με τα κριτήρια.",
     "allRuns": "Όλες οι Εκτελέσεις",
     "backwards": "Αντίστροφη Εκτέλεση",
     "dateRange": "Εύρος Ημερομηνιών",
     "errorStartDateBeforeEndDate": "Η ημερομηνία έναρξης πρέπει να είναι πριν την ημερομηνία λήξης",
+    "exceptionReason": {
+      "alreadyExists": "Υπάρχει ήδη",
+      "inFlight": "Σε εξέλιξη",
+      "unknown": "Άγνωστο"
+    },
     "maxRuns": "Μέγιστες Ενεργές Εκτελέσεις",
     "missingAndErroredRuns": "Εκτελέσεις που λείπουν ή απέτυχαν",
     "missingRuns": "Εκτελέσεις που λείπουν",
+    "notCreatedReason": "Αιτία Μη Δημιουργίας",
     "overrideExistingParams": "Αντικατάσταση παραμέτρων σε υπάρχουσες εκτελέσεις",
+    "partitionRange": "Εύρος Κατατμήσεων",
+    "partitionsAffected_one": "1 κατάτμηση θα υποβληθεί σε Backfill:",
+    "partitionsAffected_other": "{{count, number}} κατατμήσεις θα υποβληθούν σε Backfill:",
+    "partitionsNone": "Δεν υπάρχουν κατατμήσεις που να ταιριάζουν με το επιλεγμένο εύρος.",
     "permissionDenied": "Η Δοκιμαστική Εκτέλεση Απέτυχε: Ο χρήστης δεν έχει δικαίωμα δημιουργίας backfills.",
     "reprocessBehavior": "Συμπεριφορά Επανεπεξεργασίας",
     "run": "Εκτέλεση Backfill",
@@ -28,7 +38,8 @@
     "validation": {
       "datesRequired": "Πρέπει να δοθούν και η ημερομηνία έναρξης και λήξης του διαστήματος δεδομένων.",
       "startBeforeEnd": "Η ημερομηνία έναρξης πρέπει να είναι μικρότερη ή ίση με την ημερομηνία λήξης."
-    }
+    },
+    "viewSlots": "Προβολή θέσεων για το Backfill #{{id}}"
   },
   "banner": {
     "backfillInProgress": "Το Backfill είναι σε εξέλιξη",
@@ -41,7 +52,6 @@
   },
   "close": "Κλείσιμο",
   "configForm": {
-    "advancedOptions": "Προχωρημένες Επιλογές",
     "configJson": "Ρυθμίσεις JSON",
     "invalidJson": "Μη έγκυρη μορφή JSON: {{errorMessage}}"
   },
@@ -49,7 +59,7 @@
     "error_one": "1 Σφάλμα",
     "errorAndWarning": "1 Σφάλμα και {{warningText}}",
     "warning_one": "1 Προειδοποίηση",
-    "warning_other": "{{count}} Προειδοποιήσεις"
+    "warning_other": "{{count, number}} Προειδοποιήσεις"
   },
   "dateRangeFilter": {
     "validation": {
@@ -61,17 +71,17 @@
   "durationChart": {
     "duration": "Διάρκεια (δευτερόλεπτα)",
     "lastDagRun_one": "Τελευταία Εκτέλεση Dag",
-    "lastDagRun_other": "Τελευταίες {{count}} Εκτελέσεις Dag",
+    "lastDagRun_other": "Τελευταίες {{count, number}} Εκτελέσεις Dag",
     "lastTaskInstance_one": "Τελευταία Εκτέλεση Εργασίας",
-    "lastTaskInstance_other": "Τελευταίες {{count}} Εκτελέσεις Εργασίας",
+    "lastTaskInstance_other": "Τελευταίες {{count, number}} Εκτελέσεις Εργασίας",
     "medianTotalDuration": "Σύνολο: {{duration}}",
     "queuedDuration": "Διάρκεια σε Ουρά",
     "runAfter": "Εκτέλεση Μετά",
     "runDuration": "Διάρκεια Εκτέλεσης"
   },
   "fileUpload": {
-    "files_one": "{{count}} αρχείο",
-    "files_other": "{{count}} αρχεία"
+    "files_one": "{{count, number}} αρχείο",
+    "files_other": "{{count, number}} αρχεία"
   },
   "flexibleForm": {
     "durationPlaceholder": "Εισάγετε Διάρκεια σε μορφή ISO 8601",
@@ -94,25 +104,49 @@
     "downloadImageError": "Αποτυχία λήψης εικόνας γραφήματος.",
     "downloadImageErrorTitle": "Αποτυχία Λήψης",
     "otherDagRuns": "+Άλλες Εκτελέσεις Dag",
-    "taskCount_one": "{{count}} Εργασία",
-    "taskCount_other": "{{count}} Εργασίες",
+    "taskCount_one": "{{count, number}} Εργασία",
+    "taskCount_other": "{{count, number}} Εργασίες",
     "taskGroup": "Ομάδα Εργασιών",
     "zoomToTask": "Μεγέθυνση στην επιλεγμένη εργασία"
   },
-  "limitedList": "+{{count}} ακόμα",
-  "limitedList.allItems": "Όλα τα {{count}} στοιχεία:",
+  "jsonPreview": {
+    "items_one": "1 στοιχείο",
+    "items_other": "{{count, number}} στοιχεία"
+  },
+  "limitedList": "+{{count, number}} ακόμα",
+  "limitedList.allItems": "Όλα τα {{count, number}} στοιχεία:",
   "limitedList.allTags_one": "Όλες οι Ετικέτες (1)",
-  "limitedList.allTags_other": "Όλες οι Ετικέτες ({{count}})",
+  "limitedList.allTags_other": "Όλες οι Ετικέτες ({{count, number}})",
   "limitedList.clickToInteract": "Κάντε κλικ σε μια ετικέτα για φιλτράρισμα των Dags",
-  "limitedList.clickToOpenFull": "Κάντε κλικ στο «+{{count}} ακόμα» για πλήρη προβολή",
+  "limitedList.clickToOpenFull": "Κάντε κλικ στο «+{{count, number}} ακόμα» για πλήρη προβολή",
   "limitedList.copyPasteText": "Μπορείτε να αντιγράψετε και να επικολλήσετε το παραπάνω κείμενο",
   "limitedList.showingItems_one": "Εμφάνιση 1 στοιχείου",
-  "limitedList.showingItems_other": "Εμφάνιση {{count}} στοιχείων",
+  "limitedList.showingItems_other": "Εμφάνιση {{count, number}} στοιχείων",
   "logs": {
     "file": "Αρχείο",
     "location": "γραμμή {{line}} στο {{name}}"
   },
-  "reparseDag": "Επαναανάλυση Dag",
+  "passwordToggle": {
+    "hide": "Απόκρυψη τιμής",
+    "show": "Εμφάνιση τιμής"
+  },
+  "pausedDag": {
+    "drain": "Αποστράγγιση",
+    "drainDescription": "Οι μη ολοκληρωμένες εκτελέσεις συνεχίζονται, αλλά δεν δημιουργούνται προγραμματισμένες εκτελέσεις. Backfills σε παύση παραμένουν σε παύση. Το Dag τίθεται ξανά σε παύση μόλις ολοκληρωθούν όλες οι μη ολοκληρωμένες εκτελέσεις.",
+    "keepPaused": "Διατήρηση παύσης",
+    "keepPausedDescription": "Οι νέες και οι μη ολοκληρωμένες εκτελέσεις περιμένουν μέχρι να αναιρεθεί η παύση του Dag.",
+    "title": "Το Dag είναι σε παύση",
+    "unfinishedRunsWillRun_one": "1 μη ολοκληρωμένη Εκτέλεση Dag θα ξεκινήσει ή θα συνεχιστεί.",
+    "unfinishedRunsWillRun_other": "{{count, number}} μη ολοκληρωμένες Εκτελέσεις Dag θα ξεκινήσουν ή θα συνεχιστούν.",
+    "unpause": "Αναίρεση παύσης",
+    "unpauseDescription": "Το Dag γίνεται ενεργό: οι μη ολοκληρωμένες εκτελέσεις συνεχίζονται και το πρόγραμμα επανέρχεται. Backfills σε παύση παραμένουν σε παύση."
+  },
+  "reparseDag": "Επανανάλυση Dag",
+  "slowestTaskInstances": {
+    "empty": "Δεν υπάρχουν ολοκληρωμένες εκτελέσεις εργασίας σε αυτό το εύρος",
+    "title": "Πιο αργές εκτελέσεις εργασίας"
+  },
+  "sortMultiColumnHint": "Shift+κλικ για ταξινόμηση κατά πολλαπλές στήλες",
   "sortedAscending": "αύξουσα ταξινόμηση",
   "sortedDescending": "φθίνουσα ταξινόμηση",
   "sortedUnsorted": "μη ταξινομημένο",
@@ -132,6 +166,7 @@
     "dataInterval": "Διάστημα Δεδομένων",
     "dataIntervalAuto": "Συνάγεται από τη Λογική Ημερομηνία και το Χρονοδιάγραμμα",
     "dataIntervalManual": "Χειροκίνητος Ορισμός",
+    "editConfigAndTrigger": "Επεξεργασία ρυθμίσεων και ενεργοποίηση",
     "intervalEnd": "Λήξη",
     "intervalStart": "Έναρξη",
     "loading": "Φόρτωση πληροφοριών Dag...",
@@ -151,7 +186,8 @@
         "title": "Η Εκτέλεση Dag Ενεργοποιήθηκε"
       }
     },
-    "triggerAgainWithConfig": "Ενεργοποίηση ξανά με αυτές τις ρυθμίσεις"
+    "triggerAgainWithConfig": "Ενεργοποίηση ξανά με αυτές τις ρυθμίσεις",
+    "triggerOptions": "Επιλογές ενεργοποίησης"
   },
   "trimText": {
     "details": "Λεπτομέρειες",
@@ -168,6 +204,7 @@
   "versionSelect": {
     "allVersions": "Όλες οι Εκδόσεις",
     "dagVersion": "Έκδοση Dag",
+    "placeholder": "Επιλέξτε έκδοση",
     "versionCode": "v{{versionCode}}"
   }
 }

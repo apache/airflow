@@ -34,9 +34,22 @@ const entryProps = { dagId: "test_dag", mapIndex: -1, runId: "test_run", taskId:
 // i18n resources are not loaded in unit tests, so translated text renders as its key.
 const errorTitle = "error.title";
 
-beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
+beforeAll(() => server.listen({ onUnhandledFrame: "bypass" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
+
+const renderValue = (value: string) => {
+  server.use(http.get(entryUrl, () => HttpResponse.json({ key: "return_value", value })));
+
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <XComEntry {...entryProps} xcomKey="return_value" />
+    </QueryClientProvider>,
+    { wrapper: Wrapper },
+  );
+};
 
 describe("XComEntry", () => {
   it.each([
@@ -211,6 +224,19 @@ describe("XComEntry", () => {
 
     const dialog = await screen.findByRole("dialog", { name: errorTitle });
 
-    expect(within(dialog).getByTestId("error-alert")).toHaveTextContent("Network Error");
+    expect(within(dialog).getByTestId("error-alert")).toHaveTextContent(/network error/iu);
+  });
+
+  it("keeps newlines in string values", async () => {
+    renderValue("a\nb");
+
+    expect((await screen.findByTestId("xcom-value")).textContent).toContain("a\nb");
+  });
+
+  it("keeps newlines and still renders links", async () => {
+    renderValue("Line 1\nSee https://airflow.apache.org\nLine 3");
+
+    expect(await screen.findByRole("link")).toHaveAttribute("href", "https://airflow.apache.org");
+    expect(screen.getByTestId("xcom-value").textContent).toContain("Line 1\nSee ");
   });
 });

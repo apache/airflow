@@ -1,9 +1,9 @@
 {
   "backfill": {
-    "affected_few": "{{count}} wykonania zostaną uruchomione.",
-    "affected_many": "{{count}} wykonań zostanie uruchomionych.",
+    "affected_few": "{{count, number}} wykonania zostaną uruchomione.",
+    "affected_many": "{{count, number}} wykonań zostanie uruchomionych.",
     "affected_one": "Dotyczy 1 wykonania.",
-    "affected_other": "Dotyczy {{count}} wykonań.",
+    "affected_other": "Dotyczy {{count, number}} wykonań.",
     "affectedNone": "Brak wykonań spełniających wybrane kryteria.",
     "allRuns": "Wszystkie wykonania",
     "backwards": "Uruchom wstecz",
@@ -20,10 +20,10 @@
     "notCreatedReason": "Powód nieutworzenia",
     "overrideExistingParams": "Nadpisz parametry istniejących wykonań",
     "partitionRange": "Zakres partycji",
-    "partitionsAffected_few": "{{count}} partycje zostaną wypełnione wstecznie:",
-    "partitionsAffected_many": "{{count}} partycji zostanie wypełnionych wstecznie:",
-    "partitionsAffected_one": "{{count}} partycja zostanie wypełniona wstecznie:",
-    "partitionsAffected_other": "{{count}} partycji zostanie wypełnionych wstecznie:",
+    "partitionsAffected_few": "{{count, number}} partycje zostaną wypełnione wstecznie:",
+    "partitionsAffected_many": "{{count, number}} partycji zostanie wypełnionych wstecznie:",
+    "partitionsAffected_one": "{{count, number}} partycja zostanie wypełniona wstecznie:",
+    "partitionsAffected_other": "{{count, number}} partycji zostanie wypełnionych wstecznie:",
     "partitionsNone": "Brak partycji pasujących do wybranego zakresu.",
     "permissionDenied": "Próba nieudana: Użytkownik nie ma uprawnień do tworzenia wypełnień wstecznych.",
     "reprocessBehavior": "Zachowanie ponownego przetwarzania",
@@ -56,17 +56,16 @@
   },
   "close": "Zamknij",
   "configForm": {
-    "advancedOptions": "Zaawansowane opcje",
     "configJson": "Konfiguracja JSON",
     "invalidJson": "Nieprawidłowy format JSON: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "Błąd",
     "errorAndWarning": "1 Błąd i {{warningText}}",
-    "warning_few": "{{count}} Ostrzeżenia",
-    "warning_many": "{{count}} Ostrzeżeń",
+    "warning_few": "{{count, number}} Ostrzeżenia",
+    "warning_many": "{{count, number}} Ostrzeżeń",
     "warning_one": "1 Ostrzeżenie",
-    "warning_other": "{{count}} Ostrzeżenia"
+    "warning_other": "{{count, number}} Ostrzeżenia"
   },
   "dateRangeFilter": {
     "validation": {
@@ -77,24 +76,24 @@
   },
   "durationChart": {
     "duration": "Czas trwania (sekundy)",
-    "lastDagRun_few": "Ostatnie {{count}} wykonania",
-    "lastDagRun_many": "Ostatnich {{count}} wykonań",
+    "lastDagRun_few": "Ostatnie {{count, number}} wykonania",
+    "lastDagRun_many": "Ostatnich {{count, number}} wykonań",
     "lastDagRun_one": "Ostatnie wykonanie",
-    "lastDagRun_other": "Ostatnie {{count}} wykonania",
-    "lastTaskInstance_few": "Ostatnie {{count}} instancje zadania",
-    "lastTaskInstance_many": "Ostatnich {{count}} instancji zadania",
+    "lastDagRun_other": "Ostatnie {{count, number}} wykonania",
+    "lastTaskInstance_few": "Ostatnie {{count, number}} instancje zadania",
+    "lastTaskInstance_many": "Ostatnich {{count, number}} instancji zadania",
     "lastTaskInstance_one": "Ostatnia instancja zadania",
-    "lastTaskInstance_other": "Ostatnie {{count}} instancje zadania",
+    "lastTaskInstance_other": "Ostatnie {{count, number}} instancje zadania",
     "medianTotalDuration": "Łącznie: {{duration}}",
     "queuedDuration": "Czas oczekiwania",
     "runAfter": "Uruchom po",
     "runDuration": "Czas trwania wykonania"
   },
   "fileUpload": {
-    "files_few": "{{count}} pliki",
-    "files_many": "{{count}} plików",
-    "files_one": "{{count}} plik",
-    "files_other": "{{count}} plików"
+    "files_few": "{{count, number}} pliki",
+    "files_many": "{{count, number}} plików",
+    "files_one": "{{count, number}} plik",
+    "files_other": "{{count, number}} plików"
   },
   "flexibleForm": {
     "durationPlaceholder": "Wprowadź czas trwania w formacie ISO 8601",
@@ -117,32 +116,32 @@
     "downloadImageError": "Nie udało się pobrać obrazu grafu.",
     "downloadImageErrorTitle": "Pobieranie nieudane",
     "otherDagRuns": "+Inne wykonania",
-    "taskCount_few": "{{count}} Zadania",
-    "taskCount_many": "{{count}} Zadań",
-    "taskCount_one": "{{count}} Zadanie",
-    "taskCount_other": "{{count}} Zadań",
+    "taskCount_few": "{{count, number}} Zadania",
+    "taskCount_many": "{{count, number}} Zadań",
+    "taskCount_one": "{{count, number}} Zadanie",
+    "taskCount_other": "{{count, number}} Zadań",
     "taskGroup": "Grupa zadań",
     "zoomToTask": "Powiększ do wybranego zadania"
   },
   "jsonPreview": {
-    "items_few": "{{count}} elementy",
-    "items_many": "{{count}} elementów",
+    "items_few": "{{count, number}} elementy",
+    "items_many": "{{count, number}} elementów",
     "items_one": "1 element",
-    "items_other": "{{count}} elementy"
+    "items_other": "{{count, number}} elementy"
   },
-  "limitedList": "+{{count}} więcej",
-  "limitedList.allItems": "Wszystkie {{count}} elementy:",
-  "limitedList.allTags_few": "Wszystkie tagi ({{count}})",
-  "limitedList.allTags_many": "Wszystkie tagi ({{count}})",
+  "limitedList": "+{{count, number}} więcej",
+  "limitedList.allItems": "Wszystkie {{count, number}} elementy:",
+  "limitedList.allTags_few": "Wszystkie tagi ({{count, number}})",
+  "limitedList.allTags_many": "Wszystkie tagi ({{count, number}})",
   "limitedList.allTags_one": "Wszystkie tagi (1)",
-  "limitedList.allTags_other": "Wszystkie tagi ({{count}})",
+  "limitedList.allTags_other": "Wszystkie tagi ({{count, number}})",
   "limitedList.clickToInteract": "Kliknij etykietę, aby przefiltrować Dagi",
-  "limitedList.clickToOpenFull": "Kliknij \"+{{count}} więcej\", aby zobaczyć pełną listę",
+  "limitedList.clickToOpenFull": "Kliknij \"+{{count, number}} więcej\", aby zobaczyć pełną listę",
   "limitedList.copyPasteText": "Możesz skopiować i wkleić powyższy tekst",
-  "limitedList.showingItems_few": "Wyświetlanie {{count}} elementów",
-  "limitedList.showingItems_many": "Wyświetlanie {{count}} elementów",
+  "limitedList.showingItems_few": "Wyświetlanie {{count, number}} elementów",
+  "limitedList.showingItems_many": "Wyświetlanie {{count, number}} elementów",
   "limitedList.showingItems_one": "Wyświetlanie 1 elementu",
-  "limitedList.showingItems_other": "Wyświetlanie {{count}} elementów",
+  "limitedList.showingItems_other": "Wyświetlanie {{count, number}} elementów",
   "logs": {
     "file": "Plik",
     "location": "linia {{line}} w {{name}}"
@@ -151,11 +150,25 @@
     "hide": "Ukryj wartość",
     "show": "Pokaż wartość"
   },
+  "pausedDag": {
+    "drain": "Wygaś",
+    "drainDescription": "Niezakończone wykonania są kontynuowane, ale nie są tworzone nowe zaplanowane wykonania. Wstrzymane wypełnienia wsteczne pozostają wstrzymane. Dag zostanie ponownie wstrzymany, gdy zakończą się wszystkie niezakończone wykonania.",
+    "keepPaused": "Pozostaw wstrzymany",
+    "keepPausedDescription": "Nowe i niezakończone wykonania czekają, aż Dag zostanie wznowiony.",
+    "title": "Dag jest wstrzymany",
+    "unfinishedRunsWillRun_few": "{{count, number}} niezakończone wykonania Daga rozpoczną się lub zostaną wznowione.",
+    "unfinishedRunsWillRun_many": "{{count, number}} niezakończonych wykonań Daga rozpocznie się lub zostanie wznowionych.",
+    "unfinishedRunsWillRun_one": "{{count, number}} niezakończone wykonanie Daga rozpocznie się lub zostanie wznowione.",
+    "unfinishedRunsWillRun_other": "{{count, number}} niezakończonych wykonań Daga rozpocznie się lub zostanie wznowionych.",
+    "unpause": "Wznów",
+    "unpauseDescription": "Dag staje się aktywny: niezakończone wykonania są kontynuowane, a harmonogram zostaje wznowiony. Wstrzymane wypełnienia wsteczne pozostają wstrzymane."
+  },
   "reparseDag": "Ponowne przetworznie Daga",
   "slowestTaskInstances": {
     "empty": "Brak zakończonych instancji zadań w tym zakresie",
     "title": "Najwolniejsze instancje zadań"
   },
+  "sortMultiColumnHint": "Kliknij z wciśniętym Shift, aby sortować według wielu kolumn",
   "sortedAscending": "posortowane rosnąco",
   "sortedDescending": "posortowane malejąco",
   "sortedUnsorted": "nieposortowane",
@@ -175,6 +188,7 @@
     "dataInterval": "Interwał danych",
     "dataIntervalAuto": "Wywnioskowany z daty logicznej i harmonogramu",
     "dataIntervalManual": "Określ ręcznie",
+    "editConfigAndTrigger": "Edytuj konfigurację i uruchom",
     "intervalEnd": "Koniec",
     "intervalStart": "Początek",
     "loading": "Ładowanie informacji o Dagach...",
@@ -194,7 +208,8 @@
         "title": "Uruchomienie Daga"
       }
     },
-    "triggerAgainWithConfig": "Uruchom ponownie z tą konfiguracją"
+    "triggerAgainWithConfig": "Uruchom ponownie z tą konfiguracją",
+    "triggerOptions": "Opcje uruchomienia"
   },
   "trimText": {
     "details": "Szczegóły",
@@ -211,6 +226,7 @@
   "versionSelect": {
     "allVersions": "Wszystkie wersje",
     "dagVersion": "Wersja Daga",
+    "placeholder": "Wybierz wersję",
     "versionCode": "v{{versionCode}}"
   }
 }

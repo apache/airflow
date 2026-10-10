@@ -267,6 +267,7 @@ def _serialize_dag_capturing_errors(
 
     We can't place them directly in import_errors, as this may be retried, and work the next time
     """
+    from airflow.api_fastapi.app import get_auth_manager_cls
     from airflow.models.dagcode import DagCode
 
     # Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
@@ -291,8 +292,10 @@ def _serialize_dag_capturing_errors(
             DagCode.update_source_code(
                 dag.dag_id, dag.fileloc, dag_source_code=dag_source_code, session=session
             )
-        if "FabAuthManager" in conf.get("core", "auth_manager"):
-            _sync_dag_perms(dag, session=session)
+
+        sync_dag_perms = getattr(get_auth_manager_cls(), "sync_dag_perms", None)
+        if sync_dag_perms:
+            sync_dag_perms(dag, session=session)
 
         return []
     except OperationalError:
@@ -306,17 +309,6 @@ def _serialize_dag_capturing_errors(
                 traceback.format_exc(limit=-dagbag_import_error_traceback_depth),
             )
         ]
-
-
-def _sync_dag_perms(dag: LazyDeserializedDAG, session: Session):
-    """Sync DAG specific permissions."""
-    dag_id = dag.dag_id
-
-    log.debug("Syncing DAG permissions: %s to the DB", dag_id)
-    from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
-
-    security_manager = ApplessAirflowSecurityManager(session=session)
-    security_manager.sync_perm_for_dag(dag_id, dag.access_control)
 
 
 def _build_duplicate_dag_id_warnings(

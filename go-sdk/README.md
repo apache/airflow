@@ -38,7 +38,9 @@ Python tasks are imported and run in-process. Go is compiled, so the model is di
 
 A single binary that bundles one or more Dags' task functions is called a **bundle**. You build one with
 the SDK's packer, `airflow-go-pack`, which compiles your code and appends a metadata footer (the manifest
-of `dag_id`s and `task_id`s, plus the Dag source) to the executable. The result is a **self-contained
+of `dag_id`s and `task_id`s, plus the source files) to the executable. The source files are the
+entrypoint (the file with `func main`) and the file that declares each Dag built with `airflow.Dag`.
+A Dag declared outside your module, such as in a dependency, uses the entrypoint as its source. The result is a **self-contained
 executable bundle**: a single runnable file that *is* the bundle, with no separate manifest or archive to
 ship alongside it.
 
@@ -335,8 +337,8 @@ prek hook regenerate it.
 | state: `success` | MUST | ✓ | 3.3 |  |
 | state: `failed` | MUST | ✓ | 3.3 |  |
 | state: `up_for_retry` | MUST | ✓ | 3.3 | RetryTask |
-| state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
-| state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
+| state: `skipped` | SHOULD | ✓ | 3.4 | airflow.TriggerDagRun with SkipWhenAlreadyExists only |
+| state: `deferred` | MAY | ✓ | 3.4 | airflow.TriggerDagRun with Deferrable only; resumes in the Go runtime |
 | state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
 | state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
 | state: `removed` | MAY | ✓ | 3.3 |  |

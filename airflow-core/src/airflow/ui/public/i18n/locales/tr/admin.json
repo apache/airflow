@@ -23,7 +23,7 @@
     "connection_other": "Bağlantılar",
     "delete": {
       "deleteConnection_one": "1 bağlantıyı sil",
-      "deleteConnection_other": "{{count}} bağlantıyı sil",
+      "deleteConnection_other": "{{count, number}} bağlantıyı sil",
       "firstConfirmMessage_one": "Aşağıdaki bağlantıyı silmek üzeresiniz:",
       "firstConfirmMessage_other": "Aşağıdaki bağlantıları silmek üzeresiniz:",
       "title": "Bağlantıyı Sil"
@@ -144,7 +144,7 @@
     },
     "delete": {
       "deleteVariable_one": "1 Değişkeni Sil",
-      "deleteVariable_other": "{{count}} Değişkeni Sil",
+      "deleteVariable_other": "{{count, number}} Değişkeni Sil",
       "firstConfirmMessage_one": "Aşağıdaki değişkeni silmek üzeresiniz:",
       "firstConfirmMessage_other": "Aşağıdaki değişkenleri silmek üzeresiniz:",
       "title": "Değişkeni Sil",
