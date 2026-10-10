@@ -139,11 +139,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-microsoft-mssql[openlineage]
 
 
-===============  ========================================
-Extra            Dependencies
-===============  ========================================
-``openlineage``  ``apache-airflow-providers-openlineage``
-===============  ========================================
+================  ========================================
+Extra             Dependencies
+================  ========================================
+``openlineage``   ``apache-airflow-providers-openlineage``
+``mssql-python``  ``mssql-python>=1.15.0``
+================  ========================================
 
 Downloading official packages
 -----------------------------

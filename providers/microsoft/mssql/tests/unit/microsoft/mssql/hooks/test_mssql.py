@@ -381,3 +381,126 @@ class TestMsSqlHook:
 
         hook = MsSqlHook()
         assert hook.get_connection().extra
+
+
+def _mssql_hook(extra: str = "{}") -> MsSqlHook:
+    conn = Connection(
+        conn_id="mssql_default",
+        conn_type="mssql",
+        host="localhost",
+        login="user",
+        password="secret",
+        schema="db",
+        port=1433,
+        extra=extra,
+    )
+    hook = MsSqlHook()
+    hook.get_connection = mock.Mock(return_value=conn)
+    return hook
+
+
+class TestMsSqlHookDbapiDriver:
+    def test_default_driver_is_pymssql(self):
+        hook = _mssql_hook()
+        assert hook.dbapi_driver == "pymssql"
+        assert hook.sqlalchemy_scheme == "mssql+pymssql"
+        assert hook.placeholder == "%s"
+
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            '{"dbapi_driver": "mssql_python"}',
+            '{"DBAPI_Driver": "MSSQL_Python"}',
+        ],
+    )
+    def test_mssql_python_driver_selection(self, extra):
+        hook = _mssql_hook(extra)
+        assert hook.dbapi_driver == "mssql_python"
+        assert hook.sqlalchemy_scheme == "mssql+mssqlpython"
+
+    def test_unsupported_driver_raises(self):
+        hook = _mssql_hook('{"dbapi_driver": "odbc"}')
+        with pytest.raises(ValueError, match="Unsupported dbapi_driver"):
+            _ = hook.dbapi_driver
+
+    def test_sqlalchemy_scheme_extra_wins_over_driver_default(self):
+        hook = _mssql_hook('{"dbapi_driver": "mssql_python", "sqlalchemy_scheme": "mssql+pyodbc"}')
+        assert hook.sqlalchemy_scheme == "mssql+pyodbc"
+
+    def test_get_uri_strips_dbapi_driver(self):
+        hook = _mssql_hook('{"dbapi_driver": "mssql_python", "TrustServerCertificate": "yes"}')
+        uri = hook.get_uri()
+        assert uri.startswith("mssql+mssqlpython://user:secret@localhost:1433/db")
+        assert "dbapi_driver" not in uri
+        assert "TrustServerCertificate=yes" in uri
+
+    def test_mssql_python_placeholder_defaults_to_qmark(self):
+        assert _mssql_hook('{"dbapi_driver": "mssql_python"}').placeholder == "?"
+
+    def test_mssql_python_placeholder_extra_override(self):
+        hook = _mssql_hook('{"dbapi_driver": "mssql_python", "placeholder": "%s"}')
+        assert hook.placeholder == "%s"
+
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.import_module")
+    def test_get_conn_mssql_python(self, mock_import_module):
+        extra = (
+            '{"dbapi_driver": "mssql_python", "sqlalchemy_scheme": "mssql+mssqlpython", '
+            '"placeholder": "?", "TrustServerCertificate": "yes", "Encrypt": ""}'
+        )
+        hook = _mssql_hook(extra)
+        conn = hook.get_conn()
+        mock_import_module.assert_called_once_with("mssql_python")
+        mock_import_module.return_value.connect.assert_called_once_with(
+            Server="localhost,1433",
+            Database="db",
+            UID="user",
+            PWD="secret",
+            TrustServerCertificate="yes",
+        )
+        assert conn is mock_import_module.return_value.connect.return_value
+
+    @mock.patch(
+        "airflow.providers.microsoft.mssql.hooks.mssql.import_module",
+        side_effect=ImportError("no module"),
+    )
+    def test_get_conn_mssql_python_not_installed(self, mock_import_module):
+        hook = _mssql_hook('{"dbapi_driver": "mssql_python"}')
+        with pytest.raises(ImportError, match="mssql-python"):
+            hook.get_conn()
+
+    @mock.patch("pymssql.connect")
+    def test_get_conn_pymssql_ignores_hook_only_extras(self, mock_connect):
+        hook = _mssql_hook('{"dbapi_driver": "pymssql", "sqlalchemy_scheme": "mssql+pymssql", "timeout": 5}')
+        hook.get_conn()
+        mock_connect.assert_called_once_with(
+            server="localhost",
+            user="user",
+            password="secret",
+            database="db",
+            port="1433",
+            timeout=5,
+        )
+
+    def test_mssql_python_autocommit_uses_property(self):
+        hook = _mssql_hook('{"dbapi_driver": "mssql_python"}')
+        conn = mock.Mock()
+        hook.set_autocommit(conn, True)
+        assert conn.autocommit is True
+        assert hook.get_autocommit(conn) is True
+
+    def test_mssql_python_rows_become_tuples(self):
+        class Row:
+            def __init__(self, *values):
+                self._values = values
+
+            def __iter__(self):
+                return iter(self._values)
+
+        hook = _mssql_hook('{"dbapi_driver": "mssql_python"}')
+        assert hook._make_common_data_structure([Row(1, "a"), Row(2, "b")]) == [(1, "a"), (2, "b")]
+        assert hook._make_common_data_structure(Row(1, "a")) == (1, "a")
+        assert hook._make_common_data_structure(None) is None
+
+    def test_pymssql_rows_are_left_alone(self):
+        hook = _mssql_hook()
+        assert hook._make_common_data_structure([(1,), (2,)]) == [(1,), (2,)]
