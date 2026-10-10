@@ -74,3 +74,40 @@ If serializing with JSON:
         "port": 1433,
         "schema": "database_name"
     }'
+
+Choosing the DBAPI driver
+-------------------------
+
+By default the hook connects with `pymssql <https://pypi.org/project/pymssql/>`__. To use Microsoft's
+`mssql-python <https://pypi.org/project/mssql-python/>`__ driver instead, install the extra:
+
+.. code-block:: bash
+
+    pip install 'apache-airflow-providers-microsoft-mssql[mssql-python]'
+
+and set ``dbapi_driver`` to ``mssql_python`` in the connection extra:
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_MSSQL_DEFAULT='{
+        "conn_type": "mssql",
+        "login": "username",
+        "password": "password",
+        "host": "server.com",
+        "port": 1433,
+        "schema": "database_name",
+        "extra": {"dbapi_driver": "mssql_python", "TrustServerCertificate": "yes"}
+    }'
+
+Things to know when using ``mssql_python``:
+
+* ``dbapi_driver`` accepts ``pymssql`` (the default) or ``mssql_python``. The name is case-insensitive.
+* Every other extra is passed to ``mssql_python.connect`` as a connection string keyword, for example
+  ``Encrypt``, ``TrustServerCertificate`` or ``Authentication`` (for Microsoft Entra ID sign-in). The
+  host and port are sent as ``Server=host,port``.
+* The SQLAlchemy scheme defaults to ``mssql+mssqlpython``, which needs SQLAlchemy 2.1 or newer. It can still
+  be changed with the ``sqlalchemy_scheme`` extra or the hook argument.
+* The driver does not understand the plain ``%s`` parameter marker. Write SQL parameters as ``?`` with a
+  list or tuple, or as ``%(name)s`` with a dict. The hook's default placeholder for generated statements
+  is ``?`` and can be overridden with the ``placeholder`` extra.
+* ``mssql-python`` pools connections at the driver level by default.
