@@ -43,6 +43,7 @@ from sqlalchemy.sql import select
 from sqlalchemy.sql.dml import Update
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -298,6 +299,10 @@ def ti_run(
                     "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
                 },
             )
+
+        # Every state other than QUEUED either raised above or was a duplicate request from a running task.
+        if previous_state == TaskInstanceState.QUEUED:
+            stats.incr("ti.start", tags=_task_stats_tags(dr, ti.task_id, task_instance_id, session))
 
         # Send the keys to the SDK so that the client requests to clear those XComs from the server.
         # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
@@ -585,6 +590,16 @@ def ti_update_state(
         # Defer to app-level SQLAlchemyError handler (returns HTTP 500).
         raise
 
+    # Never let metrics fail the request: the state update above would be rolled back with it.
+    try:
+        ti = session.get(TI, task_instance_id)
+        if ti is not None:
+            _emit_task_finish_metrics(
+                ti, updated_state, getattr(ti_patch_payload, "end_date", None), session=session
+            )
+    except Exception:
+        log.warning("Failed to emit task metrics", exc_info=True)
+
     if updated_state == TaskInstanceState.SUCCESS:
         if conf.getboolean("state_store", "clear_on_success"):
             scope = TaskScope(
@@ -615,6 +630,33 @@ def ti_update_state(
 
     for callback in asset_callbacks:
         callback()
+
+
+def _task_stats_tags(
+    dag_run: DR, task_id: str, task_instance_id: UUID, session: SessionDep
+) -> dict[str, str]:
+    tags = {**dag_run.stats_tags, "task_id": task_id}
+    if team_name := get_team_name_for_ti(task_instance_id, session):
+        tags["team_name"] = team_name
+    return tags
+
+
+def _emit_task_finish_metrics(
+    ti: TI, state: TaskInstanceState, end_date: UtcDateTime | None, *, session: SessionDep
+) -> None:
+    """Count the finished attempt by outcome and operator, and record how long it ran."""
+    tags = _task_stats_tags(ti.dag_run, ti.task_id, ti.id, session)
+    stats.incr("ti.finish", tags={**tags, "state": state.value})
+    if state == TaskInstanceState.SUCCESS:
+        if ti.operator:
+            stats.incr("operator_successes", tags={**tags, "operator_name": ti.operator})
+        stats.incr("ti_successes", tags=tags)
+    elif state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
+        if ti.operator:
+            stats.incr("operator_failures", tags={**tags, "operator_name": ti.operator})
+        stats.incr("ti_failures", tags=tags)
+    if end_date and ti.start_date:
+        stats.timing("task.duration", (end_date - ti.start_date).total_seconds() * 1000, tags=tags)
 
 
 def _emit_task_span(ti, state):

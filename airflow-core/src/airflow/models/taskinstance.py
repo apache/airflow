@@ -2136,6 +2136,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             allocate_next_try = ti.state != TaskInstanceState.UP_FOR_RETRY
             ti.state = State.UP_FOR_RETRY
 
+        stats.incr("ti.finish", tags={**ti.stats_tags, "state": ti.state.value})
+        if ti.duration is not None:
+            stats.timing("task.duration", ti.duration * 1000, tags=ti.stats_tags)
+
         ti.notify_failure(error)
         if allocate_next_try and not test_mode:
             ti = ti.prepare_db_for_next_try(session)

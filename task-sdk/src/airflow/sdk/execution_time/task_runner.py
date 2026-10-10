@@ -227,9 +227,6 @@ class RuntimeTaskInstance(TaskInstance):
     _terminal_state_send_failed: bool = False
     """True when the supervisor IPC send for a non-success terminal state raised; signals main() to sys.exit(1) after finalize() so the supervisor doesn't misclassify the run as SUCCESS via exit code 0."""
 
-    _failure_metrics_emitted: bool = False
-    """True once the failure counters have been recorded, so a second pass through the failure path (one attempt raised part-way through) does not count the same failure twice."""
-
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
@@ -1699,9 +1696,6 @@ def run(
     state: TaskInstanceState | None = None
     error: BaseException | None = None
 
-    stats_tags = ti.stats_tags
-    stats.incr("ti.start", tags=stats_tags)
-
     try:
         state, msg, error = _run_task_and_map_outcome(ti, context, log)
     except Exception as e:
@@ -1710,11 +1704,6 @@ def run(
         # skipping the retry decision and every callback in ``finalize()``.
         msg, state, error = _handle_handler_failure(ti, e, log, context)
     finally:
-        # `state` may still be unset if an exception handler above raised before
-        # binding it
-        if state is not None:
-            stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
-
         if msg:
             # If the supervisor rejects the terminal-state report
             # (e.g. the server already moved the TI to a terminal state and
@@ -1759,13 +1748,6 @@ def _handle_current_task_success(
 ) -> tuple[SucceedTask, TaskInstanceState]:
     end_date = datetime.now(tz=UTC)
     ti.end_date = end_date
-
-    # Record operator and task instance success metrics
-    operator = ti.task.__class__.__name__
-    stats_tags = ti.stats_tags
-
-    stats.incr("operator_successes", tags={**stats_tags, "operator_name": operator})
-    stats.incr("ti_successes", tags=stats_tags)
 
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
@@ -1915,17 +1897,6 @@ def _finalize_task_failure(
     """
     end_date = datetime.now(tz=UTC)
     ti.end_date = end_date
-
-    # Record operator and task instance failed metrics. One failure is one increment even
-    # if this runs twice, which happens when a first pass raised after counting -- see
-    # `_handle_handler_failure`.
-    if not ti._failure_metrics_emitted:
-        operator = ti.task.__class__.__name__
-        stats_tags = ti.stats_tags
-
-        stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
-        stats.incr("ti_failures", tags=stats_tags)
-        ti._failure_metrics_emitted = True
 
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         retry_kwargs: dict[str, Any] = {"end_date": end_date}
@@ -2334,11 +2305,6 @@ def finalize(
     log: Logger,
     error: BaseException | None = None,
 ):
-    # Record task duration metrics for all terminal states
-    if ti.start_date and ti.end_date:
-        duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
-        stats.timing("task.duration", duration_ms, tags=ti.stats_tags)
-
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:
@@ -2429,7 +2395,7 @@ def main():
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
     stats.initialize(
-        factory=stats_utils.get_stats_factory(),
+        factory=stats_utils.get_stats_factory(short_lived=True),
         export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
     )
 

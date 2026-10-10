@@ -32,6 +32,7 @@ from opentelemetry.sdk.metrics.view import (
     ExponentialBucketHistogramAggregation,
     View,
 )
+from opentelemetry.sdk.resources import SERVICE_INSTANCE_ID
 
 from airflow_shared.observability.common import get_otel_data_exporter
 from airflow_shared.observability.metrics.otel_logger import (
@@ -636,3 +637,25 @@ def mock_service_run_reinit():
     # Second init — simulates post-fork re-initialization
     logger = get_otel_logger(debug=True)
     logger.incr("post_fork_stat")
+
+
+class TestShortLivedProcess:
+    ENDPOINT_ENV = {"OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "http://collector:4318/v1/metrics"}
+
+    @pytest.mark.parametrize(
+        ("service_instance_id", "expected"),
+        [
+            pytest.param("shared-id", "shared-id", id="given_id_replaces_the_generated_one"),
+            pytest.param(None, None, id="no_id_keeps_the_env_one"),
+        ],
+    )
+    @pytest.mark.usefixtures("reset_meter_provider")
+    def test_service_instance_id(self, service_instance_id, expected):
+        with env_vars({**self.ENDPOINT_ENV, "OTEL_RESOURCE_ATTRIBUTES": "service.instance.id=from-env"}):
+            logger = get_otel_logger(service_instance_id=service_instance_id)
+
+        instance_id = logger.otel._sdk_config.resource.attributes[SERVICE_INSTANCE_ID]
+        if expected is None:
+            assert instance_id == "from-env"
+        else:
+            assert instance_id == expected

@@ -2512,6 +2512,41 @@ class TestTaskInstance:
             "operator_failures", tags={**expected_stats_tags, "operator_name": "EmptyOperator"}
         )
 
+    @pytest.mark.parametrize(
+        ("retries", "expected_state"),
+        [
+            pytest.param(1, "up_for_retry", id="retry_left"),
+            pytest.param(0, "failed", id="no_retry_left"),
+        ],
+    )
+    @patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_handle_failure_counts_the_finish_and_duration(
+        self, mock_get_backend, dag_maker, time_machine, retries, expected_state
+    ):
+        mock_backend = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_backend
+        start_date = timezone.datetime(2024, 10, 31, 11, 0, 0)
+        time_machine.move_to(timezone.datetime(2024, 10, 31, 12, 0, 0), tick=False)
+
+        session = settings.Session()
+        with dag_maker():
+            task = EmptyOperator(task_id="mytask", retries=retries)
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session=session)
+        ti.try_number += 1
+        ti = session.merge(ti)
+        ti.task = task
+        ti.state = State.RUNNING
+        ti.start_date = start_date
+        session.flush()
+        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": dr.run_type}
+
+        ti.handle_failure("boom", test_mode=False)
+
+        assert ti.state == expected_state
+        mock_backend.incr.assert_any_call("ti.finish", tags={**expected_stats_tags, "state": expected_state})
+        mock_backend.timing.assert_any_call("task.duration", 60 * 60 * 1000, tags=expected_stats_tags)
+
     def test_handle_failure_task_undefined(self, create_task_instance):
         """
         When the loaded taskinstance does not use refresh_from_task, the task may be undefined.
@@ -5061,9 +5096,9 @@ class TestTaskInstanceStatsTagsTeamName:
 
     @conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
     def test_stats_tags_match_worker_tag_set(self, dag_maker, session):
-        """ti_failures (and other ti.* metrics) are emitted from both the worker
-        (RuntimeTaskInstance.stats_tags) and the scheduler (TaskInstance.stats_tags); both must produce
-        the same tag set. The worker side is asserted in test_task_runner.py
+        """Task metrics are tagged from RuntimeTaskInstance.stats_tags on the worker and from
+        TaskInstance.stats_tags on the scheduler and the API server; both must produce the same tag set.
+        The worker side is asserted in test_task_runner.py
         (test_stats_tags_with_standalone_and_key_value_tags); this guards the scheduler side against drift:
         dag tags + dag_id + task_id + run_type.
         """
