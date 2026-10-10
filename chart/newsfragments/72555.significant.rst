@@ -1,0 +1,10 @@
+Kerberos worker sidecars now run as Kubernetes native sidecars
+
+* The ``worker-kerberos`` container moved from ``spec.containers`` to ``spec.initContainers`` with
+  ``restartPolicy: Always``; its status is now in ``status.initContainerStatuses``.
+* The existing ``klist -s`` startup probe is enabled by default. When enabled, it must now succeed
+  before the worker or task container starts.
+* ``workers.celery.kerberosInitContainer`` and ``workers.kubernetes.kerberosInitContainer``, including
+  Celery worker-set overrides, have been removed. Helm still accepts these values but the chart
+  ignores them. Use ``kerberosSidecar`` in the corresponding worker section or set instead.
+* The native sidecar requires the ``SidecarContainers`` feature gate on Kubernetes 1.30 through 1.32.
