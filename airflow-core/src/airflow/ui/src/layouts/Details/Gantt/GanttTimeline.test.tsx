@@ -94,8 +94,9 @@ describe("GanttTimeline segment bars", () => {
 
   it.each([0, 3])("shows loop iteration %s in the hovered bar's tooltip", async (iteration) => {
     const segment: GanttDataItem = {
+      loopIteration: { iteration, loop_id: "loop" },
       regionId: "11111111-1111-1111-1111-111111111111",
-      regionIndex: iteration,
+      regionIndex: 99,
       state: "success",
       taskId: "task_1",
       taskInstanceId: "retained-execution",
@@ -111,7 +112,7 @@ describe("GanttTimeline segment bars", () => {
 
     fireEvent.pointerMove(screen.getByRole("link"), { pointerType: "mouse" });
 
-    expect(await screen.findByText(`taskInstance.iteration: ${iteration}`)).toBeInTheDocument();
+    expect(await screen.findByText(`taskInstance.iteration: ${iteration} (loop)`)).toBeInTheDocument();
   });
 
   it.each([

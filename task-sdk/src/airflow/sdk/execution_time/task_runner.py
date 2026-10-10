@@ -787,6 +787,9 @@ class RuntimeTaskInstance(TaskInstance):
         """
         Return the previous task instance matching the given criteria.
 
+        Inside a loop, this is the task instance at the same iteration in the closest earlier Dag run
+        that reached that iteration, not that run's last iteration.
+
         :param state: Filter by TaskInstance state
         :param logical_date: Filter by logical date (returns TI before this date)
         :param map_index: Filter by map_index (defaults to -1 for non-mapped tasks)

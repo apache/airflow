@@ -388,6 +388,27 @@ describe("ClearTaskInstanceDialog", () => {
   });
 
   it.each([
+    { loopIteration: { iteration: 3, loop_id: "body" }, shown: true },
+    { loopIteration: undefined, shown: false },
+  ])(
+    "shows the iteration column in the affected tasks only for loop passes: $shown",
+    async ({ loopIteration, shown }) => {
+      affectedTasks.task_instances = [
+        { ...loopPass("pass-3", 3), loop_iteration: loopIteration },
+        { ...taskInstance, id: "outside-loop", task_id: "outside" },
+      ];
+
+      render(<ClearTaskInstanceDialog onClose={vi.fn()} open taskInstance={loopMember} />, {
+        wrapper: Wrapper,
+      });
+
+      expect(await screen.findByText("body.work")).toBeVisible();
+      expect(screen.queryByRole("columnheader", { name: "taskInstance.iteration" }) !== null).toBe(shown);
+      expect(screen.queryByText("3") !== null).toBe(shown);
+    },
+  );
+
+  it.each([
     { expectedShown: true, version: { bundle_version: "bundle-1", id: "version-1", version_number: 1 } },
     { expectedShown: false, version: { bundle_version: "bundle-2", id: "version-2", version_number: 2 } },
   ])(

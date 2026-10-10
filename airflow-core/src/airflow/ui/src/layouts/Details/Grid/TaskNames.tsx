@@ -27,6 +27,7 @@ import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom
 import { TaskName } from "src/components/TaskName";
 
 import { useGroups } from "src/context/groups";
+import { stripExecutionParams } from "src/utils/executionParams";
 
 import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
@@ -72,12 +73,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
     onRowClick?.();
   };
 
-  const targetSearchParams = new URLSearchParams(searchParams);
-
-  for (const key of ["try_number", "region_id", "region_index"]) {
-    targetSearchParams.delete(key);
-  }
-  const search = targetSearchParams.toString();
+  const search = stripExecutionParams(searchParams).toString();
 
   // If virtualItems is provided, use virtualization; otherwise render all items
   const itemsToRender =
@@ -138,8 +134,10 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                       fontSize="sm"
                       fontWeight="normal"
                       isGroup={true}
+                      isLoop={Boolean(node.is_loop)}
                       isMapped={Boolean(node.is_mapped)}
                       label={node.label}
+                      loopMaxIterations={node.loop_max_iterations}
                       paddingLeft={indent(node.depth)}
                       setupTeardownType={node.setup_teardown_type}
                     />

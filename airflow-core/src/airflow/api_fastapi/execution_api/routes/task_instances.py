@@ -1521,6 +1521,9 @@ def get_task_instance_count(
     return session.scalar(select(func.count()).select_from(TI).where(*conditions)) or 0
 
 
+_MAX_PREVIOUS_TIS_SCANNED = 500
+
+
 @router.get(
     "/previous/{dag_id}/{task_id}",
     status_code=status.HTTP_200_OK,
@@ -1528,17 +1531,21 @@ def get_task_instance_count(
         [(status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot")]
     ),
 )
-async def get_previous_task_instance(
+def get_previous_task_instance(
     dag_id: str,
     task_id: str,
-    session: AsyncSessionDep,
+    session: SessionDep,
     dag_bag: DagBagDep,
     logical_date: Annotated[UtcDateTime | None, Query()] = None,
     map_index: Annotated[int, Query()] = -1,
     state: Annotated[TaskInstanceState | None, Query()] = None,
+    token: TIToken = CurrentTIToken,
 ) -> PreviousTIResponse | None:
     """
-    Get the previous task instance matching the given criteria, preferring a looped task's latest pass.
+    Get the previous task instance matching the given criteria.
+
+    When the requesting task instance is of ``task_id``, the previous task instance sits at the same
+    loop position as the requester. Otherwise the latest pass of a loop task is returned.
 
     A run whose latest loop pass of the task holds no row matching the criteria is skipped, as the count
     and states endpoints would not report such a row either.
@@ -1560,26 +1567,47 @@ async def get_previous_task_instance(
     if state:
         query = query.where(TI.state == state)
 
+    resolver = TaskCoordinateResolver(dag_bag, session)
+    requester: TI | None = None
+    iterations: list[tuple[str, int]] | None = None
     before = logical_date
     while True:
-        candidates = query if before is None else query.where(DR.logical_date < before)
-        row = (
-            await session.execute(
-                candidates.order_by(DR.logical_date.desc(), TI.region_index.desc()).limit(1)
-            )
-        ).first()
+        candidates = (query if before is None else query.where(DR.logical_date < before)).order_by(
+            DR.logical_date.desc(), TI.region_index.desc()
+        )
+        row = session.execute(candidates.limit(1)).first()
         if row is None:
             return None
         ti, public_index = row
         if ti.region_id == SENTINEL_REGION_ID:
             break
+        if iterations is None:
+            requester = session.get(TI, token.id)
+            iterations = (
+                resolver.loop_iterations(requester)
+                if requester is not None and (requester.dag_id, requester.task_id) == (dag_id, task_id)
+                else []
+            )
+        if iterations and requester is not None:
+            requester_task = resolver.get_task(
+                requester.dag_id, requester.run_id, requester.task_id, dag_version_id=requester.dag_version_id
+            )
+            if not requester_task.get_needs_expansion():
+                candidates = candidates.where(
+                    TI.region_id != SENTINEL_REGION_ID, TI.region_index == iterations[-1][1]
+                )
+            rows = session.execute(candidates.limit(_MAX_PREVIOUS_TIS_SCANNED)).all()
+            resolver.prefetch_regions([r[0] for r in rows])
+            row = next((r for r in rows if _has_loop_iterations(resolver, r[0], iterations)), None)
+            if row is None:
+                return None
+            ti, public_index = row
+            break
 
-        superseded = await session.run_sync(_find_superseded_ids, dag_id, {(ti.run_id, task_id)}, dag_bag)
+        superseded = _find_superseded_ids(session, dag_id, {(ti.run_id, task_id)}, dag_bag)
         if ti.id not in superseded:
             break
-        run_rows = (
-            await session.execute(query.where(DR.run_id == ti.run_id).order_by(TI.region_index.desc()))
-        ).all()
+        run_rows = session.execute(query.where(DR.run_id == ti.run_id).order_by(TI.region_index.desc())).all()
         current = next(((other, index) for other, index in run_rows if other.id not in superseded), None)
         if current is not None:
             ti, public_index = current
@@ -1589,7 +1617,6 @@ async def get_previous_task_instance(
             return None
 
     region_id, region_index = get_public_region(ti.region_id, ti.region_index)
-
     return PreviousTIResponse(
         task_id=ti.task_id,
         dag_id=ti.dag_id,
@@ -1604,6 +1631,13 @@ async def get_previous_task_instance(
         region_index=region_index,
         duration=ti.duration,
     )
+
+
+def _has_loop_iterations(resolver: TaskCoordinateResolver, ti: TI, iterations: list[tuple[str, int]]) -> bool:
+    try:
+        return resolver.loop_iterations(ti) == iterations
+    except ValueError:
+        return False
 
 
 @router.get(

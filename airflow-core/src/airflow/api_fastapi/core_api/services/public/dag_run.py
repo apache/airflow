@@ -56,7 +56,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse, TaskInstanceResponse
 from airflow.api_fastapi.core_api.services.public.common import BulkService
-from airflow.api_fastapi.core_api.services.public.task_coordinates import task_coordinate_response
+from airflow.api_fastapi.core_api.services.public.task_coordinates import task_coordinate_responses
 from airflow.api_fastapi.core_api.services.public.task_instances import _emit_state_listener_hooks
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun, clear_partition_runs
@@ -138,7 +138,7 @@ def dry_run_clear_dag_run(
     task_instances = list(session.scalars(ti_query))
     load_legacy_rendered_fields(task_instances, session=session)
     resolver = TaskCoordinateResolver(dag_bag, session)
-    return [task_coordinate_response(TaskInstanceResponse, ti, resolver) for ti in task_instances]
+    return task_coordinate_responses(TaskInstanceResponse, task_instances, resolver)
 
 
 def perform_clear_dag_run(

@@ -31,10 +31,12 @@ export type CustomNodeProps = {
   id: string;
   isFiltered?: boolean;
   isGroup?: boolean;
+  isLoop?: boolean;
   isMapped?: boolean;
   isOpen?: boolean;
   isSelected?: boolean;
   label: string;
+  loopMaxIterations?: number;
   operator?: string | null;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
   taskInstance?: LightGridTaskInstanceSummary;

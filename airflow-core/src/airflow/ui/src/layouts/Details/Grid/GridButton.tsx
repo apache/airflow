@@ -27,6 +27,7 @@ import { Tooltip } from "src/system-components";
 import Time from "src/components/Time";
 
 import { useDurationFormat } from "src/utils";
+import { stripExecutionParams } from "src/utils/executionParams";
 
 type Props = {
   readonly dagId: string;
@@ -53,11 +54,7 @@ export const GridButton = ({
 }: Props) => {
   const { t: translate } = useTranslation();
   const { renderDuration } = useDurationFormat();
-  const targetSearchParams = new URLSearchParams(searchParams);
-
-  for (const key of ["try_number", "region_id", "region_index"]) {
-    targetSearchParams.delete(key);
-  }
+  const targetSearchParams = stripExecutionParams(searchParams);
 
   return (
     <Tooltip

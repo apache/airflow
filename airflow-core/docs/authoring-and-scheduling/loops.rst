@@ -170,6 +170,10 @@ terminal tasks and the gate does not wait for them. A failing teardown does not 
 loop, and the next iteration can start while the previous iteration's teardowns are
 still running.
 
+Inside a loop, ``ti.get_previous_ti()`` returns the task instance at the same
+iteration in the closest earlier Dag run that reached that iteration, not that
+run's last iteration. It returns ``None`` if no earlier Dag run reached it.
+
 Limitations:
 
 * ``include_prior_dates=True`` cannot select a loop iteration from another Dag run. Push the result to XCom through a task outside the loop if later Dag runs need to retrieve it with an ordinary XCom pull; see :ref:`loops-outside-result`.

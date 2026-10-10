@@ -112,7 +112,9 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import (
     TaskScopeDep,
     UnmappedTaskScopeDep,
     add_public_map_index,
+    loop_iteration_filter,
     task_coordinate_response,
+    task_coordinate_responses,
 )
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
@@ -344,10 +346,12 @@ def get_mapped_task_instances(
     load_legacy_rendered_fields([ti for ti, _ in rows], session=session)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            task_coordinate_response(TaskInstanceResponse, ti, resolver, map_index=map_index)
-            for ti, map_index in rows
-        ],
+        task_instances=task_coordinate_responses(
+            TaskInstanceResponse,
+            [ti for ti, _ in rows],
+            resolver,
+            map_indexes=[map_index for _, map_index in rows],
+        ),
         total_entries=total_entries,
     )
 
@@ -463,9 +467,7 @@ def get_task_instance_tries(
         )
     load_legacy_rendered_fields(task_instances, session=session)
     return TaskInstanceHistoryCollectionResponse(
-        task_instances=[
-            task_coordinate_response(TaskInstanceHistoryResponse, ti, resolver) for ti in task_instances
-        ],
+        task_instances=task_coordinate_responses(TaskInstanceHistoryResponse, task_instances, resolver),
         total_entries=len(task_instances),
     )
 
@@ -639,6 +641,8 @@ def get_task_instances(
         "Pass an empty string for the first page, then use ``next_cursor`` from the response. "
         "When ``cursor`` is provided, ``offset`` is ignored.",
     ),
+    loop_id: Annotated[str | None, Query()] = None,
+    iteration: Annotated[int | None, Query(ge=0)] = None,
 ) -> TaskInstanceCollectionResponse:
     """
     Get list of task instances.
@@ -659,6 +663,20 @@ def get_task_instances(
     use_cursor = cursor is not None
     dag_run = None
     query = add_public_map_index(eager_load_task_instance_for_validation(select(TI)))
+    if loop_id is None and iteration is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "iteration requires loop_id")
+    if loop_id is not None:
+        if dag_id == "~" or dag_run_id == "~":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "loop_id requires a specific Dag run")
+        query = query.where(
+            loop_iteration_filter(
+                dag_id=dag_id,
+                run_id=dag_run_id,
+                loop_id=loop_id,
+                iteration=iteration,
+                session=session,
+            )
+        )
     if region_index is not None and region_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_index requires region_id")
     if region_id is not None:
@@ -758,10 +776,12 @@ def get_task_instances(
         )
         load_legacy_rendered_fields([ti for ti, _ in rows], session=session)
         return TaskInstanceCollectionResponse(
-            task_instances=[
-                task_coordinate_response(TaskInstanceResponse, ti, resolver, map_index=map_index)
-                for ti, map_index in rows
-            ],
+            task_instances=task_coordinate_responses(
+                TaskInstanceResponse,
+                [ti for ti, _ in rows],
+                resolver,
+                map_indexes=[map_index for _, map_index in rows],
+            ),
             total_entries=total_entries,
             total_entries_limit=total_entries_limit,
             next_cursor=(
@@ -789,10 +809,12 @@ def get_task_instances(
     page_rows = session.execute(task_instance_select).all()
     load_legacy_rendered_fields([ti for ti, _ in page_rows], session=session)
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            task_coordinate_response(TaskInstanceResponse, ti, resolver, map_index=map_index)
-            for ti, map_index in page_rows
-        ],
+        task_instances=task_coordinate_responses(
+            TaskInstanceResponse,
+            [ti for ti, _ in page_rows],
+            resolver,
+            map_indexes=[map_index for _, map_index in page_rows],
+        ),
         total_entries=total_entries,
     )
 
@@ -903,10 +925,12 @@ def get_task_instances_batch(
     load_legacy_rendered_fields([ti for ti, _ in rows], session=session)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            task_coordinate_response(TaskInstanceResponse, ti, resolver, map_index=map_index)
-            for ti, map_index in rows
-        ],
+        task_instances=task_coordinate_responses(
+            TaskInstanceResponse,
+            [ti for ti, _ in rows],
+            resolver,
+            map_indexes=[map_index for _, map_index in rows],
+        ),
         total_entries=total_entries,
     )
 
@@ -1276,9 +1300,7 @@ def post_clear_task_instances(
     task_instances = _reload_tis_with_rendered_fields(list(task_instances), session)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            task_coordinate_response(TaskInstanceResponse, ti, resolver) for ti in task_instances
-        ],
+        task_instances=task_coordinate_responses(TaskInstanceResponse, task_instances, resolver),
         total_entries=len(task_instances),
     )
 
@@ -1336,7 +1358,7 @@ def patch_task_group_instances(
 
     resolver = TaskCoordinateResolver(dag_bag, session)
     return TaskInstanceCollectionResponse(
-        task_instances=[task_coordinate_response(TaskInstanceResponse, ti, resolver) for ti in response_tis],
+        task_instances=task_coordinate_responses(TaskInstanceResponse, response_tis, resolver),
         total_entries=len(response_tis),
     )
 
@@ -1396,7 +1418,7 @@ def patch_task_group_instances_dry_run(
 
     resolver = TaskCoordinateResolver(dag_bag, session)
     return TaskInstanceCollectionResponse(
-        task_instances=[task_coordinate_response(TaskInstanceResponse, ti, resolver) for ti in tis],
+        task_instances=task_coordinate_responses(TaskInstanceResponse, tis, resolver),
         total_entries=len(tis),
     )
 
@@ -1468,7 +1490,7 @@ def patch_task_instance_dry_run(
 
     resolver = TaskCoordinateResolver(dag_bag, session)
     return TaskInstanceCollectionResponse(
-        task_instances=[task_coordinate_response(TaskInstanceResponse, ti, resolver) for ti in tis],
+        task_instances=task_coordinate_responses(TaskInstanceResponse, tis, resolver),
         total_entries=len(tis),
     )
 
@@ -1569,7 +1591,7 @@ def patch_task_instance(
     load_legacy_rendered_fields(tis, session=session)
     resolver = TaskCoordinateResolver(dag_bag, session)
     return TaskInstanceCollectionResponse(
-        task_instances=[task_coordinate_response(TaskInstanceResponse, ti, resolver) for ti in tis],
+        task_instances=task_coordinate_responses(TaskInstanceResponse, tis, resolver),
         total_entries=len(tis),
     )
 

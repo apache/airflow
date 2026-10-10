@@ -472,6 +472,7 @@ def get_hitl_details(
     load_legacy_rendered_fields([detail.task_instance for detail in hitl_details], session=session)
 
     resolver = TaskCoordinateResolver(dag_bag, session)
+    resolver.prefetch_regions([detail.task_instance for detail in hitl_details])
 
     return HITLDetailCollection(
         hitl_details=[
