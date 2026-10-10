@@ -4186,6 +4186,37 @@ class TestDatabricksNotebookOperator:
         assert exec_info.value.trigger.workflow_run_id is None
         assert exec_info.value.trigger.databricks_task_key is None
 
+    @pytest.mark.parametrize(("upstream", "expected_launch"), [({"wf.launch"}, "wf.launch"), (set(), None)])
+    @mock.patch("airflow.providers.databricks.operators.databricks.AIRFLOW_V_3_0_PLUS", True)
+    @mock.patch("airflow.providers.databricks.operators.databricks.store_databricks_job_run_link")
+    @mock.patch("airflow.providers.databricks.operators.databricks.store_databricks_repair_link")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._databricks_workflow_task_group",
+        new_callable=mock.PropertyMock,
+    )
+    def test_execute_in_workflow_stores_repair_link(
+        self, mock_workflow_tg, mock_store_repair, mock_store_run_link, upstream, expected_launch
+    ):
+        mock_workflow_tg.return_value = MagicMock()
+        operator = DatabricksNotebookOperator(
+            task_id="wf.nb",
+            notebook_path="test_path",
+            source="test_source",
+            wait_for_termination=False,
+            workflow_run_metadata={"conn_id": "c", "job_id": 1, "run_id": 2},
+        )
+        operator.upstream_task_ids.update(upstream)
+        context = {"ti": MagicMock()}
+
+        operator.execute(context)
+
+        if expected_launch:
+            mock_store_repair.assert_called_once_with(
+                context=context, launch_task_id=expected_launch, logger=operator.log, task_id="wf.nb"
+            )
+        else:
+            mock_store_repair.assert_not_called()
+
     @mock.patch(
         "airflow.providers.databricks.operators.databricks.DatabricksNotebookOperator._databricks_workflow_task_group",
         new_callable=mock.PropertyMock,
