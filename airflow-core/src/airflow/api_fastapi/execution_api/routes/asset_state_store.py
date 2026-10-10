@@ -37,7 +37,7 @@ from fastapi import HTTPException, Query, status
 from sqlalchemy import select
 
 from airflow._shared.state import AssetScope, AssetStateStoreWriterKind
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.asset_state_store import (
     AssetStateStorePutBody,
     AssetStateStoreResponse,
@@ -53,16 +53,17 @@ _TIWriterFields = tuple[str, str, str, int]
 NULL_UUID = UUID(int=0)
 
 
-def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFields:
+async def _fetch_ti_writer_fields(token: TIToken, session: AsyncSessionDep) -> _TIWriterFields:
     """Return (dag_id, run_id, task_id, map_index) for the TI identified by the token."""
-    row = session.execute(
+    result = await session.execute(
         select(
             TaskInstance.dag_id,
             TaskInstance.run_id,
             TaskInstance.task_id,
             TaskInstance.map_index,
         ).where(TaskInstance.id == token.id)
-    ).one_or_none()
+    )
+    row = result.one_or_none()
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -86,8 +87,10 @@ router = VersionedAPIRouter(
 )
 
 
-def _resolve_asset_id_by_name(name: str, session: SessionDep) -> int:
-    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == name, AssetModel.active.has()))
+async def _resolve_asset_id_by_name(name: str, session: AsyncSessionDep) -> int:
+    asset_id = await session.scalar(
+        select(AssetModel.id).where(AssetModel.name == name, AssetModel.active.has())
+    )
     if asset_id is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -96,8 +99,10 @@ def _resolve_asset_id_by_name(name: str, session: SessionDep) -> int:
     return asset_id
 
 
-def _resolve_asset_id_by_uri(uri: str, session: SessionDep) -> int:
-    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == uri, AssetModel.active.has()))
+async def _resolve_asset_id_by_uri(uri: str, session: AsyncSessionDep) -> int:
+    asset_id = await session.scalar(
+        select(AssetModel.id).where(AssetModel.uri == uri, AssetModel.active.has())
+    )
     if asset_id is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -107,14 +112,14 @@ def _resolve_asset_id_by_uri(uri: str, session: SessionDep) -> int:
 
 
 @router.get("/by-name/value")
-def get_asset_state_store_by_name(
+async def get_asset_state_store_by_name(
     name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> AssetStateStoreResponse:
     """Get an asset state store value by asset name."""
-    asset_id = _resolve_asset_id_by_name(name, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
+    asset_id = await _resolve_asset_id_by_name(name, session)
+    value = await get_state_backend().aget(AssetScope(asset_id=asset_id), key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -123,18 +128,18 @@ def get_asset_state_store_by_name(
     return AssetStateStoreResponse(value=json.loads(value))
 
 
-def _put_asset_state_store(
+async def _put_asset_state_store(
     scope: AssetScope,
     key: str,
     body: AssetStateStorePutBody,
     token: TIToken,
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> None:
     backend = get_state_backend()
     if isinstance(backend, MetastoreBackend):
         if token.id == NULL_UUID:
             # Since the asset state store routes do not have `task_instance_id` in their path params, the default kicks in which is"00000000-0000-0000-0000-000000000000"
-            backend.set_asset_state_store(
+            await backend.aset_asset_state_store(
                 scope,
                 key,
                 json.dumps(body.value),
@@ -142,10 +147,10 @@ def _put_asset_state_store(
                 session=session,
             )
         else:
-            ti_fields = _fetch_ti_writer_fields(token, session)
+            ti_fields = await _fetch_ti_writer_fields(token, session)
             dag_id, run_id, task_id, map_index = ti_fields
 
-            backend.set_asset_state_store(
+            await backend.aset_asset_state_store(
                 scope,
                 key,
                 json.dumps(body.value),
@@ -157,53 +162,53 @@ def _put_asset_state_store(
                 session=session,
             )
     else:
-        backend.set(scope, key, json.dumps(body.value), session=session)
+        await backend.aset(scope, key, json.dumps(body.value), session=session)
 
 
 @router.put("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
-def set_asset_state_store_by_name(
+async def set_asset_state_store_by_name(
     name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     body: AssetStateStorePutBody,
-    session: SessionDep,
+    session: AsyncSessionDep,
     token: TIToken = CurrentTIToken,
 ) -> None:
     """Set an asset state store value by asset name."""
-    _put_asset_state_store(
-        AssetScope(asset_id=_resolve_asset_id_by_name(name, session)), key, body, token, session
+    await _put_asset_state_store(
+        AssetScope(asset_id=await _resolve_asset_id_by_name(name, session)), key, body, token, session
     )
 
 
 @router.delete("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
-def delete_asset_state_store_by_name(
+async def delete_asset_state_store_by_name(
     name: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> None:
     """Delete a single asset state store key by asset name."""
-    asset_id = _resolve_asset_id_by_name(name, session)
-    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
+    asset_id = await _resolve_asset_id_by_name(name, session)
+    await get_state_backend().adelete(AssetScope(asset_id=asset_id), key, session=session)
 
 
 @router.delete("/by-name/clear", status_code=status.HTTP_204_NO_CONTENT)
-def clear_asset_state_store_by_name(
+async def clear_asset_state_store_by_name(
     name: Annotated[str, Query(min_length=1)],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> None:
     """Delete all state store keys for an asset by asset name."""
-    asset_id = _resolve_asset_id_by_name(name, session)
-    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)
+    asset_id = await _resolve_asset_id_by_name(name, session)
+    await get_state_backend().aclear(AssetScope(asset_id=asset_id), session=session)
 
 
 @router.get("/by-uri/value")
-def get_asset_state_store_by_uri(
+async def get_asset_state_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> AssetStateStoreResponse:
     """Get an asset state store value by asset URI."""
-    asset_id = _resolve_asset_id_by_uri(uri, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
+    asset_id = await _resolve_asset_id_by_uri(uri, session)
+    value = await get_state_backend().aget(AssetScope(asset_id=asset_id), key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -213,35 +218,34 @@ def get_asset_state_store_by_uri(
 
 
 @router.put("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
-def set_asset_state_store_by_uri(
+async def set_asset_state_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
     body: AssetStateStorePutBody,
-    session: SessionDep,
+    session: AsyncSessionDep,
     token: TIToken = CurrentTIToken,
 ) -> None:
     """Set an asset state store value by asset URI."""
-    _put_asset_state_store(
-        AssetScope(asset_id=_resolve_asset_id_by_uri(uri, session)), key, body, token, session
-    )
+    asset_id = await _resolve_asset_id_by_uri(uri, session)
+    await _put_asset_state_store(AssetScope(asset_id=asset_id), key, body, token, session)
 
 
 @router.delete("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
-def delete_asset_state_store_by_uri(
+async def delete_asset_state_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
     key: Annotated[str, Query(min_length=1)],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> None:
     """Delete a single asset state store key by asset URI."""
-    asset_id = _resolve_asset_id_by_uri(uri, session)
-    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
+    asset_id = await _resolve_asset_id_by_uri(uri, session)
+    await get_state_backend().adelete(AssetScope(asset_id=asset_id), key, session=session)
 
 
 @router.delete("/by-uri/clear", status_code=status.HTTP_204_NO_CONTENT)
-def clear_asset_state_store_by_uri(
+async def clear_asset_state_store_by_uri(
     uri: Annotated[str, Query(min_length=1)],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> None:
     """Delete all state store keys for an asset by asset URI."""
-    asset_id = _resolve_asset_id_by_uri(uri, session)
-    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)
+    asset_id = await _resolve_asset_id_by_uri(uri, session)
+    await get_state_backend().aclear(AssetScope(asset_id=asset_id), session=session)
