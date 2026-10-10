@@ -113,7 +113,7 @@ class DagDocumentMigrator:
         )
         for version in self._bundle.versions:
             for change in version.changes:
-                name = type(change).__name__
+                name = change.__name__
                 other_models = set(change.alter_request_by_schema_instructions) - {DagDocument}
                 if other_models:
                     raise RuntimeError(

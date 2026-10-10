@@ -107,7 +107,7 @@ def test_migrator_rejects_converter_for_non_dagdocument_model():
             pass
 
     bundle = VersionBundle(HeadVersion(), Version("2027-06-01", _ConvertTask), Version("2026-10-30"))
-    with pytest.raises(RuntimeError, match="only whole-document DagDocument converters"):
+    with pytest.raises(RuntimeError, match=r"_ConvertTask:.*only whole-document DagDocument converters"):
         migrator.DagDocumentMigrator(bundle)
 
 
@@ -121,7 +121,7 @@ def test_migrator_rejects_non_request_instructions():
         )
 
     bundle = VersionBundle(HeadVersion(), Version("2027-06-01", _RenameViaSchema), Version("2026-10-30"))
-    with pytest.raises(RuntimeError, match="unsupported cadwyn instructions"):
+    with pytest.raises(RuntimeError, match="_RenameViaSchema: unsupported cadwyn instructions"):
         migrator.DagDocumentMigrator(bundle)
 
 
