@@ -442,7 +442,7 @@ class SerializedDagModel(Base):
         existing_deadline_uuids: list[str],
         new_deadline_data: list[dict],
         session: Session,
-    ) -> tuple[dict[str, dict], dict[str, str | None]] | None:
+    ) -> tuple[dict[str, dict], dict[str, dict[str, Any]]] | None:
         """
         Try to reuse existing deadline UUIDs if the deadline definitions haven't changed.
 
@@ -451,11 +451,11 @@ class SerializedDagModel(Base):
         :param existing_deadline_uuids: List of UUID strings from existing serialized Dag
         :param new_deadline_data: List of new deadline alert data dicts from the Dag
         :param session: Database session
-        :return: Tuple of (uuid_mapping, name_updates) if all definitions match, None if any
+        :return: Tuple of (uuid_mapping, row_updates) if all definitions match, None if any
             mismatch detected.  ``uuid_mapping`` maps UUID string → new deadline data dict.
-            ``name_updates`` maps UUID string → new name **only** for entries whose name
-            changed relative to the existing DB row, so callers can issue targeted UPDATEs
-            and reliably detect whether any DB write occurred.
+            ``row_updates`` maps UUID string → the columns whose value **changed** relative to
+            the existing DB row, so callers can issue targeted UPDATEs and reliably detect
+            whether any DB write occurred.
         """
         # defensive check for old 3.1.x format
         if existing_deadline_uuids and not isinstance(existing_deadline_uuids[0], str):
@@ -464,8 +464,12 @@ class SerializedDagModel(Base):
 
         def _definitions_match(deadline_data: dict, existing: DeadlineAlertModel) -> bool:
             """Check if raw deadline data matches an existing DeadlineAlert's definition."""
+            # The reference is compared on the fields the stored row already has: a field added to
+            # the serialized form by an upgrade would otherwise mark every stored alert as changed,
+            # orphaning the deadlines of running Dag runs. Such a row is refreshed in place below.
+            new_reference = deadline_data[DeadlineAlertFields.REFERENCE]
             return (
-                deadline_data[DeadlineAlertFields.REFERENCE] == existing.reference
+                all(new_reference.get(field) == value for field, value in existing.reference.items())
                 and deadline_data[DeadlineAlertFields.INTERVAL] == existing.interval
                 and deadline_data[DeadlineAlertFields.CALLBACK] == existing.callback_def
             )
@@ -483,7 +487,7 @@ class SerializedDagModel(Base):
 
         matched_uuids: set[UUID] = set()
         uuid_mapping: dict[str, dict] = {}
-        name_updates: dict[str, str | None] = {}
+        row_updates: dict[str, dict[str, Any]] = {}
 
         for deadline_alert in new_deadline_data:
             deadline_data = deadline_alert.get(Encoding.VAR, deadline_alert)
@@ -499,9 +503,15 @@ class SerializedDagModel(Base):
                     uuid_mapping[uuid_str] = deadline_data
                     matched_uuids.add(existing_alert.id)
                     found_match = True
+                    updates: dict[str, Any] = {}
                     new_name = deadline_data.get(DeadlineAlertFields.NAME)
                     if new_name != existing_alert.name:
-                        name_updates[uuid_str] = new_name
+                        updates["name"] = new_name
+                    new_reference = deadline_data[DeadlineAlertFields.REFERENCE]
+                    if new_reference != existing_alert.reference:
+                        updates["reference"] = new_reference
+                    if updates:
+                        row_updates[uuid_str] = updates
                     break
 
             if not found_match:
@@ -510,7 +520,7 @@ class SerializedDagModel(Base):
                 # to another deadline), so partial reuse would risk stale cross-references.
                 return None
 
-        return uuid_mapping, name_updates
+        return uuid_mapping, row_updates
 
     @classmethod
     def _create_deadline_alert_records(
@@ -653,7 +663,7 @@ class SerializedDagModel(Base):
         serialized_dag_hash = _prefetched.dag_hash
         dag_version = _prefetched.dag_version
 
-        name_updated = False
+        deadline_rows_updated = False
         reused_deadline_data: dict[str, dict] | None = None
         if dag.data.get("dag", {}).get("deadline"):
             # The deadline handling below rewrites data["dag"]["deadline"] from a list of
@@ -679,17 +689,17 @@ class SerializedDagModel(Base):
                 )
 
                 if reuse_result is not None:
-                    deadline_uuid_mapping, name_updates = reuse_result
+                    deadline_uuid_mapping, row_updates = reuse_result
                     # All deadlines matched — reuse the UUIDs to preserve hash.
-                    # Only issue UPDATE statements for rows whose name actually changed to
+                    # Only issue UPDATE statements for rows whose columns actually changed to
                     # avoid unnecessary writes and to make the return value accurate.
-                    for uuid_str, new_name in name_updates.items():
+                    for uuid_str, values in row_updates.items():
                         session.execute(
                             update(DeadlineAlertModel)
                             .where(DeadlineAlertModel.id == UUID(uuid_str))
-                            .values(name=new_name)
+                            .values(**values)
                         )
-                    name_updated = bool(name_updates)
+                    deadline_rows_updated = bool(row_updates)
                     dag.data["dag"]["deadline"] = existing_deadline_uuids
                     reused_deadline_data = deadline_uuid_mapping
                     deadline_uuid_mapping = {}
@@ -722,8 +732,8 @@ class SerializedDagModel(Base):
                     dag_source_code=dag_source_code,
                     session=session,
                 )
-            if name_updated or bundle_metadata_changed:
-                # A write occurred — a deadline alert name update and/or a bundle
+            if deadline_rows_updated or bundle_metadata_changed:
+                # A write occurred — a deadline alert row update and/or a bundle
                 # metadata refresh — so report True so callers know the DB changed.
                 return True
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
