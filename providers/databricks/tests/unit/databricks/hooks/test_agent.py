@@ -91,18 +91,21 @@ def test_requires_oauth(hook, extra, login, password):
 
 @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
 @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
-@pytest.mark.parametrize("session_id", [None, "conversation"])
-def test_invoke(request, token, hook, session_id):
+@pytest.mark.parametrize(
+    ("session_id", "session_payload", "routing_headers"),
+    [
+        (None, {}, {}),
+        ("conversation", {"session_id": "conversation"}, {"X-Routing-Key": "conversation"}),
+    ],
+)
+def test_invoke(request, token, hook, session_id, session_payload, routing_headers):
     response = mock.Mock(spec=requests.Response)
     response.status_code = 202
     response.json.return_value = {"id": INVOCATION_ID, "status_url": "ignored"}
     request.return_value = response
     assert hook.create_invocation(INVOCATION_ID, {"messages": []}, session_id) == response.json.return_value
-    payload = {"id": INVOCATION_ID, "input": {"messages": []}, "background": True}
-    headers = {"user-agent": "test", "Authorization": "Bearer oauth"}
-    if session_id:
-        payload["session_id"] = session_id
-        headers["X-Routing-Key"] = session_id
+    payload = {"id": INVOCATION_ID, "input": {"messages": []}, "background": True, **session_payload}
+    headers = {"user-agent": "test", "Authorization": "Bearer oauth", **routing_headers}
     request.assert_called_once_with(
         "POST",
         f"{APP_URL}/api/invocations",
@@ -129,21 +132,34 @@ def test_get_retries_transient_error(request, token, hook):
 
 @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
 @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
-@pytest.mark.parametrize("status", [302, 403, 409, 429, 500])
-def test_http_errors(request, token, hook, status):
+@pytest.mark.parametrize("status", [302, 403, 409])
+def test_terminal_http_error_is_not_retried(request, token, hook, status):
     response = mock.Mock(spec=requests.Response)
     response.status_code = status
     response.raise_for_status.side_effect = requests.HTTPError(response=response)
     request.return_value = response
     with pytest.raises(DatabricksApiError):
         hook.get_invocation(INVOCATION_ID)
-    assert request.call_count == (2 if status in (429, 500) else 1)
+    request.assert_called_once()
 
 
-@pytest.mark.parametrize("method", ["create_invocation", "get_invocation"])
-def test_invalid_invocation_id(hook, method):
+@mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
+@mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
+@pytest.mark.parametrize("status", [429, 500])
+def test_transient_http_error_exhausts_retries(request, token, hook, status):
+    response = mock.Mock(spec=requests.Response)
+    response.status_code = status
+    response.raise_for_status.side_effect = requests.HTTPError(response=response)
+    request.return_value = response
+    with pytest.raises(DatabricksApiError):
+        hook.get_invocation(INVOCATION_ID)
+    assert request.call_count == 2
+
+
+@pytest.mark.parametrize(("method", "kwargs"), [("create_invocation", {"input": {}}), ("get_invocation", {})])
+def test_invalid_invocation_id(hook, method, kwargs):
     with pytest.raises(ValueError, match="badly formed hexadecimal UUID"):
-        getattr(hook, method)("../../other", **({"input": {}} if method == "create_invocation" else {}))
+        getattr(hook, method)("../../other", **kwargs)
 
 
 @mock.patch.object(DatabricksAgentHook, "_a_get_sp_token", autospec=True, return_value="oauth")
@@ -219,9 +235,12 @@ async def test_async_get_does_not_retry_terminal_http_error(session, token, hook
 
 @pytest.mark.skipif(not HAS_COMMON_AI, reason="requires apache-airflow-providers-common-ai")
 class TestManagedAgent:
-    def test_resolve_and_capabilities(self, hook):
+    def test_resolve_agent(self, hook):
         agent = hook.agent(APP_URL + "/")
         assert agent.ref == ManagedAgentRef(platform="databricks.agent_runtime", name=APP_URL)
+
+    def test_capabilities(self, hook):
+        agent = hook.agent(APP_URL)
         assert agent.capabilities.sessions
         assert agent.capabilities.structured_output
         assert agent.capabilities.trace
@@ -229,29 +248,47 @@ class TestManagedAgent:
 
     @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
     @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
-    @pytest.mark.parametrize("kind", ["prompt", "messages", "input_key"])
-    def test_synchronous_request(self, http, token, hook, kind):
+    @pytest.mark.parametrize(
+        ("request_kwargs", "vendor_options", "expected_input"),
+        [
+            pytest.param(
+                {"prompt": "hello"},
+                {},
+                {"messages": [{"role": "user", "content": [{"type": "text", "text": "hello"}]}]},
+                id="prompt",
+            ),
+            pytest.param(
+                {"messages": [{"role": "user", "content": "hello"}]},
+                {},
+                {"messages": [{"role": "user", "content": "hello"}]},
+                id="messages",
+            ),
+            pytest.param(
+                {"prompt": "hello"},
+                {"input_key": "question"},
+                {"question": "hello"},
+                id="input-key",
+            ),
+        ],
+    )
+    def test_synchronous_request(self, http, token, hook, request_kwargs, vendor_options, expected_input):
         response = mock.Mock(spec=requests.Response)
         response.status_code = 200
         raw = {"id": INVOCATION_ID, "status": "completed", "output": "answer", "session_id": "conversation"}
         response.json.return_value = raw
         http.return_value = response
-        options = {"invocation_id": INVOCATION_ID}
-        if kind == "input_key":
-            options["input_key"] = "question"
         request = ManagedAgentRequest(
-            prompt=None if kind == "messages" else "hello",
-            messages=[{"role": "user", "content": "hello"}] if kind == "messages" else None,
             session_id="conversation",
             timeout=12.5,
-            vendor_options=options,
+            vendor_options={"invocation_id": INVOCATION_ID, **vendor_options},
+            **request_kwargs,
         )
         result = hook.agent("https://other.databricksapps.com").invoke(request)
         kwargs = http.call_args.kwargs
         assert http.call_args.args == ("POST", "https://other.databricksapps.com/api/invocations")
         assert kwargs["json"] == {
             "id": INVOCATION_ID,
-            "input": {"question": "hello"} if kind == "input_key" else {"messages": request.as_messages()},
+            "input": expected_input,
             "session_id": "conversation",
         }
         assert 0 < kwargs["timeout"] <= 12.5
@@ -540,21 +577,32 @@ class TestManagedAgent:
 
     @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests.post", autospec=True)
-    @pytest.mark.parametrize("status", [400, 401, 403, 429, 500])
-    def test_oauth_http_error_classification(self, token_http, agent_http, hook, status):
+    @pytest.mark.parametrize("status", [400, 401, 403])
+    def test_oauth_terminal_http_error(self, token_http, agent_http, hook, status):
         response = mock.Mock(spec=requests.Response)
         response.status_code = status
         response.content = b"OAuth request failed"
         error = requests.HTTPError(response=response)
         response.raise_for_status.side_effect = error
         token_http.return_value = response
-        expected = requests.HTTPError if status in (429, 500) else ManagedAgentInvocationError
-        with pytest.raises(expected) as exc:
+        with pytest.raises(ManagedAgentInvocationError) as exc:
             hook.agent(APP_URL).invoke(ManagedAgentRequest(prompt="hello"))
-        if status in (429, 500):
-            assert exc.value is error
-        else:
-            assert exc.value.__cause__.__context__ is error
+        assert exc.value.__cause__.__context__ is error
+        agent_http.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests.post", autospec=True)
+    @pytest.mark.parametrize("status", [429, 500])
+    def test_oauth_transient_http_error(self, token_http, agent_http, hook, status):
+        response = mock.Mock(spec=requests.Response)
+        response.status_code = status
+        response.content = b"OAuth request failed"
+        error = requests.HTTPError(response=response)
+        response.raise_for_status.side_effect = error
+        token_http.return_value = response
+        with pytest.raises(requests.HTTPError) as exc:
+            hook.agent(APP_URL).invoke(ManagedAgentRequest(prompt="hello"))
+        assert exc.value is error
         agent_http.assert_not_called()
 
     @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
@@ -598,27 +646,35 @@ def test_background_requires_app_url():
         DatabricksAgentHook().create_invocation(INVOCATION_ID, {})
 
 
-def test_without_common_ai():
-    script = (
+def run_without_common_ai(script):
+    imports = (
         "import sys\n"
-        "from unittest.mock import patch\n"
         "sys.modules['airflow.providers.common.ai.managed_agents.base'] = None\n"
         "from airflow.providers.databricks.hooks.agent import DatabricksAgentHook\n"
+    )
+    subprocess.run([sys.executable, "-c", imports + script], check=True)
+
+
+def test_background_invocation_without_common_ai():
+    run_without_common_ai(
+        "from unittest.mock import patch\n"
         "from airflow.providers.databricks.operators.agent import DatabricksAgentInvokeOperator\n"
-        "from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException\n"
         "hook = DatabricksAgentHook('https://agent.databricksapps.com')\n"
         "DatabricksAgentInvokeOperator(task_id='invoke', app_url=hook.app_url, input={})\n"
         "with patch.object(hook, '_do_agent_api_call', autospec=True, return_value={'status': 'completed'}):\n"
         f"    assert hook.create_invocation('{INVOCATION_ID}', {{}}) == {{'status': 'completed'}}\n"
-        "try:\n"
-        "    hook.agent(hook.app_url)\n"
-        "except AirflowOptionalProviderFeatureException as e:\n"
-        "    assert 'databricks[common.ai]' in str(e)\n"
-        "    assert isinstance(e.__cause__, ImportError)\n"
-        "else:\n"
-        "    raise SystemExit('agent() did not raise')\n"
     )
-    subprocess.run([sys.executable, "-c", script], check=True)
+
+
+def test_managed_agent_requires_common_ai():
+    run_without_common_ai(
+        "import pytest\n"
+        "from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException\n"
+        "hook = DatabricksAgentHook('https://agent.databricksapps.com')\n"
+        "with pytest.raises(AirflowOptionalProviderFeatureException, match=r'databricks\\[common.ai\\]') as exc:\n"
+        "    hook.agent(hook.app_url)\n"
+        "assert isinstance(exc.value.__cause__, ImportError)\n"
+    )
 
 
 @mock.patch("airflow.providers.databricks.hooks.agent.time", autospec=True)
@@ -691,17 +747,27 @@ def test_poll_budget_rejects_late_response(request, token, clock, hook):
 @mock.patch("airflow.providers.databricks.hooks.agent.time", autospec=True)
 @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
 @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
-@pytest.mark.parametrize("budget", [None, 0.5, 10])
-def test_retry_budget(request, token, clock, hook, budget):
+@pytest.mark.parametrize("budget", [None, 10])
+def test_retry_limit_exhausted_with_remaining_budget(request, token, clock, hook, budget):
     clock.monotonic.return_value = 0
     request.side_effect = requests.ConnectionError("unavailable")
     hook.retry_args["sleep"] = mock.Mock(spec=["__call__"])
-    expected = DatabricksAgentInvocationTimeout if budget == 0.5 else DatabricksApiError
-    with pytest.raises(expected):
+    with pytest.raises(DatabricksApiError):
         hook.get_invocation(INVOCATION_ID, timeout_seconds=budget)
-    assert request.call_count == (1 if budget == 0.5 else 2)
-    if budget == 0.5:
-        hook.retry_args["sleep"].assert_not_called()
+    assert request.call_count == 2
+
+
+@mock.patch("airflow.providers.databricks.hooks.agent.time", autospec=True)
+@mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
+@mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
+def test_retry_budget_prevents_next_attempt(request, token, clock, hook):
+    clock.monotonic.return_value = 0
+    request.side_effect = requests.ConnectionError("unavailable")
+    hook.retry_args["sleep"] = mock.Mock(spec=["__call__"])
+    with pytest.raises(DatabricksAgentInvocationTimeout):
+        hook.get_invocation(INVOCATION_ID, timeout_seconds=0.5)
+    request.assert_called_once()
+    hook.retry_args["sleep"].assert_not_called()
 
 
 @mock.patch("airflow.providers.databricks.hooks.agent.time", autospec=True)
