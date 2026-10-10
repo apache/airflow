@@ -19,7 +19,6 @@ eleventyComputed:
   {% set extras = pv.provider.optional_extras or {} %}
   {% set conns = pv.provider.connection_types or [] %}
   {% set uriSchemes = pv.provider.uri_schemes or [] %}
-  {% set toolsetServices = pv.provider.toolset_services or [] %}
   {% set providerModules = pv.modules %}
   {% set currentVersion = pv.provider.version %}
   {% set pythonVersion = pv.provider.requires_python %}
@@ -31,7 +30,6 @@ eleventyComputed:
   {% set extras = pv.versionData.optional_extras or {} %}
   {% set conns = pv.versionData.connection_types or [] %}
   {% set uriSchemes = pv.versionData.uri_schemes or [] %}
-  {% set toolsetServices = pv.versionData.toolset_services or [] %}
   {% set providerModules = pv.versionData.modules or [] %}
   {% set currentVersion = pv.version %}
   {% set pythonVersion = pv.versionData.requires_python %}
@@ -42,12 +40,7 @@ eleventyComputed:
 {% set externalServiceRows = [] %}
 {% for conn in conns %}
   {% if conn.external_services and conn.external_services.length > 0 %}
-    {% set externalServiceRows = (externalServiceRows.push({sourceType: "Connection", name: conn.conn_type or conn.connection_type, services: conn.external_services}), externalServiceRows) %}
-  {% endif %}
-{% endfor %}
-{% for entry in toolsetServices %}
-  {% if entry.services and entry.services.length > 0 %}
-    {% set externalServiceRows = (externalServiceRows.push({sourceType: "Toolset", name: entry.module, services: entry.services}), externalServiceRows) %}
+    {% set externalServiceRows = (externalServiceRows.push({name: conn.conn_type or conn.connection_type, services: conn.external_services}), externalServiceRows) %}
   {% endif %}
 {% endfor %}
 
@@ -335,7 +328,6 @@ eleventyComputed:
     <table class="external-services-table">
       <thead>
         <tr class="external-services-header">
-          <th>Source type</th>
           <th>Name</th>
           <th>External services (examples)</th>
         </tr>
@@ -343,7 +335,6 @@ eleventyComputed:
       <tbody>
         {% for row in externalServiceRows %}
         <tr class="external-services-row">
-          <td class="external-services-type">{{ row.sourceType }}</td>
           <td class="external-services-name"><code>{{ row.name }}</code></td>
           <td class="external-services-list">{{ row.services | join(", ") }}</td>
         </tr>
