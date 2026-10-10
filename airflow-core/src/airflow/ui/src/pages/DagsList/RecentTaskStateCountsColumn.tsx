@@ -22,29 +22,38 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
 import type { DataTableFeatures } from "src/components/DataTable/features";
 
-import type { RecentTasks } from "src/queries/useRecentTaskStateCounts";
-
+import { useDagsListCounts } from "./DagsListCountsContext";
 import { RecentTaskStateCounts } from "./RecentTaskStateCounts";
 import { RecentTaskStateCountsHeader } from "./RecentTaskStateCountsHeader";
 
+const RecentTaskStateCountsCell = ({
+  row: { original },
+}: {
+  readonly row: { readonly original: DAGWithLatestDagRunsResponse };
+}) => {
+  const { recentTasks } = useDagsListCounts();
+
+  return (
+    <RecentTaskStateCounts
+      compact
+      dagId={original.dag_id}
+      entry={recentTasks.entriesByDag[original.dag_id]}
+      isLoading={recentTasks.isLoading}
+    />
+  );
+};
+
 /** The Dags table's "Recent tasks" column, or no column when the user turned it off. */
 export const buildRecentTaskStateCountsColumns = (
-  recentTasks: RecentTasks,
+  show: boolean,
 ): Array<ColumnDef<DataTableFeatures, DAGWithLatestDagRunsResponse>> =>
-  recentTasks.show
+  show
     ? [
         {
           accessorKey: "recent_task_state_counts",
-          cell: ({ row: { original } }) => (
-            <RecentTaskStateCounts
-              compact
-              dagId={original.dag_id}
-              entry={recentTasks.entriesByDag[original.dag_id]}
-              isLoading={recentTasks.isLoading}
-            />
-          ),
+          cell: RecentTaskStateCountsCell,
           enableSorting: false,
-          header: () => <RecentTaskStateCountsHeader />,
+          header: RecentTaskStateCountsHeader,
         },
       ]
     : [];

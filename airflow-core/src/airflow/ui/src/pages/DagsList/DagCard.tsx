@@ -36,6 +36,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { DagCardActions } from "./DagCardActions";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
+import { useRevealedDagCards } from "./DagsListCountsContext";
 import { RecentRuns } from "./RecentRuns";
 import { RecentTaskStateCounts } from "./RecentTaskStateCounts";
 import { Schedule } from "./Schedule";
@@ -58,7 +59,11 @@ export const DagCard = ({
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
-  const { isNearViewport, ref, showContent } = useNearViewport<HTMLDivElement>();
+  const revealedKeys = useRevealedDagCards();
+  const { isNearViewport, ref, showContent } = useNearViewport<HTMLDivElement>({
+    revealedKeys,
+    revealKey: dag.dag_id,
+  });
 
   const refetchInterval = useAutoRefresh({});
 

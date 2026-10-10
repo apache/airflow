@@ -120,8 +120,11 @@ describe("AssetsList filtering", () => {
 
     await waitFor(() => expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument());
 
+    let refetchStarted = false;
+
     server.use(
       http.get("/ui/assets", async () => {
+        refetchStarted = true;
         await delay("infinite");
 
         return HttpResponse.json({ assets: [], total_entries: 0 });
@@ -130,7 +133,7 @@ describe("AssetsList filtering", () => {
 
     fireEvent.change(screen.getByTestId("search-dags"), { target: { value: "plain" } });
 
-    await waitFor(() => expect(screen.getByRole("progressbar")).toBeVisible());
+    await waitFor(() => expect(refetchStarted).toBe(true));
 
     expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument();
     expect(screen.queryAllByTestId("skeleton")).toHaveLength(0);
