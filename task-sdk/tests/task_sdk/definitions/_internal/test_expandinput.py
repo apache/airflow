@@ -177,6 +177,14 @@ class TestExpandInput:
         with pytest.raises(ValueError, match=r"iterate_kwargs\(\) expects a list\[dict\], not list\[int\]"):
             await aget(1)
 
+    def test_decorated_expand_inputs_compare_by_their_delegate(self):
+        one = DecoratedExpandInput(ListOfDictsExpandInput([{"a": 1}]))
+        same = DecoratedExpandInput(ListOfDictsExpandInput([{"a": 1}]))
+        other = DecoratedExpandInput(ListOfDictsExpandInput([{"a": 2}]))
+
+        assert one == same
+        assert one != other
+
     @pytest.mark.asyncio
     async def test_decorated_expand_input_aresolve_wraps_op_kwargs(self):
         decorated = DecoratedExpandInput(ListOfDictsExpandInput([{"a": 1}, {"a": 2}]))

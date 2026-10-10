@@ -191,11 +191,13 @@ class ExpandInput(ABC, ResolveMixin):
         raise NotImplementedError()
 
 
+@attrs.define(slots=False)
 class DecoratedExpandInput(ExpandInput):
+    """The expand input of a decorated task, whose items arrive as ``op_kwargs``."""
+
     EXPAND_INPUT_TYPE: ClassVar[str] = "decorated"
 
-    def __init__(self, expand_input: ExpandInput):
-        self.delegate = expand_input
+    delegate: ExpandInput
 
     @property
     def value(self) -> Any:
