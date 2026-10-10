@@ -70,7 +70,7 @@ roughly 210s to 105s in a local cache-disabled build.
   the legacy flavor always compiles with LTO. To build a FIPS-compliant image, point ``BASE_IMAGE`` at a FIPS
   variant of the hardened image, for example ``dhi.io/python:3.13.16-debian13-fips-dev`` (those variants
   require a paid Docker subscription).
-* Python is installed in ``/opt/python/`` by the base image. ``/usr/python`` is a symlink to it, and the
+* Python is installed under ``/usr`` by the base image, as Debian packages. ``/usr/python`` is a symlink to it, and the
   ``/usr/local/bin`` symlinks are unchanged, so paths that worked before keep working.
 * The hardened images ship the standard library with no ``.pyc`` files, so the build compiles it into the
   image. This keeps the behaviour introduced in Airflow 3.1.4 (see below): the standard library is owned

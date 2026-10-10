@@ -128,8 +128,9 @@ AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR:-hardened}
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.13.16}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
-    # The hardened Python base images ship Python under /opt/python.
-    PYTHON_HOME=${PYTHON_HOME:-/opt/python}
+    # The Debian 12 hardened images ship Python under /opt/python, the Debian 13 ones install it as
+    # Debian packages under /usr - so ask the base image's Python where it lives.
+    PYTHON_HOME=${PYTHON_HOME:-$(python3 -c 'import sys; print(sys.base_prefix)')}
 elif [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then
     PYTHON_HOME=${PYTHON_HOME:-/usr/python}
 else
@@ -351,8 +352,8 @@ function install_additional_dev_dependencies() {
 
 function link_python() {
     # Airflow images have always exposed Python under /usr/python - documentation, volume mounts and
-    # user customizations refer to that path - while the hardened base images ship it in /opt/python,
-    # so keep the historical location working as a symlink.
+    # user customizations refer to that path - while the hardened base images ship it in /opt/python
+    # (Debian 12) or /usr (Debian 13), so keep the historical location working as a symlink.
     if [[ ! -e /usr/python ]]; then
         ln -sv "${PYTHON_HOME}" /usr/python
     fi
@@ -376,15 +377,19 @@ function link_python() {
             fi
         done
     done
-    for dst in /usr/python/lib/*
-    do
-        src="/usr/local/lib/$(basename "${dst}")"
-        if [[ -e "${src}" ]]; then
-            rm -rf "${src}"
-        fi
-        echo "Linking ${dst} to ${src}"
-        ln -sv "${dst}" "${src}"
-    done
+    # A Python installed under /usr already has its libraries where the dynamic linker looks, and
+    # linking all of /usr/lib into /usr/local/lib would only shadow the system libraries.
+    if [[ "$(readlink -f "${PYTHON_HOME}")" != "/usr" ]]; then
+        for dst in /usr/python/lib/*
+        do
+            src="/usr/local/lib/$(basename "${dst}")"
+            if [[ -e "${src}" ]]; then
+                rm -rf "${src}"
+            fi
+            echo "Linking ${dst} to ${src}"
+            ln -sv "${dst}" "${src}"
+        done
+    fi
     ldconfig
 }
 
@@ -417,18 +422,20 @@ function compile_python_stdlib() {
 }
 
 function check_no_system_python() {
-    # Python comes from the hardened base image (in /opt/python) and must stay the only Python in the
+    # Python - from the hardened base image or compiled from sources - must stay the only Python in the
     # image. A system Python pulled in as a dependency of an apt package shares its shared libraries
     # with ours and leads to errors such as:
     # /usr/python/lib/python3.11/lib-dynload/_ssl.cpython-311-aarch64-linux-gnu.so: undefined symbol: _PyModule_Add
-    if dpkg -l | grep '^ii' | grep '^ii  libpython' >/dev/null; then
+    # Debian names its Python libraries "libpython3.13". The trixie hardened images register their own
+    # Python with dpkg as "libpython-3.13", which is the Python we want, so it must not match.
+    if dpkg -l | grep -E '^ii  libpython3\.[0-9]+' >/dev/null; then
         echo
         echo "ERROR! System python is installed by one of the previous steps"
         echo
         echo "Please make sure that no python packages are installed by default. Displaying the reason why libpython is installed:"
         echo
         apt-get install -yqq aptitude >/dev/null
-        aptitude why "$(dpkg -l | grep '^ii  libpython' | head -1 | awk '{print $2}')"
+        aptitude why "$(dpkg -l | grep -E '^ii  libpython3\.[0-9]+' | head -1 | awk '{print $2}')"
         echo
         exit 1
     else
