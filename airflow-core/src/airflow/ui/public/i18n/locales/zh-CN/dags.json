@@ -27,7 +27,16 @@
     "pausedState": "暂停状态",
     "requiresHitlAction": "需要人工响应",
     "runIdPatternFilter": "搜索 Dag 执行",
+    "runState": "执行状态",
+    "runStatePlaceholder": "选择执行状态...",
     "timetableType": "时间表类型"
+  },
+  "folders": {
+    "all": "所有 Dags",
+    "empty": "没有文件夹",
+    "hide": "隐藏文件夹",
+    "show": "显示文件夹",
+    "title": "文件夹"
   },
   "ownerLink": "拥有者 {{owner}} 的地址",
   "runAndTaskActions": {
