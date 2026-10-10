@@ -218,7 +218,7 @@ Unhealthy → "Sağlıksız"
 
 - Match tone, style, vowel harmony, and casing from existing `tr/*.json` files
 - Use formal, neutral Turkish suitable for professional UIs
-- Preserve all i18next placeholders: `{{count}}`, `{{dagName}}`, `{{hotkey}}`, etc.
+- Preserve all i18next placeholders: `{{count, number}}`, `{{dagName}}`, `{{hotkey}}`, etc.
 - Apply correct Turkish vowel harmony for suffixes
 - Use apostrophe before suffixes on proper nouns and abbreviations (Dag'ler, XCom'lar)
 - Provide all needed plural suffixes (`_one`, `_other`) for each plural key

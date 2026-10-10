@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} מתוך {{total}} נכסים עודכנו",
+  "assetSchedule": "{{count, number}} מתוך {{total, number}} נכסים עודכנו",
   "dagActions": {
     "delete": {
       "button": "מחק Dag",
@@ -26,7 +26,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "לא נמצאו משימות.",
-      "title": "משימות שהושפעו: {{count}}"
+      "title": "משימות שהושפעו: {{count, number}}"
     },
     "clear": {
       "button": "נקה {{type}}",

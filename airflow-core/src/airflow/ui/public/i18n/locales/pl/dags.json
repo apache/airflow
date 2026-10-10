@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "Uaktualniono {{count}} z {{total}} zasobów",
+  "assetSchedule": "Uaktualniono {{count, number}} z {{total, number}} zasobów",
   "dagActions": {
     "delete": {
       "button": "Usuń Daga",
@@ -48,7 +48,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Nie znaleziono zadań.",
-      "title": "Liczba wybranych zadań: {{count}}"
+      "title": "Liczba wybranych zadań: {{count, number}}"
     },
     "clear": {
       "button": "Wyczyść {{type}}",

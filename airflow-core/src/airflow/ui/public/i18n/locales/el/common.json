@@ -220,8 +220,8 @@
     "receivedAssetEvents": "Ληφθέντα Συμβάντα Οντότητας"
   },
   "pause": "Παύση",
-  "pendingDagRun_one": "{{count}} Εκκρεμής Εκτέλεση Dag",
-  "pendingDagRun_other": "{{count}} Εκκρεμείς Εκτελέσεις Dag",
+  "pendingDagRun_one": "{{count, number}} Εκκρεμής Εκτέλεση Dag",
+  "pendingDagRun_other": "{{count, number}} Εκκρεμείς Εκτελέσεις Dag",
   "presetFilters": {
     "deleteTitle": "Διαγραφή προκαθορισμένου φίλτρου",
     "deleteWarning": "Τα προκαθορισμένα φίλτρα αποθηκεύονται μόνο στο παρόν πρόγραμμα περιήγησης.",
@@ -493,8 +493,8 @@
   "taskInstance_one": "Εκτέλεση Εργασίας",
   "taskInstance_other": "Εκτελέσεις Εργασίας",
   "teams": {
-    "more_one": "και {{count}} ακόμη",
-    "more_other": "και {{count}} ακόμη",
+    "more_one": "και {{count, number}} ακόμη",
+    "more_other": "και {{count, number}} ακόμη",
     "none": "Χωρίς ομάδα",
     "title": "Ομάδες"
   },
@@ -525,21 +525,21 @@
     "bulkClear": {
       "error": "Αποτυχία αιτήματος μαζικής εκκαθάρισης {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} εκκαθαρίστηκαν με επιτυχία. Κλειδιά: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} εκκαθαρίστηκαν με επιτυχία. Κλειδιά: {{keys}}",
         "title": "Υποβλήθηκε αίτημα μαζικής εκκαθάρισης {{resourceName}}"
       }
     },
     "bulkDelete": {
       "error": "Αποτυχία αιτήματος μαζικής διαγραφής {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} διαγράφηκαν με επιτυχία. Κλειδιά: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} διαγράφηκαν με επιτυχία. Κλειδιά: {{keys}}",
         "title": "Υποβλήθηκε αίτημα μαζικής διαγραφής {{resourceName}}"
       }
     },
     "bulkUpdate": {
       "error": "Αποτυχία αιτήματος μαζικής ενημέρωσης {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} ενημερώθηκαν με επιτυχία. Κλειδιά: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} ενημερώθηκαν με επιτυχία. Κλειδιά: {{keys}}",
         "title": "Υποβλήθηκε αίτημα μαζικής ενημέρωσης {{resourceName}}"
       }
     },
@@ -560,7 +560,7 @@
     "import": {
       "error": "Αποτυχία αιτήματος εισαγωγής {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} εισήχθησαν με επιτυχία.",
+        "description": "{{count, number}} {{resourceName}} εισήχθησαν με επιτυχία.",
         "title": "Υποβλήθηκε αίτημα εισαγωγής {{resourceName}}"
       }
     },

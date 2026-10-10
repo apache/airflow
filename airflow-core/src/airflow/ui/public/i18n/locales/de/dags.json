@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} von {{total}} Datensets (Assets) aktualisiert",
+  "assetSchedule": "{{count, number}} von {{total, number}} Datensets (Assets) aktualisiert",
   "dagActions": {
     "delete": {
       "button": "Dag löschen",
@@ -42,7 +42,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Keine Tasks gefunden.",
-      "title": "Betroffene Tasks: {{count}}"
+      "title": "Betroffene Tasks: {{count, number}}"
     },
     "clear": {
       "button": "{{type}} zurücksetzen",

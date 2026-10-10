@@ -230,9 +230,9 @@
     "receivedAssetEvents": "Événements d'Asset reçus"
   },
   "pause": "Mettre en pause",
-  "pendingDagRun_many": "{{count}} exécutions de Dag en attente",
-  "pendingDagRun_one": "{{count}} exécution de Dag en attente",
-  "pendingDagRun_other": "{{count}} exécutions de Dag en attente",
+  "pendingDagRun_many": "{{count, number}} exécutions de Dag en attente",
+  "pendingDagRun_one": "{{count, number}} exécution de Dag en attente",
+  "pendingDagRun_other": "{{count, number}} exécutions de Dag en attente",
   "presetFilters": {
     "deleteTitle": "Supprimer le filtre prédéfini",
     "deleteWarning": "Les filtres prédéfinis sont stockés uniquement dans ce navigateur.",
@@ -503,9 +503,9 @@
   "taskInstance_one": "Instance de tâche",
   "taskInstance_other": "Instances de tâche",
   "teams": {
-    "more_many": "et {{count}} de plus",
-    "more_one": "et {{count}} de plus",
-    "more_other": "et {{count}} de plus",
+    "more_many": "et {{count, number}} de plus",
+    "more_one": "et {{count, number}} de plus",
+    "more_other": "et {{count, number}} de plus",
     "none": "Aucune équipe",
     "title": "Équipes"
   },
@@ -536,21 +536,21 @@
     "bulkClear": {
       "error": "Échec de la réinitialisation en masse de {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} ont été réinitialisés avec succès. Clés : {{keys}}",
+        "description": "{{count, number}} {{resourceName}} ont été réinitialisés avec succès. Clés : {{keys}}",
         "title": "Requête de réinitialisation en masse de {{resourceName}} soumise"
       }
     },
     "bulkDelete": {
       "error": "Échec de la suppression en masse de {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} ont été supprimés avec succès. Clés : {{keys}}",
+        "description": "{{count, number}} {{resourceName}} ont été supprimés avec succès. Clés : {{keys}}",
         "title": "Requête de suppression en masse de {{resourceName}} soumise"
       }
     },
     "bulkUpdate": {
       "error": "Échec de la mise à jour en masse de {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} ont été mis à jour avec succès. Clés : {{keys}}",
+        "description": "{{count, number}} {{resourceName}} ont été mis à jour avec succès. Clés : {{keys}}",
         "title": "Requête de mise à jour en masse de {{resourceName}} soumise"
       }
     },
@@ -571,7 +571,7 @@
     "import": {
       "error": "Échec de l'importation de {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} ont été importés avec succès.",
+        "description": "{{count, number}} {{resourceName}} ont été importés avec succès.",
         "title": "Requête d'importation de {{resourceName}} soumise"
       }
     },

@@ -202,9 +202,9 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "אירועי נכס שהתקבלו"
   },
-  "pendingDagRun_one": "{{count}} הרצת Dag ממתינה",
-  "pendingDagRun_other": "{{count}} הרצות Dag ממתינות",
-  "pendingDagRun_two": "{{count}} הרצות Dag ממתינות",
+  "pendingDagRun_one": "{{count, number}} הרצת Dag ממתינה",
+  "pendingDagRun_other": "{{count, number}} הרצות Dag ממתינות",
+  "pendingDagRun_two": "{{count, number}} הרצות Dag ממתינות",
   "presetFilters": {
     "deleteTitle": "מחק מסנן מוגדר מראש",
     "deleteWarning": "מסננים מוגדרים מראש נשמרים בדפדפן זה בלבד.",
@@ -417,21 +417,21 @@
     "bulkClear": {
       "error": "שגיאה בניקוי מרובה של {{resourceName}}",
       "success": {
-        "description": "נוקו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
+        "description": "נוקו בהצלחה {{count, number}} {{resourceName}}. מזהים: {{keys}}",
         "title": "בקשת ניקוי מרובה של {{resourceName}} נשלחה"
       }
     },
     "bulkDelete": {
       "error": "שגיאה במחיקה מרובה של {{resourceName}}",
       "success": {
-        "description": "נמחקו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
+        "description": "נמחקו בהצלחה {{count, number}} {{resourceName}}. מזהים: {{keys}}",
         "title": "בקשת מחיקה מרובה של {{resourceName}} נשלחה"
       }
     },
     "bulkUpdate": {
       "error": "שגיאה בעדכון מרובה של {{resourceName}}",
       "success": {
-        "description": "עודכנו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
+        "description": "עודכנו בהצלחה {{count, number}} {{resourceName}}. מזהים: {{keys}}",
         "title": "בקשת עדכון מרובה של {{resourceName}} נשלחה"
       }
     },
@@ -452,7 +452,7 @@
     "import": {
       "error": "שגיאה בייבוא {{resourceName}}",
       "success": {
-        "description": "יובאו בהצלחה {{count}} {{resourceName}}",
+        "description": "יובאו בהצלחה {{count, number}} {{resourceName}}",
         "title": "בקשת ייבוא {{resourceName}} נשלחה"
       }
     },

@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} από {{total}} οντότητες ενημερώθηκαν",
+  "assetSchedule": "{{count, number}} από {{total, number}} οντότητες ενημερώθηκαν",
   "dagActions": {
     "delete": {
       "button": "Διαγραφή Dag",
@@ -48,7 +48,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Δεν βρέθηκαν εργασίες.",
-      "title": "Επηρεαζόμενες Εργασίες: {{count}}"
+      "title": "Επηρεαζόμενες Εργασίες: {{count, number}}"
     },
     "clear": {
       "button": "Εκκαθάριση {{type}}",

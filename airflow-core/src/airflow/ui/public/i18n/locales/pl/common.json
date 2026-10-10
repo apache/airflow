@@ -241,10 +241,10 @@
     "receivedAssetEvents": "Otrzymane zdarzenia zasobów"
   },
   "pause": "Wstrzymaj",
-  "pendingDagRun_few": "{{count}} oczekujące wykonania Dagów",
-  "pendingDagRun_many": "{{count}} oczekujących wykonań Dagów",
-  "pendingDagRun_one": "{{count}} oczekujące wykonanie Daga",
-  "pendingDagRun_other": "{{count}} oczekujących wykonań Dagów",
+  "pendingDagRun_few": "{{count, number}} oczekujące wykonania Dagów",
+  "pendingDagRun_many": "{{count, number}} oczekujących wykonań Dagów",
+  "pendingDagRun_one": "{{count, number}} oczekujące wykonanie Daga",
+  "pendingDagRun_other": "{{count, number}} oczekujących wykonań Dagów",
   "presetFilters": {
     "deleteTitle": "Usuń zapisany filtr",
     "deleteWarning": "Zapisane filtry są przechowywane wyłącznie w tej przeglądarce.",
@@ -529,10 +529,10 @@
   "taskInstance_one": "Instancja Zadania",
   "taskInstance_other": "Instancje Zadań",
   "teams": {
-    "more_few": "i jeszcze {{count}}",
-    "more_many": "i jeszcze {{count}}",
-    "more_one": "i jeszcze {{count}}",
-    "more_other": "i jeszcze {{count}}",
+    "more_few": "i jeszcze {{count, number}}",
+    "more_many": "i jeszcze {{count, number}}",
+    "more_one": "i jeszcze {{count, number}}",
+    "more_other": "i jeszcze {{count, number}}",
     "none": "Brak zespołu",
     "title": "Zespoły"
   },
@@ -563,21 +563,21 @@
     "bulkClear": {
       "error": "Nie udało się wykonać żądania grupowego wyczyszczenia {{resourceName}}",
       "success": {
-        "description": "Pomyślnie wyczyszczono {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie wyczyszczono {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowego wyczyszczenia {{resourceName}}"
       }
     },
     "bulkDelete": {
       "error": "Nie udało się wykonać żądania grupowego usunięcia {{resourceName}}",
       "success": {
-        "description": "Pomyślnie usunięto {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie usunięto {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowego usunięcia {{resourceName}}"
       }
     },
     "bulkUpdate": {
       "error": "Nie udało się wykonać żądania grupowej aktualizacji {{resourceName}}",
       "success": {
-        "description": "Pomyślnie zaktualizowano {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie zaktualizowano {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowej aktualizacji {{resourceName}}"
       }
     },
@@ -598,7 +598,7 @@
     "import": {
       "error": "Nie udało się wykonać żądania importu {{resourceName}}",
       "success": {
-        "description": "Pomyślnie zaimportowano {{count}} {{resourceName}}.",
+        "description": "Pomyślnie zaimportowano {{count, number}} {{resourceName}}.",
         "title": "Wysłano żądanie importu {{resourceName}}"
       }
     },
