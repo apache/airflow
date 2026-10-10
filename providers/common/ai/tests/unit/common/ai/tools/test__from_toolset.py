@@ -365,7 +365,7 @@ class _FakeHook:
 
 class TestHookToolsetAirflowTools:
     def test_calls_the_hook_method(self):
-        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_name_prefix="s3_")
+        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_prefix="s3")
 
         tool = _by_name(ts.airflow_tools())["s3_list_keys"]
         result = asyncio.run(tool.call({"bucket": "raw", "prefix": "2026/"}))
