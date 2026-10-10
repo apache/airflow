@@ -21,7 +21,7 @@ from uuid import UUID
 
 import pytest
 
-from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowFailException, TaskDeferred
 from airflow.providers.databricks.exceptions import (
     DatabricksAgentInvocationError,
     DatabricksAgentInvocationTimeout,
@@ -42,6 +42,8 @@ def operator():
         input={"messages": []},
         session_id="conversation",
         invocation_id=INVOCATION_ID,
+        databricks_conn_id="agent_oauth",
+        polling_period_seconds=3,
     )
     op.hook = mock.create_autospec(DatabricksAgentHook, instance=True)
     op.hook.create_invocation.return_value = {"id": INVOCATION_ID, "status_url": "ignored"}
@@ -80,6 +82,38 @@ def test_idempotency_identity(operator, field, value):
     assert operator._get_invocation_id({"ti": ti}) != first
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("input", {"messages": [{"role": "user", "content": "new question"}]}), ("session_id", "new-session")],
+)
+def test_changed_request_gets_new_identity(operator, field, value):
+    operator.invocation_id = None
+    ti = mock.Mock(spec=["dag_id", "task_id", "run_id", "map_index"])
+    ti.dag_id, ti.task_id, ti.run_id, ti.map_index = "dag", "task", "run", -1
+    original = operator._get_invocation_id({"ti": ti})
+    setattr(operator, field, value)
+    assert operator._get_invocation_id({"ti": ti}) != original
+
+
+def test_identity_normalizes_trailing_slash(operator):
+    operator.invocation_id = None
+    ti = mock.Mock(spec=["dag_id", "task_id", "run_id", "map_index"])
+    ti.dag_id, ti.task_id, ti.run_id, ti.map_index = "dag", "task", "run", -1
+    original = operator._get_invocation_id({"ti": ti})
+    operator.app_url += "/"
+    assert operator._get_invocation_id({"ti": ti}) == original
+
+
+def test_identity_ignores_mapping_key_order(operator):
+    operator.invocation_id = None
+    ti = mock.Mock(spec=["dag_id", "task_id", "run_id", "map_index"])
+    ti.dag_id, ti.task_id, ti.run_id, ti.map_index = "dag", "task", "run", -1
+    operator.input = {"messages": [], "options": {"a": 1, "b": 2}}
+    original = operator._get_invocation_id({"ti": ti})
+    operator.input = {"options": {"b": 2, "a": 1}, "messages": []}
+    assert operator._get_invocation_id({"ti": ti}) == original
+
+
 def test_template_fields():
     operator = DatabricksAgentInvokeOperator(
         task_id="invoke",
@@ -115,7 +149,7 @@ def test_submit_without_waiting(operator):
 
 @pytest.mark.parametrize("status", ["completed", "interrupted"])
 def test_immediate_result(operator, status):
-    result = {"status": status, "output": {"answer": "hello"}}
+    result = {"status": "completed", "output": {"status": status, "output": []}}
     operator.hook.create_invocation.return_value = result
     assert operator.execute({}) == result
     operator.hook.get_invocation.assert_not_called()
@@ -125,27 +159,44 @@ def test_immediate_result(operator, status):
 @mock.patch("airflow.providers.databricks.operators.agent.time.monotonic", autospec=True, return_value=0)
 def test_waits_for_result(monotonic, sleep, operator):
     result = {"status": "completed", "output": "answer"}
-    operator.hook.get_invocation.side_effect = [{"status": "running"}, result]
+    operator.hook.get_invocation.side_effect = [{"status": "active"}, result]
     assert operator.execute({}) == result
     assert (
         operator.hook.get_invocation.call_args_list
         == [mock.call(INVOCATION_ID, "conversation", timeout_seconds=3600)] * 2
     )
-    sleep.assert_called_once_with(10)
+    sleep.assert_called_once_with(3)
 
 
-@pytest.mark.parametrize("result", [{"status": "failed"}, {}])
-def test_polling_failure(operator, result):
-    operator.hook.get_invocation.return_value = result
-    with pytest.raises(DatabricksAgentInvocationError, match="failed|missing"):
+def test_polling_missing_status(operator):
+    operator.hook.get_invocation.return_value = {}
+    with pytest.raises(DatabricksAgentInvocationError, match="missing"):
         operator.execute({})
+
+
+def test_stored_failure_stops_task_retries(operator):
+    operator.hook.get_invocation.return_value = {"id": INVOCATION_ID, "status": "failed"}
+    with pytest.raises(AirflowFailException, match="new.*invocation_id") as exc:
+        operator.execute({})
+    assert INVOCATION_ID in str(exc.value)
+    operator.hook.create_invocation.assert_called_once_with(INVOCATION_ID, operator.input, "conversation")
+
+
+def test_resumed_stored_failure_stops_task_retries(operator):
+    operator.hook.get_invocation.return_value = {"id": INVOCATION_ID, "status": "failed"}
+    with pytest.raises(AirflowFailException, match="new.*invocation_id") as exc:
+        operator.execute_complete(
+            {}, {"status": "success", "invocation_id": INVOCATION_ID}, invocation_id=INVOCATION_ID
+        )
+    assert INVOCATION_ID in str(exc.value)
+    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation")
 
 
 @mock.patch("airflow.providers.databricks.operators.agent.time.monotonic", autospec=True)
 @pytest.mark.parametrize("elapsed", [3600, 3601])
 def test_timeout_before_poll(monotonic, operator, elapsed):
     monotonic.side_effect = [0, elapsed]
-    operator.hook.get_invocation.return_value = {"status": "running"}
+    operator.hook.get_invocation.return_value = {"status": "active"}
     with pytest.raises(DatabricksAgentInvocationTimeout, match=INVOCATION_ID):
         operator.execute({})
     operator.hook.get_invocation.assert_not_called()
@@ -168,7 +219,7 @@ def test_rejects_late_terminal_result(monotonic, operator, elapsed):
     side_effect=[0, 3599, 3599, 3600],
 )
 def test_timeout_after_sleep(monotonic, sleep, operator):
-    operator.hook.get_invocation.return_value = {"status": "running"}
+    operator.hook.get_invocation.return_value = {"status": "active"}
     with pytest.raises(DatabricksAgentInvocationTimeout, match=INVOCATION_ID):
         operator.execute({})
     operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation", timeout_seconds=1)
@@ -184,6 +235,8 @@ def test_defers(operator):
     assert trigger.app_url == APP_URL
     assert trigger.invocation_id == INVOCATION_ID
     assert trigger.session_id == "conversation"
+    assert trigger.databricks_conn_id == "agent_oauth"
+    assert trigger.polling_period_seconds == 3
     assert exc.value.method_name == "execute_complete"
     assert exc.value.kwargs == {"invocation_id": INVOCATION_ID}
     assert exc.value.timeout.total_seconds() == 3600
@@ -191,7 +244,7 @@ def test_defers(operator):
 
 @pytest.mark.parametrize("status", ["completed", "interrupted"])
 def test_execute_complete(operator, status):
-    result = {"status": status, "output": "answer"}
+    result = {"status": "completed", "output": {"status": status, "output": []}}
     operator.hook.get_invocation.return_value = result
     assert (
         operator.execute_complete(
@@ -199,6 +252,7 @@ def test_execute_complete(operator, status):
         )
         == result
     )
+    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation")
 
 
 @pytest.mark.parametrize(
@@ -233,9 +287,7 @@ def test_trigger_polling_error(operator, error_type):
     operator.hook.get_invocation.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    ("status", "message"), [("running", "terminal"), ("failed", "failed"), (None, "missing")]
-)
+@pytest.mark.parametrize(("status", "message"), [("active", "terminal"), (None, "missing")])
 def test_trigger_terminal_failure(operator, status, message):
     operator.hook.get_invocation.return_value = {"status": status}
     with pytest.raises(DatabricksAgentInvocationError, match=message) as exc:
@@ -243,6 +295,7 @@ def test_trigger_terminal_failure(operator, status, message):
             {}, {"status": "success", "invocation_id": INVOCATION_ID}, invocation_id=INVOCATION_ID
         )
     assert INVOCATION_ID in str(exc.value)
+    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation")
 
 
 @mock.patch("airflow.providers.databricks.operators.agent.DatabricksAgentHook", autospec=True)
