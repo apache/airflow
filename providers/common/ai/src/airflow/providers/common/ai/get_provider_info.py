@@ -81,6 +81,11 @@ def get_provider_info():
                 "external-doc-url": "https://open-sandbox.ai/",
                 "tags": ["software"],
             },
+            {
+                "integration-name": "NVIDIA OpenShell",
+                "external-doc-url": "https://github.com/NVIDIA/OpenShell",
+                "tags": ["software"],
+            },
         ],
         "hooks": [
             {

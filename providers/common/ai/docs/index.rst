@@ -227,6 +227,7 @@ Extra            Dependencies
 ``mcp``          ``pydantic-ai-slim[mcp]>=2.33.0``
 ``modal``        ``apache-airflow-providers-modal``, ``modal>=1.5.2``
 ``opensandbox``  ``opensandbox>=1.1.0``
+``openshell``    ``openshell>=0.1.2,<0.2``, ``grpcio>=1.78.0``, ``protobuf>=6.31.1``
 ``code-mode``    ``pydantic-ai-harness[codemode]>=0.24.0``
 ``shields``      ``pydantic-ai-shields>=0.3.4``
 ``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
