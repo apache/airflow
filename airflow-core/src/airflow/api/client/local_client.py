@@ -78,10 +78,13 @@ class Client:
         pool = Pool.get_pool(pool_name=name)
         if not pool:
             raise PoolNotFound(f"Pool {name} not found")
-        return pool.pool, pool.slots, pool.description, pool.include_deferred, pool.team_name
+        return pool.pool, pool.slots, pool.description, pool.effective_include_deferred, pool.team_name
 
     def get_pools(self):
-        return [(p.pool, p.slots, p.description, p.include_deferred, p.team_name) for p in Pool.get_pools()]
+        return [
+            (p.pool, p.slots, p.description, p.effective_include_deferred, p.team_name)
+            for p in Pool.get_pools()
+        ]
 
     def create_pool(self, name, slots, description, include_deferred, team_name=None):
         if not (name and name.strip()):
