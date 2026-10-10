@@ -218,6 +218,14 @@ function restore_debian_base_files() {
     apt-get install -y --no-install-recommends dash
     apt-get install -y --no-install-recommends base-passwd libpam-runtime
     update-passwd
+    # The Debian 13 hardened images strip /etc/pam.d further: libpam-runtime and passwd are already
+    # installed there, so installing them generates nothing, and passwd, chpasswd and chfn abort with
+    # "pam_start() failed". Reinstalling passwd brings back its deleted PAM configs, and
+    # pam-auth-update - which treats the deleted common-* files as local changes - needs --force.
+    apt-get install -y --no-install-recommends --reinstall -o Dpkg::Options::=--force-confmiss passwd
+    if [[ ! -e /etc/pam.d/common-auth ]]; then
+        pam-auth-update --package --force
+    fi
     if [[ ! -e /etc/shells ]]; then
         printf '%s\n' "# /etc/shells: valid login shells" /bin/sh /bin/bash > /etc/shells
     fi
