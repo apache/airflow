@@ -174,7 +174,7 @@ describe("the native Dag example", () => {
     });
 
     it("the trigger task waiting for the run it starts by deferring", () => {
-      expect(getDagTaskRecords(dag).get("trigger_downstream")?.trigger).toMatchObject({
+      expect(getDagTaskRecords(dag).get("trigger_downstream")?.operator).toMatchObject({
         dagId: "typescript_example",
         conf: { triggered_by: "typescript_native_example" },
         waitForCompletion: true,

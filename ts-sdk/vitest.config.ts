@@ -29,6 +29,10 @@ export default defineConfig({
       // SDK, and a Dag from one is not an instance of the other's class.
       // Tests run against the sources, so the example does too.
       "apache-airflow-ts-sdk": fileURLToPath(new URL("./src/index.ts", import.meta.url)),
+      "apache-airflow-ts-sdk/coordinator": fileURLToPath(
+        new URL("./src/coordinator/index.ts", import.meta.url),
+      ),
+      "apache-airflow-ts-sdk/hitl": fileURLToPath(new URL("./src/hitl/index.ts", import.meta.url)),
     },
   },
   test: {
