@@ -288,7 +288,7 @@ IT is designed to address limitations of task mapping in specific scenarios:
   replay it instead of running the item again. Those checkpoints land in the
   ``task_state_store`` table of the metadata database and stay there for the
   store's retention (``[state_store] default_retention_days``, 30 days unless
-  configured) unless a ``[state_store] state_store_backend`` is configured, in
+  configured) unless a ``[workers] state_store_backend`` is configured, in
   which case the table only holds a reference to the payload. Iterating over
   large results therefore needs both a custom XCom backend and a state store
   backend; with only the first, the payloads move from the XCom table to the
