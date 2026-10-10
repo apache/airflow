@@ -2511,6 +2511,39 @@ def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_su
     assert ti.rendered_map_index == "Hello! test_run"
 
 
+@pytest.mark.parametrize(
+    ("map_index_template", "expected"),
+    [
+        ("{{ ti.try_number }}", "1"),
+        ("index-{{ ti.try_number }}", "index-1"),
+    ],
+)
+def test_execute_success_task_with_numeric_rendered_map_index(
+    create_runtime_ti, mock_supervisor_comms, map_index_template, expected
+):
+    """Test that numeric expressions render as strings with native rendering enabled."""
+
+    def test_function():
+        return "test function"
+
+    with DAG(
+        dag_id="dag_with_native_map_index_template",
+        schedule=None,
+        render_template_as_native_obj=True,
+    ):
+        task = PythonOperator(
+            task_id="test_task",
+            python_callable=test_function,
+            map_index_template=map_index_template,
+        )
+
+    ti = create_runtime_ti(task)
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.rendered_map_index == expected
+
+
 def test_execute_failed_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
     """Test that the map index is rendered in the task context."""
 
