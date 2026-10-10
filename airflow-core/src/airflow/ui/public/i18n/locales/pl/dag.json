@@ -6,6 +6,7 @@
     "title": "Zależności blokujące zaplanowanie zadania"
   },
   "calendar": {
+    "backfill": "Wypełnienie wsteczne",
     "daily": "Dziennie",
     "hourly": "Godzinowo",
     "legend": {
@@ -106,7 +107,11 @@
       "placeholder": "Szukaj w logach..."
     },
     "settings": "Ustawienia logowania",
+    "tryNotStarted": "Ta próba jeszcze się nie rozpoczęła.",
+    "viewFailedTry": "Zobacz logi nieudanej próby {{tryNumber}}",
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
+    "viewPreviousTry": "Zobacz logi poprzedniej próby {{tryNumber}}",
+    "waitingToRetry": "Próba {{tryNumber}} czeka na ponowienie.",
     "warning": "WARNING"
   },
   "notFound": {
@@ -235,6 +240,7 @@
     "taskInstances": "Instancje zadań",
     "taskStateStore": "Magazyn stanu zadania",
     "tasks": "Zadania",
+    "versions": "Wersje",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -264,5 +270,71 @@
       "never": "Nigdy"
     },
     "title": "Magazyn stanu zadania"
+  },
+  "versions": {
+    "aboutThisComparison": "O tym porównaniu",
+    "base": "Porównaj od",
+    "categories": {
+      "asset": "Zasób",
+      "authorization": "Autoryzacja",
+      "callback": "Wywołanie zwrotne",
+      "deadline": "Termin",
+      "dependency": "Zależność",
+      "metadata": "Metadane",
+      "param": "Parametr",
+      "provenance": "Pochodzenie",
+      "schedule": "Harmonogram",
+      "task": "Zadanie",
+      "unknown": "Nieznana"
+    },
+    "codeAccess": "Wartości wymagają dostępu do kodu Daga",
+    "columns": {
+      "after": "Po",
+      "before": "Przed",
+      "category": "Kategoria",
+      "impact": "Wpływ",
+      "occurrences": "Wystąpienia",
+      "operation": "Operacja",
+      "path": "Ścieżka"
+    },
+    "heading": "Wersja {{base}} → wersja {{target}}",
+    "impacts": {
+      "authorization": "Autoryzacja",
+      "execution": "Wykonanie",
+      "metadata": "Metadane",
+      "provenance": "Pochodzenie",
+      "unknown": "Nieznany"
+    },
+    "maxChanges": "Maksymalna liczba zmian",
+    "maxChangesDefault": "Domyślna",
+    "noChanges": "Te wersje mają ten sam stan.",
+    "observedState": "Zaobserwowany stan",
+    "observedStateBoundary": "Porównuje aktualnie zapisany stan, a nie dane z chwili utworzenia. Porównanie kodu źródłowego nie jest dostępne dla wersji historycznych; aby porównać kod źródłowy, użyj zakładki Kod.",
+    "operations": {
+      "added": "Dodano",
+      "changed": "Zmieniono",
+      "removed": "Usunięto"
+    },
+    "record_few": "Rekordy",
+    "record_many": "Rekordów",
+    "record_one": "Rekord",
+    "record_other": "Rekordy",
+    "selectPrompt": "Wybierz dwie wersje, aby zobaczyć, co się między nimi zmieniło.",
+    "summary_few": "{{count}} zmiany · schemat serializacji {{baseSchema}} → {{targetSchema}}",
+    "summary_many": "{{count}} zmian · schemat serializacji {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count}} zmiana · schemat serializacji {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count}} zmiany · schemat serializacji {{baseSchema}} → {{targetSchema}}",
+    "target": "Porównaj z",
+    "truncated": {
+      "description": "Zmiany w niepokazanych ścieżkach zostały pominięte, aby zmieścić się w limicie, więc liczba zmian jest dolnym oszacowaniem.",
+      "title": "Nie zwrócono niektórych zmian"
+    },
+    "unavailable": {
+      "description": "Nie udało się porównać tych wersji. Przyczyna:",
+      "title": "Porównanie niedostępne",
+      "withoutReason": "Nie udało się porównać tych wersji."
+    },
+    "valuesHidden": "Wartości ukryte",
+    "valuesShown": "Wartości widoczne"
   }
 }
