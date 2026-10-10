@@ -39,13 +39,17 @@ class _Host(UsageBudgetMixin):
 
 class TestBuildUsageBudget:
     @mock.patch(f"{MIXIN_MODULE}.AIRFLOW_V_3_3_PLUS", True)
-    def test_builds_budget_from_task_state_store_and_max_tries(self):
-        context = {"task_state_store": MagicMock()}
+    def test_builds_budget_from_task_state_store_and_max_tries(self, task_state_store_accessor):
+        context = {"task_state_store": task_state_store_accessor}
         ti = MagicMock(max_tries=3)
 
         budget = _Host()._build_usage_budget(context, UsageLimits(request_limit=5), ti=ti)
+        budget.save(RunUsage(requests=2))
 
-        assert isinstance(budget, TaskStateStoreUsageBudget)
+        task_state_store_accessor.set.assert_called_once()
+        key, record = task_state_store_accessor.set.call_args.args
+        assert key == USAGE_BUDGET_KEY
+        assert record["max_tries"] == 3
 
     @mock.patch(f"{MIXIN_MODULE}.AIRFLOW_V_3_3_PLUS", False)
     def test_skipped_before_airflow_3_3(self):
