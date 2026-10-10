@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import re
 from contextlib import nullcontext
 from datetime import datetime
@@ -35,7 +36,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import event, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -86,6 +87,23 @@ pytestmark = pytest.mark.db_test
 DEFAULT_START_DATE = timezone.parse("2024-10-31T11:00:00Z")
 DEFAULT_END_DATE = timezone.parse("2024-10-31T12:00:00Z")
 DEFAULT_RENDERED_MAP_INDEX = "test rendered map index"
+
+
+@contextlib.contextmanager
+def _capture_task_instance_selects(session):
+    statements = []
+
+    def collect_selects(conn, cursor, statement, parameters, context, executemany):
+        normalized = " ".join(statement.lower().split())
+        if normalized.startswith("select") and re.search(r"\bfrom task_instance\b", normalized):
+            statements.append(normalized)
+
+    bind = session.get_bind()
+    event.listen(bind, "after_cursor_execute", collect_selects)
+    try:
+        yield statements
+    finally:
+        event.remove(bind, "after_cursor_execute", collect_selects)
 
 
 def _where_column_keys(statement) -> set[str]:
@@ -4005,11 +4023,12 @@ class TestGetCount:
         assert response.status_code == 200
         assert response.json() == 2
 
-    def test_get_count_with_task_group(self, client, session, dag_maker):
+    @pytest.mark.parametrize("task_count", [0, 2])
+    def test_get_count_with_task_group(self, client, session, dag_maker, task_count):
         with dag_maker(dag_id="test_dag", serialized=True):
             with TaskGroup("group1"):
-                EmptyOperator(task_id="task1")
-                EmptyOperator(task_id="task2")
+                for index in range(task_count):
+                    EmptyOperator(task_id=f"task{index}")
 
             with TaskGroup("group2"):
                 EmptyOperator(task_id="task3")
@@ -4017,12 +4036,54 @@ class TestGetCount:
         dag_maker.create_dagrun(session=session)
         session.commit()
 
-        response = client.get(
-            "/execution/task-instances/count",
-            params={"dag_id": "test_dag", "task_group_id": "group1"},
-        )
+        with _capture_task_instance_selects(session) as task_instance_selects:
+            response = client.get(
+                "/execution/task-instances/count",
+                params={"dag_id": "test_dag", "task_group_id": "group1"},
+            )
         assert response.status_code == 200
-        assert response.json() == 2
+        assert response.json() == task_count
+        assert len(task_instance_selects) == 1
+
+    @pytest.mark.parametrize(
+        ("filters", "expected_count"),
+        [
+            pytest.param({"run_ids": ["historical"]}, 1, id="historical-run"),
+            pytest.param({"logical_dates": ["2025-01-01T00:00:00Z"]}, 1, id="historical-logical-date"),
+            pytest.param({"run_ids": ["historical"], "task_ids": ["group1"]}, 1, id="historical-task-id"),
+            pytest.param({"task_ids": ["group1"]}, 0, id="task-id-does-not-trigger-fallback"),
+            pytest.param({"states": [State.FAILED]}, 0, id="state-does-not-trigger-fallback"),
+            pytest.param({"run_ids": ["historical"], "map_index": 0}, 0, id="fallback-map-index"),
+        ],
+    )
+    def test_get_count_task_group_with_historical_task(
+        self, client, session, dag_maker, filters, expected_count
+    ):
+        with dag_maker("task_group_history", serialized=True):
+            EmptyOperator(task_id="group1")
+        historical_run = dag_maker.create_dagrun(
+            run_id="historical", logical_date=timezone.datetime(2025, 1, 1), session=session
+        )
+        historical_run.get_task_instance("group1", session=session).state = State.FAILED
+
+        with dag_maker("task_group_history", serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="member")
+        current_run = dag_maker.create_dagrun(
+            run_id="current", logical_date=timezone.datetime(2025, 1, 2), session=session
+        )
+        current_run.get_task_instance("group1.member", session=session).state = State.SUCCESS
+        session.commit()
+
+        with _capture_task_instance_selects(session) as task_instance_selects:
+            response = client.get(
+                "/execution/task-instances/count",
+                params={"dag_id": "task_group_history", "task_group_id": "group1", **filters},
+            )
+
+        assert response.status_code == 200
+        assert response.json() == expected_count
+        assert len(task_instance_selects) == 1
 
     def test_get_count_task_group_not_found(self, client, session, dag_maker):
         with dag_maker(dag_id="test_get_count_task_group_not_found", serialized=True):
@@ -4457,26 +4518,26 @@ class TestGetTaskStates:
         assert response.status_code == 200
         assert response.json() == {"task_states": {"test": {"test_task": "success"}}}
 
-    def test_get_task_states_group_id_basic(self, client, dag_maker, session):
+    @pytest.mark.parametrize("task_count", [0, 1])
+    def test_get_task_states_group_id_basic(self, client, dag_maker, session, task_count):
         with dag_maker(dag_id="test_dag", serialized=True):
+            EmptyOperator(task_id="outside_group")
             with TaskGroup("group1"):
-                EmptyOperator(task_id="task1")
+                for index in range(task_count):
+                    EmptyOperator(task_id=f"task{index}")
 
         dag_maker.create_dagrun(session=session)
         session.commit()
 
-        response = client.get(
-            "/execution/task-instances/states",
-            params={"dag_id": "test_dag", "task_group_id": "group1"},
-        )
+        with _capture_task_instance_selects(session) as task_instance_selects:
+            response = client.get(
+                "/execution/task-instances/states",
+                params={"dag_id": "test_dag", "task_group_id": "group1"},
+            )
         assert response.status_code == 200
-        assert response.json() == {
-            "task_states": {
-                "test": {
-                    "group1.task1": None,
-                },
-            },
-        }
+        expected_states = {"test": {"group1.task0": None}} if task_count else {}
+        assert response.json() == {"task_states": expected_states}
+        assert len(task_instance_selects) == 1
 
     def test_get_task_states_with_task_group_id_and_task_id(self, client, session, dag_maker):
         with dag_maker("test_get_task_group_states_with_multiple_task_tasks", serialized=True):
