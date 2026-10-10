@@ -301,9 +301,10 @@ def _validate_extends(value: Any, *, where: str) -> list[str]:
 def _expand_template(name: str, templates: dict[str, Any], _seen: tuple = ()) -> dict:
     if name in _seen:
         raise ValueError(f"template cycle via {name!r}")
-    if name not in templates:
-        raise ValueError(f"unknown template {name!r}")
-    spec = templates[name]
+    try:
+        spec = templates[name]
+    except KeyError:
+        raise ValueError(f"unknown template {name!r}") from None
     if not isinstance(spec, dict):
         raise ValueError(f"template {name!r} must be a mapping")
     acc: dict = {}
