@@ -20,6 +20,9 @@
 Reliability and operations
 ==========================
 
+.. meta::
+    :description: Keep AI tasks reliable and affordable: cheap retries with durable execution, model-driven retry policies, OpenTelemetry tracing, provider fallback, agent security and troubleshooting.
+
 An AI task fails in more ways than a SQL task, and it costs money each time it runs.
 
 - :doc:`durable_execution` replays the model and tool calls an agent already completed, so a
