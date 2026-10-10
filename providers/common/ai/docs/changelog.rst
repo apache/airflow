@@ -25,6 +25,14 @@
 Changelog
 ---------
 
+.. note::
+  ``OpenSandboxBackend`` now refuses a deny-all or allowlist ``SandboxSpec``, including the
+  default ``SandboxSpec()``, unless the OpenSandbox server's egress sidecar runs in ``dns+nft``
+  mode. In the server's default ``dns`` mode the sidecar filters name resolution only, and a
+  sandbox could still connect to any numeric address. Set ``[egress] mode = "dns+nft"`` in the
+  OpenSandbox server configuration, or pass ``SandboxSpec(block_network=False)`` for a sandbox
+  that may reach the network. See :ref:`the OpenSandbox backend <sandbox-backend-opensandbox>`.
+
 0.11.0
 ......
 
