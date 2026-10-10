@@ -213,6 +213,28 @@ class TestGlueJobOperator:
         assert serialized["verify"] is False
         assert serialized["botocore_config"] == botocore_config
 
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_execute_deferrable_forwards_stop_job_run_on_kill_to_trigger(self, _, mock_initialize_job):
+        """stop_job_run_on_kill must reach the trigger so a cleared deferred task can stop the run."""
+        glue = GlueJobOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            deferrable=True,
+            stop_job_run_on_kill=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute(mock.MagicMock())
+
+        _, serialized = defer.value.trigger.serialize()
+        assert serialized["stop_job_run_on_kill"] is True
+
     @mock.patch.object(GlueJobHook, "conn", new_callable=mock.PropertyMock)
     @mock.patch.object(GlueJobHook, "initialize_job")
     @mock.patch.object(GlueJobHook, "get_conn")
