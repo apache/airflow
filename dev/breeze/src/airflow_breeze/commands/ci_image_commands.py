@@ -38,7 +38,6 @@ from airflow_breeze.commands.common_image_options import (
     option_airflow_constraints_reference_build,
     option_build_progress,
     option_cache_from_image,
-    option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_disable_airflow_repo_cache,
@@ -252,7 +251,6 @@ option_ci_image_file_to_load = click.option(
 @option_builder
 @option_cache_from_image
 @option_commit_sha
-@option_debian_version
 @option_debug_resources
 @option_dev_apt_command
 @option_dev_apt_deps
@@ -292,7 +290,6 @@ def build(
     builder: str,
     cache_from_image: str | None,
     commit_sha: str | None,
-    debian_version: str,
     debug_resources: bool,
     dev_apt_command: str | None,
     dev_apt_deps: str | None,
@@ -345,7 +342,6 @@ def build(
         builder=builder,
         cache_from_image=cache_from_image,
         commit_sha=commit_sha,
-        debian_version=debian_version,
         dev_apt_command=dev_apt_command,
         dev_apt_deps=dev_apt_deps,
         disable_airflow_repo_cache=disable_airflow_repo_cache,

@@ -38,12 +38,14 @@ function install_mssql_client() {
     packages=("msodbcsql18")
 
     common::import_trusted_gpg "EB3E94ADBE1229CF" "microsoft"
+    # The Debian 13 repository is signed with Microsoft's newer key, the older releases with the one above.
+    common::import_trusted_gpg "EE4D7792F748182B" "microsoft-2025"
 
     echo
     echo "${COLOR_BLUE}Installing mssql client${COLOR_RESET}"
     echo
 
-    echo "deb [arch=amd64,arm64] https://packages.microsoft.com/debian/$(lsb_release -rs)/prod $(lsb_release -cs) main" > \
+    echo "deb [arch=amd64,arm64] https://packages.microsoft.com/debian/$(common::debian_release)/prod $(common::debian_codename) main" > \
         /etc/apt/sources.list.d/mssql-release.list &&
     mkdir -p /opt/microsoft/msodbcsql18 &&
     touch /opt/microsoft/msodbcsql18/ACCEPT_EULA &&

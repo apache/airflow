@@ -25,8 +25,6 @@ if [[ "$#" != 1 ]]; then
     exit 1
 fi
 
-AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.11.16}
-PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 TEMURIN_VERSION=${TEMURIN_VERSION:-11}
 NODEJS_VERSION=${NODEJS_VERSION:-22.23.1}
@@ -35,7 +33,25 @@ NODEJS_VERSION=${NODEJS_VERSION:-22.23.1}
 PNPM_VERSION=${PNPM_VERSION:-10.28.1}
 RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
+# "hardened" images get Python from a Docker Hardened Image base, "legacy" ones compile it from
+# source on top of a plain debian-slim base.
+AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR:-hardened}
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.13.16}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
+if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+    # The Debian 12 hardened images ship Python under /opt/python, the Debian 13 ones install it as
+    # Debian packages under /usr - so ask the base image's Python where it lives.
+    PYTHON_HOME=${PYTHON_HOME:-$(python3 -c 'import sys; print(sys.base_prefix)')}
+    # Read before apt runs: a package depending on python3 can pull another Python version in.
+    BASE_PYTHON_MAJOR_MINOR=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
+elif [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then
+    PYTHON_HOME=${PYTHON_HOME:-/usr/python}
+else
+    echo
+    echo "ERROR! AIRFLOW_IMAGE_FLAVOR should be 'hardened' or 'legacy', not '${AIRFLOW_IMAGE_FLAVOR}'."
+    echo
+    exit 1
+fi
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
@@ -62,38 +78,25 @@ freetds-dev \
 git \
 graphviz \
 graphviz-dev \
+gzip \
 krb5-user \
-lcov \
 ldap-utils \
-libbluetooth-dev \
-libbz2-dev \
 libc6-dev \
-libdb-dev \
 libev-dev \
 libev4 \
 libffi-dev \
-libgdbm-compat-dev \
-libgdbm-dev \
 libgeos-dev \
 libkrb5-dev \
 libldap2-dev \
 libleveldb-dev \
 libleveldb1d \
-liblzma-dev \
-libncurses5-dev \
-libreadline6-dev \
 libsasl2-2 \
 libsasl2-dev \
 libsasl2-modules \
-libsqlite3-dev \
 libssl-dev \
 libxmlsec1 \
 libxmlsec1-dev \
-libzstd-dev \
 locales \
-lsb-release \
-lzma \
-lzma-dev \
 openssh-client \
 openssl \
 pkg-config \
@@ -102,14 +105,26 @@ sasl2-bin \
 sqlite3 \
 sudo \
 tdsodbc \
-tk-dev \
 unixodbc \
 unixodbc-dev \
-uuid-dev \
 wget \
 xz-utils \
 zlib1g-dev \
 "
+        if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then
+            # Needed only to compile Python from sources - without them it builds, but silently
+            # lacks modules such as sqlite3, lzma or readline.
+            local debian_version
+            # shellcheck disable=SC1091
+            debian_version=$(. /etc/os-release; printf '%s\n' "$VERSION_CODENAME")
+            if [[ "${debian_version}" == "bookworm" ]]; then
+                DEV_APT_DEPS+="lcov libbluetooth-dev libbz2-dev libdb-dev libgdbm-compat-dev libgdbm-dev \
+liblzma-dev libncurses5-dev libreadline6-dev libsqlite3-dev libzstd-dev lzma lzma-dev tk-dev uuid-dev"
+            else
+                DEV_APT_DEPS+="lcov libbluetooth-dev libbz2-dev libdb-dev libgdbm-compat-dev libgdbm-dev \
+liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev libzstd-dev tk-dev uuid-dev"
+            fi
+        fi
         export DEV_APT_DEPS
     fi
 }
@@ -123,15 +138,29 @@ function get_runtime_apt_deps() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    debian_version_apt_deps="\
+    if [[ "${debian_version}" == "bookworm" ]]; then
+        debian_version_apt_deps="\
 libffi8 \
 libldap-2.5-0 \
 libssl3 \
 netcat-openbsd\
 "
+    else
+        # trixie renamed the libraries that moved to a 64-bit time_t (libssl3 -> libssl3t64) and
+        # dropped the soname from the LDAP library package name.
+        debian_version_apt_deps="\
+libffi8 \
+libldap2 \
+libssl3t64 \
+netcat-openbsd\
+"
+    fi
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
+    # libxmlsec1-openssl was added because libxmlsec1 ships no crypto engine of its own - the engines
+    # are separate packages - so the "xmlsec" module (pulled in by python3-saml) imported with
+    # "libxmlsec1-openssl.so.1: cannot open shared object file" without it.
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="\
 ${debian_version_apt_deps} \
@@ -150,8 +179,8 @@ libgeos-dev \
 libsasl2-2 \
 libsasl2-modules \
 libxmlsec1 \
+libxmlsec1-openssl \
 locales \
-lsb-release \
 openssh-client \
 rsync \
 sasl2-bin \
@@ -180,10 +209,65 @@ function install_docker_cli() {
     apt-get install -y --no-install-recommends docker-ce-cli
 }
 
+function keep_image_conffiles() {
+    # The hardened base images ship a modified /etc/debian_version, so any apt run that upgrades
+    # base-files stops at dpkg's interactive conffile prompt and fails a non-interactive build. Making
+    # dpkg keep the image's copy by default covers every apt run - this build's and those of images
+    # extending it - so no install command has to remember the flags.
+    mkdir -p /etc/dpkg/dpkg.cfg.d
+    printf '%s\n' force-confdef force-confold > /etc/dpkg/dpkg.cfg.d/airflow-keep-conffiles
+}
+
+function refresh_ldconfig_after_dpkg() {
+    # The hardened base images ship libc-bin without its dpkg trigger, so installing a shared library
+    # does not refresh the ldconfig cache and ctypes.util.find_library() - which reads that cache -
+    # cannot find it (for example pyenchant's "The 'enchant' C library was not found"). The hook covers
+    # every apt run - this build's and those of images extending it.
+    mkdir -p /etc/apt/apt.conf.d
+    echo 'DPkg::Post-Invoke { "if [ -x /sbin/ldconfig ]; then /sbin/ldconfig; fi"; };' \
+        > /etc/apt/apt.conf.d/99airflow-ldconfig
+}
+
+function restore_debian_base_files() {
+    # The hardened base images ship a minimal /etc, but Debian maintainer scripts assume the files
+    # a stock Debian has: sasl2-bin chowns its run directory to the "sasl" group from base-passwd,
+    # and tmux registers its shell with add-shell, which reads /etc/shells. The base-passwd package
+    # only ships the reference copies of the account files - update-passwd is what merges them
+    # into /etc.
+    # libpam-runtime generates the /etc/pam.d/common-* files that the PAM configs already in the
+    # image "@include" - without them "adduser --gecos" aborts with a PAM error from chfn.
+    # Debian Policy lets a maintainer script rely on any essential package without declaring it, and
+    # libgcrypt20 takes that up: its postinst runs a helper with a "#!/bin/dash" shebang. The hardened
+    # images ship /bin/sh as a symlink to bash and no dash at all, so configuring the package aborts
+    # with exit 127 and takes the whole apt transaction with it. Installing it first restores the
+    # assumption, and hands /bin/sh back to dash the way a stock Debian has it.
+    apt-get install -y --no-install-recommends dash
+    apt-get install -y --no-install-recommends base-passwd libpam-runtime
+    update-passwd
+    # The Debian 13 hardened images strip /etc/pam.d further: libpam-runtime and passwd are already
+    # installed there, so installing them generates nothing, and passwd, chpasswd and chfn abort with
+    # "pam_start() failed". Reinstalling passwd brings back its deleted PAM configs, and
+    # pam-auth-update - which treats the deleted common-* files as local changes - needs --force.
+    apt-get install -y --no-install-recommends --reinstall -o Dpkg::Options::=--force-confmiss passwd
+    if [[ ! -e /etc/pam.d/common-auth ]]; then
+        pam-auth-update --package --force
+    fi
+    if [[ ! -e /etc/shells ]]; then
+        printf '%s\n' "# /etc/shells: valid login shells" /bin/sh /bin/bash > /etc/shells
+    fi
+}
+
 function install_debian_dev_dependencies() {
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        keep_image_conffiles
+        refresh_ldconfig_after_dpkg
+    fi
     apt-get update
     apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        restore_debian_base_files
+    fi
+    apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_DEV_APT_ENV?}
     if [[ ${DEV_APT_COMMAND} != "" ]]; then
@@ -213,14 +297,25 @@ function install_additional_dev_dependencies() {
 }
 
 function link_python() {
+    # Airflow images have always exposed Python under /usr/python - documentation, volume mounts and
+    # user customizations refer to that path - while the hardened base images ship it in /opt/python
+    # (Debian 12) or /usr (Debian 13), so keep the historical location working as a symlink.
+    if [[ ! -e /usr/python ]]; then
+        ln -sv "${PYTHON_HOME}" /usr/python
+    fi
+    # The hardened base images have no /usr/local tree at all
+    mkdir -p /usr/local/bin /usr/local/lib
     # link python binaries to /usr/local/bin and /usr/python/bin with and without 3 suffix
     # Links in /usr/local/bin are needed for tools that expect python to be there
     # Links in /usr/python/bin are needed for tools that are detecting home of python installation including
     # lib/site-packages. The /usr/python/bin should be first in PATH in order to help with the last part.
     for dst in pip3 python3 python3-config; do
         src="$(echo "${dst}" | tr -d 3)"
+        if [[ ! -e "/usr/python/bin/${dst}" ]]; then
+            continue
+        fi
         echo "Linking ${dst} in /usr/local/bin and /usr/python/bin"
-        ln -sv "/usr/python/bin/${dst}" "/usr/local/bin/${dst}"
+        ln -sfv "/usr/python/bin/${dst}" "/usr/local/bin/${dst}"
         for dir in /usr/local/bin /usr/python/bin; do
             if [[ ! -e "${dir}/${src}" ]]; then
                 echo "Creating ${src} - > ${dst} link in ${dir}"
@@ -228,37 +323,89 @@ function link_python() {
             fi
         done
     done
-    for dst in /usr/python/lib/*
-    do
-        src="/usr/local/lib/$(basename "${dst}")"
-        if [[ -e "${src}" ]]; then
-            rm -rf "${src}"
-        fi
-        echo "Linking ${dst} to ${src}"
-        ln -sv "${dst}" "${src}"
-    done
+    # A Python installed under /usr already has its libraries where the dynamic linker looks, and
+    # linking all of /usr/lib into /usr/local/lib would only shadow the system libraries.
+    if [[ "$(readlink -f "${PYTHON_HOME}")" != "/usr" ]]; then
+        for dst in /usr/python/lib/*
+        do
+            src="/usr/local/lib/$(basename "${dst}")"
+            if [[ -e "${src}" ]]; then
+                rm -rf "${src}"
+            fi
+            echo "Linking ${dst} to ${src}"
+            ln -sv "${dst}" "${src}"
+        done
+    fi
     ldconfig
 }
 
-function install_debian_runtime_dependencies() {
-    apt-get update
-    apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
-    # shellcheck disable=SC2086
-    export ${ADDITIONAL_RUNTIME_APT_ENV?}
-    if [[ "${RUNTIME_APT_COMMAND}" != "" ]]; then
-        bash -o pipefail -o errexit -o nounset -o nolog -c "${RUNTIME_APT_COMMAND}"
+function restore_thread_stack_size() {
+    # The hardened base images build Python with -DTHREAD_STACK_SIZE=0x100000, so every thread Python
+    # starts gets a 1 MiB stack instead of glibc's default (the 8 MiB "ulimit -s" the previous images
+    # used). On Python 3.12 and 3.13 the C recursion guard is a fixed depth count sized for the larger
+    # stack, so deeply nested input - e.g. a JSON body parsed in a web server worker thread - overflows
+    # the stack and kills the process instead of raising RecursionError. A .pth file runs at every
+    # interpreter start-up without taking the sitecustomize module name users may already rely on.
+    local site_packages
+    site_packages="$(/usr/python/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
+    echo "Restoring the 8 MiB default thread stack size in ${site_packages}"
+    echo "import threading; threading.stack_size(8 * 1024 * 1024)" > "${site_packages}/airflow-thread-stack-size.pth"
+}
+
+function compile_python_stdlib() {
+    # The hardened base images ship the standard library with no .pyc files at all. Python then misses
+    # the bytecode cache on every stdlib import, and in a read-only or non-writable directory it cannot
+    # create one - each miss leaves a negative dentry in the kernel, which grows without bound in a
+    # long-running container and can exhaust memory on the host. Compiling the standard library here
+    # restores what the previously compiled-in-image Python shipped.
+    # See https://github.com/apache/airflow/pull/58944 and https://lwn.net/Articles/814535/
+    local stdlib
+    stdlib="$(/usr/python/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["stdlib"])')"
+    echo "Compiling Python standard library in ${stdlib}"
+    # compileall exits non-zero when any file fails to compile, and the standard library ships files
+    # that are meant not to compile (deliberately broken syntax used by the test suite).
+    /usr/python/bin/python -m compileall -q -j "$(nproc)" -o 0 -o 1 -o 2 "${stdlib}" || true
+}
+
+function check_no_system_python() {
+    # Python - from the hardened base image or compiled from sources - must stay the only Python in the
+    # image. A system Python pulled in as a dependency of an apt package shares its shared libraries
+    # with ours and leads to errors such as:
+    # /usr/python/lib/python3.11/lib-dynload/_ssl.cpython-311-aarch64-linux-gnu.so: undefined symbol: _PyModule_Add
+    # Debian names its Python libraries "libpython3.13". The trixie hardened images register their own
+    # Python with dpkg as "libpython-3.13", which is the Python we want, so it must not match.
+    # Debian 13 hardened images package their Python as "python-3.13" and serve other versions from
+    # their apt repository, so a package depending on python3 can also pull in a hardened Python of a
+    # different version than the image's own.
+    local other_hardened_python=""
+    if [[ -n "${BASE_PYTHON_MAJOR_MINOR=}" ]]; then
+        other_hardened_python=$(dpkg -l | awk '/^ii  (lib)?python-3\.[0-9]+/ {print $2}' \
+            | grep -v -E "python-${BASE_PYTHON_MAJOR_MINOR//./\\.}(-|:|$)" || true)
     fi
-    if [[ "${ADDITIONAL_RUNTIME_APT_COMMAND}" != "" ]]; then
-        bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_RUNTIME_APT_COMMAND}"
+    if [[ -n "${other_hardened_python}" ]]; then
+        echo
+        echo "ERROR! A Python other than the image's ${BASE_PYTHON_MAJOR_MINOR} was installed: ${other_hardened_python//$'\n'/ }"
+        echo
+        apt-get install -yqq aptitude >/dev/null
+        aptitude why "$(echo "${other_hardened_python}" | head -1 | cut -d: -f1)"
+        echo
+        exit 1
     fi
-    apt-get update
-    # shellcheck disable=SC2086
-    apt-get install -y --no-install-recommends ${RUNTIME_APT_DEPS} ${ADDITIONAL_RUNTIME_APT_DEPS}
-    apt-get autoremove -yqq --purge
-    apt-get clean
-    link_python
-    rm -rf /var/lib/apt/lists/* /var/log/*
+    if dpkg -l | grep -E '^ii  libpython3\.[0-9]+' >/dev/null; then
+        echo
+        echo "ERROR! System python is installed by one of the previous steps"
+        echo
+        echo "Please make sure that no python packages are installed by default. Displaying the reason why libpython is installed:"
+        echo
+        apt-get install -yqq aptitude >/dev/null
+        aptitude why "$(dpkg -l | grep -E '^ii  libpython3\.[0-9]+' | head -1 | awk '{print $2}')"
+        echo
+        exit 1
+    else
+        echo
+        echo "GOOD! System python is not installed - OK"
+        echo
+    fi
 }
 
 function install_cosign() {
@@ -282,27 +429,7 @@ function install_cosign() {
 }
 
 function install_python() {
-    # If system python (3.11 in bookworm) is installed (via automatic installation of some dependencies for example), we need
-    # to fail and make sure that it is not there, because there can be strange interactions if we install
-    # newer version and system libraries are installed, because
-    # when you create a virtualenv part of the shared libraries of Python can be taken from the system
-    # Installation leading to weird errors when you want to install some modules - for example when you install ssl:
-    # /usr/python/lib/python3.11/lib-dynload/_ssl.cpython-311-aarch64-linux-gnu.so: undefined symbol: _PyModule_Add
-    if dpkg -l | grep '^ii' | grep '^ii  libpython' >/dev/null; then
-        echo
-        echo "ERROR! System python is installed by one of the previous steps"
-        echo
-        echo "Please make sure that no python packages are installed by default. Displaying the reason why libpython3.11 is installed:"
-        echo
-        apt-get install -yqq aptitude >/dev/null
-        aptitude why libpython3.11
-        echo
-        exit 1
-    else
-        echo
-        echo "GOOD! System python is not installed - OK"
-        echo
-    fi
+    # Only the legacy image flavor compiles Python - the hardened flavor gets it from the base image.
     wget --tries=3 --waitretry=5 -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
     local major_minor_version
     major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
@@ -345,21 +472,13 @@ function install_python() {
     EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
     LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
     LDFLAGS="${LDFLAGS:--Wl},--strip-all"
-    # Link-Time Optimization (LTO) uses MD5 checksums for object file verification during
-    # compilation. In FIPS mode, MD5 is blocked as a non-approved algorithm, causing builds
-    # to fail. The PYTHON_LTO variable allows disabling LTO for FIPS-compliant builds.
-    # See: https://github.com/apache/airflow/issues/58337
-    local lto_option=""
-    if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
-        lto_option="--with-lto"
-    fi
     local build_log
     build_log=$(mktemp)
     echo "Building Python ${AIRFLOW_PYTHON_VERSION} from source..."
     if ! (
         ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
             --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
-                --enable-shared ${lto_option} && \
+                --enable-shared --with-lto && \
         make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
             "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python && \
         make -s -j "$(nproc)" install
@@ -372,6 +491,9 @@ function install_python() {
         exit 1
     fi
     rm -f "${build_log}"
+    # CPython builds without the optional modules whose -dev packages are missing, so check them here
+    # rather than finding out from a broken image.
+    /usr/python/bin/python3 -c "import bz2, ctypes, dbm.gnu, lzma, readline, sqlite3, ssl, uuid, zlib"
     cd /
     rm -rf /usr/src/python
     find /usr/python -depth \
@@ -380,6 +502,39 @@ function install_python() {
         -o \( -type f -a \( -name 'libpython*.a' \) \) \
     \) -exec rm -rf '{}' +
     link_python
+}
+
+function install_debian_runtime_dependencies() {
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        keep_image_conffiles
+        refresh_ldconfig_after_dpkg
+    fi
+    apt-get update
+    apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        restore_debian_base_files
+    fi
+    apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
+    # shellcheck disable=SC2086
+    export ${ADDITIONAL_RUNTIME_APT_ENV?}
+    if [[ "${RUNTIME_APT_COMMAND}" != "" ]]; then
+        bash -o pipefail -o errexit -o nounset -o nolog -c "${RUNTIME_APT_COMMAND}"
+    fi
+    if [[ "${ADDITIONAL_RUNTIME_APT_COMMAND}" != "" ]]; then
+        bash -o pipefail -o errexit -o nounset -o nolog -c "${ADDITIONAL_RUNTIME_APT_COMMAND}"
+    fi
+    apt-get update
+    # shellcheck disable=SC2086
+    apt-get install -y --no-install-recommends ${RUNTIME_APT_DEPS} ${ADDITIONAL_RUNTIME_APT_DEPS}
+    apt-get autoremove -yqq --purge
+    apt-get clean
+    check_no_system_python
+    link_python
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        restore_thread_stack_size
+        compile_python_stdlib
+    fi
+    rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
 function install_golang() {
@@ -478,7 +633,14 @@ if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
 else
     get_dev_apt_deps
     install_debian_dev_dependencies
-    install_python
+    check_no_system_python
+    if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        link_python
+        restore_thread_stack_size
+        compile_python_stdlib
+    else
+        install_python
+    fi
     install_additional_dev_dependencies
     install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
