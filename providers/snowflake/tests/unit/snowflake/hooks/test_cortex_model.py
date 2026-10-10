@@ -65,8 +65,8 @@ class TestGetProviderKwargs:
     def test_ignores_connection_password_and_omits_api_key(self, mock_hook_cls, mock_provider_cls):
         """Regression: a leftover Password on the pydanticai_snowflake connection must not be
         forwarded as api_key -- the base hook's generic handling raises TypeError against
-        SnowflakeProvider (which takes `token`, not `api_key`) and silently falls back to
-        env-var auth; this hook's own kwargs must never trigger that path."""
+        SnowflakeProvider (which takes `token`, not `api_key`), which fails the connection
+        with a ValueError; this hook's own kwargs must never trigger that path."""
         mock_hook_cls.return_value._get_static_conn_params = {"account": "airflow"}
 
         hook = PydanticAISnowflakeHook(snowflake_conn_id="snowflake_conn")
