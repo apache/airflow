@@ -52,6 +52,13 @@ class IdentifyArchivedTaskStateUpdates(VersionChangeWithSideEffects):
     instructions_to_migrate_to_previous_version = ()
 
 
+class ReturnNotFoundForMissingDagRun(VersionChangeWithSideEffects):
+    """Return 404 when a task state write cannot find its DagRun."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = ()
+
+
 class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
     """Add the ``arg_bindings`` argument-binding spec for stub (foreign-runtime) tasks."""
 
