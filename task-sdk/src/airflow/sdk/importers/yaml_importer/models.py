@@ -38,7 +38,6 @@ from pydantic import (
     Field,
     RootModel,
     Tag,
-    TypeAdapter,
     model_validator,
 )
 
@@ -154,15 +153,15 @@ def _value_discriminator(v: Any) -> str:
     return "literal"
 
 
-class _Literal(RootModel[Any]):
+class _Literal(RootModel):
     """
     A literal value.
 
-    Containers recurse so nested markers are still resolved; scalars pass
+    Containers are validated recursively so nested markers resolve; scalars pass
     through. A ``$``-prefixed key here is a misused marker, so it is rejected.
     """
 
-    root: Any
+    root: dict[str, Value] | list[Value] | str | int | float | bool | None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -173,18 +172,13 @@ class _Literal(RootModel[Any]):
 
     @model_validator(mode="before")
     @classmethod
-    def _recurse(cls, v: Any) -> Any:
-        if isinstance(v, list):
-            return [_ValueAdapter.validate_python(item) for item in v]
+    def _reject_reserved_keys(cls, v: Any) -> Any:
         if isinstance(v, dict):
-            for key in v:
-                if not isinstance(key, str) or not key.startswith("$"):
-                    continue
+            if (res := next((k for k in v if isinstance(k, str) and k.startswith("$")), None)) is not None:
                 raise ValueError(
-                    f"unexpected key {key!r}: '$'-prefixed keys are reserved "
+                    f"unexpected key {res!r}: '$'-prefixed keys are reserved "
                     f"markers; wrap a literal '$' key in $const"
                 )
-            return {k: _ValueAdapter.validate_python(item) for k, item in v.items()}
         return v
 
 
@@ -196,7 +190,7 @@ Value = Annotated[
     Discriminator(_value_discriminator),
 ]
 
-_ValueAdapter: TypeAdapter[Any] = TypeAdapter(Value)
+_Literal.model_rebuild()
 
 
 class Task(BaseModel):
