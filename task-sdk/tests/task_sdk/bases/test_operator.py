@@ -20,8 +20,10 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
+import os
 import uuid
 import warnings
+import zipfile
 from datetime import UTC, date, datetime, timedelta
 from typing import NamedTuple
 from unittest import mock
@@ -118,6 +120,17 @@ class MockOperator(BaseOperator):
                 next_method="next_method",
                 trigger_kwargs={"arg1": arg1, "arg2": arg2},
             )
+
+
+class MockFileTemplateOperator(BaseOperator):
+    """Operator with a ``.sql`` template file nested in a dict, like ``BigQueryInsertJobOperator``."""
+
+    template_fields = ("configuration",)
+    template_ext = (".sql",)
+
+    def __init__(self, configuration: dict, **kwargs):
+        super().__init__(**kwargs)
+        self.configuration = configuration
 
 
 class TestBaseOperator:
@@ -756,6 +769,23 @@ class TestBaseOperator:
         task = MockOperator(task_id="op1", arg2=fn_to_template)
         task.render_template_fields({})
         assert task.arg2 == "foo_barbarbar"
+
+    @pytest.mark.parametrize("op_native", [None, True], ids=["dag-env", "operator-native-env"])
+    def test_render_template_fields_reads_template_file_from_zipped_dag(self, tmp_path, op_native):
+        archive = tmp_path / "dags.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("test_sql/test.sql", "SELECT column_a FROM {{ table }}")
+        with DAG("zipped_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            task = MockFileTemplateOperator(
+                task_id="op1",
+                configuration={"query": {"query": "test_sql/test.sql"}},
+                render_template_as_native_obj=op_native,
+            )
+        dag.fileloc = os.path.join(archive, "test.py")
+
+        task.render_template_fields(context={"table": "test"})
+
+        assert task.configuration == {"query": {"query": "SELECT column_a FROM test"}}
 
     @pytest.mark.parametrize("content", [object(), uuid.uuid4()])
     def test_render_template_fields_no_change(self, content):
