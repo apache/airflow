@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 from sqlalchemy import select
 
@@ -28,7 +30,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModelV2
 from airflow.sdk import task
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.db import clear_db_runs
 
@@ -208,7 +210,7 @@ RUN_PATCH_BODY = {
 
 @pytest.fixture
 def old_ver_client(client):
-    """Execution API version immediately before ``arg_bindings`` was added."""
+    """Execution API version immediately before the ``2026-10-30`` fields were added."""
     client.headers["Airflow-API-Version"] = "2026-06-30"
     return client
 
@@ -313,3 +315,42 @@ def test_mutations_after_retry_response_by_version(
     stored = XComModelV2.get_for_attempt(ti.id, "extra_link", session=session)
     assert (stored is not None) is xcom_kept
     assert XComModelV2.get_for_attempt(successor.id, "extra_link", session=session) is None
+
+
+class TestFirstTaskRescheduleStartDateBackwardCompat:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_old_version_strips_first_task_reschedule_start_date(
+        self,
+        old_ver_client,
+        session,
+        create_task_instance,
+    ):
+        ti = create_task_instance(
+            task_id="test_first_task_reschedule_start_date_compat",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=timezone.datetime(2024, 9, 30, 12),
+            dag_id=str(uuid4()),
+        )
+        session.add(
+            TaskReschedule(
+                ti_id=ti.id,
+                start_date=timezone.datetime(2024, 9, 30, 10),
+                end_date=timezone.datetime(2024, 9, 30, 10, 1),
+                reschedule_date=timezone.datetime(2024, 9, 30, 10, 2),
+            )
+        )
+        session.commit()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["task_reschedule_count"] == 1
+        assert "first_task_reschedule_start_date" not in result

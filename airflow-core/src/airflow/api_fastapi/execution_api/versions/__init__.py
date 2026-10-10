@@ -56,6 +56,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddArgBindingsToTIRunContext,
     AddCallbackRunEndpoint,
     AddDagRunNoteUpdateEndpoint,
+    AddFirstTaskRescheduleStartDateField,
     AddMultiTeamToTIRunContext,
     AddStoppedTaskReport,
     AddTerminalStateRetryReasonField,
@@ -73,6 +74,7 @@ bundle = VersionBundle(
         AddMultiTeamToTIRunContext,
         AddStoppedTaskReport,
         IdentifyArchivedTaskStateUpdates,
+        AddFirstTaskRescheduleStartDateField,
     ),
     Version(
         "2026-06-30",
