@@ -22,6 +22,7 @@ import typing
 import warnings
 from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, ClassVar
+from urllib.parse import urljoin
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DagModel
@@ -29,6 +30,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowSkipException,
     BaseOperatorLink,
     BaseSensorOperator,
+    XCom,
     conf,
 )
 from airflow.providers.standard.exceptions import (
@@ -65,12 +67,22 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
 
+XCOM_EXTERNAL_RUN_IDS = "external_run_ids"
+
+
+def _build_airflow_ui_url(path: str) -> str:
+    base_url = conf.get("api", "base_url", fallback="/")
+    return urljoin(base_url.rstrip("/") + "/", path)
+
 
 class ExternalDagLink(BaseOperatorLink):
     """
     Operator link for ExternalTaskSensor and ExternalTaskMarker.
 
     It allows users to access DAG waited with ExternalTaskSensor or cleared by ExternalTaskMarker.
+
+    On Airflow 3, the link opens the external Dag run that ExternalTaskSensor matched, the external
+    Dag's runs list if it matched several runs, or the external Dag itself if no run is known yet.
     """
 
     name = "External DAG"
@@ -99,7 +111,12 @@ class ExternalDagLink(BaseOperatorLink):
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.helpers import build_airflow_dagrun_url
 
-            return build_airflow_dagrun_url(dag_id=external_dag_id, run_id=ti_key.run_id)
+            external_run_ids = XCom.get_value(ti_key=ti_key, key=XCOM_EXTERNAL_RUN_IDS)
+            if not external_run_ids:
+                return _build_airflow_ui_url(f"dags/{external_dag_id}")
+            if len(external_run_ids) > 1:
+                return _build_airflow_ui_url(f"dags/{external_dag_id}/runs")
+            return build_airflow_dagrun_url(dag_id=external_dag_id, run_id=external_run_ids[0])
         from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
 
         query = {"dag_id": external_dag_id, "run_id": ti_key.run_id}
@@ -378,16 +395,34 @@ class ExternalTaskSensor(BaseSensorOperator):
         if self.failed_states:
             count = _get_count(self.failed_states)
             count_failed = self._calculate_count(count, dttm_filter)
+            if count_failed > 0:
+                self._push_external_run_ids(context, dttm_filter)
             self._handle_failed_states(count_failed)
 
         if self.skipped_states:
             count = _get_count(self.skipped_states)
             count_skipped = self._calculate_count(count, dttm_filter)
+            if count_skipped > 0:
+                self._push_external_run_ids(context, dttm_filter)
             self._handle_skipped_states(count_skipped)
 
         count = _get_count(self.allowed_states)
         count_allowed = self._calculate_count(count, dttm_filter)
-        return count_allowed == len(dttm_filter)
+        if count_allowed != len(dttm_filter):
+            return False
+        self._push_external_run_ids(context, dttm_filter)
+        return True
+
+    def _push_external_run_ids(self, context: Context, dttm_filter: Sequence[datetime.datetime]) -> None:
+        """Store the run IDs of the external Dag runs matched by ``dttm_filter`` for ExternalDagLink."""
+        # The Execution API has no lookup from logical date to run ID; the task states map is keyed by run ID.
+        task_states = context["ti"].get_task_states(
+            dag_id=self.external_dag_id,
+            task_ids=list(self.external_task_ids) if self.external_task_ids else None,
+            task_group_id=self.external_task_group_id,
+            logical_dates=list(dttm_filter),
+        )
+        context["ti"].xcom_push(key=XCOM_EXTERNAL_RUN_IDS, value=sorted(task_states))
 
     def _calculate_count(self, count: int, dttm_filter: Sequence[datetime.datetime]) -> float | int:
         """Calculate the normalized count based on the type of check."""
@@ -523,7 +558,11 @@ class ExternalTaskSensor(BaseSensorOperator):
             raise ExternalTaskNotFoundError("No event received from trigger")
 
         # Re-set as attribute after coming back from deferral - to be used by listeners
-        self.external_dates_filter = self._serialize_dttm_filter(self._get_dttm_filter(context))
+        dttm_filter = self._get_dttm_filter(context)
+        self.external_dates_filter = self._serialize_dttm_filter(dttm_filter)
+
+        if AIRFLOW_V_3_0_PLUS and event["status"] in ("success", "skipped", "failed"):
+            self._push_external_run_ids(context, dttm_filter)
 
         if event["status"] == "success":
             self.log.info("External tasks %s has executed successfully.", self.external_task_ids)
