@@ -57,25 +57,37 @@ def test_invalid_polling_period(period):
 
 @mock.patch("airflow.providers.databricks.triggers.agent.asyncio.sleep", autospec=True)
 @mock.patch("airflow.providers.databricks.triggers.agent.DatabricksAgentHook", autospec=True)
-@pytest.mark.parametrize("status", ["completed", "failed", "interrupted"])
+@pytest.mark.parametrize(
+    "result",
+    [
+        {"status": "completed", "output": "private output"},
+        {"status": "failed", "error": "agent invocation failed"},
+        {"status": "completed", "output": {"status": "interrupted", "output": [{"type": "interrupt"}]}},
+    ],
+)
 @pytest.mark.asyncio
-async def test_run(hook_class, sleep, status):
+async def test_run(hook_class, sleep, result):
     hook = hook_class.return_value
     hook.__aenter__.return_value = hook
     hook.a_get_invocation.side_effect = [
-        {"status": "running"},
-        {"status": status, "output": "private output"},
+        {"status": "queued"},
+        {"status": "active"},
+        result,
     ]
     trigger = DatabricksAgentInvocationTrigger(
-        app_url=APP_URL, invocation_id=INVOCATION_ID, databricks_conn_id="oauth", session_id="conversation"
+        app_url=APP_URL,
+        invocation_id=INVOCATION_ID,
+        databricks_conn_id="oauth",
+        session_id="conversation",
+        polling_period_seconds=3,
     )
     events = [event async for event in trigger.run()]
     assert [event.payload for event in events] == [
         {"status": "success", "invocation_id": INVOCATION_ID, "error_type": None}
     ]
     hook_class.assert_called_once_with(APP_URL, "oauth")
-    assert hook.a_get_invocation.await_args_list == [mock.call(INVOCATION_ID, "conversation")] * 2
-    sleep.assert_awaited_once_with(10)
+    assert hook.a_get_invocation.await_args_list == [mock.call(INVOCATION_ID, "conversation")] * 3
+    assert sleep.await_args_list == [mock.call(3)] * 2
     hook.__aexit__.assert_awaited_once()
 
 

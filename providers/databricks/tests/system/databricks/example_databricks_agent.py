@@ -44,7 +44,7 @@ def invoke_managed_agent(app_url: str, conn_id: str, session_id: str) -> dict:
     agent = DatabricksAgentHook(databricks_conn_id=conn_id).agent(app_url)
     result = agent.invoke(
         ManagedAgentRequest(
-            messages=[{"role": "user", "content": "Hello from Airflow"}],
+            messages=INPUT["messages"],
             session_id=session_id,
             timeout=60,
         )
