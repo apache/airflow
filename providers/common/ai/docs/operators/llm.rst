@@ -113,11 +113,14 @@ Common knobs on ``UsageLimits``:
   without an explicit value, so passing ``UsageLimits(input_tokens_limit=4_000)``
   (or the dict form ``{"input_tokens_limit": 4_000}``) silently inherits that
   50-request cap. Set ``request_limit=None`` explicitly when you only want a
-  token cap. On ``AgentOperator`` and Airflow >= 3.3, this (including the
-  ``50`` default) counts requests per task instance, not per run -- see below.
-- ``input_tokens_limit`` / ``output_tokens_limit``: per-run token caps (per task
-  instance on ``AgentOperator`` and Airflow >= 3.3 -- see below).
-- ``total_tokens_limit``: combined input + output cap.
+  token cap. On Airflow >= 3.3 with ``usage_limits`` set, the ``LLM*`` operators and
+  ``AgentOperator`` count this (including the ``50`` default) across the whole task
+  instance; otherwise each attempt (run) counts on its own -- see below.
+- ``input_tokens_limit`` / ``output_tokens_limit``: token caps. On Airflow >= 3.3
+  with ``usage_limits`` set, the ``LLM*`` operators and ``AgentOperator`` count them
+  across the whole task instance; otherwise each attempt (run) counts on its own --
+  see below.
+- ``total_tokens_limit``: combined input + output cap, scoped like the limits above.
 - ``tool_calls_limit``: max tool invocations (``AgentOperator`` only).
 - ``cost_limit``: a ``Decimal`` cap on the run's estimated USD cost. This is **not** a
   hard guarantee against overspend: the response that crosses the limit has already been
@@ -159,6 +162,10 @@ it kills, and this is not a hard guarantee). To keep the old per-attempt headroo
 scale each limit by ``retries + 1`` or set ``usage_limits=None``. See
 :ref:`the cross-attempt usage budget <agent-usage-budget>` for how that budget is
 persisted and how to reset it.
+
+Clearing and rerunning a *finished* (failed or succeeded) task instance gets a
+fresh budget automatically; clearing a *running* task instance does not bump
+``max_tries``, so the restarted attempt still sees the prior spend.
 
 On Airflow < 3.3, and whenever ``usage_limits`` is ``None``, each Airflow task
 retry re-renders ``usage_limits`` and starts a fresh count, so a limit bounds a

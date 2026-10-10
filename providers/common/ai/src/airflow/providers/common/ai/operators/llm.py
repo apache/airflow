@@ -91,6 +91,11 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
     The Pydantic class must be defined at module scope: classes nested inside
     a function or ``@dag``-decorated body cannot be deserialized from XCom.
 
+    Once ``_clear_usage_budget`` has run, nothing may fail the attempt (raising
+    ``DownstreamTasksSkipped`` to signal success is fine): a failure would be retried
+    with a fresh budget. This applies to subclasses that override ``execute`` or
+    ``execute_complete``.
+
     :param prompt: The prompt to send to the LLM.
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
