@@ -20,6 +20,8 @@ import pytest
 from sqlglot import exp
 
 from airflow.providers.common.ai.utils.sql_validation import (
+    _DATA_MODIFYING_NODES,
+    DEFAULT_ALLOWED_TYPES,
     SQLSafetyError,
     collect_table_references,
     parse_sql,
@@ -211,8 +213,6 @@ class TestDataModifyingNodeDetection:
 
     def test_deep_scan_runs_with_explicit_default_types(self):
         """Deep scan should also block when DEFAULT_ALLOWED_TYPES is passed explicitly."""
-        from airflow.providers.common.ai.utils.sql_validation import DEFAULT_ALLOWED_TYPES
-
         with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Delete'"):
             validate_sql(
                 "WITH del AS (DELETE FROM users RETURNING *) SELECT * FROM del",
@@ -614,3 +614,144 @@ class TestCollectTableReferences:
         scan = collect_table_references(parse_sql(sql, dialect=dialect))
         assert scan.tables == []
         assert scan.unverifiable_sources
+
+
+# sqlglot has no upper bound in pyproject.toml, so an upstream rename or split of an exp class
+# would otherwise make the read-only check silently stop recognising a write.
+# The tests below turn that drift into a CI failure; if one fails after a sqlglot bump, review
+# _DATA_MODIFYING_NODES / DEFAULT_ALLOWED_TYPES in utils/sql_validation.py.
+_DIALECTS = ["postgres", "mysql", "snowflake", "bigquery", "sqlite"]
+
+_WRITE_STATEMENTS = {
+    "insert": "INSERT INTO t (a) VALUES (1)",
+    "update": "UPDATE t SET a = 1",
+    "delete": "DELETE FROM t",
+    "merge": "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET a = 1",
+    "drop": "DROP TABLE t",
+    "truncate": "TRUNCATE TABLE t",
+    "create": "CREATE TABLE t (id INT)",
+    "create_as_select": "CREATE TABLE t AS SELECT 1",
+    "alter": "ALTER TABLE t ADD COLUMN c INT",
+    "copy": "COPY t FROM '/tmp/x'",
+    "grant": "GRANT SELECT ON t TO u",
+    "cte_delete": "WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d",
+    "cte_insert": "WITH d AS (INSERT INTO t VALUES (1) RETURNING *) SELECT * FROM d",
+    "select_into": "SELECT * INTO n FROM t",
+}
+
+# Node each write must parse to, keyed like _WRITE_STATEMENTS. copy and grant are absent
+# on purpose: they are not in _DATA_MODIFYING_NODES and are only stopped by the top-level type check.
+_WRITE_NODE_TYPES = {
+    "insert": exp.Insert,
+    "update": exp.Update,
+    "delete": exp.Delete,
+    "merge": exp.Merge,
+    "drop": exp.Drop,
+    "truncate": exp.TruncateTable,
+    "create": exp.Create,
+    "create_as_select": exp.Create,
+    "alter": exp.Alter,
+    "cte_delete": exp.Delete,
+    "cte_insert": exp.Insert,
+    "select_into": exp.Into,
+}
+
+_TOP_LEVEL_GUARD = "Statement type '{}' is not allowed"
+_DEEP_SCAN_GUARD = "Data-modifying operation '{}'"
+
+# Guard that must reject each write: the top-level type check, or the deep scan for writes
+# nested inside an otherwise-allowed SELECT.
+_WRITE_REJECTION = {
+    "insert": _TOP_LEVEL_GUARD.format("Insert"),
+    "update": _TOP_LEVEL_GUARD.format("Update"),
+    "delete": _TOP_LEVEL_GUARD.format("Delete"),
+    "merge": _TOP_LEVEL_GUARD.format("Merge"),
+    "drop": _TOP_LEVEL_GUARD.format("Drop"),
+    "truncate": _TOP_LEVEL_GUARD.format("TruncateTable"),
+    "create": _TOP_LEVEL_GUARD.format("Create"),
+    "create_as_select": _TOP_LEVEL_GUARD.format("Create"),
+    "alter": _TOP_LEVEL_GUARD.format("Alter"),
+    "copy": _TOP_LEVEL_GUARD.format("Copy"),
+    "grant": _TOP_LEVEL_GUARD.format("Grant"),
+    "cte_delete": _DEEP_SCAN_GUARD.format("Delete"),
+    "cte_insert": _DEEP_SCAN_GUARD.format("Insert"),
+    "select_into": _DEEP_SCAN_GUARD.format("Into"),
+}
+
+_READ_STATEMENTS = {
+    "select": "SELECT a FROM t",
+    "cte_select": "WITH c AS (SELECT 1 AS a) SELECT * FROM c",
+    "union_all": "SELECT 1 UNION ALL SELECT 2",
+}
+
+
+class TestSqlglotDriftTripwires:
+    """Fail loudly if a sqlglot upgrade silently changes what the read-only check recognises."""
+
+    def test_allowed_types_never_overlap_data_modifying_nodes(self):
+        """A write type slipping into the allow-list would bypass the statement-type check."""
+        for allowed in DEFAULT_ALLOWED_TYPES:
+            for denied in _DATA_MODIFYING_NODES:
+                assert not issubclass(allowed, denied), f"{allowed.__name__} is a kind of {denied.__name__}"
+                assert not issubclass(denied, allowed), f"{denied.__name__} is a kind of {allowed.__name__}"
+
+    @pytest.mark.parametrize("dialect", _DIALECTS)
+    @pytest.mark.parametrize(
+        ("key", "node_type"), list(_WRITE_NODE_TYPES.items()), ids=list(_WRITE_NODE_TYPES)
+    )
+    def test_write_statement_parses_to_a_denied_node(self, key, node_type, dialect):
+        """sqlglot must keep producing the node class the deny-list names for each write."""
+        sql = _WRITE_STATEMENTS[key]
+        parsed = parse_sql(sql, dialect=dialect)
+        found = [n for stmt in parsed for n in stmt.walk() if isinstance(n, node_type)]
+        assert found, f"{sql!r} no longer parses to {node_type.__name__}; review _DATA_MODIFYING_NODES"
+        assert issubclass(node_type, _DATA_MODIFYING_NODES)
+
+    @pytest.mark.parametrize("allow_read_only_metadata", [False, True])
+    @pytest.mark.parametrize("dialect", _DIALECTS)
+    @pytest.mark.parametrize("key", list(_WRITE_STATEMENTS))
+    def test_write_and_ddl_statements_rejected_in_every_dialect(self, key, dialect, allow_read_only_metadata):
+        with pytest.raises(SQLSafetyError, match=_WRITE_REJECTION[key]):
+            validate_sql(
+                _WRITE_STATEMENTS[key], dialect=dialect, allow_read_only_metadata=allow_read_only_metadata
+            )
+
+    @pytest.mark.parametrize("allow_read_only_metadata", [False, True])
+    @pytest.mark.parametrize(
+        ("sql", "dialect", "node_name"),
+        [
+            ("DESCRIBE ALTER TABLE t ADD COLUMN c INT", "postgres", "Alter"),
+            ("DESCRIBE ALTER TABLE t ADD COLUMN c INT", "mysql", "Alter"),
+            ("EXPLAIN DELETE FROM t", "mysql", "Delete"),
+        ],
+        ids=["describe_alter_postgres", "describe_alter_mysql", "explain_delete_mysql"],
+    )
+    def test_wrapped_write_rejected_by_the_guard_that_applies(
+        self, sql, dialect, node_name, allow_read_only_metadata
+    ):
+        """Without the flag the wrapper itself is refused; with it, the wrapped write hits the deep scan."""
+        if allow_read_only_metadata:
+            match = _DEEP_SCAN_GUARD.format(node_name)
+        else:
+            match = _TOP_LEVEL_GUARD.format("Describe")
+        with pytest.raises(SQLSafetyError, match=match):
+            validate_sql(sql, dialect=dialect, allow_read_only_metadata=allow_read_only_metadata)
+
+    @pytest.mark.parametrize("dialect", _DIALECTS)
+    @pytest.mark.parametrize("sql", list(_READ_STATEMENTS.values()), ids=list(_READ_STATEMENTS))
+    def test_read_statements_accepted_in_every_dialect(self, sql, dialect):
+        assert validate_sql(sql, dialect=dialect)
+
+    @pytest.mark.parametrize("name", ["nextval", "pg_terminate_backend", "dblink_exec"])
+    def test_side_effect_function_is_flagged_only_when_allowed_tables_is_set(self, name):
+        """validate_sql accepts these calls; only collect_table_references (used when
+        allowed_tables is set) flags them, as exp.Anonymous functions with no exp.Table."""
+        sql = f"SELECT {name}('x')"
+        assert validate_sql(sql, dialect="postgres")
+        parsed = parse_sql(sql, dialect="postgres")
+        assert any(fn.name.casefold() == name for fn in parsed[0].find_all(exp.Anonymous)), (
+            f"{name}() is no longer parsed as exp.Anonymous; the allowed_functions guard would miss it"
+        )
+        scan = collect_table_references(parsed)
+        assert scan.unverifiable_sources
+        assert name in scan.unverifiable_sources[0]
