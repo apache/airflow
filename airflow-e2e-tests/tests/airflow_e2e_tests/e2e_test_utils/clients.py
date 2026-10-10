@@ -184,29 +184,6 @@ class AirflowClient:
         """List a Dag's tasks, with the edges each one carries."""
         return self._make_request(method="GET", endpoint=f"dags/{dag_id}/tasks")
 
-    def get_dag_source(self, dag_id: str):
-        """Get the source code stored for a Dag's latest version."""
-        return self._make_request(method="GET", endpoint=f"dagSources/{dag_id}")
-
-    def get_dag_run(self, dag_id: str, run_id: str):
-        """Get a Dag run, with its state, run type and conf."""
-        return self._make_request(method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}")
-
-    def set_variable(self, key: str, value: str, description: str | None = None):
-        """Create or replace an Airflow Variable via API."""
-        body = {"key": key, "value": value, "description": description}
-        try:
-            return self._make_request(method="POST", endpoint="variables", json=body)
-        except requests.HTTPError as exc:
-            # 409 == it already exists, from an earlier run of the same suite.
-            if exc.response is None or exc.response.status_code != HTTPStatus.CONFLICT:
-                raise
-            return self._make_request(method="PATCH", endpoint=f"variables/{key}", json=body)
-
-    def get_tasks(self, dag_id: str):
-        """List a Dag's tasks, with the edges each one carries."""
-        return self._make_request(method="GET", endpoint=f"dags/{dag_id}/tasks")
-
     def get_task_instance_links(self, dag_id: str, run_id: str, task_id: str):
         """Get the extra links of a task instance, keyed by link name."""
         return self._make_request(
