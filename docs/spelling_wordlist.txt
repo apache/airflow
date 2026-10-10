@@ -213,6 +213,7 @@ bugfix
 bugfixes
 buildType
 burstable
+busybox
 bytestring
 cacert
 Cadwyn
@@ -903,6 +904,7 @@ irreproducible
 IRSA
 isfile
 ish
+islo
 isn
 isort
 istio

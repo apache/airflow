@@ -1,0 +1,717 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""islo.dev microVM backend for :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset`."""
+
+from __future__ import annotations
+
+import logging
+import math
+import os
+import shlex
+import time
+from contextlib import closing, contextmanager, suppress
+from typing import TYPE_CHECKING, Any, Literal, NoReturn
+
+from airflow.providers.common.ai.sandbox.base import (
+    SandboxBackend,
+    SandboxError,
+    SandboxExecResult,
+    SandboxFileTooLargeError,
+    SandboxTerminalError,
+    _check_export_deadline,
+    _export_deadline,
+    _new_sandbox_name,
+    _validate_positive_finite,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
+    from typing import BinaryIO
+
+    from islo import Islo
+    from islo.types import ExecResponse, ExecResultResponse, SandboxResponse
+
+    from airflow.providers.common.ai.sandbox.base import SandboxSpec
+
+log = logging.getLogger(__name__)
+
+# The vendor types ``status`` as a plain string on a model that allows extra
+# fields, so the vocabulary is open-ended. Track the statuses that mean "not
+# finished yet" instead of the ones that mean "finished": an unrecognised status
+# then reads as terminal, which surfaces a failure, rather than as still-running,
+# which would poll to the deadline and cost the agent its sandbox.
+_RUNNING_EXEC_STATUSES = frozenset({"pending", "queued", "starting", "running"})
+# Sandbox statuses that cannot serve a request. Same open vocabulary, opposite
+# bias: after a missing-file response the sandbox was reachable a moment ago, so
+# an unknown status reads as usable and only a known-dead one fails the task.
+_UNUSABLE_SANDBOX_STATUSES = frozenset({"stopping", "stopped", "deleting", "deleted", "error", "failed"})
+_AUTO_RESUME_POLICIES = frozenset({"never", "on_activity"})
+_POLL_INITIAL = 0.2
+_POLL_MAX = 2.0
+_POLL_BACKOFF = 1.5
+# The HTTP timeout of the requests that start and poll a command never drops
+# below this: a small command budget, or the last poll before the deadline, must
+# not become a one-second request budget that a slow API -- the first call after
+# an auto-resume, say -- turns into a task failure instead of a command result.
+_POLL_HTTP_TIMEOUT_MIN = 5.0
+# Starting a command is sent without the SDK's retries (see ``_request_options``),
+# so the backend resends it itself, and only after a failure that proves the
+# command never ran.
+_START_RETRIES = 2
+_START_RETRY_DELAY = 1.0
+_FILE_OP_TIMEOUT = 120.0
+# File-transfer responses that say nothing the model can act on: bad credentials,
+# a rate limit, or an overloaded API. Every other status is checked against the
+# sandbox before it is handed to the model; see ``_raise_file_op_error``.
+_TERMINAL_FILE_OP_STATUSES = frozenset({401, 403, 429})
+_API_MESSAGE_MAX_CHARS = 200
+# Measured against the compute API: each stream is capped at exactly this many
+# bytes with the tail kept, and one ``truncated`` flag covers both streams. The
+# wrapper never asks for more than this per stream, so that flag is not read: a
+# stream long enough to reach the cap is over the budget and marked as cut anyway.
+_SERVER_STREAM_CAP = 1024 * 1024
+_HELPER_OUTPUT_CAP = _SERVER_STREAM_CAP - 1
+# Runs the agent's command with each stream captured to a scratch file, then
+# emits only the last ``$2`` bytes of each. The tail is what the model needs (a
+# traceback and the exit status live at the end), and bounding inside the guest
+# keeps the transfer and the worker's copy at the caller's budget rather than
+# the server's 1 MiB.
+#
+# ``sh -c`` rather than a login shell: the spec's variables are the process
+# environment of every exec, and ``/etc/profile`` would run after them and win
+# for anything it also exports.
+#
+# Deliberately free of fifos, background jobs and ``wait``: a command that
+# backgrounds a process hands it the capture descriptor, so anything waiting for
+# end-of-input would block until that process exits -- ``sleep 20 & echo
+# started`` took 20s in a real microVM before this. Redirecting to files means
+# only the foreground command is waited on. The cost is that the scratch file
+# grows with total output, on the sandbox's own ephemeral disk.
+_COMMAND_WRAPPER = """\
+dir="${TMPDIR:-/tmp}/airflow-sandbox-$$"
+mkdir -m 700 "$dir" || exit 70
+trap 'rm -rf "$dir"' EXIT
+trap 'rm -rf "$dir"; exit 143' HUP INT TERM
+sh -c "$1" >"$dir/out" 2>"$dir/err"
+status=$?
+tail -c "$2" <"$dir/out"
+tail -c "$2" <"$dir/err" >&2
+exit "$status"
+"""
+
+
+@contextmanager
+def _translate_islo_errors(operation: str) -> Iterator[None]:
+    try:
+        yield
+    except SandboxError:
+        raise
+    except Exception as e:
+        try:
+            from islo.core.api_error import ApiError
+        except ImportError:
+            raise SandboxTerminalError(
+                'The Islo SDK is not installed. Install "apache-airflow-providers-common-ai[islo]".'
+            ) from e
+        if isinstance(e, ApiError):
+            status = f" (HTTP {e.status_code})" if e.status_code is not None else ""
+            raise SandboxTerminalError(f"Islo could not {operation}{status}.") from e
+        raise SandboxTerminalError(f"Islo could not {operation}: {type(e).__name__}.") from e
+
+
+def _raise_translated(error: Exception, operation: str) -> NoReturn:
+    """Raise ``error`` the way :func:`_translate_islo_errors` would have, for an error caught elsewhere."""
+    with _translate_islo_errors(operation):
+        raise error
+
+
+def _api_error_message(error: Exception) -> str:
+    """Return the ``message`` of an Islo error body, trimmed for a prompt, or ``""``."""
+    body = getattr(error, "body", None)
+    message = body.get("message") if isinstance(body, dict) else None
+    if not isinstance(message, str):
+        return ""
+    message = message.strip().rstrip(".")
+    if len(message) > _API_MESSAGE_MAX_CHARS:
+        message = message[:_API_MESSAGE_MAX_CHARS] + "..."
+    return message
+
+
+def _is_transient_error(error: Exception) -> bool:
+    """Whether a failed call says nothing about the command: a 5xx, a 429, or no response at all."""
+    import httpx
+    from islo.core.api_error import ApiError
+
+    if isinstance(error, ApiError):
+        return error.status_code is None or error.status_code == 429 or error.status_code >= 500
+    return isinstance(error, httpx.TransportError)
+
+
+def _is_undelivered_start(error: Exception) -> bool:
+    """Whether a failed start proves the command never ran: no connection was made, or a 429 refused it."""
+    import httpx
+    from islo.core.api_error import ApiError
+
+    if isinstance(error, ApiError):
+        return error.status_code == 429
+    return isinstance(error, httpx.ConnectError)
+
+
+def _bound_result_stream(text: str, max_bytes: int) -> tuple[str, bool]:
+    """
+    Trim one stream to ``max_bytes``, keeping the tail, and report whether bytes were dropped.
+
+    The sandbox is asked for one byte more than the budget, so a stream that
+    comes back over budget is the signal that the guest had more to give.
+    """
+    encoded = text.encode("utf-8", errors="surrogatepass")
+    truncated = False
+    if len(encoded) > max_bytes:
+        encoded = encoded[-max_bytes:]
+        truncated = True
+        # A byte-aligned cut usually lands mid-record, so drop the leading partial
+        # line -- but only while half the window survives, as Modal's ``_drain``
+        # does. One line longer than the budget ends in its only newline, and
+        # dropping through it would leave nothing, which the model reads as "(no
+        # output)"; a partial line kept instead is still marked as cut.
+        newline = encoded.find(b"\n")
+        if newline != -1 and len(encoded) - (newline + 1) >= max_bytes // 2:
+            encoded = encoded[newline + 1 :]
+    return encoded.decode("utf-8", errors="replace"), truncated
+
+
+class IsloSandboxBackend(SandboxBackend):
+    """
+    Sandbox backend that runs agent commands in an `islo.dev <https://islo.dev>`__ microVM.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
+    Islo is a hosted API with no local daemon or host-virtualization requirement,
+    so this backend works from an Airflow worker running in a container.
+
+    **Credentials are ambient.** The SDK reads ``ISLO_API_KEY``, and optionally
+    ``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL``, from the worker environment on first
+    use; an unset ``ISLO_API_KEY`` fails the task at that point. Modal reads a
+    ``modal`` connection first, but that connection type is owned by the Modal
+    provider; an ``islo`` connection type belongs in a future Islo provider, not in
+    this one.
+
+    File reads, writes and exports move file contents through Islo's native
+    streaming APIs. Everything else runs through a shell wrapper in the sandbox,
+    so the image needs ``sh``, ``mkdir`` and ``rm`` for the wrapper, ``tail`` to
+    bound command output, ``dirname`` to create a written file's parent
+    directory, ``stat`` to size an over-budget read and to check a file before it
+    is exported, and GNU ``find`` for directory listings. The server default
+    image and any Debian or Ubuntu based image provide them. Each command's
+    output is captured to a scratch file in the sandbox and only its last
+    ``max_output_bytes`` are returned, so the worker sees a bounded tail while
+    the sandbox's own ephemeral disk absorbs the rest.
+
+    Islo sets ``PATH`` for every command itself and drops a ``PATH`` given at
+    creation, so a spec that names it is refused rather than silently ignored.
+    ``SandboxSpec.owner`` is refused for the same reason: this backend keeps no
+    per-sandbox metadata, so a sandbox created here cannot be attached to later.
+
+    :param image: Sandbox image. ``None`` (default) uses the server default.
+    :param vcpus: Number of virtual CPUs. ``None`` uses the server default.
+    :param memory_mb: Memory in MB. ``None`` uses the server default.
+    :param pause_after_idle: Seconds without a command or file operation after
+        which the server pauses the microVM and releases its compute. ``None``
+        disables it. Default ``600``.
+    :param auto_resume: ``"on_activity"`` (default) resumes a paused sandbox on
+        the next command or file operation; ``"never"`` leaves it paused, and the
+        backend then treats a paused sandbox as unusable.
+    :param delete_after: Seconds after *creation* at which the server deletes the
+        sandbox whether or not it is in use. ``None`` disables it. Default
+        ``86400``.
+    """
+
+    name = "islo"
+
+    def __init__(
+        self,
+        *,
+        image: str | None = None,
+        vcpus: int | None = None,
+        memory_mb: int | None = None,
+        pause_after_idle: int | None = 600,
+        auto_resume: Literal["never", "on_activity"] = "on_activity",
+        delete_after: int | None = 86400,
+    ) -> None:
+        if pause_after_idle is not None:
+            _validate_positive_finite(pause_after_idle, "pause_after_idle")
+        if delete_after is not None:
+            _validate_positive_finite(delete_after, "delete_after")
+        if auto_resume not in _AUTO_RESUME_POLICIES:
+            raise ValueError(
+                f"auto_resume must be one of {sorted(_AUTO_RESUME_POLICIES)}, got {auto_resume!r}."
+            )
+        if vcpus is not None:
+            _validate_positive_finite(vcpus, "vcpus")
+        if memory_mb is not None:
+            _validate_positive_finite(memory_mb, "memory_mb")
+        if image == "":
+            raise ValueError("image must not be empty.")
+        self._image = image
+        self._vcpus = vcpus
+        self._memory_mb = memory_mb
+        self._pause_after_idle = pause_after_idle
+        self._auto_resume = auto_resume
+        self._delete_after = delete_after
+        self._client: Islo | None = None
+
+    def _get_client(self) -> Islo:
+        if self._client is not None:
+            return self._client
+        with _translate_islo_errors("initialize its client"):
+            from islo import Islo
+
+            # Without a key the SDK builds a client that sends no credentials, and
+            # the first sign of it would be a bare HTTP error from create.
+            if not os.environ.get("ISLO_API_KEY"):
+                raise SandboxTerminalError(
+                    "ISLO_API_KEY is not set in the worker environment; the Islo backend reads its "
+                    "credentials only from there."
+                )
+            self._client = Islo()
+        return self._client
+
+    @staticmethod
+    def _request_options(
+        *, timeout: float, chunk_size: int | None = None, max_retries: int | None = None
+    ) -> dict[str, int]:
+        # ``max_retries`` is left to the SDK's default unless asked for: passing
+        # 0 switches off its retries of dropped connections and of 5xx, 408, 409
+        # and 429 answers. Starting a command is the exception: that POST carries no
+        # idempotency key, so a resend after a lost response or a 5xx would run the
+        # agent's command a second time.
+        options = {"timeout_in_seconds": max(1, math.ceil(timeout))}
+        if chunk_size is not None:
+            options["chunk_size"] = chunk_size
+        if max_retries is not None:
+            options["max_retries"] = max_retries
+        return options
+
+    def _ensure_sandbox_usable(self, info: SandboxResponse) -> None:
+        status = info.status
+        unusable = info.deleted_at is not None or status in _UNUSABLE_SANDBOX_STATUSES
+        if status == "paused" and self._auto_resume != "on_activity":
+            unusable = True
+        if unusable:
+            raise SandboxTerminalError(
+                f"Islo sandbox {info.name!r} cannot serve requests (status={status!r})."
+            )
+
+    @staticmethod
+    def _check_spec(spec: SandboxSpec | None) -> None:
+        """Refuse a spec this backend cannot carry faithfully, before anything is provisioned."""
+        if spec is None:
+            return
+        if spec.owner is not None:
+            # An owner exists so that a later task can attach to the sandbox, and the
+            # ownership rules live in per-sandbox metadata this backend keeps none of,
+            # so recording one would promise an attach that cannot be checked.
+            raise SandboxTerminalError(
+                "SandboxSpec names an owner, but this backend keeps no per-sandbox metadata the "
+                "ownership rules could be read back from, so a sandbox created here cannot be attached "
+                "to from another task. Drop owner, or provision the sandbox on a backend that supports "
+                "attaching, such as ModalSandboxBackend."
+            )
+        if spec.allow_egress_to:
+            raise SandboxTerminalError(
+                "The Islo backend cannot apply a per-domain egress allowlist; it can only turn "
+                "outbound access on or off. Drop allow_egress_to, or use a backend with "
+                "per-domain network rules."
+            )
+        if spec.allow_egress_to_cidrs:
+            raise SandboxTerminalError(
+                "SandboxSpec names allow_egress_to_cidrs, which the Islo backend cannot enforce: "
+                "it can only turn outbound access on or off. Drop allow_egress_to_cidrs, or use "
+                "a backend with an address-layer allowlist."
+            )
+        if spec.env and "PATH" in spec.env:
+            raise SandboxTerminalError(
+                "Islo sets PATH for every command itself and drops a PATH given at creation; "
+                "remove PATH from SandboxSpec.env."
+            )
+
+    def create(self, *, spec: SandboxSpec | None = None) -> str:
+        self._check_spec(spec)
+        with _translate_islo_errors("create a sandbox"):
+            from islo.types import AutoResumePolicy, LifecyclePolicy
+
+            kwargs: dict[str, Any] = {
+                "internet_enabled": False if spec is None else not spec.block_network,
+                "lifecycle": LifecyclePolicy(
+                    pause_after_idle=self._pause_after_idle,
+                    auto_resume=AutoResumePolicy(self._auto_resume),
+                    delete_after=self._delete_after,
+                ),
+            }
+            if self._image is not None:
+                kwargs["image"] = self._image
+            if self._vcpus is not None:
+                kwargs["vcpus"] = self._vcpus
+            if self._memory_mb is not None:
+                kwargs["memory_mb"] = self._memory_mb
+            if spec is not None and spec.env:
+                # Verified against a live microVM: variables set here are the
+                # process environment of every later exec.
+                kwargs["env"] = dict(spec.env)
+            # Bind the name before the call. If creation fails after the server
+            # provisioned the microVM -- a response timeout, a reset, a 5xx --
+            # this is the only handle that can still delete it, and without it
+            # the leak is neither cleanable nor traceable to a run.
+            name = _new_sandbox_name()
+            try:
+                sandbox: SandboxResponse = self._get_client().sandboxes.create_sandbox(
+                    name=name,
+                    request_options=self._request_options(timeout=_FILE_OP_TIMEOUT),
+                    **kwargs,
+                )
+            except BaseException:
+                with suppress(Exception):
+                    self.destroy(name)
+                raise
+        try:
+            self._ensure_sandbox_usable(sandbox)
+        except SandboxTerminalError:
+            with suppress(Exception):
+                self.destroy(name)
+            raise
+        return sandbox.name
+
+    def _await_exec(self, sandbox: str, exec_id: str, *, deadline: float) -> ExecResultResponse | None:
+        client = self._get_client()
+        interval = _POLL_INITIAL
+        last_error: Exception | None = None
+        while time.monotonic() < deadline:
+            remaining = deadline - time.monotonic()
+            try:
+                result: ExecResultResponse = client.sandboxes.get_exec_result(
+                    sandbox,
+                    exec_id,
+                    request_options=self._request_options(timeout=max(_POLL_HTTP_TIMEOUT_MIN, remaining)),
+                )
+            except Exception as e:
+                if not _is_transient_error(e):
+                    _raise_translated(e, "poll a sandbox command")
+                # One failed poll says nothing about the command; the deadline decides.
+                last_error = e
+            else:
+                last_error = None
+                if result.status not in _RUNNING_EXEC_STATUSES:
+                    return result
+            time.sleep(min(interval, max(0.0, deadline - time.monotonic())))
+            interval = min(interval * _POLL_BACKOFF, _POLL_MAX)
+        if last_error is not None:
+            # Nothing was heard after the last failure, so "timed out" would be a guess.
+            _raise_translated(last_error, "poll a sandbox command")
+        return None
+
+    def _destroy_after_timeout(self, sandbox: str) -> None:
+        try:
+            self.destroy(sandbox)
+        except SandboxError:
+            # Warn rather than fail the task: the command merely ran long, and
+            # failing here would turn a timeout the model can react to into a
+            # task failure over a transient error. The warning says whether the
+            # lifecycle policy will reclaim the microVM, since with
+            # ``delete_after=None`` nothing will.
+            if self._delete_after is not None:
+                reclaim = f"its delete_after policy removes it {self._delete_after}s after creation"
+            else:
+                reclaim = "delete_after is disabled, so it persists until deleted by hand"
+            log.warning(
+                "Timed out running a command in Islo sandbox %s and could not confirm its deletion; %s.",
+                sandbox,
+                reclaim,
+                exc_info=True,
+            )
+
+    def run_command(
+        self, sandbox: str, command: str, *, timeout: float, max_output_bytes: int
+    ) -> SandboxExecResult:
+        _validate_positive_finite(timeout, "timeout")
+        _validate_positive_finite(max_output_bytes, "max_output_bytes")
+        client = self._get_client()
+        # The server returns at most _SERVER_STREAM_CAP bytes per stream, so a
+        # larger budget cannot be honoured and is clamped below it.
+        budget = min(max_output_bytes, _SERVER_STREAM_CAP - 1)
+        attempt = 0
+        while True:
+            try:
+                response: ExecResponse = client.sandboxes.exec_in_sandbox(
+                    sandbox,
+                    # One byte over the budget, so a stream that comes back over it
+                    # is proof the guest had more to give.
+                    command=[
+                        "sh",
+                        "-c",
+                        _COMMAND_WRAPPER,
+                        "airflow-sandbox",
+                        command,
+                        str(budget + 1),
+                    ],
+                    timeout_secs=max(1, math.ceil(timeout)),
+                    request_options=self._request_options(
+                        timeout=max(_POLL_HTTP_TIMEOUT_MIN, timeout), max_retries=0
+                    ),
+                )
+                break
+            except Exception as e:
+                if attempt >= _START_RETRIES or not _is_undelivered_start(e):
+                    _raise_translated(e, "start a sandbox command")
+                time.sleep(_START_RETRY_DELAY * 2**attempt)
+                attempt += 1
+        # Timed from the start's answer, so a slow start cannot spend the
+        # command's budget and leave it destroyed without a single poll.
+        deadline = time.monotonic() + timeout
+        result = self._await_exec(sandbox, response.exec_id, deadline=deadline)
+        if result is None:
+            self._destroy_after_timeout(sandbox)
+            return SandboxExecResult(
+                exit_code=-1, stdout="", stderr="", timed_out=True, sandbox_terminated=True
+            )
+
+        stdout, out_truncated = _bound_result_stream(result.stdout, budget)
+        stderr, err_truncated = _bound_result_stream(result.stderr, budget)
+        if result.status == "timeout":
+            self._destroy_after_timeout(sandbox)
+            return SandboxExecResult(
+                exit_code=-1,
+                stdout=stdout,
+                stderr=stderr,
+                timed_out=True,
+                stdout_truncated=out_truncated,
+                stderr_truncated=err_truncated,
+                sandbox_terminated=True,
+            )
+        return SandboxExecResult(
+            exit_code=result.exit_code if result.exit_code is not None else -1,
+            stdout=stdout,
+            stderr=stderr,
+            stdout_truncated=out_truncated,
+            stderr_truncated=err_truncated,
+        )
+
+    def _run_helper(self, sandbox: str, script: str, *, operation: str) -> SandboxExecResult:
+        result = self.run_command(
+            sandbox, script, timeout=_FILE_OP_TIMEOUT, max_output_bytes=_HELPER_OUTPUT_CAP
+        )
+        if result.timed_out or result.sandbox_terminated:
+            raise SandboxTerminalError(f"The sandbox was destroyed after it timed out while {operation}.")
+        if result.exit_code:
+            raise SandboxError(result.stderr.strip() or f"Could not {operation}.")
+        return result
+
+    def _raise_file_op_error(
+        self, sandbox: str, path: str, error: Exception, *, operation: str, hint: str = ""
+    ) -> NoReturn:
+        """
+        Raise a failed file transfer as a prompt for the model when the sandbox explains it.
+
+        Measured against the file APIs: a missing file and a directory are both a
+        404, a relative path is a 400 whose message names the problem, and writing
+        onto a directory or under a pseudo-filesystem such as ``/proc`` or ``/sys``
+        is a bare 500. Each of those is the model's to fix. A gone or stopped
+        sandbox fails file calls too, and no tool call can fix that, so the sandbox
+        is checked before anything reaches the model. No response at all, bad
+        credentials, a rate limit and a 5xx above 500 say nothing about the path and
+        fail the task.
+        """
+        from islo.core.api_error import ApiError
+
+        status = error.status_code if isinstance(error, ApiError) else None
+        if status is None or status in _TERMINAL_FILE_OP_STATUSES or status > 500:
+            _raise_translated(error, f"{operation} a sandbox file")
+        with _translate_islo_errors(f"check a sandbox after a failed file {operation}"):
+            info: SandboxResponse = self._get_client().sandboxes.get_sandbox(
+                sandbox, request_options=self._request_options(timeout=_FILE_OP_TIMEOUT)
+            )
+        self._ensure_sandbox_usable(info)
+        if status == 404:
+            raise SandboxError(
+                f"{path!r} does not exist in the sandbox, or is not a regular file."
+            ) from error
+        message = f"Could not {operation} {path!r} (HTTP {status})"
+        detail = _api_error_message(error) if status < 500 else ""
+        if detail:
+            message += f": {detail}"
+        message += "."
+        if hint and status >= 500:
+            message += f" {hint}"
+        raise SandboxError(message) from error
+
+    def _get_file_size(self, sandbox: str, path: str) -> int | None:
+        """Ask the guest for the file's size; ``None`` when it cannot say."""
+        try:
+            result = self._run_helper(
+                sandbox, f"stat -Lc %s -- {shlex.quote(path)}", operation=f"size {path!r}"
+            )
+            return int(result.stdout.strip())
+        except SandboxTerminalError:
+            raise
+        except (SandboxError, ValueError):
+            return None
+
+    def _download(
+        self, sandbox: str, path: str, *, max_bytes: int, operation: str
+    ) -> Generator[bytes, None, None]:
+        """
+        Yield a sandbox file in chunks, raising a failed download through :meth:`_raise_file_op_error`.
+
+        A generator, so a failure in whatever the caller does with a chunk is raised in
+        the caller and never mistaken for a failed download.
+        """
+        client = self._get_client()
+        chunks = None
+        try:
+            chunks = client.sandboxes.download_file(
+                sandbox,
+                path=path,
+                request_options=self._request_options(
+                    timeout=_FILE_OP_TIMEOUT, chunk_size=min(65536, max_bytes + 1)
+                ),
+            )
+            yield from chunks
+        except Exception as e:
+            self._raise_file_op_error(sandbox, path, e, operation=operation)
+        finally:
+            close = getattr(chunks, "close", None)
+            if close is not None:
+                with suppress(Exception):
+                    close()
+
+    def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
+        _validate_positive_finite(max_bytes, "max_bytes")
+        data = bytearray()
+        with closing(self._download(sandbox, path, max_bytes=max_bytes, operation="read")) as chunks:
+            for chunk in chunks:
+                data.extend(chunk[: max_bytes + 1 - len(data)])
+                if len(data) > max_bytes:
+                    break
+        if len(data) > max_bytes:
+            # The download API has no size endpoint, so the guest's own stat
+            # supplies the number the model plans around. Without it, say only
+            # what is known rather than report the budget back as the size.
+            size = self._get_file_size(sandbox, path)
+            if size is None:
+                raise SandboxError(
+                    f"{path!r} is larger than the {max_bytes} byte read limit. Read just the part you "
+                    "need with a shell command instead (e.g. head, tail, sed -n, or grep)."
+                )
+            raise SandboxFileTooLargeError(path, max(size, len(data)), max_bytes)
+        return bytes(data)
+
+    def export_file(self, sandbox: str, path: str, dest: BinaryIO, *, max_bytes: int) -> int:
+        """
+        Override: stream the file through Islo's download API into ``dest``.
+
+        The default reads 4 MiB slices through ``run_command``, which here returns at
+        most 1 MiB per stream. The guest still runs the default's checks first, so a
+        refusal means what it does on every backend and the size it reports catches
+        a file that is still being written.
+        """
+        _validate_positive_finite(max_bytes, "max_bytes")
+        deadline = _export_deadline(max_bytes)
+        check = self.run_command(
+            sandbox,
+            f"{self._export_checks(shlex.quote(path), max_bytes)} {self._print_export_size()}",
+            timeout=_FILE_OP_TIMEOUT,
+            max_output_bytes=_HELPER_OUTPUT_CAP,
+        )
+        self._raise_for_export_status(path, check, max_bytes)
+        size = self._parse_export_size(check.stdout)
+        written = 0
+        with closing(self._download(sandbox, path, max_bytes=max_bytes, operation="export")) as chunks:
+            for chunk in chunks:
+                _check_export_deadline(path, deadline, max_bytes)
+                written += len(chunk)
+                if written > max_bytes:
+                    raise SandboxFileTooLargeError(path, written, max_bytes)
+                dest.write(chunk)
+        self._check_export_size(path, expected=size, written=written)
+        return written
+
+    def write_file(self, sandbox: str, path: str, content: bytes) -> None:
+        quoted = shlex.quote(path)
+        self._run_helper(
+            sandbox,
+            f'mkdir -p -- "$(dirname -- {quoted})"',
+            operation=f"create the parent directory for {path!r}",
+        )
+        client = self._get_client()
+        try:
+            client.sandboxes.upload_file(
+                sandbox,
+                path=path,
+                file=("upload", content, "application/octet-stream"),
+                request_options=self._request_options(timeout=_FILE_OP_TIMEOUT),
+            )
+        except Exception as e:
+            self._raise_file_op_error(
+                sandbox,
+                path,
+                e,
+                operation="write",
+                hint=(
+                    "Islo answers this way when the path is a directory or under a"
+                    " pseudo-filesystem such as /proc or /sys."
+                ),
+            )
+
+    def list_directory(self, sandbox: str, path: str) -> list[tuple[str, bool]]:
+        quoted = shlex.quote(path)
+        result = self._run_helper(
+            sandbox,
+            f"find -- {quoted} -maxdepth 1 -mindepth 1 -printf '%y %f\\0'",
+            operation=f"list {path!r}",
+        )
+        records = result.stdout.split("\0")
+        if result.stdout_truncated and records:
+            # Both the wrapper and the server keep the tail, so the cut is at
+            # the head: drop the leading record rather than report a mangled
+            # entry name the model cannot open.
+            records = records[1:]
+        entries: list[tuple[str, bool]] = []
+        for record in records:
+            if not record:
+                continue
+            kind, _, name = record.partition(" ")
+            if name:
+                entries.append((name, kind == "d"))
+        return entries
+
+    def destroy(self, sandbox: str) -> None:
+        client = self._get_client()
+        from islo.errors import NotFoundError
+
+        try:
+            client.sandboxes.delete_sandbox(
+                sandbox_name=sandbox,
+                # Deletion is idempotent, and it is the one call whose failure
+                # strands a microVM, so make the SDK's retries explicit here.
+                request_options=self._request_options(timeout=_FILE_OP_TIMEOUT, max_retries=2),
+            )
+        except NotFoundError:
+            return
+        except Exception as e:
+            _raise_translated(e, "delete a sandbox")

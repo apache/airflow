@@ -31,12 +31,12 @@ Modal (hosted)
 :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` runs each
 sandbox in Modal, provisioned over the API. Of the backends that ship with the
 provider, **this is the managed one to use in production**, and with
-:ref:`OpenSandbox <sandbox-backend-opensandbox>` one of the two that run on
-Kubernetes: nothing has to be installed on the worker, model-written code never
-executes on the worker host, and Modal reclaims a sandbox at its own lifetime
-whether or not the worker survives. It needs the ``modal`` extra and Modal
-credentials, from a ``modal`` connection or the worker environment, as under
-:ref:`Quick start <sandbox-quick-start>`.
+:ref:`OpenSandbox <sandbox-backend-opensandbox>` and :ref:`Islo <sandbox-backend-islo>`
+one of the three that run on Kubernetes: nothing has to be installed on the
+worker, model-written code never executes on the worker host, and Modal reclaims
+a sandbox at its own lifetime whether or not the worker survives. It needs the
+``modal`` extra and Modal credentials, from a ``modal`` connection or the worker
+environment, as under :ref:`Quick start <sandbox-quick-start>`.
 
 Constructor parameters:
 
@@ -185,6 +185,91 @@ them.
 that is a symlink replaces the link with a regular file and leaves the original
 target untouched, where a shell redirect would follow the link.
 
+.. _sandbox-backend-islo:
+
+Islo (hosted microVM)
+---------------------
+
+:class:`~airflow.providers.common.ai.sandbox.islo.IsloSandboxBackend` runs each
+sandbox in an `islo.dev <https://islo.dev>`__ microVM, provisioned over the API.
+Like Modal and unlike ``sbx``, the worker only speaks HTTP: it needs no local
+daemon and no host virtualization, so it runs from a containerized worker and on
+Kubernetes.
+
+Install the SDK extra:
+
+.. code-block:: bash
+
+    pip install "apache-airflow-providers-common-ai[islo]"
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import IsloSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(IsloSandboxBackend())
+
+Credentials are ambient. On first use the SDK reads ``ISLO_API_KEY``, and optionally
+``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL``, from the worker environment. Modal's
+``modal`` connection comes from the Modal provider; an ``islo`` connection type waits
+for an Islo provider.
+
+Constructor parameters:
+
+- ``image``, ``vcpus``, ``memory_mb``: image and sizing. ``None`` (default) uses
+  the server default for each. The server default image is Debian based, and any
+  Debian or Ubuntu based image, including ``python:*-slim``, has the GNU ``find``,
+  ``stat`` and ``tail`` the file operations need; Alpine and other busybox images
+  do not.
+- ``pause_after_idle``: Seconds without a command or file operation after which
+  the server pauses the microVM and stops charging for its compute. Default
+  ``600``; ``None`` disables it.
+- ``auto_resume``: ``"on_activity"`` (default) resumes a paused sandbox on the
+  next tool call, so a long think between calls costs a resume rather than the
+  run; ``"never"`` leaves it paused, and the backend then treats a paused sandbox
+  as unusable.
+- ``delete_after``: Seconds after **creation** at which the server deletes the
+  sandbox, whether or not it is in use. Default ``86400``; ``None`` disables it.
+  This is the backstop for a worker killed mid-run; it is not renewed while the
+  sandbox is busy, so keep it longer than the longest run you expect.
+
+``SandboxSpec.env`` becomes the process environment of every command, and
+``block_network`` maps to the API's ``internet_enabled``. Four things Islo cannot
+do are refused at ``create`` rather than silently dropped: ``allow_egress_to`` and
+``allow_egress_to_cidrs`` (the API turns outbound access on or off, with no
+per-host or per-address rule), a ``PATH`` entry in ``env`` (the runner sets
+``PATH`` for every command itself), and ``owner`` (this backend keeps no
+per-sandbox metadata, so it cannot be attached to from another task).
+
+File reads, writes and exports move file contents through Islo's native
+streaming APIs. Everything else runs through a shell wrapper in the sandbox, so
+the image needs ``sh``, ``mkdir`` and ``rm`` for the wrapper, ``tail`` to bound
+command output, ``dirname`` to create a written file's parent directory,
+``stat`` to size an over-budget read and to check a file before it is exported,
+and GNU ``find`` for directory listings. The compute API caps each output stream
+at 1 MiB and keeps the tail. The backend captures each stream to a scratch file in
+the sandbox and returns only its last ``max_output_bytes`` -- where a traceback
+and the exit status live -- so the worker sees a window sized to the caller's
+budget, a budget above the server cap is clamped to it, and total output is
+bounded by the sandbox's own ephemeral disk rather than by worker memory.
+
+The backend enforces the command deadline itself, because the API's
+``timeout_secs`` is accepted but not enforced, and times it from the API's answer
+to the start request, so a slow start does not use it up. Polling rides out
+transient API errors until the deadline. If the command is still running when
+the deadline passes, the backend deletes the microVM and reports the command as
+timed out with ``sandbox_terminated`` set, so the toolset provisions a fresh
+sandbox for the next call. A deletion the API refused is logged rather than
+failing the task, and ``delete_after`` reclaims the microVM later; with
+``delete_after=None`` nothing does, and the warning says so. If the API was still
+failing at the deadline, nothing is known about the command, so the task fails
+instead and Airflow's retry takes over.
+
+A missing file, a directory passed as a file, a relative path, and a write onto a
+directory or under a pseudo-filesystem such as ``/proc`` or ``/sys`` come back to
+the model as a recoverable error it can correct, once the backend has confirmed
+the sandbox itself is still usable.
+
 .. _sandbox-backend-opensandbox:
 
 OpenSandbox (self-hosted remote)
@@ -301,25 +386,28 @@ do not change. Four behaviours do, so read them before assuming the same Dag
 behaves identically everywhere:
 
 - **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a request of
-  0.125 of one, so set ``cpu``; OpenSandbox takes ``cpu`` as a limit the server enforces.
+  0.125 of one, so set ``cpu``; OpenSandbox takes ``cpu`` as a limit the server
+  enforces; Islo uses the server default unless you set ``vcpus``.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
   into; OpenSandbox enforces it in an egress sidecar, and the backend reads the
-  enforced policy back rather than trusting the create request. ``allow_egress_to_cidrs``
-  is enforced at the address layer on Modal, refused on ``sbx``, and refused by
-  OpenSandbox because its SDK cannot prove that the sidecar is running in the
+  enforced policy back rather than trusting the create request; Islo has no
+  per-host form at all and refuses the spec rather than provisioning something
+  weaker. ``allow_egress_to_cidrs`` is enforced at the address layer on Modal,
+  refused on ``sbx`` and Islo, which have no per-sandbox address rule, and refused
+  by OpenSandbox because its SDK cannot prove that the sidecar is running in the
   ``dns+nft`` mode required for CIDR enforcement.
-- **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files;
-  Modal and a server-enforced OpenSandbox timeout preserve the sandbox and files.
-  OpenSandbox destroys it only if the command event stream itself stalls past the
-  client-side grace period.
+- **Command timeouts.** A timeout destroys an ``sbx`` or Islo sandbox and its
+  files; Modal and a server-enforced OpenSandbox timeout preserve the sandbox and
+  files. OpenSandbox destroys it only if the command event stream itself stalls
+  past the client-side grace period.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
   replaces it on Modal and OpenSandbox.
 - **Attaching.** A Modal sandbox can be provisioned by one task and used by an
   agent in another (:ref:`sandbox-attach`). An ``sbx`` microVM lives on the worker
-  that created it and cannot be reached from another task, and OpenSandbox has no
-  per-sandbox metadata the ownership rules could be kept in, so both refuse
-  ``SandboxSpec.owner`` and the toolset refuses ``attach_to`` for them.
+  that created it and cannot be reached from another task, and neither OpenSandbox
+  nor Islo has per-sandbox metadata the ownership rules could be kept in, so all
+  three refuse ``SandboxSpec.owner`` and the toolset refuses ``attach_to`` for them.
 
 .. _sandbox-byo:
 
@@ -337,8 +425,8 @@ commands. The default ``export_file``, behind ``SandboxToolset(exports=...)``,
 copies a file in 4 MiB slices, one command each, and needs ``stat``, ``tail``,
 ``head`` and ``base64`` in the guest. It relies on ``run_command`` returning each
 slice's output intact, or setting ``stdout_truncated`` when it could not. Override
-it when the vendor can stream a download, as the ``sbx`` and OpenSandbox backends do. Override the others
-only when the vendor has a native file API:
+it when the vendor can stream a download, as the ``sbx``, OpenSandbox and Islo
+backends do. Override the others only when the vendor has a native file API:
 
 .. code-block:: python
 

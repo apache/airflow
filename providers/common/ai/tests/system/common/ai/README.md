@@ -52,6 +52,18 @@ modal token new
 pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_modal.py
 ```
 
+## Islo
+
+Install the Islo extra and export a short-lived API key into the task process:
+
+```console
+pip install "apache-airflow-providers-common-ai[islo]"
+export ISLO_API_KEY="..."
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_islo.py
+```
+
+The test requests the default no-egress policy and a 15-minute server-side TTL.
+
 ## OpenSandbox
 
 Install the OpenSandbox extra, point the SDK at a running server, and run:

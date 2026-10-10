@@ -73,7 +73,7 @@ stays where the task runs:
             end
             sbx["sbx microVM<br/>local development only"]
         end
-        remote["Modal or OpenSandbox sandbox<br/>run_command, read_file,<br/>write_file, list_directory"]
+        remote["Modal, OpenSandbox or Islo sandbox<br/>run_command, read_file,<br/>write_file, list_directory"]
         model <--> loop
         db <--> other
         loop <--> other
@@ -89,11 +89,12 @@ agent loop, the model calls and every other toolset keep the task's authority, s
 sandbox contains model-written code, not the agent (:ref:`sandbox-security`). Under
 ``KubernetesExecutor`` the outer box is the task's pod: the pod protects the cluster
 from the task, and the sandbox protects the task from its model. An ``sbx`` microVM
-cannot run inside an unprivileged pod, so that combination needs Modal or OpenSandbox.
+cannot run inside an unprivileged pod, so that combination needs Modal, OpenSandbox or Islo.
 
 The credential that provisions the sandbox depends on the backend: a ``modal``
 connection (``modal_conn_id``; see the :ref:`Modal connection page <howto/connection:modal>`)
-for Modal; ``opensandbox_conn_id``, or ``OPEN_SANDBOX_DOMAIN`` and ``OPEN_SANDBOX_API_KEY``,
+for Modal; ``ISLO_API_KEY`` (and optional ``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL``)
+for Islo; ``opensandbox_conn_id``, or ``OPEN_SANDBOX_DOMAIN`` and ``OPEN_SANDBOX_API_KEY``,
 for OpenSandbox; and the host's ``sbx login`` for ``sbx``.
 
 The four tools:
@@ -117,8 +118,9 @@ The four tools:
      - Lists a directory. Directories are shown with a trailing ``/``.
 
 A :class:`~airflow.providers.common.ai.sandbox.SandboxBackend` provisions the sandbox
-on the model's first tool call and tears it down when the agent run ends. Three
-backends ship: `Modal <https://modal.com/docs/guide/sandbox>`__ (hosted) and
+on the model's first tool call and tears it down when the agent run ends. Four
+backends ship: `Modal <https://modal.com/docs/guide/sandbox>`__ and
+`Islo <https://islo.dev>`__ (hosted) and
 `OpenSandbox <https://open-sandbox.ai/>`__ (self-hosted) for production and
 Kubernetes, and `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__ (``sbx``,
 a microVM on the worker host) for local development. The tool names are the ones
@@ -347,9 +349,14 @@ leaves its contents alone: the same four tools run in the sandbox.
        Kubernetes.
      - Your OpenSandbox server's Docker host or Kubernetes cluster, off the worker.
      - Ended by the OpenSandbox server at ``sandbox_timeout``.
+   * - ``IsloSandboxBackend``
+     - A microVM that Islo provisions per sandbox.
+     - Islo's infrastructure, off the worker.
+     - Deleted by Islo at ``delete_after``, counted from creation. ``None``
+       disables that backstop.
 
 When a run ends normally, the task calls the backend's ``destroy``. ``sbx`` runs its
-removal command and waits up to two minutes for it; Modal and OpenSandbox each send a
+removal command and waits up to two minutes for it; Modal, OpenSandbox and Islo each send a
 termination request and return without waiting for the sandbox to stop. Any of them
 can return with the sandbox still present, and none of those cases fails the task. A
 SIGKILL, an out-of-memory kill or a lost node skips that teardown entirely, and then
@@ -398,7 +405,7 @@ whatever it wants inside the pod that also holds your credentials.
      - Only what ``SandboxSpec.env`` names, which is nothing by default
 
 Running an agent in a pod *and* giving it a sandbox is the setup a Kubernetes
-deployment usually wants, with Modal or OpenSandbox as the backend.
+deployment usually wants, with Modal, OpenSandbox or Islo as the backend.
 
 When to choose it
 -----------------
@@ -416,7 +423,7 @@ task, a script the model writes, runs, and fixes from its own traceback.
   :ref:`sandbox-security`.
 - **Nothing survives the run** in a sandbox the toolset provisions itself,
   including across task retries. On Modal, a sandbox a task provisions and the agent
-  attaches to does; ``sbx`` and OpenSandbox cannot be attached to.
+  attaches to does; ``sbx``, OpenSandbox and Islo cannot be attached to.
   :ref:`Lifecycle <sandbox-lifecycle>`,
   :ref:`A sandbox another task owns <sandbox-attach>`.
 - **A file the agent built leaves through** ``exports`` **or a task**, never through
@@ -436,13 +443,16 @@ task, a script the model writes, runs, and fixes from its own traceback.
   ``SandboxSpec()`` is refused on ``sbx`` until the host policy is declared
   ``deny-all``. Modal's hostname allowlist is a weak control and has to be opted into;
   its address allowlist is enforced properly but cannot serve a package registry whose
-  addresses rotate. :ref:`Configuring a sandbox <sandbox-configuring>`,
-  :ref:`Modal <sandbox-backend-modal>`.
+  addresses rotate. Islo turns outbound access on or off and refuses hostname and
+  CIDR allowlists. :ref:`Configuring a sandbox <sandbox-configuring>`,
+  :ref:`Modal <sandbox-backend-modal>`,
+  :ref:`Islo <sandbox-backend-islo>`.
 - **On Modal, commands run as root and** ``workdir`` **is not a jail.**
   :ref:`Modal <sandbox-backend-modal>`.
 - **The** ``sbx`` **backend is for local development.** It needs the ``sbx`` binary,
   a Docker login and, on Linux, KVM or nested virtualization, so it does not run on
   unprivileged Kubernetes, and a worker killed outright leaves its microVM behind.
+  Production and Kubernetes use Modal, OpenSandbox or Islo instead.
   :ref:`sbx <sandbox-backend-sbx>`.
 - **A failed teardown is logged, not raised**, so a teardown blip cannot fail a
   finished run; reclaiming the sandbox is then the backend's lifetime or an
@@ -452,13 +462,14 @@ task, a script the model writes, runs, and fixes from its own traceback.
 has the two agents in the quick start, a ``@task`` producing a file through a
 sandbox, an agent attaching to a task-owned sandbox, and an agent exporting a file,
 shown on this page and in :doc:`configuration`. The system tests
-``example_sandbox_toolset_sbx.py``, ``example_sandbox_toolset_modal.py`` and
-``example_sandbox_toolset_opensandbox.py`` run against a real backend and are
+``example_sandbox_toolset_sbx.py``, ``example_sandbox_toolset_modal.py``,
+``example_sandbox_toolset_opensandbox.py`` and ``example_sandbox_toolset_islo.py``
+run against a real backend and are
 reachable from the System Tests entry in the sidebar.
 
 **Credentials and where it runs.** Only what ``SandboxSpec.env`` names enters the
 sandbox; the provisioning credential for each backend is listed under
-:ref:`sandbox-placement`. Work runs in Modal's infrastructure, on the OpenSandbox
+:ref:`sandbox-placement`. Work runs in Modal's or Islo's infrastructure, on the OpenSandbox
 server's runtime (off the worker unless you run the server there), or in a per-run
 microVM on the worker host with ``sbx``. Its tool calls act as barriers, as they do
 for the other routes that build their own tools; see :ref:`toolset-call-barriers`.
