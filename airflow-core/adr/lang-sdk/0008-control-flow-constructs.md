@@ -31,7 +31,7 @@ Proposed.
 3. **No default case.** `BranchPythonOperator` has none to serialize, and a one-sided `If` whose condition is false follows nothing at all.
    A decider returning a ref that is not one of the declared cases is a run-time error the SDK raises, a narrower check than `skip_all_except`, which only rejects a task_id missing from the whole Dag.
 4. **Triggering a Dag run is an ordinary task that the SDK's own runtime runs.** It has no handler.
-   The runtime sends the `TriggerDagRun` request itself and follows `TriggerDagRunOperator` for every option it offers, including `wait_for_completion` and `deferrable`.
+   The runtime sends the `TriggerDagRun` request itself and follows `TriggerDagRunOperator` for every option it offers, including `logical_date`, `run_after`, `wait_for_completion` and `deferrable`.
 5. **Grouping keeps Python's semantics**: a scope offering the same task and nesting methods as the Dag, prefixing each task_id with the group id (`prefix_group_id`),
    and can be ordered against a task or another group, as `group1 >> group2` does in Python.
 
@@ -78,6 +78,12 @@ pick.Case(handleLongRef).
 
 dag.Task(airflow.TriggerDagRun(airflow.TriggerDagRunSpec{DagID: "downstream_etl"}), airflow.TaskSpec{TaskID: "trigger_downstream"}).After(gate)
 ```
+
+The TypeScript SDK spells the date options `logicalDate` and `runAfter`. They are sent as
+provided, without Jinja rendering. When `logicalDate` is omitted it defaults to the trigger time
+unless `runAfter` is set; `logicalDate: null` creates a run without a logical date. An unset
+`runAfter` is omitted from the request. Automatically generated run IDs use the ISO timestamp of
+`runAfter` or `logicalDate`, and add an eight-character random suffix when there is no logical date.
 
 A decider has to see the refs it returns, so either they are package-level or it is a closure where the Dag is built.
 
