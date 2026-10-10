@@ -21,18 +21,42 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Index, Integer, String, Text, Uuid, event
-from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
+from sqlalchemy import Index, Integer, String, Text, Uuid, and_, event, or_, select
+from sqlalchemy.orm import Mapped, Session, foreign, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.models.base import Base, StringID
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
+
+
+def _coordinate_join():
+    from airflow.models.taskinstance import TaskInstance
+
+    own_expansion = (
+        select(DynamicRegion.id)
+        .where(
+            DynamicRegion.id == TaskInstance.region_id,
+            DynamicRegion.node_id == TaskInstance.task_id,
+            DynamicRegion.parent_region_id.is_(None),
+        )
+        .correlate(TaskInstance)
+        .exists()
+    )
+    return and_(
+        Log.task_instance_id.is_(None),
+        Log.dag_id == foreign(TaskInstance.dag_id),
+        Log.task_id == foreign(TaskInstance.task_id),
+        Log.run_id == foreign(TaskInstance.run_id),
+        Log.map_index == foreign(TaskInstance.region_index),
+        or_(foreign(TaskInstance.region_id) == SENTINEL_REGION_ID, own_expansion),
+    )
 
 
 class Log(Base):
@@ -44,6 +68,8 @@ class Log(Base):
     dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    # The public map index: for an event attributed to a task instance it is stamped on insert (see
+    # ``_stamp_public_map_index``), so it stays readable after that task instance has been purged.
     map_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     event: Mapped[str] = mapped_column(String(60), nullable=False)
     logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
@@ -73,8 +99,18 @@ class Log(Base):
     task_instance: Mapped[TaskInstance | None] = relationship(
         "TaskInstance",
         viewonly=True,
-        foreign_keys=[dag_id, task_id, run_id, map_index],
-        primaryjoin="and_(Log.dag_id == TaskInstance.dag_id, Log.task_id == TaskInstance.task_id, Log.run_id == TaskInstance.run_id, Log.map_index == TaskInstance.region_index, TaskInstance.working_set.is_(True))",
+        foreign_keys=[task_instance_id],
+        primaryjoin="Log.task_instance_id == TaskInstance.id",
+        lazy="raise",
+    )
+    # Rows written before ``task_instance_id`` existed name no attempt, but task-level values such as the
+    # display name still resolve through the coordinates of the live execution, when those name exactly one:
+    # a legacy-region one or one of the task's own expansion. Loop bodies hold one per pass and are left out.
+    coordinate_task_instance: Mapped[TaskInstance | None] = relationship(
+        "TaskInstance",
+        viewonly=True,
+        uselist=False,
+        primaryjoin=lambda: _coordinate_join(),
         lazy="raise",
     )
 
@@ -82,6 +118,7 @@ class Log(Base):
         Index("idx_log_dttm", dttm),
         Index("idx_log_event", event),
         Index("idx_log_task_instance", dag_id, task_id, run_id, map_index, try_number),
+        Index("idx_log_task_instance_id", task_instance_id),
         Index("idx_log_team_name", team_name),
     )
 
@@ -167,3 +204,29 @@ def _stamp_team_name(mapper, connection, target: Log) -> None:
     # practice: ``get_team_name`` is cached per Dag, so a warm cache emits no query at all.
     with Session(bind=connection) as session:
         target.team_name = resolve_team_name(target.dag_id, session=session)
+
+
+@event.listens_for(Log, "before_insert")
+def _stamp_public_map_index(mapper, connection, target: Log) -> None:
+    """
+    Replace the stored map index of an attributed event with the one a client sees.
+
+    The callers pass the stored index, which is a position inside a dynamic region and only
+    equals the public index for the task's own expansion. A task instance that is gone, or not
+    yet flushed, leaves the passed value in place. Bulk inserts bypass ORM events.
+    """
+    if target.task_instance_id is None:
+        return
+    # TaskInstance imports this module.
+    from airflow.models.task_coordinates import public_map_index_expression
+    from airflow.models.taskinstance import TaskInstance
+
+    # The Table, unlike the ORM entity, is not narrowed to working_set rows, so archived tries still resolve.
+    task_instances = TaskInstance.__table__
+    public_index = connection.scalar(
+        select(public_map_index_expression(task_instances)).where(
+            task_instances.c.id == target.task_instance_id
+        )
+    )
+    if public_index is not None:
+        target.map_index = public_index

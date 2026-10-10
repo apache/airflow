@@ -43,6 +43,8 @@ from airflow.utils.session import NEW_SESSION, create_session, create_session_as
 from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
     from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
     from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
@@ -99,7 +101,17 @@ def _build_asset_writer_fields(
     *,
     value: str,
     now: datetime,
+    task_instance_id: UUID | None = None,
+    region_id: UUID | None = None,
+    region_index: int | None = None,
+    try_number: int | None = None,
 ) -> tuple[dict, dict]:
+    identity = (task_instance_id, region_id, region_index, try_number)
+    if any(field is not None for field in identity):
+        if kind != AssetStateStoreWriterKind.TASK:
+            raise ValueError("Only task writers can provide execution identity")
+        if any(field is None for field in identity):
+            raise ValueError("Task execution identity requires UUID, region coordinates and try number")
     kind_str = kind.value if kind is not None else None
     writer_info = dict(
         last_updated_by_kind=kind_str,
@@ -107,6 +119,10 @@ def _build_asset_writer_fields(
         last_updated_by_run_id=run_id,
         last_updated_by_task_id=task_id,
         last_updated_by_map_index=map_index,
+        last_updated_by_task_instance_id=task_instance_id,
+        last_updated_by_region_id=region_id,
+        last_updated_by_region_index=region_index,
+        last_updated_by_try_number=try_number,
     )
     update_fields = dict(value=value, updated_at=now, **(writer_info if kind is not None else {}))
     return writer_info, update_fields
@@ -324,11 +340,25 @@ class MetastoreBackend(BaseStoreBackend):
         run_id: str | None = None,
         task_id: str | None = None,
         map_index: int | None = None,
+        task_instance_id: UUID | None = None,
+        region_id: UUID | None = None,
+        region_index: int | None = None,
+        try_number: int | None = None,
         session: Session,
     ) -> None:
         now = timezone.utcnow()
         writer_info, update_fields = _build_asset_writer_fields(
-            kind, dag_id, run_id, task_id, map_index, value=value, now=now
+            kind,
+            dag_id,
+            run_id,
+            task_id,
+            map_index,
+            value=value,
+            now=now,
+            task_instance_id=task_instance_id,
+            region_id=region_id,
+            region_index=region_index,
+            try_number=try_number,
         )
         values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now, **writer_info)
         stmt = _build_upsert_stmt(
@@ -352,6 +382,10 @@ class MetastoreBackend(BaseStoreBackend):
         run_id: str | None = None,
         task_id: str | None = None,
         map_index: int | None = None,
+        task_instance_id: UUID | None = None,
+        region_id: UUID | None = None,
+        region_index: int | None = None,
+        try_number: int | None = None,
         session: Session | None = NEW_SESSION,
     ) -> None:
         """Write an asset state store entry, recording who made the write."""
@@ -367,6 +401,10 @@ class MetastoreBackend(BaseStoreBackend):
             run_id=run_id,
             task_id=task_id,
             map_index=map_index,
+            task_instance_id=task_instance_id,
+            region_id=region_id,
+            region_index=region_index,
+            try_number=try_number,
             session=session,
         )
 
@@ -532,11 +570,25 @@ class MetastoreBackend(BaseStoreBackend):
         run_id: str | None = None,
         task_id: str | None = None,
         map_index: int | None = None,
+        task_instance_id: UUID | None = None,
+        region_id: UUID | None = None,
+        region_index: int | None = None,
+        try_number: int | None = None,
         session: AsyncSession,
     ) -> None:
         now = timezone.utcnow()
         writer_info, update_fields = _build_asset_writer_fields(
-            kind, dag_id, run_id, task_id, map_index, value=value, now=now
+            kind,
+            dag_id,
+            run_id,
+            task_id,
+            map_index,
+            value=value,
+            now=now,
+            task_instance_id=task_instance_id,
+            region_id=region_id,
+            region_index=region_index,
+            try_number=try_number,
         )
         values = dict(asset_id=scope.asset_id, key=key, value=value, updated_at=now, **writer_info)
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
@@ -560,6 +612,10 @@ class MetastoreBackend(BaseStoreBackend):
         run_id: str | None = None,
         task_id: str | None = None,
         map_index: int | None = None,
+        task_instance_id: UUID | None = None,
+        region_id: UUID | None = None,
+        region_index: int | None = None,
+        try_number: int | None = None,
         session: AsyncSession | None = None,
     ) -> None:
         """Write an asset state store entry, recording who made the write."""
@@ -574,6 +630,10 @@ class MetastoreBackend(BaseStoreBackend):
                 run_id=run_id,
                 task_id=task_id,
                 map_index=map_index,
+                task_instance_id=task_instance_id,
+                region_id=region_id,
+                region_index=region_index,
+                try_number=try_number,
                 session=s,
             )
 

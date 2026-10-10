@@ -19,8 +19,10 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from unittest import mock
+from uuid import uuid4
 
 import pytest
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -28,7 +30,13 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     DagAccessEntity,
     DagDetails,
 )
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.log import Log
+from airflow.models.taskinstance import TaskInstance
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
@@ -61,7 +69,7 @@ TEAM_NAME = "TEST_TEAM"
 
 def _assert_selects_only_display_name_columns(statements: list[str]) -> None:
     (sql,) = [sql for sql in statements if "task_instance_1" in sql]
-    select_clause = sql.split(" FROM ", 1)[0]
+    select_clause = sql.split(" FROM log ", 1)[0]
     assert set(re.findall(r"\bdag_1\.(\w+)", select_clause)) == {"dag_id", "dag_display_name"}
     assert set(re.findall(r"\btask_instance_1\.(\w+)", select_clause)) == {
         "id",
@@ -208,6 +216,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
             "owner_display_name": expected_body.get("owner_display_name"),
             "extra": expected_body.get("extra"),
             "team_name": None,
+            "task_instance_id": str(event_log.task_instance_id) if event_log.task_instance_id else None,
         }
 
         assert response.json() == expected_json
@@ -283,7 +292,8 @@ class TestGetEventLog(TestEventLogsEndpoint):
     def test_non_dag_row_is_gated_on_audit_logs_all(
         self, test_client, setup, can_view_all_audit_logs, expected_status_code
     ):
-        """A row with a NULL dag_id records an operation that is not tied to a Dag -- a
+        """
+        A row with a NULL dag_id records an operation that is not tied to a Dag -- a
         Connection, Variable or Pool change -- so it has no per-Dag key to authorize on.
         Visibility is gated on the dedicated ``AUDIT_LOGS_ALL`` view rather than riding on
         Dag-level audit log access, which every viewer holds.
@@ -301,7 +311,8 @@ class TestGetEventLog(TestEventLogsEndpoint):
         )
 
     def test_unknown_id_stays_404_and_does_not_consult_audit_logs_all(self, test_client, setup):
-        """An id that matches no row must answer 404, not 403.
+        """
+        An id that matches no row must answer 404, not 403.
 
         A missing row and a NULL dag_id both read back as ``None``, so the guard has to tell
         them apart: turning an unknown id into a permission error would change the documented
@@ -331,6 +342,191 @@ class TestGetEventLog(TestEventLogsEndpoint):
 
 
 class TestGetEventLogs(TestEventLogsEndpoint):
+    @pytest.mark.parametrize("fate", ["live", "archived", "purged"])
+    @pytest.mark.parametrize("mapped", [False, True])
+    def test_projects_public_mapping_index_for_exact_execution(
+        self, test_client, dag_maker, session, fate, mapped
+    ):
+        @task_group
+        def body():
+            if mapped:
+                PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+            else:
+                EmptyOperator(task_id="work")
+
+        with dag_maker(dag_id="audit_loop", serialized=True) as dag:
+            loop = create_loop(body, max_iterations=4)
+        run = dag_maker.create_dagrun()
+        if mapped:
+            ti = next(ti for ti in run.task_instances if ti.task_id == "body.work" and ti.region_index == 1)
+        else:
+            region = DynamicRegion.get_or_create(
+                dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id, session=session
+            )
+            session.add(region)
+            session.flush()
+            ti = TaskInstance(
+                task=dag.get_task("body.work"),
+                run_id=run.run_id,
+                dag_version_id=run.created_dag_version_id,
+                region_id=region.id,
+                region_index=2,
+            )
+            session.add(ti)
+        ti.try_number = 1
+        ti.state = "success"
+        session.flush()
+        identity = ti.id
+        event = Log(event="success", task_instance=ti)
+        session.add(event)
+        session.flush()
+        if fate == "archived":
+            ti.prepare_db_for_next_try(session=session)
+        elif fate == "purged":
+            session.execute(delete(TaskInstance.__table__).where(TaskInstance.__table__.c.id == identity))
+        session.commit()
+        expected_index = 1 if mapped else -1
+
+        detail = test_client.get(f"/eventLogs/{event.id}")
+        assert detail.status_code == 200, detail.text
+        assert detail.json()["map_index"] == expected_index
+        listed = test_client.get(
+            "/eventLogs", params={"task_instance_id": str(identity), "map_index": expected_index}
+        )
+        assert listed.status_code == 200, listed.text
+        assert listed.json()["total_entries"] == 1
+        assert listed.json()["event_logs"][0]["map_index"] == expected_index
+
+    def test_filters_by_region_across_every_attempt_at_the_coordinate(self, test_client, dag_maker, session):
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        with dag_maker(dag_id="audit_passes", serialized=True) as dag:
+            loop = create_loop(body, max_iterations=4)
+        run = dag_maker.create_dagrun()
+        region = DynamicRegion.get_or_create(
+            dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id, session=session
+        )
+        passes = {}
+        for index in (1, 2):
+            passes[index] = TaskInstance(
+                task=dag.get_task("body.work"),
+                run_id=run.run_id,
+                dag_version_id=run.created_dag_version_id,
+                region_id=region.id,
+                region_index=index,
+            )
+            session.add(passes[index])
+        session.flush()
+        archived = passes[2]
+        retried = archived.prepare_db_for_next_try(session=session)
+        events = {
+            name: Log(
+                event=name, dag_id=run.dag_id, task_id="body.work", run_id=run.run_id, task_instance_id=ti_id
+            )
+            for name, ti_id in [
+                ("first try", archived.id),
+                ("second try", retried.id),
+                ("other pass", passes[1].id),
+                ("unattributed", None),
+            ]
+        }
+        session.add_all(events.values())
+        session.commit()
+
+        response = test_client.get(
+            "/eventLogs", params={"region_id": str(region.id), "region_index": 2, "task_id": "body.work"}
+        )
+
+        assert response.status_code == 200, response.text
+        assert {entry["event"] for entry in response.json()["event_logs"]} == {"first try", "second try"}
+        assert response.json()["total_entries"] == 2
+
+    def test_region_index_requires_region_id(self, test_client):
+        response = test_client.get("/eventLogs", params={"region_index": 2})
+
+        assert response.status_code == 400
+
+    @pytest.mark.parametrize("mapped", [False, True])
+    def test_row_without_attempt_takes_the_display_name_of_its_live_task_instance(
+        self, test_client, session, dag_maker, mapped
+    ):
+        with dag_maker(dag_id="legacy_audit", serialized=True):
+            if mapped:
+                PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+            else:
+                EmptyOperator(task_id="work")
+        run = dag_maker.create_dagrun()
+        index = 1 if mapped else -1
+        task_instance = next(ti for ti in run.task_instances if ti.region_index == index)
+        task_instance._task_display_property_value = "Shown name"
+        before_upgrade = Log(
+            event="success",
+            dag_id="legacy_audit",
+            task_id="work",
+            run_id=run.run_id,
+            map_index=index,
+        )
+        other_task = Log(
+            event="success", dag_id="legacy_audit", task_id="other", run_id=run.run_id, map_index=index
+        )
+        session.add_all([before_upgrade, other_task])
+        session.commit()
+
+        shown = test_client.get(f"/eventLogs/{before_upgrade.id}").json()
+        unmatched = test_client.get(f"/eventLogs/{other_task.id}").json()
+        listed = {
+            entry["event_log_id"]: entry
+            for entry in test_client.get("/eventLogs", params={"dag_id": "legacy_audit"}).json()["event_logs"]
+        }
+
+        assert shown["task_display_name"] == "Shown name"
+        assert shown["task_instance_id"] is None
+        assert unmatched["task_display_name"] is None
+        assert listed[before_upgrade.id]["task_display_name"] == "Shown name"
+
+    def test_row_with_attempt_resolves_by_attempt_and_exposes_its_id(self, test_client, session, setup):
+        row = setup[TASK_INSTANCE_EVENT]
+        by_attempt = test_client.get(f"/eventLogs/{row.id}").json()
+        unattributed = test_client.get(f"/eventLogs/{setup[EVENT_NORMAL].id}").json()
+
+        assert by_attempt["task_instance_id"] == str(row.task_instance_id)
+        assert by_attempt["task_display_name"] == TASK_DISPLAY_NAME
+        assert unattributed["task_instance_id"] is None
+
+    @pytest.mark.parametrize("unknown", [False, True])
+    def test_filters_exact_execution_before_pagination(self, test_client, session, unknown):
+        selected = uuid4()
+        events = [
+            Log(
+                event="execution_event",
+                dag_id=DAG_ID,
+                task_id=TASK_ID,
+                run_id=DAG_RUN_ID,
+                map_index=-1,
+                task_instance_id=identity,
+            )
+            for identity in (selected, selected, uuid4(), None)
+        ]
+        session.add_all(events)
+        session.commit()
+        response = test_client.get(
+            "/eventLogs",
+            params={
+                "task_instance_id": str(uuid4() if unknown else selected),
+                "limit": 1,
+                "offset": 1,
+                "order_by": "event_log_id",
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["total_entries"] == (0 if unknown else 2)
+        assert [row["event_log_id"] for row in response.json()["event_logs"]] == (
+            [] if unknown else [events[1].id]
+        )
+        assert all(row["map_index"] == -1 for row in response.json()["event_logs"])
+
     @pytest.mark.parametrize(
         ("query_params", "expected_status_code", "expected_total_entries", "expected_events"),
         [
@@ -611,7 +807,8 @@ class TestGetEventLogs(TestEventLogsEndpoint):
     def test_non_dag_rows_are_gated_on_audit_logs_all(
         self, test_client, can_view_all_audit_logs, expected_events
     ):
-        """Rows with a NULL dag_id are returned only to callers holding ``AUDIT_LOGS_ALL``.
+        """
+        Rows with a NULL dag_id are returned only to callers holding ``AUDIT_LOGS_ALL``.
 
         Before this gate every caller that could read event logs at all received them, which
         for the default auth manager is any viewer. ``EVENT_NORMAL`` and ``EVENT_WITH_OWNER``

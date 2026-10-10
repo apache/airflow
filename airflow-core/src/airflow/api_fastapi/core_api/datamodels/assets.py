@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated
+from uuid import UUID
 
 from pydantic import (
     AliasPath,
@@ -194,6 +195,7 @@ class AssetEventResponse(BaseModel):
     source_dag_id: str | None = None
     source_run_id: str | None = None
     source_map_index: int
+    source_task_instance_id: UUID | None = None
     created_dagruns: list[DagRunAssetReference]
     timestamp: datetime
     partition_key: str | None = None

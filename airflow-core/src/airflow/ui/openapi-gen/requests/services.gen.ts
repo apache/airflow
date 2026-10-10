@@ -114,6 +114,7 @@ export class AssetService {
      * @param data.assetId
      * @param data.sourceDagId
      * @param data.sourceTaskId
+     * @param data.sourceTaskInstanceId
      * @param data.sourceRunId
      * @param data.sourceMapIndex
      * @param data.partitionKey
@@ -139,6 +140,7 @@ export class AssetService {
                 asset_id: data.assetId,
                 source_dag_id: data.sourceDagId,
                 source_task_id: data.sourceTaskId,
+                source_task_instance_id: data.sourceTaskInstanceId,
                 source_run_id: data.sourceRunId,
                 source_map_index: data.sourceMapIndex,
                 partition_key: data.partitionKey,
@@ -2431,11 +2433,14 @@ export class EventLogService {
      * Get Event Logs
      * Get all Event Logs.
      * @param data The data for the request.
+     * @param data.regionId
+     * @param data.regionIndex
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, owner_display_name, extra, when, event_log_id`
      * @param data.dagId
      * @param data.taskId
+     * @param data.taskInstanceId
      * @param data.runId
      * @param data.mapIndex
      * @param data.tryNumber
@@ -2466,11 +2471,14 @@ export class EventLogService {
             method: 'GET',
             url: '/api/v2/eventLogs',
             query: {
+                region_id: data.regionId,
+                region_index: data.regionIndex,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
                 dag_id: data.dagId,
                 task_id: data.taskId,
+                task_instance_id: data.taskInstanceId,
                 run_id: data.runId,
                 map_index: data.mapIndex,
                 try_number: data.tryNumber,
@@ -2495,6 +2503,7 @@ export class EventLogService {
                 teams: data.teams
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 422: 'Validation Error'
