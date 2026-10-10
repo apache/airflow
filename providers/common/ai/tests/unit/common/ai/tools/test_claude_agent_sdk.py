@@ -32,9 +32,10 @@ pytest.importorskip("claude_agent_sdk")
 from claude_agent_sdk import AssistantMessage, Message, ResultMessage, TextBlock, UserMessage
 from pydantic_ai.exceptions import ModelRetry
 
-from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult, collect_tools
 from airflow.providers.common.ai.tools.claude_agent_sdk import AirflowTools
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.utils.query_results import DEFAULT_MAX_RESULT_BYTES
 
 from unit.common.ai.tools.test__from_toolset import _scripted
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
@@ -126,9 +127,14 @@ async def _fake_cli(
 
 async def _call_real_server(tools: AirflowTools, name: str, args: dict[str, Any]) -> dict[str, Any]:
     """Call a tool through the real in-process MCP server, with the JSON-RPC the SDK feeds its bridge."""
+    return await _request_real_server(tools, "tools/call", {"name": name, "arguments": args})
+
+
+async def _request_real_server(tools: AirflowTools, method: str, params: dict[str, Any]) -> dict[str, Any]:
+    """Send one JSON-RPC request to the real in-process MCP server and return its ``result``."""
     moved = (
         "claude_agent_sdk's private path _internal.sdk_mcp_bridge.SdkMcpBridge has changed; "
-        "update _call_real_server in this test module."
+        "update _request_real_server in this test module."
     )
     try:
         bridge_module = importlib.import_module("claude_agent_sdk._internal.sdk_mcp_bridge")
@@ -156,8 +162,8 @@ async def _call_real_server(tools: AirflowTools, name: str, args: dict[str, Any]
             {
                 "jsonrpc": "2.0",
                 "id": 1,
-                "method": "tools/call",
-                "params": {"name": name, "arguments": args},
+                "method": method,
+                "params": params,
             }
         )
         return reply["result"]
@@ -198,6 +204,38 @@ class TestTools:
 
         captured["sdk_tools"][0].input_schema["properties"]["key"]["type"] = "integer"
         assert source.parameters == before
+
+    def test_every_mcp_tool_keeps_a_large_result_inline(self):
+        captured: dict[str, Any] = {}
+        sources = [_tool(ToolResult("ok")), SQLToolset("pg_default")]
+
+        def _capture_server(*, name: str, version: str = "1.0.0", tools: Any = None) -> Any:
+            captured["sdk_tools"] = tools
+            return mock.sentinel.server
+
+        with mock.patch(f"{MODULE}.create_sdk_mcp_server", autospec=True) as mock_create_server:
+            mock_create_server.side_effect = _capture_server
+            AirflowTools(*sources)
+
+        assert [t.name for t in captured["sdk_tools"]] == [t.name for t in collect_tools(sources)]
+        for sdk_tool in captured["sdk_tools"]:
+            assert sdk_tool.annotations.maxResultSizeChars == DEFAULT_MAX_RESULT_BYTES
+
+    @pytest.mark.asyncio
+    async def test_a_schema_without_properties_takes_no_arguments(self):
+        source = AirflowTool(
+            name="ping",
+            description="Ping.",
+            parameters={"type": "object"},
+            function=mock.AsyncMock(return_value=ToolResult("pong")),
+        )
+        tools = AirflowTools(source)
+
+        listed = await _request_real_server(tools, "tools/list", {})
+
+        assert listed["tools"][0]["inputSchema"].get("required", []) == []
+        assert "type" not in listed["tools"][0]["inputSchema"]["properties"]
+        assert source.parameters == {"type": "object"}
 
 
 class TestHandler:
