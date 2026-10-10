@@ -139,6 +139,7 @@ jobs:
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
       run-go-sdk-tests: ${{ steps.selective-checks.outputs.run-go-sdk-tests }}
       run-java-sdk-tests: ${{ steps.selective-checks.outputs.run-java-sdk-tests }}
+      run-ts-sdk-tests: ${{ steps.selective-checks.outputs.run-ts-sdk-tests }}
       run-ts-sdk-docs: ${{ steps.selective-checks.outputs.run-ts-sdk-docs }}
       run-helm-tests: ${{ steps.selective-checks.outputs.run-helm-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
@@ -1029,6 +1030,40 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
           govulncheck ./...
 
+  tests-ts-sdk:
+    name: "TypeScript SDK tests"
+    needs: [build-info]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    if: needs.build-info.outputs.run-ts-sdk-tests == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
+        with:
+          package_json_file: ts-sdk/package.json
+          run_install: false
+      # keep this in sync with the Node version in ts-sdk-release.yml
+      - name: Setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.19.0"
+          cache: 'pnpm'
+          cache-dependency-path: ts-sdk/pnpm-lock.yaml
+      - name: Install dependencies
+        working-directory: ./ts-sdk
+        run: pnpm install --frozen-lockfile
+      - name: Run TypeScript SDK tests
+        working-directory: ./ts-sdk
+        run: pnpm test
+        env:
+          FORCE_COLOR: 2
+
   tests-java-sdk:
     name: "Java SDK tests"
     needs: [build-info]
@@ -1194,6 +1229,7 @@ jobs:
       - tests-airflow-ctl
       - tests-go-sdk
       - tests-java-sdk
+      - tests-ts-sdk
       - build-java-sdk-docs
       - build-ts-sdk-docs
       - tests-with-lowest-direct-resolution-core
