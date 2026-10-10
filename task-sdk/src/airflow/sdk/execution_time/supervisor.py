@@ -116,6 +116,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetVariableKeys,
     GetXCom,
+    GetXComByKeys,
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
@@ -163,6 +164,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_variable,
     handle_get_variable_keys,
     handle_get_xcom,
+    handle_get_xcom_by_keys,
     handle_get_xcom_count,
     handle_get_xcom_sequence_item,
     handle_get_xcom_sequence_slice,
@@ -800,6 +802,7 @@ class WatchedSubprocess:
             _register_client_handler(GetXComCount, handle_get_xcom_count),
             _register_client_handler(GetXComSequenceItem, handle_get_xcom_sequence_item),
             _register_client_handler(GetXComSequenceSlice, handle_get_xcom_sequence_slice),
+            _register_client_handler(GetXComByKeys, handle_get_xcom_by_keys),
             _register_client_handler(PutVariable, handle_put_variable),
             _register_client_handler(SetXCom, handle_set_xcom),
             _register_request_handler(GetPrevSuccessfulDagRun, _handle_previous_successful_dag_run_request),
@@ -2368,6 +2371,7 @@ class ActivitySubprocess(WatchedSubprocess):
             GetVariableKeys,
             GetXCom,
             GetXComCount,
+            GetXComByKeys,
             GetXComSequenceItem,
             GetXComSequenceSlice,
             MaskSecret,
@@ -2472,6 +2476,16 @@ class InProcessSupervisorComms:
             self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
 
         return self._get_response()
+
+    async def asend(self, msg: BaseModel):
+        """
+        Send a request to the supervisor without blocking the event loop.
+
+        ``_handle_request`` is synchronous and in-process (no actual socket I/O), so this simply
+        mirrors :meth:`send` under an ``async def`` for callers (e.g. IterableOperator's checkpoint
+        reads/writes via the Task State Store) that require an awaitable ``asend``.
+        """
+        return self.send(msg)
 
 
 @attrs.define

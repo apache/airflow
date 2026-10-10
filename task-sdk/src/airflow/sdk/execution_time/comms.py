@@ -308,6 +308,38 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         finally:
             self._thread_lock.release()
 
+    async def _acquire_thread_lock(self, loop: asyncio.AbstractEventLoop) -> None:
+        """
+        Take ``_thread_lock`` in a worker thread, so the loop keeps running, and keep it balanced.
+
+        Cancelling the wait cancels the future, not the thread: the acquire completes later and the
+        lock would stay taken with nobody to release it, so every later ``send`` would block for
+        good. The hand-off settles who releases it: the thread, when it finds the wait abandoned,
+        or the caller's ``finally`` when the acquire had completed before the cancellation landed.
+        """
+        handoff = threading.Lock()
+        abandoned = False
+        acquired = False
+
+        def acquire() -> None:
+            nonlocal acquired
+            self._thread_lock.acquire()
+            with handoff:
+                if abandoned:
+                    self._thread_lock.release()
+                    return
+                acquired = True
+
+        try:
+            await loop.run_in_executor(None, acquire)
+        except BaseException:
+            with handoff:
+                if acquired:
+                    self._thread_lock.release()
+                else:
+                    abandoned = True
+            raise
+
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """
         Send a request to the parent without blocking.
@@ -321,7 +353,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         async with self._async_lock:
             # Acquire the threading lock without blocking the event loop
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self._thread_lock.acquire)
+            await self._acquire_thread_lock(loop)
             try:
                 # Async write to socket
                 await loop.sock_sendall(self.socket, frame_bytes)
@@ -981,6 +1013,17 @@ class GetXComSequenceSlice(BaseModel):
     type: Literal["GetXComSequenceSlice"] = "GetXComSequenceSlice"
 
 
+class GetXComByKeys(BaseModel):
+    """Fetch multiple XCom values by key list in a single round-trip."""
+
+    keys: list[str]
+    dag_id: str
+    run_id: str
+    task_id: str
+    map_index: int = -1
+    type: Literal["GetXComByKeys"] = "GetXComByKeys"
+
+
 class SetXCom(BaseModel):
     key: str
     value: JsonValue
@@ -1328,6 +1371,7 @@ ToSupervisor = Annotated[
     | GetVariable
     | GetVariableKeys
     | GetXCom
+    | GetXComByKeys
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
