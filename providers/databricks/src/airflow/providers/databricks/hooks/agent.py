@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
@@ -33,6 +33,8 @@ from airflow.providers.databricks.exceptions import DatabricksAgentInvocationTim
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 if TYPE_CHECKING:
+    from tenacity.stop import stop_base
+
     from airflow.providers.common.ai.exceptions import ManagedAgentInvocationError
     from airflow.providers.common.ai.managed_agents.base import (
         BaseManagedAgentHook,
@@ -146,7 +148,8 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
         :param request: Prompt or messages, optional session and request timeout. Vendor options
             accept ``input_key`` to send a prompt under an agent-specific key and ``invocation_id``
             to reuse a caller-provided UUID. By default, prompts are converted to messages and
-            a new UUID is generated for each call.
+            a new UUID is generated for each call. Without a session, the invocation UUID
+            is also used as a one-shot session ID.
         :return: Answer text, full invocation response, structured output, session and invocation ID.
         """
         app_url = self.resolve_agent(agent).name
@@ -165,21 +168,24 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
             if "invocation_id" in request.vendor_options
             else str(uuid4())
         )
+        session_id = request.session_id if request.session_id is not None else invocation_id
         payload: dict[str, Any] = {
             "id": invocation_id,
+            "session_id": session_id,
             "input": {input_key: request.prompt}
             if input_key is not None
             else {"messages": request.as_messages()},
         }
-        if request.session_id is not None:
-            payload["session_id"] = request.session_id
+        if request.timeout is not None and request.timeout <= 0:
+            raise ValueError("timeout_seconds must be positive")
+        deadline = time.monotonic() + request.timeout if request.timeout is not None else None
         try:
             raw = self._do_agent_api_call(
                 "POST",
                 "api/invocations",
                 payload,
-                request.session_id,
-                timeout_seconds=request.timeout,
+                session_id,
+                timeout_seconds=self._get_remaining_timeout(deadline, invocation_id),
                 app_url=app_url,
             )
         except DatabricksAgentInvocationTimeout:
@@ -187,9 +193,35 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
         except AirflowException as exc:
             cause = exc.__cause__ or exc.__context__
             if isinstance(cause, RetryError):
-                transient = cause.last_attempt.exception()
-                if transient is not None:
-                    raise transient from None
+                cause = cause.last_attempt.exception()
+            if (
+                isinstance(exc, DatabricksApiError)
+                and isinstance(cause, requests.HTTPError)
+                and cause.response is not None
+                and cause.response.status_code >= 500
+            ):
+                # A synchronous agent failure is HTTP 500; the stored status distinguishes it from an outage.
+                try:
+                    state = self._do_agent_api_call(
+                        "GET",
+                        f"api/invocations/{invocation_id}",
+                        None,
+                        session_id,
+                        timeout_seconds=self._get_remaining_timeout(deadline, invocation_id),
+                        app_url=app_url,
+                    )
+                except DatabricksAgentInvocationTimeout:
+                    raise
+                except (AirflowException, requests.RequestException, ValueError):
+                    pass
+                else:
+                    self._get_remaining_timeout(deadline, invocation_id)
+                    if isinstance(state, dict) and state.get("status") == "failed":
+                        raise ManagedAgentInvocationError(
+                            f"Databricks agent invocation {invocation_id} failed; inspect the app logs"
+                        ) from exc
+            if isinstance(exc.__cause__, RetryError) and cause is not None:
+                raise cause from None
             if isinstance(cause, requests.HTTPError) and (
                 cause.response.status_code == 429 or cause.response.status_code >= 500
             ):
@@ -197,11 +229,16 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
             raise ManagedAgentInvocationError(
                 "Databricks managed-agent request failed; inspect the app logs"
             ) from exc
+        self._get_remaining_timeout(deadline, invocation_id)
         if not isinstance(raw, dict) or raw.get("status") != "completed":
             raise ManagedAgentInvocationError(
                 f"Databricks agent invocation {invocation_id} did not complete; inspect the app logs"
             )
         output = raw.get("output")
+        if isinstance(output, dict) and output.get("status") == "interrupted":
+            raise ManagedAgentInvocationError(
+                f"Databricks agent invocation {invocation_id} was interrupted; use the operator to handle its output"
+            )
         text = output if isinstance(output, str) else "" if output is None else json.dumps(output)
         if isinstance(output, dict) and isinstance(output.get("output"), str):
             text = output["output"]
@@ -209,7 +246,7 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
             text=text,
             raw=raw,
             structured=None if isinstance(output, str) else output,
-            session_id=raw.get("session_id", request.session_id),
+            session_id=raw.get("session_id", session_id),
             trace_ref=raw.get("id", invocation_id),
         )
 
@@ -279,25 +316,18 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
         deadline = time.monotonic() + timeout_seconds if timeout_seconds is not None else None
         retry = self._get_retry_object()
         if timeout_seconds is not None:
-            original_stop = retry.stop
-            budget_stop = stop_before_delay(timeout_seconds)
-            retry.stop = lambda state: original_stop(state) or budget_stop(state)
+            retry = retry.copy(stop=cast("stop_base", retry.stop) | stop_before_delay(timeout_seconds))
         try:
             for attempt in retry:
                 with attempt:
-                    if deadline is not None and time.monotonic() >= deadline:
-                        raise DatabricksAgentInvocationTimeout(
-                            f"Timed out polling Databricks agent {endpoint}"
-                        )
+                    self._get_remaining_timeout(deadline, endpoint)
                     token = self._get_sp_token(self._get_oidc_token_service_url())
-                    request_timeout: float = self.timeout_seconds
-                    if deadline is not None:
-                        remaining = deadline - time.monotonic()
-                        if remaining <= 0:
-                            raise DatabricksAgentInvocationTimeout(
-                                f"Timed out polling Databricks agent {endpoint}"
-                            )
-                        request_timeout = min(request_timeout, remaining)
+                    remaining = self._get_remaining_timeout(deadline, endpoint)
+                    request_timeout = (
+                        min(self.timeout_seconds, remaining)
+                        if remaining is not None
+                        else self.timeout_seconds
+                    )
                     response = requests.request(
                         method,
                         f"{app_url}/{endpoint}",
@@ -310,15 +340,12 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
                     if 300 <= response.status_code < 400:
                         raise DatabricksApiError("Databricks agent returned an unexpected redirect")
                     response.raise_for_status()
-                    if deadline is not None and time.monotonic() >= deadline:
-                        raise DatabricksAgentInvocationTimeout(
-                            f"Timed out polling Databricks agent {endpoint}"
-                        )
+                    # Even a terminal response must not turn an expired wait into success.
+                    self._get_remaining_timeout(deadline, endpoint)
                     return response.json()
         except RetryError as e:
-            if deadline is not None and (
-                time.monotonic() >= deadline or retry.statistics["attempt_number"] < self.retry_limit
-            ):
+            self._get_remaining_timeout(deadline, endpoint)
+            if deadline is not None and retry.statistics["attempt_number"] < self.retry_limit:
                 raise DatabricksAgentInvocationTimeout(
                     f"Timed out polling Databricks agent {endpoint}"
                 ) from e
@@ -329,6 +356,15 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
                 http_status_code=e.response.status_code,
             ) from e
         raise DatabricksApiError("Databricks agent request returned no response")
+
+    @staticmethod
+    def _get_remaining_timeout(deadline: float | None, endpoint: str) -> float | None:
+        if deadline is None:
+            return None
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise DatabricksAgentInvocationTimeout(f"Timed out polling Databricks agent {endpoint}")
+        return remaining
 
     @staticmethod
     def _retryable_error(exception: BaseException) -> bool:

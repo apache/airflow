@@ -70,15 +70,24 @@ Retries and results
 -------------------
 
 An invocation requires a UUID. Unless ``invocation_id`` is provided, the operator
-generates a stable UUID from the app URL, Dag ID, task ID, run ID and map index.
-Retries and cleared tasks in the same Dag run therefore reuse the invocation.
-To deliberately start a new invocation in that run, supply a new UUID.
+generates a stable UUID from the app URL, Dag ID, task ID, run ID, map index,
+rendered input and session ID. App URLs with and without a trailing slash produce
+the same UUID. Retries and cleared tasks with unchanged input and session in the
+same Dag run reuse the invocation. Changing the rendered input or session generates
+a new UUID. To deliberately repeat the same request in that run, supply a new UUID.
 Databricks retains idempotency while it retains the invocation record. Reusing
-an ID with different input returns an HTTP 409 error.
+an explicit ID with different input or session returns an HTTP 409 error.
 
-A ``failed`` invocation fails the task. An ``interrupted`` invocation is returned
-successfully so downstream tasks can handle human input. To resume it, submit a
-new invocation with the same session ID and the appropriate ``resume`` input.
+A stored ``failed`` invocation raises ``AirflowFailException``, preventing automatic
+task retries: submitting the same UUID returns that failure without running the
+agent again. Clearing the task with unchanged input and session also returns the
+stored failure. Supply a new ``invocation_id`` to run it again.
+
+The runtime states are ``queued``, ``active``, ``completed`` and ``failed``.
+CLI template agents report a pause as ``status="completed"`` with
+``output.status="interrupted"``. The operator returns this response successfully
+so downstream tasks can handle human input. To resume it, submit a new invocation
+with the same session ID and the appropriate ``resume`` input.
 The returned response preserves the agent's output without assuming its schema.
 
 The operator targets ``DurableAgentServer``'s ``/api/invocations`` API. Legacy
@@ -111,10 +120,16 @@ user message, or passes supplied messages under ``input.messages``. For an agent
 that expects a prompt under another key, set ``vendor_options={"input_key": "question"}``.
 Other input schemas remain available through ``create_invocation`` and the operator.
 
-Each call generates a new invocation UUID. To reuse an invocation across task
-retries, supply a stable UUID with ``vendor_options={"invocation_id": "YOUR_UUID"}``.
+Each call generates a new invocation UUID. For one direct ``agent.invoke(...)``
+per task, a stable UUID in ``vendor_options={"invocation_id": "YOUR_UUID"}`` can
+reuse that invocation across task retries. Do not set a fixed invocation ID in
+``ManagedAgentToolset`` vendor options: the toolset forwards those options on every
+call, so a different prompt would conflict and a repeated prompt would return the
+stored result.
+
 HTTP retries within a call reuse the same UUID. ``session_id`` continues the
-conversation and is sent as the routing key. A hook can bind multiple app URLs;
+conversation and is sent as the routing key. When omitted, the hook uses the
+invocation UUID as a one-shot session ID, including for toolset calls. A hook can bind multiple app URLs;
 vendor options cannot override the app URL or connection.
 
 ``ManagedAgentResponse.raw`` preserves the full invocation response. String outputs
@@ -122,10 +137,15 @@ become ``text``; an object with a string ``output`` field uses that field as tex
 other outputs become JSON text. Non-string outputs are also available in
 ``structured``. The invocation ID is returned as ``trace_ref``.
 
-The managed-agent interface requires a ``completed`` invocation. Failed,
-interrupted, missing or unexpected statuses raise ``ManagedAgentInvocationError``;
-use the operator to handle an interrupted invocation's response directly.
+The managed-agent interface requires a ``completed`` invocation whose output is
+not marked ``interrupted`` by the CLI template. Stored failures, interruptions,
+missing or unexpected statuses raise ``ManagedAgentInvocationError``; use the
+operator to handle an interrupted invocation's response directly.
 Terminal HTTP errors raise the same exception, while transient HTTP and connection
-errors propagate after the hook's configured retries. The request timeout bounds
-the HTTP call and its retries; OAuth refresh retains its separate timeout.
+errors propagate after the hook's configured retries. A synchronous agent failure
+returns HTTP 500. After HTTP retries, the hook queries the known invocation ID:
+a stored ``failed`` status becomes ``ManagedAgentInvocationError``. If the lookup
+cannot confirm a stored failure, the original HTTP error propagates as transient.
+The request timeout bounds the HTTP call, its retries and the status lookup;
+OAuth refresh retains its separate timeout.
 The operator and background hook methods do not require the Common AI extra.

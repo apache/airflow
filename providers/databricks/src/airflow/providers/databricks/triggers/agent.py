@@ -74,7 +74,7 @@ class DatabricksAgentInvocationTrigger(BaseTrigger):
             async with DatabricksAgentHook(self.app_url, self.databricks_conn_id) as hook:
                 while True:
                     result = await hook.a_get_invocation(self.invocation_id, self.session_id)
-                    if result.get("status") in ("completed", "failed", "interrupted"):
+                    if result.get("status") in ("completed", "failed"):
                         yield TriggerEvent(
                             {"status": "success", "invocation_id": self.invocation_id, "error_type": None}
                         )
