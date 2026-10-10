@@ -302,7 +302,7 @@ class TestManagedAgent:
             assert payload == {
                 "id": payload["id"],
                 "session_id": payload["id"],
-                "input": {"messages": [{"role": "user", "content": prompt}]},
+                "input": {"messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]},
             }
             assert call.args == ("POST", f"{APP_URL}/api/invocations")
             assert call.kwargs["headers"]["X-Routing-Key"] == payload["session_id"]
@@ -413,7 +413,7 @@ class TestManagedAgent:
         ]
 
         with pytest.raises(ManagedAgentInvocationError):
-            hook.agent(APP_URL).invoke(
+            hook.agent("https://other.databricksapps.com").invoke(
                 ManagedAgentRequest(
                     prompt="hello",
                     session_id="conversation",
@@ -424,7 +424,10 @@ class TestManagedAgent:
 
         get_calls = [call for call in http.call_args_list if call.args[0] == "GET"]
         assert len(get_calls) == 1
-        assert get_calls[0].args == ("GET", f"{APP_URL}/api/invocations/{INVOCATION_ID}")
+        assert get_calls[0].args == (
+            "GET",
+            f"https://other.databricksapps.com/api/invocations/{INVOCATION_ID}",
+        )
         assert get_calls[0].kwargs["headers"]["X-Routing-Key"] == "conversation"
         assert 0 < get_calls[0].kwargs["timeout"] <= 12
 
@@ -451,6 +454,80 @@ class TestManagedAgent:
         assert ("GET", f"{APP_URL}/api/invocations/{INVOCATION_ID}") in [
             call.args for call in http.call_args_list
         ]
+
+    @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
+    @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
+    @pytest.mark.parametrize("lookup_status", [404, 503])
+    def test_failed_status_lookup_preserves_original_error(self, http, token, hook, lookup_status):
+        failed_post = mock.Mock(spec=requests.Response)
+        failed_post.status_code = 500
+        original_error = requests.HTTPError(response=failed_post)
+        failed_post.raise_for_status.side_effect = original_error
+        failed_get = mock.Mock(spec=requests.Response)
+        failed_get.status_code = lookup_status
+        failed_get.raise_for_status.side_effect = requests.HTTPError(response=failed_get)
+        http.side_effect = lambda method, *args, **kwargs: {"POST": failed_post, "GET": failed_get}[method]
+
+        with pytest.raises(requests.HTTPError) as exc:
+            hook.agent(APP_URL).invoke(
+                ManagedAgentRequest(prompt="hello", vendor_options={"invocation_id": INVOCATION_ID})
+            )
+        assert exc.value is original_error
+        assert ("GET", f"{APP_URL}/api/invocations/{INVOCATION_ID}") in [
+            call.args for call in http.call_args_list
+        ]
+
+    @mock.patch("airflow.providers.databricks.hooks.agent.time", autospec=True)
+    @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
+    @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
+    def test_status_lookup_uses_remaining_budget(self, http, token, clock, hook):
+        clock.monotonic.return_value = 0
+        failed_post = mock.Mock(spec=requests.Response)
+        failed_post.status_code = 500
+        failed_post.raise_for_status.side_effect = requests.HTTPError(response=failed_post)
+        completed_get = mock.Mock(spec=requests.Response)
+        completed_get.status_code = 200
+        completed_get.json.return_value = {"id": INVOCATION_ID, "status": "failed"}
+
+        def get_response(method, *args, **kwargs):
+            clock.monotonic.return_value = 4
+            return {"POST": failed_post, "GET": completed_get}[method]
+
+        http.side_effect = get_response
+        with pytest.raises(ManagedAgentInvocationError):
+            hook.agent(APP_URL).invoke(
+                ManagedAgentRequest(
+                    prompt="hello", timeout=12, vendor_options={"invocation_id": INVOCATION_ID}
+                )
+            )
+        get_calls = [call for call in http.call_args_list if call.args[0] == "GET"]
+        assert len(get_calls) == 1
+        assert get_calls[0].kwargs["timeout"] == 8
+
+    @mock.patch("airflow.providers.databricks.hooks.agent.time", autospec=True)
+    @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
+    @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
+    def test_status_lookup_rejects_late_result(self, http, token, clock, hook):
+        clock.monotonic.return_value = 0
+        failed_post = mock.Mock(spec=requests.Response)
+        failed_post.status_code = 500
+        failed_post.raise_for_status.side_effect = requests.HTTPError(response=failed_post)
+        completed_get = mock.Mock(spec=requests.Response)
+        completed_get.status_code = 200
+        completed_get.json.return_value = {"id": INVOCATION_ID, "status": "failed"}
+
+        def get_response(method, *args, **kwargs):
+            clock.monotonic.return_value = {"POST": 4, "GET": 12}[method]
+            return {"POST": failed_post, "GET": completed_get}[method]
+
+        http.side_effect = get_response
+        with pytest.raises(DatabricksAgentInvocationTimeout):
+            hook.agent(APP_URL).invoke(
+                ManagedAgentRequest(
+                    prompt="hello", timeout=12, vendor_options={"invocation_id": INVOCATION_ID}
+                )
+            )
+        assert http.call_args.args == ("GET", f"{APP_URL}/api/invocations/{INVOCATION_ID}")
 
     @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
     @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)

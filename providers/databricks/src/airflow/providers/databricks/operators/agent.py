@@ -26,7 +26,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from airflow.providers.common.compat.sdk import BaseOperator, conf
+from airflow.providers.common.compat.sdk import AirflowFailException, BaseOperator, conf
 from airflow.providers.databricks.exceptions import (
     DatabricksAgentInvocationError,
     DatabricksAgentInvocationTimeout,
@@ -49,7 +49,8 @@ class DatabricksAgentInvokeOperator(BaseOperator):
     :param session_id: Conversation ID. CLI template agents require this field.
         Defaults to ``None``. (templated)
     :param invocation_id: Idempotency UUID. Defaults to a stable UUID for this task instance,
-        shared across retries and clears within the same Dag run. (templated)
+        app URL, input and session, shared across retries and clears with unchanged input and session.
+        A stored failure requires a new UUID to run again. (templated)
     :param wait_for_termination: Wait for completion or interruption. If false, return the submission response.
         Defaults to ``True``.
     :param polling_period_seconds: Seconds between status checks. Defaults to ``10``.
@@ -99,16 +100,28 @@ class DatabricksAgentInvokeOperator(BaseOperator):
         if self.invocation_id is not None:
             return str(UUID(self.invocation_id))
         ti = context["ti"]
-        identity = json.dumps([self.app_url, ti.dag_id, ti.task_id, ti.run_id, ti.map_index])
+        identity = json.dumps(
+            [
+                self.app_url.rstrip("/"),
+                ti.dag_id,
+                ti.task_id,
+                ti.run_id,
+                ti.map_index,
+                self.input,
+                self.session_id,
+            ],
+            sort_keys=True,
+        )
         return str(uuid5(NAMESPACE_URL, identity))
 
     def _get_result(self, result: dict[str, Any], invocation_id: str) -> dict[str, Any] | None:
         status = result.get("status")
         if status == "failed":
-            raise DatabricksAgentInvocationError(
-                f"Databricks agent invocation {invocation_id} failed; inspect the app logs"
+            raise AirflowFailException(
+                f"Databricks agent invocation {invocation_id} failed; inspect the app logs "
+                "and supply a new invocation_id to run again"
             )
-        if status in ("completed", "interrupted"):
+        if status == "completed":
             return result
         if not status:
             raise DatabricksAgentInvocationError(
@@ -139,21 +152,22 @@ class DatabricksAgentInvokeOperator(BaseOperator):
             )
         deadline = time.monotonic() + self.timeout
         while True:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise DatabricksAgentInvocationTimeout(
-                    f"Timed out waiting for Databricks agent invocation {invocation_id} after {self.timeout} seconds"
-                )
+            remaining = self._get_remaining_time(deadline, invocation_id)
             response = self.hook.get_invocation(invocation_id, self.session_id, timeout_seconds=remaining)
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise DatabricksAgentInvocationTimeout(
-                    f"Timed out waiting for Databricks agent invocation {invocation_id} after {self.timeout} seconds"
-                )
+            # A completed invocation arriving after the deadline still counts as a timeout.
+            remaining = self._get_remaining_time(deadline, invocation_id)
             result = self._get_result(response, invocation_id)
             if result is not None:
                 return result
             time.sleep(min(self.polling_period_seconds, remaining))
+
+    def _get_remaining_time(self, deadline: float, invocation_id: str) -> float:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise DatabricksAgentInvocationTimeout(
+                f"Timed out waiting for Databricks agent invocation {invocation_id} after {self.timeout} seconds"
+            )
+        return remaining
 
     def execute_complete(
         self, context: Context, event: dict[str, Any] | None = None, *, invocation_id: str
@@ -173,18 +187,9 @@ class DatabricksAgentInvokeOperator(BaseOperator):
             raise DatabricksAgentInvocationError(
                 f"Polling Databricks agent invocation {invocation_id} failed ({error_type}); inspect trigger logs"
             )
-        result = self.hook.get_invocation(invocation_id, self.session_id)
-        status = result.get("status")
-        if status in ("completed", "interrupted"):
+        result = self._get_result(self.hook.get_invocation(invocation_id, self.session_id), invocation_id)
+        if result is not None:
             return result
-        if status == "failed":
-            raise DatabricksAgentInvocationError(
-                f"Databricks agent invocation {invocation_id} failed; inspect the app logs"
-            )
-        if not status:
-            raise DatabricksAgentInvocationError(
-                f"Databricks agent invocation {invocation_id} response is missing its status"
-            )
         raise DatabricksAgentInvocationError(
             f"Databricks agent invocation {invocation_id} has not reached a terminal state"
         )
