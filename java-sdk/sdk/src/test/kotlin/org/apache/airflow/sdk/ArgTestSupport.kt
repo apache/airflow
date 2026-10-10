@@ -72,6 +72,14 @@ internal class FakeXComTransport(
     mapIndex: Int,
   ) = throw NotImplementedError()
 
+  override fun deleteXCom(
+    key: String,
+    dagId: String,
+    taskId: String,
+    runId: String,
+    mapIndex: Int,
+  ) = throw NotImplementedError()
+
   override fun getTaskStateStore(
     tiId: UUID,
     key: String,

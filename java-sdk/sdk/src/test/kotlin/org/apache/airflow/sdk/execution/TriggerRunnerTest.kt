@@ -116,6 +116,14 @@ private class FakeTrigger(
     includePriorDates: Boolean,
   ) = throw UnsupportedOperationException("not used in test")
 
+  override fun deleteXCom(
+    key: String,
+    dagId: String,
+    taskId: String,
+    runId: String,
+    mapIndex: Int,
+  ): Unit = throw UnsupportedOperationException("not used in test")
+
   override fun getTaskStateStore(
     tiId: UUID,
     key: String,
