@@ -172,6 +172,10 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
     :param cron: cron string that defines when to run
     :param timezone: Which timezone to use to interpret the cron string
     :param interval: timedelta that defines the data interval start. Default 0.
+    :param seed: stable, unique-per-Dag string the jitter offset is derived from; must be
+        non-empty when ``max_jitter`` is set. See ``CronMixin``.
+    :param max_jitter: upper bound of the jitter window; the run is shifted by a fixed offset
+        in ``[0, max_jitter)``. Default 0 (no jitter). See ``CronMixin``.
 
     *run_immediately* controls, if no *start_time* is given to the DAG, when
     the first run of the DAG should be scheduled. It has no effect if there
@@ -195,8 +199,10 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
         run_immediately: bool | datetime.timedelta = False,
+        seed: str = "",
+        max_jitter: datetime.timedelta = datetime.timedelta(),
     ) -> None:
-        super().__init__(cron, timezone)
+        super().__init__(cron, timezone, seed=seed, max_jitter=max_jitter)
         self._interval = interval
         self._run_immediately = run_immediately
 
@@ -209,17 +215,23 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
             timezone=parse_timezone(data["timezone"]),
             interval=decode_interval(data["interval"]),
             run_immediately=decode_run_immediately(data.get("run_immediately", False)),
+            seed=data.get("seed", ""),
+            max_jitter=datetime.timedelta(seconds=data.get("max_jitter", 0)),
         )
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_interval, encode_run_immediately, encode_timezone
 
-        return {
+        data = {
             "expression": self._expression,
             "timezone": encode_timezone(self._timezone),
             "interval": encode_interval(self._interval),
             "run_immediately": encode_run_immediately(self._run_immediately),
         }
+        if self._max_jitter:
+            data["seed"] = self._seed
+            data["max_jitter"] = self._max_jitter.total_seconds()
+        return data
 
     def _calc_first_run(self) -> DateTime:
         """
@@ -254,6 +266,10 @@ class MultipleCronTriggerTimetable(Timetable):
 
     Only at most one run is triggered for any given time, even if more than one
     timetable fires at the same time.
+
+    All cron expressions share the same optional ``seed``/``max_jitter`` jitter settings, so the
+    whole Dag is shifted by one common offset and its fire times keep their relative spacing.
+    See ``CronTriggerTimetable``.
     """
 
     def __init__(
@@ -262,14 +278,24 @@ class MultipleCronTriggerTimetable(Timetable):
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
         run_immediately: bool | datetime.timedelta = False,
+        seed: str = "",
+        max_jitter: datetime.timedelta = datetime.timedelta(),
     ) -> None:
         if not crons:
             raise ValueError("cron expression required")
         self._timetables = [
-            CronTriggerTimetable(cron, timezone=timezone, interval=interval, run_immediately=run_immediately)
+            CronTriggerTimetable(
+                cron,
+                timezone=timezone,
+                interval=interval,
+                run_immediately=run_immediately,
+                seed=seed,
+                max_jitter=max_jitter,
+            )
             for cron in crons
         ]
-        self.description = ", ".join(t.description for t in self._timetables)
+        suffix = self._timetables[0]._jitter_suffix()
+        self.description = ", ".join(t.description.removesuffix(suffix) for t in self._timetables) + suffix
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -280,6 +306,8 @@ class MultipleCronTriggerTimetable(Timetable):
             timezone=parse_timezone(data["timezone"]),
             interval=decode_interval(data["interval"]),
             run_immediately=decode_run_immediately(data["run_immediately"]),
+            seed=data.get("seed", ""),
+            max_jitter=datetime.timedelta(seconds=data.get("max_jitter", 0)),
         )
 
     def serialize(self) -> dict[str, Any]:
@@ -288,12 +316,16 @@ class MultipleCronTriggerTimetable(Timetable):
         # All timetables share the same timezone, interval, and run_immediately
         # values, so we can just use the first to represent them.
         timetable = self._timetables[0]
-        return {
+        data: dict[str, Any] = {
             "expressions": [t._expression for t in self._timetables],
             "timezone": encode_timezone(timetable._timezone),
             "interval": encode_interval(timetable._interval),
             "run_immediately": encode_run_immediately(timetable._run_immediately),
         }
+        if timetable._max_jitter:
+            data["seed"] = timetable._seed
+            data["max_jitter"] = timetable._max_jitter.total_seconds()
+        return data
 
     @property
     def summary(self) -> str:
@@ -380,6 +412,10 @@ class CronPartitionTimetable(CronTriggerTimetable):
     :param run_offset: Integer offset that determines which partition date to run for.
         The partition key will be derived from the partition date.
     :param key_format: How to translate the partition date into a string partition key.
+    :param seed: stable, unique-per-Dag string the jitter offset is derived from; must be
+        non-empty when ``max_jitter`` is set. See ``CronMixin``.
+    :param max_jitter: upper bound of the jitter window; the run is shifted by a fixed offset
+        in ``[0, max_jitter)``. Default 0 (no jitter). See ``CronMixin``.
 
     *run_immediately* controls, if no *start_time* is given to the Dag, when
     the first run of the Dag should be scheduled. It has no effect if there
@@ -406,8 +442,12 @@ class CronPartitionTimetable(CronTriggerTimetable):
         run_offset: int | datetime.timedelta | relativedelta | None = None,
         run_immediately: bool | datetime.timedelta = False,
         key_format: str = r"%Y-%m-%dT%H:%M:%S",
+        seed: str = "",
+        max_jitter: datetime.timedelta = datetime.timedelta(),
     ) -> None:
-        super().__init__(cron, timezone=timezone, run_immediately=run_immediately)
+        super().__init__(
+            cron, timezone=timezone, run_immediately=run_immediately, seed=seed, max_jitter=max_jitter
+        )
         if not isinstance(run_offset, (int, NoneType)):
             raise ValueError("Run offset other than integer not supported yet.")
         self._run_offset = run_offset or 0
@@ -431,30 +471,36 @@ class CronPartitionTimetable(CronTriggerTimetable):
             run_offset=offset,
             run_immediately=decode_run_immediately(data.get("run_immediately", False)),
             key_format=data["key_format"],
+            seed=data.get("seed", ""),
+            max_jitter=datetime.timedelta(seconds=data.get("max_jitter", 0)),
         )
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_run_immediately, encode_timezone
 
-        return {
+        data: dict[str, Any] = {
             "expression": self._expression,
             "timezone": encode_timezone(self._timezone),
             "run_immediately": encode_run_immediately(self._run_immediately),
             "run_offset": self._run_offset,
             "key_format": self._key_format,
         }
+        if self._max_jitter:
+            data["seed"] = self._seed
+            data["max_jitter"] = self._max_jitter.total_seconds()
+        return data
 
     def _get_partition_date(self, *, run_date) -> DateTime:
+        partition_date = self._strip(coerce_datetime(run_date))
         if self._run_offset == 0:
-            return run_date
+            return partition_date
         # we will need to apply offset to determine run date
-        partition_date = coerce_datetime(run_date)
         log.info(
             "applying offset to partition date",
             partition_date=partition_date,
             run_offset=self._run_offset,
         )
-        iter_func = self._get_next if self._run_offset > 0 else self._get_prev
+        iter_func = self._get_next_cron if self._run_offset > 0 else self._get_prev_cron
         for _ in range(abs(self._run_offset)):
             partition_date = iter_func(partition_date)
         log.info("new partition date", partition_date=partition_date)
@@ -506,7 +552,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         Both bounds must be timezone-aware; a naive datetime is coerced to UTC before
         the wall-clock localization step.
         """
-        current = self._align_to_next(self.localize_partition_datetime(earliest))
+        current = self._align_to_next_cron(self.localize_partition_datetime(earliest))
         latest_dt = self.localize_partition_datetime(latest)
         while current <= latest_dt:
             partition_key = self._format_key(current)
@@ -516,7 +562,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
                 partition_date=current,
                 partition_key=partition_key,
             )
-            current = self._get_next(current)
+            current = self._get_next_cron(current)
 
     def _format_key(self, partition_date: DateTime) -> str:
         # partition_date is a UTC instant; format the key in the timetable timezone so the
