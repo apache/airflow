@@ -46,7 +46,7 @@ from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import uuid7
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.sdk import BaseOperator, TaskGroup
+from airflow.sdk import BaseOperator, TaskGroup, task
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -196,6 +196,36 @@ class TestTaskInstanceEndpoint:
 
 
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
+    def test_removed_mapped_regional_instances_are_still_listed(self, test_client, dag_maker, session):
+        with dag_maker("removed-mapped", serialized=True):
+            MockOperator(task_id="kept")
+
+            @task
+            def mapped(value):
+                return value
+
+            mapped.expand(value=[1, 2])
+        dr = dag_maker.create_dagrun()
+        with dag_maker(dag_id=dr.dag_id, serialized=True):
+            MockOperator(task_id="kept")
+        latest_version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
+        removed = [ti for ti in dr.task_instances if ti.task_id == "mapped"]
+        assert len(removed) == 2
+        for ti in removed:
+            ti.state = TaskInstanceState.REMOVED
+            ti.dag_version_id = latest_version_id
+        session.commit()
+        collection_url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances"
+
+        response = test_client.get(collection_url)
+
+        assert response.status_code == 200
+        entries = {(ti["task_id"], ti["map_index"]) for ti in response.json()["task_instances"]}
+        assert entries == {("kept", -1), ("mapped", 0), ("mapped", 1)}
+        response = test_client.get(f"{collection_url}/mapped/0")
+        assert response.status_code == 200
+        assert response.json()["map_index"] == 0
+
     def test_should_respond_200(self, test_client, session):
         self.create_task_instances(session)
         # Update ti and set operator to None to

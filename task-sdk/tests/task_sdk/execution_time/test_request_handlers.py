@@ -52,6 +52,13 @@ def client():
     return MagicMock(spec=sdk_client.Client)
 
 
+@pytest.fixture
+def client_ssl_cache():
+    sdk_client.Client._get_ssl_context_cached.cache_clear()
+    yield
+    sdk_client.Client._get_ssl_context_cached.cache_clear()
+
+
 def test_get_asset_state_store_by_name_wraps_response_as_result(client):
     client.asset_state_store.get.return_value = AssetStateStoreResponse(value="2026-01-01")
 

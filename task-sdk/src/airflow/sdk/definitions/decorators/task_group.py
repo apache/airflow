@@ -92,14 +92,17 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         """
         return self._create_task_group(TaskGroup, *args, **kwargs)
 
+    def apply_function_doc(self, task_group: TaskGroup) -> None:
+        if doc := self.function.__doc__:
+            if not task_group.tooltip:
+                task_group.tooltip = doc
+            if not task_group.doc_md:
+                # Function docstrings are documentation text, not file paths for the doc_md converter.
+                object.__setattr__(task_group, "doc_md", doc)
+
     def _create_task_group(self, tg_factory: Callable[..., TaskGroup], *args: Any, **kwargs: Any) -> DAGNode:
         with tg_factory(add_suffix_on_collision=True, **self.tg_kwargs) as task_group:
-            if doc := self.function.__doc__:
-                if not task_group.tooltip:
-                    task_group.tooltip = doc
-                if not task_group.doc_md:
-                    # Function docstrings are documentation text, not file paths for the doc_md converter.
-                    object.__setattr__(task_group, "doc_md", doc)
+            self.apply_function_doc(task_group)
 
             # Invoke function to run Tasks inside the TaskGroup
             retval = self.function(*args, **kwargs)

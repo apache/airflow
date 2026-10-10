@@ -20,10 +20,12 @@ from __future__ import annotations
 import dataclasses
 from pathlib import PurePosixPath
 from typing import get_args
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import jwt
 import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import object_session
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.executors import workloads
@@ -41,10 +43,19 @@ from airflow.executors.workloads.types import (
 )
 from airflow.models.callback import CallbackKey, ExecutorCallback
 from airflow.models.connection_test import ConnectionTestKey, ConnectionTestRequest, ConnectionTestState
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance as TaskInstanceModel
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.models.variable import Variable
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task_group
 from airflow.sdk.api.datamodels._generated import TaskInstance as GeneratedTaskInstance
+from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.task_log_address import TaskLogContext, prepare_task_log_contexts
 from airflow.utils.state import CallbackState, TaskInstanceState
+
+from tests_common.test_utils.asserts import assert_queries_count
 
 # One row per WorkloadType: (schema, key, state enum, ORM model).
 WORKLOAD_FAMILIES: dict[WorkloadType, tuple[type, type, type, type]] = {
@@ -58,6 +69,80 @@ WORKLOAD_FAMILIES: dict[WorkloadType, tuple[type, type, type, type]] = {
         ConnectionTestRequest,
     ),
 }
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("caller", ["workload", "reader", "context"])
+@pytest.mark.parametrize("detached", [False, True])
+def test_log_context_callers_preserve_ambient_transaction(dag_maker, session, caller, detached):
+    with dag_maker(session=session):
+        EmptyOperator(task_id="task")
+    ti = dag_maker.create_dagrun().task_instances[0]
+    session.commit()
+    if detached:
+        session.expunge(ti)
+    key = f"workload-session-{uuid4()}"
+    pending = Variable(key=key, val="uncommitted")
+    session.add(pending)
+
+    if caller == "workload":
+        ExecuteTask.make(
+            ti,
+            dag_rel_path=PurePosixPath("dag.py"),
+            bundle_info=BundleInfo(name="dags-folder", version=None),
+        )
+    elif caller == "reader":
+        FileTaskHandler("")._render_filename(ti, ti.try_number)
+    else:
+        prepare_task_log_contexts([ti], session=None if detached else session)
+
+    session.rollback()
+    assert session.scalar(select(Variable).where(Variable.key == key)) is None
+    assert object_session(ti) is (None if detached else session)
+
+
+@pytest.mark.db_test
+def test_execute_task_make_preserves_owner_for_lazy_bundle_loading(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(task_id="task")
+    ti = dag_maker.create_dagrun().task_instances[0]
+    session.flush()
+    session.expire(ti, ["dag_model"])
+
+    workload = ExecuteTask.make(ti)
+
+    assert workload.bundle_info.name == ti.dag_model.bundle_name
+    assert object_session(ti) is session
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    "template", ["old/{{ ti.task_id }}/{{ try_number }}.log", "old/{task_id}/{try_number}.log"]
+)
+def test_workload_uses_configured_log_template_and_reader_the_run_pinned_one(
+    create_log_template, create_task_instance, mocker, monkeypatch, template
+):
+    create_log_template(template)
+    ti = create_task_instance(task_id="task")
+    ti.try_number = 3
+    mocker.patch.object(ExecuteTask, "generate_token", autospec=True, return_value="token")
+    configured = "new/{{ ti.task_id }}/{{ ti.try_number }}.log"
+    monkeypatch.setenv("AIRFLOW__LOGGING__LOG_FILENAME_TEMPLATE", configured)
+    workload = ExecuteTask.make(
+        ti, dag_rel_path=PurePosixPath("test.py"), bundle_info=BundleInfo(name="dags-folder", version=None)
+    )
+    assert workload.log_path == "new/task/3.log"
+    assert FileTaskHandler("")._render_filename(ti, ti.try_number) == "old/task/3.log"
+
+    context = prepare_task_log_contexts([ti], filename_template=configured)[ti.id]
+    with assert_queries_count(0):
+        prepared_workload = ExecuteTask.make(
+            ti,
+            dag_rel_path=PurePosixPath("test.py"),
+            bundle_info=BundleInfo(name="dags-folder", version=None),
+            log_context=context,
+        )
+    assert prepared_workload.log_path == workload.log_path
 
 
 def _union_members(alias) -> set[type]:
@@ -216,7 +301,11 @@ def test_callback_dto_key_returns_callback_key_instance():
     assert str(key) == cid
 
 
-def test_workload_ti_round_trips_through_sdk_generated_model():
+@pytest.mark.parametrize(
+    "coordinates",
+    [{}, {"region_id": uuid4(), "region_index": 7}],
+)
+def test_workload_ti_round_trips_through_sdk_generated_model(coordinates):
     """
     The executor-side DTO and the SDK's generated TaskInstance share the
     execution API schema; the serialized workload must carry the routing
@@ -235,11 +324,13 @@ def test_workload_ti_round_trips_through_sdk_generated_model():
         priority_weight=5,
         external_executor_id="celery-id",
         executor_config={"KubernetesExecutor": {"image": "custom"}},
+        **coordinates,
     )
 
     dumped = ti.model_dump(mode="json")
     assert "external_executor_id" not in dumped
     assert "executor_config" not in dumped
+    assert ("region_id" in dumped) == ("region_index" in dumped) == bool(coordinates)
     # Executor-side scheduling fields stay on the workload wire (older workers
     # deserialize the workload with a model that requires them) but are not
     # part of the worker-facing schema.
@@ -249,7 +340,62 @@ def test_workload_ti_round_trips_through_sdk_generated_model():
     received = GeneratedTaskInstance.model_validate(dumped)
     assert received.queue == "jdk-17"
     assert received.map_index == 3
+    assert received.region_id == coordinates.get("region_id")
+    assert received.region_index == coordinates.get("region_index")
+    assert ("region_index" in received.model_fields_set) == ("region_index" in dumped)
     assert not hasattr(received, "pool_slots")
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("map_index", [-1, 3])
+def test_execute_task_carries_persisted_legacy_coordinates(dag_maker, session, map_index):
+    with dag_maker():
+        EmptyOperator(task_id="task")
+    ti = dag_maker.create_dagrun().task_instances[0]
+    ti.map_index = map_index
+    session.flush()
+
+    workload = ExecuteTask.make(
+        ti,
+        dag_rel_path=PurePosixPath("dag.py"),
+        bundle_info=BundleInfo(name="dags-folder", version=None),
+    )
+    received = GeneratedTaskInstance.model_validate_json(workload.ti.model_dump_json())
+
+    assert received.region_id is None
+    assert received.region_index is None
+    assert received.map_index == map_index
+    assert workload.key.map_index == map_index
+
+
+@pytest.mark.db_test
+def test_execute_task_projects_unmapped_loop_index_without_changing_storage(dag_maker, session):
+    @task_group
+    def body():
+        EmptyOperator(task_id="task")
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+    ti = dag_maker.create_dagrun().task_instances[0]
+    region = DynamicRegion(dag_id=ti.dag_id, run_id=ti.run_id, node_id=loop.group_id)
+    session.add(region)
+    session.flush()
+    ti.region_id, ti.region_index = region.id, 2
+    session.flush()
+
+    context = prepare_task_log_contexts([ti], session=session)[ti.id]
+    with assert_queries_count(0):
+        workload = ExecuteTask.make(
+            ti, bundle_info=BundleInfo(name="dags-folder", version=None), log_context=context
+        )
+
+    assert workload.ti.map_index == -1
+    assert workload.ti.region_index == 2
+    assert workload.ti.region_id == region.id
+    assert workload.key == ti.key
+    assert workload.key.map_index == 2
+    assert "pass=2" in str(workload.log_path)
+    assert ti.region_index == 2
 
 
 class TestExecuteTaskMakeVersionData:
@@ -257,9 +403,10 @@ class TestExecuteTaskMakeVersionData:
 
     @pytest.fixture(autouse=True)
     def _stub_log_template(self, monkeypatch):
+        monkeypatch.setattr("airflow.executors.workloads.task.object_session", lambda ti: None)
         monkeypatch.setattr(
-            "airflow.utils.helpers.log_filename_template_renderer",
-            lambda: lambda **kwargs: "test.log",
+            "airflow.utils.log.task_log_address.prepare_task_log_contexts",
+            lambda tis, **_: {ti.id: TaskLogContext("test.log", "", "", "") for ti in tis},
         )
 
     @staticmethod
@@ -289,6 +436,8 @@ class TestExecuteTaskMakeVersionData:
         ti.run_id = "test_run"
         ti.try_number = 1
         ti.map_index = -1
+        ti.region_id = UUID(int=0)
+        ti.region_index = -1
         ti.pool_slots = 1
         ti.queue = "default"
         ti.priority_weight = 1

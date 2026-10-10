@@ -54,11 +54,16 @@ from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.log import Log
+from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
@@ -167,7 +172,255 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
     validator.avalidated_claims.assert_awaited()
 
 
+@pytest.fixture
+def loop_reader_tis(dag_maker, session):
+    @task_group
+    def body():
+        EmptyOperator(task_id="task")
+
+    with dag_maker(serialized=True) as dag:
+        create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+    session.add(region)
+    session.flush()
+    current = next(ti for ti in dr.task_instances if ti.task_id == "body.task")
+    current.region_id, current.region_index, current.state = region.id, 2, State.SUCCESS
+    previous = TaskInstance(
+        task=dag.get_task(current.task_id), run_id=dr.run_id, dag_version_id=current.dag_version_id
+    )
+    previous.region_id, previous.region_index, previous.state = region.id, 1, State.FAILED
+    session.add(previous)
+    session.commit()
+    return current, previous
+
+
+def test_execution_count_reports_the_latest_loop_pass(client, loop_reader_tis):
+    current, _ = loop_reader_tis
+    params = {"dag_id": current.dag_id, "task_ids": [current.task_id], "map_index": -1}
+    url = "/execution/task-instances/count"
+    assert client.get(url, params=params).json() == 1
+    assert client.get(url, params={**params, "states": ["success"]}).json() == 1
+    assert client.get(url, params={**params, "states": ["failed"]}).json() == 0
+
+
+@pytest.mark.parametrize("older_row_is_last", [False, True])
+def test_execution_states_report_the_latest_loop_pass(client, session, loop_reader_tis, older_row_is_last):
+    current, previous = loop_reader_tis
+    latest = current
+    if older_row_is_last:
+        current.region_index, previous.region_index = 0, 2
+        latest = previous
+    session.commit()
+    params = {"dag_id": current.dag_id, "task_ids": [current.task_id], "map_index": -1}
+
+    response = client.get("/execution/task-instances/states", params=params)
+
+    assert response.status_code == 200
+    assert response.json() == {"task_states": {current.run_id: {current.task_id: latest.state}}}
+
+
+@pytest.mark.parametrize("endpoint", ["count", "states"])
+def test_execution_reads_reject_live_task_instances_in_one_slot_that_the_loop_cannot_tell_apart(
+    client, session, loop_reader_tis, endpoint
+):
+    current, _ = loop_reader_tis
+    stray = TaskInstance(task=current.task, run_id=current.run_id, dag_version_id=current.dag_version_id)
+    stray.region_id, stray.region_index, stray.state = uuid4(), 5, State.SUCCESS
+    session.add(stray)
+    session.commit()
+
+    response = client.get(
+        f"/execution/task-instances/{endpoint}",
+        params={"dag_id": current.dag_id, "task_ids": [current.task_id], "map_index": -1},
+    )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.parametrize("endpoint", ["count", "states"])
+def test_execution_reads_reject_two_live_task_instances_in_one_loop_pass(
+    client, session, loop_reader_tis, endpoint
+):
+    current, _ = loop_reader_tis
+    fork = DynamicRegion(
+        dag_id=current.dag_id, run_id=current.run_id, node_id="body", forked_from_region_id=current.region_id
+    )
+    session.add(fork)
+    session.flush()
+    twin = TaskInstance(task=current.task, run_id=current.run_id, dag_version_id=current.dag_version_id)
+    twin.region_id, twin.region_index, twin.state = fork.id, 2, State.SUCCESS
+    session.add(twin)
+    session.commit()
+
+    response = client.get(
+        f"/execution/task-instances/{endpoint}",
+        params={"dag_id": current.dag_id, "task_ids": [current.task_id], "map_index": -1},
+    )
+
+    assert response.status_code == 409
+
+
+def test_execution_previous_reports_the_latest_loop_pass(client, loop_reader_tis):
+    current, _ = loop_reader_tis
+
+    response = client.get(
+        f"/execution/task-instances/previous/{current.dag_id}/{current.task_id}", params={"map_index": -1}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["map_index"] == -1
+    assert response.json()["region_index"] == 2
+
+
+@pytest.fixture
+def mapped_loop_runs(dag_maker, session):
+    """A loop over a mapped task: the old run has one pass of two items, the current run two passes."""
+
+    @task_group(group_id="body")
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+
+    with dag_maker(serialized=True) as dag:
+        create_loop(body, max_iterations=3)
+
+    def add_pass(run, loop_region, iteration, states):
+        region = DynamicRegion(
+            dag_id=run.dag_id,
+            run_id=run.run_id,
+            node_id="body.mapped",
+            parent_region_id=loop_region.id,
+            parent_region_index=iteration,
+        )
+        session.add(region)
+        session.flush()
+        expanded = sorted(
+            (ti for ti in run.task_instances if ti.task_id == "body.mapped"), key=lambda ti: ti.map_index
+        )
+        for index, state in enumerate(states):
+            if iteration == 0:
+                ti = expanded[index]
+            else:
+                ti = TaskInstance(
+                    task=dag.get_task("body.mapped"),
+                    run_id=run.run_id,
+                    dag_version_id=expanded[0].dag_version_id,
+                )
+                session.add(ti)
+            ti.region_id, ti.region_index, ti.state = region.id, index, state
+
+    runs = {}
+    for run_id, logical_date, passes in [
+        ("old", timezone.datetime(2026, 1, 1), [[State.SUCCESS, State.SUCCESS]]),
+        ("current", timezone.datetime(2026, 1, 2), [[State.SUCCESS, State.SUCCESS], [State.FAILED]]),
+    ]:
+        run = dag_maker.create_dagrun(run_id=run_id, logical_date=logical_date)
+        loop_region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="body")
+        session.add(loop_region)
+        session.flush()
+        for iteration, states in enumerate(passes):
+            add_pass(run, loop_region, iteration, states)
+        runs[run_id] = run
+    session.commit()
+    return runs
+
+
+@pytest.mark.parametrize(
+    ("map_index", "expected_count"),
+    [
+        pytest.param(None, 1, id="all-slots"),
+        pytest.param(0, 1, id="slot-of-the-latest-pass"),
+        pytest.param(1, 0, id="slot-only-an-older-pass-has"),
+    ],
+)
+def test_execution_count_ignores_slots_of_older_passes_that_the_latest_pass_lacks(
+    client, mapped_loop_runs, map_index, expected_count
+):
+    run = mapped_loop_runs["current"]
+    params = {"dag_id": run.dag_id, "task_ids": ["body.mapped"], "run_ids": [run.run_id]}
+    if map_index is not None:
+        params["map_index"] = map_index
+
+    response = client.get("/execution/task-instances/count", params=params)
+
+    assert response.json() == expected_count
+
+
+def test_execution_states_ignore_slots_of_older_passes_that_the_latest_pass_lacks(client, mapped_loop_runs):
+    run = mapped_loop_runs["current"]
+
+    response = client.get(
+        "/execution/task-instances/states",
+        params={"dag_id": run.dag_id, "task_ids": ["body.mapped"], "run_ids": ["old", "current"]},
+    )
+
+    assert response.json() == {
+        "task_states": {
+            "old": {"body.mapped_0": "success", "body.mapped_1": "success"},
+            "current": {"body.mapped_0": "failed"},
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ("map_index", "expected_run", "expected_pass"),
+    [
+        pytest.param(0, "current", 1, id="slot-of-the-latest-pass"),
+        pytest.param(1, "old", 0, id="slot-only-an-older-pass-has-skips-to-the-earlier-run"),
+    ],
+)
+def test_execution_previous_skips_slots_of_older_passes_that_the_latest_pass_lacks(
+    client, session, mapped_loop_runs, map_index, expected_run, expected_pass
+):
+    run = mapped_loop_runs["current"]
+
+    response = client.get(
+        f"/execution/task-instances/previous/{run.dag_id}/body.mapped", params={"map_index": map_index}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_id"] == expected_run
+    assert response.json()["map_index"] == map_index
+    region = session.get(DynamicRegion, UUID(response.json()["region_id"]))
+    assert region.parent_region_index == expected_pass
+
+
+def test_execution_breadcrumbs_keep_regional_identity_separate_from_map_index(client, loop_reader_tis):
+    current, _ = loop_reader_tis
+    response = client.get(
+        "/execution/task-instances/breadcrumbs", params={"dag_id": current.dag_id, "run_id": current.run_id}
+    )
+    assert response.status_code == 200
+    breadcrumbs = response.json()["breadcrumbs"]
+    assert len(breadcrumbs) == 2
+    assert [row["map_index"] for row in breadcrumbs] == [-1, -1]
+    assert {row["region_index"] for row in breadcrumbs} == {1, 2}
+
+
 class TestTIRunState:
+    @pytest.mark.parametrize("regional", [False, True])
+    def test_startup_xcom_cleanup_keys_belong_to_the_starting_try(
+        self, client, session, create_task_instance, regional
+    ):
+        ti = create_task_instance(state=State.QUEUED, session=session)
+        region = DynamicRegion(dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop")
+        session.add(region)
+        session.flush()
+        if regional:
+            ti.region_id, ti.region_index = region.id, 2
+        sibling = TaskInstance(ti.task, ti.dag_version_id, run_id=ti.run_id, map_index=ti.map_index)
+        sibling.region_id = region.id if not regional else UUID(int=0)
+        session.add(sibling)
+        session.flush()
+        for candidate, key in [(ti, "own"), (sibling, "sibling")]:
+            XComModel.set_for_attempt(task_instance_id=candidate.id, key=key, value="value", session=session)
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        assert response.json()["xcom_keys_to_clear"] == ["own"]
+
     @pytest.mark.parametrize("matching_worker", [True, False])
     def test_restarting_start_distinguishes_original_worker(
         self, client, session, create_task_instance, matching_worker
@@ -3064,17 +3317,32 @@ class TestTIUpdateState:
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "True"})
-    def test_ti_update_state_to_success_clears_task_state(self, client, session, create_task_instance):
+    @pytest.mark.parametrize("regional", [False, True])
+    def test_ti_update_state_to_success_clears_task_state(
+        self, client, session, create_task_instance, regional
+    ):
         """When clear_on_success=True, task_state rows are deleted after TI transitions to SUCCESS."""
         ti = create_task_instance(
             task_id="test_clear_on_success",
             start_date=DEFAULT_START_DATE,
             state=State.RUNNING,
         )
+        if regional:
+            region = DynamicRegion(dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop")
+            session.add(region)
+            session.flush()
+            ti.region_id = region.id
+            ti.region_index = 2
         session.commit()
 
         backend = MetastoreBackend()
-        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        scope = TaskScope(
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.region_index,
+            region_id=ti.region_id,
+        )
         backend.set(scope, "job_id", "app_1234", session=session)
         backend.set(scope, "checkpoint", "step_3", session=session)
         session.commit()
@@ -3152,11 +3420,85 @@ class TestTIUpdateState:
 
 
 class TestTISkipDownstream:
+    def test_skip_downstream_selects_consumer_loop_pass(self, client, session, dag_maker):
+        @task_group
+        def body():
+            EmptyOperator(task_id="branch") >> EmptyOperator(task_id="target")
+
+        with dag_maker(serialized=True) as dag:
+            create_loop(body, max_iterations=3)
+        dr = dag_maker.create_dagrun()
+        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+        session.add(region)
+        session.flush()
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        caller, target = tis["body.branch"], tis["body.target"]
+        caller.region_id, caller.region_index = region.id, 2
+        target.region_id, target.region_index = region.id, 2
+        previous = TaskInstance(
+            task=dag.get_task(target.task_id), run_id=dr.run_id, dag_version_id=target.dag_version_id
+        )
+        previous.region_id, previous.region_index = region.id, 1
+        session.add(previous)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{caller.id}/skip-downstream", json={"tasks": [[target.task_id, -1]]}
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert target.state == State.SKIPPED
+        assert previous.state is None
+
     def setup_method(self):
         clear_db_runs()
 
     def teardown_method(self):
         clear_db_runs()
+
+    def test_ti_skip_downstream_asks_once_which_tasks_have_regions(self, client, session, dag_maker):
+        with dag_maker("skip_downstream_many", session=session):
+            head = EmptyOperator(task_id="head")
+            for index in range(6):
+                head >> EmptyOperator(task_id=f"t{index}")
+        dr = dag_maker.create_dagrun(run_id="run")
+        head_ti = dr.get_task_instance("head")
+        head_ti.set_state(State.SUCCESS)
+        session.commit()
+
+        with capture_orm_selects("task_instance") as statements:
+            response = client.patch(
+                f"/execution/task-instances/{head_ti.id}/skip-downstream",
+                json={"tasks": [f"t{index}" for index in range(6)]},
+            )
+
+        assert response.status_code == 204
+        region_lookups = [sql for sql in statements if "region_id !=" in sql]
+        assert len(region_lookups) == 1
+
+    def test_ti_skip_downstream_with_hundreds_of_targets_uses_constant_queries(
+        self, client, session, dag_maker
+    ):
+        with dag_maker("skip_downstream_hundreds", session=session):
+            head = EmptyOperator(task_id="head")
+            for index in range(520):
+                head >> EmptyOperator(task_id=f"t{index}")
+        dr = dag_maker.create_dagrun(run_id="run")
+        head_ti = dr.get_task_instance("head")
+        head_ti.set_state(State.SUCCESS)
+        session.commit()
+
+        with capture_orm_selects("task_instance") as statements:
+            response = client.patch(
+                f"/execution/task-instances/{head_ti.id}/skip-downstream",
+                json={"tasks": [f"t{index}" for index in range(520)]},
+            )
+
+        assert response.status_code == 204
+        assert len(statements) <= 6
+        session.expire_all()
+        assert {ti.state for ti in dr.get_task_instances() if ti.task_id != "head"} == {State.SKIPPED}
 
     @pytest.mark.parametrize("_json", (({"tasks": ["t1"]}), ({"tasks": [("t1", -1)]})))
     def test_ti_skip_downstream(self, client, session, create_task_instance, dag_maker, _json):
@@ -4257,6 +4599,31 @@ class TestGetPreviousTI:
         assert data["run_id"] == "run1"
         assert data["state"] == State.SUCCESS
 
+    def test_get_previous_ti_reports_no_region_for_a_task_outside_any_region(
+        self, client, session, create_task_instance
+    ):
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 1),
+            run_id="run1",
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 2),
+            run_id="run2",
+        )
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+            params={"logical_date": "2025-01-02T00:00:00Z"},
+        )
+
+        assert "region_id" not in response.json()
+        assert "region_index" not in response.json()
+
     def test_get_previous_ti_with_state_filter(self, client, session, create_task_instance):
         """Test get_previous_ti with state filter."""
         # Create TIs with different states
@@ -5288,6 +5655,7 @@ class TestEmitTaskSpan:
 
     @pytest.fixture(autouse=True)
     def sdk_tracer_provider(self):
+        self.resolver = mock.create_autospec(TaskCoordinateResolver, instance=True)
         self.exporter = InMemorySpanExporter()
         provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
         provider.add_span_processor(SimpleSpanProcessor(self.exporter))
@@ -5325,6 +5693,26 @@ class TestEmitTaskSpan:
         span = next(span for span in self.exporter.get_finished_spans() if span.name == "task_run.retry_span")
         assert span.attributes["airflow.task_instance.id"] == str(retiring_id)
         assert span.attributes["airflow.task_instance.try_number"] == 3
+        assert "airflow.task_instance.region_id" not in span.attributes
+        assert "airflow.task_instance.region_index" not in span.attributes
+
+    def test_loop_span_keeps_public_index_and_exact_region(self, client, session, loop_reader_tis):
+        ti, _ = loop_reader_tis
+        ti.state = State.RUNNING
+        ti.dag_run.context_carrier, ti.context_carrier = self._make_carriers()
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204, response.text
+        span = next(span for span in self.exporter.get_finished_spans() if "body.task" in span.name)
+        assert span.name == "task_run.body.task"
+        assert span.attributes["airflow.task_instance.map_index"] == -1
+        assert span.attributes["airflow.task_instance.region_id"] == str(ti.region_id)
+        assert span.attributes["airflow.task_instance.region_index"] == 2
 
     def _make_ti(self, task_id="my_task", map_index=-1, queued_dttm=None, start_date=None):
         dr_carrier, ti_carrier = self._make_carriers()
@@ -5334,7 +5722,9 @@ class TestEmitTaskSpan:
         ti.task_id = task_id
         ti.run_id = "test_run"
         ti.try_number = 1
-        ti.map_index = map_index
+        ti.region_id = UUID(int=0)
+        ti.region_index = map_index
+        self.resolver.public_map_index.return_value = map_index
         ti.queued_dttm = queued_dttm
         ti.start_date = start_date or DEFAULT_START_DATE
         ti.dag_run.context_carrier = dr_carrier
@@ -5342,14 +5732,14 @@ class TestEmitTaskSpan:
         return ti
 
     def test_emit_task_span_success_sets_ok_status(self):
-        _emit_task_span(self._make_ti(), TaskInstanceState.SUCCESS)
+        _emit_task_span(self._make_ti(), TaskInstanceState.SUCCESS, resolver=self.resolver)
 
         spans = self.exporter.get_finished_spans()
         assert len(spans) == 1
         assert spans[0].status.status_code == StatusCode.OK
 
     def test_emit_task_span_failed_sets_error_status(self):
-        _emit_task_span(self._make_ti(), TaskInstanceState.FAILED)
+        _emit_task_span(self._make_ti(), TaskInstanceState.FAILED, resolver=self.resolver)
 
         spans = self.exporter.get_finished_spans()
         assert len(spans) == 1
@@ -5357,7 +5747,7 @@ class TestEmitTaskSpan:
 
     def test_emit_task_span_sets_attributes(self):
         ti = self._make_ti(task_id="my_task", map_index=2)
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
 
         attrs = self.exporter.get_finished_spans()[0].attributes
         assert attrs["airflow.dag_id"] == "test_dag"
@@ -5372,25 +5762,29 @@ class TestEmitTaskSpan:
         assert isinstance(attrs["airflow.task_instance.id"], str)
 
     def test_emit_task_span_name_unmapped(self):
-        _emit_task_span(self._make_ti(task_id="my_task", map_index=-1), TaskInstanceState.SUCCESS)
+        _emit_task_span(
+            self._make_ti(task_id="my_task", map_index=-1), TaskInstanceState.SUCCESS, resolver=self.resolver
+        )
         assert self.exporter.get_finished_spans()[0].name == "task_run.my_task"
 
     def test_emit_task_span_name_mapped(self):
-        _emit_task_span(self._make_ti(task_id="my_task", map_index=3), TaskInstanceState.SUCCESS)
+        _emit_task_span(
+            self._make_ti(task_id="my_task", map_index=3), TaskInstanceState.SUCCESS, resolver=self.resolver
+        )
         assert self.exporter.get_finished_spans()[0].name == "task_run.my_task[3]"
 
     def test_emit_task_span_start_time_uses_queued_dttm(self):
         queued_dttm = timezone.parse("2024-01-01T10:00:00Z")
         start_date = timezone.parse("2024-01-01T10:05:00Z")
         ti = self._make_ti(queued_dttm=queued_dttm, start_date=start_date)
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
 
         assert self.exporter.get_finished_spans()[0].start_time == int(queued_dttm.timestamp() * 1e9)
 
     def test_emit_task_span_start_time_falls_back_to_start_date(self):
         start_date = timezone.parse("2024-01-01T10:05:00Z")
         ti = self._make_ti(queued_dttm=None, start_date=start_date)
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
 
         assert self.exporter.get_finished_spans()[0].start_time == int(start_date.timestamp() * 1e9)
 
@@ -5401,7 +5795,7 @@ class TestEmitTaskSpan:
         }
         ti.context_carrier = None
 
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
         assert len(self.exporter.get_finished_spans()) == 0
 
     def test_emit_task_span_skips_if_no_dagrun_carrier(self):
@@ -5409,7 +5803,7 @@ class TestEmitTaskSpan:
         ti.dag_run.context_carrier = None
         ti.context_carrier = {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
 
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
         assert len(self.exporter.get_finished_spans()) == 0
 
     @pytest.mark.parametrize(
@@ -5425,5 +5819,5 @@ class TestEmitTaskSpan:
         ti.dag_run.context_carrier = {
             "traceparent": f"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-{trace_flag}"
         }
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
         assert len(self.exporter.get_finished_spans()) == expected_spans

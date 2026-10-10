@@ -48,6 +48,7 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
@@ -206,6 +207,12 @@ EXAMPLE_STANDARD_DAGS_FOLDER = (
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_LOGICAL_DATE = timezone.coerce_datetime(DEFAULT_DATE)
 TRY_NUMBER = 1
+
+
+def get_callback_ti(ti):
+    return TIDataModel.model_validate(ti, from_attributes=True).model_copy(
+        update={"region_id": None, "region_index": None}
+    )
 
 
 @pytest.fixture(scope="class")
@@ -1015,6 +1022,34 @@ class TestSchedulerJob:
                 "task_id": "dummy_task",
             },
         )
+
+    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
+    def test_process_executor_events_callback_for_removed_mapped_task(
+        self, mock_task_callback, dag_maker, session
+    ):
+        dag_id = "executor_event_removed_mapped"
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/", serialized=True):
+            BashOperator.partial(
+                task_id="mapped", bash_command="true", on_failure_callback=lambda x: print("hi")
+            ).expand(env=[{"a": "1"}, {"a": "2"}])
+        dr = dag_maker.create_dagrun()
+        ti = next(ti for ti in dr.task_instances if ti.region_index == 1)
+        ti_id = ti.id
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/", serialized=True):
+            EmptyOperator(task_id="other")
+        ti.dag_version_id = DagVersion.get_latest_version(dag_id, session=session).id
+        ti.state = State.QUEUED
+        dr.bundle_version = "pinned-bundle-version"
+        session.commit()
+        executor = MockExecutor(do_update=False)
+        job_runner = SchedulerJobRunner(Job(), executors=[executor])
+        executor.event_buffer[TaskInstanceUuid(ti_id)] = State.FAILED, None
+
+        job_runner._process_executor_events(executor=executor, session=session)
+
+        session.expire_all()
+        assert session.get(TaskInstance, ti_id).state == State.FAILED
+        assert mock_task_callback.call_args.kwargs["ti"].map_index == 1
 
     def test_process_executor_events_drains_connection_test_events(self, dag_maker, session):
         """Connection-test events in the event_buffer are drained without being treated as callbacks."""
@@ -4533,7 +4568,7 @@ class TestSchedulerJob:
             bundle_version=orm_dag.bundle_version,
             context_from_server=DagRunContext(
                 dag_run=dr,
-                last_ti=dr.get_task_instance("dummy", session=session),
+                last_ti=get_callback_ti(dr.get_task_instance("dummy", session=session)),
             ),
             msg="timed_out",
         )
@@ -4779,7 +4814,7 @@ class TestSchedulerJob:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=dr,
-                last_ti=ti,
+                last_ti=get_callback_ti(ti),
             ),
         )
 
@@ -4861,7 +4896,7 @@ class TestSchedulerJob:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=dr,
-                last_ti=dr.get_task_instance("empty", session=session),
+                last_ti=get_callback_ti(dr.get_task_instance("empty", session=session)),
             ),
         )
 
@@ -10436,6 +10471,36 @@ class TestSchedulerJob:
         assert isinstance(request, TaskCallbackRequest)
         assert request.bundle_version is None
 
+    def test_stuck_in_queued_failure_callback_for_removed_mapped_task(
+        self, dag_maker, session, mock_executors
+    ):
+        dag_id = "stuck_removed_mapped"
+        with dag_maker(dag_id=dag_id, serialized=True):
+            BashOperator.partial(
+                task_id="mapped", bash_command="true", on_failure_callback=lambda x: print("hi")
+            ).expand(env=[{"a": "1"}, {"a": "2"}])
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = next(ti for ti in dr.task_instances if ti.region_index == 1)
+        ti_id = ti.id
+        with dag_maker(dag_id=dag_id, serialized=True):
+            EmptyOperator(task_id="other")
+        ti.dag_version_id = DagVersion.get_latest_version(dag_id, session=session).id
+        ti.state = State.QUEUED
+        ti.queued_dttm = timezone.utcnow()
+        dr.bundle_version = "pinned-bundle-version"
+        session.commit()
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        scheduler._task_queued_timeout = -300
+        scheduler._num_stuck_queued_retries = 0
+
+        with _loader_mock(mock_executors):
+            scheduler._handle_tasks_stuck_in_queued()
+
+        session.expire_all()
+        assert session.get(TaskInstance, ti_id).state == State.FAILED
+        request = mock_executors[0].send_callback.call_args[0][0]
+        assert request.ti.map_index == 1
+
     def test_scheduler_passes_context_from_server_on_task_failure(self, dag_maker, session):
         """Test that scheduler passes context_from_server when handling task failures."""
         with dag_maker(dag_id="test_dag", session=session):
@@ -10503,7 +10568,7 @@ class TestSchedulerJob:
         assert callback_req.msg == "timed_out"
         assert callback_req.context_from_server == DagRunContext(
             dag_run=dag_run,
-            last_ti=dag_run.get_task_instance(task_id="test_task"),
+            last_ti=get_callback_ti(dag_run.get_task_instance(task_id="test_task")),
         )
 
     @mock.patch("airflow.models.dagrun.get_listener_manager")

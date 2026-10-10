@@ -980,7 +980,10 @@ class TestWatchedSubprocess:
         assert proc.wait() == 0
         spy_agency.assert_spy_not_called(heartbeat_spy)
 
-    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start):
+    @pytest.mark.parametrize("log_to_file", [False, True])
+    def test_run_simple_dag(
+        self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start, tmp_path, log_to_file
+    ):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
@@ -1007,8 +1010,15 @@ class TestWatchedSubprocess:
                 dry_run=True,
                 client=client_with_ti_start,
                 bundle_info=bundle_info,
+                log_path=str(tmp_path / "task.log") if log_to_file else None,
             )
             assert exit_code == 0, captured_logs
+
+        if log_to_file:
+            records = [json.loads(line) for line in (tmp_path / "task.log").read_text().splitlines()]
+            greeting = next(record for record in records if record.get("event") == "Hello World hello!")
+            assert greeting["ti_id"] == str(ti.id)
+            return
 
         # We should have a log from the task!
         assert {
@@ -3444,6 +3454,8 @@ REQUEST_TEST_CASES = [
                 "task_id": "test_task",
                 "dag_id": "test_dag",
                 "run_id": "prev_run",
+                "region_id": None,
+                "region_index": None,
                 "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
                 "start_date": timezone.parse("2024-01-14T12:05:00Z"),
                 "end_date": timezone.parse("2024-01-14T12:10:00Z"),

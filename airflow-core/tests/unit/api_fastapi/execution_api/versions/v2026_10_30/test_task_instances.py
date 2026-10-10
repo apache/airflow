@@ -37,6 +37,20 @@ pytestmark = pytest.mark.db_test
 TIMESTAMP_STR = "2024-09-30T12:00:00Z"
 
 
+@pytest.mark.parametrize("version", ["2025-04-11", "2026-06-30", "2026-10-30"])
+def test_task_coordinate_schema_by_version(client, version):
+    response = client.get(f"/execution/openapi.json?version={version}")
+    assert response.status_code == 200
+    properties = response.json()["components"]["schemas"]["TaskInstance"]["properties"]
+    assert "map_index" in properties
+    assert ("queue" in properties) == (version != "2025-04-11")
+    assert ("region_id" in properties) == (version == "2026-10-30")
+    assert ("region_index" in properties) == (version == "2026-10-30")
+    previous = response.json()["components"]["schemas"]["PreviousTIResponse"]["properties"]
+    assert ("region_id" in previous) == (version == "2026-10-30")
+    assert ("region_index" in previous) == (version == "2026-10-30")
+
+
 @pytest.mark.parametrize(
     ("version", "expected_status"), [("2025-04-11", 404), ("2026-06-30", 404), ("2026-10-30", 410)]
 )
