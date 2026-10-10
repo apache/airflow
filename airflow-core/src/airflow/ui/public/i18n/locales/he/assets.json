@@ -1,5 +1,9 @@
 {
   "additional_data": "נתונים נוספים",
+  "alias_one": "כינוי",
+  "alias_other": "כינויים",
+  "alias_two": "שני כינויים",
+  "aliases": "כינויים",
   "asset_many": "נכסים",
   "asset_one": "נכס",
   "assetStateStore": {
@@ -13,6 +17,9 @@
     "deleteWarning": "הנכס יאבד רשומה זו ממאגר המצבים.",
     "edit": "ערוך מאגר מצבי נכסים",
     "emptyState": "מאגר מצבי הנכסים שומר ערכים בהקשר של זהות נכס, המשותפים לכל הרצות ה-Dags. עובדים יכולים לכתוב למאגר מצבי הנכסים באמצעות Task SDK.",
+    "entry_one": "רשומה",
+    "entry_other": "רשומות",
+    "entry_two": "שתי רשומות",
     "lastUpdatedBy": "עודכן לאחרונה על-ידי",
     "lastUpdatedByApi": "API",
     "lastUpdatedByWatcher": "Watcher",
@@ -42,7 +49,11 @@
     "title": "יצירת אירוע בנכס עבור {{name}}"
   },
   "events": "אירועים",
-  "extra": "תוכן",
+  "filters": {
+    "groupPlaceholder": "חיפוש קבוצה",
+    "hasEvents": "כולל אירועים",
+    "lastEventDateRange": "טווח תאריכי האירועים האחרונים"
+  },
   "group": "קבוצה",
   "lastAssetEvent": "אירוע אחרון בנכס",
   "name": "שם",
@@ -50,5 +61,9 @@
   "scheduledDags": "Dags מתוזמנים",
   "scheduling": "תזמון",
   "searchPlaceholder": "חיפוש נכסים",
-  "taskDependencies": "תלויות בין משימות"
+  "taskDependencies": "תלויות בין משימות",
+  "watcher_one": "צופה",
+  "watcher_other": "צופים",
+  "watcher_two": "שני צופים",
+  "watchers": "צופים"
 }

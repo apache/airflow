@@ -8,10 +8,21 @@
     "backwards": "הרץ לאחור",
     "dateRange": "טווח תאריכים",
     "errorStartDateBeforeEndDate": "תאריך ההתחלה חייב להיות לפני תאריך הסיום",
+    "exceptionReason": {
+      "alreadyExists": "כבר קיים",
+      "inFlight": "בתהליך",
+      "unknown": "לא ידוע"
+    },
     "maxRuns": "מספר ריצות מקבילות מירבי",
     "missingAndErroredRuns": "הרצות חסרות ושגויות",
     "missingRuns": "הרצות חסרות",
+    "notCreatedReason": "סיבת אי-היצירה",
     "overrideExistingParams": "דרוס פרמטרים בהרצות קיימות",
+    "partitionRange": "טווח מחיצות",
+    "partitionsAffected_one": "מחיצה אחת תושלם למפרע:",
+    "partitionsAffected_other": "{{count}} מחיצות יושלמו למפרע:",
+    "partitionsAffected_two": "{{count}} מחיצות יושלמו למפרע:",
+    "partitionsNone": "לא נמצאו מחיצות התואמות לטווח שנבחר.",
     "permissionDenied": "הרצה יבשה (Dry Run) נכשלה: למשתמש אין הרשאה ליצור Backfills.",
     "reprocessBehavior": "התנהגות עיבוד מחדש",
     "run": "הרץ Backfill",
@@ -29,7 +40,8 @@
     "validation": {
       "datesRequired": "יש להזין גם תאריך התחלה וגם תאריך סיום של מרווח הנתונים.",
       "startBeforeEnd": "תאריך התחלת מרווח הנתונים חייב להיות קטן או שווה לתאריך סיום מרווח הנתונים."
-    }
+    },
+    "viewSlots": "הצגת חריצים להשלמה למפרע #{{id}}"
   },
   "banner": {
     "backfillInProgress": "Backfill בתהליך",
@@ -104,6 +116,11 @@
     "taskGroup": "קבוצת משימות",
     "zoomToTask": "התמקד במשימה שנבחרה"
   },
+  "jsonPreview": {
+    "items_one": "פריט אחד",
+    "items_other": "{{count}} פריטים",
+    "items_two": "{{count}} פריטים"
+  },
   "limitedList": "+ {{count}} נוספים",
   "limitedList.allItems": "כל {{count}} הפריטים:",
   "limitedList.allTags_one": "כל התגיות (1)",
@@ -119,7 +136,28 @@
     "file": "קובץ",
     "location": "שורה {{line}} ב{{name}}"
   },
+  "passwordToggle": {
+    "hide": "הסתרת ערך",
+    "show": "הצגת ערך"
+  },
+  "pausedDag": {
+    "drain": "השהיה לאחר סיום",
+    "drainDescription": "הרצות שלא הסתיימו יימשכו, אך לא ייווצרו הרצות מתוזמנות. השלמות למפרע שהושהו יישארו מושהות. ה-Dag יושהה שוב לאחר שכל ההרצות יסתיימו.",
+    "keepPaused": "השאר מושהה",
+    "keepPausedDescription": "הרצות חדשות והרצות שלא הסתיימו ימתינו עד לביטול השהיית ה-Dag.",
+    "title": "ה-Dag מושהה",
+    "unfinishedRunsWillRun_one": "הרצת Dag אחת שלא הסתיימה תתחיל או תתחדש.",
+    "unfinishedRunsWillRun_other": "{{count}} הרצות Dag שלא הסתיימו יתחילו או יתחדשו.",
+    "unfinishedRunsWillRun_two": "{{count}} הרצות Dag שלא הסתיימו יתחילו או יתחדשו.",
+    "unpause": "בטל השהיה",
+    "unpauseDescription": "ה-Dag יהפוך לפעיל: הרצות שלא הסתיימו יימשכו והתזמון יתחדש. השלמות למפרע שהושהו יישארו מושהות."
+  },
   "reparseDag": "נתח Dag מחדש",
+  "slowestTaskInstances": {
+    "empty": "אין מופעי משימה שהסתיימו בטווח הזה",
+    "title": "מופעי המשימה האיטיים ביותר"
+  },
+  "sortMultiColumnHint": "לחץ תוך כדי החזקת Shift כדי למיין לפי כמה עמודות",
   "sortedAscending": "ממוין בסדר עולה",
   "sortedDescending": "ממוין בסדר יורד",
   "sortedUnsorted": "לא ממוין",
@@ -139,6 +177,7 @@
     "dataInterval": "מרווח נתונים",
     "dataIntervalAuto": "מוסק מתוך התאריך הלוגי וטבלת הזמנים",
     "dataIntervalManual": "הגדר ידנית",
+    "editConfigAndTrigger": "ערוך הגדרות והפעל",
     "intervalEnd": "סיום",
     "intervalStart": "התחלה",
     "loading": "טוען מידע Dag...",
@@ -158,7 +197,8 @@
         "title": "ריצת Dag הופעלה"
       }
     },
-    "triggerAgainWithConfig": "הפעל שוב עם התצורה הזו"
+    "triggerAgainWithConfig": "הפעל שוב עם התצורה הזו",
+    "triggerOptions": "אפשרויות הפעלה"
   },
   "trimText": {
     "details": "פרטים",
@@ -175,6 +215,7 @@
   "versionSelect": {
     "allVersions": "כל הגרסאות",
     "dagVersion": "גרסת Dag",
+    "placeholder": "בחר גרסה",
     "versionCode": "גרסה {{versionCode}}"
   }
 }

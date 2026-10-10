@@ -30,14 +30,30 @@
   "group": "קבוצה",
   "health": {
     "dagProcessor": "מנתח Dags",
+    "degraded": "ירוד",
+    "degradedHint": {
+      "dagProcessor": "בחלק מחבילות ה-Dag שהוגדרו אין מעבד Dag שמנתח אותן.",
+      "triggerer": "בחלק מהצוותים אין מפעיל שמריץ עבורם משימות מושהות."
+    },
+    "down": "לא פעיל",
     "health": "תקינות",
     "healthy": "תקין",
+    "instances": {
+      "bundles": "חבילות",
+      "hostname": "מארח",
+      "team": "צוות",
+      "title_one": "{{title}} — {{status}} ({{count}} מופע)",
+      "title_other": "{{title}} — {{status}} ({{count}} מופעים)",
+      "title_two": "{{title}} — {{status}} ({{count}} מופעים)",
+      "unknownHostname": "מארח לא ידוע"
+    },
     "lastHeartbeat": "פעימה אחרונה",
     "metaDatabase": "מטא מסד-נתונים",
     "scheduler": "מתזמן",
     "status": "סטאטוס",
     "triggerer": "מנהל תהליכים בהמתנה",
-    "unhealthy": "לא תקין"
+    "unhealthy": "לא תקין",
+    "unknownStatus": "לא ידוע"
   },
   "history": "היסטוריה",
   "importErrors": {
