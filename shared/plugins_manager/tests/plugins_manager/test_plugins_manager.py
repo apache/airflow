@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import sys
+from importlib.metadata import Distribution, EntryPoint
 from unittest import mock
 
 import pytest
@@ -110,6 +111,36 @@ class TestPluginsManager:
                 "test.plugins.test_plugins_manager",
                 "my_fake_module not found",
             ) in import_errors.items()
+
+    @mock.patch.object(EntryPoint, "load", autospec=True)
+    @mock.patch("airflow_shared.module_loading.entry_points_with_dist", autospec=True)
+    def test_entrypoint_plugin_found_on_two_sys_path_entries_is_loaded_once(
+        self, mock_entry_points, mock_load
+    ):
+        class KafkaLikePlugin(AirflowPlugin):
+            name = "kafka_event_producer"
+
+        mock_load.return_value = KafkaLikePlugin
+
+        def make_entry_point_and_dist():
+            entry_point = EntryPoint(
+                name="kafka_event_producer",
+                value="airflow.providers.apache.kafka.plugins.event_producer:KafkaEventProducerPlugin",
+                group="airflow.plugins",
+            )
+            dist = mock.Mock(spec=Distribution)
+            dist.metadata = {"Name": "apache-airflow-providers-apache-kafka"}
+            dist.version = "2.0.0"
+            return entry_point, dist
+
+        # The same distribution found through lib64/site-packages and lib/site-packages.
+        mock_entry_points.return_value = [make_entry_point_and_dist(), make_entry_point_and_dist()]
+
+        plugins, import_errors = _load_entrypoint_plugins()
+
+        assert [plugin.name for plugin in plugins] == ["kafka_event_producer"]
+        assert import_errors == {}
+        mock_load.assert_called_once()
 
 
 class TestAirflowPluginTeamName:
