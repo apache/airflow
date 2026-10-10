@@ -57,6 +57,7 @@ from airflow.providers.common.ai.utils.decision import (
     threshold_for,
 )
 from airflow.providers.common.ai.utils.masking import mask_secrets
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 try:
     from airflow.sdk.definitions.retry_policy import (
@@ -66,7 +67,7 @@ try:
         RetryPolicy,
     )
 except ImportError:
-    raise ImportError(
+    raise AirflowOptionalProviderFeatureException(
         "LLMRetryPolicy requires Airflow 3.3+ which includes RetryPolicy support. "
         "Please upgrade apache-airflow-core."
     ) from None

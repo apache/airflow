@@ -17,10 +17,12 @@
 from __future__ import annotations
 
 import copy
+import importlib.util
 import json
 import logging
 import math
 import re
+import sys
 import traceback
 import warnings
 from datetime import timedelta
@@ -37,6 +39,7 @@ from pydantic_ai.messages import ModelResponse
 # Skip the entire test module on older Airflow versions tested in compat CI.
 pytest.importorskip("airflow.sdk.definitions.retry_policy", reason="RetryPolicy requires Airflow 3.3+")
 
+from airflow.providers.common.ai.policies import retry as retry_module
 from airflow.providers.common.ai.policies.retry import (
     CLASSIFIER_INSTRUCTIONS,
     DEFAULT_CATEGORIES,
@@ -48,6 +51,7 @@ from airflow.providers.common.ai.policies.retry import (
     redact_registered_secrets,
 )
 from airflow.providers.common.ai.utils.decision import picked_key
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision, RetryPolicy, RetryRule
 from airflow.sdk.log import mask_secret
@@ -103,6 +107,15 @@ def test_redact_registered_secrets_masks_only_registered_values():
         redact_registered_secrets("contact user@example.com with super-secret-conn-password")
         == "contact user@example.com with ***"
     )
+
+
+def test_import_without_retry_policy_support_raises_optional_feature_exception():
+    """A fresh copy of the module is executed so the real one in ``sys.modules`` stays intact."""
+    spec = importlib.util.spec_from_file_location("_retry_without_support", retry_module.__file__)
+    module = importlib.util.module_from_spec(spec)
+    with patch.dict(sys.modules, {"airflow.sdk.definitions.retry_policy": None}):
+        with pytest.raises(AirflowOptionalProviderFeatureException, match="Airflow 3.3"):
+            spec.loader.exec_module(module)
 
 
 class TestErrorCategory:

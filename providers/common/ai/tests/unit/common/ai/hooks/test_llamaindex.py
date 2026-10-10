@@ -56,6 +56,11 @@ class TestLlamaIndexHookInit:
         assert hook.embed_model == "text-embedding-3-large"
         assert hook.llm_model == "gpt-4o"
 
+    def test_model_arguments_are_keyword_only(self):
+        """The model arguments cannot be passed positionally."""
+        with pytest.raises(TypeError, match="positional argument"):
+            LlamaIndexHook("llm", "embed", "text-embedding-3-small")
+
     def test_conn_type_is_llamaindex(self):
         assert LlamaIndexHook.conn_type == "llamaindex"
         assert LlamaIndexHook.default_conn_name == "llamaindex_default"
@@ -265,6 +270,16 @@ class TestConnectionTest:
 
         assert success is False
         assert "Invalid API key" in message
+
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_non_openai_model_name_fails(self, mock_get_conn):
+        """The real ``OpenAI`` class only rejects a model name once ``.metadata`` is read."""
+        mock_get_conn.return_value = _conn(password="sk-test", extra={"llm_model": "llama3.2"})
+
+        success, message = LlamaIndexHook().test_connection()
+
+        assert success is False
+        assert "Unknown model 'llama3.2'" in message
 
     @patch.object(LlamaIndexHook, "get_connection")
     def test_failed_connection_no_model(self, mock_get_conn):

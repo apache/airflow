@@ -1392,6 +1392,20 @@ class TestPydanticAIHookCreateAgentInstrumentation:
         mock_settings.assert_not_called()
 
 
+class _RejectsKwargsProvider:
+    """Stand-in for a provider class whose constructor takes none of the connection's fields."""
+
+    def __init__(self):
+        pass
+
+
+def _call_provider_factory(model_name, provider_factory=None):
+    """Stand-in for ``infer_model`` that, like the real one, builds the provider eagerly."""
+    if provider_factory is not None:
+        provider_factory(model_name.split(":", 1)[0])
+    return MagicMock(spec=Model)
+
+
 class TestPydanticAIHookTestConnection:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_successful_connection(self, mock_infer_model):
@@ -1440,6 +1454,49 @@ class TestPydanticAIHookTestConnection:
 
         assert success is False
         assert "No model specified" in message
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    def test_get_conn_raises_when_provider_class_rejects_credentials(
+        self, mock_infer_model, mock_infer_provider_class, registry
+    ):
+        mock_infer_provider_class.return_value = _RejectsKwargsProvider
+        mock_infer_model.side_effect = _call_provider_factory
+        registry.add("primary", password="sk-key", extra={"model": "openai:gpt-5.6-sol"})
+
+        with pytest.raises(ValueError, match="rejected the credentials") as exc_info:
+            PydanticAIHook(llm_conn_id="primary").get_conn()
+
+        assert isinstance(exc_info.value.__cause__, TypeError)
+
+    @pytest.mark.parametrize(
+        ("fallback_conn_ids", "expected_conn_id"),
+        [
+            pytest.param(None, "primary", id="primary"),
+            pytest.param(["second"], "second", id="fallback_connection"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    def test_reports_credentials_rejected_by_provider_class(
+        self, mock_infer_model, mock_infer_provider_class, registry, fallback_conn_ids, expected_conn_id
+    ):
+        mock_infer_provider_class.return_value = _RejectsKwargsProvider
+        mock_infer_model.side_effect = _call_provider_factory
+        registry.add(
+            "primary",
+            password="sk-key" if fallback_conn_ids is None else None,
+            extra={"model": "openai:gpt-5.6-sol"},
+        )
+        registry.add("second", password="sk-key", extra={"model": "openai:gpt-5.6-sol"})
+
+        success, message = PydanticAIHook(
+            llm_conn_id="primary", fallback_conn_ids=fallback_conn_ids
+        ).test_connection()
+
+        assert success is False
+        assert f"Provider 'openai' rejected the credentials from connection '{expected_conn_id}'" in message
+        assert "(ignored: api_key)" in message
 
 
 # ---------------------------------------------------------------------------
@@ -1851,13 +1908,12 @@ class TestPydanticAIVertexHook:
         mock_provider_cls.assert_called_with(project="my-project", location="europe-west4")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_conn_vertexai_flag_does_not_trigger_typeerror_fallback(
-        self, mock_infer_provider_class, mock_infer_provider, mock_infer_model
+    def test_get_conn_vertexai_flag_does_not_trigger_typeerror_rejection(
+        self, mock_infer_provider_class, mock_infer_model
     ):
-        """Setting ``vertexai`` must not push ``get_conn`` onto the ``except TypeError``
-        fallback path, which would silently discard project/location/credentials.
+        """Setting ``vertexai`` must not make the provider class reject the connection's
+        kwargs with ``TypeError``, which ``get_conn`` turns into a ``ValueError``.
 
         The stand-in below has the exact keyword-only signature of the real
         ``GoogleCloudProvider.__init__`` (verified against the installed pydantic-ai) so
@@ -1911,8 +1967,6 @@ class TestPydanticAIVertexHook:
         assert isinstance(provider, FakeGoogleCloudProvider)
         assert provider.kwargs["project"] == "my-project"
         assert provider.kwargs["location"] == "us-central1"
-        # The TypeError fallback must never have been reached.
-        mock_infer_provider.assert_not_called()
 
     def test_documented_model_prefix_is_a_valid_pydantic_ai_provider(self):
         """Regression test: the model-prefix documented in the connection form and

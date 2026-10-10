@@ -24,7 +24,7 @@ from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.fallback import FallbackModel
-from pydantic_ai.providers import infer_provider, infer_provider_class
+from pydantic_ai.providers import infer_provider_class
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.compat.sdk import BaseHook
@@ -406,13 +406,12 @@ class PydanticAIHook(BaseHook):
             def _provider_factory(pname: str) -> Any:
                 try:
                     return infer_provider_class(pname)(**_kwargs)
-                except TypeError:
-                    self.log.warning(
-                        "Provider '%s' rejected kwargs %s; falling back to env-var auth",
-                        pname,
-                        list(_kwargs),
-                    )
-                    return infer_provider(pname)
+                except TypeError as e:
+                    raise ValueError(
+                        f"Provider '{pname}' rejected the credentials from connection "
+                        f"'{self.llm_conn_id}' (ignored: {', '.join(_kwargs)}). Not falling back to "
+                        "environment-variable auth, which would authenticate as a different identity."
+                    ) from e
 
             return infer_model(model_name, provider_factory=_provider_factory)
 
@@ -624,11 +623,10 @@ class PydanticAIHook(BaseHook):
         """
         Test connection by resolving the model.
 
-        A success here can come from this connection's own credentials, or -- when a
-        provider class rejects them with a ``TypeError`` -- from a silent retry against
-        the standard environment variables, which ignores those credentials entirely.
-        See :doc:`/provider_fallback`'s *Verifying a chain* section for how to tell the
-        two apart. Does NOT make an LLM API call — that would be expensive and fail for
+        A provider class rejecting the connection's credentials is reported as a failure
+        naming the provider and the ignored fields.
+
+        Does NOT make an LLM API call — that would be expensive and fail for
         reasons unrelated to connectivity (quotas, billing, rate limits).
 
         Every connection in ``fallback_conn_ids`` is resolved too, so a
@@ -637,9 +635,9 @@ class PydanticAIHook(BaseHook):
         """
         try:
             self.get_conn()
-            return True, "Model resolved successfully."
         except Exception as e:
             return False, str(e)
+        return True, "Model resolved successfully."
 
 
 class PydanticAIAzureHook(PydanticAIHook):
@@ -873,11 +871,10 @@ class PydanticAIVertexHook(PydanticAIHook):
         # "vertexai" predates pydantic-ai splitting GoogleProvider (Generative Language API)
         # from GoogleCloudProvider (Vertex AI, which hardcodes vertexai=True internally and
         # accepts no such constructor kwarg) in pydantic/pydantic-ai#5336. Forwarding it would
-        # raise TypeError, which the base hook's `except TypeError` in get_conn() would then
-        # catch: it logs a warning and falls back to env-var auth rather than raising --
-        # authenticating as the wrong identity (with *all* other kwargs discarded). Accept
-        # the field for backward compatibility but never forward it: which API is used is
-        # now controlled by the model prefix.
+        # raise TypeError, which the base hook's `except TypeError` in get_conn() would turn
+        # into a ValueError rejecting the whole connection. Accept the field for backward
+        # compatibility but never forward it: which API is used is now controlled by the
+        # model prefix.
         if extra.get("vertexai") is not None:
             self.log.warning(
                 "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "
