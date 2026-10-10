@@ -407,6 +407,8 @@ class DagDocument(BaseModel):
             refs = set(t.needs)
             for v in itertools.chain(t.with_.values(), (t.run or {}).values()):
                 refs.update(_iter_xcom_task_ids(v))
+            if t.id_ in refs:
+                raise ValueError(f"task {t.id_!r} depends on itself")
             if missing := (refs - validated_task_ids):
                 raise ValueError(f"task {t.id_!r} references unknown task(s): {sorted(missing)}")
         return self

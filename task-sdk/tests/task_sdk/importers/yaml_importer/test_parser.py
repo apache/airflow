@@ -231,6 +231,18 @@ def test_duplicate_task_ids_rejected():
         _one("tasks:\n  - {id: a, run: {}}\n  - {id: a, uses: x.Y}")
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param("tasks:\n  - {id: a, run: {}, needs: [a]}", id="self-needs"),
+        pytest.param("tasks:\n  - {id: a, run: {x: {$x: a}}}", id="self-xcom"),
+    ],
+)
+def test_self_dependency_rejected(body):
+    with pytest.raises(YamlDagParseError, match="depends on itself"):
+        _one(body)
+
+
 def test_schedule_forms():
     assert _one("schedule: '0 3 * * *'\ntasks: []").schedule == "0 3 * * *"
     assert _one("schedule: null\ntasks: []").schedule is None
