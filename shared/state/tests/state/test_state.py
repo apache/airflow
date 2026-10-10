@@ -16,9 +16,24 @@
 # under the License.
 from __future__ import annotations
 
+from uuid import UUID, uuid4
+
 import pytest
 
 from airflow_shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
+
+
+class TestTaskScope:
+    def test_legacy_scope_uses_sentinel_region(self):
+        scope = TaskScope("dag", "run", "task", 3)
+        assert scope.region_id == UUID(int=0)
+        assert scope.region_index == 3
+
+    def test_region_participates_in_scope_identity(self):
+        first = TaskScope("dag", "run", "task", 3, region_id=uuid4())
+        second = TaskScope("dag", "run", "task", 3, region_id=uuid4())
+        assert len({first, second}) == 2
+        assert first.region_index == second.region_index == 3
 
 
 class TestAssetScope:

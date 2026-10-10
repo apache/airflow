@@ -24,8 +24,9 @@ import json
 import logging
 from collections.abc import Generator
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
-from sqlalchemy import TIMESTAMP, PickleType, String, event, nullsfirst, text
+from sqlalchemy import TIMESTAMP, PickleType, String, Uuid, event, nullsfirst, text
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
@@ -289,6 +290,60 @@ class UtcDateTime(TypeDecorator):
         if dialect.name == "mysql":
             return mysql.TIMESTAMP(fsp=6)
         return super().load_dialect_impl(dialect)
+
+
+_MYSQL_DIALECT_NAMES = ("mysql", "mariadb")
+
+
+class CompactUUID(TypeDecorator):
+    """
+    A UUID that MySQL stores as ``BINARY(16)``; other dialects use SQLAlchemy's :class:`~sqlalchemy.types.Uuid`.
+
+    The default MySQL form, ``CHAR(32)``, takes 128 bytes in an index key under a utf8mb4 collation.
+    Keys that already approach InnoDB's 3072-byte limit, such as those holding several ``StringID`` columns,
+    overflow with it.
+    """
+
+    impl = Uuid
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name in _MYSQL_DIALECT_NAMES:
+            return dialect.type_descriptor(mysql.BINARY(16))
+        return dialect.type_descriptor(Uuid())
+
+    def process_bind_param(self, value, dialect):
+        if value is None or dialect.name not in _MYSQL_DIALECT_NAMES:
+            return value
+        return (UUID(value) if isinstance(value, str) else value).bytes
+
+    def process_result_value(self, value, dialect):
+        if value is None or dialect.name not in _MYSQL_DIALECT_NAMES:
+            return value
+        return UUID(bytes=bytes(value))
+
+
+class compact_uuid_default(ColumnElement):
+    """Server default for a :class:`CompactUUID` column, rendered in the form each dialect stores."""
+
+    inherit_cache = True
+    type = NullType()
+
+    def __init__(self, value: UUID):
+        self.value = value
+
+
+@compiles(compact_uuid_default)
+def _compact_uuid_default(element, compiler, **kw):
+    return compiler.render_literal_value(element.value.hex, String())
+
+
+@compiles(compact_uuid_default, "mysql")
+@compiles(compact_uuid_default, "mariadb")
+def _compact_uuid_default_mysql(element, compiler, **kw):
+    # SQLAlchemy only parenthesizes expression defaults when it knows the server version, which offline SQL
+    # generation (--show-sql-only) does not; MySQL rejects an unparenthesized expression default.
+    return f"(UNHEX({compiler.render_literal_value(element.value.hex, String())}))"
 
 
 class ExtendedJSON(TypeDecorator):

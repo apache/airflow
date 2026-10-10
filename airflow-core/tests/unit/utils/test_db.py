@@ -40,6 +40,7 @@ from airflow.utils.db import (
     LazySelectSequence,
     _get_alembic_config,
     _get_current_revision,
+    _normalize_mysql_server_default,
     check_migrations,
     check_team_names_can_be_lower_cased,
     compare_server_default,
@@ -226,6 +227,25 @@ class TestDb:
     def test_has_pending_upgrade_ops(self, initialized_db):
         config = _get_alembic_config()
         check(config)
+
+    @pytest.mark.parametrize(
+        ("reflected", "rendered"),
+        [
+            pytest.param(
+                "unhex(_utf8mb4\\'00000000000000000000000000000000\\')",
+                "UNHEX('00000000000000000000000000000000')",
+                id="mysql8-charset-introducer-and-escaped-quotes",
+            ),
+            pytest.param(
+                "unhex('00000000000000000000000000000000')",
+                "UNHEX('00000000000000000000000000000000')",
+                id="plain-expression",
+            ),
+            pytest.param("(0)", "false", id="boolean"),
+        ],
+    )
+    def test_normalize_mysql_server_default_matches_rendered_default(self, reflected, rendered):
+        assert _normalize_mysql_server_default(reflected) == _normalize_mysql_server_default(rendered)
 
     def test_default_connections_sort(self):
         conn_ids = [c.conn_id for c in get_default_connections()]
