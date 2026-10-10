@@ -105,6 +105,7 @@ waits for the result, use that vendor's provider.
     What you can build <use_cases/index>
     Connections <connections/index>
     Models and providers <model_providers>
+    Supported services <supported_services>
     Operators and decorators <operators/index>
     Toolsets <toolsets/index>
     Agent frameworks <frameworks/index>
