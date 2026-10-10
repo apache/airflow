@@ -39,6 +39,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     ListOfDictsExpandInput,
     MappedArgument,
 )
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value, prevent_duplicates
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
@@ -126,14 +127,33 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
 
     def override(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
         # TODO: FIXME when mypy gets compatible with new attrs
-        return attr.evolve(self, tg_kwargs={**self.tg_kwargs, **kwargs})  # type: ignore[arg-type]
+        evolved = attr.evolve(self, tg_kwargs={**self.tg_kwargs, **kwargs})  # type: ignore[arg-type]
+        # The evolved copy owns the "never mapped" warning, so the intermediate factory must not repeat it.
+        self._task_group_created = True
+        return evolved
+
+    def loop(self, *, max_iterations: int, until: Callable[..., bool] | None = None) -> TaskGroup:
+        """
+        Repeat this group's tasks, creating each iteration when the previous gate continues.
+
+        The body must have one terminal task definition, which may be mapped.
+        Use ``partial()`` to supply body arguments and ``override()`` to configure the group.
+
+        :param max_iterations: Positive upper bound on the number of iterations.
+        :param until: Synchronous callable receiving task context keyword arguments.
+            True stops the loop. False at the iteration limit fails the gate.
+            Omit for a fixed-count loop that succeeds at its limit.
+        """
+        return create_loop(self, max_iterations=max_iterations, until=until)
 
     def partial(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
         self._validate_arg_names("partial", kwargs)
         prevent_duplicates(self.partial_kwargs, kwargs, fail_reason="duplicate partial")
         kwargs.update(self.partial_kwargs)
         # TODO: FIXME when mypy gets compatible with new attrs
-        return attr.evolve(self, partial_kwargs=kwargs)  # type: ignore[arg-type]
+        evolved = attr.evolve(self, partial_kwargs=kwargs)  # type: ignore[arg-type]
+        self._task_group_created = True
+        return evolved
 
     def expand(self, **kwargs: OperatorExpandArgument) -> DAGNode:
         if not kwargs:

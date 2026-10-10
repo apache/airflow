@@ -2836,6 +2836,11 @@
     },
     "GetXCom": {
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2888,6 +2893,11 @@
     "GetXComCount": {
       "description": "Get the number of (mapped) XCom values available.",
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2922,6 +2932,11 @@
     },
     "GetXComSequenceItem": {
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2961,6 +2976,11 @@
     },
     "GetXComSequenceSlice": {
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -3220,6 +3240,42 @@
         "data"
       ],
       "title": "LazyDeserializedDAG",
+      "type": "object"
+    },
+    "LoopContext": {
+      "description": "Pinned loop definition and enclosing iteration for a task execution.",
+      "properties": {
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "index": {
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "max_iterations": {
+          "exclusiveMinimum": 0,
+          "title": "Max Iterations",
+          "type": "integer"
+        },
+        "terminal_task_id": {
+          "title": "Terminal Task Id",
+          "type": "string"
+        },
+        "terminal_is_mapped": {
+          "title": "Terminal Is Mapped",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "node_id",
+        "index",
+        "max_iterations",
+        "terminal_task_id",
+        "terminal_is_mapped"
+      ],
+      "title": "LoopContext",
       "type": "object"
     },
     "MaskSecret": {
@@ -5153,6 +5209,17 @@
       "properties": {
         "dag_run": {
           "$ref": "#/$defs/DagRun"
+        },
+        "loop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LoopContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "task_reschedule_count": {
           "default": 0,

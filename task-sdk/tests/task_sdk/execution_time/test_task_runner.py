@@ -64,6 +64,7 @@ from airflow.sdk import (
     dag as dag_decorator,
     get_current_context,
     task as task_decorator,
+    task_group,
     timezone,
 )
 from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
@@ -83,6 +84,7 @@ from airflow.sdk.bases.operator import ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
@@ -177,6 +179,7 @@ from airflow.sdk.execution_time.context import (
     VariableAccessor,
     _wrap_external_ref,
 )
+from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
@@ -3245,6 +3248,67 @@ class TestRuntimeTaskInstance:
                 step=None,
             ),
         )
+
+    @staticmethod
+    def _make_loop_dag():
+        @task_group
+        def body():
+            BaseOperator(task_id="first") >> BaseOperator(task_id="second")
+
+        with DAG("loop_dag", schedule=None) as dag:
+            create_loop(body, max_iterations=3) >> BaseOperator(task_id="after")
+        return dag
+
+    def test_xcom_pull_of_a_loop_task_from_outside_the_loop_returns_every_iteration(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        dag = self._make_loop_dag()
+        runtime_ti = create_runtime_ti(task=dag.get_task("after"))
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=[1, 2, 3])
+
+        result = runtime_ti.xcom_pull(key="test_key", task_ids="body.first")
+
+        assert isinstance(result, LazyXComSequence)
+        mock_supervisor_comms.send.assert_not_called()
+        assert result[:] == [1, 2, 3]
+        sent = mock_supervisor_comms.send.call_args.args[0]
+        assert (sent.task_id, sent.key, sent.previous_iteration) == ("body.first", "test_key", False)
+
+    @pytest.mark.parametrize(
+        ("task_id", "pull_kwargs"),
+        [
+            pytest.param("body.second", {"task_ids": "body.first"}, id="caller inside the loop"),
+            pytest.param("after", {"task_ids": "body.first", "include_prior_dates": True}, id="prior dates"),
+            pytest.param("after", {"task_ids": "body.first", "run_id": "other_run"}, id="other run"),
+            pytest.param("after", {"task_ids": "body.first", "map_indexes": -1}, id="explicit map index"),
+            pytest.param("after", {"task_ids": ["body.first"]}, id="several task ids"),
+            pytest.param("after", {"task_ids": "removed"}, id="task missing from the dag"),
+            pytest.param("after", {"task_ids": "after"}, id="task outside any loop"),
+        ],
+    )
+    def test_xcom_pull_keeps_pulling_values_unless_an_outside_caller_reads_a_loop_task(
+        self, create_runtime_ti, mock_supervisor_comms, task_id, pull_kwargs
+    ):
+        dag = self._make_loop_dag()
+        runtime_ti = create_runtime_ti(task=dag.get_task(task_id))
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=[1, 2, 3])
+
+        with patch.object(XCom, "get_one", return_value=7):
+            result = runtime_ti.xcom_pull(key="test_key", **pull_kwargs)
+
+        assert not isinstance(result, LazyXComSequence)
+
+    @pytest.mark.asyncio
+    async def test_axcom_pull_of_a_loop_task_from_outside_the_loop_returns_a_list_for_one_iteration(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        dag = self._make_loop_dag()
+        runtime_ti = create_runtime_ti(task=dag.get_task("after"))
+        mock_supervisor_comms.asend.return_value = XComSequenceSliceResult(root=["only"])
+
+        result = await runtime_ti.axcom_pull(key="test_key", task_ids="body.first")
+
+        assert result == ["only"]
 
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti

@@ -92,6 +92,7 @@ class DAGNode(GenericDAGNode["DAG", "Operator", "TaskGroup"], DependencyMixin, m
     ) -> None:
         """Set relatives for the task or task list."""
         from airflow.sdk.bases.operator import BaseOperator
+        from airflow.sdk.definitions._internal.loop import get_edge_source
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
         if not isinstance(task_or_task_list, Sequence):
@@ -131,15 +132,17 @@ class DAGNode(GenericDAGNode["DAG", "Operator", "TaskGroup"], DependencyMixin, m
                 # If the other task does not yet have a Dag, add it to the same Dag as this task and
                 dag.add_task(task)  # type: ignore[arg-type]
             if upstream:
-                task.downstream_task_ids.add(self.node_id)
-                self.upstream_task_ids.add(task.node_id)
+                source = get_edge_source(task, self)
+                source.downstream_task_ids.add(self.node_id)
+                self.upstream_task_ids.add(source.node_id)
                 if edge_modifier:
-                    edge_modifier.add_edge_info(dag, task.node_id, self.node_id)
+                    edge_modifier.add_edge_info(dag, source.node_id, self.node_id)
             else:
-                self.downstream_task_ids.add(task.node_id)
-                task.upstream_task_ids.add(self.node_id)
+                source = get_edge_source(self, task)
+                source.downstream_task_ids.add(task.node_id)
+                task.upstream_task_ids.add(source.node_id)
                 if edge_modifier:
-                    edge_modifier.add_edge_info(dag, self.node_id, task.node_id)
+                    edge_modifier.add_edge_info(dag, source.node_id, task.node_id)
 
     def set_downstream(
         self,

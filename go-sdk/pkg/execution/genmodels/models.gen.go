@@ -1142,6 +1142,9 @@ type GetXCom struct {
 	// MapIndex corresponds to the JSON schema field "map_index".
 	MapIndex interface{} `msgpack:"map_index,omitempty"`
 
+	// PreviousIteration corresponds to the JSON schema field "previous_iteration".
+	PreviousIteration bool `msgpack:"previous_iteration,omitempty"`
+
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
 
@@ -1159,6 +1162,9 @@ type GetXComCount struct {
 
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
+
+	// PreviousIteration corresponds to the JSON schema field "previous_iteration".
+	PreviousIteration bool `msgpack:"previous_iteration,omitempty"`
 
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
@@ -1180,6 +1186,9 @@ type GetXComSequenceItem struct {
 	// Offset corresponds to the JSON schema field "offset".
 	Offset int `msgpack:"offset"`
 
+	// PreviousIteration corresponds to the JSON schema field "previous_iteration".
+	PreviousIteration bool `msgpack:"previous_iteration,omitempty"`
+
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
 
@@ -1199,6 +1208,9 @@ type GetXComSequenceSlice struct {
 
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
+
+	// PreviousIteration corresponds to the JSON schema field "previous_iteration".
+	PreviousIteration bool `msgpack:"previous_iteration,omitempty"`
 
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
@@ -1305,6 +1317,24 @@ type LiteralArgBinding struct {
 }
 
 type LogicalDates []time.Time
+
+// Pinned loop definition and enclosing iteration for a task execution.
+type LoopContext struct {
+	// Index corresponds to the JSON schema field "index".
+	Index int `msgpack:"index"`
+
+	// MaxIterations corresponds to the JSON schema field "max_iterations".
+	MaxIterations int `msgpack:"max_iterations"`
+
+	// NodeID corresponds to the JSON schema field "node_id".
+	NodeID string `msgpack:"node_id"`
+
+	// TerminalIsMapped corresponds to the JSON schema field "terminal_is_mapped".
+	TerminalIsMapped bool `msgpack:"terminal_is_mapped"`
+
+	// TerminalTaskID corresponds to the JSON schema field "terminal_task_id".
+	TerminalTaskID string `msgpack:"terminal_task_id"`
+}
 
 // Add a new value to be redacted in task logs.
 type MaskSecret struct {
@@ -1654,6 +1684,9 @@ type TIRunContext struct {
 	// DagRun corresponds to the JSON schema field "dag_run".
 	DagRun DagRun `msgpack:"dag_run"`
 
+	// Loop corresponds to the JSON schema field "loop".
+	Loop *LoopContext `msgpack:"loop,omitempty"`
+
 	// MaxTries corresponds to the JSON schema field "max_tries".
 	MaxTries int `msgpack:"max_tries"`
 
@@ -1847,6 +1880,19 @@ type TaskStatesResult struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value"`
+}
+
+type Warnings []interface{}
+
+type TriggerKwargs map[string]interface{}
+
 type TriggerDagRun struct {
 	// Conf corresponds to the JSON schema field "conf".
 	Conf *Conf `msgpack:"conf,omitempty"`
@@ -1876,8 +1922,6 @@ type TriggerDagRun struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type TriggerKwargs map[string]interface{}
-
 type UpdateDagRunNote struct {
 	// Note corresponds to the JSON schema field "note".
 	Note interface{} `msgpack:"note"`
@@ -1889,18 +1933,7 @@ type UpdateDagRunNote struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
-}
-
 type VersionData map[string]interface{}
-
-type Warnings []interface{}
 
 // Update the response content part of an existing Human-in-the-loop response.
 type UpdateHITLDetail struct {

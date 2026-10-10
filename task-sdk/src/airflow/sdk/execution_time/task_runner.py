@@ -63,6 +63,7 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+from airflow.sdk.definitions._internal.loop import LOOP_XCOM_PREFIX, is_loop_task_read_from_outside
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -73,6 +74,7 @@ from airflow.sdk.definitions.asset import (
 )
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
+from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -85,6 +87,7 @@ from airflow.sdk.exceptions import (
     ErrorType,
     TaskAwaitingInput,
     TaskDeferred,
+    TaskNotFound,
 )
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
@@ -150,6 +153,8 @@ from airflow.sdk.execution_time.email_backend import (
     _ErrorEmailNotifier,
     _LegacyEmailBackendNotifier,
 )
+from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+from airflow.sdk.execution_time.loop import LoopContextAccessor
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.tracing import detail_span
 from airflow.sdk.execution_time.xcom import XCom
@@ -350,6 +355,8 @@ class RuntimeTaskInstance(TaskInstance):
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
+            if from_server.loop is not None:
+                self._cached_template_context["loop"] = LoopContextAccessor(from_server.loop, self)
             dag_run = from_server.dag_run
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
@@ -493,6 +500,20 @@ class RuntimeTaskInstance(TaskInstance):
             map_indexes_iterable,
         )
 
+    def _get_loop_task_sequence(
+        self, task_id: str, *, key: str, dag_id: str, run_id: str, include_prior_dates: bool
+    ) -> LazyXComSequence | None:
+        """Return every iteration of a loop task as a sequence when this task instance is outside that loop."""
+        if include_prior_dates or (dag_id, run_id) != (self.dag_id, self.run_id):
+            return None
+        try:
+            producer = self.task.dag.get_task(task_id)
+        except TaskNotFound:
+            return None
+        if not is_loop_task_read_from_outside(producer, self.task):
+            return None
+        return LazyXComSequence(xcom_arg=PlainXComArg(producer, key), ti=self)
+
     def xcom_pull(
         self,
         task_ids: str | Iterable[str] | None = None,
@@ -551,6 +572,16 @@ class RuntimeTaskInstance(TaskInstance):
         xcoms: list[Any] = []
 
         if not is_arg_set(map_indexes_iterable):
+            if single_task_requested:
+                sequence = self._get_loop_task_sequence(
+                    task_ids[0],
+                    key=key,
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    include_prior_dates=include_prior_dates,
+                )
+                if sequence is not None:
+                    return sequence
             # map_indexes was not specified — fetch all map indexes for each task
             for t_id in task_ids:
                 values = XCom.get_all(
@@ -600,6 +631,17 @@ class RuntimeTaskInstance(TaskInstance):
         xcoms: list[Any] = []
 
         if not is_arg_set(map_indexes_iterable):
+            if single_task_requested and (
+                self._get_loop_task_sequence(
+                    task_ids[0],
+                    key=key,
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    include_prior_dates=include_prior_dates,
+                )
+                is not None
+            ):
+                return await XCom.aget_all(run_id=run_id, key=key, task_id=task_ids[0], dag_id=dag_id) or []
             # map_indexes was not specified — fetch all map indexes for each task
             for t_id in task_ids:
                 values = await XCom.aget_all(
@@ -1575,7 +1617,8 @@ def _run_task_and_map_outcome(
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
             for x in keys_to_delete:
                 log.debug("Clearing XCom with key", key=x)
-                XCom.delete(
+                backend = BaseXCom if x.startswith(LOOP_XCOM_PREFIX) else XCom
+                backend.delete(
                     key=x,
                     dag_id=ti.dag_id,
                     task_id=ti.task_id,

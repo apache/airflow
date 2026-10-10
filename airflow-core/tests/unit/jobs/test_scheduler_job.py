@@ -147,7 +147,9 @@ from airflow.sdk import (
     StartOfDayMapper,
     StartOfHourMapper,
     task,
+    task_group,
 )
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
@@ -1179,6 +1181,54 @@ class TestSchedulerJob:
 
         with pytest.raises(TypeError, match="Unknown workload key type in event buffer"):
             self.job_runner._process_executor_events(executor=executor, session=session)
+
+    @pytest.mark.parametrize("retries", [0, 2])
+    def test_missing_gate_definition_executor_success_uses_failure_policy(
+        self, dag_maker, session, mocker, retries
+    ):
+        @task_group
+        def body():
+            EmptyOperator(task_id="terminal")
+
+        with dag_maker(serialized=True, default_args={"retries": retries}, session=session):
+            loop = create_loop(body, max_iterations=3)
+        dr = dag_maker.create_dagrun()
+        gate = next(ti for ti in dr.task_instances if ti.task_id == loop.gate_task_id)
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        mocker.patch.object(runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, return_value=None)
+        gate.state = State.RUNNING
+        gate.try_number = 1
+        gate.queued_by_job_id = scheduler_job.id
+        session.commit()
+        original_id = gate.id
+        callback = mocker.patch.object(executor, "send_callback", autospec=True)
+        executor.event_buffer[TaskInstanceUuid(gate.id)] = State.SUCCESS, None
+
+        runner._process_executor_events(executor=executor, session=session)
+
+        gate = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == loop.gate_task_id,
+                TaskInstance.working_set.is_(True),
+            )
+        )
+        assert gate.state == (State.UP_FOR_RETRY if retries else State.FAILED)
+        assert (gate.id != original_id) is bool(retries)
+        callback.assert_not_called()
+        if retries:
+            archived = session.scalar(
+                select(TaskInstance)
+                .where(TaskInstance.id == original_id)
+                .execution_options(include_all_attempts=True)
+            )
+            assert archived.working_set is None
+        assert len(dr.get_task_instances(session=session)) == 2
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")

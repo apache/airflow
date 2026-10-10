@@ -31,8 +31,25 @@ from cadwyn import VersionChange, schema
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstance, TIRunContext
 from airflow.sdk.execution_time.comms import (
+    GetXCom,
+    GetXComCount,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
     TaskState,
 )
+
+
+class AddLoopRuntime(VersionChange):
+    """Carry loop context and previous-iteration reads."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("loop").didnt_exist,
+        schema(GetXCom).field("previous_iteration").didnt_exist,
+        schema(GetXComCount).field("previous_iteration").didnt_exist,
+        schema(GetXComSequenceItem).field("previous_iteration").didnt_exist,
+        schema(GetXComSequenceSlice).field("previous_iteration").didnt_exist,
+    )
 
 
 class AddRegionCoordinatesToSupervisorTaskInstance(VersionChange):

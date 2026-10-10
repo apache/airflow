@@ -606,9 +606,14 @@ class XComOperations:
         run_id: str,
         task_id: str,
         key: str,
+        *,
+        previous_iteration: bool = False,
     ) -> XComCountResponse:
         """Get the number of mapped XCom values."""
-        resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}")
+        params: dict[str, str | int] = {}
+        if previous_iteration:
+            params["previous_iteration"] = True
+        resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
 
         # content_range: str | None
         if not (content_range := resp.headers["Content-Range"]) or not content_range.startswith(
@@ -625,9 +630,13 @@ class XComOperations:
         key: str,
         map_index: int | None = None,
         include_prior_dates: bool = False,
+        *,
+        previous_iteration: bool = False,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
         params: dict[str, str | int] = {}
+        if previous_iteration:
+            params["previous_iteration"] = True
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
         if include_prior_dates:
@@ -704,9 +713,17 @@ class XComOperations:
         task_id: str,
         key: str,
         offset: int,
+        *,
+        previous_iteration: bool = False,
     ) -> XComSequenceIndexResponse | ErrorResponse:
+        params: dict[str, str | int] = {}
+        if previous_iteration:
+            params["previous_iteration"] = True
         try:
-            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}")
+            resp = self.client.get(
+                f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}",
+                params=params,
+            )
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.error(
@@ -742,8 +759,12 @@ class XComOperations:
         stop: int | None,
         step: int | None,
         include_prior_dates: bool = False,
+        *,
+        previous_iteration: bool = False,
     ) -> XComSequenceSliceResponse:
         params: dict[str, str | int] = {}
+        if previous_iteration:
+            params["previous_iteration"] = True
         if start is not None:
             params["start"] = start
         if stop is not None:

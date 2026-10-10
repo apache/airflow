@@ -55,6 +55,7 @@ from airflow._shared.observability.traces import (
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
+from airflow.dag_processing.dagbag import DagBag
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -85,12 +86,15 @@ from airflow.sdk import (
     task_group,
     teardown,
 )
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import prohibit_commit
@@ -101,9 +105,10 @@ from tests_common.test_utils import db
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags, clear_db_xcom
 from tests_common.test_utils.mapping import expand_mapped_task, push_mapped_length
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.paths import AIRFLOW_CORE_SOURCES_PATH
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
 from unit.plugins.priority_weight_strategy import DecreasingPriorityStrategy, TestPriorityWeightStrategyPlugin
@@ -121,6 +126,258 @@ def get_callback_ti(ti):
     return TIDataModel.model_validate(ti, from_attributes=True).model_copy(
         update={"region_id": None, "region_index": None}
     )
+
+
+@pytest.mark.parametrize("values", [[], [{}, {}]])
+def test_loop_first_pass_uses_one_region_and_mapped_child(dag_maker, session, values):
+    @task_group
+    def body():
+        plain = PythonOperator(task_id="plain", python_callable=list)
+        mapped = PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=values)
+        plain >> mapped
+
+    with dag_maker(serialized=True):
+        outside = EmptyOperator(task_id="outside")
+        loop = create_loop(body, max_iterations=3)
+        outside >> loop
+    dr = dag_maker.create_dagrun()
+    regions = session.scalars(
+        select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id, DynamicRegion.run_id == dr.run_id)
+    ).all()
+    assert {region.node_id for region in regions} == {loop.group_id, "body.mapped"}
+    parent = next(region for region in regions if region.node_id == loop.group_id)
+    mapped_region = next(region for region in regions if region.node_id == "body.mapped")
+    assert (mapped_region.parent_region_id, mapped_region.parent_region_index) == (parent.id, 0)
+    original_ids = {ti.id for ti in dr.task_instances}
+    for ti in dr.task_instances:
+        if ti.task_id == "outside":
+            assert (ti.region_id, ti.region_index) == (SENTINEL_REGION_ID, -1)
+        elif ti.task_id == "body.mapped":
+            assert ti.region_id == mapped_region.id
+        else:
+            assert (ti.region_id, ti.region_index) == (parent.id, 0)
+
+    dr.verify_integrity(session=session, dag_version_id=dr.created_dag_version_id)
+
+    assert {ti.id for ti in dr.get_task_instances(session=session)} == original_ids
+    assert (
+        session.scalar(
+            select(func.count()).select_from(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)
+        )
+        == 2
+    )
+
+
+@pytest.mark.parametrize(
+    ("trigger_rule", "left_state", "expected"),
+    [
+        (TriggerRule.ALWAYS, State.RUNNING, True),
+        (TriggerRule.ONE_SUCCESS, State.SUCCESS, True),
+        (TriggerRule.ALL_SUCCESS, State.SUCCESS, False),
+        (TriggerRule.ALL_DONE, State.FAILED, False),
+        (TriggerRule.ALL_SUCCESS, State.SKIPPED, False),
+    ],
+)
+def test_loop_entry_uses_normal_trigger_rule_before_all_upstreams_finish(
+    dag_maker, session, trigger_rule, left_state, expected
+):
+    @task_group
+    def body():
+        PythonOperator(task_id="entry", python_callable=list, trigger_rule=trigger_rule)
+
+    with dag_maker(serialized=True):
+        left = PythonOperator(task_id="left", python_callable=list)
+        right = PythonOperator(task_id="right", python_callable=list)
+        loop = create_loop(body, max_iterations=3)
+        [left, right] >> loop
+    dr = dag_maker.create_dagrun()
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    tis["left"].state = left_state
+    tis["right"].state = State.RUNNING
+    entry = tis["body.entry"]
+    entry.task = dag_maker.serialized_dag.get_task(entry.task_id)
+    assert entry.region_id != SENTINEL_REGION_ID
+    session.flush()
+
+    assert TriggerRuleDep().is_met(ti=entry, dep_context=DepContext(), session=session) is expected
+
+
+def test_loop_new_member_joins_live_pass_after_reserialization(dag_maker, session):
+    @task_group
+    def body(add_member=False):
+        terminal = PythonOperator(task_id="terminal", python_callable=list)
+        if add_member:
+            PythonOperator(task_id="new", python_callable=list) >> terminal
+
+    with dag_maker(serialized=True, session=session):
+        loop = create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    existing = dr.get_task_instances(session=session)
+    original_ids = {ti.id for ti in existing}
+    gate = next(ti for ti in existing if ti.task_id == loop.gate_task_id)
+    gate.state = State.SUCCESS
+    session.flush()
+
+    with dag_maker(serialized=True, session=session):
+        body.partial(add_member=True).loop(max_iterations=3)
+    dr.dag = dag_maker.serialized_dag
+    version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
+
+    dr.verify_integrity(session=session, dag_version_id=version_id)
+
+    current = dr.get_task_instances(session=session)
+    assert {ti.id for ti in current if ti.task_id != "body.new"} == original_ids
+    added = next(ti for ti in current if ti.task_id == "body.new")
+    assert (added.region_id, added.region_index, added.dag_version_id) == (gate.region_id, 0, version_id)
+    assert session.get(TI, gate.id).state == State.SUCCESS
+
+
+def test_loop_integrity_skips_loop_with_regions_but_no_live_gate(dag_maker, session, caplog):
+    @task_group
+    def body():
+        PythonOperator(task_id="terminal", python_callable=list)
+
+    with dag_maker(serialized=True, session=session):
+        EmptyOperator(task_id="outside")
+        loop = create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    for ti in dr.get_task_instances(session=session):
+        session.delete(ti)
+    session.flush()
+
+    with caplog.at_level("WARNING"):
+        dr.verify_integrity(session=session, dag_version_id=dr.created_dag_version_id)
+
+    assert [ti.task_id for ti in dr.get_task_instances(session=session)] == ["outside"]
+    assert {
+        "event": "skipping loop that has regions but no live gate",
+        "dag_id": dr.dag_id,
+        "run_id": dr.run_id,
+        "loop": loop.group_id,
+        "log_level": "warning",
+    } in caplog
+    assert (
+        session.scalar(
+            select(func.count()).select_from(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)
+        )
+        == 1
+    )
+
+
+def test_loop_integrity_reuses_region_created_by_a_concurrent_run(dag_maker, session):
+    @task_group
+    def body():
+        PythonOperator(task_id="terminal", python_callable=list)
+
+    with dag_maker(serialized=True, session=session):
+        loop = create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    region_id = session.scalar(select(DynamicRegion.id).where(DynamicRegion.dag_id == dr.dag_id))
+    for ti in dr.get_task_instances(session=session):
+        session.delete(ti)
+    session.flush()
+
+    with mock.patch.object(session, "scalar", autospec=True, return_value=None):
+        dr.verify_integrity(session=session, dag_version_id=dr.created_dag_version_id)
+
+    gate = next(ti for ti in dr.get_task_instances(session=session) if ti.task_id == loop.gate_task_id)
+    assert gate.region_id == region_id
+    assert (
+        session.scalar(
+            select(func.count()).select_from(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)
+        )
+        == 1
+    )
+
+
+@pytest.mark.parametrize(
+    "mode", ["fixed", "mapped", "empty", "until_true", "until_false", "handled_failure", "unhandled_failure"]
+)
+def test_loop_runs_through_scheduler_sdk_and_api(dag_maker, session, mode):
+    @task
+    def terminal(value, *, ti, loop):
+        assert ti.region_id != SENTINEL_REGION_ID
+        if mode == "mapped":
+            assert ti.map_index == value - 1
+        else:
+            assert ti.map_index == -1
+            assert ti.region_index == loop.index
+        return value
+
+    @task
+    def fail():
+        raise ValueError("body branch failed")
+
+    @task_group
+    def body():
+        if mode in {"mapped", "empty"}:
+            terminal.expand(value=[1, 2] if mode == "mapped" else [])
+        elif mode == "handled_failure":
+            fail() >> terminal.override(trigger_rule=TriggerRule.ALL_DONE)(1)
+        elif mode == "unhandled_failure":
+            fail() >> terminal(1)
+        else:
+            terminal(1)
+
+    def converged(*, loop):
+        return mode == "until_true" and loop.index == 1
+
+    with dag_maker(serialized=False) as dag:
+        loop = body.loop(max_iterations=2, until=converged if mode.startswith("until") else None)
+        loop >> PythonOperator(task_id="outside", python_callable=list, trigger_rule=TriggerRule.ALL_DONE)
+
+    dr = dag.test()
+
+    gates = sorted(
+        (ti.region_index, ti.state)
+        for ti in dr.get_task_instances(session=session)
+        if ti.task_id == loop.gate_task_id
+    )
+    if mode == "empty":
+        assert gates == [(0, State.SKIPPED)]
+    elif mode == "until_false":
+        assert gates == [(0, State.SUCCESS), (1, State.FAILED)]
+    elif mode == "unhandled_failure":
+        assert gates == [(0, State.UPSTREAM_FAILED)]
+    else:
+        assert gates == [(0, State.SUCCESS), (1, State.SUCCESS)]
+    outside = dr.get_task_instance(task_id="outside", session=session)
+    assert outside.state == State.SUCCESS
+
+
+@pytest.fixture
+def clear_loop_example_runs():
+    yield
+    clear_db_runs()
+    clear_db_xcom()
+    clear_db_dags()
+    clear_db_serialized_dags()
+
+
+@pytest.mark.usefixtures("clear_loop_example_runs")
+@pytest.mark.parametrize(
+    ("dag_id", "expected_iterations"),
+    [
+        ("refine_estimate", 4),
+        ("fixed_task_loop", 3),
+        ("mapped_task_loop", 2),
+        ("partial_override_loop", 3),
+    ],
+)
+def test_documented_task_loop_examples_complete(session, dag_id, expected_iterations):
+    bag = DagBag(
+        dag_folder=str(AIRFLOW_CORE_SOURCES_PATH / "airflow" / "example_dags" / "example_task_loops.py"),
+    )
+    assert bag.import_errors == {}
+    dag = bag.get_dag(dag_id)
+
+    dr = dag.test()
+
+    assert dr.state == DagRunState.SUCCESS
+    gates = [ti for ti in dr.get_task_instances(session=session) if ti.operator == "LoopGateOperator"]
+    assert sorted((ti.region_index, ti.state) for ti in gates) == [
+        (index, State.SUCCESS) for index in range(expected_iterations)
+    ]
 
 
 async def empty_callback_for_deadline():

@@ -75,8 +75,9 @@ class TestLogsApiRoutes:
             create_loop(body, max_iterations=3)
         dr = dag_maker.create_dagrun(run_id="loop_run")
         ti = next(ti for ti in dr.task_instances if ti.task_id == "body.work")
-        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
-        session.add(region)
+        region = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session
+        )
         session.flush()
         ti.region_id, ti.region_index = region.id, 2
         session.add(
@@ -118,19 +119,20 @@ class TestLogsApiRoutes:
             create_loop(body, max_iterations=3)
         dr = dag_maker.create_dagrun(run_id="mapped_loop_run")
         first = next(ti for ti in dr.task_instances if ti.task_id == "body.mapped")
-        loop_region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
-        session.add(loop_region)
+        loop_region = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session
+        )
         session.flush()
         tis = []
         for iteration in range(2):
-            region = DynamicRegion(
+            region = DynamicRegion.get_or_create(
                 dag_id=dr.dag_id,
                 run_id=dr.run_id,
                 node_id="body.mapped",
                 parent_region_id=loop_region.id,
                 parent_region_index=iteration,
+                session=session,
             )
-            session.add(region)
             session.flush()
             ti = (
                 first

@@ -20,7 +20,8 @@ import hashlib
 import struct
 from collections.abc import Collection, Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING
+from functools import partial
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import attrs
@@ -35,6 +36,8 @@ from sqlalchemy import (
     UniqueConstraint,
     and_,
     event,
+    false,
+    func,
     literal,
     or_,
     select,
@@ -48,8 +51,11 @@ from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import CompactUUID, UtcDateTime
 
 SENTINEL_REGION_ID = UUID(int=0)
+LOOP_XCOM_PREFIX = "_airflow_loop_"
+LOOP_DECISION_KEY = f"{LOOP_XCOM_PREFIX}decision"
 
 if TYPE_CHECKING:
+    from sqlalchemy import Select
     from sqlalchemy.engine import Connection
     from sqlalchemy.orm import Mapper, Session
     from sqlalchemy.sql.elements import ColumnElement
@@ -466,6 +472,124 @@ def _match_any(column, value: str | Collection[str]) -> ColumnElement[bool]:
     return column == value if isinstance(value, str) else column.in_(value)
 
 
+def _filter_producers(
+    query: Select,
+    *,
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    is_mapped: bool,
+    map_indexes: int | Collection[int] | None,
+    region_id: UUID | None,
+    region_index: int | None,
+    top_level_only: bool,
+    loop_pass: _LoopPassRegions | None = None,
+) -> Select:
+    """Push every coordinate predicate into SQL."""
+    from airflow.models.taskinstance import TaskInstance
+
+    query = query.where(
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.task_id == task_id,
+        TaskInstance.working_set.is_(True),
+    )
+    if region_id is not None:
+        query = query.where(TaskInstance.region_id == region_id)
+    if region_index is not None:
+        query = query.where(TaskInstance.region_index == region_index)
+    if loop_pass is not None:
+        query = query.where(_build_loop_pass_filter(loop_pass))
+    if top_level_only:
+        if is_mapped:
+            top_level_region = (
+                select(DynamicRegion.id)
+                .where(DynamicRegion.id == TaskInstance.region_id, DynamicRegion.parent_region_id.is_(None))
+                .correlate(TaskInstance)
+                .exists()
+            )
+            query = query.where(or_(TaskInstance.region_id == SENTINEL_REGION_ID, top_level_region))
+        else:
+            query = query.where(TaskInstance.region_id == SENTINEL_REGION_ID, TaskInstance.region_index == -1)
+    if map_indexes is None:
+        return query
+    if not is_mapped:
+        wanted = map_indexes == -1 if isinstance(map_indexes, int) else -1 in map_indexes
+        return query if wanted else query.where(false())
+    if isinstance(map_indexes, int):
+        return query.where(TaskInstance.region_index == map_indexes)
+    if isinstance(map_indexes, range) and map_indexes.step == 1:
+        return query.where(
+            TaskInstance.region_index >= map_indexes.start, TaskInstance.region_index < map_indexes.stop
+        )
+    return query.where(TaskInstance.region_index.in_(list(map_indexes)))
+
+
+def _validate_producer_request(
+    *, context: ProducerContext | None, region_id: UUID | None, region_index: int | None
+) -> None:
+    if region_index is not None and region_id is None:
+        raise ValueError("region_index requires an explicit producer region_id")
+    if context and context.previous_iteration and context.loop_node_id is None:
+        raise ValueError("Previous-iteration lookup requires a loop context")
+
+
+def _build_candidate_query(
+    query: Select[Any],
+    *,
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    is_mapped: bool,
+    context: ProducerContext | None,
+    map_indexes: int | Collection[int] | None,
+    region_id: UUID | None,
+    region_index: int | None,
+    session: Session,
+) -> Select[Any] | None:
+    """Narrow ``query`` to the candidate producers of the caller's scope, or ``None`` if there are none."""
+    regions: dict[UUID, DynamicRegion] = {}
+    position = None
+    if context and region_id is None:
+        regions = load_region_ancestry(
+            {context.region_id} - {SENTINEL_REGION_ID}, dag_id=dag_id, run_id=run_id, session=session
+        )
+        if context.loop_node_id is not None:
+            position = loop_position(regions, context.region_id, context.region_index, context.loop_node_id)
+            if position is None:
+                raise ValueError("Caller is not inside the requested loop")
+            if context.previous_iteration:
+                position = position[0], position[1] - 1
+                if position[1] < 0:
+                    return None
+
+    return _filter_producers(
+        query,
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        is_mapped=is_mapped,
+        map_indexes=map_indexes,
+        region_id=region_id,
+        region_index=region_index,
+        top_level_only=region_id is None and position is None,
+        loop_pass=_load_loop_pass_regions(position, session=session) if position is not None else None,
+    )
+
+
+def _check_producers_unambiguous(
+    region_indexes: Iterable[int], *, dag_id: str, run_id: str, task_id: str, is_mapped: bool
+) -> None:
+    seen: set[int] = set()
+    for region_index in region_indexes:
+        public_index = region_index if is_mapped else -1
+        if public_index in seen:
+            raise AmbiguousProducerError(
+                f"Multiple live producers for {dag_id}/{run_id}/{task_id} index {public_index}"
+            )
+        seen.add(public_index)
+
+
 def resolve_current_producers(
     *,
     dag_id: str,
@@ -481,62 +605,195 @@ def resolve_current_producers(
     """Resolve the live producer task instances whose data the caller reads by task instance UUID."""
     from airflow.models.taskinstance import TaskInstance
 
-    if region_index is not None and region_id is None:
-        raise ValueError("region_index requires an explicit producer region_id")
-    if context and context.previous_iteration and context.loop_node_id is None:
-        raise ValueError("Previous-iteration lookup requires a loop context")
-    regions: dict[UUID, DynamicRegion] = {}
-    position = None
-    if context and region_id is None:
-        regions = load_region_ancestry({context.region_id}, dag_id=dag_id, run_id=run_id, session=session)
-        if context.loop_node_id is not None:
-            position = loop_position(regions, context.region_id, context.region_index, context.loop_node_id)
-            if position is None:
-                raise ValueError("Caller is not inside the requested loop")
-            if context.previous_iteration:
-                position = position[0], position[1] - 1
-                if position[1] < 0:
-                    return ()
-    query = select(TaskInstance).where(
+    _validate_producer_request(context=context, region_id=region_id, region_index=region_index)
+    query = _build_candidate_query(
+        select(TaskInstance),
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        is_mapped=is_mapped,
+        context=context,
+        map_indexes=map_indexes,
+        region_id=region_id,
+        region_index=region_index,
+        session=session,
+    )
+    if query is None:
+        return ()
+    candidates = session.scalars(query).all()
+    _check_producers_unambiguous(
+        (ti.region_index for ti in candidates),
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        is_mapped=is_mapped,
+    )
+    return tuple(sorted(candidates, key=lambda ti: ti.region_index if is_mapped else -1))
+
+
+def select_current_producer_ids(
+    *,
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    is_mapped: bool,
+    context: ProducerContext | None = None,
+    map_indexes: int | Collection[int] | None = None,
+    region_id: UUID | None = None,
+    region_index: int | None = None,
+    session: Session,
+) -> Select[tuple[UUID]]:
+    """
+    Select the ids of the live producers :func:`resolve_current_producers` would return.
+
+    A task whose live executions all share one region cannot have two producers at one index, so
+    that common case stays a pure SQL selection whose cost does not depend on the number of
+    mapped instances. Everything else resolves the rows and pins their ids.
+    """
+    from airflow.models.taskinstance import TaskInstance
+
+    _validate_producer_request(context=context, region_id=region_id, region_index=region_index)
+    filter_producers = partial(
+        _filter_producers,
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        is_mapped=is_mapped,
+        map_indexes=map_indexes,
+        region_id=region_id,
+        region_index=region_index,
+        top_level_only=region_id is None,
+    )
+    query = filter_producers(select(TaskInstance.id))
+    if region_id is None:
+        if context is not None:
+            single_region = False
+        else:
+            first_region = filter_producers(select(TaskInstance.region_id)).limit(1)
+            other_region = filter_producers(select(TaskInstance.id)).where(
+                TaskInstance.region_id != first_region.scalar_subquery()
+            )
+            single_region = not session.scalar(select(other_region.exists()))
+        if not single_region:
+            candidate_query = _build_candidate_query(
+                select(TaskInstance.id, TaskInstance.region_index),
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                is_mapped=is_mapped,
+                context=context,
+                map_indexes=map_indexes,
+                region_id=None,
+                region_index=None,
+                session=session,
+            )
+            candidates = session.execute(candidate_query).all() if candidate_query is not None else []
+            _check_producers_unambiguous(
+                (candidate.region_index for candidate in candidates),
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                is_mapped=is_mapped,
+            )
+            return select(TaskInstance.id).where(
+                TaskInstance.id.in_([candidate.id for candidate in candidates])
+            )
+    return query
+
+
+def _load_loop_pass_owners(
+    *, dag_id: str, run_id: str, loop_node_id: str, session: Session
+) -> list[tuple[UUID, int | None]]:
+    """
+    Return each region that holds passes of a loop with the first pass it no longer owns.
+
+    A fork takes over every pass from its ``resumes_from_index``, so a region owns only the passes
+    before the earliest fork that follows it. The newest region owns every pass from its own start.
+    """
+    regions = session.scalars(
+        select(DynamicRegion).where(
+            DynamicRegion.dag_id == dag_id,
+            DynamicRegion.run_id == run_id,
+            DynamicRegion.node_id == loop_node_id,
+        )
+    ).all()
+    originals = [region for region in regions if region.forked_from_region_id is None]
+    if len(originals) > 1:
+        raise ValueError(f"Loop {loop_node_id!r} has several executions in Dag run {run_id!r}")
+    successors = {region.forked_from_region_id: region for region in regions}
+    chain = originals[:]
+    while chain and chain[-1].id in successors:
+        chain.append(successors[chain[-1].id])
+    owners: list[tuple[UUID, int | None]] = []
+    cut: int | None = None
+    for region in reversed(chain):
+        owners.append((region.id, cut))
+        cut = region.resumes_from_index if cut is None else min(cut, region.resumes_from_index)
+    return owners
+
+
+def _build_pass_ownership_filter(
+    region_column, index_column, owners: Iterable[tuple[UUID, int | None]]
+) -> ColumnElement[bool]:
+    return or_(
+        *(
+            region_column == region_id
+            if cut is None
+            else and_(region_column == region_id, index_column < cut)
+            for region_id, cut in owners
+        )
+    )
+
+
+def select_loop_producer_ids(
+    *, dag_id: str, run_id: str, loop_node_id: str, task_id: str, is_mapped: bool, session: Session
+) -> Select[tuple[UUID]]:
+    """
+    Select every live execution of ``task_id`` across all passes of the loop ``loop_node_id``.
+
+    That is what a task outside the loop sees of a loop task. A pass that a fork replaced does not count
+    even while its task instances are still live, because the fork's task instances stand in for it.
+    Order the executions with :func:`build_loop_sequence_order`.
+    """
+    from airflow.models.taskinstance import TaskInstance
+
+    query = select(TaskInstance.id).where(
         TaskInstance.dag_id == dag_id,
         TaskInstance.run_id == run_id,
         TaskInstance.task_id == task_id,
         TaskInstance.working_set.is_(True),
     )
-    if region_id is not None:
-        query = query.where(TaskInstance.region_id == region_id)
-    if region_index is not None:
-        query = query.where(TaskInstance.region_index == region_index)
-    if position is not None:
-        query = query.where(_build_loop_pass_filter(_load_loop_pass_regions(position, session=session)))
-    candidates = session.scalars(query).all()
-    if region_id is None and position is None:
-        regions.update(
-            load_region_ancestry(
-                {ti.region_id for ti in candidates} - set(regions),
-                dag_id=dag_id,
-                run_id=run_id,
-                session=session,
-            )
+    owners = _load_loop_pass_owners(dag_id=dag_id, run_id=run_id, loop_node_id=loop_node_id, session=session)
+    if not owners:
+        return query.where(false())
+    if not is_mapped:
+        return query.where(
+            _build_pass_ownership_filter(TaskInstance.region_id, TaskInstance.region_index, owners)
         )
+    pass_region = (
+        select(DynamicRegion.id)
+        .where(
+            DynamicRegion.id == TaskInstance.region_id,
+            _build_pass_ownership_filter(
+                DynamicRegion.parent_region_id, DynamicRegion.parent_region_index, owners
+            ),
+        )
+        .correlate(TaskInstance)
+        .exists()
+    )
+    return query.where(pass_region)
 
-    selected: dict[int, TaskInstance] = {}
-    for ti in candidates:
-        if region_id is None and position is None:
-            if ti.region_id != SENTINEL_REGION_ID:
-                if not is_mapped or regions[ti.region_id].parent_region_id is not None:
-                    continue
-            elif not is_mapped and ti.region_index != -1:
-                continue
-        public_index = ti.region_index if is_mapped else -1
-        if isinstance(map_indexes, int):
-            if public_index != map_indexes:
-                continue
-        elif map_indexes is not None and public_index not in map_indexes:
-            continue
-        if public_index in selected:
-            raise AmbiguousProducerError(
-                f"Multiple live producers for {dag_id}/{run_id}/{task_id} index {public_index}"
-            )
-        selected[public_index] = ti
-    return tuple(selected[index] for index in sorted(selected))
+
+def build_loop_sequence_order(region_id_column, region_index_column) -> tuple[ColumnElement[int], ...]:
+    """
+    Order the rows :func:`select_loop_producer_ids` selects depth-first: by pass, then by map index.
+
+    An unmapped task sits in the loop's own region, whose ``region_index`` is the pass. A mapped task sits
+    in a region nested under the pass, whose parent index is the pass and whose rows carry the map index.
+    """
+    nested_pass = (
+        select(DynamicRegion.parent_region_index)
+        .where(DynamicRegion.id == region_id_column)
+        .scalar_subquery()
+    )
+    return func.coalesce(nested_pass, region_index_column), region_index_column
