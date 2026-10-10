@@ -922,6 +922,12 @@ previous images that can matter when you extend or run the image are:
   ``ldconfig``, no ``dash`` (``/bin/sh`` is ``bash``) and a stripped ``/etc`` - for example without
   ``/etc/shells`` or the PAM ``common-*`` files. The build restores what Airflow and the Debian packages
   it installs need; a custom image that relied on something else being present has to install it.
+* **Packages also come from Docker's Debian repository.** Next to Debian's own repositories, the Debian 13
+  images configure ``http://dhi.io/deb/debian/main`` (``/etc/apt/sources.list.d/dhi.sources``, signed with
+  ``/usr/share/keyrings/dhi-deb-main.gpg``), which serves Docker's rebuilds of Debian packages. Their
+  versions carry a ``+dhi<N>`` suffix, so apt prefers them over Debian's builds - in the image and in
+  images extending it. The repository can be used anonymously: unlike pulling the ``dhi.io`` images,
+  installing packages from it needs no ``docker login`` or any other credentials.
 * **Some OS files are modified.** ``/etc/os-release`` identifies the system as "Docker Hardened Images
   (Debian)", and ``/etc/debian_version`` differs from the Debian package's copy, so an ``apt-get upgrade``
   that touches ``base-files`` would stop at ``dpkg``'s interactive configuration-file prompt. The image
