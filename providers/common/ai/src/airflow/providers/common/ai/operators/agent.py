@@ -45,6 +45,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin, normalize_assigned_users
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
+from airflow.providers.common.ai.mixins.usage_budget import UsageBudgetMixin
 from airflow.providers.common.ai.observability import (
     build_run_identity_attributes,
     make_task_instance_run_key,
@@ -206,7 +207,7 @@ def _declares_agent_template_fields(toolset: Any) -> bool:
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
-class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
+class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, UsageBudgetMixin):
     """
     Run a pydantic-ai Agent with tools and multi-turn reasoning.
 
@@ -906,22 +907,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             map_index=ti.map_index if ti.map_index is not None else -1,
         )
 
-    def _build_usage_budget(
-        self, context: Context, usage_limits: UsageLimits | None, *, ti: Any
-    ) -> TaskStateStoreUsageBudget | None:
-        """
-        Return the cross-attempt usage-budget accessor, or ``None`` when it should not apply.
-
-        Gated like ``_build_durable_storage``: only on Airflow >= 3.3, where the task
-        state store survives retries. Also gated on ``usage_limits is not None`` --
-        with ``usage_limits=None`` turning this on would silently impose pydantic-ai's
-        default ``request_limit=50`` across every attempt of every ``AgentOperator`` on
-        3.3+, which nobody asked for.
-        """
-        if not (AIRFLOW_V_3_3_PLUS and usage_limits is not None):
-            return None
-        return TaskStateStoreUsageBudget(context["task_state_store"], max_tries=ti.max_tries)
-
     def _report_failed_run(self, context: Context, run_usage: RunUsage) -> None:
         """
         Log and XCom-push the usage a failed attempt incurred before it raised.
@@ -984,19 +969,18 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         With ``durable=True``, the replay ledger's unused credits are given back before
         the total is persisted (see ``ReplayUsageLedger.settle``).
         """
-        base = copy_run_usage(run_usage)
-        try:
-            if caching_model is not None:
-                # After the snapshot above, so the credit never shows up in this attempt's delta.
-                caching_model.credit_first_replay()
-            result = self.run_agent_sync(agent, prompt, usage=run_usage, **run_kwargs)
-        finally:
-            if self._replay_usage is not None:
-                # A replay credit the run never used must not reach the persisted total.
-                self._replay_usage.settle()
-            if self._usage_budget:
-                self._usage_budget.save(run_usage)
-        return result, subtract_run_usage(run_usage, base)
+        return self._run_tracked(
+            agent,
+            prompt,
+            run_usage=run_usage,
+            before_run=caching_model.credit_first_replay if caching_model is not None else None,
+            **run_kwargs,
+        )
+
+    def _settle_tracked_usage(self) -> None:
+        if self._replay_usage is not None:
+            # A replay credit the run never used must not reach the persisted total.
+            self._replay_usage.settle()
 
     def _run_and_report_on_failure(
         self,
@@ -1107,20 +1091,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             self._pause_for_tool_approval(context, result, attempt_usage=attempt_usage)
         self._emit_run_metadata(context, result, usage=attempt_usage)
         if self._usage_budget and (run_usage := self._run_usage) is not None:
-            self.log.info(
-                "Cumulative usage across attempts: requests=%s, tool_calls=%s, input_tokens=%s, "
-                "output_tokens=%s, total_tokens=%s",
-                run_usage.requests,
-                run_usage.tool_calls,
-                run_usage.input_tokens,
-                run_usage.output_tokens,
-                run_usage.total_tokens,
-            )
-            if run_usage.cost is not None:
-                self.log.info(
-                    "Cumulative cost across attempts: $%s (USD, best-effort)",
-                    format(run_usage.cost, "f"),
-                )
+            self._log_cumulative_usage(run_usage)
 
         if self.message_history is not None:
             self._emit_message_history(context, result)
@@ -1138,8 +1109,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
                 result_str,
                 serialize_output=self._serialize_model_output,
             )
-            if self._usage_budget:
-                self._usage_budget.clear()
+            self._clear_usage_budget(context)
             return hitl_output
 
         if self._serialize_model_output and isinstance(output, BaseModel):
@@ -1152,8 +1122,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         # re-executing every already-completed model and tool step.
         if self._durable_storage is not None:
             self._durable_storage.cleanup()
-        if self._usage_budget:
-            self._usage_budget.clear()
+        self._clear_usage_budget(context)
         return output
 
     def _pause_for_tool_approval(self, context: Context, result: Any, *, attempt_usage: RunUsage) -> NoReturn:

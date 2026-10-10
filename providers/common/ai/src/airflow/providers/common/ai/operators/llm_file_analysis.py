@@ -25,7 +25,6 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_request
-from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 
 if TYPE_CHECKING:
@@ -174,8 +173,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             instructions=self._build_system_prompt(),
             **self.agent_params,
         )
-        result = self.run_agent_sync(agent, request.user_content, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        result = self._run_llm(context, agent, request.user_content, usage_limits=usage_limits)
         output = result.output
 
         if self.require_approval:
@@ -188,6 +186,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             # so the dump step has to be repeated here.
             output = output.model_dump()
 
+        self._clear_usage_budget(context)
         return output
 
     def _build_system_prompt(self) -> str:
