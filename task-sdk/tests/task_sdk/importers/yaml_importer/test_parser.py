@@ -193,6 +193,29 @@ def test_template_cycle_errors():
         _one("templates: {a: {extends: [b]}, b: {extends: [a]}}\ntasks: [{id: t, extends: [a], run: {}}]")
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param("tasks:\n  - {id: t, run: {}, extends: [[base]]}", id="task-extends-nested-list"),
+        pytest.param("tasks:\n  - {id: t, run: {}, extends: [{base: 1}]}", id="task-extends-dict-element"),
+        pytest.param("tasks:\n  - {id: t, run: {}, extends: base}", id="task-extends-bare-string"),
+    ],
+)
+def test_task_extends_must_be_list_of_strings(body):
+    # Non-string entries would TypeError on the template lookup; a bare string would iterate by
+    # character. Both are rejected as a parse error instead.
+    with pytest.raises(YamlDagParseError, match="extends"):
+        _one(body)
+
+
+def test_template_extends_must_be_list_of_strings():
+    # A template's own 'extends' given as a bare string must not be iterated character by character.
+    with pytest.raises(YamlDagParseError, match="extends"):
+        _one(
+            "templates: {base: {retries: 1}, child: {extends: base}}\ntasks: [{id: t, extends: [child], run: {}}]"
+        )
+
+
 def test_unknown_needs_rejected():
     with pytest.raises(YamlDagParseError, match="unknown task"):
         _one("tasks:\n  - {id: t, run: {}, needs: [ghost]}")

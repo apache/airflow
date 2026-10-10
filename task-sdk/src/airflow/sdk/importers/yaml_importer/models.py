@@ -304,6 +304,15 @@ def _merge_task(base: dict, over: dict) -> dict:
     return out
 
 
+def _validate_extends(value: Any, *, where: str) -> list[str]:
+    """Return *value* as the list of template names it must be, or raise a clear ``ValueError``."""
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(isinstance(name, str) for name in value):
+        raise ValueError(f"{where}: 'extends' must be a list of template names, got {value!r}")
+    return value
+
+
 def _expand_template(name: str, templates: dict[str, Any], _seen: tuple = ()) -> dict:
     if name in _seen:
         raise ValueError(f"template cycle via {name!r}")
@@ -313,7 +322,7 @@ def _expand_template(name: str, templates: dict[str, Any], _seen: tuple = ()) ->
     if not isinstance(spec, dict):
         raise ValueError(f"template {name!r} must be a mapping")
     acc: dict = {}
-    for parent in spec.get("extends", []) or []:
+    for parent in _validate_extends(spec.get("extends"), where=f"template {name!r}"):
         acc = _merge_task(acc, _expand_template(parent, templates, _seen + (name,)))
     own = {k: v for k, v in spec.items() if k != "extends"}
     return _merge_task(acc, own)
@@ -375,14 +384,16 @@ class DagDocument(BaseModel):
             return data
         resolved = []
         for task in tasks:
-            extends = task.get("extends") if isinstance(task, dict) else None
-            if isinstance(extends, list) and extends:
-                merged: dict = {}
-                for name in extends:
-                    merged = _merge_task(merged, _expand_template(name, templates))
-                resolved.append(_merge_task(merged, {k: v for k, v in task.items() if k != "extends"}))
-            else:
+            if not isinstance(task, dict) or "extends" not in task:
                 resolved.append(task)
+                continue
+            if not (extends := _validate_extends(task["extends"], where=f"task {task.get('id')!r}")):
+                resolved.append(task)
+                continue
+            merged: dict = {}
+            for name in extends:
+                merged = _merge_task(merged, _expand_template(name, templates))
+            resolved.append(_merge_task(merged, {k: v for k, v in task.items() if k != "extends"}))
         return {**data, "tasks": resolved}
 
     @model_validator(mode="after")
