@@ -1655,31 +1655,22 @@ class TestDagFileProcessorManager:
         manager.cleanup_stale_bundle_versions()
         mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_called_once_with()
 
-    @pytest.mark.parametrize(
-        ("log_target", "expected_subprocess_logs_to_stdout"),
-        [
-            ("stdout", True),
-            ("file", False),
-        ],
-    )
-    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
-    def test_create_process_subprocess_logs_to_stdout(
-        self, mock_get_logger, log_target, expected_subprocess_logs_to_stdout
-    ):
-        mock_logger = MagicMock()
-        mock_filehandle = MagicMock()
-        mock_get_logger.return_value = [mock_logger, mock_filehandle]
-
-        with conf_vars({("logging", "dag_processor_log_target"): log_target}):
-            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60)
+    def test_create_process_stdout_target_binds_dag_file_context(self, tmp_path):
+        with conf_vars({("logging", "dag_processor_log_target"): "stdout"}):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60, base_log_dir=str(tmp_path))
             dag_file = DagFileInfo(
                 bundle_name="testing", rel_path=Path("my_dag.py"), bundle_path=Path("/tmp")
             )
             with mock.patch.object(DagFileProcessorProcess, "start") as mock_start:
                 manager._create_process(dag_file)
 
-        _, kwargs = mock_start.call_args
-        assert kwargs["subprocess_logs_to_stdout"] is expected_subprocess_logs_to_stdout
+        kwargs = mock_start.call_args.kwargs
+        # The process logger already writes to stdout, so nothing should copy its output there again.
+        assert not kwargs.get("subprocess_logs_to_stdout")
+        with structlog.testing.capture_logs() as cap:
+            kwargs["logger"].info("parsing")
+        assert cap[0]["dag_file"] == "my_dag.py"
+        assert cap[0]["bundle_name"] == "testing"
 
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
     def test_create_process_parses_a_coordinator_file_with_its_runtime(self, mock_get_logger, tmp_path):
@@ -1895,6 +1886,59 @@ class TestDagFileProcessorManager:
             "broken.native",
             "Cannot start the Lang-SDK runtime: RuntimeError: policy bug",
         )
+
+    @pytest.mark.parametrize(
+        ("log_target", "expected_log_files"),
+        [
+            ("file", 1),
+            ("stdout", 0),
+        ],
+    )
+    def test_create_process_writes_parse_log_file_only_for_file_target(
+        self, tmp_path, log_target, expected_log_files
+    ):
+        with conf_vars({("logging", "dag_processor_log_target"): log_target}):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60, base_log_dir=str(tmp_path))
+            dag_file = DagFileInfo(
+                bundle_name="testing", rel_path=Path("my_dag.py"), bundle_path=Path("/tmp")
+            )
+            with mock.patch.object(DagFileProcessorProcess, "start") as mock_start:
+                manager._create_process(dag_file)
+
+        if (filehandle := mock_start.call_args.kwargs["logger_filehandle"]) is not None:
+            filehandle.close()
+        assert len(list(tmp_path.rglob("*.log"))) == expected_log_files
+
+    def test_create_process_stdout_target_logs_once_to_stdout(self, tmp_path, capsys):
+        (tmp_path / "my_dag.py").write_text(
+            textwrap.dedent(
+                """
+                import logging
+
+                from airflow.sdk import DAG
+
+                logging.getLogger(__name__).warning("parse-marker")
+
+                DAG(dag_id="my_dag", schedule=None)
+                """
+            )
+        )
+        with (
+            conf_vars({("logging", "dag_processor_log_target"): "stdout"}),
+            selectors.DefaultSelector() as selector,
+        ):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60, base_log_dir=str(tmp_path))
+            manager.selector = selector
+            dag_file = DagFileInfo(bundle_name="testing", rel_path=Path("my_dag.py"), bundle_path=tmp_path)
+            proc = manager._create_process(dag_file)
+            while not proc.is_ready:
+                proc._service_subprocess(0.1)
+
+        # The process logger is stdout itself, so a second copy would print every line twice.
+        lines = [line for line in capsys.readouterr().out.splitlines() if "parse-marker" in line]
+        assert len(lines) == 1
+        assert "dag_file=my_dag.py" in lines[0]
+        assert "bundle_name=testing" in lines[0]
 
     def test_terminate_orphan_processes_kills_then_closes_processor(self):
         manager = DagFileProcessorManager(max_runs=1)
@@ -2992,7 +3036,6 @@ class TestDagFileProcessorManager:
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
-                    subprocess_logs_to_stdout=False,
                     client=mock.ANY,
                 ),
                 mock.call(
@@ -3005,7 +3048,6 @@ class TestDagFileProcessorManager:
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
-                    subprocess_logs_to_stdout=False,
                     client=mock.ANY,
                 ),
             ]
