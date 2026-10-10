@@ -463,6 +463,15 @@ Avoid Iterable Tasks when:
 - Sub-tasks need to defer (deferrable operators) or reschedule (reschedule-mode sensors) — a
   sub-task index has no task instance of its own to defer or reschedule against, so either raises
   a non-retryable failure instead of pausing.
+- The operator finds its remote work by the task instance's identity. Every item runs as the one
+  iterated task instance, with its ``dag_id``, ``task_id``, ``run_id`` and ``map_index``: a
+  ``KubernetesPodOperator`` that reattaches (``durable``, or ``reattach_on_restart`` before it)
+  looks a running pod up by those labels and adopts a sibling item's pod, or fails on finding
+  several; an ``EcsRunTaskOperator`` with ``reattach=True`` builds its ``startedBy`` from the same
+  fields. Where the operator takes labels of its own, one that names the item tells the jobs apart:
+  ``labels={"index": "{{ ti.index }}"}`` on the ``KubernetesPodOperator``, as every template of an
+  item renders against the item's own ``ti``. Otherwise turn reattachment off, or map the task with
+  ``.expand()``.
 
 .. tip::
 

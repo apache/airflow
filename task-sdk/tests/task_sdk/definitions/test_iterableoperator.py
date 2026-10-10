@@ -1195,6 +1195,23 @@ class TestIterableOperator:
 
         assert task.task.offset == "7"
 
+    def test_a_template_reads_the_items_own_index(self):
+        """
+        ``{{ ti.index }}`` in a partial kwarg renders per item, so an operator that finds its remote
+        work by labels (a ``KubernetesPodOperator`` that reattaches) can be told the item apart.
+        """
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": "a"}, {"arg1": "b"}])
+            mapped_op = MockOperator.partial(task_id="indexed_label", dag=dag, arg2="{{ ti.index }}")._expand(
+                expand_input, strict=True, register_with_dag=False
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            with mock_context(task=iterable_op) as context:
+                results = sorted(iterable_op.execute(context=context))
+
+        assert results == [("a", "0", None), ("b", "1", None)]
+
     def test_execute_renders_template_fields_off_the_loop_thread(self):
         """
         Rendering a sub-task's template fields may call the supervisor synchronously: an XComArg in
