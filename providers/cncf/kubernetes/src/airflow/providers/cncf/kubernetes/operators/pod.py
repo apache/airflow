@@ -1726,6 +1726,35 @@ class KubernetesPodOperator(BaseOperator):
                 ),
             )
 
+            # Add a shared volume to synchronize container exits (prevent zombie pods)
+            if not pod.spec.volumes:
+                pod.spec.volumes = []
+            pod.spec.volumes.append(
+                k8s.V1Volume(
+                    name="airflow-xcom-sync",
+                    empty_dir=k8s.V1EmptyDirVolumeSource(),
+                )
+            )
+            # Mount the shared volume in the base container
+            if not pod.spec.containers[0].volume_mounts:
+                pod.spec.containers[0].volume_mounts = []
+            pod.spec.containers[0].volume_mounts.append(
+                k8s.V1VolumeMount(
+                    name="airflow-xcom-sync",
+                    mount_path="/tmp/airflow-xcom-sync",
+                )
+            )
+            # Mount the shared volume in the xcom sidecar container
+            sidecar = pod.spec.containers[-1]
+            if not sidecar.volume_mounts:
+                sidecar.volume_mounts = []
+            sidecar.volume_mounts.append(
+                k8s.V1VolumeMount(
+                    name="airflow-xcom-sync",
+                    mount_path="/tmp/airflow-xcom-sync",
+                )
+            )
+
         labels = self._get_ti_pod_labels(context)
         self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)
 
