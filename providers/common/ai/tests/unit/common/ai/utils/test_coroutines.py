@@ -18,12 +18,19 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from contextvars import ContextVar
 
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
+
+_value: ContextVar[str] = ContextVar("value", default="unset")
 
 
 async def _thread_name() -> str:
     return threading.current_thread().name
+
+
+async def _read_value() -> str:
+    return _value.get()
 
 
 class TestRunCoroutineSync:
@@ -35,3 +42,10 @@ class TestRunCoroutineSync:
             return run_coroutine_sync(_thread_name())
 
         assert asyncio.run(caller()) != threading.current_thread().name
+
+    def test_sees_the_callers_context_variables_from_a_running_loop(self):
+        async def caller() -> str:
+            _value.set("caller")
+            return run_coroutine_sync(_read_value())
+
+        assert asyncio.run(caller()) == "caller"
