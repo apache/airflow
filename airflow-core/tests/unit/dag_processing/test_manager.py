@@ -68,6 +68,7 @@ from airflow.dag_processing.processor import (
 from airflow.models import DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
@@ -1198,8 +1199,6 @@ class TestDagFileProcessorManager:
         assert versioned_file in manager._file_stats
 
     def test_file_paths_in_queue_sorted_by_priority(self):
-        from airflow.models.dagbag import DagPriorityParsingRequest
-
         parsing_request = DagPriorityParsingRequest(relative_fileloc="file_1.py", bundle_name="dags-folder")
         with create_session() as session:
             session.add(parsing_request)
@@ -1222,10 +1221,28 @@ class TestDagFileProcessorManager:
             parsing_request_after = session2.get(DagPriorityParsingRequest, parsing_request.id)
         assert parsing_request_after is None
 
+    def test_bundle_priority_request_forces_refresh_without_queueing_file(self):
+        parsing_request = DagPriorityParsingRequest(relative_fileloc=None, bundle_name="dags-folder")
+        with create_session() as session:
+            session.add(parsing_request)
+            session.commit()
+
+        existing_file = DagFileInfo(
+            bundle_name="dags-folder", rel_path=Path("file_2.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+        manager._file_queue = OrderedDict.fromkeys([existing_file])
+
+        manager._queue_requested_files_for_parsing()
+
+        assert manager._file_queue == OrderedDict.fromkeys([existing_file])
+        assert manager._force_refresh_bundles == {"dags-folder"}
+        with create_session() as session:
+            assert session.get(DagPriorityParsingRequest, parsing_request.id) is None
+
     def test_parsing_requests_only_bundles_being_parsed(self, testing_dag_bundle):
         """Ensure the manager only handles parsing requests for bundles being parsed in this manager"""
-        from airflow.models.dagbag import DagPriorityParsingRequest
-
         with create_session() as session:
             session.add(DagPriorityParsingRequest(relative_fileloc="file_1.py", bundle_name="dags-folder"))
             session.add(DagPriorityParsingRequest(relative_fileloc="file_x.py", bundle_name="testing"))
@@ -4047,7 +4064,7 @@ class TestDagFileProcessorManager:
         bundle.get_current_version.return_value = current_version
         return bundle
 
-    def _refresh_with_mocked_state(self, manager, bundle, initial_state):
+    def _refresh_with_mocked_state(self, manager, bundle, initial_state, *, force_refresh=False):
         """Run _refresh_dag_bundles with get/update_bundle_state mocked out.
 
         Returns the two MagicMock objects for post-call assertions. MagicMock retains its
@@ -4056,7 +4073,7 @@ class TestDagFileProcessorManager:
         them normally after this method returns.
         """
         manager._dag_bundles = [bundle]
-        manager._force_refresh_bundles = set()
+        manager._force_refresh_bundles = {bundle.name} if force_refresh else set()
         mock_get = mock.patch.object(manager, "get_bundle_state", return_value=initial_state)
         mock_update = mock.patch.object(manager, "update_bundle_state")
         with (
@@ -4084,6 +4101,22 @@ class TestDagFileProcessorManager:
         mock_get.assert_called_once_with("mock_bundle")
         mock_update.assert_called_once_with("mock_bundle", last_refreshed=mock.ANY, version=None)
         assert manager._bundle_versions["mock_bundle"] is None
+
+    def test_requested_bundle_refresh_bypasses_refresh_interval(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["mock_bundle"] = None
+        bundle = self._make_refresh_bundle(supports_versioning=False)
+        bundle.refresh_interval = 300
+
+        self._refresh_with_mocked_state(
+            manager,
+            bundle,
+            BundleState(last_refreshed=timezone.utcnow(), version=None),
+            force_refresh=True,
+        )
+
+        bundle.refresh.assert_called_once()
+        assert manager._force_refresh_bundles == set()
 
     def test_refresh_dag_bundles_clears_team_name_cache(self):
         manager = DagFileProcessorManager(max_runs=1)

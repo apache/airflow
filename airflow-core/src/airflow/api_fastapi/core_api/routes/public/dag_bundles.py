@@ -31,6 +31,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_bundles import (
     DagBundleDetailResponse,
     DagBundleFileCollectionResponse,
     DagBundleFileResponse,
+    DagBundleRefreshResponse,
     DagBundleResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -40,9 +41,12 @@ from airflow.api_fastapi.core_api.security import (
     PermittedDagBundleFilter,
     ReadableDagBundlesFilterDep,
     requires_access_dag,
+    requires_access_dag_bundle,
 )
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.models import DagModel
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 
@@ -435,3 +439,20 @@ def get_dag_bundle_files(
         dag_bundle_files=[DagBundleFileResponse(**row) for row in ordered[start:end]],
         total_entries=len(ordered),
     )
+
+
+@dag_bundles_router.post(
+    "/{bundle_name}/refresh",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(action_logging()), Depends(requires_access_dag_bundle(method="PUT"))],
+)
+def refresh_dag_bundle(bundle_name: str, session: SessionDep) -> DagBundleRefreshResponse:
+    """Request an asynchronous Dag bundle refresh."""
+    session.add(
+        DagPriorityParsingRequest(
+            bundle_name=bundle_name,
+            relative_fileloc=None,
+        )
+    )
+    return DagBundleRefreshResponse(bundle_name=bundle_name)
