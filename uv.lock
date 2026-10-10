@@ -130,6 +130,7 @@ apache-airflow-providers-qdrant = false
 apache-airflow-providers-redis = false
 apache-airflow-providers-salesforce = false
 apache-airflow-providers-samba = false
+apache-airflow-providers-search = false
 apache-airflow-providers-segment = false
 apache-airflow-providers-sendgrid = false
 apache-airflow-providers-sftp = false
@@ -276,6 +277,7 @@ members = [
     "apache-airflow-providers-redis",
     "apache-airflow-providers-salesforce",
     "apache-airflow-providers-samba",
+    "apache-airflow-providers-search",
     "apache-airflow-providers-segment",
     "apache-airflow-providers-sendgrid",
     "apache-airflow-providers-sftp",
@@ -7873,6 +7875,47 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-search"
+version = "0.1.0"
+source = { editable = "providers/search" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "httpx2" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "httpx2", specifier = ">=2.0.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
