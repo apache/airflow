@@ -36,7 +36,7 @@ import uuid6
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from sqlalchemy import delete, func, inspect as sa_inspect, select, update
+from sqlalchemy import delete, event, func, inspect as sa_inspect, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, load_only
 from sqlalchemy.orm.attributes import set_committed_value
@@ -59,6 +59,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
@@ -70,6 +71,7 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
+    clear_loop_task_instances,
     clear_task_instances,
     find_relevant_relatives,
 )
@@ -233,6 +235,149 @@ def test_conflicting_task_instance_index_names_are_rejected(dag_maker, bulk):
         kwargs["dag_run"] = dr
     with pytest.raises(ValueError, match="map_index.*region_index"):
         constructor(**kwargs)
+
+
+@pytest.fixture
+def legacy_mapped_ti(dag_maker, session):
+    with dag_maker("legacy_mapping", serialized=True):
+        MockOperator.partial(task_id="mapped").expand(arg2=[1])
+    dr = dag_maker.create_dagrun()
+    session.execute(delete(TI).where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id))
+    session.execute(delete(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
+    ti = TI(
+        dag_maker.serialized_dag.get_task("mapped"),
+        run_id=dr.run_id,
+        dag_version_id=dr.created_dag_version_id,
+        region_index=0,
+        state=TaskInstanceState.SUCCESS,
+    )
+    session.add(ti)
+    session.flush()
+    return dr, ti
+
+
+@pytest.mark.parametrize("whole_task", [False, True])
+def test_legacy_width_one_clear_distinguishes_whole_task(dag_maker, session, legacy_mapped_ti, whole_task):
+    dr, ti = legacy_mapped_ti
+    old_id = ti.id
+
+    dag_maker.serialized_dag.clear(
+        task_ids=["mapped"] if whole_task else [("mapped", 0)], run_id=dr.run_id, session=session
+    )
+    session.flush()
+
+    old = session.get(TI, old_id)
+    assert old.working_set is None
+    assert old.region_id.int == 0
+    assert old.region_index == 0
+    regions = session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all()
+    live_query = select(TI).where(TI.dag_id == dr.dag_id, TI.working_set.is_(True))
+    if whole_task:
+        assert old.archived_reason == "superseded"
+        assert len(regions) == 1
+        assert regions[0].node_id == "mapped"
+        assert regions[0].forked_from_region_id is None
+        placeholder = session.scalars(live_query).one()
+        assert (placeholder.region_id, placeholder.region_index) == (regions[0].id, -1)
+        dr.task_instance_scheduling_decisions(session=session)
+        dr.task_instance_scheduling_decisions(session=session)
+        live = session.scalars(live_query).one()
+        assert live.region_id == regions[0].id
+        assert live.region_index == 0
+    else:
+        assert old.archived_reason == "retry"
+        assert not regions
+        live = session.scalars(live_query).one()
+        assert live.id != old_id
+        assert live.region_id.int == 0
+        assert live.region_index == 0
+
+
+@pytest.mark.parametrize("state", [None, State.SCHEDULED, State.QUEUED, State.UP_FOR_RETRY])
+def test_legacy_whole_clear_archives_pending_execution_in_place(dag_maker, session, legacy_mapped_ti, state):
+    dr, ti = legacy_mapped_ti
+    ti.state = state
+    session.flush()
+    old_id = ti.id
+
+    dag_maker.serialized_dag.clear(task_ids=["mapped"], run_id=dr.run_id, session=session)
+    session.flush()
+
+    archived = session.get(TI, old_id)
+    assert archived.archived_reason == "superseded"
+    assert archived.working_set is None
+    assert archived.state == state
+    assert (archived.start_date, archived.end_date) == (None, None)
+
+
+def test_legacy_whole_clear_on_latest_version_keeps_run_reset(dag_maker, session, legacy_mapped_ti):
+    dr, _ = legacy_mapped_ti
+    dr.state = DagRunState.SUCCESS
+    session.flush()
+
+    dag_maker.serialized_dag.clear(
+        task_ids=["mapped"], run_id=dr.run_id, run_on_latest_version=True, session=session
+    )
+    session.flush()
+
+    assert dr.state == DagRunState.QUEUED
+    assert dr.clear_number == 1
+
+
+@pytest.mark.parametrize("width", [1, 2])
+def test_legacy_whole_clear_continues_try_numbers_of_archived_rows(dag_maker, session, width):
+    with dag_maker("legacy_try_numbers", serialized=True):
+        MockOperator.partial(task_id="mapped").expand(arg2=list(range(width)))
+    dr = dag_maker.create_dagrun()
+    session.execute(delete(TI).where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id))
+    session.execute(delete(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
+    session.add_all(
+        TI(
+            dag_maker.serialized_dag.get_task("mapped"),
+            run_id=dr.run_id,
+            dag_version_id=dr.created_dag_version_id,
+            region_index=index,
+            state=TaskInstanceState.SUCCESS,
+        )
+        for index in range(width)
+    )
+    session.flush()
+    for legacy in session.scalars(select(TI).where(TI.dag_id == dr.dag_id)):
+        legacy.try_number = 1
+    session.flush()
+
+    dag_maker.serialized_dag.clear(task_ids=["mapped"], run_id=dr.run_id, session=session)
+    session.flush()
+    dr.task_instance_scheduling_decisions(session=session)
+    dr.task_instance_scheduling_decisions(session=session)
+
+    live = session.scalars(select(TI).where(TI.dag_id == dr.dag_id, TI.working_set.is_(True))).all()
+    assert sorted((ti.region_index, ti.try_number) for ti in live) == [(index, 2) for index in range(width)]
+
+
+@pytest.mark.parametrize("replacement_task_id", ["mapped", "different"])
+def test_legacy_reconciliation_does_not_revive_removed_mapping(
+    dag_maker, session, legacy_mapped_ti, replacement_task_id
+):
+    dr, _ = legacy_mapped_ti
+    dag_maker.serialized_dag.clear(task_ids=["mapped"], run_id=dr.run_id, session=session)
+    session.commit()
+    region = session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).one()
+
+    with dag_maker(dr.dag_id, serialized=True):
+        EmptyOperator(task_id=replacement_task_id)
+    version = DagVersion.get_latest_version(dr.dag_id, session=session)
+    dr.created_dag_version_id = version.id
+    dr.dag = dag_maker.serialized_dag
+    session.flush()
+
+    dr.verify_integrity(dag_version_id=version.id, session=session)
+    dr.verify_integrity(dag_version_id=version.id, session=session)
+    dr.task_instance_scheduling_decisions(session=session)
+
+    region_tis = session.scalars(select(TI).where(TI.region_id == region.id)).all()
+    assert {ti.state for ti in region_tis} <= {TaskInstanceState.REMOVED}
+    assert session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all() == [region]
 
 
 class TestTaskInstance:
@@ -3825,7 +3970,6 @@ class TestMappedTaskInstanceReceiveValue:
     @pytest.mark.parametrize("width", [20, 200])
     def test_map_xcom_wide_batched_expand(self, dag_maker, session, width):
         """Expansion and subsequent DagRun access use bounded queries at either width."""
-        from sqlalchemy import event
         from sqlalchemy.orm.base import NO_VALUE
 
         upstream_return = list(range(width))
@@ -5304,3 +5448,50 @@ def test_failure_listener_receives_failed_try_before_rotation(
         assert ti.id == original_id
         assert ti.try_number == 1
         assert ti.external_executor_id == "previous-worker"
+
+
+def test_archive_decides_from_the_state_committed_after_the_lock(completed_loop, session):
+    dr, loop, _ = completed_loop
+    stale = next(
+        ti
+        for ti in dr.get_task_instances(session=session)
+        if ti.task_id == "body.consume" and ti.region_index == 2
+    )
+    stale.state, stale.start_date, stale.end_date = State.QUEUED, None, None
+    session.flush()
+    session.execute(
+        update(TaskInstance)
+        .where(TaskInstance.id == stale.id)
+        .values(state=State.RUNNING, start_date=timezone.utcnow())
+        .execution_options(synchronize_session=False)
+    )
+
+    stale.archive(reason="superseded", session=session)
+
+    session.refresh(stale)
+    assert (stale.working_set, stale.state) == (None, State.FAILED)
+    assert stale.start_date is not None
+    assert stale.end_date is not None
+
+
+def test_mapped_archival_ack_uses_fork_facts_when_definition_is_missing(loop_run, session):
+    dr, dag, loop, root, tis, iteration = loop_run
+    archiving = next(
+        ti for ti in tis if ti.task_id == "body.process" and iteration(ti) == 3 and ti.region_index == 0
+    )
+    archiving.state = State.RUNNING
+    session.flush()
+    gate = next(ti for ti in tis if ti.task_id == loop.gate_task_id and ti.region_index == 2)
+    clear_loop_task_instances([gate], downstream=False, session=session)
+    session.execute(
+        delete(SerializedDagModel).where(SerializedDagModel.dag_version_id == archiving.dag_version_id)
+    )
+    session.flush()
+    session.expire_all()
+    assert DBDagBag().get_dag(archiving.dag_version_id, session=session) is None
+    archiving_id = archiving.id
+
+    archiving.complete_restart(session=session)
+
+    archived = session.get(TaskInstance, archiving_id)
+    assert (archived.working_set, archived.archived_reason) == (None, "superseded")

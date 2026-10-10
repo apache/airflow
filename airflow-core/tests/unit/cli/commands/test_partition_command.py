@@ -435,7 +435,9 @@ class TestPartitionsClear:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -486,7 +488,9 @@ class TestPartitionsClear:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -538,7 +542,9 @@ class TestPartitionsClear:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -563,29 +569,24 @@ class TestPartitionsClear:
         clear_db_dags()
 
     def test_clear_task_instances_chunks_mid_loop_trigger(self, parser, dag_maker):
-        """Pin mid-loop SELECT IN + slice trigger (dagrun.py clear_partition_runs loop body).
+        """Pin the mid-loop flush (dagrun.py clear_partition_runs loop body).
 
         Design: TI_CHUNK_SIZE=3, 1 dag with 2 tasks, 3 DRs (6 TIs total).
 
         Execution trace:
-        - DR0: ti_buffer=[r0], len=1 < 3 -- no mid-loop
-        - DR1: ti_buffer=[r0, r1], len=2 < 3 -- no mid-loop
-        - DR2: ti_buffer=[r0, r1, r2], len=3 >= 3 -- mid-loop FIRES:
-            SELECT IN(r0, r1, r2) -> 6 TIs
-            ti_buffer_run_ids.clear() -> []
-            ti_carry.extend(6 TIs) -> carry len=6
-            while len>=3: slice[3] -> call #1, carry len=3
-            while len>=3: slice[3] -> call #2, carry len=0
-            while exits
-        - tail: ti_buffer empty, carry empty -- no calls
-        Expected mock_calls sizes: [3, 3]
+        - DR0: ti_buffer_run_ids=[r0], len=1 < 3 -- no mid-loop
+        - DR1: ti_buffer_run_ids=[r0, r1], len=2 < 3 -- no mid-loop
+        - DR2: ti_buffer_run_ids=[r0, r1, r2], len=3 >= 3 -- mid-loop FIRES:
+            SELECT IN(r0, r1, r2) -> 6 TIs, grouped by run
+            batch += r0's 2 TIs -> len=2 < 3
+            batch += r1's 2 TIs -> len=4 >= 3 -> call #1
+            batch += r2's 2 TIs -> len=2 < 3, no runs left -> call #2
+        - tail: ti_buffer_run_ids empty -- no calls
+        Expected mock_calls sizes: [4, 2]
 
-        Note: carry-across-SELECT (mid-loop leftover surviving to the next outer
-        fetch) cannot arise in a single-dag CLI invocation.  When mid-loop triggers,
-        SELECT returns tasks_per_DR * TI_CHUNK_SIZE TIs -- always a TI_CHUNK_SIZE
-        multiple -- so there is never a leftover after the inner while loop.
-        Carry leftover only arises in the tail flush, which is pinned by
-        test_clear_task_instances_chunks_over_cap.
+        A batch holds whole runs only, so a call can exceed TI_CHUNK_SIZE by up to one
+        run's task instances: splitting a run would let the first call archive the later
+        loop passes that the second call still has to clear.
         """
         ti_cap = 3
         clear_db_runs()
@@ -611,7 +612,9 @@ class TestPartitionsClear:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -629,8 +632,8 @@ class TestPartitionsClear:
                 )
             )
 
-        # Mid-loop fires on DR2: two slices of 3 each; tail is empty.
-        assert [len(c.args[0]) for c in mock_cti.mock_calls] == [3, 3]
+        # Mid-loop fires on DR2: two whole runs, then the last run; tail is empty.
+        assert [len(c.args[0]) for c in mock_cti.mock_calls] == [4, 2]
 
         clear_db_runs()
         clear_db_dags()

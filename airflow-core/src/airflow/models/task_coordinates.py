@@ -406,6 +406,19 @@ class TaskCoordinateResolver:
             query = query.where(TaskInstance.run_id == run_id)
         return bool(self.session.scalar(select(query.exists())))
 
+    def is_loop_pass_unselected(self, dag_id: str, run_id: str, task_id: str, region_id: UUID | None) -> bool:
+        """
+        Tell whether addressing a task of a loop by ``region_id`` alone leaves its loop pass unselected.
+
+        An unmapped loop task needs the pass as ``region_index``. A mapped one inside a loop is selected by
+        its expansion's region, which belongs to one pass, and its map index.
+        """
+        try:
+            task = self._producer_task(dag_id, run_id, task_id, region_id=region_id)
+        except TaskNotFound:
+            return False
+        return enclosing_loop(task) is not None and (region_id is None or not task.get_needs_expansion())
+
     def resolve_dependency(self, caller: TaskInstance, task_id: str) -> tuple[TaskInstance, ...]:
         try:
             producer = self.get_task(

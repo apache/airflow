@@ -28,12 +28,14 @@ from unittest import mock
 import pendulum
 import pytest
 from sqlalchemy import delete, func, select, update
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.sql.selectable import Select
 
 from airflow._shared.secrets_masker import mask_secret
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.core_api.services.public import task_instances as task_instances_service
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.jobs.job import Job
@@ -41,12 +43,15 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import LOOP_DECISION_KEY, DynamicRegion
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.task_state_store import TaskStateStoreModel
-from airflow.models.taskinstance import uuid7
+from airflow.models.taskinstance import clear_loop_task_instances, clear_task_instances, uuid7
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.sdk import BaseOperator, TaskGroup, task
+from airflow.models.xcom import XComModelV2
+from airflow.sdk import BaseOperator, TaskGroup, task, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -65,10 +70,19 @@ from tests_common.test_utils.mapping import expand_mapped_task_instances, push_m
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.team import attach_dag_to_team
+from unit.listeners.class_listener import ClassBasedListener
 
 pytestmark = pytest.mark.db_test
 
 DEFAULT = datetime(2020, 1, 1)
+
+
+def _public_coordinates(ti: TaskInstance) -> tuple[str, str | None, int | None]:
+    if ti.region_id.int == 0:
+        return ti.task_id, None, None
+    return ti.task_id, str(ti.region_id), ti.region_index
+
+
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
 DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
 
@@ -174,7 +188,7 @@ class TestTaskInstanceEndpoint:
                 ti.try_number = 1
                 session.merge(ti)
                 session.flush()
-            dag.clear(session=session)
+            clear_task_instances(tis, session=session)
             successors = []
             for ti in tis:
                 current = session.scalar(
@@ -3265,6 +3279,529 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
 
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
+    @pytest.mark.parametrize("one_run", [False, True])
+    def test_broad_clear_uses_pinned_loop_after_latest_definition_removes_it(
+        self, test_client, dag_maker, session, one_run
+    ):
+        @task_group
+        def body():
+            MockOperator(task_id="member")
+
+        with dag_maker(dag_id="changed_loop", serialized=True):
+            loop = create_loop(body, max_iterations=2)
+        dr = dag_maker.create_dagrun()
+        root = session.scalar(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
+        for ti in dr.task_instances:
+            ti.state = State.SUCCESS
+        for loop_task in loop.iter_tasks():
+            session.add(
+                TaskInstance(
+                    task=loop_task,
+                    run_id=dr.run_id,
+                    dag_version_id=dr.created_dag_version_id,
+                    region_id=root.id,
+                    region_index=1,
+                    state=State.SUCCESS,
+                )
+            )
+        session.commit()
+        suffix_ids = {ti.id for ti in dr.get_task_instances(session=session) if ti.region_index == 1}
+        dag_id, run_id, gate_id = dr.dag_id, dr.run_id, loop.gate_task_id
+        with dag_maker(dag_id=dag_id, serialized=True, session=session):
+            MockOperator(task_id="replacement")
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={
+                "task_ids": [gate_id],
+                "dry_run": False,
+                "only_failed": False,
+                **({"dag_run_id": run_id} if one_run else {}),
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        session.expire_all()
+        assert len(suffix_ids) == 2
+        for identity in suffix_ids:
+            archived = session.get(TaskInstance, identity)
+            assert (archived.working_set, archived.archived_reason) == (None, "superseded")
+        assert (
+            session.scalar(
+                select(func.count()).select_from(DynamicRegion).where(DynamicRegion.dag_id == dag_id)
+            )
+            == 2
+        )
+
+    @pytest.mark.parametrize(
+        ("selection", "expected_task_ids"),
+        [
+            pytest.param({"task_ids": ["normal_t"]}, {"setup_t", "normal_t", "teardown_t"}, id="by-task"),
+            pytest.param({"task_ids": ["setup_t"]}, {"setup_t", "teardown_t"}, id="setup"),
+        ],
+    )
+    def test_clear_in_dag_with_loop_includes_setups_and_teardowns(
+        self, test_client, dag_maker, session, selection, expected_task_ids
+    ):
+        @task_group
+        def body():
+            MockOperator(task_id="work")
+
+        with dag_maker("clear_loop_setup_teardown", serialized=True):
+            create_loop(body, max_iterations=2)
+            setup_t = MockOperator(task_id="setup_t").as_setup()
+            normal_t = MockOperator(task_id="normal_t")
+            teardown_t = MockOperator(task_id="teardown_t").as_teardown(setups=setup_t)
+            setup_t >> normal_t >> teardown_t
+        dr = dag_maker.create_dagrun()
+
+        response = test_client.post(
+            f"/dags/{dr.dag_id}/clearTaskInstances",
+            json={"dag_run_id": dr.run_id, "dry_run": True, "only_failed": False, **selection},
+        )
+
+        assert response.status_code == 200, response.text
+        assert {ti["task_id"] for ti in response.json()["task_instances"]} == expected_task_ids
+
+    @pytest.mark.parametrize(
+        ("selection", "expected_task_ids"),
+        [
+            pytest.param(
+                {"task_ids": ["b"], "include_downstream": True}, {"b", "c"}, id="downstream-added-task"
+            ),
+            pytest.param({"task_group_id": "late_group"}, {"late_group.d"}, id="group-added-later"),
+        ],
+    )
+    def test_run_clear_uses_latest_dag_structure_for_unversioned_bundle(
+        self, test_client, dag_maker, session, selection, expected_task_ids
+    ):
+        with dag_maker("clear_unversioned_bundle", serialized=True):
+            MockOperator(task_id="a") >> MockOperator(task_id="b")
+        dr = dag_maker.create_dagrun()
+        dag_id, run_id = dr.dag_id, dr.run_id
+        with dag_maker(dag_id=dag_id, serialized=True, session=session):
+            MockOperator(task_id="a") >> MockOperator(task_id="b") >> MockOperator(task_id="c")
+            with TaskGroup("late_group"):
+                MockOperator(task_id="d")
+        version = DagVersion.get_latest_version(dag_id, session=session)
+        session.add_all(
+            TaskInstance(
+                task=dag_maker.serialized_dag.get_task(task_id),
+                run_id=run_id,
+                dag_version_id=version.id,
+                state=State.SUCCESS,
+            )
+            for task_id in ("c", "late_group.d")
+        )
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={"dag_run_id": run_id, "dry_run": True, "only_failed": False, **selection},
+        )
+
+        assert response.status_code == 200, response.text
+        assert {ti["task_id"] for ti in response.json()["task_instances"]} == expected_task_ids
+
+    @pytest.mark.parametrize("exact", [False, True])
+    def test_task_name_clear_refreshes_execution_after_waiting_for_dagrun_lock(
+        self, test_client, dag_maker, session, mocker, exact
+    ):
+        with dag_maker(serialized=True):
+            MockOperator(task_id="task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = State.SUCCESS
+        session.commit()
+        run_id, dag_id, original_id = dr.run_id, dr.dag_id, ti.id
+        execute = Session._execute_internal
+        bind = session.get_bind()
+        replacement_id = None
+
+        def overlap(request_session, statement, *args, **kwargs):
+            nonlocal replacement_id
+            run_lock = (
+                isinstance(statement, Select)
+                and statement._for_update_arg is not None
+                and any(getattr(table, "name", None) == "dag_run" for table in statement.get_final_froms())
+            )
+            if run_lock and replacement_id is None:
+                replacement_id = original_id
+                with Session(bind=bind) as other:
+                    successor = clear_task_instances([other.get(TaskInstance, original_id)], session=other)[0]
+                    successor.state = State.SUCCESS
+                    other.commit()
+                    replacement_id = successor.id
+            return execute(request_session, statement, *args, **kwargs)
+
+        mocker.patch.object(Session, "_execute_internal", autospec=True, side_effect=overlap)
+        selection = {"task_instance_ids": [str(original_id)]} if exact else {"task_ids": ["task"]}
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={"dag_run_id": run_id, **selection, "dry_run": False, "only_failed": False},
+        )
+
+        assert response.status_code == (409 if exact else 200), response.text
+        if not exact:
+            assert response.json()["total_entries"] == 1
+        session.expire_all()
+        assert session.get(TaskInstance, original_id).working_set is None
+        assert (session.get(TaskInstance, replacement_id).working_set is True) is exact
+
+    def test_exact_clear_rejects_missing_execution_without_changing_run(
+        self, test_client, dag_maker, session
+    ):
+        with dag_maker(serialized=True):
+            MockOperator(task_id="task")
+        dr = dag_maker.create_dagrun()
+        session.commit()
+        before = {ti.id for ti in dr.get_task_instances(session=session)}
+
+        response = test_client.post(
+            f"/dags/{dr.dag_id}/clearTaskInstances",
+            json={
+                "dag_run_id": dr.run_id,
+                "task_instance_ids": [str(uuid7())],
+                "dry_run": False,
+                "only_failed": False,
+            },
+        )
+
+        assert response.status_code == 404
+        session.expire_all()
+        assert dr.clear_number == 0
+        assert {ti.id for ti in dr.get_task_instances(session=session)} == before
+
+    @pytest.mark.parametrize(
+        "selection",
+        [
+            {"task_instance_ids": []},
+            {"task_instance_ids": ["00000000-0000-0000-0000-000000000001"]},
+            {
+                "task_instance_ids": ["00000000-0000-0000-0000-000000000001"],
+                "dag_run_id": "run",
+                "task_ids": ["task"],
+            },
+            {
+                "task_instance_ids": ["00000000-0000-0000-0000-000000000001"],
+                "dag_run_id": "run",
+                "task_group_id": "group",
+            },
+            {
+                "task_instance_ids": ["00000000-0000-0000-0000-000000000001"],
+                "dag_run_id": "run",
+                "include_future": True,
+            },
+            {
+                "task_instance_ids": ["00000000-0000-0000-0000-000000000001"],
+                "dag_run_id": "run",
+                "include_past": True,
+            },
+            {"dag_run_id": "run", "whole_expansion_ids": ["00000000-0000-0000-0000-000000000001"]},
+        ],
+    )
+    def test_exact_clear_rejects_conflicting_scope(self, test_client, selection):
+        response = test_client.post("/dags/example_python_operator/clearTaskInstances", json=selection)
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize("downstream", [False, True])
+    @pytest.mark.parametrize("later", [False, True])
+    @pytest.mark.parametrize("dry_run", [False, True])
+    @pytest.mark.parametrize("only_failed", [False, True])
+    def test_exact_loop_clear_keeps_iteration_scope(
+        self, test_client, dag_maker, session, downstream, later, dry_run, only_failed
+    ):
+        @task_group
+        def body():
+            MockOperator(task_id="member")
+
+        with dag_maker(serialized=True):
+            loop = create_loop(body, max_iterations=3)
+            loop >> MockOperator(task_id="outside")
+        dr = dag_maker.create_dagrun()
+        root = session.scalar(
+            select(DynamicRegion).where(
+                DynamicRegion.dag_id == dr.dag_id, DynamicRegion.node_id == loop.group_id
+            )
+        )
+        for index in (1, 2):
+            for loop_task in loop.iter_tasks():
+                session.add(
+                    TaskInstance(
+                        task=loop_task,
+                        run_id=dr.run_id,
+                        dag_version_id=dr.created_dag_version_id,
+                        region_id=root.id,
+                        region_index=index,
+                        state=State.SUCCESS,
+                    )
+                )
+        session.commit()
+        tis = list(dr.get_task_instances(session=session))
+        seed = next(ti for ti in tis if ti.task_id == "body.member" and ti.region_index == 1)
+        if only_failed:
+            seed.state = State.FAILED
+            session.commit()
+        before = {(ti.id, ti.state, ti.try_number) for ti in tis}
+        coordinates = {ti.id: (ti.task_id, str(ti.region_id), ti.region_index) for ti in tis}
+        tis_by_id = {ti.id: ti for ti in tis}
+
+        response = test_client.post(
+            f"/dags/{dr.dag_id}/clearTaskInstances",
+            json={
+                "dag_run_id": dr.run_id,
+                "dry_run": dry_run,
+                "task_instance_ids": [str(seed.id)],
+                "only_failed": only_failed,
+                "include_downstream": downstream,
+                "include_later_loop_iterations": later,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        expected = {seed.id}
+        if downstream and not only_failed:
+            expected.update(
+                ti.id
+                for ti in tis
+                if ti.task_id == "outside"
+                or (ti.region_index == 1 and ti.task_id == loop.gate_task_id)
+                or (later and ti.region_id == root.id and ti.region_index > 1)
+            )
+        assert {
+            (row["task_id"], row.get("region_id"), row.get("region_index"))
+            for row in response.json()["task_instances"]
+        } == {_public_coordinates(tis_by_id[value]) for value in expected}
+        session.expire_all()
+        if dry_run:
+            assert {
+                (ti.id, ti.state, ti.try_number) for ti in dr.get_task_instances(session=session)
+            } == before
+        else:
+            for identity, state, try_number in before:
+                if identity not in expected:
+                    retained = session.get(TaskInstance, identity)
+                    assert (retained.state, retained.try_number) == (state, try_number)
+                elif state in (State.SUCCESS, State.FAILED):
+                    historical = session.get(TaskInstance, identity)
+                    assert historical.working_set is None
+                    archived = coordinates[identity][2] > 1 and downstream and later
+                    assert historical.archived_reason == ("superseded" if archived else "retry")
+
+    def test_loop_clear_reports_conflict_when_a_worker_archived_the_execution_first(
+        self, test_client, dag_maker, session, mocker
+    ):
+        @task_group
+        def body():
+            MockOperator(task_id="member")
+
+        with dag_maker(serialized=True):
+            loop = create_loop(body, max_iterations=3)
+        dr = dag_maker.create_dagrun()
+        root = session.scalar(
+            select(DynamicRegion).where(
+                DynamicRegion.dag_id == dr.dag_id, DynamicRegion.node_id == loop.group_id
+            )
+        )
+        for loop_task in loop.iter_tasks():
+            session.add(
+                TaskInstance(
+                    task=loop_task,
+                    run_id=dr.run_id,
+                    dag_version_id=dr.created_dag_version_id,
+                    region_id=root.id,
+                    region_index=1,
+                    state=State.SUCCESS,
+                )
+            )
+        session.commit()
+        gate = next(
+            ti
+            for ti in dr.get_task_instances(session=session)
+            if ti.task_id == loop.gate_task_id and ti.region_index == 0
+        )
+        mocker.patch.object(
+            TaskInstance,
+            "archive",
+            autospec=True,
+            side_effect=ValueError("An archived task instance cannot be archived again"),
+        )
+
+        response = test_client.post(
+            f"/dags/{dr.dag_id}/clearTaskInstances",
+            json={
+                "dag_run_id": dr.run_id,
+                "dry_run": False,
+                "only_failed": False,
+                "task_instance_ids": [str(gate.id)],
+                "include_later_loop_iterations": True,
+            },
+        )
+
+        assert response.status_code == 409, response.text
+
+    @pytest.mark.parametrize("downstream", [False, True])
+    @pytest.mark.parametrize("later", [False, True])
+    @pytest.mark.parametrize("seed_task", ["body.improve", "body.evaluate", "gate"])
+    @pytest.mark.parametrize("exact", [False, True])
+    @pytest.mark.parametrize("only_failed", [False, True])
+    def test_loop_clear_dry_run_reports_what_the_real_clear_replaces(
+        self, test_client, dag_maker, session, downstream, later, seed_task, exact, only_failed
+    ):
+        @task_group
+        def body():
+            improve = MockOperator(task_id="improve")
+            improve >> MockOperator(task_id="evaluate")
+
+        with dag_maker(serialized=True):
+            loop = create_loop(body, max_iterations=4)
+            loop >> MockOperator(task_id="finished")
+        dr = dag_maker.create_dagrun()
+        root = session.scalar(
+            select(DynamicRegion).where(
+                DynamicRegion.dag_id == dr.dag_id, DynamicRegion.node_id == loop.group_id
+            )
+        )
+        for index in (1, 2, 3):
+            for loop_task in loop.iter_tasks():
+                session.add(
+                    TaskInstance(
+                        task=loop_task,
+                        run_id=dr.run_id,
+                        dag_version_id=dr.created_dag_version_id,
+                        region_id=root.id,
+                        region_index=index,
+                        state=State.SUCCESS,
+                    )
+                )
+        for ti in dr.get_task_instances(session=session):
+            ti.state = State.FAILED if only_failed and ti.region_index in (1, 2) else State.SUCCESS
+        session.commit()
+        task_id = loop.gate_task_id if seed_task == "gate" else seed_task
+
+        def build_payload():
+            seed = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.run_id == dr.run_id,
+                    TaskInstance.task_id == task_id,
+                    TaskInstance.region_index == 1,
+                    TaskInstance.working_set.is_(True),
+                )
+            )
+            return {
+                "dag_run_id": dr.run_id,
+                "only_failed": only_failed,
+                "include_downstream": downstream,
+                "include_later_loop_iterations": later,
+                **({"task_instance_ids": [str(seed.id)]} if exact else {"task_ids": [task_id]}),
+            }
+
+        test_client.post(f"/dags/{dr.dag_id}/clearTaskInstances", json={**build_payload(), "dry_run": False})
+        for ti in session.scalars(select(TaskInstance).where(TaskInstance.working_set.is_(True))):
+            ti.state = State.FAILED if only_failed and ti.region_index in (1, 2) else State.SUCCESS
+        session.commit()
+        payload = build_payload()
+        archived_before = set(
+            session.scalars(
+                select(TaskInstance.id)
+                .where(TaskInstance.working_set.is_(None))
+                .execution_options(include_all_attempts=True)
+            )
+        )
+        dry = test_client.post(f"/dags/{dr.dag_id}/clearTaskInstances", json={**payload, "dry_run": True})
+        real = test_client.post(f"/dags/{dr.dag_id}/clearTaskInstances", json={**payload, "dry_run": False})
+
+        assert dry.status_code == 200, dry.text
+        assert real.status_code == 200, real.text
+        session.expire_all()
+        archived_ids = {
+            ti.id
+            for ti in session.scalars(
+                select(TaskInstance)
+                .where(
+                    TaskInstance.dag_id == dr.dag_id,
+                    TaskInstance.working_set.is_(None),
+                )
+                .execution_options(include_all_attempts=True)
+            )
+        } - archived_before
+        reported = {
+            (row["task_id"], row.get("region_id"), row.get("region_index"))
+            for row in dry.json()["task_instances"]
+        }
+        replaced = {
+            _public_coordinates(ti)
+            for ti in session.scalars(
+                select(TaskInstance)
+                .where(TaskInstance.id.in_(archived_ids))
+                .execution_options(include_all_attempts=True)
+            )
+        }
+        assert reported == replaced
+        assert {
+            (row["task_id"], row.get("region_id"), row.get("region_index"))
+            for row in real.json()["task_instances"]
+        } >= reported
+
+    @pytest.mark.parametrize("new_note", [None, "Reason for clearing", ""])
+    @pytest.mark.parametrize("whole", [False, True])
+    @pytest.mark.parametrize("exact", [False, True])
+    def test_legacy_whole_clear_retains_affected_execution_and_note(
+        self, test_client, dag_maker, session, new_note, whole, exact
+    ):
+        with dag_maker(dag_id="legacy_clear_response", serialized=True):
+            MockOperator.partial(task_id="mapped").expand(arg2=[1])
+        dr = dag_maker.create_dagrun()
+        session.execute(delete(TaskInstance).where(TaskInstance.dag_id == dr.dag_id))
+        session.execute(delete(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
+        ti = TaskInstance(
+            dag_maker.serialized_dag.get_task("mapped"),
+            run_id=dr.run_id,
+            dag_version_id=dr.created_dag_version_id,
+            region_index=0,
+            state=State.SUCCESS,
+        )
+        ti.note = ("Original execution note", "test")
+        session.add(ti)
+        session.commit()
+        old_id = ti.id
+        selection = (
+            {"task_instance_ids": [str(old_id)], "whole_expansion_ids": [str(old_id)] if whole else []}
+            if exact
+            else {"task_ids": ["mapped"] if whole else [["mapped", 0]]}
+        )
+
+        response = test_client.post(
+            f"/dags/{dr.dag_id}/clearTaskInstances",
+            json={
+                "dry_run": False,
+                "reset_dag_runs": False,
+                "only_failed": False,
+                "dag_run_id": dr.run_id,
+                **selection,
+                "note": new_note,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        expected_note = "Original execution note" if new_note is None else new_note or None
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert (body["task_instances"][0]["id"] == str(old_id)) is whole
+        assert body["task_instances"][0]["note"] == expected_note
+        session.expire_all()
+        history = session.get(TaskInstance, old_id)
+        assert history.working_set is None
+        assert history.archived_reason == ("superseded" if whole else "retry")
+        assert history.note == (expected_note if whole else "Original execution note")
+        assert (
+            session.scalar(
+                select(func.count()).select_from(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)
+            )
+            == whole
+        )
+
     @pytest.mark.parametrize(
         ("main_dag", "task_instances", "request_dag", "payload", "expected_ti"),
         [
@@ -3781,7 +4318,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         # dag (3rd argument) is a different session object. Manually asserting that the dag_id
         # is the same.
         mock_clearti.assert_called_once_with(
-            [], mock.ANY, DagRunState.QUEUED, prevent_running_task=False, run_on_latest_version=False
+            [],
+            mock.ANY,
+            DagRunState.QUEUED,
+            prevent_running_task=False,
+            run_on_latest_version=False,
+            whole_task_keys=set(),
         )
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, test_client, session):
@@ -4940,6 +5482,565 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         }
 
 
+class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
+    @pytest.fixture
+    def loop_instances(self, dag_maker, session):
+        @task_group
+        def body():
+            MockOperator(task_id="first") >> MockOperator(task_id="last")
+
+        with dag_maker("manual-loop", serialized=True):
+            loop = create_loop(body, max_iterations=3, until=lambda loop: True)
+        dr = dag_maker.create_dagrun(run_id="manual-run")
+        root = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+        for index in (1, 2):
+            for operator in loop.iter_tasks():
+                session.add(
+                    TaskInstance(
+                        task=operator,
+                        run_id=dr.run_id,
+                        dag_version_id=dr.created_dag_version_id,
+                        region_id=root.id,
+                        region_index=index,
+                    )
+                )
+        session.flush()
+        tis = {(ti.task_id, ti.region_index): ti for ti in dr.get_task_instances(session=session)}
+        for ti in tis.values():
+            ti.set_state(State.FAILED, session=session)
+        session.commit()
+        return dr, loop, root, tis
+
+    @pytest.mark.parametrize("keep_task_state", [False, True])
+    def test_clear_discards_task_state_of_the_selected_loop_iteration_only(
+        self, test_client, session, loop_instances, keep_task_state
+    ):
+        dr, loop, root, tis = loop_instances
+        backend = MetastoreBackend()
+        for index in (1, 2):
+            backend.set(
+                TaskScope(
+                    dag_id=dr.dag_id,
+                    run_id=dr.run_id,
+                    task_id="body.first",
+                    region_id=root.id,
+                    region_index=index,
+                ),
+                "job_id",
+                "external-job",
+                session=session,
+            )
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{dr.dag_id}/clearTaskInstances",
+            json={
+                "dry_run": False,
+                "dag_run_id": dr.run_id,
+                "task_instance_ids": [str(tis["body.first", 1].id)],
+                "keep_task_state": keep_task_state,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        session.expire_all()
+        assert set(
+            session.scalars(
+                select(TaskStateStoreModel.region_index).where(
+                    TaskStateStoreModel.dag_id == dr.dag_id,
+                    TaskStateStoreModel.task_id == "body.first",
+                )
+            )
+        ) == ({1, 2} if keep_task_state else {2})
+
+    @pytest.mark.parametrize("dry_run", [False, True])
+    def test_exact_loop_mark_does_not_change_other_iterations(
+        self, test_client, session, loop_instances, dry_run
+    ):
+        dr, loop, root, tis = loop_instances
+        url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.first"
+
+        response = test_client.patch(
+            url + ("/dry_run" if dry_run else ""),
+            json={"new_state": "success", "region_id": str(root.id), "region_index": 1},
+        )
+
+        assert response.status_code == 200, response.text
+        assert [
+            (item["task_id"], item["map_index"], item["region_index"])
+            for item in response.json()["task_instances"]
+        ] == [("body.first", -1, 1)]
+        session.expire_all()
+        for index in (0, 2):
+            assert tis["body.first", index].state == State.FAILED
+            assert tis["body.last", index].state == State.FAILED
+        assert tis["body.first", 1].state == (State.FAILED if dry_run else State.SUCCESS)
+        current_last = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == "body.last",
+                TaskInstance.region_id == root.id,
+                TaskInstance.region_index == 1,
+                TaskInstance.working_set.is_(True),
+            )
+        )
+        assert current_last.state == (State.FAILED if dry_run else None)
+
+    def test_loop_mark_without_coordinates_requires_a_region_and_index(self, test_client, loop_instances):
+        dr, loop, root, tis = loop_instances
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.first",
+            json={"new_state": "success"},
+        )
+
+        assert response.status_code == 400, response.text
+        assert response.json()["detail"] == "Select a region and index for this task instance"
+
+    @pytest.mark.parametrize(
+        ("map_index", "expected_status"),
+        [
+            pytest.param(7, 400, id="conflicting"),
+            pytest.param(-1, 200, id="default"),
+            pytest.param(1, 200, id="matching"),
+        ],
+    )
+    def test_loop_mark_rejects_map_index_conflicting_with_region_index(
+        self, test_client, loop_instances, map_index, expected_status
+    ):
+        dr, loop, root, tis = loop_instances
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.first/{map_index}",
+            json={"new_state": "success", "region_id": str(root.id), "region_index": 1},
+        )
+
+        assert response.status_code == expected_status, response.text
+        if expected_status == 400:
+            assert response.json()["detail"] == "map_index conflicts with region_index"
+
+    @pytest.mark.parametrize("coordinates_in_query", [False, True])
+    def test_exact_loop_note_changes_only_selected_execution(
+        self, test_client, session, loop_instances, coordinates_in_query
+    ):
+        dr, loop, root, tis = loop_instances
+        coordinates = {"region_id": str(root.id), "region_index": 1}
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.first",
+            json={"note": "selected iteration", **({} if coordinates_in_query else coordinates)},
+            params=coordinates if coordinates_in_query else {},
+        )
+
+        assert response.status_code == 200, response.text
+        session.expire_all()
+        assert tis["body.first", 1].note == "selected iteration"
+        assert tis["body.first", 0].note is None
+        assert tis["body.first", 2].note is None
+
+    def test_manual_gate_success_after_rewind_stops_without_consuming_continue(
+        self, test_client, session, loop_instances
+    ):
+        dr, loop, root, tis = loop_instances
+        clear_loop_task_instances([tis[loop.gate_task_id, 0]], downstream=False, session=session)
+        gate = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.task_id == loop.gate_task_id,
+                TaskInstance.region_index == 0,
+                TaskInstance.working_set.is_(True),
+            )
+        ).one()
+        gate_id = gate.id
+        session.add(XComModelV2(task_instance_id=gate_id, key=LOOP_DECISION_KEY, value="continue"))
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/{gate.task_id}",
+            json={"new_state": "success", "region_id": str(root.id), "region_index": 0},
+        )
+
+        assert response.status_code == 200, response.text
+        session.expire_all()
+        assert session.get(TaskInstance, gate_id).state == State.SUCCESS
+        assert all(ti.region_index == 0 for ti in dr.get_task_instances(session=session))
+        assert not session.scalar(select(XComModelV2).where(XComModelV2.task_instance_id == gate_id))
+
+    @pytest.mark.parametrize("outcome", ["success", "failed", "skipped"])
+    def test_manual_terminal_settles_superseded_running_execution(
+        self, test_client, session, loop_instances, outcome
+    ):
+        dr, loop, root, tis = loop_instances
+        archiving = tis["body.first", 2]
+        archiving.state = State.RUNNING
+        session.flush()
+        archiving_id = archiving.id
+        clear_loop_task_instances([tis[loop.gate_task_id, 0]], downstream=False, session=session)
+        assert archiving.state == State.RESTARTING
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/{archiving.task_id}",
+            json={"new_state": outcome, "region_id": str(root.id), "region_index": 2},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["task_instances"][0]["state"] == outcome
+        session.expire_all()
+        history = session.get(TaskInstance, archiving_id)
+        assert history.working_set is None
+        assert history.state == outcome
+        assert history.archived_reason == "superseded"
+        assert history.end_date is not None
+
+    @pytest.mark.parametrize(
+        ("body", "params"),
+        [
+            ({"region_index": 1}, {}),
+            ({}, {"region_index": 1}),
+            (
+                {"region_index": 1, "region_id": "00000000-0000-0000-0000-000000000000"},
+                {"region_index": 2, "region_id": "00000000-0000-0000-0000-000000000000"},
+            ),
+            (
+                {
+                    "region_index": 1,
+                    "region_id": "00000000-0000-0000-0000-000000000000",
+                    "include_past": True,
+                },
+                {},
+            ),
+        ],
+    )
+    def test_invalid_coordinate_control_is_rejected(self, test_client, loop_instances, body, params):
+        dr, loop, root, tis = loop_instances
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.first",
+            json={"new_state": "success", **body},
+            params=params,
+        )
+
+        assert response.status_code == 400, response.text
+
+    @pytest.mark.parametrize("action", ["update", "delete"])
+    def test_bulk_exact_passes_have_distinct_execution_results(
+        self, test_client, session, loop_instances, action
+    ):
+        dr, loop, root, tis = loop_instances
+        ids = {str(tis["body.first", index].id) for index in (0, 2)}
+        entities = [
+            {
+                "task_id": "body.first",
+                "map_index": -1,
+                "region_id": str(root.id),
+                "region_index": index,
+                **({"new_state": "success"} if action == "update" else {}),
+            }
+            for index in (0, 2)
+        ]
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances",
+            json={"actions": [{"action": action, "entities": entities}]},
+        )
+
+        assert response.status_code == 200, response.text
+        assert not response.json()[action]["errors"]
+        assert set(response.json()[action]["success"]) == ids
+        session.expire_all()
+        assert tis["body.first", 1].state == State.FAILED
+        live = {str(ti.id): ti.state for ti in dr.get_task_instances(session=session)}
+        if action == "delete":
+            assert not ids & live.keys()
+        else:
+            assert all(live[ti_id] == State.SUCCESS for ti_id in ids)
+
+    def test_bulk_delete_of_a_loop_pass_removes_its_archived_tries(
+        self, test_client, session, loop_instances
+    ):
+        dr, loop, root, tis = loop_instances
+        archived = tis["body.first", 2]
+        retried = archived.prepare_db_for_next_try(session)
+        session.commit()
+        pass_rows = (
+            select(TaskInstance.id)
+            .where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == "body.first",
+                TaskInstance.region_id == root.id,
+                TaskInstance.region_index == 2,
+            )
+            .execution_options(include_all_attempts=True)
+        )
+        assert set(session.scalars(pass_rows)) == {archived.id, retried.id}, "Checking pre-conditions"
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances",
+            json={
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [
+                            {
+                                "task_id": "body.first",
+                                "map_index": -1,
+                                "region_id": str(root.id),
+                                "region_index": 2,
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert not response.json()["delete"]["errors"]
+        session.expire_all()
+        assert set(session.scalars(pass_rows)) == set()
+        remaining = {(ti.task_id, ti.region_index) for ti in dr.get_task_instances(session=session)}
+        assert remaining == set(tis) - {("body.first", 2)}
+
+    def test_bulk_regional_entities_do_not_lock_their_run_again(self, test_client, loop_instances, mocker):
+        dr, loop, root, tis = loop_instances
+        lock_runs = mocker.spy(task_instances_service, "_lock_patch_runs")
+        entities = [
+            {
+                "task_id": "body.first",
+                "map_index": -1,
+                "region_id": str(root.id),
+                "region_index": index,
+                "new_state": "success",
+            }
+            for index in (0, 2)
+        ]
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances",
+            json={"actions": [{"action": "update", "entities": entities}]},
+        )
+
+        assert response.status_code == 200, response.text
+        lock_runs.assert_not_called()
+
+    @pytest.mark.parametrize("dry_run", [False, True])
+    def test_group_coordinates_select_one_loop_pass(self, test_client, session, loop_instances, dry_run):
+        dr, loop, root, tis = loop_instances
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskGroupInstances/body"
+            + ("/dry_run" if dry_run else ""),
+            json={"new_state": "success", "region_id": str(root.id), "region_index": 1},
+        )
+
+        assert response.status_code == 200, response.text
+        assert {item["id"] for item in response.json()["task_instances"]} == {
+            str(ti.id) for (task_id, index), ti in tis.items() if index == 1
+        }
+        session.expire_all()
+        for (_task_id, index), ti in tis.items():
+            assert ti.state == (State.SUCCESS if index == 1 and not dry_run else State.FAILED)
+
+    @pytest.mark.parametrize("action", ["update", "delete"])
+    @pytest.mark.parametrize("map_index", [None, -1])
+    def test_bulk_loop_request_requires_coordinates(
+        self, test_client, session, loop_instances, action, map_index
+    ):
+        dr, loop, root, tis = loop_instances
+        before = {ti.id: ti.state for ti in tis.values()}
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances",
+            json={
+                "actions": [
+                    {
+                        "action": action,
+                        "entities": [
+                            {
+                                "task_id": "body.first",
+                                "map_index": map_index,
+                                **({"new_state": "success"} if action == "update" else {}),
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()[action]["errors"][0]["status_code"] == 409
+        assert not response.json()[action]["success"]
+        session.expire_all()
+        assert {ti.id: ti.state for ti in dr.get_task_instances(session=session)} == before
+
+    def test_group_pass_includes_mapped_descendants(self, test_client, dag_maker, session):
+        @task_group
+        def body():
+            MockOperator.partial(task_id="mapped").expand(arg2=[1, 2]) >> MockOperator(task_id="last")
+
+        with dag_maker("mapped-manual-loop", serialized=True):
+            loop = create_loop(body, max_iterations=2)
+            loop >> MockOperator(task_id="outside")
+        dr = dag_maker.create_dagrun(run_id="manual-run")
+        root = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskGroupInstances/body",
+            json={"new_state": "success", "region_id": str(root.id), "region_index": 0},
+        )
+
+        assert response.status_code == 200, response.text
+        values = response.json()["task_instances"]
+        assert {(ti["task_id"], ti["map_index"]) for ti in values} == {
+            ("body.mapped", 0),
+            ("body.mapped", 1),
+            ("body.last", -1),
+            (loop.gate_task_id, -1),
+        }
+        session.expire_all()
+        assert all(
+            ti.state == (None if ti.task_id == "outside" else State.SUCCESS)
+            for ti in dr.get_task_instances(session=session)
+        )
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_regional_success_preserves_other_state_scope_and_notifies_listener(
+        self, test_client, session, loop_instances, listener_manager
+    ):
+        dr, loop, root, tis = loop_instances
+        backend = MetastoreBackend()
+        scopes = [
+            TaskScope(
+                dag_id=dr.dag_id,
+                run_id=dr.run_id,
+                task_id="body.first",
+                region_id=root.id,
+                region_index=index,
+            )
+            for index in (0, 1)
+        ]
+        for scope in scopes:
+            backend.set(scope, "job_id", "external-job", session=session)
+        session.commit()
+        listener = ClassBasedListener()
+        listener_manager(listener)
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.first",
+            json={
+                "new_state": "success",
+                "note": "completed manually",
+                "region_id": str(root.id),
+                "region_index": 1,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert listener.state == [TaskInstanceState.SUCCESS]
+        assert listener.ti_note_at_listener == "completed manually"
+        assert set(
+            session.scalars(
+                select(TaskStateStoreModel.region_index).where(
+                    TaskStateStoreModel.dag_id == dr.dag_id,
+                    TaskStateStoreModel.task_id == "body.first",
+                )
+            )
+        ) == {0}
+
+    @pytest.mark.parametrize("dry_run", [False, True])
+    def test_regional_downstream_mark_uses_same_scope_as_preview(
+        self, test_client, session, loop_instances, dry_run
+    ):
+        dr, loop, root, tis = loop_instances
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.first"
+            + ("/dry_run" if dry_run else ""),
+            json={
+                "new_state": "success",
+                "include_downstream": True,
+                "region_id": str(root.id),
+                "region_index": 1,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert {item["id"] for item in response.json()["task_instances"]} == {
+            str(ti.id) for (_task_id, index), ti in tis.items() if index == 1
+        }
+        session.expire_all()
+        assert all(
+            ti.state == (State.SUCCESS if index == 1 and not dry_run else State.FAILED)
+            for (_task_id, index), ti in tis.items()
+        )
+
+    @pytest.mark.parametrize("remove_group", [False, True])
+    def test_regional_group_uses_execution_version_after_definition_changes(
+        self, test_client, session, dag_maker, loop_instances, remove_group
+    ):
+        dr, loop, root, tis = loop_instances
+
+        @task_group(group_id="replacement" if remove_group else "body")
+        def changed():
+            MockOperator(task_id="first")
+
+        with dag_maker(dr.dag_id, serialized=True, session=session):
+            create_loop(changed, max_iterations=3, until=lambda loop: True)
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskGroupInstances/body",
+            json={"new_state": "success", "region_id": str(root.id), "region_index": 1},
+        )
+
+        assert response.status_code == 200, response.text
+        assert {item["id"] for item in response.json()["task_instances"]} == {
+            str(ti.id) for (_task_id, index), ti in tis.items() if index == 1
+        }
+
+    def test_group_terminal_response_retains_executions_archived_by_manual_settlement(
+        self, test_client, session, loop_instances
+    ):
+        dr, loop, root, tis = loop_instances
+        draining = [tis["body.first", 2], tis[loop.gate_task_id, 2]]
+        for ti in draining:
+            ti.state = State.RUNNING
+        session.flush()
+        ids = {str(ti.id) for ti in draining}
+        clear_loop_task_instances([tis[loop.gate_task_id, 0]], downstream=False, session=session)
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskGroupInstances/body",
+            json={"new_state": "skipped", "region_id": str(root.id), "region_index": 2},
+        )
+
+        assert response.status_code == 200, response.text
+        assert {item["id"] for item in response.json()["task_instances"]} == ids
+        assert all(item["state"] == "skipped" for item in response.json()["task_instances"])
+
+    def test_unscoped_group_rejects_pinned_loop_when_latest_group_is_plain(
+        self, test_client, session, dag_maker, loop_instances
+    ):
+        dr, loop, root, tis = loop_instances
+        before = {ti.id: ti.state for ti in tis.values()}
+        with dag_maker(dr.dag_id, serialized=True, session=session):
+            with TaskGroup(group_id="body"):
+                MockOperator(task_id="first") >> MockOperator(task_id="last")
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskGroupInstances/body",
+            json={"new_state": "success"},
+        )
+
+        assert response.status_code == 409, response.text
+        session.expire_all()
+        assert {ti.id: ti.state for ti in dr.get_task_instances(session=session)} == before
+
+
 class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     ENDPOINT_URL = "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
     NEW_STATE = "failed"
@@ -5560,6 +6661,20 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         _check_task_instance_note(
             session, response_data["task_instances"][0]["id"], {"content": new_note_value, "user_id": "test"}
         )
+
+    def test_set_note_should_respond_200_for_unversioned_task_instance(self, test_client, session):
+        self.create_task_instances(session)
+        session.execute(update(TaskInstance).values(dag_version_id=None))
+        session.execute(update(DagRun).values(created_dag_version_id=None))
+        session.commit()
+
+        response = test_client.patch(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+            json={"note": "unversioned note"},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["task_instances"][0]["note"] == "unversioned note"
 
     def test_set_empty_note_removes_existing_note(self, test_client, session):
         self.create_task_instances(session)
@@ -7330,7 +8445,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     def test_bulk_delete_query_count_scales_linearly_with_task_count(self, test_client, session, task_count):
         # Each extra task instance adds one coordinate DELETE, with no per-instance re-SELECT.
         QUERIES_PER_TASK_INSTANCE = 1
-        BASE_QUERY_COUNT = 2
+        BASE_QUERY_COUNT = 3
 
         self.create_task_instances(
             session,
@@ -7374,6 +8489,30 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     def test_should_respond_422(self, test_client):
         response = test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 422
+
+    def test_bulk_update_note_of_unversioned_task_instance(self, test_client, session):
+        self.create_task_instances(session, task_instances=[{"state": State.RUNNING}])
+        session.execute(update(TaskInstance).values(dag_version_id=None))
+        session.execute(update(DagRun).values(created_dag_version_id=None))
+        session.commit()
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"task_id": self.TASK_ID, "note": "unversioned note"}],
+                    }
+                ]
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["update"] == {
+            "success": [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"],
+            "errors": [],
+        }
 
     def test_bulk_update_listener_sees_note_when_note_and_state_both_patched(
         self, test_client, session, listener_manager

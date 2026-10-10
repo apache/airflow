@@ -59,20 +59,29 @@ from airflow.dag_processing.dagbag import DagBag
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
-from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs, get_or_create_dagrun
+from airflow.models.dagrun import (
+    DagRun,
+    DagRunNote,
+    clear_partition_runs,
+    get_or_create_dagrun,
+    lock_dag_runs,
+)
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
+from airflow.models.dynamic_region import LOOP_DECISION_KEY, SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstanceNote,
     _update_dagrun_to_latest_version,
+    clear_loop_task_instances,
     clear_task_instances,
 )
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.variable import Variable
+from airflow.models.xcom import XComModelV2
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
@@ -6012,7 +6021,9 @@ class TestClearPartitionRuns:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", 6),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             cleared, tis = clear_partition_runs(
                 dag=serialized_dag,
@@ -6058,7 +6069,9 @@ class TestClearPartitionRuns:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", 6),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             clear_partition_runs(
                 dag=serialized_dag,
@@ -6211,3 +6224,174 @@ def test_scheduling_decisions_do_not_redeserialize_the_dag_per_pass(dag_maker, s
             dr.task_instance_scheduling_decisions(session=session)
 
     assert read.call_count == 0
+
+
+def test_integrity_does_not_create_members_at_draining_gate_coordinates(completed_loop, dag_maker, session):
+    dr, loop, complete_pass = completed_loop
+    gates = {
+        ti.region_index: ti
+        for ti in dr.get_task_instances(session=session)
+        if ti.task_id == loop.gate_task_id
+    }
+    gates[4].state = State.RUNNING
+    session.flush()
+    clear_loop_task_instances([gates[2]], downstream=False, session=session)
+
+    @task_group
+    def body():
+        (
+            EmptyOperator(task_id="prepare")
+            >> EmptyOperator(task_id="process")
+            >> EmptyOperator(task_id="consume")
+            >> EmptyOperator(task_id="new")
+        )
+
+    with dag_maker(serialized=True, session=session):
+        create_loop(body, max_iterations=5, until=lambda loop: True)
+    version = DagVersion.get_latest_version(dr.dag_id, session=session).id
+    dr.dag = DBDagBag().get_dag(version_id=version, session=session)
+
+    dr.verify_integrity(session=session, dag_version_id=version)
+
+    assert gates[4].state == State.RESTARTING
+    assert set(
+        session.scalars(
+            select(TaskInstance.region_index).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == "body.new",
+            )
+        )
+    ) == {0, 1, 2}
+
+
+def test_run_stays_running_after_clearing_a_gate_while_the_last_pass_is_running(completed_loop, session):
+    dr, loop, _ = completed_loop
+    gates = {
+        ti.region_index: ti
+        for ti in dr.get_task_instances(session=session)
+        if ti.task_id == loop.gate_task_id
+    }
+    assert sorted(gates) == [0, 1, 2, 3, 4], "Checking pre-conditions: every pass has a gate"
+    # Pretend the last pass's gate is still running, so that clearing an earlier gate supersedes it and
+    # leaves it RESTARTING until its worker acknowledges the termination.
+    gates[4].state = State.RUNNING
+    session.flush()
+    clear_loop_task_instances([gates[2]], downstream=False, session=session)
+    dr.dag = DBDagBag().get_dag_for_run(dr, session=session)
+
+    assert gates[4].state == State.RESTARTING
+
+    dr.update_state(session=session)
+
+    assert dr.state == DagRunState.RUNNING
+
+
+def test_run_stays_running_when_clearing_an_early_gate_restarts_a_running_body_task(completed_loop, session):
+    dr, loop, _ = completed_loop
+    members = {(ti.task_id, ti.region_index): ti for ti in dr.get_task_instances(session=session)}
+    # `completed_loop` creates and completes every pass up front, but a real loop creates pass N + 1 only
+    # when gate N completes. Remove pass 4 so that pass 3 is the last pass and is still in progress.
+    for ti in [ti for (_, index), ti in members.items() if index == 4]:
+        session.delete(ti)
+    # Pass 3 is mid-flight: its `process` task is running and `consume` and the gate have not started.
+    for task_id in ("body.consume", loop.gate_task_id):
+        members[task_id, 3].state = None
+    members["body.process", 3].state = State.RUNNING
+    session.flush()
+    assert {ti.region_index for ti in dr.get_task_instances(session=session)} == {0, 1, 2, 3}, (
+        "Checking pre-conditions: pass 3 is the last pass"
+    )
+    # Clearing gate 1 supersedes passes 2 and 3: `prepare[3]` is archived and the running `process[3]`
+    # goes RESTARTING, so it is left with no live upstream while it waits for its worker to acknowledge.
+    clear_loop_task_instances(
+        [members[loop.gate_task_id, 1]], downstream=False, dag_run_state=False, session=session
+    )
+    dr.dag = DBDagBag().get_dag_for_run(dr, session=session)
+
+    assert members["body.process", 3].state == State.RESTARTING
+    assert members["body.prepare", 3].working_set is None
+
+    dr.update_state(session=session)
+
+    assert dr.state == DagRunState.RUNNING
+
+
+def test_rerun_gate_continues_while_superseded_later_passes_terminate(completed_loop, session):
+    dr, loop, _ = completed_loop
+    gates = {
+        ti.region_index: ti
+        for ti in dr.get_task_instances(session=session)
+        if ti.task_id == loop.gate_task_id
+    }
+    gates[4].state = State.RUNNING
+    session.flush()
+    clear_loop_task_instances([gates[2]], downstream=False, session=session)
+    rerun = session.get(TaskInstance, gates[2].id)
+    rerun.state = State.SUCCESS
+    session.add(XComModelV2(task_instance_id=rerun.id, key=LOOP_DECISION_KEY, value="continue"))
+    session.flush()
+    group, _ = TaskCoordinateResolver(DBDagBag(), session).loop_context(rerun)
+
+    dr.complete_loop_gate(rerun, group, State.SUCCESS, session=session)
+
+    assert gates[4].state == State.RESTARTING
+    assert session.scalars(
+        select(TaskInstance.state).where(
+            TaskInstance.dag_id == dr.dag_id,
+            TaskInstance.run_id == dr.run_id,
+            TaskInstance.task_id == "body.prepare",
+            TaskInstance.region_index == 3,
+        )
+    ).all() == [None]
+
+
+@pytest.fixture
+def locked_dag_run_keys(session):
+    locked: list[list[tuple[str, str]]] = []
+
+    @event.listens_for(session, "do_orm_execute")
+    def record_dag_run_locks(orm_execute_state):
+        statement = orm_execute_state.statement
+        if (
+            getattr(statement, "_for_update_arg", None) is not None
+            and DagRun.__table__ in statement.get_final_froms()
+        ):
+            locked.append(next(iter(statement.compile().params.values())))
+
+    yield locked
+    event.remove(session, "do_orm_execute", record_dag_run_locks)
+
+
+@pytest.fixture
+def two_runs(dag_maker, session):
+    with dag_maker("lock_dag_runs"):
+        EmptyOperator(task_id="task")
+    dag_maker.create_dagrun(run_id="first", logical_date=DEFAULT_DATE)
+    dag_maker.create_dagrun(run_id="second", logical_date=DEFAULT_DATE + datetime.timedelta(days=1))
+    session.commit()
+    return ("lock_dag_runs", "first"), ("lock_dag_runs", "second")
+
+
+def test_lock_dag_runs_locks_each_run_once_per_transaction(session, two_runs, locked_dag_run_keys):
+    first, second = two_runs
+
+    lock_dag_runs(session, [second, first])
+    lock_dag_runs(session, [first])
+    lock_dag_runs(session, [first], refresh=True)
+    session.commit()
+    lock_dag_runs(session, [first])
+
+    assert locked_dag_run_keys == [[first, second], [first], [first]]
+
+
+@pytest.mark.backend("mysql", "postgres")
+def test_lock_dag_runs_locks_again_after_a_savepoint_rolls_back(session, two_runs, locked_dag_run_keys):
+    first, _ = two_runs
+
+    savepoint = session.begin_nested()
+    lock_dag_runs(session, [first])
+    savepoint.rollback()
+    lock_dag_runs(session, [first])
+
+    assert locked_dag_run_keys == [[first], [first]]
