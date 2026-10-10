@@ -11,9 +11,9 @@
   "requiredAction_one": "פעולה נדרשת",
   "requiredAction_other": "פעולות נדרשות",
   "requiredAction_two": "פעולות נדרשות",
-  "requiredActionCount_one": "פעולה נדרשת ({{count}})",
-  "requiredActionCount_other": "פעולות נדרשות ({{count}})",
-  "requiredActionCount_two": "פעולות נדרשות ({{count}})",
+  "requiredActionCount_one": "פעולה נדרשת ({{count, number}})",
+  "requiredActionCount_other": "פעולות נדרשות ({{count, number}})",
+  "requiredActionCount_two": "פעולות נדרשות ({{count, number}})",
   "requiredActionState": "מצב פעולה נדרשת",
   "response": {
     "created": "התגובה נוצרה ב",
@@ -31,10 +31,10 @@
       "selectRequiredAction": "בחר פעולה נדרשת כדי לראות פרטים"
     },
     "list": {
-      "completedRequiredActions": "פעולות נדרשות שהושלמו ({{count}})",
+      "completedRequiredActions": "פעולות נדרשות שהושלמו ({{count, number}})",
       "loadError": "לא ניתן לטעון פעולות נדרשות",
       "loadingActions": "טוען פעולות נדרשות...",
-      "pendingRequiredActions": "פעולות נדרשות ממתינות ({{count}})"
+      "pendingRequiredActions": "פעולות נדרשות ממתינות ({{count, number}})"
     },
     "openReviewDrawer": "פתח מגירת סקירה",
     "pageLimitHint": "כאן מוצגות רק הפעולות הראשונות. השתמש ב-\"$t(review.viewAll)\" כדי לראות את כולן.",

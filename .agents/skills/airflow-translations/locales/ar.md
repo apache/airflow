@@ -79,9 +79,9 @@ first and keep the guide limited to terms with real usage.
 
 - Keep embedded English Airflow terms in their original casing: `Dag`, `Dags`,
   `XCom`.
-- Preserve placeholders exactly as written: `{{count}}`, `{{dagDisplayName}}`,
+- Preserve placeholders exactly as written: `{{count, number}}`, `{{dagDisplayName}}`,
   `{{hotkey}}`, and so on.
-- Existing patterns include `معرف Dag`, `تشغيل Dag`, and `{{count}} Dags`.
+- Existing patterns include `معرف Dag`, `تشغيل Dag`, and `{{count, number}} Dags`.
 
 ### Plural Forms
 
@@ -134,9 +134,9 @@ Reuse the existing repo patterns:
 "warning_zero": "لا يوجد أي تحذير",
 "warning_one": "1 تحذير",
 "warning_two": "تحذيران",
-"warning_few": "{{count}} تحذيرات",
-"warning_many": "{{count}} تحذير",
-"warning_other": "{{count}} تحذير"
+"warning_few": "{{count, number}} تحذيرات",
+"warning_many": "{{count, number}} تحذير",
+"warning_other": "{{count, number}} تحذير"
 ```
 
 ### Numerals

@@ -300,8 +300,8 @@ def _build_dag_bundle_config(artifact_bundles: dict[str, str]) -> str:
     """Return a ``dag_bundle_config_list`` of the Dags folder plus a ``LocalDagBundle`` per artifact path.
 
     Registration is what makes a coordinator's ``task_handler_bundle_name`` resolvable on the
-    worker. The artifact directories are mounted only there; the Dag processor finds no files
-    in them.
+    worker. A mode's compose file decides where the artifact directories are mounted; the Dag
+    processor finds no files in them unless it mounts them too, as ``ts.yml`` does for native Dags.
     """
     local_bundle = "airflow.dag_processing.bundles.local.LocalDagBundle"
     bundles = [{"name": "dags-folder", "classpath": local_bundle, "kwargs": {}}]
@@ -721,7 +721,8 @@ def _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names):
 
 def _build_ts_sdk_example_bundle(*, native=False):
     build_commands = (
-        "pnpm install --frozen-lockfile && pnpm run build && cd example && pnpm install && pnpm run build"
+        "pnpm install --frozen-lockfile && pnpm run build && cd example && pnpm install"
+        " && pnpm run build && pnpm run build:ai-approval"
     )
     if native:
         console.print("[yellow]Building TypeScript SDK example bundle (host toolchain)...")
@@ -776,6 +777,8 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     ts_bundles_dir.mkdir()
     # Deliberately renamed: the coordinator routes on embedded metadata, not on a fixed name.
     copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / "example.min.mjs")
+    # A native Dag: the Dag processor parses it, so `ts_hitl_ai_approval` has no Python Dag file.
+    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "ai-approval.min.mjs", ts_bundles_dir / "ai-approval.min.mjs")
 
     # Both of the example bundle's Dags: one bundle.mjs provides for two dag_ids,
     # and the tests check that dispatch tells their same-named tasks apart.

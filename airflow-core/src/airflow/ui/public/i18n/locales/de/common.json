@@ -220,8 +220,8 @@
     "receivedAssetEvents": "Empfangene Datenset (Asset) Ereignisse"
   },
   "pause": "Pausieren",
-  "pendingDagRun_one": "{{count}} ausstehender Dag Lauf",
-  "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
+  "pendingDagRun_one": "{{count, number}} ausstehender Dag Lauf",
+  "pendingDagRun_other": "{{count, number}} ausstehende Dag Läufe",
   "presetFilters": {
     "deleteTitle": "Gespeicherten Filter löschen",
     "deleteWarning": "Gespeicherte Filter werden nur in diesem Browser gespeichert.",
@@ -486,8 +486,8 @@
   "taskInstance_one": "Task Instanz",
   "taskInstance_other": "Task Instanzen",
   "teams": {
-    "more_one": "und {{count}} weitere",
-    "more_other": "und {{count}} weitere",
+    "more_one": "und {{count, number}} weitere",
+    "more_other": "und {{count, number}} weitere",
     "none": "Kein Team",
     "title": "Teams"
   },
@@ -518,21 +518,21 @@
     "bulkClear": {
       "error": "Fehler beim Zurücksetzen von {{resourceName}}",
       "success": {
-        "description": "{{count}} von {{resourceName}} wurden erfolgreich zurückgesetzt. Schlüsselwerte: {{keys}}",
+        "description": "{{count, number}} von {{resourceName}} wurden erfolgreich zurückgesetzt. Schlüsselwerte: {{keys}}",
         "title": "Zurücksetzen von {{resourceName}} gestartet"
       }
     },
     "bulkDelete": {
       "error": "Massenlöschung von {{resourceName}} fehlgeschlagen",
       "success": {
-        "description": "{{count}} von {{resourceName}} wurden erfolgreich gelöscht. Schlüsselwerte: {{keys}}",
+        "description": "{{count, number}} von {{resourceName}} wurden erfolgreich gelöscht. Schlüsselwerte: {{keys}}",
         "title": "Massenlöschung von {{resourceName}} gestartet"
       }
     },
     "bulkUpdate": {
       "error": "Fehler beim Aktualisieren von {{resourceName}}",
       "success": {
-        "description": "{{count}} von {{resourceName}} wurden erfolgreich aktualisiert. Schlüsselwerte: {{keys}}",
+        "description": "{{count, number}} von {{resourceName}} wurden erfolgreich aktualisiert. Schlüsselwerte: {{keys}}",
         "title": "Aktualisierung von {{resourceName}} gestartet"
       }
     },
@@ -553,7 +553,7 @@
     "import": {
       "error": "Import von {{resourceName}} fehlgeschlagen",
       "success": {
-        "description": "{{count}} {{resourceName}} wurden erfolgreich importiert.",
+        "description": "{{count, number}} {{resourceName}} wurden erfolgreich importiert.",
         "title": "Import von {{resourceName}} gestartet"
       }
     },

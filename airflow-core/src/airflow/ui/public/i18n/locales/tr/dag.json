@@ -42,8 +42,8 @@
   },
   "deadlineAlerts": {
     "completionRule": "{{reference}} tarihinden itibaren {{interval}} içinde tamamlanmalıdır",
-    "count_one": "{{count}} son tarih",
-    "count_other": "{{count}} son tarih",
+    "count_one": "{{count, number}} son tarih",
+    "count_other": "{{count, number}} son tarih",
     "referenceType": {
       "AverageRuntimeDeadline": "ortalama çalışma süresi",
       "DagRunLogicalDateDeadline": "mantıksal tarih",
@@ -58,13 +58,13 @@
     "label": "Son Tarih",
     "met": "Karşılandı",
     "missed": "Kaçırıldı",
-    "missedCount_one": "{{count}} Kaçırılan Son Tarih",
-    "missedCount_other": "{{count}} Kaçırılan Son Tarih",
-    "mixedCount": "{{missedCount}} Kaçırılan, {{upcomingCount}} Yaklaşan",
+    "missedCount_one": "{{count, number}} Kaçırılan Son Tarih",
+    "missedCount_other": "{{count, number}} Kaçırılan Son Tarih",
+    "mixedCount": "{{missedCount, number}} Kaçırılan, {{upcomingCount, number}} Yaklaşan",
     "stillRunning": "Hâlâ çalışıyor",
     "upcoming": "Yaklaşan",
-    "upcomingCount_one": "{{count}} Yaklaşan Son Tarih",
-    "upcomingCount_other": "{{count}} Yaklaşan Son Tarih"
+    "upcomingCount_one": "{{count, number}} Yaklaşan Son Tarih",
+    "upcomingCount_other": "{{count, number}} Yaklaşan Son Tarih"
   },
   "extraLinks": "Ek Bağlantılar",
   "grid": {
@@ -98,7 +98,7 @@
     "info": "BİLGİ",
     "noTryNumber": "Tekrar Deneme numarası yok",
     "search": {
-      "matchCount": "{{total}} içinden {{current}}",
+      "matchCount": "{{total, number}} içinden {{current, number}}",
       "noMatches": "Eşleşme yok",
       "placeholder": "Günlüklerde ara..."
     },
@@ -219,8 +219,8 @@
     "code": "Kod",
     "details": "Detaylar",
     "logs": "Günlükler",
-    "mappedTaskInstances_one": "Haritalanmış Görev Örneği [{{count}}]",
-    "mappedTaskInstances_other": "Haritalanmış Görev Örnekleri [{{count}}]",
+    "mappedTaskInstances_one": "Haritalanmış Görev Örneği [{{count, number}}]",
+    "mappedTaskInstances_other": "Haritalanmış Görev Örnekleri [{{count, number}}]",
     "overview": "Genel Bakış",
     "renderedTemplates": "İşlenmiş Şablonlar",
     "requiredActions": "Gerekli Eylemler",

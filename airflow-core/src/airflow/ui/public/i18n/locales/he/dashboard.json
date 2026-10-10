@@ -2,9 +2,9 @@
   "alerts": {
     "seeLessContext": "הצג פחות",
     "seeMoreContext": "הצג עוד",
-    "showMoreAlerts_one": "+{{count}} התראה נוספת",
-    "showMoreAlerts_other": "+{{count}} התראות נוספות",
-    "showMoreAlerts_two": "+{{count}} התראות נוספות"
+    "showMoreAlerts_one": "+{{count, number}} התראה נוספת",
+    "showMoreAlerts_other": "+{{count, number}} התראות נוספות",
+    "showMoreAlerts_two": "+{{count, number}} התראות נוספות"
   },
   "deadlines": {
     "pending": {
@@ -18,11 +18,11 @@
     "showMore": "הצג עוד",
     "title": "מועדים"
   },
-  "deferredSlotsNotCounted": "משימות בהשהיה שלא נספרו במכסות: {{count}}",
+  "deferredSlotsNotCounted": "משימות בהשהיה שלא נספרו במכסות: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "משימות בהשהיה המוצגות בסרגל נספרות מול מכסות המאגר. משימות בהשהיה המוצגות מתחת לסרגל מגיעות ממאגרים שאינם סופרים משימות בהשהיה מול המכסות.",
   "favorite": {
     "favoriteDags_one": "ה-Dag המועדף הראשון",
-    "favoriteDags_other": "{{ count }} ה-Dags המועדפים הראשונים",
+    "favoriteDags_other": "{{count, number}} ה-Dags המועדפים הראשונים",
     "favoriteDags_two": "שני ה-Dags המועדפים הראשונים",
     "noDagRuns": "אין עדיין הרצת Dag עבור Dag זה.",
     "noFavoriteDags": "אין עדיין מועדפים. לחץ על סמל הכוכב ליד Dag ברשימה כדי להוסיף אותו למועדפים."

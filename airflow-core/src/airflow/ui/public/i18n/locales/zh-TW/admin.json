@@ -25,7 +25,7 @@
     "connection_other": "連線",
     "delete": {
       "deleteConnection_one": "刪除 1 個連線",
-      "deleteConnection_other": "刪除 {{count}} 個連線",
+      "deleteConnection_other": "刪除 {{count, number}} 個連線",
       "firstConfirmMessage_one": "您即將刪除以下連線：",
       "firstConfirmMessage_other": "您即將刪除以下連線：",
       "title": "刪除連線"
@@ -153,7 +153,7 @@
     },
     "delete": {
       "deleteVariable_one": "刪除 1 個變數",
-      "deleteVariable_other": "刪除 {{count}} 個變數",
+      "deleteVariable_other": "刪除 {{count, number}} 個變數",
       "firstConfirmMessage_one": "您即將刪除以下變數：",
       "firstConfirmMessage_other": "您即將刪除以下變數：",
       "title": "刪除變數",

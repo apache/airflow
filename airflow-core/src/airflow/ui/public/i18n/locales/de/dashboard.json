@@ -2,8 +2,8 @@
   "alerts": {
     "seeLessContext": "Weniger anzeigen",
     "seeMoreContext": "Mehr anzeigen",
-    "showMoreAlerts_one": "+{{count}} weitere Warnung",
-    "showMoreAlerts_other": "+{{count}} weitere Warnungen"
+    "showMoreAlerts_one": "+{{count, number}} weitere Warnung",
+    "showMoreAlerts_other": "+{{count, number}} weitere Warnungen"
   },
   "deadlines": {
     "pending": {
@@ -17,11 +17,11 @@
     "showMore": "Mehr anzeigen",
     "title": "Fristen"
   },
-  "deferredSlotsNotCounted": "Delegierte Tasks, die nicht für die Pool-Belegung zählen: {{count}}",
+  "deferredSlotsNotCounted": "Delegierte Tasks, die nicht für die Pool-Belegung zählen: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "Delegierte Tasks, die in der Leiste angezeigt werden, werden bei der Berechnung der Pool-Belegung berücksichtigt. Delegierte Tasks, die unterhalb der Leiste angezeigt werden, stammen aus Pools, die delegierte Tasks nicht für ihre Belegung berücksichtigen.",
   "favorite": {
     "favoriteDags_one": "Erster favorisierter Dag",
-    "favoriteDags_other": "Top {{count}} favorisierte Dags",
+    "favoriteDags_other": "Top {{count, number}} favorisierte Dags",
     "noDagRuns": "Noch kein Lauf für dieses Dag.",
     "noFavoriteDags": "Noch keine favorisierten Dags. Mit dem Stern-Symbol neben einem Dag kann man das Dag zu den Favoriten hinzufügen."
   },
@@ -40,8 +40,8 @@
       "bundles": "Bündel",
       "hostname": "Host",
       "team": "Team",
-      "title_one": "{{title}} — {{status}} ({{count}} Instanzen)",
-      "title_other": "{{title}} — {{status}} ({{count}} Instanzen)",
+      "title_one": "{{title}} — {{status}} ({{count, number}} Instanzen)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} Instanzen)",
       "unknownHostname": "Unbekannter Host"
     },
     "lastHeartbeat": "Letztes Lebenszeichen",
