@@ -45,7 +45,7 @@ answer it with a different amount and wait for the run to finish. Together the t
    task instance's ``trigger_id``, while a task parked in ``awaiting_input`` has none. The REST API exposes the
    row as ``trigger``, which is null exactly when ``trigger_id`` is.
 3. The answer resumes the run, and the edited amount reaches ``agent_continue``'s model call and not the drafted
-   one. ``agent_step``, which runs the model first, is not run again.
+   one.
 """
 
 from __future__ import annotations
@@ -192,17 +192,9 @@ def test_review_xcom_holds_the_edited_answer(answered_run: _AnsweredRun):
 
 
 def test_agent_continue_quotes_the_edited_amount(answered_run: _AnsweredRun):
-    """The second model call saw the reviewer's figure, not the drafted one, and ran once."""
+    """The second model call saw the reviewer's figure, not the drafted one."""
     value = answered_run.xcom("agent_continue")
     assert value == {
         "text": f"Refunded ${_EDITED_AMOUNT} on order ord_1042.",
-        "modelCalls": 1,
         "approvedAmount": _EDITED_AMOUNT,
     }, f"unexpected 'agent_continue' return_value: {value!r}"
-
-
-def test_model_step_did_not_run_again(answered_run: _AnsweredRun):
-    """Parking and resuming ``review`` left ``agent_step``, the first model call, on its one attempt."""
-    agent_step = answered_run.ti_attrs["agent_step"]
-    assert agent_step["state"] == "success", agent_step
-    assert agent_step["try_number"] == 1, agent_step

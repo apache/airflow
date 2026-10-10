@@ -191,7 +191,7 @@ dag.task(
       },
     ];
     const result = await generateText({ messages });
-    return { text: result.text, modelCalls: 1, approvedAmount: approved ? amount : null };
+    return { text: result.text, approvedAmount: approved ? amount : null };
   },
 )({ draft: agentStep, decision: review });
 

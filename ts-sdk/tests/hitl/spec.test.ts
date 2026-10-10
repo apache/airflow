@@ -211,6 +211,12 @@ describe("hitl", () => {
         /option "assignedUsers" holds \{"id":"","name":"Ada"\}; each user is \{ id, name \}/,
       ],
       [
+        "an assigned user with an extra key",
+        { subject: "s", options: ["a"], assignedUsers: [{ id: "ada", name: "Ada", role: "x" }] },
+        /option "assignedUsers" holds \{"id":"ada","name":"Ada","role":"x"\}; each user is/,
+      ],
+      ["a spec that is not an object", null, /hitl\(\.\.\.\) takes an options object/],
+      [
         "an option of the approval",
         { subject: "s", options: ["a"], failOnReject: true },
         /Unknown option "failOnReject" for hitl\(\.\.\.\)/,
