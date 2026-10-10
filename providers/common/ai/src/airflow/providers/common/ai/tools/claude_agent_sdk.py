@@ -55,6 +55,37 @@ log = logging.getLogger(__name__)
 __all__ = ["AirflowTools"]
 
 
+_MAX_ERROR_DETAIL_CHARS = 500
+_MAX_ERROR_ENTRIES = 5
+
+
+def _bound_detail(text: str) -> str:
+    omitted = len(text) - _MAX_ERROR_DETAIL_CHARS
+    return text if omitted <= 0 else f"{text[:_MAX_ERROR_DETAIL_CHARS]}...(+{omitted} chars)"
+
+
+def _describe_error_result(result: ResultMessage) -> str:
+    errors = result.errors or []
+    omitted_errors = len(errors) - _MAX_ERROR_ENTRIES
+    fields: dict[str, Any] = {
+        "subtype": result.subtype,
+        "result": result.result,
+        "errors": errors[:_MAX_ERROR_ENTRIES],
+        "stop_reason": result.stop_reason,
+        "api_error_status": result.api_error_status,
+        "terminal_reason": result.terminal_reason,
+    }
+    details = []
+    for name, value in fields.items():
+        if not value:
+            continue
+        text = _bound_detail(repr(value)) if name in ("result", "errors") else repr(value)
+        if name == "errors" and omitted_errors > 0:
+            text = f"{text} (+{omitted_errors} more)"
+        details.append(f"{name}={text}")
+    return f"The Claude Agent SDK run ended with an error result ({', '.join(details)})."
+
+
 class _Run:
     """One run of :meth:`AirflowTools.run`: identifies its calls and collects their failures."""
 
@@ -147,10 +178,14 @@ class AirflowTools:
 
     async def run(self, messages: AsyncIterable[Message]) -> ResultMessage:
         """
-        Drive ``messages``, the stream ``claude_agent_sdk.query()`` (or a client) returns.
+        Drive ``messages``, the stream ``query()`` or ``ClaudeSDKClient.receive_response()`` returns.
 
-        :raises RuntimeError: when this instance is already running a query, or when
-            ``messages`` ends without a :class:`~claude_agent_sdk.ResultMessage`.
+        ``ClaudeSDKClient.receive_messages()`` is not supported: it never ends.
+
+        :raises RuntimeError: when this instance is already running a query, when
+            ``messages`` ends without a :class:`~claude_agent_sdk.ResultMessage`, or when
+            the result message has ``is_error`` set (for example ``max_turns`` reached or
+            an API failure).
         :raises ToolCallError: when a tool failed in a way the model cannot fix.
         """
         if self._run is not None:
@@ -171,6 +206,8 @@ class AirflowTools:
                 if state.failures:
                     raise state.failures[0]
                 raise RuntimeError("The Claude Agent SDK stream ended without a ResultMessage.")
+            if result.is_error:
+                raise RuntimeError(_describe_error_result(result))
             return result
         finally:
             self._run = None

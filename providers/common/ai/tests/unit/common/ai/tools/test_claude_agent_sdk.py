@@ -124,6 +124,47 @@ async def _fake_cli(
     yield final if final is not None else _result_message()
 
 
+async def _call_real_server(tools: AirflowTools, name: str, args: dict[str, Any]) -> dict[str, Any]:
+    """Call a tool through the real in-process MCP server, with the JSON-RPC the SDK feeds its bridge."""
+    moved = (
+        "claude_agent_sdk's private path _internal.sdk_mcp_bridge.SdkMcpBridge has changed; "
+        "update _call_real_server in this test module."
+    )
+    try:
+        bridge_module = importlib.import_module("claude_agent_sdk._internal.sdk_mcp_bridge")
+    except ImportError:
+        pytest.fail(moved)
+    bridge_cls = getattr(bridge_module, "SdkMcpBridge", None)
+    if bridge_cls is None:
+        pytest.fail(moved)
+    bridge = bridge_cls("airflow", tools.server["instance"])
+    try:
+        await bridge.handle(
+            {
+                "jsonrpc": "2.0",
+                "id": 0,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "test", "version": "1"},
+                },
+            }
+        )
+        await bridge.handle({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        reply = await bridge.handle(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": name, "arguments": args},
+            }
+        )
+        return reply["result"]
+    finally:
+        await bridge.aclose()
+
+
 class TestTools:
     def test_each_toolset_tool_becomes_an_mcp_tool_with_its_schema(self):
         tools, handlers = _build_tools(_tool(ToolResult("ok")), SQLToolset("pg_default"))
@@ -307,6 +348,28 @@ class TestRun:
         assert len(ran) == 1
 
     @pytest.mark.asyncio
+    async def test_a_failure_in_one_turn_stops_the_stream_before_the_next_turn_starts(self):
+        ran: list[dict[str, Any]] = []
+        turn_two_started: list[bool] = []
+        tools, handlers = _build_tools(_tool(PermissionError("role cannot read orders"), ran))
+
+        async def _two_turns() -> AsyncIterator[Message]:
+            yield _assistant_message()
+            await handlers["lookup"]({"key": "a"})
+            yield _user_message()
+            turn_two_started.append(True)
+            yield _assistant_message()
+            await handlers["lookup"]({"key": "b"})
+            yield _user_message()
+            yield _result_message()
+
+        with pytest.raises(ToolCallError, match="PermissionError: role cannot read orders"):
+            await tools.run(_two_turns())
+
+        assert turn_two_started == []
+        assert len(ran) == 1
+
+    @pytest.mark.asyncio
     async def test_calls_after_a_failure_in_the_same_turn_do_not_run(self):
         ran: list[dict[str, Any]] = []
         tools, handlers = _build_tools(_tool(PermissionError("role cannot read orders"), ran))
@@ -322,6 +385,87 @@ class TestRun:
             await tools.run(_three_calls_one_turn())
 
         assert len(ran) == 1
+
+    @pytest.mark.asyncio
+    async def test_an_error_result_message_raises_instead_of_being_returned(self):
+        tools, _ = _build_tools()
+
+        async def _ends_at_the_result() -> AsyncIterator[Message]:
+            yield _result_message(
+                is_error=True,
+                subtype="error_max_turns",
+                result="partial answer",
+                errors=["hit the turn limit"],
+                num_turns=3,
+            )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await tools.run(_ends_at_the_result())
+
+        message = str(exc_info.value)
+        assert "error_max_turns" in message
+        assert "partial answer" in message
+        assert "hit the turn limit" in message
+
+    @pytest.mark.asyncio
+    async def test_an_error_result_message_bounds_its_free_text_fields(self):
+        tools, _ = _build_tools()
+
+        async def _runaway() -> AsyncIterator[Message]:
+            yield _result_message(
+                is_error=True,
+                subtype="error_max_turns",
+                result="x" * 100_000,
+                errors=[f"error-{i}" for i in range(1_000)],
+            )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await tools.run(_runaway())
+
+        message = str(exc_info.value)
+        assert len(message) < 2_000
+        assert "error_max_turns" in message
+        assert "(+99502 chars)" in message
+        assert "error-4" in message
+        assert "error-5" not in message
+        assert "(+995 more)" in message
+
+    @pytest.mark.asyncio
+    async def test_an_api_failure_reported_as_a_success_subtype_still_raises(self):
+        tools, _ = _build_tools()
+
+        async def _api_failure() -> AsyncIterator[Message]:
+            yield _result_message(is_error=True, subtype="success", api_error_status=529)
+
+        with pytest.raises(RuntimeError, match="529"):
+            await tools.run(_api_failure())
+
+    @pytest.mark.asyncio
+    async def test_an_error_result_message_leaves_unset_fields_out_of_the_message(self):
+        tools, _ = _build_tools()
+
+        async def _bare_error() -> AsyncIterator[Message]:
+            yield _result_message(is_error=True, subtype="error_during_execution")
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await tools.run(_bare_error())
+
+        message = str(exc_info.value)
+        assert "error_during_execution" in message
+        for unset in ("result=", "errors=", "stop_reason=", "api_error_status=", "terminal_reason="):
+            assert unset not in message
+
+    @pytest.mark.asyncio
+    async def test_a_tool_failure_takes_priority_over_an_error_result_message(self):
+        tools, handlers = _build_tools(_tool(PermissionError("role cannot read orders")))
+
+        async def _failure_then_error_result() -> AsyncIterator[Message]:
+            yield _assistant_message()
+            await handlers["lookup"]({"key": "a"})
+            yield _result_message(is_error=True, subtype="error_max_turns")
+
+        with pytest.raises(ToolCallError, match="PermissionError: role cannot read orders"):
+            await tools.run(_failure_then_error_result())
 
     @pytest.mark.asyncio
     async def test_a_tool_that_keeps_failing_fails_the_run_once_its_retries_are_spent(self):
@@ -358,6 +502,44 @@ class TestRun:
 
         gate.set()
         await first
+
+
+class TestRealMcpServer:
+    @pytest.mark.asyncio
+    async def test_a_tool_result_marked_as_an_error_reaches_the_model_as_isError(self):
+        tools = AirflowTools(_tool(ToolResult("not found", is_error=True)))
+
+        result = await _call_real_server(tools, "lookup", {"key": "a"})
+
+        assert result["isError"] is True
+        assert "not found" in result["content"][0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_a_successful_tool_result_is_not_marked_isError(self):
+        tools = AirflowTools(_tool(ToolResult("ok")))
+
+        result = await _call_real_server(tools, "lookup", {"key": "a"})
+
+        assert result["isError"] is False
+
+    @pytest.mark.asyncio
+    async def test_the_sdk_returns_an_airflow_tool_failure_to_the_model_instead_of_raising(self):
+        tools = AirflowTools(_tool(PermissionError("role cannot read orders")))
+
+        result = await _call_real_server(tools, "lookup", {"key": "a"})
+
+        assert result["isError"] is True
+        assert "PermissionError: role cannot read orders" in result["content"][0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_the_sdk_catches_an_exception_escaping_the_handler(self):
+        tools = AirflowTools(_tool(ToolResult("ok")))
+
+        with mock.patch.object(AirflowTool, "call", autospec=True, side_effect=RuntimeError("boom")):
+            result = await _call_real_server(tools, "lookup", {"key": "a"})
+
+        assert result["isError"] is True
+        assert "boom" in result["content"][0]["text"]
 
 
 class TestOptions:
