@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -5005,6 +5005,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "requests" },
+    { name = "tenacity" },
 ]
 
 [package.optional-dependencies]
@@ -5016,6 +5017,9 @@ avro = [
 ]
 azure-identity = [
     { name = "azure-identity" },
+]
+common-ai = [
+    { name = "apache-airflow-providers-common-ai" },
 ]
 fab = [
     { name = "apache-airflow-providers-fab" },
@@ -5041,6 +5045,7 @@ dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-amazon" },
+    { name = "apache-airflow-providers-common-ai" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
     { name = "apache-airflow-providers-databricks", extra = ["sqlalchemy"] },
@@ -5060,6 +5065,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.0,<4" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-common-ai", marker = "extra == 'common-ai'", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-fab", marker = "extra == 'fab'", editable = "providers/fab" },
@@ -5081,14 +5087,16 @@ requires-dist = [
     { name = "pyarrow", marker = "python_full_version == '3.13.*'", specifier = ">=18.0.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14'", specifier = ">=22.0.0" },
     { name = "requests", specifier = ">=2.32.0,<3" },
+    { name = "tenacity", specifier = ">=8.3.0" },
 ]
-provides-extras = ["avro", "amazon", "azure-identity", "fab", "google", "sdk", "standard", "openlineage", "sqlalchemy"]
+provides-extras = ["common-ai", "avro", "amazon", "azure-identity", "fab", "google", "sdk", "standard", "openlineage", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-amazon", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-common-ai", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
