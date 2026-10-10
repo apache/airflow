@@ -40,8 +40,8 @@
       "bundles": "Col·leccions",
       "hostname": "Host",
       "team": "Equip",
-      "title_one": "{{title}} — {{status}} ({{count}} instància)",
-      "title_other": "{{title}} — {{status}} ({{count}} instàncies)",
+      "title_one": "{{title}} — {{status}} ({{count, number}} instància)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} instàncies)",
       "unknownHostname": "Host desconegut"
     },
     "lastHeartbeat": "Últim batec",

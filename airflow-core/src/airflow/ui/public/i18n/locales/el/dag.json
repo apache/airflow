@@ -300,8 +300,8 @@
     "record_one": "Εγγραφή",
     "record_other": "Εγγραφές",
     "selectPrompt": "Επιλέξτε δύο εκδόσεις για να δείτε τι άλλαξε μεταξύ τους.",
-    "summary_one": "{{count}} αλλαγή · σειριοποιημένο Schema {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count}} αλλαγές · σειριοποιημένο Schema {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count, number}} αλλαγή · σειριοποιημένο Schema {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count, number}} αλλαγές · σειριοποιημένο Schema {{baseSchema}} → {{targetSchema}}",
     "target": "Σύγκριση με",
     "truncated": {
       "description": "Οι αλλαγές σε διαδρομές που δεν εμφανίζονται παραλείφθηκαν για να τηρηθεί το όριο, επομένως το πλήθος είναι ένας μικρότερος αριθμός ορίου.",

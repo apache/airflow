@@ -300,8 +300,8 @@
     "record_one": "Registre",
     "record_other": "Registres",
     "selectPrompt": "Seleccioneu dues versions per veure què ha canviat entre elles.",
-    "summary_one": "{{count}} canvi · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count}} canvis · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count, number}} canvi · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count, number}} canvis · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
     "target": "Comparar amb",
     "truncated": {
       "description": "S'han omès els canvis de les rutes no mostrades per respectar el límit, de manera que el recompte és un mínim.",

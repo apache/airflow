@@ -19,7 +19,7 @@
     "overrideExistingParams": "Αντικατάσταση παραμέτρων σε υπάρχουσες εκτελέσεις",
     "partitionRange": "Εύρος Κατατμήσεων",
     "partitionsAffected_one": "1 κατάτμηση θα υποβληθεί σε Backfill:",
-    "partitionsAffected_other": "{{count}} κατατμήσεις θα υποβληθούν σε Backfill:",
+    "partitionsAffected_other": "{{count, number}} κατατμήσεις θα υποβληθούν σε Backfill:",
     "partitionsNone": "Δεν υπάρχουν κατατμήσεις που να ταιριάζουν με το επιλεγμένο εύρος.",
     "permissionDenied": "Η Δοκιμαστική Εκτέλεση Απέτυχε: Ο χρήστης δεν έχει δικαίωμα δημιουργίας backfills.",
     "reprocessBehavior": "Συμπεριφορά Επανεπεξεργασίας",
@@ -137,7 +137,7 @@
     "keepPausedDescription": "Οι νέες και οι μη ολοκληρωμένες εκτελέσεις περιμένουν μέχρι να αναιρεθεί η παύση του Dag.",
     "title": "Το Dag είναι σε παύση",
     "unfinishedRunsWillRun_one": "1 μη ολοκληρωμένη Εκτέλεση Dag θα ξεκινήσει ή θα συνεχιστεί.",
-    "unfinishedRunsWillRun_other": "{{count}} μη ολοκληρωμένες Εκτελέσεις Dag θα ξεκινήσουν ή θα συνεχιστούν.",
+    "unfinishedRunsWillRun_other": "{{count, number}} μη ολοκληρωμένες Εκτελέσεις Dag θα ξεκινήσουν ή θα συνεχιστούν.",
     "unpause": "Αναίρεση παύσης",
     "unpauseDescription": "Το Dag γίνεται ενεργό: οι μη ολοκληρωμένες εκτελέσεις συνεχίζονται και το πρόγραμμα επανέρχεται. Backfills σε παύση παραμένουν σε παύση."
   },

@@ -137,7 +137,7 @@
     "keepPausedDescription": "Les execucions noves i inacabades esperen fins que es reactiva el Dag.",
     "title": "El Dag està pausat",
     "unfinishedRunsWillRun_one": "S'iniciarà o es reprendrà 1 execució de Dag inacabada.",
-    "unfinishedRunsWillRun_other": "S'iniciaran o es reprendran {{count}} execucions de Dag inacabades.",
+    "unfinishedRunsWillRun_other": "S'iniciaran o es reprendran {{count, number}} execucions de Dag inacabades.",
     "unpause": "Reactivar",
     "unpauseDescription": "El Dag s'activa: les execucions inacabades continuen i es reprèn la programació. Els reompliments pausats continuen pausats."
   },

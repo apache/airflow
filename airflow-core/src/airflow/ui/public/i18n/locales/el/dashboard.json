@@ -40,8 +40,8 @@
       "bundles": "Πακέτα",
       "hostname": "Ξενιστής",
       "team": "Ομάδα",
-      "title_one": "{{title}} — {{status}} ({{count}} στιγμιότυπο)",
-      "title_other": "{{title}} — {{status}} ({{count}} στιγμιότυπα)",
+      "title_one": "{{title}} — {{status}} ({{count, number}} στιγμιότυπο)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} στιγμιότυπα)",
       "unknownHostname": "Άγνωστος ξενιστής"
     },
     "lastHeartbeat": "Τελευταίος Παλμός",

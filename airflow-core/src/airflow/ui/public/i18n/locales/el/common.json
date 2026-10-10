@@ -493,8 +493,8 @@
   "taskInstance_one": "Εκτέλεση Εργασίας",
   "taskInstance_other": "Εκτελέσεις Εργασίας",
   "teams": {
-    "more_one": "και {{count}} ακόμη",
-    "more_other": "και {{count}} ακόμη",
+    "more_one": "και {{count, number}} ακόμη",
+    "more_other": "και {{count, number}} ακόμη",
     "none": "Χωρίς ομάδα",
     "title": "Ομάδες"
   },

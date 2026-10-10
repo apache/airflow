@@ -33,7 +33,7 @@
       "importErrorGone": "Αυτό το σφάλμα εισαγωγής πλέον δεν καταγράφεται. Πιθανότατα διορθώθηκε από μια επανανάλυση.",
       "neverParsed": "Ποτέ",
       "showImportError_one": "Προβολή σφάλματος",
-      "showImportError_other": "Προβολή {{count}} σφαλμάτων"
+      "showImportError_other": "Προβολή {{count, number}} σφαλμάτων"
     },
     "inactive": "Ανενεργό",
     "neverRefreshed": "Ποτέ",
