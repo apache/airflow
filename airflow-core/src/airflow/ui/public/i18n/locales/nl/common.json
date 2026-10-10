@@ -192,8 +192,8 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Ontvangen Asset Events"
   },
-  "pendingDagRun_one": "{{count}} Wachtende Dag Run",
-  "pendingDagRun_other": "{{count}} Wachtende Dag Runs",
+  "pendingDagRun_one": "{{count, number}} Wachtende Dag Run",
+  "pendingDagRun_other": "{{count, number}} Wachtende Dag Runs",
   "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
@@ -342,21 +342,21 @@
     "bulkClear": {
       "error": "Bulk opschoonverzoek voor {{resourceName}} mislukt",
       "success": {
-        "description": "{{count}} {{resourceName}} zijn succesvol opgeschoond. Sleutels: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} zijn succesvol opgeschoond. Sleutels: {{keys}}",
         "title": "Bulk opschoonverzoek voor {{resourceName}} verzonden"
       }
     },
     "bulkDelete": {
       "error": "Bulkwijderingsverzoek voor {{resourceName}} mislukt",
       "success": {
-        "description": "{{count}} {{resourceName}} zijn succesvol verwijderd. Sleutels: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} zijn succesvol verwijderd. Sleutels: {{keys}}",
         "title": "Bulkwijderingsverzoek voor {{resourceName}} verzonden"
       }
     },
     "bulkUpdate": {
       "error": "Bulkupdateverzoek voor {{resourceName}} mislukt",
       "success": {
-        "description": "{{count}} {{resourceName}} zijn succesvol geüpdatet. Sleutels: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} zijn succesvol geüpdatet. Sleutels: {{keys}}",
         "title": "Bulkupdateverzoek voor {{resourceName}} verzonden"
       }
     },
@@ -377,7 +377,7 @@
     "import": {
       "error": "Importeerverzoek voor {{resourceName}} mislukt",
       "success": {
-        "description": "{{count}} {{resourceName}} zijn succesvol geïmporteerd.",
+        "description": "{{count, number}} {{resourceName}} zijn succesvol geïmporteerd.",
         "title": "Importeerverzoek voor {{resourceName}} verzonden"
       }
     },

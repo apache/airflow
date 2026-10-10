@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+10.24.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Allow a custom Kubernetes client factory for KubernetesExecutor (#73014)``
+* ``Carry task attempt UUIDs through remote executor providers (#73917)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+* ``Look up task logs by task try UUID (#74204)``
+* ``Honor the polling interval for deferred Kubernetes jobs (#74143)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+
 10.23.0
 .......
 
@@ -38,6 +68,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix KubernetesExecutor not queuing tasks on Airflow 3.0.x (#73764)``
 * ``Prevent KubernetesExecutor from launching stale workloads (#69762)``
 * ``Fix KubernetesPodOperator discarding successful XCom when sidecar kill fails (#72068)``
 * ``Fix deferrable Kubernetes 401s with a default exec-based kubeconfig (#72300)``
@@ -47,6 +78,7 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Bump the default XCom sidecar image to alpine 3.24.2 (#73629)``
 * ``Unify executor workload queues (#63491)``
 
 Doc-only
@@ -58,6 +90,9 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Correlate executor task events by attempt UUID (#73916)``
+   * ``Add dedicated tests for cncf.kubernetes secret and k8s_model modules (#73751)``
+   * ``Prepare providers release 2026-09-22 (#73506)``
    * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
    * ``[main] Upgrade important CI environment (#73308)``
    * ``Remove real sleeps from slow provider unit tests (#73478)``

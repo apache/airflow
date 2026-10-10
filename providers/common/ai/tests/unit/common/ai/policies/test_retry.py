@@ -17,11 +17,14 @@
 from __future__ import annotations
 
 import copy
+import json
 import logging
 import math
+import re
+import traceback
 import warnings
 from datetime import timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -654,6 +657,47 @@ class TestConfidenceGate:
         assert decision.reason == "category=auth confidence=0.05 threshold=n/a action=fail"
 
 
+PROMPT_HEADER = "Classify this error from a data pipeline task (attempt 2 of 4):\n\n"
+
+POLICY_CLASSES = [
+    pytest.param(ClassifierRetryPolicy, id="classifier"),
+    pytest.param(LLMRetryPolicy, id="llm"),
+]
+
+
+def _chained(outer: Exception, cause: Exception, *, explicit: bool = True) -> Exception:
+    """Raise ``outer`` while handling ``cause`` so both carry a traceback, and return ``outer``."""
+    try:
+        try:
+            raise cause
+        except type(cause):
+            if explicit:
+                raise outer from cause
+            raise outer
+    except type(outer) as exc:
+        return exc
+
+
+def _truncated_read(*, explicit: bool = True) -> Exception:
+    """A JSON parse failure raised while handling the transport error that cut the response body short."""
+    body = '{"rows": [{"id": 1}, {"id'
+    return _chained(
+        json.JSONDecodeError("Unterminated string starting at", body, 22),
+        ConnectionResetError("peer closed connection after 25 of 4096 bytes"),
+        explicit=explicit,
+    )
+
+
+def _prompt_for(mock_hook_cls, policy_cls, exception, **kwargs) -> str:
+    """Evaluate ``exception`` under a ``policy_cls`` built with ``kwargs`` and return the prompt the model got."""
+    if policy_cls is ClassifierRetryPolicy:
+        agent = _install(mock_hook_cls, _agent("data"))
+    else:
+        agent = _install(mock_hook_cls, _open_agent("data", should_retry=False))
+    policy_cls(llm_conn_id="test", **kwargs).evaluate(exception, try_number=2, max_tries=4)
+    return agent.run_sync.call_args.args[0]
+
+
 class TestPrompt:
     @patch(HOOK, autospec=True)
     def test_prompt_includes_exception_type_and_message(self, mock_hook_cls):
@@ -767,6 +811,77 @@ class TestPrompt:
 
         assert agent.run_sync.call_args.args[0].endswith("ConnectionError: pw *** tail")
 
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_traceback_is_off_by_default(self, mock_hook_cls, policy_cls):
+        error = _truncated_read()
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error)
+
+        assert policy_cls(llm_conn_id="test").include_traceback is False
+        assert prompt == f"{PROMPT_HEADER}JSONDecodeError: {error}"
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @pytest.mark.parametrize(
+        ("explicit", "link"),
+        [
+            pytest.param(True, "The above exception was the direct cause", id="cause"),
+            pytest.param(False, "During handling of the above exception", id="context"),
+        ],
+    )
+    @patch(HOOK, autospec=True)
+    def test_traceback_carries_the_chain_and_qualified_names(self, mock_hook_cls, explicit, link, policy_cls):
+        error = _truncated_read(explicit=explicit)
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error, include_traceback=True)
+
+        assert prompt.startswith(f"{PROMPT_HEADER}Traceback (most recent call last):\n")
+        assert "ConnectionResetError: peer closed connection after 25 of 4096 bytes" in prompt
+        assert link in prompt
+        assert prompt.endswith(f"json.decoder.JSONDecodeError: {error}")
+
+    @patch(HOOK, autospec=True)
+    def test_traceback_of_an_exception_never_raised_is_its_last_line(self, mock_hook_cls):
+        prompt = _prompt_for(
+            mock_hook_cls, ClassifierRetryPolicy, ValueError("bad column type"), include_traceback=True
+        )
+
+        assert prompt == f"{PROMPT_HEADER}ValueError: bad column type"
+
+    @patch(HOOK, autospec=True)
+    def test_redactor_gets_the_whole_traceback(self, mock_hook_cls):
+        secret = "s3cr3t-token"
+        redactor = create_autospec(
+            redact_registered_secrets, side_effect=lambda text: text.replace(secret, "***")
+        )
+        error = _chained(RuntimeError("upload failed"), PermissionError(f"token {secret} rejected"))
+
+        prompt = _prompt_for(
+            mock_hook_cls, ClassifierRetryPolicy, error, include_traceback=True, redactor=redactor
+        )
+
+        redactor.assert_called_once_with("".join(traceback.format_exception(error)).rstrip("\n"))
+        assert secret not in prompt
+        assert "PermissionError: token *** rejected" in prompt
+        assert prompt.endswith("RuntimeError: upload failed")
+
+    @pytest.mark.parametrize(
+        "truncated", [pytest.param(True, id="over"), pytest.param(False, id="exact-fit")]
+    )
+    @patch(HOOK, autospec=True)
+    def test_long_traceback_keeps_its_tail(self, mock_hook_cls, truncated):
+        error = _truncated_read()
+        full_text = "".join(traceback.format_exception(error)).rstrip("\n")
+        final_line = f"json.decoder.JSONDecodeError: {error}"
+        limit = len(final_line) if truncated else len(full_text)
+
+        prompt = _prompt_for(
+            mock_hook_cls, ClassifierRetryPolicy, error, include_traceback=True, max_exception_length=limit
+        )
+
+        expected = f"(truncated) ...{final_line}" if truncated else full_text
+        assert prompt == f"{PROMPT_HEADER}{expected}"
+
 
 class TestFallbackBehaviour:
     """When the LLM call itself fails the deterministic path decides, unchanged."""
@@ -876,8 +991,8 @@ class TestFallbackBehaviour:
 
         assert decision.action == RetryAction.DEFAULT
         assert decision.reason == "classifier answer not applied (model_error); task retry settings apply"
-        assert "answered 'not_a_category', which is not a configured category" in caplog.text
-        assert "KeyError" not in caplog.text
+        assert "Classifier answered 'not_a_category', which is not a configured category" in caplog.messages
+        assert not [r for r in caplog.records if r.exc_info and r.exc_info[0] is KeyError]
 
 
 class TestOnUncertain:
@@ -1048,7 +1163,11 @@ class TestOnUncertain:
         assert decision.action == RetryAction.RETRY
         assert decision.retry_delay == timedelta(seconds=5)
         assert decision.reason == "classifier answer not applied (model_error); rule"
-        assert "decided nothing" in caplog.text
+        assert any(
+            r.name == "airflow.providers.common.ai.policies.retry"
+            and re.match(r"MagicMock decided nothing", r.getMessage())
+            for r in caplog.records
+        )
 
     def test_fallback_policy_raising_falls_to_the_outer_rules(self, caplog):
         """A third-party policy that blows up must not take the classifier's rules floor with it."""
@@ -1066,7 +1185,7 @@ class TestOnUncertain:
 
         assert decision.action == RetryAction.RETRY
         assert decision.reason == "classifier answer not applied (model_error); rule"
-        assert "fallback_policy failed" in caplog.text
+        assert "fallback_policy failed, using fallback rules" in caplog.messages
 
     @patch(HOOK, autospec=True)
     def test_nested_classifiers_both_down_still_reach_the_outer_fail_rule(self, mock_hook_cls):
@@ -1220,7 +1339,7 @@ class TestLLMRetryPolicy:
 
     @patch(HOOK, autospec=True)
     def test_classifier_refusal_logs_the_categories_hint(self, mock_hook_cls, caplog):
-        """A classifier model refuses ErrorClassification's text fields; the log says what to do."""
+        """A decision model refuses ErrorClassification's text fields; the log says what to do."""
         agent = _install(mock_hook_cls, MagicMock(spec=Agent))
         agent.run_sync.side_effect = RuntimeError("Output field 'reasoning' is not supported by this model")
         policy = LLMRetryPolicy(llm_conn_id="test", model_id="typesafe:jev-1.13.0")
@@ -1229,7 +1348,10 @@ class TestLLMRetryPolicy:
             decision = policy.evaluate(ValueError("x"), try_number=1, max_tries=3)
 
         assert decision.action == RetryAction.DEFAULT
-        assert "use ClassifierRetryPolicy" in caplog.text
+        assert (
+            "This model cannot answer ErrorClassification. If it is a decision model, "
+            "use ClassifierRetryPolicy, which asks it a typed question."
+        ) in caplog.messages
 
     def test_no_warning_for_any_instructions(self):
         with warnings.catch_warnings():

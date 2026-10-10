@@ -103,8 +103,8 @@ def context():
     return {"task_instance": ti, "dag": DAG("test_dag")}
 
 
-# The legacy trigger path is taken on cores < 3.3; pin the flag so these tests keep
-# exercising the defer() fallback when run against newer cores.
+# The legacy trigger path is taken on Airflow versions < 3.3; pin the flag so these tests keep
+# exercising the defer() fallback when run against newer Airflow versions.
 @patch(AWAIT_INPUT_FLAG_PATH, False)
 class TestDeferForApproval:
     @patch(HITL_TRIGGER_PATH, autospec=True)

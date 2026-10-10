@@ -23,13 +23,20 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"math"
+	"os"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
+
+const testTIID = "0199e0e5-1b2c-7c3d-8e4f-5a6b7c8d9e0f"
 
 // TestCoordinatorClientGetVariableEnvOverride verifies that an
 // AIRFLOW_VAR_<UPPER(key)> environment override short-circuits the comm
@@ -42,7 +49,7 @@ func TestCoordinatorClientGetVariableEnvOverride(t *testing.T) {
 	// to assert *no* IO occurred by failing if anything is read or written.
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(assertNoReadReader{t: t}, assertNoWriteWriter{t: t}, logger)
-	client := NewCoordinatorClient(comm)
+	client := NewCoordinatorClient(comm, testTIID)
 
 	val, err := client.GetVariable(context.Background(), "my_key")
 	require.NoError(t, err)
@@ -65,7 +72,7 @@ func TestCoordinatorClientGetVariableNoEnvOverride(t *testing.T) {
 	var requestBuf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
-	client := NewCoordinatorClient(comm)
+	client := NewCoordinatorClient(comm, testTIID)
 
 	val, err := client.GetVariable(context.Background(), "my_key")
 	require.NoError(t, err)
@@ -124,7 +131,7 @@ func TestCoordinatorClientErrorTranslation(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
-			client := NewCoordinatorClient(comm)
+			client := NewCoordinatorClient(comm, testTIID)
 
 			err := tc.call(client)
 			require.Error(t, err)
@@ -150,7 +157,7 @@ func TestCoordinatorClientErrorPassThrough(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
-	client := NewCoordinatorClient(comm)
+	client := NewCoordinatorClient(comm, testTIID)
 
 	_, err := client.GetVariable(context.Background(), "any_key")
 	require.Error(t, err)
@@ -187,7 +194,7 @@ func TestCoordinatorClientSetVariable(t *testing.T) {
 			var requestBuf bytes.Buffer
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
-			client := NewCoordinatorClient(comm)
+			client := NewCoordinatorClient(comm, testTIID)
 
 			require.NoError(
 				t,
@@ -221,7 +228,7 @@ func TestCoordinatorClientDeleteVariable(t *testing.T) {
 	var requestBuf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
-	client := NewCoordinatorClient(comm)
+	client := NewCoordinatorClient(comm, testTIID)
 
 	require.NoError(t, client.DeleteVariable(context.Background(), "my_key"))
 
@@ -265,7 +272,7 @@ func TestCoordinatorClientVariableWriteErrors(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
-			client := NewCoordinatorClient(comm)
+			client := NewCoordinatorClient(comm, testTIID)
 
 			var apiErr *APIError
 			require.ErrorAs(t, tc.call(client), &apiErr)
@@ -291,7 +298,7 @@ func TestCoordinatorClientGetConnectionPreservesEmptyCredentials(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
-	client := NewCoordinatorClient(comm)
+	client := NewCoordinatorClient(comm, testTIID)
 
 	conn, err := client.GetConnection(context.Background(), "c")
 	require.NoError(t, err)
@@ -314,7 +321,7 @@ func TestCoordinatorClientGetConnectionAbsentCredentials(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
-	client := NewCoordinatorClient(comm)
+	client := NewCoordinatorClient(comm, testTIID)
 
 	conn, err := client.GetConnection(context.Background(), "c")
 	require.NoError(t, err)
@@ -364,7 +371,7 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 			var requestBuf bytes.Buffer
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
-			client := NewCoordinatorClient(comm)
+			client := NewCoordinatorClient(comm, testTIID)
 
 			ti := sdk.TaskInstance{
 				DagID:    "d",
@@ -432,7 +439,7 @@ func TestCoordinatorClientGetXComMapIndex(t *testing.T) {
 			var requestBuf bytes.Buffer
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
-			client := NewCoordinatorClient(comm)
+			client := NewCoordinatorClient(comm, testTIID)
 
 			_, err := client.GetXCom(context.Background(), "d", "r", "t", tc.mapIndex, "k", nil)
 			require.NoError(t, err)
@@ -448,6 +455,552 @@ func TestCoordinatorClientGetXComMapIndex(t *testing.T) {
 				assert.NotContains(t, sentMap, "map_index",
 					"map_index must be omitted when no index is supplied")
 			}
+		})
+	}
+}
+
+// The supervisor always passes the setting, so an absent or malformed value must
+// fail as Python's TaskStateStoreAccessor.set does rather than be guessed at.
+func TestResolveDefaultExpiry(t *testing.T) {
+	now := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name    string
+		env     string
+		unset   bool
+		want    any
+		wantErr string
+	}{
+		{name: "unset is an error", unset: true, wantErr: "is not set"},
+		{name: "honours supervisor value", env: "7", want: now.UTC().AddDate(0, 0, 7)},
+		{name: "zero days never expires", env: "0", want: nil},
+		// Python's config parser accepts a whole-number float spelling.
+		{name: "whole float accepted", env: "7.0", want: now.UTC().AddDate(0, 0, 7)},
+		{name: "unparsable is an error", env: "abc", wantErr: "failed to convert value to int"},
+		// conf.get returns "" for an empty setting, which must not read as unset.
+		{name: "empty is an error", env: "", wantErr: "failed to convert value to int"},
+		{name: "fractional is an error", env: "7.5", wantErr: "failed to convert value to int"},
+		{name: "negative is an error", env: "-1", wantErr: "must be >= 0, got -1"},
+		{
+			name:    "out of int64 range is an error",
+			env:     "1e30",
+			wantErr: "failed to convert value to int",
+		},
+		{
+			name:    "day count that wraps the timestamp is an error",
+			env:     "9223372036854775807",
+			wantErr: "overflows the expiry timestamp",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Setenv registers the restore, so unsetting it here is undone after.
+			t.Setenv(defaultRetentionDaysEnv, tc.env)
+			if tc.unset {
+				require.NoError(t, os.Unsetenv(defaultRetentionDaysEnv))
+			}
+
+			got, err := resolveDefaultExpiry(now)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				assert.Nil(t, got)
+				return
+			}
+			require.NoError(t, err)
+			if tc.want == nil {
+				assert.Nil(t, got, "a nil expiry must be untyped so msgpack encodes null")
+				return
+			}
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestTaskStateStoreSetRejectsMisconfiguredRetention(t *testing.T) {
+	t.Setenv(defaultRetentionDaysEnv, "-1")
+
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	client := NewCoordinatorClient(
+		NewCoordinatorComm(&bytes.Buffer{}, &requestBuf, logger),
+		testTIID,
+	)
+
+	err := client.TaskStateStore().Set(context.Background(), "job_id", "app_001")
+
+	require.ErrorContains(t, err, "must be >= 0, got -1")
+	assert.Zero(t, requestBuf.Len(), "a rejected write must not reach the supervisor")
+}
+
+// Mirrors Python's test_set_datetime_raises_validation_error.
+func TestTaskStateStoreSetRejectsNonJSONValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   any
+		wantErr string
+	}{
+		{
+			name:    "datetime",
+			value:   time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC),
+			wantErr: "time.Time is not JSON representable",
+		},
+		{
+			name:    "datetime nested in a map",
+			value:   map[string]any{"watermark": time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)},
+			wantErr: "time.Time is not JSON representable",
+		},
+		{name: "NaN", value: math.NaN(), wantErr: "finite number"},
+		{name: "Inf", value: math.Inf(1), wantErr: "finite number"},
+		{name: "byte slice", value: []byte("raw"), wantErr: "[]byte is not JSON representable"},
+		{name: "byte array", value: [16]byte{}, wantErr: "[]byte is not JSON representable"},
+		{
+			name:    "non-string map key",
+			value:   map[int]string{1: "a"},
+			wantErr: "map keys must be strings",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(
+				NewCoordinatorComm(&bytes.Buffer{}, &requestBuf, logger), testTIID,
+			)
+
+			err := client.TaskStateStore().Set(context.Background(), "job_id", tc.value)
+
+			require.ErrorContains(t, err, tc.wantErr)
+			assert.Zero(t, requestBuf.Len(), "a rejected write must not reach the supervisor")
+		})
+	}
+}
+
+func TestTaskStateStoreSetAcceptsJSONShapes(t *testing.T) {
+	// A default-retention write needs the setting the supervisor passes.
+	t.Setenv(defaultRetentionDaysEnv, "30")
+
+	type checkpoint struct {
+		Processed int      `msgpack:"processed"`
+		Cursors   []string `msgpack:"cursors"`
+	}
+	type skippedTime struct {
+		When time.Time `json:"-"`
+		Name string    `json:"name"`
+	}
+	values := map[string]any{
+		"struct":                    checkpoint{Processed: 3, Cursors: []string{"a"}},
+		"struct skipping time.Time": skippedTime{When: time.Now(), Name: "x"},
+		"nested":                    map[string]any{"rows": []any{1, "two", 3.5, true, nil}},
+		"scalar":                    "plain",
+	}
+
+	for name, value := range values {
+		t.Run(name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, nil, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(
+				NewCoordinatorComm(&responseBuf, &requestBuf, logger),
+				testTIID,
+			)
+
+			require.NoError(t, client.TaskStateStore().Set(context.Background(), "job_id", value))
+			assert.NotZero(t, requestBuf.Len())
+		})
+	}
+}
+
+func TestTaskStateStoreGet(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+	}{
+		{name: "scalar value", value: "abc123"},
+		{name: "structured value", value: map[string]any{"cursor": "abc", "done": true}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, map[string]any{
+				"type":  "TaskStateStoreResult",
+				"value": tc.value,
+			}, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+			client := NewCoordinatorClient(comm, testTIID)
+
+			got, err := client.TaskStateStore().Get(context.Background(), "job_id")
+			require.NoError(t, err)
+			assert.Equal(t, tc.value, got)
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{
+				"type":  "GetTaskStateStore",
+				"ti_id": testTIID,
+				"key":   "job_id",
+			}, rawToMap(t, sent.Body))
+		})
+	}
+}
+
+func TestTaskStateStoreGetNotFound(t *testing.T) {
+	responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
+		"type":   "ErrorResponse",
+		"error":  "TASK_STORE_NOT_FOUND",
+		"detail": map[string]any{"msg": "no such key"},
+	})
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
+	client := NewCoordinatorClient(comm, testTIID)
+
+	_, err := client.TaskStateStore().Get(context.Background(), "missing")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, sdk.TaskStateNotFound)
+	assert.Contains(t, err.Error(), "missing")
+}
+
+func TestTaskStateStoreGetErrorPassThrough(t *testing.T) {
+	responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
+		"type":   "ErrorResponse",
+		"error":  "API_SERVER_ERROR",
+		"detail": map[string]any{"msg": "boom"},
+	})
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
+	client := NewCoordinatorClient(comm, testTIID)
+
+	_, err := client.TaskStateStore().Get(context.Background(), "job_id")
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, sdk.TaskStateNotFound),
+		"generic supervisor errors must not be translated to TaskStateNotFound")
+	var apiErr *ApiError
+	require.True(t, errors.As(err, &apiErr))
+	assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
+}
+
+func TestTaskStateStoreUnmarshalJSONValue(t *testing.T) {
+	type checkpoint struct {
+		Cursor string `json:"cursor"`
+		Done   bool   `json:"done"`
+	}
+
+	t.Run("decodes into a struct", func(t *testing.T) {
+		responsePayload := encodeResponseFrame(t, 0, map[string]any{
+			"type":  "TaskStateStoreResult",
+			"value": map[string]any{"cursor": "abc", "done": true},
+		}, nil)
+		var responseBuf bytes.Buffer
+		require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
+		client := NewCoordinatorClient(comm, testTIID)
+
+		var got checkpoint
+		require.NoError(
+			t,
+			client.TaskStateStore().UnmarshalJSONValue(context.Background(), "job_id", &got),
+		)
+		assert.Equal(t, checkpoint{Cursor: "abc", Done: true}, got)
+	})
+
+	t.Run("propagates not found", func(t *testing.T) {
+		responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
+			"type":   "ErrorResponse",
+			"error":  "TASK_STORE_NOT_FOUND",
+			"detail": map[string]any{"msg": "no such key"},
+		})
+		var responseBuf bytes.Buffer
+		require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
+		client := NewCoordinatorClient(comm, testTIID)
+
+		var got checkpoint
+		err := client.TaskStateStore().UnmarshalJSONValue(context.Background(), "missing", &got)
+		assert.ErrorIs(t, err, sdk.TaskStateNotFound)
+	})
+}
+
+// expires_at is sent even when null: the supervisor requires the field.
+func TestTaskStateStoreSet(t *testing.T) {
+	tests := []struct {
+		name           string
+		retentionDays  string
+		wantRetention  time.Duration
+		wantExpiresNil bool
+	}{
+		{
+			name:          "deployment retention is applied",
+			retentionDays: "7",
+			wantRetention: 7 * 24 * time.Hour,
+		},
+		{name: "zero retention sends null", retentionDays: "0", wantExpiresNil: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(defaultRetentionDaysEnv, tc.retentionDays)
+
+			responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+			client := NewCoordinatorClient(comm, testTIID)
+
+			before := time.Now()
+			require.NoError(
+				t,
+				client.TaskStateStore().Set(context.Background(), "job_id", "abc123"),
+			)
+			after := time.Now()
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			sentMap := rawToMap(t, sent.Body)
+			assert.Equal(t, "SetTaskStateStore", sentMap["type"])
+			assert.Equal(t, testTIID, sentMap["ti_id"])
+			assert.Equal(t, "job_id", sentMap["key"])
+			assert.Equal(t, "abc123", sentMap["value"])
+			require.Contains(t, sentMap, "expires_at",
+				"expires_at must be present even when null")
+			if tc.wantExpiresNil {
+				assert.Nil(t, sentMap["expires_at"])
+			} else {
+				got, ok := sentMap["expires_at"].(time.Time)
+				require.True(t, ok, "expires_at must be a timestamp, got %T", sentMap["expires_at"])
+				assert.WithinRange(t, got, before.Add(tc.wantRetention), after.Add(tc.wantRetention))
+			}
+		})
+	}
+}
+
+func TestTaskStateStoreSetWithRetention(t *testing.T) {
+	tests := []struct {
+		name           string
+		retention      time.Duration
+		wantErr        bool
+		wantExpiresNil bool
+	}{
+		{name: "positive retention is sent", retention: time.Hour},
+		{name: "NeverExpire sends null", retention: sdk.NeverExpire, wantExpiresNil: true},
+		{name: "zero retention is rejected", retention: 0, wantErr: true},
+		{name: "negative retention is rejected", retention: -time.Hour, wantErr: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+			client := NewCoordinatorClient(comm, testTIID)
+
+			before := time.Now()
+			err := client.TaskStateStore().Set(
+				context.Background(), "job_id", "abc123", sdk.WithRetention(tc.retention),
+			)
+			after := time.Now()
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Zero(t, requestBuf.Len(), "a rejected retention must send no frame")
+				return
+			}
+			require.NoError(t, err)
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			sentMap := rawToMap(t, sent.Body)
+			assert.Equal(t, "SetTaskStateStore", sentMap["type"])
+			assert.Equal(t, testTIID, sentMap["ti_id"])
+			require.Contains(t, sentMap, "expires_at")
+			if tc.wantExpiresNil {
+				assert.Nil(t, sentMap["expires_at"])
+			} else {
+				got, ok := sentMap["expires_at"].(time.Time)
+				require.True(t, ok, "expires_at must be a timestamp, got %T", sentMap["expires_at"])
+				assert.WithinRange(t, got, before.Add(tc.retention), after.Add(tc.retention))
+			}
+		})
+	}
+}
+
+func TestTaskStateStoreSetRejectsNilValue(t *testing.T) {
+	tests := []struct {
+		name string
+		call func(client *CoordinatorClient) error
+	}{
+		{
+			name: "Set",
+			call: func(client *CoordinatorClient) error {
+				return client.TaskStateStore().Set(context.Background(), "job_id", nil)
+			},
+		},
+		{
+			name: "Set with retention",
+			call: func(client *CoordinatorClient) error {
+				return client.TaskStateStore().Set(
+					context.Background(), "job_id", nil, sdk.WithRetention(time.Hour),
+				)
+			},
+		},
+		{
+			name: "Set typed nil",
+			call: func(client *CoordinatorClient) error {
+				return client.TaskStateStore().Set(context.Background(), "job_id", (*string)(nil))
+			},
+		},
+		{
+			name: "Set with retention, typed nil",
+			call: func(client *CoordinatorClient) error {
+				return client.TaskStateStore().Set(
+					context.Background(), "job_id", (*string)(nil), sdk.WithRetention(time.Hour),
+				)
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(bytes.NewReader(nil), &requestBuf, logger)
+			client := NewCoordinatorClient(comm, testTIID)
+
+			require.Error(t, tc.call(client))
+			assert.Zero(t, requestBuf.Len(), "a nil value must send no frame")
+		})
+	}
+}
+
+func TestTaskStateStoreDelete(t *testing.T) {
+	responsePayload := encodeResponseFrame(
+		t,
+		0,
+		map[string]any{"type": "OKResponse", "ok": true},
+		nil,
+	)
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+	client := NewCoordinatorClient(comm, testTIID)
+
+	require.NoError(t, client.TaskStateStore().Delete(context.Background(), "job_id"))
+
+	sent, err := readFrame(&requestBuf)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"type":  "DeleteTaskStateStore",
+		"ti_id": testTIID,
+		"key":   "job_id",
+	}, rawToMap(t, sent.Body))
+}
+
+func TestTaskStateStoreClear(t *testing.T) {
+	responsePayload := encodeResponseFrame(
+		t,
+		0,
+		map[string]any{"type": "OKResponse", "ok": true},
+		nil,
+	)
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+	client := NewCoordinatorClient(comm, testTIID)
+
+	require.NoError(t, client.TaskStateStore().Clear(context.Background()))
+
+	sent, err := readFrame(&requestBuf)
+	require.NoError(t, err)
+	sentMap := rawToMap(t, sent.Body)
+	assert.Equal(t, map[string]any{
+		"type":  "ClearTaskStateStore",
+		"ti_id": testTIID,
+	}, sentMap)
+	assert.NotContains(t, sentMap, "key")
+}
+
+func TestTaskStateStoreWriteErrors(t *testing.T) {
+	// A default-retention write needs the setting the supervisor passes.
+	t.Setenv(defaultRetentionDaysEnv, "30")
+
+	tests := []struct {
+		name string
+		call func(client *CoordinatorClient) error
+	}{
+		{
+			name: "Set",
+			call: func(client *CoordinatorClient) error {
+				return client.TaskStateStore().Set(context.Background(), "job_id", "v")
+			},
+		},
+		{
+			name: "Set with retention",
+			call: func(client *CoordinatorClient) error {
+				return client.TaskStateStore().Set(
+					context.Background(), "job_id", "v", sdk.WithRetention(time.Hour),
+				)
+			},
+		},
+		{
+			name: "Delete",
+			call: func(client *CoordinatorClient) error {
+				return client.TaskStateStore().Delete(context.Background(), "job_id")
+			},
+		},
+		{
+			name: "Clear",
+			call: func(client *CoordinatorClient) error {
+				return client.TaskStateStore().Clear(context.Background())
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 403},
+			})
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
+			client := NewCoordinatorClient(comm, testTIID)
+
+			var apiErr *ApiError
+			require.ErrorAs(t, tc.call(client), &apiErr)
+			assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
 		})
 	}
 }
@@ -468,4 +1021,250 @@ func (f assertNoWriteWriter) Write(p []byte) (int, error) {
 	f.t.Helper()
 	f.t.Fatalf("unexpected Write on comm socket: env override should have short-circuited")
 	return 0, nil
+}
+
+// TestCoordinatorClientSkipDownstreamTasks verifies the SkipDownstreamTasks frame sent to the
+// supervisor, and that skipDownstreamTasks returns a supervisor ErrorResponse as an error.
+func TestCoordinatorClientSkipDownstreamTasks(t *testing.T) {
+	tests := []struct {
+		name    string
+		errBody map[string]any
+		wantErr bool
+	}{
+		{name: "skipped"},
+		{
+			name: "supervisor error",
+			errBody: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 404},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, encodeResponseFrame(t, 0, nil, tc.errBody)))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(
+				NewCoordinatorComm(&responseBuf, &requestBuf, logger),
+				testTIID,
+			)
+
+			err := client.skipDownstreamTasks(context.Background(), []string{"load", "report"})
+			if tc.wantErr {
+				var apiErr *APIError
+				require.ErrorAs(t, err, &apiErr)
+				assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{
+				"type":  "SkipDownstreamTasks",
+				"tasks": []any{"load", "report"},
+			}, rawToMap(t, sent.Body))
+		})
+	}
+}
+
+// TestCoordinatorClientDeleteXCom verifies the DeleteXCom frame sent to the supervisor, and that
+// deleteXCom returns a supervisor ErrorResponse as an error. Like PushXCom, it leaves map_index out
+// for an unmapped task instance and sends index 0.
+func TestCoordinatorClientDeleteXCom(t *testing.T) {
+	tests := []struct {
+		name         string
+		mapIndex     *int
+		errBody      map[string]any
+		wantMapIndex any
+	}{
+		{name: "nil map_index is omitted"},
+		{name: "-1 map_index is omitted", mapIndex: ptr(-1)},
+		{name: "map_index 0 is sent", mapIndex: ptr(0), wantMapIndex: int8(0)},
+		{name: "map_index 3 is sent", mapIndex: ptr(3), wantMapIndex: int8(3)},
+		{
+			name: "supervisor error",
+			errBody: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 500},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, encodeResponseFrame(t, 0, nil, tc.errBody)))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(
+				NewCoordinatorComm(&responseBuf, &requestBuf, logger),
+				testTIID,
+			)
+
+			ti := sdk.TaskInstance{DagID: "d", RunID: "r", TaskID: "t", MapIndex: tc.mapIndex}
+			err := client.deleteXCom(context.Background(), ti, "skipmixin_key")
+			if tc.errBody != nil {
+				var apiErr *APIError
+				require.ErrorAs(t, err, &apiErr)
+				assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			want := map[string]any{
+				"type":    "DeleteXCom",
+				"dag_id":  "d",
+				"run_id":  "r",
+				"task_id": "t",
+				"key":     "skipmixin_key",
+			}
+			if tc.wantMapIndex != nil {
+				want["map_index"] = tc.wantMapIndex
+			}
+			assert.Equal(t, want, rawToMap(t, sent.Body))
+		})
+	}
+}
+
+// clientWithReply returns a client whose supervisor answers its one request with body and errBody,
+// and the buffer that holds the request it sends.
+func clientWithReply(
+	t *testing.T,
+	body, errBody map[string]any,
+) (*CoordinatorClient, *bytes.Buffer) {
+	t.Helper()
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, encodeResponseFrame(t, 0, body, errBody)))
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+	return NewCoordinatorClient(comm, testTIID), &requestBuf
+}
+
+// TestCoordinatorClientTriggerDagRun verifies the TriggerDagRun frame, that a Dag run which already
+// exists is reported instead of returned as an error, and that any other supervisor error is
+// returned.
+func TestCoordinatorClientTriggerDagRun(t *testing.T) {
+	logicalDate := time.Date(2026, 9, 30, 1, 2, 3, 0, time.UTC)
+	tests := []struct {
+		name              string
+		errBody           map[string]any
+		wantAlreadyExists bool
+		wantErrCode       string
+	}{
+		{name: "triggered"},
+		{
+			name: "already exists",
+			errBody: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "DAGRUN_ALREADY_EXISTS",
+				"detail": map[string]any{"message": "exists"},
+			},
+			wantAlreadyExists: true,
+		},
+		{
+			name: "other error",
+			errBody: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 500},
+			},
+			wantErrCode: "API_SERVER_ERROR",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client, requestBuf := clientWithReply(t, nil, tc.errBody)
+
+			alreadyExists, err := client.triggerDagRun(
+				context.Background(),
+				genmodels.TriggerDagRun{
+					DagID:       "downstream",
+					RunID:       "run_1",
+					LogicalDate: logicalDate,
+					Conf:        &genmodels.Conf{"k": "v"},
+				},
+			)
+			assert.Equal(t, tc.wantAlreadyExists, alreadyExists)
+			if tc.wantErrCode != "" {
+				var apiErr *APIError
+				require.ErrorAs(t, err, &apiErr)
+				assert.Equal(t, tc.wantErrCode, apiErr.Err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			sent, err := readFrame(requestBuf)
+			require.NoError(t, err)
+			got := rawToMap(t, sent.Body)
+			assert.Equal(t, "TriggerDagRun", got["type"])
+			assert.Equal(t, "downstream", got["dag_id"])
+			assert.Equal(t, "run_1", got["run_id"])
+			assert.Equal(t, map[string]any{"k": "v"}, got["conf"])
+			assert.NotContains(t, got, "run_after", "an unset run_after must stay off the wire")
+		})
+	}
+}
+
+func TestCoordinatorClientGetDagRunState(t *testing.T) {
+	client, requestBuf := clientWithReply(
+		t, map[string]any{"type": "DagRunStateResult", "state": "running"}, nil,
+	)
+
+	state, err := client.getDagRunState(context.Background(), "downstream", "run_1")
+	require.NoError(t, err)
+	assert.Equal(t, "running", state)
+
+	sent, err := readFrame(requestBuf)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"type":   "GetDagRunState",
+		"dag_id": "downstream",
+		"run_id": "run_1",
+	}, rawToMap(t, sent.Body))
+}
+
+func TestCoordinatorClientGetDagRunStateError(t *testing.T) {
+	client, _ := clientWithReply(t, nil, map[string]any{
+		"type":   "ErrorResponse",
+		"error":  "DAGRUN_NOT_FOUND",
+		"detail": map[string]any{"status_code": 404},
+	})
+
+	_, err := client.getDagRunState(context.Background(), "downstream", "run_1")
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, "DAGRUN_NOT_FOUND", apiErr.Err)
+}
+
+func TestCoordinatorClientIsDagPaused(t *testing.T) {
+	for _, paused := range []bool{true, false} {
+		t.Run(strconv.FormatBool(paused), func(t *testing.T) {
+			client, requestBuf := clientWithReply(t, map[string]any{
+				"type":      "DagResult",
+				"dag_id":    "downstream",
+				"is_paused": paused,
+			}, nil)
+
+			got, err := client.isDagPaused(context.Background(), "downstream")
+			require.NoError(t, err)
+			assert.Equal(t, paused, got)
+
+			sent, err := readFrame(requestBuf)
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{
+				"type":   "GetDag",
+				"dag_id": "downstream",
+			}, rawToMap(t, sent.Body))
+		})
+	}
 }

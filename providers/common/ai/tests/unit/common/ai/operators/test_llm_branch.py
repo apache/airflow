@@ -36,9 +36,9 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
-    # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer to
+    # On Airflow 3.3+ require_approval pauses the task in AWAITING_INPUT; older Airflow versions defer to
     # HITLTrigger. Both signals carry method_name/kwargs/timeout, so the approval tests assert
-    # against whichever pause signal the running core uses.
+    # against whichever pause signal the running Airflow version uses.
     from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
 else:
     ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
@@ -51,17 +51,14 @@ class TestLLMBranchOperator:
     def test_template_fields(self):
         assert set(LLMBranchOperator.template_fields) == {*LLMOperator.template_fields, "branches"}
 
-    def test_output_type_ignored(self):
-        """Passing output_type= doesn't break anything; it's silently dropped."""
-        op = LLMBranchOperator(
-            task_id="test",
-            prompt="pick a branch",
-            llm_conn_id="my_llm",
-            output_type=int,
-        )
-        # output_type is overridden to str (the LLMOperator default) since
-        # the real output_type is built dynamically from downstream_task_ids
-        assert op.output_type is str
+    def test_output_type_rejected(self):
+        with pytest.raises(TypeError, match="does not accept 'output_type'"):
+            LLMBranchOperator(
+                task_id="test",
+                prompt="pick a branch",
+                llm_conn_id="my_llm",
+                output_type=int,
+            )
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -211,7 +208,7 @@ class TestLLMBranchOperator:
         """The option order the model sees is sorted, not whatever order downstream_task_ids iterates in.
 
         ``downstream_task_ids`` is a set, so its iteration order depends on string hashing and
-        differs between worker processes. Option order is part of the question for a classifier
+        differs between worker processes. Option order is part of the question for a decision
         model, so it has to be the same on every worker. A reverse-sorted list stands in for an
         unlucky set order; without ``sorted()`` the enum comes out reversed and this fails.
         """

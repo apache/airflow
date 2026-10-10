@@ -22,7 +22,7 @@
     "connection_other": "การเชื่อมต่อทั้งหมด",
     "delete": {
       "deleteConnection_one": "ลบการเชื่อมต่อ 1 รายการ",
-      "deleteConnection_other": "ลบการเชื่อมต่อ {{count}} รายการ",
+      "deleteConnection_other": "ลบการเชื่อมต่อ {{count, number}} รายการ",
       "firstConfirmMessage_one": "คุณกำลังจะลบการเชื่อมต่อดังต่อไปนี้:",
       "firstConfirmMessage_other": "คุณกำลังจะลบการเชื่อมต่อดังต่อไปนี้:",
       "title": "ลบการเชื่อมต่อ"
@@ -32,7 +32,6 @@
       "connectionIdRequired": "กรุณาระบุ ID การเชื่อมต่อ",
       "connectionIdRequirement": "ID การเชื่อมต่อไม่สามารถมีช่องว่างได้",
       "connectionTypeRequired": "กรุณาระบุประเภทการเชื่อมต่อ",
-      "extraFields": "ฟิลด์เพิ่มเติม",
       "extraFieldsJson": "ฟิลด์เพิ่มเติมในรูปแบบ JSON",
       "helperText": "ไม่พบประเภทการเชื่อมต่อ? โปรดตรวจสอบให้แน่ใจว่าคุณได้ติดตั้ง Airflow Providers Package ที่เกี่ยวข้องแล้ว",
       "helperTextForRedactedFields": "ฟิลด์ที่ถูกซ่อน ('***') จะไม่ถูกเปลี่ยนแปลงหากไม่ได้แก้ไข",
@@ -120,7 +119,7 @@
     },
     "delete": {
       "deleteVariable_one": "ลบตัวแปร 1 รายการ",
-      "deleteVariable_other": "ลบตัวแปร {{count}} รายการ",
+      "deleteVariable_other": "ลบตัวแปร {{count, number}} รายการ",
       "firstConfirmMessage_one": "คุณกำลังจะลบตัวแปรดังต่อไปนี้:",
       "firstConfirmMessage_other": "คุณกำลังจะลบตัวแปรดังต่อไปนี้:",
       "title": "ลบตัวแปร",

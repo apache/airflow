@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
@@ -28,7 +28,7 @@ class TestBasicDagFunctionality:
 
     def test_xcom_value(self):
         resp = self.airflow_client.trigger_dag(
-            "example_xcom_test", json={"logical_date": datetime.now(timezone.utc).isoformat()}
+            "example_xcom_test", json={"logical_date": datetime.now(UTC).isoformat()}
         )
         self.airflow_client.wait_for_dag_run(
             dag_id="example_xcom_test",

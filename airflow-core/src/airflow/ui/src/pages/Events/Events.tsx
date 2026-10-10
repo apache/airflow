@@ -26,6 +26,7 @@ import { useEventLogServiceGetEventLogs } from "openapi/queries";
 import type { EventLogResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
@@ -51,7 +52,7 @@ type EventsColumn = {
 const eventsColumn = (
   { dagId, multiTeam, open, runId, taskId }: EventsColumn,
   translate: (key: string) => string,
-): Array<ColumnDef<EventLogResponse>> => [
+): Array<ColumnDef<DataTableFeatures, EventLogResponse>> => [
   {
     accessorKey: "when",
     cell: ({ row: { original } }) => <Time datetime={original.when} />,

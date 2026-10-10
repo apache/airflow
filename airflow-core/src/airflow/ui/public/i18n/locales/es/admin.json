@@ -25,7 +25,7 @@
     "connection_other": "Conexiones",
     "delete": {
       "deleteConnection_one": "Eliminar 1 conexión",
-      "deleteConnection_other": "Eliminar {{count}} conexiones",
+      "deleteConnection_other": "Eliminar {{count, number}} conexiones",
       "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente conexión:",
       "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes conexiones:",
       "title": "Eliminar Conexión"
@@ -35,7 +35,6 @@
       "connectionIdRequired": "El ID de la conexión es requerido",
       "connectionIdRequirement": "El ID de la conexión no puede contener solo espacios",
       "connectionTypeRequired": "El Tipo de Conexión es requerido",
-      "extraFields": "Campos Extra",
       "extraFieldsJson": "Campos Extra (tipo JSON)",
       "helperText": "¿Falta el Tipo de conexión? Asegúrate de haber instalado el paquete de proveedores de Airflow correspondiente.",
       "helperTextForRedactedFields": "Los campos redactados ('***') permanecerán sin cambios si no se modifican.",
@@ -153,7 +152,7 @@
     },
     "delete": {
       "deleteVariable_one": "Eliminar 1 Variable",
-      "deleteVariable_other": "Eliminar {{count}} Variables",
+      "deleteVariable_other": "Eliminar {{count, number}} Variables",
       "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente variable:",
       "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes variables:",
       "title": "Eliminar Variable",

@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import cached_property
+from http import HTTPStatus
 
 import boto3
 import requests
@@ -143,11 +144,7 @@ class AirflowClient:
     def wait_for_dag_run(self, dag_id: str, run_id: str, timeout=300, check_interval=5):
         start_time = time.time()
         while time.time() - start_time < timeout:
-            response = self._make_request(
-                method="GET",
-                endpoint=f"dags/{dag_id}/dagRuns/{run_id}",
-            )
-            state = response.get("state")
+            state = self.get_dag_run(dag_id=dag_id, run_id=run_id).get("state")
             if state in {"success", "failed"}:
                 return state
             time.sleep(check_interval)
@@ -163,11 +160,43 @@ class AirflowClient:
         """Get an Airflow Variable via API."""
         return self._make_request(method="GET", endpoint=f"variables/{key}")
 
+    def get_task_state_store(
+        self, dag_id: str, run_id: str, task_id: str, key: str | None = None, map_index: int = -1
+    ):
+        """Get task state store entries, or a single key, for a task instance via API."""
+        endpoint = f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/state-store"
+        if key is not None:
+            endpoint = f"{endpoint}/{key}"
+        return self._make_request(method="GET", endpoint=f"{endpoint}?map_index={map_index}")
+
+    def set_variable(self, key: str, value: str, description: str | None = None):
+        """Create or replace an Airflow Variable via API."""
+        body = {"key": key, "value": value, "description": description}
+        try:
+            return self._make_request(method="POST", endpoint="variables", json=body)
+        except requests.HTTPError as exc:
+            # 409 == it already exists, from an earlier run of the same suite.
+            if exc.response is None or exc.response.status_code != HTTPStatus.CONFLICT:
+                raise
+            return self._make_request(method="PATCH", endpoint=f"variables/{key}", json=body)
+
+    def get_tasks(self, dag_id: str):
+        """List a Dag's tasks, with the edges each one carries."""
+        return self._make_request(method="GET", endpoint=f"dags/{dag_id}/tasks")
+
+    def get_dag_source(self, dag_id: str):
+        """Get the source code stored for a Dag's latest version."""
+        return self._make_request(method="GET", endpoint=f"dagSources/{dag_id}")
+
+    def get_dag_run(self, dag_id: str, run_id: str):
+        """Get a Dag run, with its state, run type and conf."""
+        return self._make_request(method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}")
+
     def trigger_dag_and_wait(self, dag_id: str, json=None):
         """Trigger a DAG and wait for it to complete."""
         self.un_pause_dag(dag_id)
 
-        resp = self.trigger_dag(dag_id, json=json or {"logical_date": datetime.now(timezone.utc).isoformat()})
+        resp = self.trigger_dag(dag_id, json=json or {"logical_date": datetime.now(UTC).isoformat()})
 
         # Wait for the DAG run to complete
         return self.wait_for_dag_run(
@@ -180,6 +209,29 @@ class AirflowClient:
         return self._make_request(
             method="GET",
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances",
+        )
+
+    def get_hitl_detail(self, dag_id: str, run_id: str, task_id: str, map_index: int = -1):
+        """Get the Human-in-the-loop request of a task instance."""
+        return self._make_request(
+            method="GET",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/{map_index}/hitlDetails",
+        )
+
+    def respond_to_hitl(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        chosen_options: list[str],
+        params_input: dict | None = None,
+        map_index: int = -1,
+    ):
+        """Answer the Human-in-the-loop request of a task instance."""
+        return self._make_request(
+            method="PATCH",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/{map_index}/hitlDetails",
+            json={"chosen_options": chosen_options, "params_input": params_input or {}},
         )
 
     def list_dag_runs(self, dag_id: str, limit: int = 100):

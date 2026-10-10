@@ -31,6 +31,10 @@
     "./coordinator": {
       "types": "./dist/coordinator/index.d.ts",
       "import": "./dist/coordinator/index.js"
+    },
+    "./hitl": {
+      "types": "./dist/hitl/index.d.ts",
+      "import": "./dist/hitl/index.js"
     }
   },
   "files": [
@@ -86,7 +90,7 @@
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.60.0",
-    "vitest": "^4.1.7",
+    "vitest": "^5.0.1",
     "yaml": "^2.9.1"
   }
 }

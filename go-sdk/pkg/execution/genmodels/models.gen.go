@@ -1497,6 +1497,16 @@ type SetAssetStateStoreByURI struct {
 	Value JsonValue `msgpack:"value"`
 }
 
+// Tell the supervisor the task's “execution_timeout“ so it can enforce it from
+// outside the task process.
+type SetExecutionTimeout struct {
+	// TimeoutSeconds corresponds to the JSON schema field "timeout_seconds".
+	TimeoutSeconds float64 `msgpack:"timeout_seconds"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 // Payload for setting RTIF for a task instance.
 type SetRenderedFields struct {
 	// RenderedFields corresponds to the JSON schema field "rendered_fields".
@@ -1882,6 +1892,10 @@ type UpdateHITLDetail struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+type VersionData map[string]interface{}
+
+type Warnings []interface{}
+
 // Variable schema for responses with fields that are needed for Runtime.
 type VariableResponse struct {
 	// Key corresponds to the JSON schema field "key".
@@ -1890,10 +1904,6 @@ type VariableResponse struct {
 	// Value corresponds to the JSON schema field "value".
 	Value interface{} `msgpack:"value"`
 }
-
-type Warnings []interface{}
-
-type VersionData map[string]interface{}
 
 type ValidateInletsAndOutlets struct {
 	// TIID corresponds to the JSON schema field "ti_id".

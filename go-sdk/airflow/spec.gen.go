@@ -61,21 +61,58 @@ type DagSpec struct {
 	// "max_consecutive_failed_dag_runs".
 	MaxConsecutiveFailedDagRuns *int
 
+	// Queue is the queue that each task of the Dag runs on, unless the TaskSpec of
+	// the task sets a Queue. The queue_to_coordinator option in the [sdk] section of
+	// the Airflow configuration maps the queue to the coordinator that runs Go code.
+	// A task from TriggerDagRun takes the queue too, because the Go runtime runs it.
+	Queue string
+
 	// RenderTemplateAsNativeObj corresponds to the JSON schema field
 	// "render_template_as_native_obj".
 	RenderTemplateAsNativeObj bool
 
-	// Schedule is the cron expression or preset the Dag runs on, such as "@daily".
+	// Schedule is when the Dag runs: a cron expression such as "0 3 * * *", or one of
+	// the presets "@hourly", "@daily", "@weekly", "@monthly", "@quarterly",
+	// "@yearly", "@once" and "@continuous". A cron expression has five fields. A
+	// sixth field adds the seconds, and a seventh field after it adds the year.
+	// Airflow reads a cron expression in UTC. A Dag with an empty Schedule runs only
+	// when something triggers it.
 	Schedule string
 
-	// StartDate corresponds to the JSON schema field "start_date".
+	// StartDate is the start_date of the Dag. The timezone of the Dag is UTC even
+	// when StartDate has another location, so Airflow reads Schedule in UTC.
 	StartDate time.Time
 
 	// Tags corresponds to the JSON schema field "tags".
 	Tags []string
 }
 
-// TaskSpec holds the attributes of a task. DagRef.Task takes at most one per task.
+// TaskGroupSpec holds the attributes of a task group other than its group_id.
+// DagRef.TaskGroup and TaskGroupRef.TaskGroup take at most one per group.
+type TaskGroupSpec struct {
+	// DocMD corresponds to the JSON schema field "doc_md".
+	DocMD string
+
+	// GroupDisplayName corresponds to the JSON schema field "group_display_name".
+	GroupDisplayName string
+
+	// PrefixGroupID says whether the group_id prefixes the IDs of the tasks and
+	// groups added through the group, as in "transform.cleanRows". When PrefixGroupID
+	// is nil, the group_id prefixes them.
+	PrefixGroupID *bool
+
+	// Tooltip corresponds to the JSON schema field "tooltip".
+	Tooltip string
+
+	// UIColor corresponds to the JSON schema field "ui_color".
+	UIColor string
+
+	// UIFgColor corresponds to the JSON schema field "ui_fgcolor".
+	UIFgColor string
+}
+
+// TaskSpec holds the attributes of a task. DagRef.Task, DagRef.If, DagRef.Switch
+// and the methods of the same names on TaskGroupRef take at most one per task.
 type TaskSpec struct {
 	// TaskDisplayName corresponds to the JSON schema field "_task_display_name".
 	TaskDisplayName string
@@ -89,10 +126,12 @@ type TaskSpec struct {
 	// DocMD corresponds to the JSON schema field "doc_md".
 	DocMD string
 
-	// EmailOnFailure corresponds to the JSON schema field "email_on_failure".
+	// EmailOnFailure has no effect yet. Python writes email_on_failure only for a
+	// task that has an email recipient, and a TaskSpec cannot set one.
 	EmailOnFailure *bool
 
-	// EmailOnRetry corresponds to the JSON schema field "email_on_retry".
+	// EmailOnRetry has no effect yet. Python writes email_on_retry only for a task
+	// that has an email recipient, and a TaskSpec cannot set one.
 	EmailOnRetry *bool
 
 	// EndDate corresponds to the JSON schema field "end_date".
@@ -152,7 +191,9 @@ type TaskSpec struct {
 
 	// TaskID is the task_id of the task. When TaskID is empty, the task_id is the
 	// name of the Go function that the task runs. A task from TriggerDagRun runs no
-	// Go function, so it needs a TaskID.
+	// Go function, so it needs a TaskID. A task added through a task group takes the
+	// group_id as a prefix of its task_id, unless the TaskGroupSpec of the group sets
+	// PrefixGroupID to false.
 	TaskID string
 
 	// TriggerRule corresponds to the JSON schema field "trigger_rule".

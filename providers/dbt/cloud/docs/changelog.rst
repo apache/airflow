@@ -28,6 +28,33 @@
 Changelog
 ---------
 
+4.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Apply hook_params to deferred dbt Cloud job runs (#74199)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add validate trigger events in dbt cloud deferrable tasks (#69739)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
 4.10.0
 ......
 

@@ -42,11 +42,7 @@ export const TaskLink = forwardRef<HTMLAnchorElement, Props>(
         compositeId,
       );
 
-      if (match) {
-        return { dagId: match[1], taskId: match[2] };
-      }
-
-      return { dagId: undefined, taskId: undefined };
+      return match ? { dagId: match[1], taskId: match[2] } : { dagId: undefined, taskId: undefined };
     };
 
     const { dagId: extractedDagId, taskId: extractedTaskId } = parseCompositeId(id);

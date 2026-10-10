@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{total}} में से {{count}} एसेट्स अपडेट किए गए",
+  "assetSchedule": "{{total, number}} में से {{count, number}} एसेट्स अपडेट किए गए",
   "dagActions": {
     "delete": {
       "button": "डैग हटाएं",
@@ -26,7 +26,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "कोई टास्क्स नहीं मिले।",
-      "title": "प्रभावित टास्क्स: {{count}}"
+      "title": "प्रभावित टास्क्स: {{count, number}}"
     },
     "clear": {
       "button": "{{type}} साफ करें",

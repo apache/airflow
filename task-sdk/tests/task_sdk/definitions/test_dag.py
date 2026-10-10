@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 import warnings
 import weakref
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest import mock
 
@@ -42,7 +42,7 @@ from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
 
-DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
+DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=UTC)
 
 
 class TestDag:
@@ -79,6 +79,18 @@ class TestDag:
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         assert dag.topological_sort() == ()
+
+    def test_dag_topological_sort_task_group_cycle(self):
+        """A TaskGroup that depends on a sibling in a cycle, although check_cycle passes, still sorts."""
+        with DAG("dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            bridge = BaseOperator(task_id="bridge")
+            with TaskGroup("group"):
+                a = BaseOperator(task_id="a")
+                b = BaseOperator(task_id="b")
+            a >> bridge >> b
+        dag.check_cycle()
+
+        assert [task.task_id for task in dag.topological_sort()] == ["bridge", "group.a", "group.b"]
 
     def test_dag_naive_start_date_string(self):
         DAG("DAG", schedule=None, default_args={"start_date": "2019-06-01"})
@@ -697,7 +709,7 @@ class TestDagDecorator:
     DEFAULT_ARGS = {
         "owner": "test",
         "depends_on_past": True,
-        "start_date": datetime.now(tz=timezone.utc),
+        "start_date": datetime.now(tz=UTC),
         "retries": 1,
         "retry_delay": timedelta(minutes=1),
     }
@@ -901,6 +913,8 @@ class TestCycleTester:
             create_cluster >> pod_task >> delete_cluster
             create_cluster >> pod_task_xcom >> delete_cluster
             pod_task_xcom >> pod_task_xcom_result
+
+        assert not dag.check_cycle()
 
     def test_cycle_no_cycle(self):
         # test no cycle

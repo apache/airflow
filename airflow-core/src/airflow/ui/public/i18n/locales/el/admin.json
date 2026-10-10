@@ -9,7 +9,9 @@
   "config": {
     "columns": {
       "section": "Ενότητα"
-    }
+    },
+    "config_one": "Ρύθμιση",
+    "config_other": "Ρυθμίσεις"
   },
   "connections": {
     "add": "Προσθήκη Σύνδεσης",
@@ -23,7 +25,7 @@
     "connection_other": "Συνδέσεις",
     "delete": {
       "deleteConnection_one": "Διαγραφή 1 σύνδεσης",
-      "deleteConnection_other": "Διαγραφή {{count}} συνδέσεων",
+      "deleteConnection_other": "Διαγραφή {{count, number}} συνδέσεων",
       "firstConfirmMessage_one": "Πρόκειται να διαγράψετε την ακόλουθη σύνδεση:",
       "firstConfirmMessage_other": "Πρόκειται να διαγράψετε τις ακόλουθες συνδέσεις:",
       "title": "Διαγραφή Σύνδεσης"
@@ -32,8 +34,8 @@
     "form": {
       "connectionIdRequired": "Το ID Σύνδεσης είναι υποχρεωτικό",
       "connectionIdRequirement": "Το ID Σύνδεσης δεν μπορεί να περιέχει μόνο κενά",
+      "connectionTypeFields": "Πεδία {{connectionType}}",
       "connectionTypeRequired": "Ο Τύπος Σύνδεσης είναι υποχρεωτικός",
-      "extraFields": "Επιπλέον Πεδία",
       "extraFieldsJson": "Επιπλέον Πεδία JSON",
       "helperText": "Λείπει ο Τύπος Σύνδεσης; Βεβαιωθείτε ότι έχετε εγκαταστήσει το ανάλογο πακέτο Airflow Παρόχων.",
       "helperTextForRedactedFields": "Τα πεδία που έχουν αποκρυφθεί ('***') θα παραμείνουν αμετάβλητα αν δεν τροποποιηθούν.",
@@ -95,7 +97,9 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_one": "Διεργασία",
+    "job_other": "Διεργασίες"
   },
   "plugins": {
     "columns": {
@@ -103,6 +107,8 @@
     },
     "importError_one": "Σφάλμα Εισαγωγής Πρόσθετου",
     "importError_other": "Σφάλματα Εισαγωγής Πρόσθετων",
+    "plugin_one": "Πρόσθετο",
+    "plugin_other": "Πρόσθετα",
     "searchPlaceholder": "Αναζήτηση κατά αρχείο"
   },
   "pools": {
@@ -136,7 +142,9 @@
     "columns": {
       "packageName": "Όνομα Πακέτου",
       "version": "Έκδοση"
-    }
+    },
+    "provider_one": "Πάροχος",
+    "provider_other": "Πάροχοι"
   },
   "variables": {
     "add": "Προσθήκη Μεταβλητής",
@@ -145,7 +153,7 @@
     },
     "delete": {
       "deleteVariable_one": "Διαγραφή 1 μεταβλητής",
-      "deleteVariable_other": "Διαγραφή {{count}} μεταβλητών",
+      "deleteVariable_other": "Διαγραφή {{count, number}} μεταβλητών",
       "firstConfirmMessage_one": "Πρόκειται να διαγράψετε την ακόλουθη μεταβλητή:",
       "firstConfirmMessage_other": "Πρόκειται να διαγράψετε τις ακόλουθες μεταβλητές:",
       "title": "Διαγραφή Μεταβλητής",

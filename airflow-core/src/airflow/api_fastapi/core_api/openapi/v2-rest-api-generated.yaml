@@ -6651,6 +6651,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -9928,7 +9934,16 @@ paths:
       tags:
       - Task
       summary: Get Task
-      description: Get simplified representation of a task.
+      description: 'Get simplified representation of a task.
+
+
+        Pass ``version_number`` (e.g. a task instance''s ``dag_version.version_number``)
+        to get the task
+
+        as defined in that Dag version. Without it the latest version is used. Returns
+        404 if that
+
+        version of the Dag does not exist.'
       operationId: get_task
       security:
       - OAuth2PasswordBearer: []
@@ -9945,6 +9960,14 @@ paths:
         required: true
         schema:
           title: Task Id
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       responses:
         '200':
           description: Successful Response
@@ -10655,6 +10678,100 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagVersions/diff:
+    get:
+      tags:
+      - DagVersion
+      - experimental
+      summary: 'Experimental: Compare what two stored versions of a Dag currently
+        hold.'
+      description: "\U0001F6A7 This is an experimental endpoint and may change or\
+        \ be removed without notice.\n\nReports observed state \u2014 what the two\
+        \ stored versions currently hold \u2014 not why a version was created. Version\
+        \ access returns the changed structure with identifying path components masked;\
+        \ the raw values behind those changes, and the paths that name them, are disclosed\
+        \ only to a caller who may also read the Dag's code."
+      operationId: get_dag_version_diff
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: base_version_number
+        in: query
+        required: true
+        schema:
+          type: integer
+          exclusiveMinimum: 0
+          description: Version to compare from.
+          title: Base Version Number
+        description: Version to compare from.
+      - name: target_version_number
+        in: query
+        required: true
+        schema:
+          type: integer
+          exclusiveMinimum: 0
+          description: Version to compare to.
+          title: Target Version Number
+        description: Version to compare to.
+      - name: max_changes
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 5000
+          exclusiveMinimum: 0
+          description: Largest number of records `changes` may hold. A repeat of a
+            path already recorded does not count towards it, and `truncated` says
+            whether the bound dropped anything.
+          default: 500
+          title: Max Changes
+        description: Largest number of records `changes` may hold. A repeat of a path
+          already recorded does not count towards it, and `truncated` says whether
+          the bound dropped anything.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagVersionDiffResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -12056,6 +12173,16 @@ components:
             run. If not specified, falls back to the DAG-level ``rerun_with_latest_version``
             parameter, then the ``[core] rerun_with_latest_version`` config option,
             and finally ``True`` (the historical default for backfills).
+        drain_dag:
+          type: boolean
+          title: Drain Dag
+          description: 'Drain the Dag together with the backfill. Draining changes
+            the whole Dag: unfinished runs can start or resume except those held by
+            paused backfills. No scheduled runs are created, and the Dag pauses once
+            all unfinished runs finish. Paused backfills must be resumed for draining
+            to complete. Requires the same permission as pausing the Dag. Ignored
+            by the dry-run endpoint.'
+          default: false
       additionalProperties: false
       type: object
       required:
@@ -13708,6 +13835,10 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        latest_dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
         is_backfillable:
           type: boolean
           title: Is Backfillable
@@ -13726,12 +13857,6 @@ components:
 
             Deprecated: Use max_active_tasks instead.'
           deprecated: true
-          readOnly: true
-        latest_dag_version:
-          anyOf:
-          - $ref: '#/components/schemas/DagVersionResponse'
-          - type: 'null'
-          description: Return the latest DagVersion.
           readOnly: true
       type: object
       required:
@@ -13776,10 +13901,10 @@ components:
       - timezone
       - last_parsed
       - default_args
+      - latest_dag_version
       - is_backfillable
       - file_token
       - concurrency
-      - latest_dag_version
       title: DAGDetailsResponse
       description: Specific serializer for Dag Details responses.
     DAGPatchBody:
@@ -14965,6 +15090,185 @@ components:
       - dag_display_name
       title: DagTagResponse
       description: Dag Tag serializer for responses.
+    DagVersionDiffCategory:
+      type: string
+      enum:
+      - asset
+      - authorization
+      - callback
+      - deadline
+      - dependency
+      - metadata
+      - param
+      - provenance
+      - schedule
+      - task
+      - unknown
+      title: DagVersionDiffCategory
+      description: What part of a Dag a difference belongs to. Mirrors ``DiffCategory``.
+    DagVersionDiffChangeResponse:
+      properties:
+        path:
+          type: string
+          title: Path
+        operation:
+          $ref: '#/components/schemas/DagVersionDiffOperation'
+        category:
+          $ref: '#/components/schemas/DagVersionDiffCategory'
+        impact:
+          $ref: '#/components/schemas/DagVersionDiffImpact'
+        occurrence_count:
+          type: integer
+          title: Occurrence Count
+          description: How many underlying changes this record stands for. Always
+            1 when values are disclosed, since each change is then its own record;
+            a redacted record merges every change sharing its path and operation.
+        before_digest:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Before Digest
+          description: SHA-256 over the canonical JSON of `before_value`. Present
+            only when values are disclosed, and null when the change has no before
+            side.
+        after_digest:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: After Digest
+          description: SHA-256 over the canonical JSON of `after_value`. Present only
+            when values are disclosed, and null when the change has no after side.
+        before_value:
+          title: Before Value
+          description: "The value this path held in the base version. Present only\
+            \ when values are disclosed, and omitted entirely when the change has\
+            \ no before side \u2014 which is how an absent side is told apart from\
+            \ a stored null."
+        after_value:
+          title: After Value
+          description: "The value this path holds in the target version. Present only\
+            \ when values are disclosed, and omitted entirely when the change has\
+            \ no after side \u2014 which is how an absent side is told apart from\
+            \ a stored null."
+      type: object
+      required:
+      - path
+      - operation
+      - category
+      - impact
+      - occurrence_count
+      title: DagVersionDiffChangeResponse
+      description: One structural difference between two stored Dag versions.
+    DagVersionDiffImpact:
+      type: string
+      enum:
+      - authorization
+      - execution
+      - metadata
+      - provenance
+      - unknown
+      title: DagVersionDiffImpact
+      description: What a difference affects. Mirrors ``DiffImpact``.
+    DagVersionDiffMode:
+      type: string
+      enum:
+      - observed_state
+      - unavailable
+      title: DagVersionDiffMode
+      description: Whether a comparison could be made at all.
+    DagVersionDiffOperation:
+      type: string
+      enum:
+      - added
+      - removed
+      - changed
+      title: DagVersionDiffOperation
+      description: How a difference presents at its path.
+    DagVersionDiffResponse:
+      properties:
+        diff_schema_version:
+          type: integer
+          title: Diff Schema Version
+          description: Wire format of this payload. Incremented when its shape changes.
+        base_version_number:
+          type: integer
+          title: Base Version Number
+        target_version_number:
+          type: integer
+          title: Target Version Number
+        serializer_versions:
+          $ref: '#/components/schemas/DagVersionDiffSerializerVersions'
+        mode:
+          $ref: '#/components/schemas/DagVersionDiffMode'
+        unavailable_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unavailable Reason
+          description: Why no comparison could be made. Populated only when `mode`
+            is `unavailable`.
+        values_status:
+          $ref: '#/components/schemas/DagVersionDiffValuesStatus'
+        truncated:
+          type: boolean
+          title: Truncated
+          description: Whether a change at a path not already in `changes` was dropped
+            to stay within `max_changes`. Paths that are absent are absent, not unchanged.
+        total_changes:
+          type: integer
+          title: Total Changes
+          description: Underlying changes across every disclosed path, not the number
+            of records. Exact when `truncated` is false; a lower bound when it is
+            true, because the changes at dropped paths are not counted.
+        changes:
+          items:
+            $ref: '#/components/schemas/DagVersionDiffChangeResponse'
+          type: array
+          title: Changes
+      type: object
+      required:
+      - diff_schema_version
+      - base_version_number
+      - target_version_number
+      - serializer_versions
+      - mode
+      - values_status
+      - truncated
+      - total_changes
+      - changes
+      title: DagVersionDiffResponse
+      description: Observed-state difference between two stored Dag versions.
+    DagVersionDiffSerializerVersions:
+      properties:
+        base:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Base
+        target:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Target
+      type: object
+      required:
+      - base
+      - target
+      title: DagVersionDiffSerializerVersions
+      description: 'Which Dag serializer format each compared version was stored under.
+
+
+        Unrelated to ``diff_schema_version``, which versions this payload rather than
+        the
+
+        serialized Dags it describes.'
+    DagVersionDiffValuesStatus:
+      type: string
+      enum:
+      - available
+      - unavailable
+      title: DagVersionDiffValuesStatus
+      description: Whether values were disclosed. Mirrors ``ValuesStatus``.
     DagVersionResponse:
       properties:
         id:
@@ -15781,6 +16085,15 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Version
+        drain_dag:
+          type: boolean
+          title: Drain Dag
+          description: 'Drain the Dag together with this run. Draining changes the
+            whole Dag: unfinished runs can start or resume except those held by paused
+            backfills. No scheduled runs are created, and the Dag pauses once all
+            unfinished runs finish. Paused backfills must be resumed for draining
+            to complete. Requires the same permission as pausing the Dag.'
+          default: false
       additionalProperties: false
       type: object
       title: MaterializeAssetBody
@@ -15833,46 +16146,31 @@ components:
       title: PatchTaskInstanceBody
       description: Request body for patching task instance state.
     PluginAppliesToResponse:
-      properties:
-        dag_tags:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Dag Tags
-        dag_ids:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Dag Ids
-        task_ids:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Task Ids
-        operators:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Operators
-        operator_names:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Operator Names
-      additionalProperties: false
+      additionalProperties:
+        items:
+          type: string
+        type: array
       type: object
       title: PluginAppliesToResponse
-      description: Serializer for the optional Dag/task scoping criteria of a UI plugin.
+      description: 'Serializer for the optional scoping criteria of a UI plugin.
+
+
+        An open map of dotted field path to the values that path may take -- not a
+        closed set of
+
+        criteria. ``{"state": ["failed"], "dag.tags.name": ["ml"]}`` scopes to failed
+        entities of
+
+        ml-tagged Dags. An unqualified path is rooted at the entity the ``destination``
+        is about;
+
+        a path may instead name a related record (``dag``, ``dag_run``, ``task``,
+        ``task_instance``)
+
+        as its first segment. Matching is equality against the listed values, OR within
+        a path and
+
+        AND across paths, and is evaluated client-side.'
     PluginCollectionResponse:
       properties:
         plugins:
@@ -17437,6 +17735,15 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Version
+        drain_dag:
+          type: boolean
+          title: Drain Dag
+          description: 'Drain the Dag together with this run. Draining changes the
+            whole Dag: unfinished runs can start or resume except those held by paused
+            backfills. No scheduled runs are created, and the Dag pauses once all
+            unfinished runs finish. Paused backfills must be resumed for draining
+            to complete. Requires the same permission as pausing the Dag.'
+          default: false
       additionalProperties: false
       type: object
       required:

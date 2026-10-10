@@ -22,10 +22,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
-	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 // TriggerDagRunSpec holds the options of a task that triggers a Dag run. [TriggerDagRun] takes a
@@ -35,21 +38,24 @@ import (
 // leaves its parameter at the Python default. PokeInterval and Deferrable are pointers so that a
 // pointer to 0 or false can set that value instead of leaving the default.
 //
-// DagID, RunID, LogicalDate and the values in Conf are templated. They can hold Jinja such as
-// "{{ ds }}", which Airflow renders when the task runs.
+// The task does not render templates. Note and the values in Conf are sent as they are, so a
+// string such as "{{ ds }}" reaches the new Dag run unchanged. DagID and RunID must not contain
+// "{{", since Airflow rejects such a dag_id or run_id. The task does not offer
+// openlineage_inject_parent_info, so it adds nothing to Conf.
 type TriggerDagRunSpec struct {
 	// DagID is the dag_id of the Dag to trigger. It is required.
 	DagID string
-	// RunID is the run_id of the new Dag run. When RunID is empty, Airflow generates one.
+	// RunID is the run_id of the new Dag run. When RunID is empty, the task names the run after
+	// the time it can start, such as "manual__2026-09-30T00:00:00+00:00", and adds an underscore
+	// and eight random characters when the run has no logical date.
 	RunID string
-	// Conf is the conf of the new Dag run. Airflow receives it as JSON, so each value must
-	// marshal to JSON.
+	// Conf is the conf of the new Dag run. Each value must marshal to JSON, and each integer in
+	// Conf must fit in 64 bits.
 	Conf map[string]any
-	// LogicalDate is the logical date of the new Dag run, as an ISO 8601 string such as
-	// "2026-09-30T00:00:00+00:00" or a template such as "{{ ds }}". When LogicalDate is empty and
-	// RunAfter is the zero Time, the logical date is the time the task runs. When LogicalDate is
-	// empty and RunAfter is set, the new Dag run has no logical date.
-	LogicalDate string
+	// LogicalDate is the logical date of the new Dag run. When LogicalDate is the zero Time and
+	// RunAfter is also the zero Time, the logical date is the time the task runs. When LogicalDate
+	// is the zero Time and RunAfter is set, the new Dag run has no logical date.
+	LogicalDate time.Time
 	// RunAfter is the earliest time at which the new Dag run can start. When RunAfter is the zero
 	// Time, the new Dag run can start as soon as the task triggers it.
 	RunAfter time.Time
@@ -61,25 +67,26 @@ type TriggerDagRunSpec struct {
 	// PokeInterval is how often a task that waits checks the state of the new Dag run. It must be
 	// a whole number of seconds. When PokeInterval is nil, the task checks every 60 seconds.
 	PokeInterval *time.Duration
-	// AllowedStates are the states of the new Dag run in which a task that waits succeeds. Each
-	// state is one of queued, running, success and failed. When AllowedStates is empty, the task
-	// succeeds in the success state.
-	AllowedStates []string
-	// FailedStates are the states of the new Dag run in which a task that waits fails. Each state
-	// is one of queued, running, success and failed. A nil FailedStates fails the task in the
-	// failed state. A FailedStates that is empty but not nil means that no state fails the task.
-	// The task then succeeds once the new Dag run is in a state that AllowedStates lists. In any
-	// other state, including failed, the task keeps waiting.
-	FailedStates []string
+	// AllowedStates are the states of the new Dag run in which a task that waits succeeds. When
+	// AllowedStates is empty, the task succeeds in the success state of the new Dag run.
+	AllowedStates []DagRunState
+	// FailedStates are the states of the new Dag run in which a task that waits fails. When
+	// FailedStates is nil, the task fails in the failed state of the new Dag run. When
+	// FailedStates is empty but not nil, no Dag run state fails the task. The task then succeeds
+	// once the new Dag run is in a state that AllowedStates lists. In any other state, including
+	// failed, the task keeps waiting.
+	FailedStates []DagRunState
 	// SkipWhenAlreadyExists marks the task skipped if the Dag run already exists.
 	SkipWhenAlreadyExists bool
 	// FailWhenDagIsPaused fails the task when the Dag to trigger is paused.
 	FailWhenDagIsPaused bool
 	// Note is the note of the new Dag run.
 	Note string
-	// Deferrable makes a task that waits defer instead of holding a worker slot. When Deferrable
-	// is nil, the task follows the default_deferrable option in the operators section of the
-	// Airflow configuration.
+	// Deferrable makes a task that waits defer instead of holding a worker slot. The wait then
+	// runs in the Airflow triggerer, which needs the standard provider installed, and the task
+	// resumes in the Go runtime when the new Dag run finishes. Deferrable has no effect on a task
+	// that does not wait. When Deferrable is nil, the task follows the default_deferrable option
+	// in the operators section of the Airflow configuration.
 	Deferrable *bool
 }
 
@@ -89,16 +96,20 @@ type TriggerDagRunTask struct {
 	spec TriggerDagRunSpec
 }
 
-// TriggerDagRun returns a value to pass to [DagRef.Task] in place of a Go function. DagRef.Task
-// then adds a task that triggers a run of the Dag that spec.DagID names:
+// TriggerDagRun returns a value to pass to [DagRef.Task] or [TaskGroupRef.Task] in place of a Go
+// function. DagRef.Task then adds a task that triggers a run of the Dag that spec.DagID names:
 //
 //	dag.Task(
 //		airflow.TriggerDagRun(airflow.TriggerDagRunSpec{DagID: "downstream_etl"}),
 //		airflow.TaskSpec{TaskID: "trigger_downstream"},
 //	)
 //
-// The task runs no Go code. Once [BundleRef.Serve] serves the Dags from [Dag], Airflow will run
-// the task as TriggerDagRunOperator on a Python worker.
+// The task runs no Go code. Once [BundleRef.Serve] serves the Dags from [Dag], the Go runtime runs
+// the task as TriggerDagRunOperator does, so a Dag from [Dag] needs no Python worker for it. The
+// task takes the Queue of the [DagSpec], unless its [TaskSpec] sets one. The runtime reads the
+// settings it needs from its environment: [api] base_url for the link to the new Dag run, and
+// [operators] default_deferrable for a spec that leaves Deferrable nil. Set Deferrable to defer the
+// wait, which hands it to the Python triggerer as the DagStateTrigger of the standard provider.
 //
 // Because the task has no Go function to take a task_id from, DagRef.Task needs a [TaskSpec]
 // that sets TaskID. For the same reason, the task takes no [Inputs], and it returns no result
@@ -108,21 +119,22 @@ func TriggerDagRun(spec TriggerDagRunSpec) TriggerDagRunTask {
 	return TriggerDagRunTask{spec: spec}
 }
 
-// validDagRunStates are the values that TriggerDagRunOperator accepts in allowed_states and
-// failed_states.
-var validDagRunStates = []string{
-	string(genmodels.DagRunStateQueued),
-	string(genmodels.DagRunStateRunning),
-	string(genmodels.DagRunStateSuccess),
-	string(genmodels.DagRunStateFailed),
-}
-
 // copyTriggerDagRunSpec checks spec and returns a deep copy of it, so that nothing the caller
 // still holds, such as Conf, a state slice or a pointer field, can change the task that
 // DagRef.Task added.
 func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 	if spec.DagID == "" {
 		return TriggerDagRunSpec{}, errors.New("airflow.TriggerDagRunSpec has no DagID")
+	}
+	for _, field := range []struct{ name, value string }{
+		{"DagID", spec.DagID}, {"RunID", spec.RunID},
+	} {
+		if strings.Contains(field.value, "{{") {
+			return TriggerDagRunSpec{}, fmt.Errorf(
+				"airflow.TriggerDagRunSpec.%s is %q; the task does not render templates",
+				field.name, field.value,
+			)
+		}
 	}
 	if poke := spec.PokeInterval; poke != nil && (*poke < 0 || *poke%time.Second != 0) {
 		return TriggerDagRunSpec{}, fmt.Errorf(
@@ -133,17 +145,23 @@ func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 	}
 	for _, field := range []struct {
 		name   string
-		states []string
+		states []DagRunState
 	}{{"AllowedStates", spec.AllowedStates}, {"FailedStates", spec.FailedStates}} {
 		for _, state := range field.states {
-			if !slices.Contains(validDagRunStates, state) {
+			if !slices.Contains(dagRunStates, state) {
 				return TriggerDagRunSpec{}, fmt.Errorf(
 					"airflow.TriggerDagRunSpec.%s has %q, which is not a Dag run state; "+
 						"use one of %q",
-					field.name, state, validDagRunStates,
+					field.name, state, dagRunStates,
 				)
 			}
 		}
+	}
+	if err := checkTime("airflow.TriggerDagRunSpec.RunAfter", spec.RunAfter); err != nil {
+		return TriggerDagRunSpec{}, err
+	}
+	if err := checkTime("airflow.TriggerDagRunSpec.LogicalDate", spec.LogicalDate); err != nil {
+		return TriggerDagRunSpec{}, err
 	}
 	conf, err := copyConf(spec.Conf)
 	if err != nil {
@@ -157,11 +175,44 @@ func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 	return copied, nil
 }
 
+// triggerSpec returns the options of spec for the runtime, which cannot import this package. The
+// checked spec is a deep copy, but the runtime gets one of its own, so that nothing the runtime
+// does can change the task.
+func triggerSpec(spec TriggerDagRunSpec) bundle.TriggerSpec {
+	copied := copySpec(spec)
+	out := bundle.TriggerSpec{
+		DagID:                 copied.DagID,
+		RunID:                 copied.RunID,
+		Note:                  copied.Note,
+		LogicalDate:           copied.LogicalDate,
+		RunAfter:              copied.RunAfter,
+		ResetDagRun:           copied.ResetDagRun,
+		WaitForCompletion:     copied.WaitForCompletion,
+		SkipWhenAlreadyExists: copied.SkipWhenAlreadyExists,
+		FailWhenDagIsPaused:   copied.FailWhenDagIsPaused,
+		PokeInterval:          copied.PokeInterval,
+		Deferrable:            copied.Deferrable,
+	}
+	if copied.Conf != nil {
+		out.Conf = copyJSON(copied.Conf).(map[string]any)
+	}
+	if len(copied.AllowedStates) > 0 {
+		out.AllowedStates = dagRunStateNames(copied.AllowedStates)
+	}
+	if copied.FailedStates != nil {
+		out.FailedStates = dagRunStateNames(copied.FailedStates)
+	}
+	return out
+}
+
 // copyConf copies conf by way of JSON, so it also rejects a conf that JSON cannot hold.
 //
-// UseNumber stores each number as a json.Number, which keeps an integer that a float64 cannot
-// hold exactly, such as 2^53 + 1. encoding/json writes a json.Number back as a number, but an
-// encoder that does not know the type, such as msgpack, writes it as a string.
+// Each number in the copy is an int64, a uint64 or a float64, which encoding/json and msgpack both
+// write as a number. A bundle sends a serialized Dag to Airflow as msgpack, and msgpack would write
+// a json.Number as a string. The decoder reads each number as a json.Number first, so that an
+// integer that a float64 cannot hold exactly, such as 2^53 + 1, keeps its value in an int64 or a
+// uint64. copyConf rejects an integer that fits in neither, and a number past the range of a
+// float64, because msgpack cannot carry them.
 func copyConf(conf map[string]any) (map[string]any, error) {
 	data, err := json.Marshal(conf)
 	if err != nil {
@@ -173,5 +224,63 @@ func copyConf(conf map[string]any) (map[string]any, error) {
 	if err := dec.Decode(&copied); err != nil {
 		return nil, err
 	}
+	if _, err := resolveNumbers(copied, ""); err != nil {
+		return nil, err
+	}
 	return copied, nil
+}
+
+// resolveNumbers replaces each json.Number in value with an int64, a uint64 or a float64, and
+// returns value. It changes a map or a slice in value in place. path names value in an error, as
+// in ["rows"][2].
+func resolveNumbers(value any, path string) (any, error) {
+	switch v := value.(type) {
+	case json.Number:
+		return resolveNumber(v, path)
+	case map[string]any:
+		// The keys are sorted, so that a conf with more than one bad number always gets the same
+		// error.
+		for _, key := range slices.Sorted(maps.Keys(v)) {
+			resolved, err := resolveNumbers(v[key], path+"["+strconv.Quote(key)+"]")
+			if err != nil {
+				return nil, err
+			}
+			v[key] = resolved
+		}
+	case []any:
+		for i, item := range v {
+			resolved, err := resolveNumbers(item, fmt.Sprintf("%s[%d]", path, i))
+			if err != nil {
+				return nil, err
+			}
+			v[i] = resolved
+		}
+	}
+	return value, nil
+}
+
+func resolveNumber(n json.Number, path string) (any, error) {
+	if i, err := n.Int64(); err == nil {
+		return i, nil
+	}
+	if u, err := strconv.ParseUint(n.String(), 10, 64); err == nil {
+		return u, nil
+	}
+	f, err := n.Float64()
+	// encoding/json writes a float64 such as 1e20 with neither a point nor an exponent, so a number
+	// written like an integer can come from a float64. Such a number is read as a float64 only when
+	// the float64 formats back to the same digits. Otherwise the number is an integer that does not
+	// fit in 64 bits.
+	if !strings.ContainsAny(n.String(), ".eE") &&
+		(err != nil || strconv.FormatFloat(f, 'f', -1, 64) != n.String()) {
+		return nil, fmt.Errorf("the integer at %s is %s, which does not fit in 64 bits", path, n)
+	}
+	if err != nil {
+		return nil, fmt.Errorf(
+			"the number at %s is %s, which is past the range of a float64",
+			path,
+			n,
+		)
+	}
+	return f, nil
 }

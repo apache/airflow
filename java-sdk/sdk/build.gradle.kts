@@ -35,7 +35,7 @@ plugins {
     // jsonschema2pojo 1.3.3 targets Java 17:
     // https://github.com/joelittlejohn/jsonschema2pojo/blob/jsonschema2pojo-1.3.3/jsonschema2pojo-gradle-plugin/build.gradle#L45-L48
     id("org.jsonschema2pojo") version "1.2.2"
-    kotlin("plugin.serialization") version "2.4.10"
+    kotlin("plugin.serialization") version "2.4.20"
 }
 
 val schemaBaseUrl = "https://airflow.staged.apache.org/schemas/supervisor-schema"
@@ -57,7 +57,7 @@ dependencies {
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.2")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.2")
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
-    implementation("io.ktor:ktor-network:3.5.2")
+    implementation("io.ktor:ktor-network:3.6.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
@@ -225,6 +225,13 @@ abstract class SyncDagSchemaTask : DefaultTask() {
     @get:Internal
     abstract val targetFile: RegularFileProperty
 
+    // False for an ordinary in-repo build, which must keep refreshing the copy silently
+    // so it does not break on a schema a developer is actively editing. True for the
+    // prek hook, which passes -PfailOnDagSchemaDrift so a commit that leaves the
+    // vendored copy behind fails instead of shipping unnoticed.
+    @get:Internal
+    abstract val failOnDagSchemaDrift: Property<Boolean>
+
     @TaskAction
     fun sync() {
         val src = sourceFile.get().asFile
@@ -239,6 +246,12 @@ abstract class SyncDagSchemaTask : DefaultTask() {
         }
         logger.lifecycle("Refreshing vendored dag-schema.json from ${src.path}")
         src.copyTo(dst, overwrite = true)
+        if (failOnDagSchemaDrift.getOrElse(false)) {
+            throw GradleException(
+                "Vendored dag-schema.json was out of date and has been refreshed from ${src.path}. " +
+                    "Review the diff and commit it.",
+            )
+        }
     }
 }
 
@@ -481,9 +494,9 @@ abstract class GenerateDagDslTask : DefaultTask() {
         (excludedTaskKeys - excludedSeen).takeIf { it.isNotEmpty() }?.let {
             throw GradleException("Excluded task keys match no eligible schema property; remove or fix: $it")
         }
-        // "id"/"to" name the annotations' structural attributes, so a schema
-        // key camel-casing to either would silently shadow them.
-        (dagFields + taskFields).firstOrNull { it.attribute == "id" || it.attribute == "to" }?.let {
+        // "id" and "to" name the annotations' structural attributes, so a schema
+        // key camel-casing to one would silently shadow it.
+        (dagFields + taskFields).firstOrNull { it.attribute in setOf("id", "to") }?.let {
             throw GradleException("Schema key '${it.key}' collides with a structural annotation attribute")
         }
 
@@ -504,7 +517,8 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | * Container for the annotation-based Dag-authoring API.
             | *
             | * Annotating a class with [Dag] generates a `<Class>Builder` whose static
-            | * `build()` returns the [DagDef] to add to a [Bundle].
+            | * `build()` returns the [DagDef] to add to a [Bundle], and a `<Class>Deps`
+            | * wiring view for the class's [Deps] class to implement.
             | *
             | * Example:
             | *
@@ -517,13 +531,19 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | *
             | *     @Builder.Task(id = "transform")
             | *     public long transform(Client client, long extracted) { ... }
+            | *
+            | *     @Builder.Deps
+            | *     static class Wiring implements MyPipelineDeps {
+            | *       void depends() { transform(extract()); }
+            | *     }
             | * }
             | * ```
             | *
-            | * A task method's data parameters — everything other than the injected
-            | * [Client] and [Context] — receive, by position, the arguments the Python
-            | * `@task.stub` call site bound. Keyword arguments bind by name instead
-            | * through a single [TaskInput] parameter.
+            | * A task method's data parameters, meaning every parameter other than the
+            | * injected [Client] and [Context], receive by position the inputs the
+            | * [Deps] class wired. For a task the Python Dag file declares with `@task.stub`,
+            | * the arguments bound at that call site take their place. Keyword
+            | * arguments bind by name instead through a single [TaskInput] parameter.
             | */
             |class Builder internal constructor() {
             |  /**
@@ -561,6 +581,74 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |  )
             |
             |  /**
+            |   * Marks a task method whose `boolean` picks one of two tasks; the
+            |   * other is skipped.
+            |   *
+            |   * The method is an ordinary task method that returns `boolean`. Its
+            |   * wiring-view method returns a [ConditionRef] rather than a
+            |   * [TaskRef], so each side is named where the Dag is wired:
+            |   *
+            |   * ```java
+            |   * @Builder.If(id = "has_rows")
+            |   * public boolean hasRows(long rows) { return rows > 0; }
+            |   *
+            |   * @Builder.Deps
+            |   * static class Wiring implements EtlDeps {
+            |   *   void depends() { hasRows(extract()).Then(load()).Else(reportEmpty()); }
+            |   * }
+            |   * ```
+            |   *
+            |   * The condition skips only the side not taken, so a task that runs
+            |   * after both sides needs a trigger rule that tolerates one skipped
+            |   * upstream, such as `none_failed_min_one_success`.
+            |   *
+            |   * Configuration attributes are [Task]'s, and apply to the deciding
+            |   * task.
+            |   */
+            |  @Target(AnnotationTarget.FUNCTION)
+            |  @MustBeDocumented
+            |  annotation class If(
+            |    /** Task ID. Empty derives it from the annotated function's name. */
+            |    val id: String = "",
+            |${attrLines(taskFields)}
+            |  )
+            |
+            |  /**
+            |   * Marks a task method that chooses one of several tasks to run;
+            |   * every other one is skipped.
+            |   *
+            |   * The method returns the class the Dag's builder generated for the task it
+            |   * chose, as `Class<? extends Task>`. Its wiring-view method returns a
+            |   * [SwitchRef], so the cases are listed where the Dag is wired:
+            |   *
+            |   * ```java
+            |   * @Builder.Switch(id = "pick_path")
+            |   * public Class<? extends Task> pickPath(long rows) {
+            |   *   return rows > 1000 ? EtlBuilder.HandleLong.class : EtlBuilder.HandleShort.class;
+            |   * }
+            |   *
+            |   * @Builder.Deps
+            |   * static class Wiring implements EtlDeps {
+            |   *   void depends() { pickPath(extract()).Case(handleLong()).Case(handleShort()); }
+            |   * }
+            |   * ```
+            |   *
+            |   * A switch chooses exactly one case, so a task that runs after
+            |   * several of them needs a trigger rule that tolerates a skipped
+            |   * upstream, such as `none_failed_min_one_success`.
+            |   *
+            |   * Configuration attributes are [Task]'s, and apply to the deciding
+            |   * task.
+            |   */
+            |  @Target(AnnotationTarget.FUNCTION)
+            |  @MustBeDocumented
+            |  annotation class Switch(
+            |    /** Task ID. Empty derives it from the annotated function's name. */
+            |    val id: String = "",
+            |${attrLines(taskFields)}
+            |  )
+            |
+            |  /**
             |   * Marks a method as the Java body of a task the Python Dag file
             |   * declares with `@task.stub`.
             |   *
@@ -586,6 +674,72 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |  annotation class TaskHandler(
             |    val dag: String,
             |    val task: String = "",
+            |  )
+            |
+            |  /**
+            |   * Marks the nested class that declares this Dag's task graph.
+            |   *
+            |   * Declare it as a `static` nested class that implements the generated
+            |   * `<Dag>Deps` wiring view and has a no-argument `depends()` method.
+            |   * Calling a view method registers its task; passing the handle one
+            |   * returned into another call wires a data edge; `before` and `after`
+            |   * wire an ordering-only one:
+            |   *
+            |   * ```java
+            |   * @Builder.Deps
+            |   * static class Wiring implements EtlPipelineDeps {
+            |   *   void depends() {
+            |   *     var rows = extract();
+            |   *     var loaded = load(transform(rows, lit(0.9)));
+            |   *     rows.before(audit());
+            |   *     report().after(loaded, audit());
+            |   *   }
+            |   * }
+            |   * ```
+            |   *
+            |   * Every [Dag] class declares one, because the graph is what the Dag
+            |   * owns. A class that supplies only task bodies, for a Dag a Python
+            |   * file declares, carries [TaskHandler] instead.
+            |   */
+            |  @Target(AnnotationTarget.CLASS)
+            |  @MustBeDocumented
+            |  annotation class Deps
+            |
+            |  /**
+            |   * Marks a nested class that groups the tasks declared inside it, as
+            |   * Python's `TaskGroup` does.
+            |   *
+            |   * Declare it as a `static` nested class of the [Dag] class, or of
+            |   * another [TaskGroup] class to nest one group in another. Everything it
+            |   * declares carries its ID as a prefix, so `stage` in `Staging` is the
+            |   * task `Staging.stage`:
+            |   *
+            |   * ```java
+            |   * @Builder.TaskGroup
+            |   * static class Staging {
+            |   *   @Builder.Task
+            |   *   public long stage(long rows) { ... }
+            |   *
+            |   *   @Builder.TaskGroup(id = "checks")
+            |   *   static class Checks {
+            |   *     @Builder.Task
+            |   *     public void nulls(long staged) { ... }
+            |   *   }
+            |   * }
+            |   * ```
+            |   *
+            |   * The wiring class reaches them through the generated view, where the
+            |   * group is both a namespace and a point in the flow:
+            |   * `staging().checks().nulls(staged)` and `extract().before(staging())`.
+            |   *
+            |   * @param id Group ID within its enclosing group. Empty derives it from
+            |   *    the annotated class's name. Must contain only ASCII letters,
+            |   *    digits, underscores, or dashes.
+            |   */
+            |  @Target(AnnotationTarget.CLASS)
+            |  @MustBeDocumented
+            |  annotation class TaskGroup(
+            |    val id: String = "",
             |  )
             |}
             |
@@ -661,6 +815,8 @@ val syncDagSchema by tasks.registering(SyncDagSchemaTask::class) {
     description = "Refresh the vendored Dag serialization schema from the monorepo copy when present."
     sourceFile = layout.projectDirectory.file("../../airflow-core/src/airflow/serialization/schema.json")
     targetFile = dagSchemaInput
+    // -PfailOnDagSchemaDrift carries no value, so presence (not content) is the signal.
+    failOnDagSchemaDrift = providers.gradleProperty("failOnDagSchemaDrift").map { true }.orElse(false)
 }
 
 tasks.register<GenerateDagDslTask>("generateDagDsl") {
@@ -776,4 +932,13 @@ publishing {
             }
         }
     }
+}
+
+// Prints the classpath that runs the conformance serializer, for
+// java-sdk/scripts/ci/prek/check_serialization_conformance.py.
+tasks.register("printConformanceClasspath") {
+    dependsOn("testClasses")
+    // Capture early to keep compatibility to the Gradle configuration cache.
+    val classpath = sourceSets.test.get().runtimeClasspath
+    doLast { println(classpath.asPath) }
 }

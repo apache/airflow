@@ -23,8 +23,9 @@ min_airflow_version: "3.4"
 # bundle metadata. The render hook fails if the two disagree.
 supervisor_schema_version: "2026-10-30"
 
-# The task runner terminates a task with SucceedTask, RetryTask, or TaskState (failed/removed); it
-# does not yet emit skipped, DeferTask, RescheduleTask, or AwaitInputTask.
+# The task runner terminates a task with SucceedTask, RetryTask, or TaskState (failed/removed); only
+# an airflow.TriggerDagRun task emits TaskState skipped or DeferTask. It does not emit RescheduleTask
+# or AwaitInputTask.
 states:
   success:
     supported: true
@@ -37,11 +38,13 @@ states:
     since: "3.3"
     note: "RetryTask"
   skipped:
-    supported: false
-    note: "runtime does not emit TaskState skipped yet"
+    supported: true
+    since: "3.4"
+    note: "airflow.TriggerDagRun with SkipWhenAlreadyExists only"
   deferred:
-    supported: false
-    note: "runtime does not emit DeferTask yet"
+    supported: true
+    since: "3.4"
+    note: "airflow.TriggerDagRun with Deferrable only; resumes in the Go runtime"
   up_for_reschedule:
     supported: false
     note: "runtime does not emit RescheduleTask yet"
@@ -85,8 +88,8 @@ capabilities:
     supported: false
     note: "no task-facing retry-policy API yet"
   task-state-store:
-    supported: false
-    note: "no task-facing state-store API yet"
+    supported: true
+    since: "3.4"
   asset-state-store:
     supported: false
     note: "no task-facing state-store API yet"

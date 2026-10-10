@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -65,10 +65,10 @@ UNREGISTERED_FILE = "broken.py"
 UNREADABLE_FILE = "secret.py"
 
 GIT_VERSION = "8f0e5b1c9a2d4e6f8a0b1c2d3e4f5a6b7c8d9e0f"
-REFRESHED_AT = datetime(2026, 9, 10, 12, 0, tzinfo=timezone.utc)
-PARSED_AT = datetime(2026, 9, 10, 12, 1, tzinfo=timezone.utc)
+REFRESHED_AT = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
+PARSED_AT = datetime(2026, 9, 10, 12, 1, tzinfo=UTC)
 PARSE_DURATION = 0.125
-GONE_REFRESHED_AT = datetime(2026, 9, 1, 8, 30, tzinfo=timezone.utc)
+GONE_REFRESHED_AT = datetime(2026, 9, 1, 8, 30, tzinfo=UTC)
 
 WITH_DAGS = (GIT_BUNDLE, LOCAL_BUNDLE, GONE_BUNDLE, OTHER_TEAM_BUNDLE)
 # Everything except the Dag in OTHER_TEAM_BUNDLE.

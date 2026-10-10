@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} von {{total}} Datensets (Assets) aktualisiert",
+  "assetSchedule": "{{count, number}} von {{total, number}} Datensets (Assets) aktualisiert",
   "dagActions": {
     "delete": {
       "button": "Dag löschen",
@@ -27,13 +27,22 @@
     "pausedState": "Pausierter Zustand",
     "requiresHitlAction": "Erfordert HITL-Aktion",
     "runIdPatternFilter": "Dag Läufe suchen",
+    "runState": "Lauf status",
+    "runStatePlaceholder": "Lauf status wählen…",
     "timetableType": "Zeitplantyp"
+  },
+  "folders": {
+    "all": "Alle Dags",
+    "empty": "Keine Ordner",
+    "hide": "Ordner ausblenden",
+    "show": "Ordner anzeigen",
+    "title": "Ordner"
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Keine Tasks gefunden.",
-      "title": "Betroffene Tasks: {{count}}"
+      "title": "Betroffene Tasks: {{count, number}}"
     },
     "clear": {
       "button": "{{type}} zurücksetzen",
@@ -101,11 +110,11 @@
     "message": "Dieses Dag läuft aus. Es wird pausieren sobald aktive Läufe komplett sind."
   },
   "schedulingState": {
-    "active": "Akttiv",
+    "active": "Aktiv",
     "draining": "Auslaufend",
     "drainingBadgeTooltip": "Dieses Dag pausiert sobald alle Läufe komplett sind.",
     "drainingTooltip": "Auslaufen {{dagDisplayName}} — pausiert wenn Dag Läufe komplett sind. Klicken zum Forstsetzen.",
-    "label": "Planunggstatus",
+    "label": "Planungsstatus",
     "paused": "Pausiert",
     "placeholder": "Auswahl des Planungszustands…"
   },

@@ -251,8 +251,8 @@ Five features have pages of their own:
   on retry instead of paying for them again.
 - :doc:`../capabilities`: pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
   with ``capabilities=``.
-- :doc:`../code_mode`: set ``code_mode=True`` to collapse the agent's tools into a single
-  ``run_code`` tool the model drives by writing Python.
+- :doc:`../code_mode`: pass the ``CodeMode`` capability to collapse the agent's tools into a
+  single ``run_code`` tool the model drives by writing Python.
 - :doc:`../tool_approval`: mark tools that need a person's approval, and the task pauses before
   a marked call runs.
 
@@ -354,7 +354,8 @@ When the provider reports cache activity, the task log shows it under the run su
     LLM prompt cache: cache_read_tokens=..., cache_write_tokens=...
 
 ``input_tokens`` includes both counts. With :doc:`../observability` turned on, each
-request's GenAI span carries them too.
+request's GenAI span carries them too. The ``usage`` XCom carries them as
+``cache_read_tokens`` and ``cache_write_tokens``.
 
 Parameters
 ----------
@@ -423,7 +424,7 @@ Parameters
 - ``durable``: When ``True``, enables step-level caching of model responses and
   tool results. On retry, cached steps are replayed instead of re-executing
   expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no
-  configuration needed); on older cores it requires the ``[common.ai]
+  configuration needed); on older Airflow versions it requires the ``[common.ai]
   durable_cache_path`` config option to be set. Default ``False``. A replayed
   step adds nothing to the usage counted against ``usage_limits`` or reported
   in the ``usage`` XCom -- not its request, tokens, cost, or tool calls -- so
@@ -434,9 +435,6 @@ Parameters
   when the steps it needs are cached. Clearing a failed task instance starts
   a fresh budget but keeps the durable cache its attempts left behind, so what
   the rerun replays from that cache is free there too.
-- ``code_mode``: When ``True``, wraps the agent's tools in a single ``run_code``
-  tool that the model drives by writing Python, executed in the Monty sandbox.
-  Requires the ``code-mode`` extra. Default ``False``. See :ref:`code-mode`.
 - ``cache_prompt``: Ask the provider to cache the tool definitions, system prompt and
   conversation so later requests read them back at a discount. Default ``True``; a no-op for
   providers that cache on their own. See :ref:`agent-prompt-caching`.

@@ -1,8 +1,8 @@
 {
   "backfill": {
-    "affected_many": "{{count}} exécutions seront déclenchées.",
+    "affected_many": "{{count, number}} exécutions seront déclenchées.",
     "affected_one": "1 exécution sera déclenchée.",
-    "affected_other": "{{count}} exécutions seront déclenchées.",
+    "affected_other": "{{count, number}} exécutions seront déclenchées.",
     "affectedNone": "Aucune exécution ne correspond aux critères sélectionnés.",
     "allRuns": "Toutes les exécutions",
     "backwards": "Exécuter à rebours",
@@ -18,6 +18,11 @@
     "missingRuns": "Exécutions manquantes",
     "notCreatedReason": "Raison de non-création",
     "overrideExistingParams": "Remplacer les paramètres sur les exécutions existantes",
+    "partitionRange": "Plage de partitions",
+    "partitionsAffected_many": "{{count, number}} partitions seront rattrapées :",
+    "partitionsAffected_one": "{{count, number}} partition sera rattrapée :",
+    "partitionsAffected_other": "{{count, number}} partitions seront rattrapées :",
+    "partitionsNone": "Aucune partition ne correspond à la plage sélectionnée.",
     "permissionDenied": "Échec de l'exécution à blanc : l'utilisateur n'a pas l'autorisation de créer des rattrapages.",
     "reprocessBehavior": "Comportement de réexécution",
     "run": "Lancer le rattrapage",
@@ -32,7 +37,6 @@
         "title": "Rattrapage généré"
       }
     },
-    "unpause": "Réactiver {{dag_display_name}} lors du déclenchement",
     "validation": {
       "datesRequired": "Les dates de début et de fin de l'intervalle de données doivent être renseignées.",
       "startBeforeEnd": "La date de début de l'intervalle de données doit être antérieure ou égale à la date de fin."
@@ -50,16 +54,15 @@
   },
   "close": "Fermer",
   "configForm": {
-    "advancedOptions": "Options avancées",
     "configJson": "Configuration JSON",
     "invalidJson": "Format JSON invalide : {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 erreur",
     "errorAndWarning": "1 erreur et {{warningText}}",
-    "warning_many": "{{count}} avertissements",
+    "warning_many": "{{count, number}} avertissements",
     "warning_one": "1 avertissement",
-    "warning_other": "{{count}} avertissements"
+    "warning_other": "{{count, number}} avertissements"
   },
   "dateRangeFilter": {
     "validation": {
@@ -70,21 +73,21 @@
   },
   "durationChart": {
     "duration": "Durée (secondes)",
-    "lastDagRun_many": "Dernières {{count}} exécutions du Dag",
+    "lastDagRun_many": "Dernières {{count, number}} exécutions du Dag",
     "lastDagRun_one": "Dernière exécution du Dag",
-    "lastDagRun_other": "Dernières {{count}} exécutions du Dag",
-    "lastTaskInstance_many": "Dernières {{count}} Task Instances",
+    "lastDagRun_other": "Dernières {{count, number}} exécutions du Dag",
+    "lastTaskInstance_many": "Dernières {{count, number}} Task Instances",
     "lastTaskInstance_one": "Dernière Task Instance",
-    "lastTaskInstance_other": "Dernières {{count}} Task Instances",
+    "lastTaskInstance_other": "Dernières {{count, number}} Task Instances",
     "medianTotalDuration": "Total : {{duration}}",
     "queuedDuration": "Durée en file d'attente",
     "runAfter": "Exécuté après",
     "runDuration": "Durée d'exécution"
   },
   "fileUpload": {
-    "files_many": "{{count}} fichiers",
-    "files_one": "{{count}} fichier",
-    "files_other": "{{count}} fichiers"
+    "files_many": "{{count, number}} fichiers",
+    "files_one": "{{count, number}} fichier",
+    "files_other": "{{count, number}} fichiers"
   },
   "flexibleForm": {
     "durationPlaceholder": "Saisissez la durée au format ISO 8601",
@@ -107,32 +110,54 @@
     "downloadImageError": "Échec du téléchargement de l'image du graphe.",
     "downloadImageErrorTitle": "Échec du téléchargement",
     "otherDagRuns": "+Autres exécutions du Dag",
-    "taskCount_many": "{{count}} tâches",
-    "taskCount_one": "{{count}} tâche",
-    "taskCount_other": "{{count}} tâches",
+    "taskCount_many": "{{count, number}} tâches",
+    "taskCount_one": "{{count, number}} tâche",
+    "taskCount_other": "{{count, number}} tâches",
     "taskGroup": "Groupe de tâches",
     "zoomToTask": "Zoomer sur la tâche sélectionnée"
   },
-  "limitedList": "+{{count}} supplémentaires",
-  "limitedList.allItems": "Tous les {{count}} éléments :",
-  "limitedList.allTags_many": "Tous les éléments ({{count}}) :",
+  "jsonPreview": {
+    "items_many": "{{count, number}} éléments",
+    "items_one": "{{count, number}} élément",
+    "items_other": "{{count, number}} éléments"
+  },
+  "limitedList": "+{{count, number}} supplémentaires",
+  "limitedList.allItems": "Tous les {{count, number}} éléments :",
+  "limitedList.allTags_many": "Tous les éléments ({{count, number}}) :",
   "limitedList.allTags_one": "Tous les éléments (1) :",
-  "limitedList.allTags_other": "Tous les éléments ({{count}}) :",
+  "limitedList.allTags_other": "Tous les éléments ({{count, number}}) :",
   "limitedList.clickToInteract": "Cliquez sur une étiquette pour filtrer les Dags",
-  "limitedList.clickToOpenFull": "Cliquez sur \"+{{count}} supplémentaires\" pour ouvrir la vue complète",
+  "limitedList.clickToOpenFull": "Cliquez sur \"+{{count, number}} supplémentaires\" pour ouvrir la vue complète",
   "limitedList.copyPasteText": "Vous pouvez copier et coller le texte ci-dessus",
-  "limitedList.showingItems_many": "Affichage de {{count}} éléments",
+  "limitedList.showingItems_many": "Affichage de {{count, number}} éléments",
   "limitedList.showingItems_one": "Affichage de 1 élément",
-  "limitedList.showingItems_other": "Affichage de {{count}} éléments",
+  "limitedList.showingItems_other": "Affichage de {{count, number}} éléments",
   "logs": {
     "file": "Fichier",
     "location": "ligne {{line}} dans {{name}}"
+  },
+  "passwordToggle": {
+    "hide": "Masquer la valeur",
+    "show": "Afficher la valeur"
+  },
+  "pausedDag": {
+    "drain": "Drainer",
+    "drainDescription": "Les exécutions non terminées continuent, mais aucune exécution planifiée n'est créée. Les Rattrapages en pause le restent. Le Dag se remet en pause une fois que toutes les exécutions non terminées sont terminées.",
+    "keepPaused": "Rester en pause",
+    "keepPausedDescription": "Les exécutions nouvelles et non terminées attendent que le Dag soit réactivé.",
+    "title": "Le Dag est en pause",
+    "unfinishedRunsWillRun_many": "{{count, number}} exécutions de Dag non terminées démarreront ou reprendront.",
+    "unfinishedRunsWillRun_one": "{{count, number}} exécution de Dag non terminée démarrera ou reprendra.",
+    "unfinishedRunsWillRun_other": "{{count, number}} exécutions de Dag non terminées démarreront ou reprendront.",
+    "unpause": "Reprendre",
+    "unpauseDescription": "Le Dag devient actif : les exécutions non terminées continuent et la planification reprend. Les Rattrapages en pause le restent."
   },
   "reparseDag": "Analyser le Dag",
   "slowestTaskInstances": {
     "empty": "Aucune instance de tâche terminée dans cette période",
     "title": "Instances de tâche les plus lentes"
   },
+  "sortMultiColumnHint": "Maj+clic pour trier par plusieurs colonnes",
   "sortedAscending": "tri croissant",
   "sortedDescending": "tri décroissant",
   "sortedUnsorted": "non trié",
@@ -152,6 +177,7 @@
     "dataInterval": "Intervalle de données",
     "dataIntervalAuto": "Déduit de la date logique et du calendrier",
     "dataIntervalManual": "Spécifier manuellement",
+    "editConfigAndTrigger": "Modifier la configuration et déclencher",
     "intervalEnd": "Fin",
     "intervalStart": "Début",
     "loading": "Chargement des informations du Dag...",
@@ -172,7 +198,7 @@
       }
     },
     "triggerAgainWithConfig": "Déclencher à nouveau avec cette configuration",
-    "unpause": "Réactiver {{dagDisplayName}} lors du déclenchement"
+    "triggerOptions": "Options de déclenchement"
   },
   "trimText": {
     "details": "Détails",
@@ -189,6 +215,7 @@
   "versionSelect": {
     "allVersions": "Toutes les versions",
     "dagVersion": "Version du Dag",
+    "placeholder": "Sélectionner une version",
     "versionCode": "v{{versionCode}}"
   }
 }

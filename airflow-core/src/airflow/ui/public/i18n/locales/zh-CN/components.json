@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "将会触发 1 次执行。",
-    "affected_other": "将会触发 {{count}} 次执行。",
+    "affected_other": "将会触发 {{count, number}} 次执行。",
     "affectedNone": "没有符合条件的执行。",
     "allRuns": "所有执行",
     "backwards": "反向执行",
@@ -19,7 +19,7 @@
     "overrideExistingParams": "覆盖现有执行的参数",
     "partitionRange": "分区范围",
     "partitionsAffected_one": "将回填 1 个分区：",
-    "partitionsAffected_other": "将回填 {{count}} 个分区：",
+    "partitionsAffected_other": "将回填 {{count, number}} 个分区：",
     "partitionsNone": "没有符合所选范围的分区。",
     "permissionDenied": "预演失败：用户没有权限创建回填作业。",
     "reprocessBehavior": "重新处理行为",
@@ -35,7 +35,6 @@
         "title": "已触发 Dag 执行"
       }
     },
-    "unpause": "触发时取消暂停 {{dag_display_name}}",
     "validation": {
       "datesRequired": "必须提供数据区间的开始与结束日期。",
       "startBeforeEnd": "数据区间起始日期必须早于或等于结束日期。"
@@ -53,7 +52,6 @@
   },
   "close": "关闭",
   "configForm": {
-    "advancedOptions": "高级选项",
     "configJson": "配置 JSON",
     "invalidJson": "无效的 JSON 格式：{{errorMessage}}"
   },
@@ -61,7 +59,7 @@
     "error_one": "1 个错误",
     "errorAndWarning": "1 个错误与 {{warningText}}",
     "warning_one": "1 个警告",
-    "warning_other": "{{count}} 个警告"
+    "warning_other": "{{count, number}} 个警告"
   },
   "dateRangeFilter": {
     "validation": {
@@ -73,16 +71,16 @@
   "durationChart": {
     "duration": "持续时间（秒）",
     "lastDagRun_one": "最近 1 次 Dag 执行",
-    "lastDagRun_other": "最近 {{count}} 次 Dag 执行",
+    "lastDagRun_other": "最近 {{count, number}} 次 Dag 执行",
     "lastTaskInstance_one": "最近 1 次任务实例",
-    "lastTaskInstance_other": "最近 {{count}} 次任务实例",
+    "lastTaskInstance_other": "最近 {{count, number}} 次任务实例",
     "medianTotalDuration": "总计：{{duration}}",
     "queuedDuration": "排队等候时间",
     "runAfter": "最早可执行时间",
     "runDuration": "执行持续时间"
   },
   "fileUpload": {
-    "files_other": "{{count}} 个文件"
+    "files_other": "{{count, number}} 个文件"
   },
   "flexibleForm": {
     "durationPlaceholder": "请输入 ISO 8601 格式的持续时间",
@@ -106,23 +104,23 @@
     "downloadImageErrorTitle": "下载失败",
     "otherDagRuns": "+ 其他 Dag 执行",
     "taskCount_one": "1 个任务",
-    "taskCount_other": "{{count}} 个任务",
+    "taskCount_other": "{{count, number}} 个任务",
     "taskGroup": "任务分组",
     "zoomToTask": "缩放至选定任务"
   },
   "jsonPreview": {
     "items_one": "1 项",
-    "items_other": "{{count}} 项"
+    "items_other": "{{count, number}} 项"
   },
-  "limitedList": "+ 其他 {{count}} 项",
-  "limitedList.allItems": "所有 {{count}} 项：",
+  "limitedList": "+ 其他 {{count, number}} 项",
+  "limitedList.allItems": "所有 {{count, number}} 项：",
   "limitedList.allTags_one": "所有标签 (1)",
-  "limitedList.allTags_other": "所有标签 ({{count}})",
+  "limitedList.allTags_other": "所有标签 ({{count, number}})",
   "limitedList.clickToInteract": "点击标签以筛选 Dags",
-  "limitedList.clickToOpenFull": "点击 \"+{{count}} 更多\" 打开完整视图",
+  "limitedList.clickToOpenFull": "点击 \"+{{count, number}} 更多\" 打开完整视图",
   "limitedList.copyPasteText": "你可以复制并粘贴上方文本",
   "limitedList.showingItems_one": "显示 1 项",
-  "limitedList.showingItems_other": "显示 {{count}} 项",
+  "limitedList.showingItems_other": "显示 {{count, number}} 项",
   "logs": {
     "file": "文件",
     "location": "第 {{line}} 行，位于 {{name}}"
@@ -174,8 +172,7 @@
         "title": "已触发 Dag 执行"
       }
     },
-    "triggerAgainWithConfig": "使用此配置再次触发",
-    "unpause": "触发时取消暂停 {{dagDisplayName}}"
+    "triggerAgainWithConfig": "使用此配置再次触发"
   },
   "trimText": {
     "details": "详细信息",

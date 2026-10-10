@@ -69,6 +69,7 @@ from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.exceptions import DagNotFound, TaskNotFound
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
@@ -108,7 +109,6 @@ from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
@@ -1468,17 +1468,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
         executors as well.
         """
-        ti_event_keys: dict[tuple[str, str, str, int], list[TaskInstanceKey]] = defaultdict(list)
-        event_buffer = executor.get_event_buffer()
+        event_buffer, event_coordinates = executor._drain_events_with_task_ids()
         num_events = len(event_buffer)
-        tis_with_right_state: list[TaskInstanceKey] = []
+        tis_with_right_state: list[TaskInstanceUuid] = []
         callback_keys_with_events: list[CallbackKey] = []
 
         # Report execution - handle both task and callback events
         for key, (state, _) in event_buffer.items():
-            if isinstance(key, TaskInstanceKey):
-                ti_event_keys[key.primary].append(key)
-                cls.logger().info("Received executor event with state %s for task instance %s", state, key)
+            if isinstance(key, TaskInstanceUuid):
+                cls.logger().info(
+                    "Received executor event with state %s for task instance %s (coordinates=%s)",
+                    state,
+                    key,
+                    event_coordinates.get(key),
+                )
                 if state in (
                     TaskInstanceState.FAILED,
                     TaskInstanceState.SUCCESS,
@@ -1524,14 +1527,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return len(event_buffer)
 
         # Check state of finished tasks
-        filter_for_tis = TI.filter_for_tis(tis_with_right_state)
-        if filter_for_tis is None:
-            cls._emit_executor_events_batch_metrics(num_events)
-            return len(event_buffer)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
-            .where(filter_for_tis)
+            .where(TI.id.in_([key.id for key in tis_with_right_state]))
             .options(selectinload(TI.dag_model))
             .options(asset_loader)
             .options(alias_loader)
@@ -1549,13 +1548,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
         tis: Iterator[TI] = session.scalars(locked_query.execution_options(populate_existing=True))
         for ti in tis:
-            for event_key in ti_event_keys[ti.key.primary]:
-                if event_key.try_number != ti.try_number:
-                    cls.logger().info("Ignoring executor event for a different attempt: %s", event_key)
-                    event_buffer.pop(event_key)
-            buffer_key = ti.key
-            if buffer_key not in event_buffer:
-                continue
+            buffer_key = TaskInstanceUuid(ti.id)
             try_number = ti.try_number
             state, info = event_buffer.pop(buffer_key)
 
@@ -1620,7 +1613,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
 
-            ti_queued = ti.try_number == buffer_key.try_number and ti.state in (
+            ti_queued = ti.state in (
                 TaskInstanceState.SCHEDULED,
                 TaskInstanceState.QUEUED,
                 TaskInstanceState.RUNNING,
@@ -1753,6 +1746,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
 
+        for task_id in tis_with_right_state:
+            if task_id in event_buffer:
+                cls.logger().warning(
+                    "Discarding executor event for task instance %s (coordinates=%s): no matching task instance was "
+                    "returned; it may no longer exist or may be locked by another scheduler",
+                    task_id,
+                    event_coordinates.get(task_id),
+                )
         cls._emit_executor_events_batch_metrics(num_events)
         return len(event_buffer)
 
@@ -3051,7 +3052,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
             backfill_id = dag_run.backfill_id
-            dag = dag_run.dag = cached_get_dag(dag_run)
+            try:
+                dag = dag_run.dag = cached_get_dag(dag_run)
+            except DBAPIError:
+                raise
+            except Exception:
+                self.log.exception("Failed to load Dag %s for queued run %s, skipping it", dag_id, run_id)
+                continue
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
@@ -3151,16 +3158,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 default=None,
             )
             for task_instance in unfinished_task_instances:
-                task_instance.state = TaskInstanceState.SKIPPED
-                session.merge(task_instance)
+                task_instance.set_state(TaskInstanceState.SKIPPED, session=session)
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
-            if dag_run.state in State.finished_dr_states and dag_run.run_type in (
-                DagRunType.SCHEDULED,
-                DagRunType.MANUAL,
-                DagRunType.ASSET_TRIGGERED,
-            ):
+            if dag_run.state in State.finished_dr_states and dag_run.run_type != DagRunType.BACKFILL_JOB:
                 self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
 
             callback_to_execute: DagCallbackRequest | None = None
@@ -3224,11 +3226,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
 
-        if dag_run.state in State.finished_dr_states and dag_run.run_type in (
-            DagRunType.SCHEDULED,
-            DagRunType.MANUAL,
-            DagRunType.ASSET_TRIGGERED,
-        ):
+        if dag_run.state in State.finished_dr_states and dag_run.run_type != DagRunType.BACKFILL_JOB:
             self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
 
         # This will do one query per dag run. We "could" build up a complex
@@ -3415,7 +3413,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         executor.send_callback(request)
             finally:
                 ti.set_state(TaskInstanceState.FAILED, session=session)
-                executor.fail(ti.key)
+                executor.fail(executor.get_task_key(ti))
 
     def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         filter_for_tis = TI.filter_for_tis([ti])
@@ -3637,6 +3635,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 TI.task_id,
                                 TI.run_id,
                                 TI.map_index,
+                                TI.try_number,
                                 TI.state,
                                 TI.external_executor_id,
                             )
@@ -3659,12 +3658,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     reset_tis_message = []
                     for ti in to_reset:
                         reset_tis_message.append(repr(ti))
-                        ti.prepare_db_for_next_try(session=session)
-
-                        ti.state = None
-                        ti.queued_by_job_id = None
-                        ti.external_executor_id = None
-                        ti.clear_next_method_args()
+                        successor = ti.prepare_db_for_next_try(session=session)
+                        successor.state = None
+                        successor.queued_by_job_id = None
+                        successor.external_executor_id = None
+                        successor.clear_next_method_args()
 
                     for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
@@ -3993,7 +3991,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                     )
 
-            failed_key = ti.key
+            failed_id, failed_coordinates = ti.id, ti.key
             if ti.state == TaskInstanceState.RESTARTING:
                 ti.notify_failure(error=msg)
                 ti.complete_restart(session=session)
@@ -4009,6 +4007,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.executor,
                 )
                 continue
+            failed_key = (
+                TaskInstanceUuid(failed_id) if executor.supports_task_instance_uuid else failed_coordinates
+            )
             executor.change_state(failed_key, TaskInstanceState.FAILED, remove_running=True)
             stats.incr(
                 "task_instances_without_heartbeats_killed",

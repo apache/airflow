@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "จะมีการทริกเกอร์ให้ทำงาน 1 ครั้ง",
-    "affected_other": "จะมีการทริกเกอร์ให้ทำงาน {{count}} ครั้ง",
+    "affected_other": "จะมีการทริกเกอร์ให้ทำงาน {{count, number}} ครั้ง",
     "affectedNone": "ไม่มีการทำงานที่ตรงกับเงื่อนไขที่เลือก",
     "allRuns": "ทุกการทำงาน",
     "backwards": "ทำงานแบบย้อนกลับ",
@@ -21,7 +21,6 @@
         "title": "สร้าง Backfill แล้ว"
       }
     },
-    "unpause": "ยกเลิกการหยุดพัก {{dag_display_name}} เมื่อทริกเกอร์",
     "validation": {
       "datesRequired": "จำเป็นต้องระบุวันเริ่มต้นและวันสิ้นสุดทั้งสองวัน",
       "startBeforeEnd": "วันเริ่มต้นต้องน้อยกว่าหรือเท่ากับวันสิ้นสุด"
@@ -38,7 +37,6 @@
   },
   "close": "ปิด",
   "configForm": {
-    "advancedOptions": "ตัวเลือกขั้นสูง",
     "configJson": "การตั้งค่า JSON",
     "invalidJson": "รูปแบบ JSON ไม่ถูกต้อง: {{errorMessage}}"
   },
@@ -46,20 +44,20 @@
     "error_one": "1 ข้อผิดพลาด",
     "errorAndWarning": "1 ข้อผิดพลาดและ {{warningText}}",
     "warning_one": "1 คำเตือน",
-    "warning_other": "{{count}} คำเตือน"
+    "warning_other": "{{count, number}} คำเตือน"
   },
   "durationChart": {
     "duration": "ระยะเวลา (วินาที)",
     "lastDagRun_one": "Dag Run ล่าสุด",
-    "lastDagRun_other": "Dag Runs {{count}} ครั้งล่าสุด",
+    "lastDagRun_other": "Dag Runs {{count, number}} ครั้งล่าสุด",
     "lastTaskInstance_one": "Task Instance ล่าสุด",
-    "lastTaskInstance_other": "Task Instances {{count}} ครั้งล่าสุด",
+    "lastTaskInstance_other": "Task Instances {{count, number}} ครั้งล่าสุด",
     "queuedDuration": "ระยะเวลาที่รอคิว",
     "runAfter": "ทำงานหลังจาก",
     "runDuration": "ระยะเวลาการทำงาน"
   },
   "fileUpload": {
-    "files_other": "{{count}} ไฟล์"
+    "files_other": "{{count, number}} ไฟล์"
   },
   "flexibleForm": {
     "placeholder": "เลือกค่า",
@@ -80,11 +78,11 @@
     "downloadImageError": "ไม่สามารถดาวน์โหลดรูปภาพกราฟได้",
     "downloadImageErrorTitle": "ดาวน์โหลดล้มเหลว",
     "otherDagRuns": "+Dag Runs อื่น ๆ",
-    "taskCount_one": "{{count}} งาน",
-    "taskCount_other": "{{count}} งาน",
+    "taskCount_one": "{{count, number}} งาน",
+    "taskCount_other": "{{count, number}} งาน",
     "taskGroup": "กลุ่มงาน"
   },
-  "limitedList": "+{{count}} เพิ่มเติม",
+  "limitedList": "+{{count, number}} เพิ่มเติม",
   "logs": {
     "file": "ไฟล์",
     "location": "บรรทัด {{line}} ใน {{name}}"
@@ -109,8 +107,7 @@
         "description": "Dag Run ถูกทริกเกอร์สำเร็จแล้ว",
         "title": "ทริกเกอร์ Dag Run แล้ว"
       }
-    },
-    "unpause": "ยกเลิกการหยุดพัก {{dagDisplayName}} เมื่อทริกเกอร์"
+    }
   },
   "trimText": {
     "details": "รายละเอียด",

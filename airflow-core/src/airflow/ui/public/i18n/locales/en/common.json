@@ -168,6 +168,7 @@
   "generateToken": "Generate Token",
   "includedIn": "Included in",
   "key": "Key",
+  "loading": "Loading…",
   "logLevel": {
     "hide": "Hide Log Levels",
     "hotkey": "l",
@@ -220,8 +221,8 @@
     "receivedAssetEvents": "Received Asset Events"
   },
   "pause": "Pause",
-  "pendingDagRun_one": "{{count}} Pending Dag Run",
-  "pendingDagRun_other": "{{count}} Pending Dag Runs",
+  "pendingDagRun_one": "{{count, number}} Pending Dag Run",
+  "pendingDagRun_other": "{{count, number}} Pending Dag Runs",
   "presetFilters": {
     "deleteTitle": "Delete preset filter",
     "deleteWarning": "Preset filters are stored in this browser only.",
@@ -290,6 +291,13 @@
       },
       "title": "Clearing"
     },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Show the recent task states of each Dag on the Dags list. Turn off to skip loading them, which can help on deployments with many Dags.",
+        "label": "Show recent tasks"
+      },
+      "title": "Dags List"
+    },
     "description": "These preferences are saved in this browser only and apply across the whole app.",
     "general": {
       "landingPage": {
@@ -319,6 +327,13 @@
         "label": "Default mark selection"
       },
       "title": "Marking"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Per-searchbar choices and shared links still take precedence.",
+        "label": "Match anywhere by default"
+      },
+      "title": "Search"
     },
     "taskInstance": {
       "defaultTab": {
@@ -405,6 +420,7 @@
     "upstream_failed": "Upstream Failed"
   },
   "switchDag": "Switch $t(dag_one)",
+  "switchDagRun": "Switch $t(dagRun_one)",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",
@@ -479,8 +495,8 @@
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "teams": {
-    "more_one": "and {{count}} more",
-    "more_other": "and {{count}} more",
+    "more_one": "and {{count, number}} more",
+    "more_other": "and {{count, number}} more",
     "none": "No team",
     "title": "Teams"
   },
@@ -511,21 +527,21 @@
     "bulkClear": {
       "error": "Bulk Clear {{resourceName}} Request Failed",
       "success": {
-        "description": "{{count}} {{resourceName}} have been successfully cleared. Keys: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} have been successfully cleared. Keys: {{keys}}",
         "title": "Bulk Clear {{resourceName}} Request Submitted"
       }
     },
     "bulkDelete": {
       "error": "Bulk Delete {{resourceName}} Request Failed",
       "success": {
-        "description": "{{count}} {{resourceName}} have been successfully deleted. Keys: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} have been successfully deleted. Keys: {{keys}}",
         "title": "Bulk Delete {{resourceName}} Request Submitted"
       }
     },
     "bulkUpdate": {
       "error": "Bulk Update {{resourceName}} Request Failed",
       "success": {
-        "description": "{{count}} {{resourceName}} have been successfully updated. Keys: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} have been successfully updated. Keys: {{keys}}",
         "title": "Bulk Update {{resourceName}} Request Submitted"
       }
     },
@@ -546,7 +562,7 @@
     "import": {
       "error": "Import {{resourceName}} Request Failed",
       "success": {
-        "description": "{{count}} {{resourceName}} have been successfully imported.",
+        "description": "{{count, number}} {{resourceName}} have been successfully imported.",
         "title": "Import {{resourceName}} Request Submitted"
       }
     },

@@ -103,7 +103,7 @@ You should avoid writing the top level code which is not necessary to create Ope
 and build Dag relations between them. This is because of the design decision for the scheduler of Airflow
 and the impact the top-level code parsing speed on both performance and scalability of Airflow.
 
-Airflow scheduler executes the code outside the Operator's ``execute`` methods with the minimum interval of
+Airflow Dag processor executes the code outside the Operator's ``execute`` methods with the minimum interval of
 :ref:`min_file_process_interval<config:dag_processor__min_file_process_interval>` seconds. This is done in order
 to allow dynamic scheduling of the Dags - where scheduling and dependencies might change over time and
 impact the next schedule of the Dag. Airflow scheduler tries to continuously make sure that what you have
@@ -291,7 +291,7 @@ When you execute that code you will see:
 
 .. code-block:: bash
 
-    [Breeze:3.10.19] root@cf85ab34571e:/opt/airflow# python /files/test_python.py
+    [Breeze:3.11.16] root@cf85ab34571e:/opt/airflow# python /files/test_python.py
     Executing 1
 
 This means that the ``get_array`` is not executed as top-level code, but ``get_task_id`` is.
@@ -411,7 +411,7 @@ or if you need to deserialize a json object from the variable :
     {{ var.json.<variable_name> }}
 
 In top-level code, variables using jinja templates do not produce a request until a task is running, whereas,
-``Variable.get()`` produces a request every time the Dag file is parsed by the scheduler if caching is not enabled.
+``Variable.get()`` produces a request every time the Dag file is parsed by the Dag processor if caching is not enabled.
 Using ``Variable.get()`` without :ref:`enabling caching<config:secrets__use_cache>` will lead to suboptimal
 performance in the Dag file processing.
 In some cases this can cause the Dag file to timeout before it is fully parsed.
@@ -463,9 +463,18 @@ for any variable that contains sensitive data.
 
 Timetables
 ----------
-Avoid using Airflow Variables/Connections or accessing Airflow database at the top level of your timetable code.
-Database access should be delayed until the execution time of the Dag. This means that you should not have variables/connections retrieval
-as argument to your timetable class initialization or have Variable/connection at the top level of your custom timetable module.
+Avoid using Airflow Variables/Connections or accessing Airflow database anywhere in your timetable code: at the
+top level of the module, in ``__init__``, and in scheduling methods such as ``next_dagrun_info``. The Dag
+processor and the scheduler rebuild your timetable from the serialized Dag by calling ``deserialize``, which
+calls ``__init__`` again, so this code runs every time they load the Dag, not only when the Dag file is parsed.
+Each load queries the Variable again, and if the lookup fails, for example because the Variable does not exist,
+the timetable cannot be loaded.
+
+Instead, pass configuration as plain arguments to your timetable and store them with ``serialize`` and
+``deserialize``, as described in :doc:`/howto/timetable`. If the value comes from a Variable, read it in the
+Dag file and pass it in: it is then serialized with the timetable and refreshed whenever the Dag file is
+parsed, and the scheduler never looks it up. Reading Variables in the Dag file has its own cost, see
+:ref:`best_practices/airflow_variables`.
 
 Bad example:
 
@@ -480,7 +489,7 @@ Bad example:
             self._something = something
             super().__init__(*args, **kwargs)
 
-Good example:
+Also a bad example, because ``__init__`` runs again when the scheduler deserializes the timetable:
 
 .. code-block:: python
 
@@ -493,6 +502,41 @@ Good example:
             self._something = Variable.get(something)
             super().__init__(*args, **kwargs)
 
+Good example:
+
+.. code-block:: python
+
+    from typing import Any
+
+    from airflow.timetables.interval import CronDataIntervalTimetable
+
+
+    class CustomTimetable(CronDataIntervalTimetable):
+        def __init__(self, *args, something="something", **kwargs):
+            self._something = something
+            super().__init__(*args, **kwargs)
+
+        def serialize(self) -> dict[str, Any]:
+            return {**super().serialize(), "something": self._something}
+
+        @classmethod
+        def deserialize(cls, data: dict[str, Any]) -> "CustomTimetable":
+            timetable = super().deserialize(data)
+            timetable._something = data["something"]
+            return timetable
+
+and in the Dag file:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, Variable
+
+    with DAG(
+        dag_id="my_dag",
+        schedule=CustomTimetable("0 0 * * *", timezone="UTC", something=Variable.get("something")),
+    ):
+        ...
+
 
 Triggering Dags after changes
 -----------------------------
@@ -501,10 +545,10 @@ Avoid triggering Dags immediately after changing them or any other accompanying 
 Dag folder.
 
 You should give the system sufficient time to process the changed files. This takes several steps.
-First the files have to be distributed to scheduler - usually via distributed filesystem or Git-Sync, then
-scheduler has to parse the Python files and store them in the database. Depending on your configuration,
+First the files have to be distributed to the Dag processor - usually via distributed filesystem or Git-Sync, then
+the Dag processor has to parse the Python files and store them in the database. Depending on your configuration,
 speed of your distributed filesystem, number of files, number of Dags, number of changes in the files,
-sizes of the files, number of schedulers, speed of CPUS, this can take from seconds to minutes, in extreme
+sizes of the files, number of Dag processors, speed of CPUS, this can take from seconds to minutes, in extreme
 cases many minutes. You should wait for your Dag to appear in the UI to be able to trigger it.
 
 In case you see long delays between updating it and the time it is ready to be triggered, you can look

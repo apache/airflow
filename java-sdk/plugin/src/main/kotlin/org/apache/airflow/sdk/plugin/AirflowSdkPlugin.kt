@@ -22,13 +22,16 @@ package org.apache.airflow.sdk.plugin
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
+import org.gradle.jvm.toolchain.JavaToolchainService
 import java.lang.reflect.Modifier
 import java.net.URLClassLoader
+import java.time.Duration
 import java.util.jar.JarFile
 import kotlin.jvm.java
 
@@ -39,6 +42,7 @@ import kotlin.jvm.java
  * airflowBundle {
  *     mainClass = "com.example.ExampleBundleBuilder"
  *     // fatJar = false  // opt out of shadow JAR creation
+ *     // describeTimeout = Duration.ofSeconds(60)
  * }
  * ```
  */
@@ -61,6 +65,10 @@ abstract class AirflowBundleExtension {
    */
   @get:Input
   abstract val fatJar: Property<Boolean>
+
+  /** How long the describe run may take before the build gives up and packs only the entrypoint's source. */
+  @get:Input
+  abstract val describeTimeout: Property<Duration>
 }
 
 /**
@@ -83,8 +91,8 @@ abstract class AirflowBundleExtension {
  *
  * The plugin automatically sets the `Main-Class` metadata, and provides a new
  * task `bundle` to create a Dag bundle in one command. This builds deploy-ready
- * artifacts to `build/bundle/` that can be copied directly into an Airflow Java
- * coordinator's `jars_root`.
+ * artifacts to `build/bundle/` that can be copied directly into the Dag bundle
+ * named by an Airflow Java coordinator's `task_handler_bundle_name`.
  *
  * By default, plugin `com.github.johnrengelman.shadow` is applied automatically
  * to enable fat JAR build. In this mode, one single JAR with user code and all
@@ -92,6 +100,13 @@ abstract class AirflowBundleExtension {
  * `Airflow-Supervisor-Schema-Version` is also added to the JAR for Airflow to
  * identify which version of the Supervisor Schema it should use to communicate
  * with the built JAR.
+ *
+ * When `mainClass` is set, the bundle JAR also carries the source file of each
+ * Dag declared in Java and of the entrypoint, so Airflow can show a Dag's source.
+ * They are collected by the `packDagSources` task, which runs `mainClass` once in
+ * a describe mode, and are listed in `META-INF/airflow/sources.json`, named by the
+ * `Airflow-Java-SDK-Sources` manifest attribute. If that run fails, a warning is
+ * logged and only the entrypoint's source is packed.
  *
  * If `fatJar` is explicitly set to `false`, the `bundle` task builds a bare JAR
  * containing only the Dag bundle, and collect all dependency JARs into the target
@@ -105,8 +120,31 @@ class AirflowSdkPlugin : Plugin<Project> {
 
     val ext = project.extensions.create("airflowBundle", AirflowBundleExtension::class.java)
     ext.fatJar.convention(true)
+    ext.describeTimeout.convention(Duration.ofSeconds(30))
 
     project.afterEvaluate {
+      val main = project.extensions.getByType(SourceSetContainer::class.java).getByName("main")
+
+      val packTask =
+        project.tasks.register("packDagSources", PackDagSources::class.java) { task ->
+          task.group = "build"
+          task.description = "Collects the source file of each Dag and the entrypoint to pack into the bundle JAR."
+          task.dependsOn(project.tasks.named("classes"))
+          task.onlyIf { ext.mainClass.isPresent }
+          task.mainClass.set(ext.mainClass)
+          task.describeTimeout.set(ext.describeTimeout)
+          task.classesDirs.from(main.output.classesDirs)
+          task.runtimeClasspath.from(main.runtimeClasspath)
+          task.sourceDirs.from(main.allSource.srcDirs)
+          task.launcher.convention(
+            project.extensions
+              .getByType(JavaToolchainService::class.java)
+              .launcherFor(project.extensions.getByType(JavaPluginExtension::class.java).toolchain),
+          )
+          task.describeFile.set(project.layout.buildDirectory.file("airflow/describe-sources.json"))
+          task.sourcesDir.set(project.layout.buildDirectory.dir("airflow/sources"))
+        }
+
       project.tasks.withType(Jar::class.java).configureEach { task ->
         task.doFirst {
           ext.mainClass.orNull?.let { className ->
@@ -117,11 +155,7 @@ class AirflowSdkPlugin : Plugin<Project> {
 
       val classFiles =
         project.objects.fileCollection().from(
-          project.extensions
-            .getByType(SourceSetContainer::class.java)
-            .getByName("main")
-            .output
-            .classesDirs,
+          main.output.classesDirs,
           project.configurations.getByName("runtimeClasspath"),
         )
 
@@ -162,8 +196,17 @@ class AirflowSdkPlugin : Plugin<Project> {
           }
         }
 
+      fun packSourcesInto(jarTask: String) {
+        if (!ext.mainClass.isPresent) return
+        project.tasks.named(jarTask, Jar::class.java).configure { task ->
+          task.from(packTask.flatMap { it.sourcesDir })
+          task.manifest.attributes(mapOf(SOURCES_MANIFEST_ATTRIBUTE to SOURCES_JSON_PATH))
+        }
+      }
+
       if (ext.fatJar.get()) {
         project.plugins.apply("com.gradleup.shadow")
+        packSourcesInto("shadowJar")
 
         val schemaVersionProvider =
           project.providers.provider {
@@ -205,6 +248,8 @@ class AirflowSdkPlugin : Plugin<Project> {
           task.into(project.layout.buildDirectory.dir("bundle"))
         }
       } else {
+        packSourcesInto("jar")
+
         // bundle copies the thin JAR and all runtime dependency JARs into
         // build/bundle/, mirroring what installDist puts in lib/.
         project.tasks.register("bundle", Copy::class.java) { task ->

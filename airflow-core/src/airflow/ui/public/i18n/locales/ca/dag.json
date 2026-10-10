@@ -6,6 +6,7 @@
     "title": "Dependències que bloquegen la programació de la tasca"
   },
   "calendar": {
+    "backfill": "Reompliment",
     "daily": "Diari",
     "hourly": "Horari",
     "legend": {
@@ -43,8 +44,8 @@
   "deadlineAlerts": {
     "completionRule": "Ha de completar-se dins de {{interval}} de {{reference}}",
     "completionRuleDynamic": "Ha de completar-se dins d'un interval variable mesurat des de {{reference}}",
-    "count_one": "{{count}} termini",
-    "count_other": "{{count}} terminis",
+    "count_one": "{{count, number}} termini",
+    "count_other": "{{count, number}} terminis",
     "referenceType": {
       "AverageRuntimeDeadline": "durada mitjana d'execució",
       "DagRunLogicalDateDeadline": "data lògica",
@@ -59,13 +60,13 @@
     "label": "Termini",
     "met": "Complert",
     "missed": "No complert",
-    "missedCount_one": "{{count}} Termini no complert",
-    "missedCount_other": "{{count}} Terminis no complerts",
-    "mixedCount": "{{missedCount}} No complerts, {{upcomingCount}} Propers",
+    "missedCount_one": "{{count, number}} Termini no complert",
+    "missedCount_other": "{{count, number}} Terminis no complerts",
+    "mixedCount": "{{missedCount, number}} No complerts, {{upcomingCount, number}} Propers",
     "stillRunning": "Encara s'està executant",
     "upcoming": "Propers",
-    "upcomingCount_one": "{{count}} Termini proper",
-    "upcomingCount_other": "{{count}} Terminis propers"
+    "upcomingCount_one": "{{count, number}} Termini proper",
+    "upcomingCount_other": "{{count, number}} Terminis propers"
   },
   "extraLinks": "Enllaços addicionals",
   "grid": {
@@ -95,12 +96,16 @@
     "info": "INFO",
     "noTryNumber": "Sense número d'intent",
     "search": {
-      "matchCount": "{{current}} de {{total}}",
+      "matchCount": "{{current, number}} de {{total, number}}",
       "noMatches": "Sense resultats",
       "placeholder": "Cercar registres..."
     },
     "settings": "Configuració dels registres",
+    "tryNotStarted": "Aquest intent encara no ha començat.",
+    "viewFailedTry": "Veure els registres de l'intent fallit {{tryNumber}}",
     "viewInExternal": "Veure els registres a {{name}} (intent {{attempt}})",
+    "viewPreviousTry": "Veure els registres de l'intent anterior {{tryNumber}}",
+    "waitingToRetry": "L'intent {{tryNumber}} està pendent de reintentar-se.",
     "warning": "ADVERTIMENT"
   },
   "notFound": {
@@ -210,16 +215,16 @@
     "code": "Codi",
     "details": "Detalls",
     "logs": "Registres",
-    "mappedTaskInstances_one": "Instància de tasca [{{count}}]",
-    "mappedTaskInstances_other": "Instàncies de tasca [{{count}}]",
+    "mappedTaskInstances_one": "Instància de tasca [{{count, number}}]",
+    "mappedTaskInstances_other": "Instàncies de tasca [{{count, number}}]",
     "overview": "Visió general",
     "renderedTemplates": "Plantilles renderitzades",
     "requiredActions": "Accions requerides",
     "runs": "Execucions",
-    "storage": "Emmagatzematge",
     "taskInstances": "Instàncies de tasca",
     "taskStateStore": "Magatzem de tasca",
     "tasks": "Tasques",
+    "versions": "Versions",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -247,5 +252,67 @@
       "never": "Mai"
     },
     "title": "Magatzem de tasca"
+  },
+  "versions": {
+    "aboutThisComparison": "Sobre aquesta comparació",
+    "base": "Comparar des de",
+    "categories": {
+      "asset": "Asset",
+      "authorization": "Autorització",
+      "callback": "Callback",
+      "deadline": "Termini",
+      "dependency": "Dependència",
+      "metadata": "Metadades",
+      "param": "Paràmetre",
+      "provenance": "Procedència",
+      "schedule": "Programació",
+      "task": "Tasca",
+      "unknown": "Desconeguda"
+    },
+    "codeAccess": "Cal tenir accés al codi del Dag per veure els valors",
+    "columns": {
+      "after": "Després",
+      "before": "Abans",
+      "category": "Categoria",
+      "impact": "Impacte",
+      "occurrences": "Ocurrències",
+      "operation": "Operació",
+      "path": "Ruta"
+    },
+    "heading": "Versió {{base}} → Versió {{target}}",
+    "impacts": {
+      "authorization": "Autorització",
+      "execution": "Execució",
+      "metadata": "Metadades",
+      "provenance": "Procedència",
+      "unknown": "Desconegut"
+    },
+    "maxChanges": "Màxim de canvis",
+    "maxChangesDefault": "Per defecte",
+    "noChanges": "Aquestes versions contenen el mateix estat.",
+    "observedState": "Estat observat",
+    "observedStateBoundary": "Compara l'estat emmagatzemat actualment, no les dades del moment de creació. La comparació del codi font no està disponible per a versions històriques; utilitzeu la pestanya Codi per a comparar el codi font.",
+    "operations": {
+      "added": "Afegit",
+      "changed": "Modificat",
+      "removed": "Eliminat"
+    },
+    "record_one": "Registre",
+    "record_other": "Registres",
+    "selectPrompt": "Seleccioneu dues versions per veure què ha canviat entre elles.",
+    "summary_one": "{{count, number}} canvi · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count, number}} canvis · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
+    "target": "Comparar amb",
+    "truncated": {
+      "description": "S'han omès els canvis de les rutes no mostrades per respectar el límit, de manera que el recompte és un mínim.",
+      "title": "No s'han retornat tots els canvis"
+    },
+    "unavailable": {
+      "description": "No s'han pogut comparar aquestes versions. Motiu:",
+      "title": "Comparació no disponible",
+      "withoutReason": "No s'han pogut comparar aquestes versions."
+    },
+    "valuesHidden": "Valors ocults",
+    "valuesShown": "Valors visibles"
   }
 }

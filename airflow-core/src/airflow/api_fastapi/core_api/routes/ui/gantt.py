@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import or_, select, union_all
+from sqlalchemy import or_, select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -27,7 +27,6 @@ from airflow.api_fastapi.core_api.datamodels.ui.gantt import GanttResponse, Gant
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.state import TaskInstanceState
 
 gantt_router = AirflowRouter(prefix="/gantt", tags=["Gantt"])
@@ -61,7 +60,7 @@ def get_gantt_data(
     session: SessionDep,
 ) -> GanttResponse:
     """Get all task instance tries for Gantt chart."""
-    # Exclude mapped tasks (use grid summaries) and UP_FOR_RETRY (already in history)
+    # Pending retries retain timing for backoff; only the archived attempt belongs on the chart.
     current_tis = select(
         TaskInstance.task_id.label("task_id"),
         TaskInstance.task_display_name.label("task_display_name"),  # type: ignore[attr-defined]
@@ -78,23 +77,7 @@ def get_gantt_data(
         or_(TaskInstance.state != TaskInstanceState.UP_FOR_RETRY, TaskInstance.state.is_(None)),
     )
 
-    history_tis = select(
-        TaskInstanceHistory.task_id.label("task_id"),
-        TaskInstanceHistory.task_display_name.label("task_display_name"),
-        TaskInstanceHistory.try_number.label("try_number"),
-        TaskInstanceHistory.state.label("state"),
-        TaskInstanceHistory.scheduled_dttm.label("scheduled_dttm"),
-        TaskInstanceHistory.queued_dttm.label("queued_dttm"),
-        TaskInstanceHistory.start_date.label("start_date"),
-        TaskInstanceHistory.end_date.label("end_date"),
-    ).where(
-        TaskInstanceHistory.dag_id == dag_id,
-        TaskInstanceHistory.run_id == run_id,
-        TaskInstanceHistory.map_index == -1,
-    )
-
-    combined = union_all(current_tis, history_tis).subquery()
-    query = select(combined).order_by(combined.c.task_id, combined.c.try_number)
+    query = current_tis.order_by(TaskInstance.task_id, TaskInstance.try_number)
 
     results = session.execute(query).fetchall()
 

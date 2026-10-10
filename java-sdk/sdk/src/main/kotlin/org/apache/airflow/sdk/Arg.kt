@@ -20,18 +20,41 @@
 package org.apache.airflow.sdk
 
 /**
- * A value a task can be given, of which [TaskRef] — the output of an upstream
- * task — is the only form so far.
+ * A value a task can be given: the output of an upstream task, carried by the
+ * [TaskRef] that task's registration returned, or an inline constant.
+ *
+ * A constant has to be wrapped because a bare `Double` cannot implement this
+ * type: boxed types only, no primitives.
  *
  * @param T Type of the value.
  */
-sealed class Arg<T>
+sealed class Arg<T> {
+  companion object {
+    /**
+     * Wraps an inline constant as a task argument, passed to the task as a
+     * constant and creating no dependency edge.
+     *
+     * [Deps.lit] is the spelling a [Builder.Deps] class uses; this is the same
+     * call for code with no `Deps` in scope.
+     *
+     * @param value Constant to bind; may be null for a nullable parameter.
+     */
+    @JvmStatic
+    fun <T> lit(value: T?): Arg<T> = LiteralArg(value)
+  }
+}
+
+internal class LiteralArg<T>(
+  internal val value: T?,
+) : Arg<T>()
 
 /**
  * The output of a registered task, and the task's place in the flow.
  *
- * [Deps.Flow.before] and [Deps.Flow.after] wire an ordering-only edge from
- * this task, where nothing flows but the sequence.
+ * Passing this handle into another task's arguments feeds this task's return
+ * value into that parameter and wires the data edge. [Deps.Flow.before] and
+ * [Deps.Flow.after] wire an ordering-only edge instead, where nothing flows
+ * but the sequence.
  *
  * @param T Return type of the task this handle refers to.
  */

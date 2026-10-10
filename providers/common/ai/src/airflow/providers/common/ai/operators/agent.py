@@ -52,6 +52,7 @@ from airflow.providers.common.ai.observability import (
 )
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import (
+    MODEL_NAME_XCOM_KEY,
     format_usage_for_xcom,
     log_run_summary,
     log_run_usage,
@@ -78,17 +79,17 @@ from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS, A
 from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
 
 if AIRFLOW_V_3_3_PLUS:
-    # Per-tool approval parks the task in AWAITING_INPUT, which older cores do not have.
+    # Per-tool approval parks the task in AWAITING_INPUT, which older Airflow versions do not have.
     from airflow.sdk.exceptions import TaskAwaitingInput
     from airflow.sdk.execution_time.context import NEVER_EXPIRE
     from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 
 try:
-    # See LLMOperator: new enough cores register declared ``output_type`` classes
+    # See LLMOperator: Newer ``apache-airflow-task-sdk`` versions register declared ``output_type`` classes
     # from a worker-side DAG walk, so the model instance flows through XCom; older
-    # cores dump to a dict instead.
+    # ``apache-airflow-task-sdk`` versions without the walk dump to a dict instead.
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
-except ImportError:  # pragma: no cover - cores before the worker-side registration walk
+except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` walker
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
@@ -202,31 +203,6 @@ def _declares_agent_template_fields(toolset: Any) -> bool:
     )
 
 
-def _build_code_mode() -> Any:
-    """
-    Return a pydantic-ai-harness ``CodeMode`` capability, or raise if not installed.
-
-    Kept here (not a module-level import) because ``pydantic-ai-harness`` is an
-    optional dependency behind the ``code-mode`` extra; importing it eagerly
-    would break installs that don't enable the extra.
-    """
-    try:
-        from pydantic_ai_harness import CodeMode
-    except ImportError as e:
-        # Only report "extra not installed" when pydantic-ai-harness itself is
-        # missing. A failure deeper in its import chain (a broken or missing
-        # transitive dependency) is a different problem -- re-raise it as-is so
-        # the real error isn't masked by a misleading "install the extra" message.
-        missing = e.name or ""
-        if missing == "pydantic_ai_harness" or missing.startswith("pydantic_ai_harness."):
-            raise AirflowOptionalProviderFeatureException(
-                "code_mode=True requires the 'code-mode' extra. Install it with "
-                '`pip install "apache-airflow-providers-common-ai[code-mode]"`.'
-            ) from e
-        raise
-    return CodeMode()
-
-
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
@@ -309,12 +285,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         non-numeric string -- fails the task with a ``ValueError`` naming the
         field and the rendered value, instead of silently disabling the
         limit. A ``UsageLimits`` instance passed directly is used as-is and
-        is not templated or validated. ``None`` (default) means no
-        enforcement.
+        is not templated or validated. ``None`` (default) sets no token, cost,
+        or tool-call limits, but pydantic-ai still caps each run at its default
+        ``request_limit`` of ``50`` requests.
 
-        A dict that omits ``request_limit`` still gets pydantic-ai's default of
-        ``50`` requests -- pass ``"request_limit": None`` explicitly for no
-        request cap.
+        A dict that omits ``request_limit`` gets the same default of ``50``
+        requests -- pass ``"request_limit": None`` explicitly for no request
+        cap.
 
         On Airflow >= 3.3, this counts usage across every attempt combined
         -- initial run, retries, and HITL regenerations all add to one
@@ -341,7 +318,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         attempts left behind, and whatever the rerun replays from that cache
         is free.
         On Airflow >= 3.3 the cache is kept in the AIP-103 task state store, so
-        no extra configuration is needed. On older cores it is persisted to
+        no extra configuration is needed. On older Airflow versions it is persisted to
         ObjectStorage and requires ``[common.ai] durable_cache_path`` to be set.
         Tools are durably cached when provided via ``toolsets=`` or via a
         concrete pydantic-ai ``Toolset`` capability. Tools reaching the agent
@@ -354,20 +331,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         Cannot be combined with a ``SandboxToolset`` (raises), attached or
         not: a replayed tool result describes a workspace state the replay did
         not reproduce, and the first call that misses the cache runs against
-        whatever the sandbox holds now.
-    :param code_mode: Experimental. When ``True``, wraps the agent's tools in a single
-        ``run_code`` tool powered by the Monty sandbox (pydantic-ai-harness
-        ``CodeMode``). Instead of one model round-trip per tool call, the model
-        writes Python that calls the tools as functions, with loops and
-        ``asyncio.gather``, in one turn. The generated code runs in Monty's
-        deny-by-default sandbox; the tools it calls still run in the worker, so
-        ``code_mode`` does not widen what the tools can reach -- it only changes
-        how the model invokes them. Requires the ``code-mode`` extra
-        (``pip install "apache-airflow-providers-common-ai[code-mode]"``).
-        Cannot be combined with ``durable=True`` (durable replay assumes a
-        stable per-step call order that code mode does not guarantee), whether
-        code mode comes from this flag or from a ``CodeMode`` capability.
-        Default ``False``.
+        whatever the sandbox holds now. Cannot be combined with a pydantic-ai-harness
+        ``CodeMode`` capability (raises).
     :param cache_prompt: When ``True`` (default), asks the provider to cache the
         tool definitions, system prompt and conversation so far, so the next
         request in the run -- and a mapped task's other instances within the
@@ -418,8 +383,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         without calling the LLM. E.g. 5 allows changes at iterations 1–4.
         Default ``5``.
     :param hitl_timeout: Maximum wall-clock time to wait for
-        all review rounds combined.  ``None`` means no timeout (the
-        operator blocks until a terminal action).
+        all review rounds combined.  ``None`` means no wall-clock timeout;
+        the review still ends on a terminal action (approve or reject),
+        ``max_hitl_iterations``, or when polling the human action XCom fails
+        too many times in a row.
     :param hitl_poll_interval: Seconds between XCom polls
         while waiting for a human response.  Default ``10``.
 
@@ -434,10 +401,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
     (with the reviewer's reason, when given) and carries on without it. A task
     instance asks at most once per Dag run, across retries and clears; a second
     request fails the task. ``usage_limits`` applies to both sides of the pause.
-    Not available together with ``durable``, ``enable_hitl_review``, code mode
-    (``code_mode=True`` or a ``CodeMode`` capability), or a ``SandboxToolset``
+    Not available together with ``durable``, ``enable_hitl_review``, a ``CodeMode``
+    capability, or a ``SandboxToolset``
     that provisions its own sandbox; there, a tool that requires approval fails
-    the task as before. A ``SandboxToolset`` attached to a
+    the task as before, except one called from inside ``CodeMode``'s ``run_code``,
+    which does not run and is reported back to the model. A ``SandboxToolset`` attached to a
     sandbox another task owns is fine: the sandbox outlives the pause.
 
     :param tool_approval_timeout: Experimental. How long the pause waits for a decision.
@@ -492,7 +460,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         agent_params: dict[str, Any] | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         durable: bool = False,
-        code_mode: bool = False,
         cache_prompt: bool = True,
         message_history: list[ModelMessage] | str | bytes | None = None,
         # Agent feedback parameters
@@ -515,7 +482,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.serialize_output = serialize_output
-        # See LLMOperator: instance flows when the core registers ``output_type``
+        # See LLMOperator: instance flows when Airflow registers ``output_type``
         # via its worker-side DAG walk; otherwise (or on opt-in) dump to a dict.
         self._serialize_model_output = serialize_output or not _CORE_WALKER
         self.toolsets = toolsets
@@ -527,7 +494,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         self.message_history = message_history
 
         self.durable = durable
-        self.code_mode = code_mode
         self.cache_prompt = cache_prompt
 
         # Populated per run in ``execute`` when durable=True. Declared here so
@@ -544,8 +510,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         self._run_usage: RunUsage | None = None
         self._run_usage_base: RunUsage = RunUsage()
 
-        # Checked ahead of the combination rules below. On a core older than 3.1 the core
-        # version is the real blocker, and reporting a combination error first would send the
+        # Checked ahead of the combination rules below. When Airflow is older than 3.1, its version
+        # is the real blocker, and reporting a combination error first would send the
         # user to drop an argument that was never the problem -- they would hit this anyway.
         if enable_hitl_review and not AIRFLOW_V_3_1_PLUS:
             raise AirflowOptionalProviderFeatureException(
@@ -555,22 +521,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         if durable and enable_hitl_review:
             raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
 
-        if durable and code_mode:
+        if durable and _contains_code_mode(self._declared_capabilities):
             # Durable replay caches individual model/tool steps via CachingModel /
             # CachingToolset and a shared step counter that assumes a stable call
             # order across runs. Code mode collapses tools into one ``run_code``
             # tool and lets the model emit arbitrary Python, so step counts and
             # ordering can differ between the original run and a retry, breaking
             # replay. Reject the combination rather than silently mis-replaying.
-            raise ValueError("durable=True and code_mode=True cannot be used together.")
-
-        if (durable or code_mode) and _contains_code_mode(self._declared_capabilities):
-            if durable:
-                # The same conflict as code_mode=True, reached through the capability itself.
-                raise ValueError("durable=True cannot be used with a CodeMode capability.")
-            # code_mode=True adds a second CodeMode, and pydantic-ai then fails the run on a
-            # duplicate ``run_code`` tool without saying where the second one came from.
-            raise ValueError("code_mode=True adds a CodeMode capability; pass one or the other, not both.")
+            raise ValueError("durable=True cannot be used with a CodeMode capability.")
 
         if message_history is not None and enable_hitl_review:
             # The post-review transcript is not recoverable today (run_hitl_review
@@ -767,8 +725,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             # ``toolsets=`` wrapping above, so their results would re-execute on
             # every retry instead of replaying; wrap their inner toolset too.
             capabilities = self._build_durable_capabilities(capabilities, storage, counter)
-        if self.code_mode:
-            capabilities.append(_build_code_mode())
         if self.cache_prompt:
             capabilities.append(PromptCaching())
         if capabilities:
@@ -793,7 +749,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             not AIRFLOW_V_3_3_PLUS
             or self.durable
             or self.enable_hitl_review
-            or self.code_mode
             or _contains_code_mode(self._declared_capabilities)
         ):
             return False
@@ -931,12 +886,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
 
         On Airflow >= 3.3 durable steps are cached in the AIP-103 task state
         store, which handles persistence and large-value offload natively, so no
-        ``[common.ai] durable_cache_path`` is required. On older cores, fall back
+        ``[common.ai] durable_cache_path`` is required. On older Airflow versions, fall back
         to the ObjectStorage backend configured via ``durable_cache_path``.
         """
         if AIRFLOW_V_3_3_PLUS:
             # Imported lazily: NEVER_EXPIRE and the task state store accessor do
-            # not exist on cores before 3.3.
+            # not exist on Airflow versions before 3.3.
             from airflow.providers.common.ai.durable.task_state_store import TaskStateStoreDurableStorage
 
             return TaskStateStoreDurableStorage(context["task_state_store"])
@@ -1228,7 +1183,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             raise UnsupportedToolDeferralError(
                 f"The agent called tools that need approval ({pending_names}), but tool approval "
                 "needs Airflow 3.3+ and is not available with durable, enable_hitl_review, "
-                "code mode (code_mode=True or a CodeMode capability) or a SandboxToolset."
+                "a CodeMode capability or a SandboxToolset."
             )
         store = context["task_state_store"]
         if store.get(_TOOL_APPROVAL_REQUESTED_KEY):
@@ -1434,12 +1389,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         context["task_instance"].xcom_push(key="message_history", value=transcript)
 
     def _emit_run_metadata(self, context: Context, result: Any, *, usage: RunUsage) -> None:
-        """Expose the pydantic-ai run id and token usage on XCom for downstream tasks."""
+        """Expose the pydantic-ai run id, resolved model name, and token usage on XCom."""
         if not self.do_xcom_push:
             return
         ti = context["task_instance"]
         ti.xcom_push(key="run_id", value=result.run_id)
         ti.xcom_push(key="usage", value=format_usage_for_xcom(usage))
+        if (model_name := getattr(result.response, "model_name", None)) is not None:
+            ti.xcom_push(key=MODEL_NAME_XCOM_KEY, value=model_name)
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """

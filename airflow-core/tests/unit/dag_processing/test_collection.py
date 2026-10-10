@@ -26,7 +26,6 @@ import textwrap
 import warnings
 from collections.abc import Generator
 from datetime import timedelta
-from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -105,9 +104,6 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from unit.plugins.priority_weight_strategy import StaticTestPriorityWeightStrategy
-
-if TYPE_CHECKING:
-    from kgb import SpyAgency
 
 mark_fab_auth_manager_test = pytest.mark.skipif(
     condition="FabAuthManager" not in conf.get("core", "auth_manager"),
@@ -712,11 +708,50 @@ class TestUpdateDagParsingResults:
         yield dag_import_error_listener
         dag_import_error_listener.clear()
 
+    @patch("airflow.api_fastapi.app._AuthManagerState.instance", None)
+    @patch.object(SerializedDagModel, "write_dag", return_value=True, autospec=True)
+    @patch("airflow.api_fastapi.app.get_auth_manager_cls", autospec=True)
+    def test_sync_perms_for_fab_auth_manager_subclass(
+        self, mock_get_auth_manager_cls, mock_write_dag, session
+    ):
+        FabAuthManager = pytest.importorskip(
+            "airflow.providers.fab.auth_manager.fab_auth_manager"
+        ).FabAuthManager
+
+        class CustomAuthManager(FabAuthManager):
+            pass
+
+        mock_get_auth_manager_cls.return_value = CustomAuthManager
+        dag = DAG(dag_id="test")
+
+        with patch.object(FabAuthManager, "sync_dag_perms", autospec=True) as mock_sync_dag_perms:
+            assert (
+                airflow.dag_processing.collection._serialize_dag_capturing_errors(
+                    dag, "testing", session, None
+                )
+                == []
+            )
+            mock_sync_dag_perms.assert_called_once_with(dag, session=session)
+
+    @patch.object(SerializedDagModel, "write_dag", return_value=True, autospec=True)
+    @patch("airflow.api_fastapi.app.get_auth_manager_cls", autospec=True)
+    def test_serialize_without_auth_manager_sync_hook(
+        self, mock_get_auth_manager_cls, mock_write_dag, session
+    ):
+        mock_get_auth_manager_cls.return_value = object
+        dag = DAG(dag_id="test")
+
+        assert (
+            airflow.dag_processing.collection._serialize_dag_capturing_errors(dag, "testing", session, None)
+            == []
+        )
+
     @mark_fab_auth_manager_test
     @conf_vars({("core", "min_serialized_dag_update_interval"): "5"})
     @pytest.mark.usefixtures("clean_db")  # sync_perms in fab has bad session commit hygiene
+    @patch("airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager.sync_dag_perms", autospec=True)
     def test_sync_perms_syncs_dag_specific_perms_on_update(
-        self, monkeypatch, spy_agency: SpyAgency, session, time_machine, testing_dag_bundle
+        self, mock_sync_dag_perms, monkeypatch, session, time_machine, testing_dag_bundle
     ):
         """Test DAG-specific permissions are synced when a DAG is new or updated"""
         serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
@@ -726,29 +761,26 @@ class TestUpdateDagParsingResults:
 
         dag = DAG(dag_id="test")
 
-        sync_perms_spy = spy_agency.spy_on(
-            airflow.dag_processing.collection._sync_dag_perms,
-            call_original=False,
-        )
-
         def _sync_to_db():
-            sync_perms_spy.reset_calls()
+            mock_sync_dag_perms.reset_mock()
             time_machine.shift(20)
 
-            update_dag_parsing_results_in_db("testing", None, [dag], dict(), None, set(), session)
+            import_errors = {}
+            update_dag_parsing_results_in_db("testing", None, [dag], import_errors, None, set(), session)
+            assert not import_errors
 
         _sync_to_db()
-        spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
+        mock_sync_dag_perms.assert_called_once_with(dag, session=session)
 
         # DAG isn't updated
         _sync_to_db()
-        # `_sync_dag_perms` should be called even the DAG isn't updated. Otherwise, any import error will not show up until DAG is updated.
-        spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
+        # `sync_dag_perms` should be called even the DAG isn't updated. Otherwise, any import error will not show up until DAG is updated.
+        mock_sync_dag_perms.assert_called_once_with(dag, session=session)
 
         # DAG is updated
         dag.tags = {"new_tag"}
         _sync_to_db()
-        spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
+        mock_sync_dag_perms.assert_called_once_with(dag, session=session)
 
         serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
 
@@ -956,7 +988,7 @@ class TestUpdateDagParsingResults:
             parse_duration=None,
             warnings=set(),
             session=session,
-            dag_source_codes={dag.fileloc: DagSourceCode(source_code="dag_id: yaml_dag\n", language="yaml")},
+            dag_source_codes={dag.dag_id: DagSourceCode(source_code="dag_id: yaml_dag\n", language="yaml")},
         )
 
         dag_code = DagCode.get_latest_dagcode("yaml_dag", session=session)

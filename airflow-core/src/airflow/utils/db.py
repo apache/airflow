@@ -1080,7 +1080,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
-def reflect_tables(tables: list[MappedClassProtocol | str] | None, session, schema: str | None = None):
+def reflect_tables(tables: Sequence[MappedClassProtocol | str] | None, session, schema: str | None = None):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the database.
 

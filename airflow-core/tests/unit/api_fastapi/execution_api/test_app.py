@@ -30,24 +30,70 @@ from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
-from sqlalchemy import event, text
+from sqlalchemy import event, select, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow import settings
+from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.execution_api.app import (
     InProcessExecutionAPI,
     _extract_w3c_trace_context,
+    _jwt_generator,
     create_task_execution_api_app,
 )
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.models.xcom import XComModel
 from airflow.utils.session import create_session_async
 
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.mark.parametrize("supply_dag_bag", [False, True])
+@mock.patch("airflow.api_fastapi.common.dagbag.create_dag_bag", autospec=True)
+def test_create_app_initializes_dag_bag(mock_create_dag_bag, supply_dag_bag):
+    dag_bag = mock.sentinel.dag_bag if supply_dag_bag else None
+    app = create_task_execution_api_app(dag_bag=dag_bag)
+
+    if supply_dag_bag:
+        assert app.state.dag_bag is dag_bag
+        mock_create_dag_bag.assert_not_called()
+    else:
+        assert app.state.dag_bag is mock_create_dag_bag.return_value
+        mock_create_dag_bag.assert_called_once_with()
+
+
+@pytest.mark.parametrize("in_process_first", [False, True])
+@conf_vars({("api_auth", "jwt_secret"): "execution-api-hosting-test-secret"})
+def test_server_and_in_process_apps_isolate_auth(in_process_first, monkeypatch):
+    monkeypatch.setenv("AIRFLOW_VAR_EXECUTION_API_HOSTING", "shared-value")
+    if in_process_first:
+        api = InProcessExecutionAPI()
+        assert api.app is not None
+        server_app = create_app(apps="execution")
+    else:
+        server_app = create_app(apps="execution")
+        api = InProcessExecutionAPI()
+
+    with (
+        TestClient(server_app) as server,
+        httpx.Client(transport=api.transport, base_url="http://in-process.invalid") as local,
+    ):
+        response = local.get("/variables/execution_api_hosting")
+        assert response.status_code == 200
+        assert response.json() == {"key": "execution_api_hosting", "value": "shared-value"}
+        assert server.get("/execution/variables/execution_api_hosting").status_code == 401
+        token = _jwt_generator().generate({"sub": "00000000-0000-0000-0000-000000000000"})
+        authenticated_response = server.get(
+            "/execution/variables/execution_api_hosting", headers={"Authorization": f"Bearer {token}"}
+        )
+        # Missing credentials bypass JWTValidator; only an authenticated request detects a leaked stub.
+        assert authenticated_response.status_code == 200
+        assert authenticated_response.json() == response.json()
 
 
 def test_custom_openapi_includes_extra_schemas(client):
@@ -165,6 +211,21 @@ def test_in_process_execution_api_runs_without_jwt_secret():
     with httpx.Client(transport=api.transport) as client:
         response = client.get("http://localhost/health")
     assert response.status_code == 200
+
+
+def test_in_process_task_xcom_write_uses_its_attempt_id(create_task_instance, session):
+    ti = create_task_instance()
+    session.commit()
+    path = f"/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/return_value"
+
+    with TestClient(InProcessExecutionAPI().app) as client:
+        wrong = client.post(path, json="wrong", headers={"X-Airflow-In-Process-Attempt-Id": str(UUID(int=1))})
+        correct = client.post(path, json="correct", headers={"X-Airflow-In-Process-Attempt-Id": str(ti.id)})
+
+    assert wrong.status_code == 404
+    assert correct.status_code == 201
+    stored = session.scalar(select(XComModel).where(XComModel.task_instance_id == ti.id))
+    assert stored.value == "correct"
 
 
 def test_in_process_execution_api_transport_lifecycle():

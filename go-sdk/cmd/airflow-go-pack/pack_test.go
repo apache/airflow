@@ -18,20 +18,32 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/apache/airflow/go-sdk/internal/airflowmetadata"
 	"github.com/apache/airflow/go-sdk/internal/bundlefooter"
 )
+
+var testLayout = sourceLayout{
+	entrypoint: "cmd/bundle/main.go",
+	dagPaths:   map[string]string{"zeta_dag": "cmd/bundle/main.go", "alpha_dag": "dags/alpha.go"},
+	files: []sourceFile{
+		{path: "cmd/bundle/main.go", offset: 0, length: 10, sha256: "aa"},
+		{path: "dags/alpha.go", offset: 10, length: 20, sha256: "bb"},
+	},
+}
 
 func TestRenderManifest_DeterministicDagOrdering(t *testing.T) {
 	meta := airflowmetadata.Manifest{
@@ -47,9 +59,9 @@ func TestRenderManifest_DeterministicDagOrdering(t *testing.T) {
 		},
 	}
 
-	got1, err := renderManifest(meta, "main.go")
+	got1, err := renderManifest(meta, testLayout)
 	require.NoError(t, err)
-	got2, err := renderManifest(meta, "main.go")
+	got2, err := renderManifest(meta, testLayout)
 	require.NoError(t, err)
 
 	assert.Equal(t, got1, got2, "manifest should be byte-identical for identical input")
@@ -59,12 +71,24 @@ sdk:
   language: "go"
   version: "0.1.0"
   supervisor_schema_version: "2026-06-16"
-source: "main.go"
+entrypoint_path: "cmd/bundle/main.go"
+dag_source_paths:
+  "alpha_dag": "dags/alpha.go"
+  "zeta_dag": "cmd/bundle/main.go"
+sources:
+  - path: "cmd/bundle/main.go"
+    offset: 0
+    length: 10
+    sha256: "aa"
+  - path: "dags/alpha.go"
+    offset: 10
+    length: 20
+    sha256: "bb"
 dags:
-  alpha_dag:
+  "alpha_dag":
     tasks:
       - "x"
-  zeta_dag:
+  "zeta_dag":
     tasks:
       - "a"
       - "b"
@@ -72,9 +96,9 @@ dags:
 	assert.Equal(t, expected, string(got1))
 }
 
-// Values (task IDs, source, SDK fields) are quoted so a scalar-looking value
-// stays a string; Dag ID keys stay plain scalars.
-func TestRenderManifest_QuotesValuesNotKeys(t *testing.T) {
+// Values (task IDs, source paths, SDK fields) and Dag ID keys are quoted so a scalar-looking
+// string stays a string when a YAML parser reads the manifest back.
+func TestRenderManifest_QuotesDagIDs(t *testing.T) {
 	meta := airflowmetadata.Manifest{
 		AirflowBundleMetadataVersion: "1.0",
 		SDK: airflowmetadata.SDK{
@@ -83,19 +107,34 @@ func TestRenderManifest_QuotesValuesNotKeys(t *testing.T) {
 			SupervisorSchemaVersion: "2026-06-16",
 		},
 		Dags: map[string]airflowmetadata.Dag{
-			"my_dag": {Tasks: []string{"123", "true"}},
+			"2024": {Tasks: []string{"123", "true"}},
+			"on":   {Tasks: []string{"t1"}},
 		},
 	}
+	layout := sourceLayout{
+		entrypoint: "main.go",
+		dagPaths:   map[string]string{"2024": "main.go", "on": "main.go"},
+		files:      []sourceFile{{path: "main.go", offset: 0, length: 10, sha256: "aa"}},
+	}
 
-	got, err := renderManifest(meta, "main.go")
+	got, err := renderManifest(meta, layout)
 	require.NoError(t, err)
 
-	// Task values that look like scalars are quoted.
 	assert.Contains(t, string(got), `- "123"`)
 	assert.Contains(t, string(got), `- "true"`)
-	// The Dag ID key is a plain scalar, not quoted.
-	assert.Contains(t, string(got), "\n  my_dag:\n")
-	assert.NotContains(t, string(got), `"my_dag"`)
+	assert.Contains(t, string(got), "\n  \"2024\":\n")
+	assert.Contains(t, string(got), "\n  \"on\":\n")
+	assert.Contains(t, string(got), `"2024": "main.go"`)
+	assert.Contains(t, string(got), `"on": "main.go"`)
+
+	var decoded struct {
+		Dags           map[any]any `yaml:"dags"`
+		DagSourcePaths map[any]any `yaml:"dag_source_paths"`
+	}
+	require.NoError(t, yaml.Unmarshal(got, &decoded))
+	assert.Contains(t, decoded.Dags, "2024")
+	assert.Contains(t, decoded.Dags, "on")
+	assert.Equal(t, map[any]any{"2024": "main.go", "on": "main.go"}, decoded.DagSourcePaths)
 }
 
 func TestRenderManifest_EmptyDags(t *testing.T) {
@@ -108,7 +147,7 @@ func TestRenderManifest_EmptyDags(t *testing.T) {
 		},
 		Dags: map[string]airflowmetadata.Dag{},
 	}
-	got, err := renderManifest(meta, "main.go")
+	got, err := renderManifest(meta, testLayout)
 	require.NoError(t, err)
 	assert.Contains(t, string(got), "dags: {}")
 }
@@ -367,7 +406,7 @@ func TestRunPack_UsesMetadataFile(t *testing.T) {
 	assert.Contains(
 		t,
 		string(gotMeta),
-		"my_dag:",
+		`"my_dag":`,
 		"Dag from --airflow-metadata must appear in the manifest",
 	)
 
@@ -375,6 +414,35 @@ func TestRunPack_UsesMetadataFile(t *testing.T) {
 	require.NoError(t, err)
 	binaryRegion := bundleBytes[:len(bundleBytes)-len(gotSource)-len(gotMeta)-bundlefooter.TrailerSize]
 	assert.Equal(t, exeBytes, binaryRegion, "the supplied --executable must be packed verbatim")
+}
+
+func TestRunPack_PacksABundleWithOnlyNativeDags(t *testing.T) {
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "native")
+	require.NoError(t, os.WriteFile(exe, []byte("native-binary-bytes"), 0o755))
+	source := filepath.Join(dir, "main.go")
+	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
+	meta := filepath.Join(dir, "airflow-metadata.json")
+	require.NoError(t, os.WriteFile(meta, []byte(
+		`{"airflow_bundle_metadata_version":"1.0",`+
+			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-16"},`+
+			`"dags":{},"dag_source_files":{"native_dag":`+strconv.Quote(source)+`}}`,
+	), 0o644))
+	out := filepath.Join(dir, "bundle")
+
+	var stdout bytes.Buffer
+	err := runPack(&stdout, io.Discard, &packOptions{
+		executable:      exe,
+		source:          source,
+		airflowMetadata: meta,
+		output:          out,
+	})
+	require.NoError(t, err)
+
+	_, gotMeta, err := bundlefooter.Read(out)
+	require.NoError(t, err)
+	assert.Contains(t, string(gotMeta), `"native_dag": "main.go"`)
+	assert.Contains(t, stdout.String(), "task_handler_dags=0, native_dags=1")
 }
 
 // --airflow-metadata also accepts a YAML manifest, not only the JSON the
@@ -412,7 +480,7 @@ func TestRunPack_AcceptsYAMLMetadataFile(t *testing.T) {
 	assert.Contains(
 		t,
 		string(gotMeta),
-		"yaml_dag:",
+		`"yaml_dag":`,
 		"Dag from a YAML --airflow-metadata file must appear in the manifest",
 	)
 }
