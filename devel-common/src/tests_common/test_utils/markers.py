@@ -18,12 +18,34 @@
 from __future__ import annotations
 
 import os
+from importlib.metadata import PackageNotFoundError, distribution
 
 import pytest
 
 skip_if_force_lowest_dependencies_marker = pytest.mark.skipif(
     os.environ.get("FORCE_LOWEST_DEPENDENCIES", "") == "true",
     reason="When lowest dependencies are set only some providers are loaded",
+)
+
+
+def _is_distribution_installed(name: str) -> bool:
+    # Checking installed distribution metadata (rather than importlib.util.find_spec, which
+    # would import the parent package) avoids pulling in airflow-core in test suites — like
+    # shared/<dist>'s own isolated tests — that use this module without airflow-core installed.
+    try:
+        distribution(name)
+        return True
+    except PackageNotFoundError:
+        return False
+
+
+# "apache-airflow-providers-google" is never part of airflow-core's own scoped dev
+# dependency group (see the TODO in airflow-core/pyproject.toml), so its absence is a
+# reliable signal that only a subset of providers is installed (e.g. `uv sync --project
+# airflow-core` rather than a full workspace sync).
+skip_unless_all_providers_installed = pytest.mark.skipif(
+    not _is_distribution_installed("apache-airflow-providers-google"),
+    reason="Requires the full provider set to be installed, not just airflow-core's own dev group",
 )
 
 

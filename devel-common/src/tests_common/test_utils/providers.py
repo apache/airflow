@@ -25,7 +25,7 @@ from tests_common.test_utils.paths import AIRFLOW_PROVIDERS_ROOT_PATH
 
 def object_exists(path: str):
     """Return true if importable python object is there."""
-    from airflow_shared.module_loading import import_string
+    from airflow._shared.module_loading import import_string
 
     try:
         import_string(path)
