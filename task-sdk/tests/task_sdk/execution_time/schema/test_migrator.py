@@ -31,6 +31,7 @@ from __future__ import annotations
 import datetime
 import subprocess
 import sys
+import uuid
 from typing import Literal
 from uuid import UUID
 
@@ -51,13 +52,23 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
 )
 
 from airflow.sdk import TaskInstanceState
-from airflow.sdk.api.datamodels._generated import LoopContext, PreviousTIResponse
+from airflow.sdk.api.datamodels._generated import (
+    BundleInfo,
+    DagRun,
+    DagRunState,
+    DagRunType,
+    LoopContext,
+    PreviousTIResponse,
+    TaskInstance,
+    TIRunContext,
+)
 from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
     PreviousTIResult,
+    StartupDetails,
     TaskState,
 )
 from airflow.sdk.execution_time.schema import (
@@ -592,23 +603,11 @@ class TestRealBundleFirstTaskRescheduleStartDate:
     registering it under the wrong version, leaves the field on the wire for a pinned runtime.
     """
 
-    FIRST_RESCHEDULE = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+    FIRST_RESCHEDULE = datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
 
     @pytest.fixture
     def startup_details(self):
-        import uuid
-
-        from airflow.sdk.api.datamodels._generated import (
-            BundleInfo,
-            DagRun,
-            DagRunState,
-            DagRunType,
-            TaskInstance,
-            TIRunContext,
-        )
-        from airflow.sdk.execution_time.comms import StartupDetails
-
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         return StartupDetails(
             ti=TaskInstance(
                 id=uuid.uuid4(),
