@@ -48,6 +48,7 @@ from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
+    NotMapped,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -3951,6 +3952,380 @@ class TestMappedTaskInstanceReceiveValue:
             ti.refresh_from_task(show_task)
             dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
         assert outputs == [(2, 5), (2, 10), (4, 5), (4, 10), (8, 5), (8, 10)]
+
+    def test_iterate_literal_cross_product(self, dag_maker, session):
+        """Test an iterated task with literal cross product args properly."""
+        outputs = []
+
+        with dag_maker(dag_id="product_same_types", session=session, serialized=True) as dag:
+
+            @dag.task
+            def show(a, b):
+                outputs.append((a, b))
+
+            show.iterate(a=[2, 4, 8], b=[5, 10])
+
+        dag_run = dag_maker.create_dagrun()
+
+        show_task = dag.get_task("show")
+        with pytest.raises(NotMapped):
+            show_task.get_parse_time_mapped_ti_count()
+        with pytest.raises(NotMapped):
+            expand_mapped_task_instances(show_task, dag_run.run_id, session=session)
+
+        tis = session.scalars(
+            select(TaskInstance)
+            .where(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.task_id == "show",
+                TaskInstance.run_id == dag_run.run_id,
+            )
+            .order_by(TaskInstance.map_index)
+        ).all()
+        for ti in tis:
+            ti.refresh_from_task(show_task)
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        assert outputs == [(2, 5), (2, 10), (4, 5), (4, 10), (8, 5), (8, 10)]
+
+    @pytest.mark.parametrize(
+        ("upstream_is_iterated", "trigger_rule"),
+        [
+            pytest.param(False, "all_success", id="expand-all_success"),
+            pytest.param(True, "all_success", id="iterate-all_success"),
+            pytest.param(False, "none_failed", id="expand-none_failed"),
+            pytest.param(True, "none_failed", id="iterate-none_failed"),
+        ],
+    )
+    def test_skipped_item_downstream_matches_expand(
+        self, dag_maker, session, upstream_is_iterated, trigger_rule
+    ):
+        """
+        One skipped item of an upstream has the same effect downstream whether it is mapped or iterated.
+
+        With ``all_success`` the downstream task is skipped and receives nothing; with ``none_failed``
+        it runs over the items that produced a value, the skipped one left out.
+        """
+        received = []
+
+        with dag_maker(dag_id=f"skipped_item_{trigger_rule}", session=session, serialized=True):
+
+            @task
+            def produce(x):
+                if x == 2:
+                    raise AirflowSkipException("nothing to do for this item")
+                return x * 10
+
+            @task(trigger_rule=trigger_rule)
+            def consume(value):
+                received.append(value)
+
+            produced = produce.iterate(x=[1, 2, 3]) if upstream_is_iterated else produce.expand(x=[1, 2, 3])
+            consume.expand(value=produced)
+
+        dag_run = dag_maker.create_dagrun()
+        for task_id in ("produce", "consume"):
+            dag_run.refresh_from_db(session=session)
+            for ti in dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis:
+                if ti.task_id == task_id:
+                    dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+            session.flush()
+        dag_run.refresh_from_db(session=session)
+        dag_run.task_instance_scheduling_decisions(session=session)
+        session.flush()
+
+        consume_states = {
+            ti.state
+            for ti in session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.run_id == dag_run.run_id, TaskInstance.task_id == "consume"
+                )
+            )
+        }
+        if trigger_rule == "all_success":
+            assert received == []
+            assert consume_states == {TaskInstanceState.SKIPPED}
+        else:
+            assert sorted(received) == [10, 30]
+            assert consume_states == {TaskInstanceState.SUCCESS}
+
+    @pytest.mark.parametrize("upstream_is_iterated", [False, True], ids=["expand", "iterate"])
+    def test_empty_input_skips_like_expand(self, dag_maker, session, upstream_is_iterated):
+        """Over an empty input the task is skipped and an ``all_success`` downstream task with it."""
+        ran = []
+
+        with dag_maker(dag_id="empty_input", session=session, serialized=True):
+
+            @task
+            def produce(x):
+                ran.append(x)
+                return x
+
+            @task
+            def consume(values):
+                ran.append(values)
+
+            produced = produce.iterate(x=[]) if upstream_is_iterated else produce.expand(x=[])
+            consume(produced)
+
+        dag_run = dag_maker.create_dagrun()
+        for task_id in ("produce", "consume"):
+            dag_run.refresh_from_db(session=session)
+            for ti in dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis:
+                if ti.task_id == task_id:
+                    dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+            session.flush()
+        dag_run.refresh_from_db(session=session)
+        dag_run.task_instance_scheduling_decisions(session=session)
+        session.flush()
+
+        states = {
+            ti.task_id: ti.state
+            for ti in session.scalars(select(TaskInstance).where(TaskInstance.run_id == dag_run.run_id))
+        }
+        assert ran == []
+        assert states == {"produce": TaskInstanceState.SKIPPED, "consume": TaskInstanceState.SKIPPED}
+
+    def test_iterate_in_task_group_reaches_downstream(self, dag_maker, session):
+        """An iterated task in a TaskGroup pushes its results for its own task id, where downstream reads them."""
+        received = []
+
+        with dag_maker(dag_id="iterate_in_task_group", session=session, serialized=True) as dag:
+            with TaskGroup("group"):
+
+                @task
+                def produce(x):
+                    return x * 10
+
+                @task
+                def consume(value):
+                    received.append(value)
+
+                consume.expand(value=produce.iterate(x=[1, 2, 3]))
+
+        assert sorted(dag.task_dict) == ["group.consume", "group.produce"]
+        dag_run = dag_maker.create_dagrun()
+        for task_id in ("group.produce", "group.consume"):
+            dag_run.refresh_from_db(session=session)
+            for ti in dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis:
+                if ti.task_id == task_id:
+                    dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+            session.flush()
+
+        assert sorted(received) == [10, 20, 30]
+
+    @pytest.mark.parametrize(
+        ("with_policy", "expected_state"),
+        [
+            pytest.param(True, TaskInstanceState.FAILED, id="policy-fails-it"),
+            pytest.param(False, TaskInstanceState.UP_FOR_RETRY, id="no-policy-retries"),
+        ],
+    )
+    def test_iterate_retry_policy_decides_on_the_items_exception(
+        self, dag_maker, session, with_policy, expected_state
+    ):
+        """A retry policy rule on an item's exception decides the iterated task's outcome, as for any task."""
+        from airflow.sdk import ExceptionRetryPolicy, RetryRule
+        from airflow.sdk.definitions.retry_policy import RetryAction
+
+        policy = ExceptionRetryPolicy(rules=[RetryRule(exception=PermissionError, action=RetryAction.FAIL)])
+
+        with dag_maker(dag_id=f"iterate_retry_policy_{with_policy}", session=session, serialized=True):
+
+            @task(retries=2, retry_policy=policy if with_policy else None)
+            def produce(x):
+                if x == 2:
+                    raise PermissionError("not allowed")
+                if x == 3:
+                    raise ValueError("flaky")
+                return x
+
+            produce.iterate(x=[1, 2, 3])
+
+        dag_run = dag_maker.create_dagrun()
+        (ti,) = dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis
+        # run_ti re-raises the task's error once the outcome is recorded; the state is what counts.
+        with contextlib.suppress(BaseException):
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        ti.refresh_from_db(session=session)
+
+        assert ti.state == expected_state
+
+    def test_iterate_sensor_timeout_fails_without_retry(self, dag_maker, session):
+        """A poke-mode sensor timing out inside .iterate() fails the task, as it does outside."""
+        from airflow.sdk.exceptions import AirflowSensorTimeout
+
+        with dag_maker(dag_id="iterate_sensor_timeout", session=session, serialized=True):
+
+            @task(retries=2)
+            def produce(x):
+                if x == 2:
+                    raise AirflowSensorTimeout("poked for too long")
+                raise ValueError("flaky")
+
+            produce.iterate(x=[1, 2])
+
+        dag_run = dag_maker.create_dagrun()
+        (ti,) = dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis
+        # run_ti re-raises the task's error once the outcome is recorded; the state is what counts.
+        with contextlib.suppress(BaseException):
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        ti.refresh_from_db(session=session)
+
+        assert ti.state == TaskInstanceState.FAILED
+
+    def test_iterate_retry_keeps_the_extra_xcoms_of_items_that_already_succeeded(self, dag_maker, session):
+        """
+        The runner deletes every XCom of the task before a retry. An item skipped on the retry
+        because it already succeeded gets its other pushed keys back from its checkpoint.
+        """
+        from airflow.models.xcom import XComModel
+
+        attempts = []
+
+        with dag_maker(dag_id="iterate_extra_xcoms", session=session, serialized=True):
+            # One item at a time: several sync items pushing concurrently under dag_maker's in-process
+            # supervisor race on it, which is a separate problem.
+            @task(retries=1, retry_delay=datetime.timedelta(0), task_concurrency=1)
+            def produce(x, ti=None):
+                ti.xcom_push(key="foo", value=f"foo-of-{x}")
+                if x == 2 and not attempts:
+                    attempts.append(ti.try_number)
+                    raise ValueError("flaky on the first attempt")
+                return x
+
+            produce.iterate(x=[1, 2])
+
+        dag_run = dag_maker.create_dagrun()
+        for _ in range(2):
+            dag_run.refresh_from_db(session=session)
+            for ti in dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis:
+                with contextlib.suppress(BaseException):
+                    dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+            session.flush()
+
+        ti = dag_run.get_task_instance("produce", session=session)
+        assert ti.state == TaskInstanceState.SUCCESS
+        assert ti.try_number == 2
+        keys = set(
+            session.scalars(
+                select(XComModel.key).where(
+                    XComModel.dag_id == "iterate_extra_xcoms",
+                    XComModel.run_id == dag_run.run_id,
+                    XComModel.task_id == "produce",
+                )
+            )
+        )
+        assert {"foo_0", "foo_1", "return_value_0", "return_value_1"} <= keys
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="dag.test()'s in-process supervisor is not safe to call from several threads until apache/airflow#74074",
+    )
+    def test_iterate_concurrent_sync_items_share_the_in_process_supervisor(self, dag_maker, session):
+        """
+        Under the in-process supervisor (dag.test(), dag_maker) sync items make SDK calls from worker
+        threads; they must not race on it: every item's XCom push and read goes through.
+        """
+        from airflow.models.xcom import XComModel
+
+        with dag_maker(dag_id="iterate_in_process_comms", session=session, serialized=True):
+
+            @task(task_concurrency=4)
+            def produce(x, ti=None):
+                for n in range(5):
+                    ti.xcom_push(key=f"k{n}", value=x)
+                    ti.xcom_pull(task_ids="produce", key=f"k{n}_0")
+                return x
+
+            produce.iterate(x=list(range(8)))
+
+        dag_run = dag_maker.create_dagrun()
+        (ti,) = dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis
+        with contextlib.suppress(BaseException):
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        ti.refresh_from_db(session=session)
+
+        assert ti.state == TaskInstanceState.SUCCESS
+        keys = set(
+            session.scalars(
+                select(XComModel.key).where(
+                    XComModel.dag_id == "iterate_in_process_comms",
+                    XComModel.run_id == dag_run.run_id,
+                    XComModel.task_id == "produce",
+                )
+            )
+        )
+        assert {f"return_value_{i}" for i in range(8)} <= keys
+        assert {f"k{n}_{i}" for n in range(5) for i in range(8)} <= keys
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="dag.test()'s in-process supervisor is not safe to call from several threads until apache/airflow#74074",
+    )
+    def test_iterate_concurrent_sync_items_read_variables_while_a_sibling_is_served(self, dag_maker, session):
+        """
+        Under the in-process supervisor, an item's Variable lookup must not miss while a sibling's
+        request is served: hiding the comms from the whole process sent it to the fallback secrets
+        backends, which do not have a Variable stored in the metadata database.
+        """
+        from airflow.models.variable import Variable
+        from airflow.sdk import Variable as SdkVariable
+
+        Variable.set(key="iterate_db_variable", value="v", session=session)
+        session.commit()
+
+        with dag_maker(dag_id="iterate_in_process_variables", session=session, serialized=True):
+
+            @task(task_concurrency=4)
+            def read(x, ti=None):
+                for _ in range(25):
+                    assert SdkVariable.get("iterate_db_variable") == "v"
+                    ti.xcom_push(key="k", value=x)
+                return x
+
+            read.iterate(x=list(range(8)))
+
+        dag_run = dag_maker.create_dagrun()
+        (ti,) = dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis
+        with contextlib.suppress(BaseException):
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        ti.refresh_from_db(session=session)
+
+        assert ti.state == TaskInstanceState.SUCCESS
+
+    def test_iterate_literal_cross_product_in_spread(self, dag_maker, session):
+        """Test a spread iterated task with literal cross product args properly."""
+        outputs = []
+
+        with dag_maker(dag_id="product_same_types", session=session, serialized=True) as dag:
+
+            @dag.task
+            def show(a, b):
+                outputs.append((a, b))
+
+            show.spread(across=2).iterate(a=[2, 4, 8], b=[5, 10])
+
+        dag_run = dag_maker.create_dagrun()
+
+        show_task = dag.get_task("show")
+        assert show_task.get_parse_time_mapped_ti_count() == 2
+        mapped_tis, max_map_index = expand_mapped_task_instances(show_task, dag_run.run_id, session=session)
+        assert len(mapped_tis) == 0  # Expanded at parse!
+        assert max_map_index == 1
+
+        tis = session.scalars(
+            select(TaskInstance)
+            .where(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.task_id == "show",
+                TaskInstance.run_id == dag_run.run_id,
+            )
+            .order_by(TaskInstance.map_index)
+        ).all()
+        for ti in tis:
+            ti.refresh_from_task(show_task)
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        assert outputs == [(2, 5), (4, 5), (8, 5), (2, 10), (4, 10), (8, 10)]
 
     def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
         out = tmp_path.joinpath("out")

@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from airflow.sdk import task
+from airflow.sdk import DAG, task
 from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS, DecoratedOperator, is_async_callable
 
 RAW_CODE = """
@@ -425,3 +425,141 @@ class TestAsyncCallable:
             return 42
 
         assert not is_async_callable(sync_task_fn)
+
+
+class TestTaskDecoratorTaskConcurrency:
+    """task_concurrency only has meaning for Dynamic Task Iteration (as the sub-task thread count
+    consumed by IterableOperator/MappedIterableOperator via .iterate()/.iterate_kwargs()). A plain
+    .expand()/.expand_kwargs() on a @task-decorated function never reaches that code path, so it
+    must be rejected instead of silently accepted as a dead value -- mirroring OperatorPartial."""
+
+    def test_direct_call_rejects_task_concurrency(self):
+        """Calling a @task-decorated function directly (no .expand()/.iterate()) constructs the
+        operator right away via BaseOperator.__init__, so task_concurrency must be rejected."""
+        with DAG("test_dag"):
+
+            @task(task_concurrency=2)
+            def add_one(x):
+                return x + 1
+
+            with pytest.raises(TypeError, match="which is now max_active_tis_per_dag"):
+                add_one(1)
+
+    def test_expand_rejects_task_concurrency(self):
+        with DAG("test_dag"):
+
+            @task(task_concurrency=2)
+            def add_one(x):
+                return x + 1
+
+            with pytest.raises(TypeError, match="which is now max_active_tis_per_dag"):
+                add_one.expand(x=[1, 2, 3])
+
+    def test_expand_kwargs_rejects_task_concurrency(self):
+        with DAG("test_dag"):
+
+            @task(task_concurrency=2)
+            def add_one(x):
+                return x + 1
+
+            with pytest.raises(TypeError, match="which is now max_active_tis_per_dag"):
+                add_one.expand_kwargs([{"x": 1}, {"x": 2}])
+
+    def test_iterate_accepts_task_concurrency(self):
+        """.iterate() is the one entry point where task_concurrency is meaningful: it produces an
+        IterableOperator, which reads task_concurrency out of partial_kwargs as max_workers rather
+        than forwarding it to BaseOperator.__init__."""
+        from airflow.sdk.definitions.iterableoperator import IterableOperator
+
+        with DAG("test_dag"):
+
+            @task(task_concurrency=2)
+            def add_one(x):
+                return x + 1
+
+            xcom_arg = add_one.iterate(x=[1, 2, 3])
+
+            assert isinstance(xcom_arg.operator, IterableOperator)
+            assert xcom_arg.operator.max_workers == 2
+
+    def test_iterate_kwargs_accepts_task_concurrency(self):
+        """.iterate_kwargs() is the list-of-dicts counterpart to .iterate() and must accept
+        task_concurrency the same way."""
+        from airflow.sdk.definitions.iterableoperator import IterableOperator
+
+        with DAG("test_dag"):
+
+            @task(task_concurrency=2)
+            def add_one(x):
+                return x + 1
+
+            xcom_arg = add_one.iterate_kwargs([{"x": 1}, {"x": 2}])
+
+            assert isinstance(xcom_arg.operator, IterableOperator)
+            assert xcom_arg.operator.max_workers == 2
+
+
+def test_iterate_without_arguments_names_iterate_in_the_error():
+    with DAG("test_dag"):
+
+        @task
+        def add_one(x):
+            return x + 1
+
+        with pytest.raises(TypeError, match="no arguments to iterate against"):
+            add_one.iterate()
+
+
+@pytest.mark.parametrize("spread_across", [None, 2])
+def test_iterate_ignores_multiple_outputs_inferred_from_return_annotation(spread_across):
+    with DAG("test_dag"):
+
+        @task
+        def to_dict(x) -> dict:
+            return {"x": x}
+
+        assert to_dict.multiple_outputs is True
+        target = to_dict if spread_across is None else to_dict.spread(across=spread_across)
+        xcom_arg = target.iterate(x=[1, 2, 3])
+
+        assert xcom_arg.operator.multiple_outputs is False
+
+
+def test_task_protocol_declares_every_method_of_a_decorated_callable():
+    """
+    ``@task`` is typed as returning ``Task``, so a public method ``_TaskDecorator`` has and ``Task``
+    does not declare, such as ``.iterate()``, is an attribute error under a type checker.
+    """
+    from airflow.sdk.bases.decorator import Task, _TaskDecorator
+
+    def public_methods(cls):
+        return {name for name, value in vars(cls).items() if not name.startswith("_") and callable(value)}
+
+    assert public_methods(_TaskDecorator) <= public_methods(Task)
+
+
+@pytest.mark.parametrize("across", [-1, 0, 1])
+def test_spread_rejects_across_below_two(across):
+    with DAG("test_dag"):
+
+        @task
+        def add_one(x):
+            return x + 1
+
+        with pytest.raises(ValueError, match=f"across must be at least 2, got {across}"):
+            add_one.spread(across=across)
+
+
+def test_spread_takes_across_as_a_keyword_only():
+    """``spread(17)`` reads as a chunk length as easily as a task instance count, and ``size=`` was the
+    rejected spelling of the draft: both fail at parse time instead of being accepted silently."""
+    with DAG("test_dag"):
+
+        @task
+        def add_one(x):
+            return x + 1
+
+        with pytest.raises(TypeError, match="positional argument"):
+            add_one.spread(17)
+        with pytest.raises(TypeError, match="unexpected keyword argument 'size'"):
+            add_one.spread(size=17)
