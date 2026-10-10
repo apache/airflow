@@ -1785,6 +1785,55 @@ class TestIterableOperator:
         assert CALLBACKS == [("success", "a")]
         assert pushed == ["a"]
 
+    def test_a_success_callback_that_raises_keeps_the_checkpoint(self):
+        """
+        The success callback runs after the checkpoint is written and may raise what nothing catches:
+        a ``DeadlockImminentError`` from a synchronous SDK call in an async item's callback. The item's
+        work is done, so its SUCCESS checkpoint stays and the retry replays the result instead of
+        running the item again; the callback fired once.
+        """
+        runs: list[str] = []
+        fired: list[str] = []
+
+        class CallbackRaisesOperator(BaseAsyncOperator):
+            def __init__(self, arg1=None, **kwargs):
+                kwargs["on_success_callback"] = self._callback
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+
+            def _callback(self, context):
+                fired.append(self.arg1)
+                raise DeadlockImminentError("Variable.get on the event loop thread")
+
+            async def aexecute(self, context):
+                runs.append(self.arg1)
+                return self.arg1
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": "a"}]),
+                task_id="callback_raises",
+                retries=2,
+                operator_class=CallbackRaisesOperator,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+                context["ti"].try_number = 1
+                with pytest.raises(AirflowFailException, match="synchronous SDK call"):
+                    iterable_op.execute(context=context)
+                status_after_the_failed_callback = store["_iterable_0"]["status"]
+
+                context["ti"].try_number = 2
+                result = iterable_op.execute(context=context)
+                pushed = list(result)
+
+        assert status_after_the_failed_callback == "success"
+        assert runs == ["a"]
+        assert fired == ["a"]
+        assert pushed == ["a"]
+
     def test_extra_xcoms_are_checkpointed_once_and_pushed_again_when_a_retry_skips_the_item(self):
         """
         The runner deletes every XCom before a retry. An item skipped because it already succeeded

@@ -1081,10 +1081,6 @@ class IterableOperator(BaseOperator):
             if task.pushed_xcoms:
                 indexed_task_state.xcoms = dict(task.pushed_xcoms)
             await task.aset_state(indexed_task_state)
-            # Reported once the checkpoint is written, not when execute returned: the callback then
-            # speaks for work a retry will not run again, and a checkpoint write that fails fires
-            # nothing, as a plain task whose result could not be pushed fires no success callback.
-            await self._report_item(executor, task, indexed_task_runner.report_success)
         except (asyncio.CancelledError, AirflowTaskTimeout) as stopped:
             # Not this sub-task's outcome: it is being stopped from outside, by the executor
             # cancelling it or by the parent's execution_timeout, whose signal handler raises on the
@@ -1122,10 +1118,17 @@ class IterableOperator(BaseOperator):
             )
             return task, None, e
 
-        # The work is done and checkpointed: from here on only its publication can fail. A failure
-        # leaves the SUCCESS checkpoint as it is, so the retry replays the result from it (the
-        # branch at the top) instead of running the operator again for work that already finished.
+        # The work is done and checkpointed: from here on only its report and publication can fail.
+        # A failure leaves the SUCCESS checkpoint as it is, so the retry replays the result from it
+        # (the branch at the top) instead of running the operator again for work that already
+        # finished, and reports nothing again.
         try:
+            # Reported once the checkpoint is written, not when execute returned: the callback then
+            # speaks for work a retry will not run again, and a checkpoint write that fails fires
+            # nothing, as a plain task whose result could not be pushed fires no success callback.
+            # A callback that raises (a DeadlockImminentError from a synchronous SDK call in an
+            # async sub-task's callback) fails the sub-task without touching its checkpoint.
+            await self._report_item(executor, task, indexed_task_runner.report_success)
             # The result is only checkpointed when the sub-task pushes XComs and returned something,
             # so the same condition decides whether there is a return_value_<index> to push at all.
             if indexed_task_state.result is not None:
