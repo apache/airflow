@@ -838,6 +838,8 @@ repos:
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/openapi-gen/|
           ^providers/edge3/src/airflow/providers/edge3/plugins/www/openapi-gen/|
+          ^devel-common/src/sphinx_exts/airflow_spelling\.py$|
+          ^devel-common/tests/unit/sphinx_exts/test_airflow_spelling\.py$|
           .*/dist/.*|
           \.go$|
           /go\.(mod|sum)$

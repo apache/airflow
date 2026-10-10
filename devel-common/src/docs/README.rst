@@ -90,30 +90,14 @@ Building documentation
 
 To generate a local version of the docs you can use `<../dev/breeze/doc/README.rst>`_.
 
-The documentation build consists of verifying consistency of documentation and two steps:
-
-* spell checking
-* building documentation
-
-You can choose to run the complete build, to build all the docs and run spellcheck. Or, you can use package names and the optional flags, ``--spellcheck-only`` or ``--docs-only`` to choose the scope of the build.
+Spelling is checked while the documentation is built, so one build reports both build and spelling errors.
+You can use package names to limit the build.
 
 Build all docs and spell check them:
 
 .. code-block:: bash
 
     breeze build-docs
-
-Just run spellcheck:
-
-.. code-block:: bash
-
-     breeze build-docs --spellcheck-only
-
-Build docs without checking spelling:
-
-.. code-block:: bash
-
-     breeze build-docs --docs-only
 
 Build documentation of just one provider package by calling the ``PACKAGE_ID``.
 
