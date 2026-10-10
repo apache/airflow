@@ -1574,6 +1574,14 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Skip ts-sdk unit tests when only the docs toolchain's package.json changes",
         ),
         pytest.param(
+            ("ts-sdk/docs/typedoc.config.mjs",),
+            {
+                "run-ts-sdk-tests": "false",
+                "run-ts-sdk-docs": "true",
+            },
+            id="Skip ts-sdk unit tests but build docs when the docs toolchain config changes",
+        ),
+        pytest.param(
             ("ts-sdk/docs/index.md",),
             {
                 "run-ts-sdk-tests": "false",
@@ -2044,6 +2052,11 @@ def test_java_sdk_conformance_hook_runs_for_serializer_changes(files: tuple[str,
             ("ts-sdk/docs/package-lock.json",),
             True,
             id="skipped when only the docs toolchain's lock file changes",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/typedoc.config.mjs",),
+            True,
+            id="skipped when only the docs toolchain's config changes",
         ),
         pytest.param(
             ("ts-sdk/api-docs/dag-authoring-api.ts",),
