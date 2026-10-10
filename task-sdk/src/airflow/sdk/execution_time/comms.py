@@ -271,7 +271,8 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
-        frame_bytes = self._make_frame(msg).as_bytes()
+        request = self._make_frame(msg)
+        frame_bytes = request.as_bytes()
 
         # An asend() in flight on this thread's loop can only release _thread_lock once that loop
         # runs again, and the loop cannot run while this thread blocks in send(). Raise instead of
@@ -296,7 +297,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 # We need special handling here! The server can't send us the fd number, as the number on the
                 # supervisor will be different to in this process, so we have to mutate the message ourselves here.
                 frame, fds = self._read_frame(maxfds=1)
-                resp = self._from_frame(frame)
+                resp = self._from_frame(frame, request_id=request.id)
                 if TYPE_CHECKING:
                     assert isinstance(resp, SentFDs)
                 resp.fds = fds
@@ -304,7 +305,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 # always be in the return type union
                 return resp  # type: ignore[return-value]
 
-            return self._get_response()
+            return self._from_frame(self._read_frame(), request_id=request.id)
         finally:
             self._thread_lock.release()
 
@@ -316,7 +317,8 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         self._loop_thread_id = threading.get_ident()
 
-        frame_bytes = self._make_frame(msg).as_bytes()
+        request = self._make_frame(msg)
+        frame_bytes = request.as_bytes()
 
         async with self._async_lock:
             # Acquire the threading lock without blocking the event loop
@@ -331,7 +333,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                         return None
                     # Blocking read in a thread
                     frame, fds = await asyncio.to_thread(self._read_frame, maxfds=1)
-                    resp = self._from_frame(frame)
+                    resp = self._from_frame(frame, request_id=request.id)
                     if TYPE_CHECKING:
                         assert isinstance(resp, SentFDs)
                     resp.fds = fds
@@ -339,7 +341,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
                 # Normal blocking read in a thread
                 frame = await asyncio.to_thread(self._read_frame)
-                return self._from_frame(frame)
+                return self._from_frame(frame, request_id=request.id)
             finally:
                 self._thread_lock.release()
 
@@ -391,8 +393,17 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
             return resp, fds or []
         return resp
 
-    def _from_frame(self, frame) -> ReceiveMsgType | None:
+    def _from_frame(self, frame, request_id: int | None = None) -> ReceiveMsgType | None:
         from airflow.sdk.exceptions import AirflowRuntimeError
+
+        # A frame for a different request means the stream is out of step, and returning it would hand
+        # the caller another request's data.
+        if request_id is not None and frame.id != request_id:
+            raise RuntimeError(
+                f"Received a response for request {frame.id} while waiting for the response to request "
+                f"{request_id}. The connection to the supervisor is out of sync, which can happen when "
+                "another process, such as a forked child, has used it."
+            )
 
         if frame.error is not None:
             err = self.err_decoder.validate_python(frame.error)
