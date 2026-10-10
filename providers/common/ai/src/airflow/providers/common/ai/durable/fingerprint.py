@@ -32,9 +32,10 @@ fingerprint, so stale tool results recorded under the old conversation no
 longer match.
 
 Fields that pydantic-ai regenerates on every attempt (message-level
-``timestamp``/``run_id``/``conversation_id``, part-level ``timestamp``) and
-capability ids are excluded from the fingerprint, and set-valued request
-parameters are sorted.  Requests that cannot be serialized to JSON
+``timestamp``/``run_id``/``conversation_id``, part-level ``timestamp``, the
+``capability_id`` of a tool from a capability without an ``id``) are excluded
+from the fingerprint, and set-valued request
+parameters are sorted or dropped.  Requests that cannot be serialized to JSON
 fingerprint as ``None``, which degrades that step to unverified positional
 replay (the pre-fingerprint behavior) rather than disabling caching.
 """
@@ -108,10 +109,11 @@ def _normalize_params(params_dump: dict[str, Any]) -> dict[str, Any]:
 
     A capability without an explicit ``id`` gets a random one per run (``<toolset:d0d75e>``),
     stamped on its tools' ``capability_id``, so hashing it would make every retry miss the
-    cache. What the model sees of capabilities (the deferred-capability catalog in the
-    instructions, tool visibility, revealed tool names) is hashed through other fields, so
-    ``deferred_capability_ids`` is dropped too. A set dumps in iteration order, which differs
-    between processes (``PYTHONHASHSEED``), and a retry runs in a new process.
+    cache. A set dumps in iteration order, which differs between processes (``PYTHONHASHSEED``),
+    and a retry runs in a new process, so ``revealed_tool_names`` is sorted.
+    ``deferred_capability_ids`` is a set of explicit ids and is dropped rather than sorted: a
+    deferred capability's id reaches the model through the capability catalog in the
+    instructions, which is hashed with the messages.
     """
     cleaned = {k: v for k, v in params_dump.items() if k != "deferred_capability_ids"}
     cleaned["revealed_tool_names"] = sorted(cleaned["revealed_tool_names"])
@@ -139,7 +141,8 @@ def fingerprint_model_request(
 
     The ``ModelRequestParameters`` object is hashed (tool definitions, output
     mode and schema, native tools, ...) so any change to what is sent to the
-    model invalidates the cached response; only capability ids are left out.
+    model invalidates the cached response; only each tool's ``capability_id`` and
+    ``deferred_capability_ids`` are left out.
 
     Returns ``None`` when the request cannot be serialized; ``None`` compares
     equal to ``None``, so requests that cannot be fingerprinted degrade to
