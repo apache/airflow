@@ -71,7 +71,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
                 return
 
         open_slots = pool.open_slots(session=session)
-        if ti.state in pool.get_occupied_states():
+        if pool.task_instance_occupies_slot(ti):
             open_slots += ti.pool_slots
 
         if open_slots <= (ti.pool_slots - 1):
