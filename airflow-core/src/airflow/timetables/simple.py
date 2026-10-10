@@ -20,10 +20,12 @@ from contextlib import suppress
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypeAlias
 
+import attrs
 import structlog
 
 from airflow._shared.timezones import timezone
-from airflow.exceptions import InvalidPartitionKeyError
+from airflow.configuration import conf
+from airflow.exceptions import AirflowTimetableInvalid, InvalidPartitionKeyError
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
@@ -207,6 +209,22 @@ class PartitionedAtRuntime(NullTimetable):
         return "PartitionedAtRuntime"
 
 
+def _coerce_asset_condition(
+    assets: Collection[SerializedAsset | BaseAsset] | SerializedAssetBase | BaseAsset,
+) -> SerializedAssetBase:
+    if isinstance(assets, SerializedAssetBase | BaseAsset):
+        return ensure_serialized_asset(assets)
+    return SerializedAssetAll([ensure_serialized_asset(asset) for asset in assets])
+
+
+def _get_default_batch_asset_events(timetable: AssetTriggeredTimetable) -> bool:
+    return (
+        conf.getboolean("scheduler", "batch_asset_events", fallback=False)
+        or timetable.get_batching_requirement() is not None
+    )
+
+
+@attrs.define(eq=False, repr=False, slots=False)
 class AssetTriggeredTimetable(_TrivialTimetable):
     """
     Timetable that never schedules anything.
@@ -216,29 +234,42 @@ class AssetTriggeredTimetable(_TrivialTimetable):
     :meta private:
     """
 
-    description: str = "Triggered by assets"
+    description = "Triggered by assets"
     asset_triggered = True
 
-    def __init__(self, assets: Collection[SerializedAsset] | SerializedAssetBase) -> None:
-        super().__init__()
-        # Compatibility: Handle SDK assets if needed so this class works in dag files.
-        if isinstance(assets, SerializedAssetBase | BaseAsset):
-            self.asset_condition = ensure_serialized_asset(assets)
-        else:
-            self.asset_condition = SerializedAssetAll([ensure_serialized_asset(a) for a in assets])
+    asset_condition: SerializedAssetBase = attrs.field(alias="assets", converter=_coerce_asset_condition)
+    batch_asset_events: bool = attrs.field(
+        default=attrs.Factory(_get_default_batch_asset_events, takes_self=True), kw_only=True
+    )
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
         from airflow.serialization.decoders import decode_asset_like
 
-        return cls(decode_asset_like(data["asset_condition"]))
+        return cls(
+            decode_asset_like(data["asset_condition"]),
+            batch_asset_events=data.get("batch_asset_events", True),
+        )
 
     @property
     def summary(self) -> str:
         return "Asset"
 
     def serialize(self) -> dict[str, Any]:
-        return {"asset_condition": encode_asset_like(self.asset_condition)}
+        return {
+            "asset_condition": encode_asset_like(self.asset_condition),
+            "batch_asset_events": self.batch_asset_events,
+        }
+
+    def get_batching_requirement(self) -> str | None:
+        """Return why this timetable cannot run without event batching, or ``None``."""
+        if self.asset_condition.requires_batching:
+            return "Asset AND conditions require batch_asset_events=True"
+        return None
+
+    def validate(self) -> None:
+        if not self.batch_asset_events and (reason := self.get_batching_requirement()):
+            raise AirflowTimetableInvalid(reason)
 
     def generate_run_id(
         self,
@@ -273,6 +304,13 @@ class AssetTriggeredTimetable(_TrivialTimetable):
 DEFAULT_PARTITION_MAPPER = IdentityMapper()
 
 
+def _coerce_partition_mapper_config(
+    config: dict[SerializedAssetBase, PartitionMapper] | None,
+) -> dict[SerializedAssetBase, PartitionMapper]:
+    return config or {}
+
+
+@attrs.define(eq=False, repr=False, kw_only=True, slots=False)
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
 
@@ -282,20 +320,27 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
     def summary(self) -> str:
         return "Partitioned Asset"
 
-    def __init__(
-        self,
-        *,
-        assets: SerializedAssetBase,
-        partition_mapper_config: dict[SerializedAssetBase, PartitionMapper] | None = None,
-        default_partition_mapper: PartitionMapper = DEFAULT_PARTITION_MAPPER,
-    ) -> None:
-        super().__init__(assets=assets)
-        self.partition_mapper_config = partition_mapper_config or {}
-        self.default_partition_mapper = default_partition_mapper
+    asset_condition: SerializedAssetBase = attrs.field(alias="assets", converter=_coerce_asset_condition)
+    partition_mapper_config: dict[SerializedAssetBase, PartitionMapper] = attrs.field(
+        factory=dict, converter=_coerce_partition_mapper_config
+    )
+    default_partition_mapper: PartitionMapper = DEFAULT_PARTITION_MAPPER
+    batch_asset_events: bool = attrs.field(
+        default=attrs.Factory(_get_default_batch_asset_events, takes_self=True)
+    )
+    _name_to_partition_mapper: dict[str, PartitionMapper] = attrs.field(factory=dict, init=False)
+    _uri_to_partition_mapper: dict[str, PartitionMapper] = attrs.field(factory=dict, init=False)
 
-        self._name_to_partition_mapper: dict[str, PartitionMapper] = {}
-        self._uri_to_partition_mapper: dict[str, PartitionMapper] = {}
+    def __attrs_post_init__(self) -> None:
         self._build_name_uri_mapping()
+
+    def get_batching_requirement(self) -> str | None:
+        if any(
+            mapper.is_rollup
+            for mapper in (self.default_partition_mapper, *self.partition_mapper_config.values())
+        ):
+            return "Partition rollups require batch_asset_events=True"
+        return super().get_batching_requirement()
 
     def _build_name_uri_mapping(self) -> None:
         for base_asset, partition_mapper in self.partition_mapper_config.items():
@@ -403,6 +448,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
 
         return {
             "asset_condition": encode_asset_like(self.asset_condition),
+            "batch_asset_events": self.batch_asset_events,
             "partition_mapper_config": [
                 (encode_asset_like(asset), encode_partition_mapper(partition_mapper))
                 for asset, partition_mapper in self.partition_mapper_config.items()
@@ -420,6 +466,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
 
         timetable = cls(
             assets=decode_asset_like(data["asset_condition"]),
+            batch_asset_events=data.get("batch_asset_events", True),
             default_partition_mapper=decode_partition_mapper(default_partition_mapper_data),
             partition_mapper_config={
                 decode_asset_like(ser_asest): decode_partition_mapper(ser_partition_mapper)

@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
     from pendulum import DateTime
 
+    from airflow.models.asset import AssetEvent
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.partition_mappers import PartitionMapper
@@ -227,6 +228,21 @@ class Timetable(Protocol):
 
     asset_condition: SerializedAssetBase = _NullAsset()
     """The asset condition that triggers a DAG using this timetable."""
+
+    batch_asset_events: bool = False
+    """Whether queued asset events are consumed together in one Dag run."""
+
+    def group_asset_events(
+        self, events: list[AssetEvent], triggered_date: DateTime
+    ) -> Iterable[tuple[DateTime, list[AssetEvent]]]:
+        """Yield a run time and its consumed events for each asset-triggered run."""
+        if not events:
+            return
+        if self.batch_asset_events:
+            yield triggered_date, events
+        else:
+            for event in events:
+                yield timezone.coerce_datetime(event.timestamp), [event]
 
     partitioned: bool = False
     """Whether this timetable considers asset partitions.

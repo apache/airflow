@@ -5116,6 +5116,7 @@ export class PartitionedDagRunService {
      * @param data The data for the request.
      * @param data.dagId
      * @param data.partitionKey
+     * @param data.partitionedDagRunId
      * @returns PartitionedDagRunDetailResponse Successful Response
      * @throws ApiError
      */
@@ -5127,7 +5128,8 @@ export class PartitionedDagRunService {
                 dag_id: data.dagId
             },
             query: {
-                partition_key: data.partitionKey
+                partition_key: data.partitionKey,
+                partitioned_dag_run_id: data.partitionedDagRunId
             },
             errors: {
                 404: 'Not Found',

@@ -5150,6 +5150,7 @@ export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
 
 export type GetPendingPartitionedDagRunData = {
     dagId: string;
+    partitionedDagRunId?: number | null;
     partitionKey: string;
 };
 

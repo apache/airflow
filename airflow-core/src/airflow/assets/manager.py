@@ -689,6 +689,7 @@ class AssetManager(LoggingMixin):
                     target_dag=target_dag,
                     rollup_fingerprint=fingerprint,
                     asset_id=asset_id,
+                    allow_reuse=timetable.batch_asset_events,
                     session=session,
                 )
                 log_record = PartitionedAssetKeyLog(
@@ -710,6 +711,7 @@ class AssetManager(LoggingMixin):
         target_dag: DagModel,
         rollup_fingerprint: dict,
         asset_id: int,
+        allow_reuse: bool,
         session: Session,
     ) -> AssetPartitionDagRun:
         """
@@ -738,17 +740,25 @@ class AssetManager(LoggingMixin):
           one, the producing assets disagree; picking one would be order-dependent, so the
           carried date is suppressed to ``None`` (and re-adoptable by a later event).
         - Otherwise (the dates agree, or this event carries none) the existing value is kept.
+
+        When ``allow_reuse=True``, an existing pending APDR for the same
+        ``(target_dag, partition_key)`` is reused — multiple events accumulate on one
+        APDR. When ``allow_reuse=False`` (set when the timetable's ``batch_asset_events``
+        is ``False``), a new APDR is always created so each event gets its own APDR
+        and the scheduler produces one DagRun per event.
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
-            latest_apdr: AssetPartitionDagRun | None = session.scalar(
-                select(AssetPartitionDagRun)
-                .where(
-                    AssetPartitionDagRun.partition_key == target_key,
-                    AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
+            latest_apdr: AssetPartitionDagRun | None = None
+            if allow_reuse:
+                latest_apdr = session.scalar(
+                    select(AssetPartitionDagRun)
+                    .where(
+                        AssetPartitionDagRun.partition_key == target_key,
+                        AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
+                    )
+                    .order_by(AssetPartitionDagRun.id.desc())
+                    .limit(1)
                 )
-                .order_by(AssetPartitionDagRun.id.desc())
-                .limit(1)
-            )
             if latest_apdr and latest_apdr.created_dag_run_id is None:
                 existing_partition_date = latest_apdr.partition_date
                 if existing_partition_date is None:

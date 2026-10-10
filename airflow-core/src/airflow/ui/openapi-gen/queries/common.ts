@@ -1045,10 +1045,11 @@ export const UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn = ({ dagId, h
 export type PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse = Awaited<ReturnType<typeof PartitionedDagRunService.getPendingPartitionedDagRun>>;
 export type PartitionedDagRunServiceGetPendingPartitionedDagRunQueryResult<TData = PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const usePartitionedDagRunServiceGetPendingPartitionedDagRunKey = "PartitionedDagRunServiceGetPendingPartitionedDagRun";
-export const UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn = ({ dagId, partitionKey }: {
+export const UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn = ({ dagId, partitionedDagRunId, partitionKey }: {
   dagId: string;
+  partitionedDagRunId?: number;
   partitionKey: string;
-}, queryKey?: Array<unknown>) => [usePartitionedDagRunServiceGetPendingPartitionedDagRunKey, ...(queryKey ?? [{ dagId, partitionKey }])];
+}, queryKey?: Array<unknown>) => [usePartitionedDagRunServiceGetPendingPartitionedDagRunKey, ...(queryKey ?? [{ dagId, partitionedDagRunId, partitionKey }])];
 export type DependenciesServiceGetDependenciesDefaultResponse = Awaited<ReturnType<typeof DependenciesService.getDependencies>>;
 export type DependenciesServiceGetDependenciesQueryResult<TData = DependenciesServiceGetDependenciesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDependenciesServiceGetDependenciesKey = "DependenciesServiceGetDependencies";

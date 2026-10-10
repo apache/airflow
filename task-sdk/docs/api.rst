@@ -208,6 +208,8 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.AssetOrTimeSchedule
 
+.. autoapiclass:: airflow.sdk.AssetTriggeredTimetable
+
 .. autoapiclass:: airflow.sdk.CronDataIntervalTimetable
 
 .. autoapiclass:: airflow.sdk.CronTriggerTimetable

@@ -55,6 +55,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
+from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_apdr,
@@ -439,6 +440,7 @@ class TestAssetManager:
                     target_dag=testing_dag,
                     rollup_fingerprint=rollup_fingerprint,
                     asset_id=asm.id,
+                    allow_reuse=True,
                     session=_session,
                 ).id
             finally:
@@ -477,6 +479,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            allow_reuse=True,
             session=session,
         )
         assert first.partition_date == timezone.parse("2026-05-20T00:00:00")
@@ -488,6 +491,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            allow_reuse=True,
             session=session,
         )
         assert second.id == first.id  # same pending APDR
@@ -508,6 +512,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            allow_reuse=True,
             session=session,
         )
         first = AssetManager._get_or_create_apdr(target_partition_date=source_date, **kwargs)
@@ -536,6 +541,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            allow_reuse=True,
             session=session,
         )
         # First event carries no date (e.g. producer had no partition_date).
@@ -562,6 +568,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            allow_reuse=True,
             session=session,
         )
         first = AssetManager._get_or_create_apdr(target_partition_date=date_1, **kwargs)
@@ -615,6 +622,36 @@ class TestAssetManager:
         # ...but the failed carry degraded to None instead of propagating.
         assert apdr.partition_date is None
         mock_log.exception.assert_called_once()
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize("allow_reuse", [True, False])
+    def test_get_or_create_apdr_allow_reuse(self, session, allow_reuse):
+        clear_db_apdr()
+        clear_db_pakl()
+        asset = AssetModel(uri="test://reuse/", name="reuse_asset", group="asset")
+        dag = DagModel(dag_id="reuse_test_dag", is_stale=False, bundle_name="testing")
+        session.add_all([asset, dag])
+        session.flush()
+
+        with capture_orm_selects("asset_partition_dag_run") as lookups:
+            apdrs = [
+                AssetManager._get_or_create_apdr(
+                    target_key="key-1",
+                    target_partition_date=None,
+                    target_dag=dag,
+                    rollup_fingerprint={},
+                    asset_id=asset.id,
+                    allow_reuse=allow_reuse,
+                    session=session,
+                )
+                for _ in range(2)
+            ]
+
+        assert len(lookups) == (2 if allow_reuse else 0)
+        expected_count = 1 if allow_reuse else 2
+        assert len({apdr.id for apdr in apdrs}) == expected_count
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == expected_count
+        assert all(apdr.created_dag_run_id is None for apdr in apdrs)
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.usefixtures("testing_dag_bundle")
