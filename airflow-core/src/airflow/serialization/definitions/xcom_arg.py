@@ -17,26 +17,45 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any
 
 import attrs
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, select, tuple_
 from sqlalchemy.orm import Session
 
 from airflow.models.referencemixin import ReferenceMixin
-from airflow.models.xcom import XCOM_RETURN_KEY
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import (
+    XCOM_RETURN_KEY,
+    XComModel,
+    build_xcom_read_query,
+    select_producers,
+    xcom_entity,
+)
+from airflow.serialization.definitions.mappedoperator import is_mapped
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 from airflow.utils.db import exists_query
 from airflow.utils.state import State
 
-__all__ = ["SchedulerXComArg", "deserialize_xcom_arg", "get_task_map_length"]
+__all__ = [
+    "SchedulerXComArg",
+    "deserialize_xcom_arg",
+    "get_task_map_length",
+    "prefetch_map_lengths",
+]
 
 if TYPE_CHECKING:
+    from sqlalchemy.sql.expression import Select
+
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.typing_compat import Self
+
+# Map length of each referenced task, keyed by ``(dag_id, task_id)``. A task whose
+# length is not known yet (upstream unfinished) is absent rather than mapped to None.
+MapLengths = Mapping[tuple[str, str], int]
 
 
 class SchedulerXComArg:
@@ -145,20 +164,104 @@ class SchedulerZipXComArg(SchedulerXComArg):
             yield from arg.iter_references()
 
 
+def _select_return_values(keys: Collection[tuple[str, str]], run_id: str) -> Select[tuple[XComModel]]:
+    """Read the return values pushed in ``run_id`` by the ``(dag_id, task_id)`` tasks in ``keys``."""
+    # Each XCom store renders the producer filter again, and SQLAlchemy cannot expand one
+    # tuple IN parameter twice, so the exact pairs are matched once on the combined rows.
+    producers = select_producers(
+        run_id=run_id,
+        dag_ids=sorted({dag_id for dag_id, _ in keys}),
+        task_ids=sorted({task_id for _, task_id in keys}),
+    )
+    read = build_xcom_read_query(producer_ids=producers, key=XCOM_RETURN_KEY)
+    entity = xcom_entity(read)
+    return read.where(tuple_(entity.dag_id, entity.task_id).in_(sorted(keys)))
+
+
+def prefetch_map_lengths(
+    xcom_args: Iterable[SchedulerXComArg], run_id: str, *, session: Session
+) -> dict[tuple[str, str], int]:
+    """
+    Resolve the map length of every task referenced by ``xcom_args`` in bulk.
+
+    Passing the result to :func:`get_task_map_length` as ``lengths`` keeps the number of
+    queries constant no matter how many arguments -- and how many tasks nested inside
+    ``zip()``/``concat()`` arguments -- have to be resolved.
+
+    Tasks whose length is not known yet are absent from the result, mirroring the
+    ``None`` that :func:`get_task_map_length` returns for them.
+    """
+    operators = {(op.dag_id, op.task_id): op for arg in xcom_args for op, _ in arg.iter_references()}
+    if not operators:
+        return {}
+    mapped = {key for key, op in operators.items() if is_mapped(op)}
+    unmapped = operators.keys() - mapped
+
+    lengths: dict[tuple[str, str], int] = {}
+    if unmapped:
+        # Not the argument keys: the SDK records the length of the whole return value,
+        # never per key. A NULL length means the value cannot expand anything, which is
+        # as unresolved as a missing row.
+        read = _select_return_values(unmapped, run_id)
+        entity = xcom_entity(read)
+        rows = session.execute(
+            read.where(entity.map_index == -1).with_only_columns(
+                entity.dag_id, entity.task_id, entity.mapped_length
+            )
+        )
+        lengths.update(((dag_id, task_id), length) for dag_id, task_id, length in rows if length is not None)
+    if mapped:
+        unfinished = set(
+            session.execute(
+                select(TaskInstance.dag_id, TaskInstance.task_id)
+                .where(
+                    TaskInstance.run_id == run_id,
+                    tuple_(TaskInstance.dag_id, TaskInstance.task_id).in_(sorted(mapped)),
+                    # Special NULL treatment is needed because 'state' can be NULL.
+                    # The "IN" part would produce "NULL NOT IN ..." and eventually
+                    # "NULl = NULL", which is a big no-no in SQL.
+                    or_(
+                        TaskInstance.state.is_(None),
+                        TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
+                    ),
+                )
+                .distinct()
+            )
+        )
+        if finished := mapped - unfinished:
+            read = _select_return_values(finished, run_id)
+            entity = xcom_entity(read)
+            counts = {
+                (dag_id, task_id): count
+                for dag_id, task_id, count in session.execute(
+                    read.where(entity.map_index >= 0)
+                    .with_only_columns(entity.dag_id, entity.task_id, func.count(entity.map_index))
+                    .group_by(entity.dag_id, entity.task_id)
+                )
+            }
+            # A finished mapped task that pushed nothing has no row to group, but its
+            # length is a known zero rather than an unresolved value.
+            lengths.update((key, counts.get(key, 0)) for key in finished)
+    return lengths
+
+
 @singledispatch
-def get_task_map_length(xcom_arg: SchedulerXComArg, run_id: str, *, session: Session) -> int | None:
+def get_task_map_length(
+    xcom_arg: SchedulerXComArg, run_id: str, *, lengths: MapLengths | None = None, session: Session
+) -> int | None:
     # The base implementation -- specific XComArg subclasses have specialised implementations
     raise NotImplementedError(f"get_task_map_length not implemented for {type(xcom_arg)}")
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int | None:
-    from airflow.models.taskinstance import TaskInstance
-    from airflow.models.xcom import XComModel, xcom_entity
-    from airflow.serialization.definitions.mappedoperator import is_mapped
-
+def _(
+    xcom_arg: SchedulerPlainXComArg, run_id: str, *, lengths: MapLengths | None = None, session: Session
+) -> int | None:
     dag_id = xcom_arg.operator.dag_id
     task_id = xcom_arg.operator.task_id
+
+    if lengths is not None:
+        return lengths.get((dag_id, task_id))
 
     if is_mapped(xcom_arg.operator):
         unfinished_ti_exists = exists_query(
@@ -191,13 +294,19 @@ def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int 
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerMapXComArg, run_id: str, *, session: Session) -> int | None:
-    return get_task_map_length(xcom_arg.arg, run_id, session=session)
+def _(
+    xcom_arg: SchedulerMapXComArg, run_id: str, *, lengths: MapLengths | None = None, session: Session
+) -> int | None:
+    return get_task_map_length(xcom_arg.arg, run_id, lengths=lengths, session=session)
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerZipXComArg, run_id: str, *, session: Session) -> int | None:
-    all_lengths = (get_task_map_length(arg, run_id, session=session) for arg in xcom_arg.args)
+def _(
+    xcom_arg: SchedulerZipXComArg, run_id: str, *, lengths: MapLengths | None = None, session: Session
+) -> int | None:
+    all_lengths = (
+        get_task_map_length(arg, run_id, lengths=lengths, session=session) for arg in xcom_arg.args
+    )
     ready_lengths = [length for length in all_lengths if length is not None]
     if len(ready_lengths) != len(xcom_arg.args):
         return None  # If any of the referenced XComs is not ready, we are not ready either.
@@ -207,8 +316,12 @@ def _(xcom_arg: SchedulerZipXComArg, run_id: str, *, session: Session) -> int | 
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session) -> int | None:
-    all_lengths = (get_task_map_length(arg, run_id, session=session) for arg in xcom_arg.args)
+def _(
+    xcom_arg: SchedulerConcatXComArg, run_id: str, *, lengths: MapLengths | None = None, session: Session
+) -> int | None:
+    all_lengths = (
+        get_task_map_length(arg, run_id, lengths=lengths, session=session) for arg in xcom_arg.args
+    )
     ready_lengths = [length for length in all_lengths if length is not None]
     if len(ready_lengths) != len(xcom_arg.args):
         return None  # If any of the referenced XComs is not ready, we are not ready either.
