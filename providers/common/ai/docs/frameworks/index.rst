@@ -64,6 +64,12 @@ is Airflow's and which part stays yours.
        ADK agent the same tools, with the same masking. Guide: :doc:`adk`.
      - You
      - ``google-adk``
+   * - Claude Agent SDK
+     - :class:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools` gives the
+       SDK's agent loop the same tools through an in-process MCP server, and makes a tool
+       failure the model cannot fix fail the task. Guide: :doc:`claude_agent_sdk`.
+     - You
+     - ``[claude-agent-sdk]`` extra
    * - LangChain
      - :class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook` returns chat
        and embedding models configured from a connection, and
@@ -80,9 +86,9 @@ is Airflow's and which part stays yours.
      - No agent
      - ``[llamaindex]`` extra
 
-The Strands and ADK integrations, the framework-neutral tool interface under them, and
-the tracing helper are experimental: they can change or be removed in a minor release of
-this provider. See :ref:`howto/stability`.
+The Strands, ADK and Claude Agent SDK integrations, the framework-neutral tool interface
+under them, and the tracing helper are experimental: they can change or be removed in a
+minor release of this provider. See :ref:`howto/stability`.
 
 Tested versions
 ---------------
@@ -102,10 +108,14 @@ Tested versions
      - 2.9.1
      - Pins OpenTelemetry at 1.42.1 or lower, below the version in Airflow's constraints
        file. Airflow itself accepts 1.42.1.
+   * - Claude Agent SDK
+     - 0.2.163
+     - Bundles the Claude Code CLI as the subprocess the SDK talks to.
 
-These are the versions the adapter tests have been run against. CI does not run those
-tests: its environment has ``mcp`` 2.2 and OpenTelemetry 1.44, which Strands and ADK
-exclude. They run in an environment with the framework installed.
+These are the versions the adapter tests have been run against. CI does not run the
+Strands and ADK adapter tests: its environment has ``mcp`` 2.2 and OpenTelemetry 1.44,
+which both frameworks exclude. They run in an environment with the framework installed.
+The Claude Agent SDK adapter has no such conflict, so CI runs its tests.
 
 Choosing a route
 ----------------
@@ -118,6 +128,8 @@ Start from the agent you already have:
   ``AirflowTools`` plugin. See :doc:`strands`.
 - **An existing ADK agent**: keep it, and add Airflow's toolsets with the ADK
   ``AirflowTools`` toolset. See :doc:`adk`.
+- **A loop written on the Claude Agent SDK**: keep it, and hand it Airflow's toolsets with
+  ``AirflowTools``. See :doc:`claude_agent_sdk`.
 - **An existing LangChain agent**: build its model with ``LangChainHook`` and add
   Airflow's toolsets with ``airflow_toolset_to_langchain_tools``.
 - **No agent yet, or no preference**: use ``AgentOperator`` or ``@task.agent``. That route
@@ -135,7 +147,7 @@ Airflow also depends on, such as OpenTelemetry or a vendor SDK.
 
 To give such a framework Airflow's toolsets rather than hand-written tools, build on
 the framework-neutral interface in :mod:`airflow.providers.common.ai.tools`, which is
-what the Strands and ADK integrations are written against:
+what the Strands, ADK and Claude Agent SDK integrations are written against:
 
 - :class:`~airflow.providers.common.ai.tools.AirflowTool` is one operation: a name, a
   description, a JSON Schema for its arguments and an async function. Call it through
@@ -155,7 +167,7 @@ what the Strands and ADK integrations are written against:
 An adapter maps these onto the framework's own tool type and error status, and makes
 sure a ``ToolCallError`` ends the run rather than reaching the model, as the Strands
 plugin does. :func:`~airflow.providers.common.ai.tools.collect_tools` turns the toolsets and
-tools an adapter is given into one list, as the Strands and ADK adapters do.
+tools an adapter is given into one list, as the Strands, ADK and Claude Agent SDK adapters do.
 
 Blocking hook calls, such as a SQL query, run one at a time in the task's process, so an
 agent that calls two database tools at once gets its answers one after the other.
@@ -172,3 +184,4 @@ on; see :doc:`../observability`.
     Pydantic AI <pydantic_ai>
     Strands Agents <strands>
     Google ADK <adk>
+    Claude Agent SDK <claude_agent_sdk>
