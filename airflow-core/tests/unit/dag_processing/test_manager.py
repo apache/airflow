@@ -832,6 +832,70 @@ class TestDagFileProcessorManager:
 
         assert manager._processors == {}
 
+    def test_terminate_orphan_processes_keeps_processor_for_zipped_dag_when_archive_is_present(self):
+        """A callback processor for a Dag inside a zip must survive a bundle refresh (GH #73858)."""
+        manager = DagFileProcessorManager(max_runs=1)
+        inner_file = DagFileInfo(
+            bundle_name="testing", rel_path=Path("my_dags.zip/my_dag.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        archive_file = DagFileInfo(
+            bundle_name="testing", rel_path=Path("my_dags.zip"), bundle_path=TEST_DAGS_FOLDER
+        )
+        processor = MagicMock()
+
+        manager._processors[inner_file] = processor
+
+        manager.terminate_orphan_processes(present={archive_file})
+
+        assert manager._processors == {inner_file: processor}
+        processor.kill.assert_not_called()
+
+    def test_terminate_orphan_processes_kills_processor_for_zipped_dag_when_archive_is_absent(self):
+        """The zip-aware presence check must still kill processors whose archive is really gone."""
+        manager = DagFileProcessorManager(max_runs=1)
+        inner_file = DagFileInfo(
+            bundle_name="testing", rel_path=Path("my_dags.zip/my_dag.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        processor = MagicMock()
+
+        manager._processors[inner_file] = processor
+
+        with mock.patch("airflow.dag_processing.manager.stats.decr"):
+            manager.terminate_orphan_processes(present=set())
+
+        assert manager._processors == {}
+        processor.kill.assert_called_once_with(signal.SIGKILL)
+
+    def test_purge_removed_files_keeps_zipped_dag_in_queue_when_archive_is_present(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        inner_file = DagFileInfo(
+            bundle_name="testing", rel_path=Path("my_dags.zip/my_dag.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        archive_file = DagFileInfo(
+            bundle_name="testing", rel_path=Path("my_dags.zip"), bundle_path=TEST_DAGS_FOLDER
+        )
+
+        manager._file_queue = OrderedDict.fromkeys([inner_file])
+
+        manager.purge_removed_files_from_queue(present={archive_file})
+
+        assert manager._file_queue == OrderedDict.fromkeys([inner_file])
+
+    def test_remove_orphaned_file_stats_keeps_zipped_dag_stats_when_archive_is_present(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        inner_file = DagFileInfo(
+            bundle_name="testing", rel_path=Path("my_dags.zip/my_dag.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        archive_file = DagFileInfo(
+            bundle_name="testing", rel_path=Path("my_dags.zip"), bundle_path=TEST_DAGS_FOLDER
+        )
+
+        manager._file_stats[inner_file] = DagFileStat()
+
+        manager.remove_orphaned_file_stats(present={archive_file})
+
+        assert manager._file_stats == {inner_file: DagFileStat()}
+
     def test_remove_orphaned_file_stats_keeps_versioned_callback_stats_when_unversioned_file_is_present(self):
         manager = DagFileProcessorManager(max_runs=1)
         versioned_file = _get_versioned_file_info("callbacks.py")
