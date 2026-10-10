@@ -59,7 +59,8 @@ vi.mock("openapi/queries", () => ({
   })),
 }));
 
-const getItems = (container: HTMLElement) => container.querySelectorAll(".chakra-select__item");
+// Select.Content is portalled to document.body, outside the render container.
+const getItems = () => document.body.querySelectorAll(".chakra-select__item");
 
 describe("RecentConfigSelect", () => {
   it("renders one item per distinct non-empty conf", () => {
@@ -70,11 +71,9 @@ describe("RecentConfigSelect", () => {
       ],
     };
 
-    const { container } = render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, {
-      wrapper: Wrapper,
-    });
+    render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
 
-    expect(getItems(container)).toHaveLength(2);
+    expect(getItems()).toHaveLength(2);
   });
 
   it("dedups identical confs", () => {
@@ -85,11 +84,9 @@ describe("RecentConfigSelect", () => {
       ],
     };
 
-    const { container } = render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, {
-      wrapper: Wrapper,
-    });
+    render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
 
-    expect(getItems(container)).toHaveLength(1);
+    expect(getItems()).toHaveLength(1);
   });
 
   it("excludes null/empty conf runs and renders nothing when none remain", () => {
@@ -115,11 +112,9 @@ describe("RecentConfigSelect", () => {
       ),
     };
 
-    const { container } = render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, {
-      wrapper: Wrapper,
-    });
+    render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
 
-    expect(getItems(container)).toHaveLength(8);
+    expect(getItems()).toHaveLength(8);
   });
 
   it("calls onSelectConf with the selected run's conf", async () => {

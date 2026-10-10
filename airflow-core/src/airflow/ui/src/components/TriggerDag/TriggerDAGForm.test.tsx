@@ -291,7 +291,6 @@ describe("TriggerDAGForm", () => {
   it("prefills the form when a recent configuration is selected from the dropdown", async () => {
     const { container } = render(
       <TriggerDAGForm
-        dagDisplayName="Params Trigger UI"
         dagId="example_params_trigger_ui"
         error={undefined}
         hasSchedule={false}
@@ -331,7 +330,6 @@ describe("TriggerDAGForm", () => {
   it("keeps user-entered run id and note when a recent configuration is selected", async () => {
     const { container } = render(
       <TriggerDAGForm
-        dagDisplayName="Params Trigger UI"
         dagId="example_params_trigger_ui"
         error={undefined}
         hasSchedule={false}
@@ -345,7 +343,6 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(screen.getByText("Advanced Options"));
     const runIdInput = await screen.findByLabelText("runId");
 
     fireEvent.change(runIdInput, { target: { value: "my_custom_run" } });
@@ -367,7 +364,6 @@ describe("TriggerDAGForm", () => {
   it("hides the recent configuration dropdown when re-triggering with a prior run's config", async () => {
     const { container } = render(
       <TriggerDAGForm
-        dagDisplayName="Params Trigger UI"
         dagId="example_params_trigger_ui"
         error={undefined}
         hasSchedule={false}
