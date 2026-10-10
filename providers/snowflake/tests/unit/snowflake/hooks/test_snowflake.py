@@ -36,6 +36,8 @@ from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, timezone
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
+from tests_common.test_utils.config import conf_vars
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -1258,6 +1260,29 @@ class TestPytestSnowflakeHook:
             }
         )
         assert result is None
+
+    @pytest.mark.parametrize(("config_value", "expected"), [("True", True), ("False", False)])
+    @mock.patch("airflow.providers.snowflake.utils.openlineage.emit_openlineage_events_for_snowflake_queries")
+    def test_get_openlineage_database_specific_lineage_query_for_extra_metadata_config(
+        self, mock_emit, config_value, expected
+    ):
+        hook = SnowflakeHook(snowflake_conn_id="test_conn")
+        hook.query_ids = ["query1", "query2"]
+        hook.get_connection = mock.MagicMock()
+        hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+
+        ti = mock.MagicMock()
+
+        with conf_vars({("snowflake", "openlineage_query_for_extra_metadata"): config_value}):
+            hook.get_openlineage_database_specific_lineage(ti)
+
+        mock_emit.assert_called_once_with(
+            hook=hook,
+            query_ids=["query1", "query2"],
+            query_source_namespace="scheme://auth",
+            task_instance=ti,
+            query_for_extra_metadata=expected,
+        )
 
     @mock.patch("importlib.metadata.version", return_value="1.99.0")
     def test_get_openlineage_database_specific_lineage_with_old_openlineage_provider(self, mock_version):

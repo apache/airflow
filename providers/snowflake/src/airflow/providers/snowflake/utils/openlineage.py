@@ -35,6 +35,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Maximum value allowed by Snowflake; the END_TIME_RANGE_START filter keeps the number of scanned rows small
+_QUERY_HISTORY_RESULT_LIMIT = 10000
+
 
 def fix_account_name(name: str) -> str:
     """Fix account name to have the following format: <account_id>.<region>.<cloud>."""
@@ -189,22 +192,35 @@ def _process_data_from_api(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _get_queries_details_from_snowflake(
-    hook: SnowflakeHook | SnowflakeSqlApiHook, query_ids: list[str]
+    hook: SnowflakeHook | SnowflakeSqlApiHook,
+    query_ids: list[str],
+    start_time: datetime.datetime | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Retrieve execution details for specific queries from Snowflake's query history."""
+    """
+    Retrieve execution details for specific queries from Snowflake's query history.
+
+    If `start_time` is given, only queries that finished after it are looked up.
+    """
     if not query_ids:
         return {}
     query_condition = f"IN {tuple(query_ids)}" if len(query_ids) > 1 else f"= '{query_ids[0]}'"
     # https://docs.snowflake.com/en/sql-reference/account-usage#differences-between-account-usage-and-information-schema
     # INFORMATION_SCHEMA.QUERY_HISTORY has no latency, so it's better than ACCOUNT_USAGE.QUERY_HISTORY
     # https://docs.snowflake.com/en/sql-reference/functions/query_history
-    # SNOWFLAKE.INFORMATION_SCHEMA.QUERY_HISTORY() function seems the most suitable function for the job,
-    # we get history of queries executed by the user, and we're using the same credentials.
+    # QUERY_HISTORY_BY_USER() only scans queries of the current user (we're using the same credentials),
+    # while QUERY_HISTORY() applies RESULT_LIMIT (100 by default) to all queries visible to the role
+    # before our WHERE filter, so for roles with wide visibility it can miss queries that just ran.
+    history_args = f"RESULT_LIMIT => {_QUERY_HISTORY_RESULT_LIMIT}"
+    if start_time:
+        # Epoch seconds do not depend on the session's TIMESTAMP_INPUT_FORMAT or timezone
+        history_args = (
+            f"END_TIME_RANGE_START => TO_TIMESTAMP_LTZ({int(start_time.timestamp())}), {history_args}"
+        )
     query = (
         "SELECT "
         "QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
         "FROM "
-        "table(snowflake.information_schema.query_history()) "
+        f"table(snowflake.information_schema.query_history_by_user({history_args})) "
         f"WHERE "
         f"QUERY_ID {query_condition}"
         f";"
@@ -337,7 +353,9 @@ def emit_openlineage_events_for_snowflake_queries(
 
     if query_for_extra_metadata and hook:
         log.debug("Retrieving metadata for %s queries from Snowflake.", len(query_ids))
-        snowflake_metadata = _get_queries_details_from_snowflake(hook, query_ids)
+        snowflake_metadata = _get_queries_details_from_snowflake(
+            hook, query_ids, start_time=getattr(task_instance, "start_date", None)
+        )
     else:
         log.debug("`query_for_extra_metadata` is False. No extra metadata fill be fetched from Snowflake.")
         snowflake_metadata = {}
