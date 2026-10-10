@@ -253,7 +253,10 @@ private fun buildDag(case: JsonNode): DagDef {
 
   case.path("order_edges").forEach { edge ->
     val node = { id: String -> groups[id] as Deps.Flow? ?: tasks.getValue(id) }
-    node(edge[0].asText()).before(node(edge[1].asText()))
+    val downstream = node(edge[1].asText())
+    // A third item is the label of the edge.
+    val labeled = if (edge.size() > 2) Deps.Flow.label(downstream, edge[2].asText()) else downstream
+    node(edge[0].asText()).before(labeled)
   }
   return dag
 }
