@@ -302,6 +302,21 @@ class ConnectionFormWidgetInfo(NamedTuple):
     is_sensitive: bool
 
 
+def _is_sensitive_form_field(field: Any) -> bool:
+    """
+    Return whether a connection form field holds a secret.
+
+    A field counts as sensitive if it renders as a password input *or* if it is a
+    ``PasswordField``. The field class alone is authoritative: a provider that declares
+    ``PasswordField`` has stated the value is a secret, and pairing it with a plain text
+    widget is a mistake in the provider rather than a decision to expose the value.
+    """
+    widget = getattr(field.field_class, "widget", None)
+    if getattr(widget, "input_type", None) == "password":
+        return True
+    return any(base.__name__ == "PasswordField" for base in field.field_class.__mro__)
+
+
 def log_optional_feature_disabled(class_name, e, provider_package):
     """Log optional feature disabled."""
     log.debug(
@@ -1213,8 +1228,7 @@ class ProvidersManager(LoggingMixin):
                     package_name,
                     field,
                     field_identifier,
-                    hasattr(field.field_class.widget, "input_type")
-                    and field.field_class.widget.input_type == "password",
+                    _is_sensitive_form_field(field),
                 )
 
     def _add_customized_fields_from_hook(self, package_name: str, hook_class: type, customized_fields: dict):
