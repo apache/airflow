@@ -76,7 +76,7 @@ def _resolve_and_migrate(raw: dict[str, Any], *, source: str) -> dict[str, Any]:
         raise YamlDagParseError(f"{source}: missing required key '$schema'")
     schema = raw["$schema"]
     if isinstance(schema, datetime.date):  # Smartly treat an unquoted date as version.
-        raw = {**raw, "$schema": migrator.schema_url(schema.strftime(r"%Y-%m-%d"))}
+        raw = {**raw, "$schema": migrator.schema_from_version(schema.strftime(r"%Y-%m-%d"))}
     elif not isinstance(schema, str) or not schema:
         raise YamlDagParseError(f"{source}: '$schema' must be a non-empty string or a date, got {schema!r}")
     try:

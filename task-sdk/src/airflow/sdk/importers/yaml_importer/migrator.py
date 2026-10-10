@@ -44,18 +44,19 @@ if TYPE_CHECKING:
     from cadwyn import VersionBundle
 
 _SCHEMA_URL = "https://airflow.apache.org/schemas/dag/{date}.json"
-_VERSION_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+# The canonical ``$schema`` URL with the version captured; keep in sync with ``_SCHEMA_URL``.
+_SCHEMA_URL_RE = re.compile(r"https://airflow\.apache\.org/schemas/dag/(\d{4}-\d{2}-\d{2})\.json")
 
 
-def schema_url(date: str) -> str:
+def schema_from_version(date: str) -> str:
     """Build the canonical ``$schema`` URL for a published version *date*."""
     return _SCHEMA_URL.format(date=date)
 
 
 def version_from_schema(schema: str) -> str | None:
-    """Read the version (``YYYY-MM-DD``) token out of a ``$schema`` URL, ignoring the host."""
-    match = _VERSION_RE.search(schema or "")
-    return match.group(0) if match else None
+    """Read the version (``YYYY-MM-DD``) out of a canonical ``$schema`` URL, or ``None``."""
+    match = _SCHEMA_URL_RE.fullmatch(schema)
+    return match.group(1) if match else None
 
 
 @attrs.define

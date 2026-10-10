@@ -31,7 +31,7 @@ from cadwyn import (
 from airflow.sdk.importers.yaml_importer import migrator
 from airflow.sdk.importers.yaml_importer.models import DagDocument, Task
 
-HEAD_SCHEMA = migrator.schema_url("2026-10-30")
+HEAD_SCHEMA = migrator.schema_from_version("2026-10-30")
 
 
 class _RenameOwnerAttr(VersionChange):
@@ -50,8 +50,22 @@ _SYNTH_BUNDLE = VersionBundle(HeadVersion(), Version("2027-06-01", _RenameOwnerA
 
 
 def _migrate(m, date, **extra):
-    body = {"$schema": migrator.schema_url(date), "dag_id": "d", "tasks": [], **extra}
+    body = {"$schema": migrator.schema_from_version(date), "dag_id": "d", "tasks": [], **extra}
     return m.resolve_and_migrate(body)
+
+
+@pytest.mark.parametrize(
+    ("schema", "expected"),
+    [
+        pytest.param(migrator.schema_from_version("2026-10-30"), "2026-10-30", id="canonical-url"),
+        pytest.param("2026-10-30", None, id="bare-date"),
+        pytest.param("garbage-2026-10-30.json", None, id="date-in-junk"),
+        pytest.param("https://mirror.example/schemas/dag/2026-10-30.json", None, id="wrong-host"),
+        pytest.param("", None, id="empty"),
+    ],
+)
+def test_version_from_schema_requires_canonical_url(schema, expected):
+    assert migrator.version_from_schema(schema) == expected
 
 
 def test_exact_version_pin_migrates_from_that_version():
@@ -67,9 +81,9 @@ def test_exact_version_pin_migrates_from_that_version():
 @pytest.mark.parametrize(
     "schema_value",
     [
-        pytest.param(migrator.schema_url("2099-01-01"), id="newer-than-head"),
-        pytest.param(migrator.schema_url("2020-01-01"), id="older-than-oldest"),
-        pytest.param(migrator.schema_url("2027-03-01"), id="between-versions"),
+        pytest.param(migrator.schema_from_version("2099-01-01"), id="newer-than-head"),
+        pytest.param(migrator.schema_from_version("2020-01-01"), id="older-than-oldest"),
+        pytest.param(migrator.schema_from_version("2027-03-01"), id="between-versions"),
         pytest.param("not-a-version", id="no-version-token"),
     ],
 )
@@ -157,7 +171,7 @@ def test_migration_from_middle_version_skips_its_own_converter():
     # Pinning the middle version applies only the newer converter; the pinned
     # version's own converter is skipped.
     m = migrator.DagDocumentMigrator(_THREE_VERSIONS)
-    body = {"$schema": migrator.schema_url("2027-01-01"), "dag_id": "d", "tasks": []}
+    body = {"$schema": migrator.schema_from_version("2027-01-01"), "dag_id": "d", "tasks": []}
     out = m.resolve_and_migrate(body)
     assert out["trail"] == "+v3"
     assert "trail" not in body  # the input body is not mutated
@@ -165,5 +179,7 @@ def test_migration_from_middle_version_skips_its_own_converter():
 
 def test_migration_from_oldest_runs_every_newer_converter():
     m = migrator.DagDocumentMigrator(_THREE_VERSIONS)
-    out = m.resolve_and_migrate({"$schema": migrator.schema_url("2026-10-30"), "dag_id": "d", "tasks": []})
+    out = m.resolve_and_migrate(
+        {"$schema": migrator.schema_from_version("2026-10-30"), "dag_id": "d", "tasks": []}
+    )
     assert out["trail"] == "+v2+v3"  # oldest -> both converters, oldest-to-newest
