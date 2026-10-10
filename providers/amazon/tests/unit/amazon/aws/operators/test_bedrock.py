@@ -560,6 +560,43 @@ class TestBedrockCreateProvisionedModelThroughputOperator:
 class TestBedrockCreateKnowledgeBaseOperator:
     KNOWLEDGE_BASE_ID = "knowledge_base_id"
 
+    # Knowledge base types that do not use a top-level storageConfiguration.
+    NON_VECTOR_KNOWLEDGE_BASE_CONFIGS = [
+        pytest.param(
+            {"type": "MANAGED", "managedKnowledgeBaseConfiguration": {"embeddingModelType": "MANAGED"}},
+            id="managed",
+        ),
+        pytest.param(
+            {
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {
+                    "embeddingModelType": "CUSTOM",
+                    "embeddingModelArn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v1",
+                },
+            },
+            id="managed_custom_model",
+        ),
+        pytest.param(
+            {"type": "KENDRA", "kendraKnowledgeBaseConfiguration": {"kendraIndexArn": "kendra-index-arn"}},
+            id="kendra",
+        ),
+        pytest.param(
+            {
+                "type": "SQL",
+                "sqlKnowledgeBaseConfiguration": {
+                    "type": "REDSHIFT",
+                    "redshiftConfiguration": {
+                        "queryEngineConfiguration": {"type": "SERVERLESS"},
+                        "storageConfigurations": [
+                            {"type": "REDSHIFT", "redshiftConfiguration": {"databaseName": "dev"}}
+                        ],
+                    },
+                },
+            },
+            id="sql",
+        ),
+    ]
+
     @pytest.fixture
     def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
         with mock.patch.object(BedrockAgentHook, "conn") as _conn:
@@ -639,6 +676,106 @@ class TestBedrockCreateKnowledgeBaseOperator:
                 "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": rendered_arn},
             },
             storageConfiguration=self.operator.storage_config,
+        )
+
+    @pytest.mark.parametrize("knowledge_base_config", NON_VECTOR_KNOWLEDGE_BASE_CONFIGS)
+    def test_knowledge_base_config_uses_rendered_knowledge_base_config(
+        self, knowledge_base_config, mock_conn
+    ):
+        """knowledge_base_config is read at execute() time and sent as-is, without storageConfiguration."""
+        self.operator.wait_for_completion = False
+        self.operator.embedding_model_arn = None
+        self.operator.storage_config = None
+        self.operator.knowledge_base_config = knowledge_base_config
+
+        self.operator.execute({})
+
+        mock_conn.create_knowledge_base.assert_called_once_with(
+            name=self.KNOWLEDGE_BASE_ID,
+            roleArn="role-arn",
+            knowledgeBaseConfiguration=knowledge_base_config,
+        )
+
+    @pytest.mark.parametrize(
+        ("knowledge_base_config", "embedding_model_arn", "match"),
+        [
+            pytest.param(
+                {"type": "MANAGED", "managedKnowledgeBaseConfiguration": {"embeddingModelType": "MANAGED"}},
+                "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v1",
+                "not both",
+                id="both_knowledge_base_config_and_embedding_model_arn",
+            ),
+            pytest.param(
+                None, None, "must be provided", id="neither_knowledge_base_config_nor_embedding_model_arn"
+            ),
+        ],
+    )
+    def test_create_knowledge_base_config_invalid_cases(
+        self, knowledge_base_config, embedding_model_arn, match
+    ):
+        """knowledge_base_config and embedding_model_arn are mutually exclusive, and one is required."""
+        with pytest.raises(ValueError, match=match):
+            BedrockCreateKnowledgeBaseOperator(
+                task_id="create_knowledge_base",
+                name=self.KNOWLEDGE_BASE_ID,
+                role_arn="role-arn",
+                knowledge_base_config=knowledge_base_config,
+                embedding_model_arn=embedding_model_arn,
+            )
+
+    @pytest.mark.parametrize("knowledge_base_config", NON_VECTOR_KNOWLEDGE_BASE_CONFIGS)
+    @mock.patch("airflow.providers.amazon.aws.operators.bedrock.sleep")
+    def test_knowledge_base_config_no_wait_for_indexing_without_storage_config(
+        self, mock_sleep, knowledge_base_config, mock_conn
+    ):
+        """The vector index retry loop is skipped when no storage_config is provided."""
+        self.operator.wait_for_completion = False
+        self.operator.embedding_model_arn = None
+        self.operator.storage_config = None
+        self.operator.knowledge_base_config = knowledge_base_config
+        mock_conn.create_knowledge_base.side_effect = self._create_validation_error("no such index")
+
+        with pytest.raises(ClientError):
+            self.operator.execute({})
+        mock_conn.create_knowledge_base.assert_called_once()
+        mock_sleep.assert_not_called()
+
+    @pytest.mark.parametrize("key", ["name", "roleArn", "knowledgeBaseConfiguration", "storageConfiguration"])
+    def test_create_knowledge_base_kwargs_reject_dedicated_keys(self, key, mock_conn):
+        """Keys covered by a dedicated parameter cannot be set through create_knowledge_base_kwargs."""
+        self.operator.create_knowledge_base_kwargs = {key: "value"}
+
+        with pytest.raises(ValueError, match=key):
+            self.operator.execute({})
+        mock_conn.create_knowledge_base.assert_not_called()
+
+    def test_create_knowledge_base_kwargs_are_passed_through(self, mock_conn):
+        """Additional API parameters provided through create_knowledge_base_kwargs are sent to the API."""
+        self.operator.wait_for_completion = False
+        self.operator.create_knowledge_base_kwargs = {"description": "my knowledge base"}
+
+        self.operator.execute({})
+
+        mock_conn.create_knowledge_base.assert_called_once()
+        assert mock_conn.create_knowledge_base.call_args.kwargs["description"] == "my knowledge base"
+
+    @pytest.mark.parametrize("knowledge_base_config", NON_VECTOR_KNOWLEDGE_BASE_CONFIGS)
+    def test_create_knowledge_base_with_knowledge_base_config_only(self, knowledge_base_config, mock_conn):
+        """An operator built with knowledge_base_config only is accepted and sends it as-is."""
+        operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_knowledge_base",
+            name=self.KNOWLEDGE_BASE_ID,
+            role_arn="role-arn",
+            knowledge_base_config=knowledge_base_config,
+            wait_for_completion=False,
+        )
+
+        operator.execute({})
+
+        mock_conn.create_knowledge_base.assert_called_once_with(
+            name=self.KNOWLEDGE_BASE_ID,
+            roleArn="role-arn",
+            knowledgeBaseConfiguration=knowledge_base_config,
         )
 
     def test_template_fields(self):
