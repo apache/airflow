@@ -82,7 +82,10 @@ class AsyncAwareExecutor(Executor):
             # process CancelledError and release resources (e.g., threading
             # locks). Without waiting, cancelled tasks that hold _thread_lock
             # never execute their finally blocks, permanently leaking the lock
-            # and causing subsequent comms.send() calls to deadlock.
+            # and causing subsequent comms.send() calls to deadlock. A task
+            # cancelled while still waiting for that lock is CommsDecoder's
+            # concern: its acquire goes on in a thread, and asend releases what
+            # that thread takes after the wait was abandoned.
             self.shutdown(wait=True, cancel_futures=True)
         else:
             self.shutdown(wait=True)

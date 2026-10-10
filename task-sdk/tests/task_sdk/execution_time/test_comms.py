@@ -247,6 +247,45 @@ class TestCommsDecoder:
             holder.join(timeout=2)
 
     @pytest.mark.asyncio
+    async def test_asend_cancelled_while_waiting_for_the_thread_lock_leaves_it_free(self, socket_pair):
+        """
+        asend() waits for _thread_lock in a worker thread. Cancelling that wait (the executor shutting
+        down after a failure) cancels the future, not the thread: once the holder lets go, the thread
+        acquires, and the lock must not stay taken with nobody to release it.
+        """
+        r, _ = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+
+        lock_held = threading.Event()
+        lock_release = threading.Event()
+
+        def _hold_lock():
+            decoder._thread_lock.acquire()
+            lock_held.set()
+            lock_release.wait()
+            decoder._thread_lock.release()
+
+        holder = threading.Thread(target=_hold_lock, daemon=True)
+        holder.start()
+        assert lock_held.wait(timeout=2), "Background thread never acquired _thread_lock"
+
+        parked = asyncio.ensure_future(decoder.asend(GetVariable(key="parked")))
+        await asyncio.sleep(0.05)
+        parked.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await parked
+
+        lock_release.set()
+        holder.join(timeout=2)
+        for _ in range(200):
+            if decoder._thread_lock.acquire(blocking=False):
+                decoder._thread_lock.release()
+                break
+            await asyncio.sleep(0.01)
+        else:
+            pytest.fail("_thread_lock stayed taken after the cancelled asend()")
+
+    @pytest.mark.asyncio
     async def test_send_from_event_loop_succeeds_when_lock_free(self, socket_pair):
         """
         send() called from the event loop thread when no asend() is currently
