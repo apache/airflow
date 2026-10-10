@@ -20,6 +20,7 @@ import contextlib
 from io import StringIO
 from unittest import mock
 
+import boto3
 import pytest
 import time_machine
 
@@ -152,3 +153,19 @@ class TestGetEksToken:
 
         # Verify the token format
         assert result == "k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
+
+    @mock.patch("airflow.providers.amazon.aws.utils.eks_get_token.RequestSigner")
+    @mock.patch("boto3.Session")
+    def test_fetch_access_token_for_cluster_uses_provided_session(self, mock_session, mock_signer):
+        from airflow.providers.amazon.aws.utils.eks_get_token import fetch_access_token_for_cluster
+
+        mock_signer.return_value.generate_presigned_url.return_value = "http://example.com"
+        # boto3.Session is patched, so spec against the real class.
+        session = mock.MagicMock(spec=boto3.session.Session)
+
+        fetch_access_token_for_cluster(
+            "test-cluster", "https://sts.us-east-1.amazonaws.com", region_name="us-east-1", session=session
+        )
+
+        mock_session.assert_not_called()
+        session.client.assert_called_once_with("eks")

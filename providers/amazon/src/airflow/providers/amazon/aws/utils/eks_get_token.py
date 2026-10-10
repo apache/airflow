@@ -49,9 +49,12 @@ def get_parser():
     return parser
 
 
-def fetch_access_token_for_cluster(eks_cluster_name: str, sts_url: str, region_name: str) -> str:
-    # This will use the credentials from the caller set as the standard AWS env variables
-    session = boto3.Session(region_name=region_name)
+def fetch_access_token_for_cluster(
+    eks_cluster_name: str, sts_url: str, region_name: str, session: boto3.Session | None = None
+) -> str:
+    if session is None:
+        # This will use the credentials from the caller set as the standard AWS env variables
+        session = boto3.Session(region_name=region_name)
     eks_client = session.client("eks")
     # This env variable is required so that we get a regionalized endpoint for STS in regions that
     # otherwise default to global endpoints. The mechanism below to generate the token is very picky that
