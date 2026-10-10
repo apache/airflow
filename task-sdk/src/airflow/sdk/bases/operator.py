@@ -63,7 +63,11 @@ from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_args
 from airflow.sdk.definitions.edges import EdgeModifier
-from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
+from airflow.sdk.definitions.mappedoperator import (
+    TASK_CONCURRENCY_REJECTED,
+    OperatorPartial,
+    validate_mapping_kwargs,
+)
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.exceptions import RemovedInAirflow4Warning
 
@@ -325,6 +329,7 @@ if TYPE_CHECKING:
         map_index_template: str | None = ...,
         max_active_tis_per_dag: int | None = ...,
         max_active_tis_per_dagrun: int | None = ...,
+        task_concurrency: int | None = ...,
         on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = ...,
         on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = ...,
         on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = ...,
@@ -397,8 +402,6 @@ else:
         )
 
         # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
-        if "task_concurrency" in kwargs:  # Reject deprecated option.
-            raise TypeError("unexpected argument: task_concurrency")
         if start_date := partial_kwargs.get("start_date", None):
             partial_kwargs["start_date"] = timezone.convert_to_utc(start_date)
         if end_date := partial_kwargs.get("end_date", None):
@@ -841,6 +844,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         key in the returned dictionary result. If False and do_xcom_push is True, pushes a single XCom.
     :param task_group: The TaskGroup to which the task should belong. This is typically provided when not
         using a TaskGroup as a context manager.
+    :param task_concurrency: How many iterations run at once when the operator is iterated with
+        ``.iterate()`` or ``.iterate_kwargs()``; rejected everywhere else. Defaults to
+        ``os.cpu_count()``, the CPUs of the machine whatever CPU limit the worker's container has.
+        Not the Airflow 2 option of the same name, which limited concurrent task instances and is
+        now ``max_active_tis_per_dag``. Only read when passed to the task itself (``.partial()`` or
+        ``@task``); ``default_args`` do not set it, as they did not before, so a DAG that still
+        carries the Airflow 2 option there is unaffected.
     :param doc: Add documentation or notes to your Task objects that is visible in
         Task Instance details View in the Webserver
     :param doc_md: Add documentation (in Markdown format) or notes to your Task objects
@@ -1120,6 +1130,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         super().__init__()
         self.task_group = task_group
+        # task_concurrency only has meaning for Iterable Tasks (as the sub-task thread
+        # count, see IterableOperator.max_workers). A directly instantiated operator can never
+        # reach that code path, so reject it here rather than silently accepting a dead value.
+        # It is deliberately not a parameter of this method: apply_defaults copies every parameter
+        # found in default_args into the call, which would reject it for every task of a DAG
+        # carrying the Airflow 2 option in its default_args.
+        if kwargs.pop("task_concurrency", None) is not None:
+            raise TypeError(TASK_CONCURRENCY_REJECTED)
 
         kwargs.pop("_airflow_mapped_validation_only", None)
         if kwargs:

@@ -17,20 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence, Sized
-from typing import TYPE_CHECKING, Any, ClassVar, Union
+import asyncio
+import math
+from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence, Sized
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, Union
 
 import attrs
 
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
+from airflow.sdk.definitions.xcom_arg import XComArg
 
 if TYPE_CHECKING:
     from typing import TypeGuard
 
-    from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.types import Operator
-
-ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
 # Each keyword argument to expand() can be an XComArg, sequence, or dict (not
 # any mapping since we need the value to be ordered).
@@ -39,6 +40,96 @@ OperatorExpandArgument = Union["MappedArgument", "XComArg", Sequence, dict[str, 
 # The single argument of expand_kwargs() can be an XComArg, or a list with each
 # element being either an XComArg or a dict.
 OperatorExpandKwargsArgument = Union["XComArg", Sequence[Union["XComArg", Mapping[str, Any]]]]
+
+
+class Resolved(NamedTuple):
+    """
+    An expand input resolved for iteration: its item count and an async read by index.
+
+    The ``.iterate()`` counterpart of ``ExpandInput.resolve``, which hands one mapped task
+    instance the item at its ``map_index``: every source is pulled once, and ``aget(index)`` then
+    picks the item an index maps to the way ``resolve`` does for ``.expand()`` (the cross product
+    of ``iterate(**kwargs)``, the mapping at that position for ``iterate_kwargs``). Reads run on
+    the task's event loop next to the sub-tasks' own SDK calls, so nothing here may block the loop
+    thread on the supervisor channel (see ``AsyncAwareExecutor.imap_unordered``).
+    """
+
+    length: int
+    aget: Callable[[int], Awaitable[Mapping[str, Any]]]
+
+
+class Source:
+    """
+    One resolved expand argument, read by index without a blocking supervisor call on the loop.
+
+    A Mapping is read as its ``(key, value)`` pairs and a scalar as a one-item sequence, matching
+    ``DictOfListsExpandInput._expand_mapped_field``. A value with async accessors (an
+    ``XComIterable``, a mapped upstream's ``LazyXComSequence``) is read through them. Anything
+    else may block in ``__getitem__`` (a ``.map()`` result over a lazy sequence, for instance), so
+    it is read in a worker thread.
+    """
+
+    @classmethod
+    async def from_argument(cls, argument: Any, context: Mapping[str, Any]) -> Source:
+        """Build a source from an expand argument: pull it if it is an XComArg, then make it a sequence."""
+        if isinstance(argument, XComArg):
+            argument = await argument.aresolve(context)
+            # What .expand() refuses when the upstream pushes (_push_xcom_if_needed raises for a
+            # mapped dependant) is refused here: an IterableOperator is not a MappedOperator, so
+            # iter_mapped_dependants never finds it and that check does not fire for it.
+            from airflow.sdk.definitions.mappedoperator import is_mappable_value
+            from airflow.sdk.exceptions import UnmappableXComTypePushed, XComForMappingNotPushed
+
+            if argument is None:
+                raise XComForMappingNotPushed()
+            if not is_mappable_value(argument):
+                raise UnmappableXComTypePushed(argument)
+        if isinstance(argument, Mapping):
+            return cls(list(argument.items()))
+        if isinstance(argument, (str, bytes)) or not isinstance(argument, Iterable):
+            # A literal is refused at parse time (validate_mapping_kwargs, _validate_arg_names), as
+            # .expand() refuses it, and an upstream value above; nothing else reaches this.
+            raise TypeError(f"cannot iterate over a {type(argument).__name__!r} argument")
+        if not isinstance(argument, Sequence):
+            return cls(list(argument))
+        return cls(argument)
+
+    def __init__(self, value: Sequence[Any]) -> None:
+        self.value = value
+
+    async def alen(self) -> int:
+        """Item count: the value's own async count when it has one, else ``len()`` in a worker thread."""
+        if hasattr(self.value, "alen"):
+            return await self.value.alen()
+        return await asyncio.to_thread(len, self.value)
+
+    async def aget(self, index: int) -> Any:
+        """Item at ``index``; called once per item, so in-memory containers skip the thread hop."""
+        value = self.value
+        if isinstance(value, (list, tuple, range)):
+            return value[index]
+        if hasattr(value, "aget"):
+            return await value.aget(index)
+        return await asyncio.to_thread(value.__getitem__, index)
+
+
+def index_for_each_field(map_index: int, lengths: Mapping[str, int]) -> dict[str, int]:
+    """
+    Split a cross-product position into one index per expand argument.
+
+    The arguments are combined as ``itertools.product`` combines them in the order they were
+    given, so the last one varies fastest: position 3 of ``a=[1, 2], b=[10, 20]`` is ``a[1], b[1]``.
+    Shared by ``.expand()`` (``_expand_mapped_field`` picks its task instance's ``map_index``) and
+    ``.iterate()`` (``aresolve`` reads every position), so both hand a sub-task the same item.
+    """
+    indices: dict[str, int] = {}
+    for key in reversed(list(lengths)):
+        length = lengths[key]
+        if length < 1:
+            raise RuntimeError(f"cannot expand field mapped to length {length!r}")
+        indices[key] = map_index % length
+        map_index //= length
+    return {key: indices[key] for key in lengths}
 
 
 class _NotFullyPopulated(RuntimeError):
@@ -79,6 +170,56 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
     return isinstance(v, (MappedArgument, XComArg))
 
 
+@attrs.define(slots=False)
+class ExpandInput(ABC, ResolveMixin):
+    EXPAND_INPUT_TYPE: ClassVar[str]
+
+    @property
+    @abstractmethod
+    def value(self) -> Any:
+        """The value of the expand input."""
+        ...
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Resolved:
+        """
+        Resolve every index of the input for an iterated task; see :class:`Resolved`.
+
+        Implementations must not make a blocking supervisor call on the loop thread: XComArg
+        sources are pulled with ``XComArg.aresolve`` and read through :class:`Source`.
+        """
+        raise NotImplementedError()
+
+    def resolve(self, context: Mapping[str, Any]) -> Any:
+        raise NotImplementedError()
+
+
+@attrs.define(slots=False)
+class DecoratedExpandInput(ExpandInput):
+    """The expand input of a decorated task, whose items arrive as ``op_kwargs``."""
+
+    EXPAND_INPUT_TYPE: ClassVar[str] = "decorated"
+
+    delegate: ExpandInput
+
+    @property
+    def value(self) -> Any:
+        return self.delegate.value
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        return self.delegate.iter_references()
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Resolved:
+        length, aget = await self.delegate.aresolve(context)
+
+        async def aget_op_kwargs(index: int) -> Mapping[str, Any]:
+            return {"op_kwargs": await aget(index)}
+
+        return Resolved(length, aget_op_kwargs)
+
+    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
+        return self.delegate.resolve(context)
+
+
 @attrs.define(kw_only=True)
 class MappedArgument(ResolveMixin):
     """
@@ -107,7 +248,7 @@ class MappedArgument(ResolveMixin):
 
 
 @attrs.define()
-class DictOfListsExpandInput(ResolveMixin):
+class DictOfListsExpandInput(ExpandInput):
     """
     Storage type of a mapped operator's mapped kwargs.
 
@@ -154,20 +295,8 @@ class DictOfListsExpandInput(ResolveMixin):
         return map_lengths
 
     def _expand_mapped_field(self, key: str, value: Any, map_index: int, all_lengths: dict[str, int]) -> Any:
-        def _find_index_for_this_field(index: int) -> int:
-            # Need to use the original user input to retain argument order.
-            for mapped_key in reversed(self.value):
-                mapped_length = all_lengths[mapped_key]
-                if mapped_length < 1:
-                    raise RuntimeError(f"cannot expand field mapped to length {mapped_length!r}")
-                if mapped_key == key:
-                    return index % mapped_length
-                index //= mapped_length
-            return -1
-
-        found_index = _find_index_for_this_field(map_index)
-        if found_index < 0:
-            return value
+        # Use the original user input to retain argument order.
+        found_index = index_for_each_field(map_index, {k: all_lengths[k] for k in self.value})[key]
         if isinstance(value, Sequence):
             return value[found_index]
         if not isinstance(value, dict):
@@ -183,6 +312,16 @@ class DictOfListsExpandInput(ResolveMixin):
         for x in self.value.values():
             if isinstance(x, XComArg):
                 yield from x.iter_references()
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Resolved:
+        sources = {key: await Source.from_argument(value, context) for key, value in self.value.items()}
+        lengths = {key: await source.alen() for key, source in sources.items()}
+
+        async def aget(index: int) -> Mapping[str, Any]:
+            positions = index_for_each_field(index, lengths)
+            return {key: await source.aget(positions[key]) for key, source in sources.items()}
+
+        return Resolved(math.prod(lengths.values()), aget)
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
@@ -217,7 +356,7 @@ def _describe_type(value: Any) -> str:
 
 
 @attrs.define()
-class ListOfDictsExpandInput(ResolveMixin):
+class ListOfDictsExpandInput(ExpandInput):
     """
     Storage type of a mapped operator's mapped kwargs.
 
@@ -238,12 +377,29 @@ class ListOfDictsExpandInput(ResolveMixin):
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
 
+    async def aresolve(self, context: Mapping[str, Any]) -> Resolved:
+        if isinstance(self.value, XComArg):
+            source = await Source.from_argument(self.value, context)
+        else:
+            source = Source(
+                [await item.aresolve(context) if isinstance(item, XComArg) else item for item in self.value]
+            )
+
+        async def aget(index: int) -> Mapping[str, Any]:
+            mapping = await source.aget(index)
+            if not isinstance(mapping, Mapping):
+                raise ValueError(
+                    f"iterate_kwargs() expects a list[dict], not list[{_describe_type(mapping)}]"
+                )
+            return mapping
+
+        return Resolved(await source.alen(), aget)
+
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
-        if map_index < 0:
+        if map_index is None or map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
 
-        mapping: Any = None
         if isinstance(self.value, Sized):
             mapping = self.value[map_index]
             if not isinstance(mapping, Mapping):
