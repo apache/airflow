@@ -1,0 +1,1 @@
+Simplified default task failure emails with concise task/run details, compact ``{{ ti }}``, a new ``{{ task_state }}`` variable, and removal of the obsolete ``Mark success`` link.

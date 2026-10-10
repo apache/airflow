@@ -521,10 +521,14 @@ def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: Filteri
 
     # Check if email should be sent based on task configuration
     should_send_email = False
+    # The callback request carries no state; the email type is the reason it fired.
+    state = None
     if request.email_type == "failure" and task.email_on_failure:
         should_send_email = True
+        state = TaskInstanceState.FAILED
     elif request.email_type == "retry" and task.email_on_retry:
         should_send_email = True
+        state = TaskInstanceState.UP_FOR_RETRY
 
     if not should_send_email:
         log.info(
@@ -543,6 +547,7 @@ def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: Filteri
         task=task,
         _ti_context_from_server=ctx_from_server,
         max_tries=ctx_from_server.max_tries,
+        state=state,
     )
 
     log.info(
