@@ -41,7 +41,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, load_only
 from sqlalchemy.orm.attributes import set_committed_value
 
-from airflow import settings
+from airflow import plugins_manager, settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
@@ -4819,12 +4819,21 @@ def test_clear_task_instances_skips_deadline_with_unresolvable_interval(dag_make
     ],
 )
 def test_clear_task_instances_recalculates_custom_queued_deadlines(
-    dag_maker, session, timing, should_recalculate
+    dag_maker, session, monkeypatch, timing, should_recalculate
 ):
     """Test that clearing tasks recalculates custom deadlines registered as queued-anchored."""
 
     class CustomReference(BaseDeadlineReference):
         evaluation_timing = timing
+
+    reference = encode_deadline_reference(CustomReference())
+    # Decoding the alert to resolve its interval goes through the plugin registry, which is where
+    # a custom reference has to be registered for the scheduler to resolve it at all.
+    monkeypatch.setattr(
+        plugins_manager,
+        "get_deadline_references_plugins",
+        lambda: {reference["__class_path"]: CustomReference},
+    )
 
     with dag_maker(
         dag_id="test_recalculate_custom_deadlines",
@@ -4845,7 +4854,7 @@ def test_clear_task_instances_recalculates_custom_queued_deadlines(
         serialized_dag_id=session.scalar(
             select(SerializedDagModel.id).where(SerializedDagModel.dag_id == dag.dag_id)
         ),
-        reference=encode_deadline_reference(CustomReference()),
+        reference=reference,
         interval=serialize(interval),
         callback_def=serialize(AsyncCallback(empty_callback_for_deadline)),
     )
