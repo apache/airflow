@@ -1188,6 +1188,12 @@
                     "name": {
                         "type": "string"
                     },
+                    "annotations": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
                     "preemptionPolicy": {
                         "type": "string"
                     },
