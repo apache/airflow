@@ -118,7 +118,9 @@ class HookToolset(AirflowToolset):
                     f"{tool_prefix + '_'!r} when both are given."
                 )
             warnings.warn(
-                "Parameter `tool_name_prefix` is deprecated. Use the parameter `tool_prefix` instead.",
+                f"Parameter `tool_name_prefix` is deprecated. Use "
+                f"`tool_prefix={tool_name_prefix.removesuffix('_')!r}` instead; "
+                f"HookToolset adds the '_' itself.",
                 category=AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )

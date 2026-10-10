@@ -190,6 +190,13 @@ class TestHookToolsetGetTools:
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
         assert expected in tools
 
+    def test_tool_name_prefix_warning_suggests_migrated_value(self):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"Use `tool_prefix='s3'` instead; HookToolset adds the '_' itself",
+        ):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_name_prefix="s3_")
+
     def test_tool_prefix_and_tool_name_prefix_that_agree_still_warn(self):
         with pytest.warns(AirflowProviderDeprecationWarning, match="tool_name_prefix"):
             HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_prefix="s3", tool_name_prefix="s3_")
