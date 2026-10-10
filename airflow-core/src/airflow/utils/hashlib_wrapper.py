@@ -28,7 +28,7 @@ def md5(string: ReadableBuffer = b"", /) -> hashlib._Hash:
     """
     Safely allows calling the ``hashlib.md5`` function when ``usedforsecurity`` is disabled in configuration.
 
-    :param string: The data to hash. Default to empty str byte.
+    :param string: Bytes-like data to hash. Defaults to empty bytes.
     :return: The hashed value.
     """
     return hashlib.md5(string, usedforsecurity=False)
