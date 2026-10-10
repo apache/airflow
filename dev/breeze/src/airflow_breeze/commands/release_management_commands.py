@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import ast
 import glob
+import itertools
 import operator
 import os
 import random
@@ -96,6 +97,7 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CONSTRAINTS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
+    DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES,
     DESTINATION_LOCATIONS,
@@ -5182,13 +5184,14 @@ def check_release_files(
 
 
 HARDENED_PYTHON_CATALOG_URL = (
-    "https://raw.githubusercontent.com/docker-hardened-images/catalog/main/image/python/debian-12/"
+    "https://raw.githubusercontent.com/docker-hardened-images/catalog/main/image/python/{catalog_distro}/"
     "{python}-dev.yaml"
 )
-HARDENED_PYTHON_PATCHLEVEL_TAG = re.compile(r"^\s*-\s*(\d+\.\d+\.\d+)-debian12-dev\s*$", re.MULTILINE)
 
 
-def get_latest_hardened_python_patchlevel(python: str) -> str | None:
+def get_latest_hardened_python_patchlevel(
+    python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]
+) -> str | None:
     """
     Return the newest patchlevel Docker publishes for a Python major.minor, or None if unknown.
 
@@ -5198,13 +5201,18 @@ def get_latest_hardened_python_patchlevel(python: str) -> str | None:
     """
     import requests
 
+    distro = DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO[debian_version]
+    # The catalog directory is "debian-13" for the images tagged "debian13".
+    catalog_distro = distro.replace("debian", "debian-", 1)
     try:
-        response = requests.get(HARDENED_PYTHON_CATALOG_URL.format(python=python), timeout=30)
+        response = requests.get(
+            HARDENED_PYTHON_CATALOG_URL.format(catalog_distro=catalog_distro, python=python), timeout=30
+        )
         response.raise_for_status()
     except requests.RequestException as e:
-        console_print(f"[warning]Could not read the hardened Python {python} definition: {e}[/]")
+        console_print(f"[warning]Could not read the hardened Python {python} {distro} definition: {e}[/]")
         return None
-    versions = HARDENED_PYTHON_PATCHLEVEL_TAG.findall(response.text)
+    versions = re.findall(rf"^\s*-\s*(\d+\.\d+\.\d+)-{distro}-dev\s*$", response.text, re.MULTILINE)
     if not versions:
         return None
     return max(versions, key=lambda version: tuple(int(part) for part in version.split(".")))
@@ -5220,8 +5228,10 @@ def get_latest_hardened_python_patchlevel(python: str) -> str | None:
 def mirror_base_images(python: str | None):
     python_versions = CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
     failed: list[str] = []
-    for python_version in python_versions:
-        tag = get_hardened_python_image_tag(python_version)
+    # Every Debian version is mirrored: the CI image and the default PROD image use the first one, the
+    # others are still available to build PROD images on.
+    for python_version, debian_version in itertools.product(python_versions, ALLOWED_DEBIAN_VERSIONS):
+        tag = get_hardened_python_image_tag(python_version, debian_version)
         source = f"{HARDENED_PYTHON_IMAGE_SOURCE}:{tag}"
         # The floating major/minor tag is what documentation and ad-hoc builds refer to, so that they
         # do not have to be edited on every Python patch release.
@@ -5231,7 +5241,7 @@ def mirror_base_images(python: str | None):
         targets = [f"{HARDENED_PYTHON_IMAGE_MIRROR}:{tag}", f"{HARDENED_PYTHON_IMAGE_MIRROR}:{floating_tag}"]
         copies = [(source, targets)]
         pinned = ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python_version, python_version)
-        latest = get_latest_hardened_python_patchlevel(python_version)
+        latest = get_latest_hardened_python_patchlevel(python_version, debian_version)
         if latest and latest != pinned:
             latest_tag = tag.replace(pinned, latest, 1)
             copies.append(

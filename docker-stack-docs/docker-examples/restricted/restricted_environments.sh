@@ -47,7 +47,7 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian12-dev" \
+    --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian13-dev" \
     --build-arg AIRFLOW_PYTHON_VERSION="3.13.16" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \

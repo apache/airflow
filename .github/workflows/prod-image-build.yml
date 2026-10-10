@@ -61,9 +61,13 @@ on:  # yamllint disable-line rule:truthy
         default: "false"
         type: string
       debian-version:
-        description: "Base Debian distribution to use for the build (bookworm)"
+        description: "Base Debian distribution to use for the build (trixie/bookworm)"
         type: string
-        default: "bookworm"
+        default: "trixie"
+      image-flavor:
+        description: "Image flavor - hardened (Docker Hardened Python base) or legacy (Python from sources)"
+        type: string
+        default: "hardened"
       install-mysql-client-type:
         description: "MySQL client type to use during build (mariadb/mysql)"
         type: string
@@ -271,6 +275,7 @@ jobs:
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
           DEBIAN_VERSION: ${{ inputs.debian-version }}
+          IMAGE_FLAVOR: ${{ inputs.image-flavor }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
