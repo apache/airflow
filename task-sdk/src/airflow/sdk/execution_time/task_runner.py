@@ -25,6 +25,7 @@ import inspect
 import logging
 import os
 import sys
+import threading
 import time
 from asyncio import CancelledError, to_thread, wait_for
 from collections.abc import Callable, Iterable, Iterator, Mapping
@@ -1278,6 +1279,9 @@ class IndexedTaskRunner(LoggingMixin):
         #: The exception this indexed task failed with, noted by __exit__ and reported by
         #: :meth:`report_failure` once the whole task's fate is known.
         self.failure: BaseException | None = None
+        #: Whether the ``AirflowTaskTimeout`` this indexed task ended with was raised by its operator
+        #: off the main thread, where the parent's limit never strikes; see :meth:`in_flight`.
+        self.timed_out_on_its_own = False
         self._cancelled = False
 
     def merge_outlet_events_into(self, target: OutletEventAccessorsProtocol) -> None:
@@ -1357,10 +1361,13 @@ class IndexedTaskRunner(LoggingMixin):
         the operator: a sync operator stays registered while its thread is still inside ``execute``,
         even after the coroutine waiting for it was cancelled, and ``IterableOperator.on_kill`` can
         reach it. The operator the parent's execution timeout strikes stays registered as well:
-        the timeout lands on the loop thread (where async operators run; a sync one runs in a
-        worker thread the signal never reaches), and its ``on_kill`` must not run there, where a
-        synchronous SDK call raises, so ``IterableOperator._run_tasks`` kills it off the loop
-        thread with the others once the timeout has unwound.
+        the timeout lands on the main thread, where the loop runs async operators, and its
+        ``on_kill`` must not run there, where a synchronous SDK call raises, so
+        ``IterableOperator._run_tasks`` kills it off the loop thread with the others once the
+        timeout has unwound. ``TimeoutPosix`` raises on the main thread only, so an
+        ``AirflowTaskTimeout`` on a worker thread was raised by the operator itself (a hook that
+        gave up waiting): that is this indexed task's own failure, noted as
+        :attr:`timed_out_on_its_own`, and the operator is unregistered like any other.
         """
         if self._register is not None:
             self._register.register(self.operator)
@@ -1368,7 +1375,8 @@ class IndexedTaskRunner(LoggingMixin):
         try:
             yield
         except AirflowTaskTimeout:
-            struck_by_the_parent = True
+            self.timed_out_on_its_own = threading.current_thread() is not threading.main_thread()
+            struck_by_the_parent = not self.timed_out_on_its_own
             raise
         finally:
             if self._register is not None and not struck_by_the_parent:

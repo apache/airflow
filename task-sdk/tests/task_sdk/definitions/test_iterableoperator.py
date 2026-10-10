@@ -336,12 +336,13 @@ class MockAsyncStateStoreOperator(BaseAsyncOperator):
         return await store.aget("last_offset")
 
 
-class MockAttemptOperator(BaseOperator):
+class MockAttemptOperator(BaseAsyncOperator):
     """
-    Operator whose result tells which attempt produced it.
+    Async operator whose result tells which attempt produced it.
 
     For the values in ``times_out_on`` the parent's execution timeout strikes instead, which ends
-    the whole iteration there and leaves the items after it unreached, as a crash would.
+    the whole iteration there and leaves the items after it unreached, as a crash would. Async,
+    because that timeout lands on the main thread, where async operators run.
     """
 
     template_fields = ("arg1",)
@@ -351,7 +352,7 @@ class MockAttemptOperator(BaseOperator):
         super().__init__(**kwargs)
         self.arg1 = arg1
 
-    def execute(self, context):
+    async def aexecute(self, context):
         if self.arg1 in self.times_out_on:
             raise AirflowTaskTimeout("the iteration ran out of time")
         return f"{self.arg1}@attempt{context['ti'].try_number}"
@@ -360,8 +361,13 @@ class MockAttemptOperator(BaseOperator):
 FIRED_CALLBACKS: list = []
 
 
-class MockCallbackTimeoutOperator(BaseOperator):
-    """Operator in which the parent's execution timeout strikes; records which callback fired."""
+class MockCallbackTimeoutOperator(BaseAsyncOperator):
+    """
+    Async operator in which the parent's execution timeout strikes; records which callback fired.
+
+    Async, because the parent's limit lands on the main thread, where async operators run; a sync
+    operator raising ``AirflowTaskTimeout`` in its worker thread raised its own.
+    """
 
     template_fields = ()
 
@@ -370,7 +376,7 @@ class MockCallbackTimeoutOperator(BaseOperator):
         kwargs["on_retry_callback"] = lambda context: FIRED_CALLBACKS.append("retry")
         super().__init__(**kwargs)
 
-    def execute(self, context):
+    async def aexecute(self, context):
         raise AirflowTaskTimeout("the task ran out of time")
 
 
@@ -1640,6 +1646,39 @@ class TestIterableOperator:
 
         assert FIRED_CALLBACKS == ["retry"]
 
+    def test_a_sync_items_own_timeout_is_its_failure(self):
+        """
+        A sync operator may raise ``AirflowTaskTimeout`` itself, as a hook that gave up waiting does.
+        In its worker thread the parent's limit never strikes, so that is the item's own failure, as
+        it is the mapped task instance's under ``.expand()``: the sibling runs, nothing is killed, and
+        the task fails with it as with any failed item.
+        """
+        killed: list = []
+
+        class GivingUpOperator(MockOperator):
+            def on_kill(self):
+                killed.append(self.arg1)
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput(
+                    [{"arg1": 1, "raise_exception": AirflowTaskTimeout("gave up waiting")}, {"arg1": 2}]
+                ),
+                task_id="own_timeout",
+                task_concurrency=1,
+                operator_class=GivingUpOperator,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+                with pytest.raises(AirflowTaskTimeout, match="gave up waiting"):
+                    iterable_op.execute(context=context)
+
+                assert store["_iterable_0"]["status"] == "up_for_retry"
+                assert store["_iterable_1"]["status"] == "success"
+        assert killed == []
+
     def test_iteration_cancelled_by_a_sibling_runs_no_callback(self):
         """One iteration stops the task; the sibling cancelled on the way did not fail."""
         FIRED_CALLBACKS.clear()
@@ -2591,13 +2630,19 @@ class TestIterableOperator:
     def test_parent_timeout_landing_in_a_sub_task_stays_a_timeout(self):
         """
         The parent's ``execution_timeout`` is raised by a signal handler on the main thread, so it
-        can surface inside whichever sub-task is running there. It is not that sub-task's outcome:
-        it has to reach the runner as ``AirflowTaskTimeout``, which retries the task, and not be
-        turned into a non-retryable ``AirflowFailException`` blamed on the sub-task.
+        can surface inside whichever async sub-task is running there. It is not that sub-task's
+        outcome: it has to reach the runner as ``AirflowTaskTimeout``, which retries the task, and
+        not be turned into a non-retryable ``AirflowFailException`` blamed on the sub-task.
         """
         with DAG("test_dag") as dag:
-            expand_input = ListOfDictsExpandInput([{"raise_exception": AirflowTaskTimeout("timed out")}])
-            iterable_op = create_iterable_operator(dag, expand_input, task_id="timeout_task", retries=3)
+            expand_input = ListOfDictsExpandInput([{}])
+            iterable_op = create_iterable_operator(
+                dag,
+                expand_input,
+                task_id="timeout_task",
+                retries=3,
+                operator_class=MockCallbackTimeoutOperator,
+            )
 
             with mock_context(task=iterable_op) as context:
                 with pytest.raises(AirflowTaskTimeout):

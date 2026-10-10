@@ -419,7 +419,8 @@ class IndexedTaskOutcomes:
         DAG run or skip downstream tasks, and a ``BaseException`` that is no ``Exception``
         (``DeadlockImminentError``, ``KeyboardInterrupt``, ``SystemExit``) must never be swallowed
         into a retry. Each of these fails the whole task without a retry, with a message saying
-        why. Any other exception is the indexed task's own failure, which :meth:`record` collects.
+        why. Any other exception, an ``AirflowTaskTimeout`` the operator raised itself included, is
+        the indexed task's own failure, which :meth:`record` collects.
         """
         sub_task = f"Sub-task {task.task_id}[{task.index}]"
         if isinstance(raised, TaskDeferred):
@@ -450,6 +451,11 @@ class IndexedTaskOutcomes:
                 "ti.axcom_pull); sync sub-tasks and their callbacks run in worker threads, where the "
                 "same calls wait their turn."
             )
+        if isinstance(raised, AirflowTaskTimeout):
+            # The parent's timeout never gets here (_run_task re-raises it); this one the operator
+            # raised itself, off the main thread, and the runner judges it as it does for a plain
+            # task that raises it: a failure it retries.
+            return None
         if not isinstance(raised, Exception):
             return AirflowFailException(
                 f"{sub_task} raised a non-Exception BaseException: {type(raised).__name__}: {raised}"
@@ -1100,6 +1106,11 @@ class IterableOperator(BaseOperator):
                 indexed_task_state.xcoms = dict(task.pushed_xcoms)
             await task.aset_state(indexed_task_state)
         except (asyncio.CancelledError, AirflowTaskTimeout) as stopped:
+            if isinstance(stopped, AirflowTaskTimeout) and indexed_task_runner.timed_out_on_its_own:
+                # Raised by the operator in its worker thread, which the parent's signal never
+                # reaches: this sub-task's own failure, as it is the mapped task instance's under
+                # .expand(); the siblings go on.
+                return await self._record_failure(task, indexed_task_runner, outcomes, stopped)
             # Not this sub-task's outcome: it is being stopped from outside, by the executor
             # cancelling it or by the parent's execution_timeout, whose signal handler raises on the
             # main thread in whichever sub-task happens to run there. Both go on unchanged, so a
@@ -1123,18 +1134,7 @@ class IterableOperator(BaseOperator):
             await self._report_item(executor, task, indexed_task_runner.report_skip)
             return task, None, e
         except BaseException as e:
-            if indexed_task_runner.failure is not None:
-                outcomes.note_failed(indexed_task_runner)
-            # Written with the input and the attempt, like the other outcomes, so the next attempt
-            # tells a plain retry apart from a clear or a changed input and logs only the latter.
-            await task.aset_state(
-                IndexedTaskState(
-                    status=TaskInstanceState.UP_FOR_RETRY,
-                    fingerprint=task.input_fingerprint,
-                    try_number=task.try_number,
-                )
-            )
-            return task, None, e
+            return await self._record_failure(task, indexed_task_runner, outcomes, e)
 
         # The work is done and checkpointed: from here on only its report and publication can fail.
         # A failure leaves the SUCCESS checkpoint as it is, so the retry replays the result from it
@@ -1157,6 +1157,27 @@ class IterableOperator(BaseOperator):
         except BaseException as e:
             return task, None, e
         return task, result, None
+
+    @staticmethod
+    async def _record_failure(
+        task: IndexedTaskInstance,
+        runner: IndexedTaskRunner,
+        outcomes: IndexedTaskOutcomes,
+        raised: BaseException,
+    ) -> tuple[IndexedTaskInstance, None, BaseException]:
+        """Note a failed indexed task for its callbacks, checkpoint it as UP_FOR_RETRY and return it as the outcome."""
+        if runner.failure is not None:
+            outcomes.note_failed(runner)
+        # Written with the input and the attempt, like the other outcomes, so the next attempt
+        # tells a plain retry apart from a clear or a changed input and logs only the latter.
+        await task.aset_state(
+            IndexedTaskState(
+                status=TaskInstanceState.UP_FOR_RETRY,
+                fingerprint=task.input_fingerprint,
+                try_number=task.try_number,
+            )
+        )
+        return task, None, raised
 
     @staticmethod
     async def _report_item(
