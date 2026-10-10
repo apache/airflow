@@ -139,7 +139,7 @@ def test_python_field_names_not_accepted_as_aliases():
         _one("tasks:\n  - {id_: t, run: {}}")  # 'id_' is not 'id' -> id missing
     t = _task("- {id: t, uses: X, with_: {k: 1}}")
     assert t.with_ == {}  # 'with_' did not populate the 'with' field
-    assert t.__pydantic_extra__.get("with_") == {"k": 1}  # it is just a pass-through extra
+    assert t.model_extra.get("with_") == {"k": 1}  # it is just a pass-through extra
 
 
 def test_default_args_rejected():
@@ -177,7 +177,7 @@ def test_extends_merges_shallow_task_wins():
     t = doc.tasks[0]
     assert isinstance(t, Task)
     assert t.uses.endswith("S3ToRedshiftOperator")
-    assert t.__pydantic_extra__["retries"] == 2  # from retryable
+    assert t.model_extra["retries"] == 2  # from retryable
     assert isinstance(t.with_["schema"], _Literal)  # inherited
     assert t.with_["table"].root == "sales"  # own
     assert t.with_["conn_id"].root == "override"  # one-level with-merge, task wins
@@ -251,9 +251,10 @@ def test_schedule_forms():
     assert tt.uses.endswith("MyTimetable")
 
 
-def test_dag_attributes_pass_through():
+def test_extra_top_level_keys_pass_through():
+    # Unknown top-level keys are Dag-level arguments: accepted and surfaced via pydantic extras.
     doc = _one("catchup: false\nmax_active_runs: 3\ntags: [etl]\ntasks: []")
-    assert doc.dag_attributes == {"catchup": False, "max_active_runs": 3, "tags": ["etl"]}
+    assert doc.model_extra == {"catchup": False, "max_active_runs": 3, "tags": ["etl"]}
 
 
 def test_schema_required():
@@ -348,11 +349,11 @@ def test_parses_example_fixture():
     load = d1["load_sales"]
     assert isinstance(load, Task)
     assert load.uses.endswith("S3ToRedshiftOperator")
-    assert load.__pydantic_extra__["retries"] == 2  # via redshift_load -> retryable
+    assert load.model_extra["retries"] == 2  # via redshift_load -> retryable
     assert isinstance(load.with_["schema"], TemplateRef)  # inherited $t
     assert isinstance(load.with_["s3_key"], TemplateRef)  # own $t
     assert load.needs == ["wait_for_export"]
-    assert docs[0].dag_attributes["catchup"] is False
+    assert docs[0].model_extra["catchup"] is False
 
     d2 = {t.id_: t for t in docs[1].tasks}
     assert isinstance(d2["extract"], Task)

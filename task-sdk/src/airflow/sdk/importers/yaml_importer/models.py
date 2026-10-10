@@ -62,9 +62,6 @@ TASK_CALLBACK_KEYS = {
 }
 TASK_ASSET_IO_KEYS = {"inlets", "outlets"}
 
-# Structural keys the format owns (everything else is pass-through to Python).
-_DAG_STRUCTURAL = {"$schema", "dag_id", "schedule", "templates", "tasks"}
-
 
 class XComTarget(BaseModel):
     """The object form of an XCom reference."""
@@ -411,8 +408,3 @@ class DagDocument(BaseModel):
             if missing := (refs - validated_task_ids):
                 raise ValueError(f"task {t.id_!r} references unknown task(s): {sorted(missing)}")
         return self
-
-    @property
-    def dag_attributes(self) -> dict[str, Any]:
-        """Dag attributes beyond structural keys."""
-        return {k: v for k, v in (self.__pydantic_extra__ or {}).items() if k not in _DAG_STRUCTURAL}
