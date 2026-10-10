@@ -69,11 +69,12 @@ export const GridTI = ({
       })
     : `/dags/${dagId}/tasks/${isGroup ? "group/" : ""}${taskId}`;
 
-  // Remove try_number query param when navigating to reset to the
-  // latest try of the task instance and avoid issues with invalid try numbers:
-  // https://github.com/apache/airflow/issues/56977
-  searchParams.delete("try_number");
-  const redirectionSearch = searchParams.toString();
+  const redirectionParams = new URLSearchParams(searchParams);
+
+  for (const key of ["try_number", "region_id", "region_index"]) {
+    redirectionParams.delete(key);
+  }
+  const redirectionSearch = redirectionParams.toString();
 
   const isSelectedRow = selectedTaskId === taskId || selectedGroupId === taskId;
   const isSelectedTaskInstance = selectedRunId === runId && isSelectedRow;

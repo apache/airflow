@@ -34,13 +34,17 @@ export type GanttDataItem = {
   end_when?: string | null;
   isGroup?: boolean | null;
   isMapped?: boolean | null;
+  mapIndex?: number;
   /** Source try times for tooltips (matches TaskInstance `*_when` fields). */
   queued_when?: string | null;
+  regionId?: string;
+  regionIndex?: number;
   scheduled_when?: string | null;
   /** Actual task execution start_date — consistent across all segments of the same try. */
   start_when?: string | null;
   state?: TaskInstanceState | null;
   taskId: string;
+  taskInstanceId?: string;
   tryNumber?: number;
   /** [startMs, endMs] as Unix millisecond timestamps — pre-parsed to avoid repeated `new Date()` in render loops. */
   x: [number, number];
@@ -50,8 +54,8 @@ export type GanttDataItem = {
 type GanttSegmentLinkParams = {
   dagId: string;
   item: GanttDataItem;
-  /** Precomputed map from taskId → max try number; build once with `buildMaxTryByTaskId`. */
-  maxTryByTaskId: Map<string, number>;
+  /** Precomputed map from `getGanttTryKey` → max try number; build once with `buildMaxTryByKey`. */
+  maxTryByKey: Map<string, number>;
   /** `location.pathname` — hoisted out of the segment loop so it is read once per render. */
   pathname: string;
   runId: string;
@@ -142,7 +146,11 @@ export const transformGanttData = ({
             const effectiveEndDate =
               endDate ?? (hasTaskRunning && startDate !== null ? new Date().toISOString() : null);
 
-            const tryWhenForTooltip = {
+            const tryMetadata = {
+              mapIndex: tryRow.map_index,
+              regionId: tryRow.region_id,
+              regionIndex: tryRow.region_index,
+              taskInstanceId: tryRow.id,
               ...(scheduledMs === undefined ? {} : { scheduled_when: scheduledDttm }),
               ...(queuedMs === undefined ? {} : { queued_when: queuedDttm }),
               ...(startDate === null ? {} : { start_when: startDate }),
@@ -170,7 +178,7 @@ export const transformGanttData = ({
                   state: "scheduled",
                   taskId: tryRow.task_id,
                   tryNumber: tryRow.try_number,
-                  ...tryWhenForTooltip,
+                  ...tryMetadata,
                   x: [scheduledMs, scheduledEndMs],
                   y: tryRow.task_display_name,
                 });
@@ -187,7 +195,7 @@ export const transformGanttData = ({
                   state: "queued",
                   taskId: tryRow.task_id,
                   tryNumber: tryRow.try_number,
-                  ...tryWhenForTooltip,
+                  ...tryMetadata,
                   x: [queuedMs, queueEndMs],
                   y: tryRow.task_display_name,
                 });
@@ -204,7 +212,7 @@ export const transformGanttData = ({
                 state: tryRow.state,
                 taskId: tryRow.task_id,
                 tryNumber: tryRow.try_number,
-                ...tryWhenForTooltip,
+                ...tryMetadata,
                 x: [startMs, execEndMs],
                 y: tryRow.task_display_name,
               });
@@ -284,17 +292,20 @@ export const computeGanttTimeRangeMs = ({
   };
 };
 
+const getGanttTryKey = ({ mapIndex, regionId, regionIndex, taskId }: GanttDataItem) =>
+  `${taskId}:${regionId ?? ""}:${regionIndex ?? -1}:${mapIndex ?? -1}`;
+
 /**
- * Precompute the maximum try number for each task in O(n).
+ * Precompute the maximum try number for each task and region in O(n).
  * Pass the result to `getGanttSegmentTo` to avoid an O(n) scan per segment.
  */
-export const buildMaxTryByTaskId = (ganttItems: Array<GanttDataItem>): Map<string, number> => {
+export const buildMaxTryByKey = (ganttItems: Array<GanttDataItem>): Map<string, number> => {
   const map = new Map<string, number>();
 
   for (const item of ganttItems) {
-    const current = map.get(item.taskId) ?? 0;
+    const key = getGanttTryKey(item);
 
-    map.set(item.taskId, Math.max(current, item.tryNumber ?? 1));
+    map.set(key, Math.max(map.get(key) ?? 0, item.tryNumber ?? 1));
   }
 
   return map;
@@ -303,7 +314,7 @@ export const buildMaxTryByTaskId = (ganttItems: Array<GanttDataItem>): Map<strin
 export const getGanttSegmentTo = ({
   dagId,
   item,
-  maxTryByTaskId,
+  maxTryByKey,
   pathname,
   runId,
   searchParams: baseSearchParams,
@@ -325,10 +336,16 @@ export const getGanttSegmentTo = ({
 
   // Clone the pre-parsed params so mutations don't leak across segments.
   const searchParams = new URLSearchParams(baseSearchParams);
-  const maxTryForTask = maxTryByTaskId.get(taskId) ?? 1;
-  const isOlderTry = tryNumber !== undefined && tryNumber < maxTryForTask;
 
-  if (isOlderTry) {
+  if (item.regionId !== undefined && item.regionIndex !== undefined) {
+    searchParams.set("region_id", item.regionId);
+    searchParams.set("region_index", item.regionIndex.toString());
+  } else {
+    searchParams.delete("region_id");
+    searchParams.delete("region_index");
+  }
+
+  if (tryNumber !== undefined && tryNumber < (maxTryByKey.get(getGanttTryKey(item)) ?? 1)) {
     searchParams.set(SearchParamsKeys.TRY_NUMBER, tryNumber.toString());
   } else {
     searchParams.delete(SearchParamsKeys.TRY_NUMBER);

@@ -38,13 +38,22 @@ type LightGridTaskInstanceSummaryWithWhen = {
 } & LightGridTaskInstanceSummary;
 
 type Props = {
+  readonly iteration?: number;
   readonly runId?: string | null;
   readonly taskInstance?:
     LightGridTaskInstanceSummaryWithWhen | TaskInstanceHistoryResponse | TaskInstanceResponse;
   readonly tooltip?: string | null;
 } & Omit<TooltipProps, "content">;
 
-const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, tooltip, ...rest }: Props) => {
+const TaskInstanceTooltip = ({
+  children,
+  iteration,
+  positioning,
+  runId,
+  taskInstance,
+  tooltip,
+  ...rest
+}: Props) => {
   const { i18n, t: translate } = useTranslation();
   const { formatElapsed, renderDuration } = useDurationFormat();
 
@@ -68,6 +77,11 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
               <Text>
                 {translate("taskId")}: {taskInstance.task_id}
               </Text>
+              {iteration === undefined ? undefined : (
+                <Text>
+                  {translate("taskInstance.iteration")}: {iteration}
+                </Text>
+              )}
               <Text>
                 {translate("state")}:{" "}
                 {taskInstance.state

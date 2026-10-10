@@ -164,6 +164,7 @@ class TaskCoordinateResolver:
     _dags: dict[UUID, SerializedDAG] = attrs.field(factory=dict, init=False)
     _region_nodes: dict[UUID, str | None] = attrs.field(factory=dict, init=False)
     _regional_tasks: dict[tuple[str, str | None, str], bool] = attrs.field(factory=dict, init=False)
+    _looped_tasks: dict[tuple[UUID, str], bool] = attrs.field(factory=dict, init=False)
 
     @classmethod
     def for_dag(cls, dag: SerializedDAG | None, session: Session) -> TaskCoordinateResolver:
@@ -201,7 +202,16 @@ class TaskCoordinateResolver:
             raise ValueError(f"Pinned Dag for {dag_id}/{run_id} not found")
         return dag.get_task(task_id)
 
-    def find_task(self, ti: TaskInstance) -> SerializedOperator | None:
+    def _is_in_loop(self, ti: TaskCoordinate) -> bool:
+        if ti.dag_version_id is None:
+            return False
+        key = (ti.dag_version_id, ti.task_id)
+        if key not in self._looped_tasks:
+            task = self.find_task(ti)
+            self._looped_tasks[key] = task is not None and enclosing_loop(task) is not None
+        return self._looped_tasks[key]
+
+    def find_task(self, ti: TaskCoordinate) -> SerializedOperator | None:
         """Return the task of ``ti`` from its pinned Dag, or None when that Dag or the task is gone."""
         if ti.dag_version_id is None or (dag := self.get_dag(ti.dag_version_id)) is None:
             return None

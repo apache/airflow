@@ -68,6 +68,17 @@
     "upcomingCount_one": "{{count}} Upcoming Deadline",
     "upcomingCount_other": "{{count}} Upcoming Deadlines"
   },
+  "execution": {
+    "clearSelected": "Clear selected executions",
+    "empty": "No executions in this run.",
+    "iteration": "{{node}} · Iteration {{index}}",
+    "mapped_one": "{{task}} ({{count}} mapped task on this page)",
+    "mapped_other": "{{task}} ({{count}} mapped tasks on this page)",
+    "page": "Showing {{start}}–{{end}} of {{total}} executions",
+    "runTasks": "Run tasks",
+    "select": "Select {{task}}",
+    "title": "Execution"
+  },
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {

@@ -53,6 +53,8 @@ class TaskCoordinateView:
             if self.projected_map_index is not None:
                 return self.projected_map_index
             return self.resolver.public_map_index(self.value)
+        if name == "in_loop":
+            return self.value.region_id != SENTINEL_REGION_ID and self.resolver._is_in_loop(self.value)
         return getattr(self.value, name)
 
 

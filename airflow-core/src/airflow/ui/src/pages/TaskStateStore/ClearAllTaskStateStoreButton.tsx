@@ -28,6 +28,7 @@ import {
 
 import DeleteDialog from "src/components/DeleteDialog";
 
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useStoreMutation } from "src/queries/useStoreMutation";
 
 type Props = {
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export const ClearAllTaskStateStoreButton = ({ dagId, mapIndex, runId, taskId }: Props) => {
+  const coordinates = useTaskInstanceCoordinates();
   const { t: translate } = useTranslation("dag");
   const { onClose, onOpen, open } = useDisclosure();
 
@@ -63,7 +65,7 @@ export const ClearAllTaskStateStoreButton = ({ dagId, mapIndex, runId, taskId }:
         deleteButtonText={translate("taskStateStore.clearAll.title")}
         isDeleting={isPending}
         onClose={onClose}
-        onDelete={() => mutate({ dagId, dagRunId: runId, mapIndex, taskId })}
+        onDelete={() => mutate({ ...coordinates, dagId, dagRunId: runId, mapIndex, taskId })}
         open={open}
         resourceName={translate("taskStateStore.clearAll.resource")}
         title={translate("taskStateStore.clearAll.title")}

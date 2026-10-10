@@ -92,13 +92,15 @@
       "existingTasks": "Clear existing tasks",
       "future": "Future",
       "keepTaskState": "Keep task state and resume",
+      "laterIterations": "Later iterations",
       "onlyFailed": "Clear only failed tasks",
       "past": "Past",
       "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Queue up new tasks",
       "runOnLatestVersion": "Run with latest bundle version",
       "runOnLatestVersionForced": "Always uses the latest — there's no earlier version to go back to",
-      "upstream": "Upstream"
+      "upstream": "Upstream",
+      "wholeExpansion": "Whole expansion"
     }
   },
   "runStateCounts": {

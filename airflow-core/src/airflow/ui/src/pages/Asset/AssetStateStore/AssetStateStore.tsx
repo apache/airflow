@@ -89,11 +89,23 @@ const getColumns = ({
           mapIndex: writer.map_index ?? undefined,
           taskId: writer.task_id,
         });
+        const search = new URLSearchParams();
+
+        if (
+          writer.region_id !== undefined &&
+          writer.region_index !== undefined &&
+          writer.try_number !== null &&
+          writer.try_number !== undefined
+        ) {
+          search.set("region_id", writer.region_id);
+          search.set("region_index", String(writer.region_index));
+          search.set("try_number", String(writer.try_number));
+        }
 
         return (
           <Flex direction="column">
             <Link asChild color="fg.info">
-              <RouterLink to={path}>{writer.task_id}</RouterLink>
+              <RouterLink to={{ pathname: path, search: search.toString() }}>{writer.task_id}</RouterLink>
             </Link>
             <Text color="fg.muted" fontSize="xs">
               {writer.dag_id}

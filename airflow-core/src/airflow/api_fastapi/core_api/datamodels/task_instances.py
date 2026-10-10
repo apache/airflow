@@ -60,6 +60,7 @@ class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
     map_index: int
     region_id: RegionId = None
     region_index: RegionIndex = None
+    in_loop: bool
     logical_date: datetime | None
     run_after: datetime
     start_date: datetime | None

@@ -23,8 +23,6 @@ import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
-
 import { Alert, Modal } from "src/system-components";
 
 import { TaskTrySelect } from "src/components/TaskTrySelect";
@@ -38,6 +36,7 @@ import {
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
+import { useTaskInstanceView } from "src/hooks/useTaskInstanceView";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
 
@@ -47,36 +46,19 @@ import { TaskLogHeader, type TaskLogHeaderProps } from "./TaskLogHeader";
 import { getDownloadText } from "./utils";
 
 export const Logs = () => {
-  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const { dagId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { error, historical, isLoading, taskInstance } = useTaskInstanceView();
   const { t: translate } = useTranslation("dag");
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
   const sourceFilters = searchParams.getAll(SearchParamsKeys.SOURCE);
-  const parsedMapIndex = parseInt(mapIndex, 10);
-
-  const {
-    data: taskInstance,
-    error,
-    isLoading,
-  } = useTaskInstanceServiceGetMappedTaskInstance(
-    {
-      dagId,
-      dagRunId: runId,
-      mapIndex: parsedMapIndex,
-      taskId,
-    },
-    undefined,
-    {
-      enabled: !isNaN(parsedMapIndex),
-    },
-  );
 
   const defaultTryNumber = taskInstance?.try_number;
 
   const onSelectTryNumber = (newTryNumber: number) => {
-    if (newTryNumber === defaultTryNumber) {
+    if (newTryNumber === defaultTryNumber && !historical) {
       searchParams.delete(SearchParamsKeys.TRY_NUMBER);
     } else {
       searchParams.set(SearchParamsKeys.TRY_NUMBER, newTryNumber.toString());
@@ -87,6 +69,7 @@ export const Logs = () => {
   const tryNumber = tryNumberParam === null ? defaultTryNumber : parseInt(tryNumberParam, 10);
 
   const isPendingTry =
+    !historical &&
     taskInstance !== undefined &&
     tryNumber === taskInstance.try_number &&
     (taskInstance.state === null || taskInstance.state === "up_for_retry");
@@ -108,6 +91,7 @@ export const Logs = () => {
   } = useLogs(
     {
       dagId,
+      historical,
       logLevelFilters,
       showLogLevel,
       showSource,

@@ -53,6 +53,11 @@ export const GridButton = ({
 }: Props) => {
   const { t: translate } = useTranslation();
   const { renderDuration } = useDurationFormat();
+  const targetSearchParams = new URLSearchParams(searchParams);
+
+  for (const key of ["try_number", "region_id", "region_index"]) {
+    targetSearchParams.delete(key);
+  }
 
   return (
     <Tooltip
@@ -103,7 +108,7 @@ export const GridButton = ({
             replace
             to={{
               pathname: `/dags/${dagId}/runs/${runId}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
-              search: searchParams.toString(),
+              search: targetSearchParams.toString(),
             }}
           >
             <Flex

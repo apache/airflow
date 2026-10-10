@@ -65,7 +65,7 @@ type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 // Matches the identifier the bulk task-instance endpoint echoes back in its
 // ``success`` / ``errors`` lists, so the bulk response can deselect rows directly.
 const getRowKey = (ti: TaskInstanceResponse) =>
-  `${ti.dag_id}.${ti.dag_run_id}.${ti.task_id}[${ti.map_index}]`;
+  ti.region_id === undefined ? `${ti.dag_id}.${ti.dag_run_id}.${ti.task_id}[${ti.map_index}]` : ti.id;
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,

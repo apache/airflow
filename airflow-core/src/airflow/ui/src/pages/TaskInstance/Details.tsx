@@ -22,10 +22,7 @@ import { Box, Flex, Heading, HStack, Table } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import {
-  useTaskInstanceServiceGetMappedTaskInstance,
-  useTaskInstanceServiceGetTaskInstanceTryDetails,
-} from "openapi/queries";
+import { useTaskInstanceServiceGetTaskInstanceTryDetails } from "openapi/queries";
 
 import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
 
@@ -38,6 +35,8 @@ import Time from "src/components/Time";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useShowTeam } from "src/hooks/useShowTeam";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
+import { useTaskInstanceView } from "src/hooks/useTaskInstanceView";
 import { isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
 
 import { BlockingDeps } from "./BlockingDeps";
@@ -50,27 +49,20 @@ export const Details = () => {
   const { renderDuration } = useDurationFormat();
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const coordinates = useTaskInstanceCoordinates();
+  const {
+    historical,
+    historicalTaskInstance,
+    liveTaskInstance: taskInstance,
+    taskInstance: selectedTaskInstance,
+  } = useTaskInstanceView();
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
-  const parsedMapIndex = parseInt(mapIndex, 10);
-
-  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
-    {
-      dagId,
-      dagRunId: runId,
-      mapIndex: parsedMapIndex,
-      taskId,
-    },
-    undefined,
-    {
-      enabled: !isNaN(parsedMapIndex),
-    },
-  );
 
   const showTeam = useShowTeam(taskInstance?.team_name);
 
   const onSelectTryNumber = (newTryNumber: number) => {
-    if (newTryNumber === taskInstance?.try_number) {
+    if (!historical && newTryNumber === taskInstance?.try_number) {
       searchParams.delete(SearchParamsKeys.TRY_NUMBER);
     } else {
       searchParams.set(SearchParamsKeys.TRY_NUMBER, newTryNumber.toString());
@@ -78,12 +70,13 @@ export const Details = () => {
     setSearchParams(searchParams);
   };
 
-  const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
+  const tryNumber = tryNumberParam === null ? selectedTaskInstance?.try_number : parseInt(tryNumberParam, 10);
 
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const { data: tryInstance } = useTaskInstanceServiceGetTaskInstanceTryDetails(
+  const { data: liveTry } = useTaskInstanceServiceGetTaskInstanceTryDetails(
     {
+      ...coordinates,
       dagId,
       dagRunId: runId,
       mapIndex: parseInt(mapIndex, 10),
@@ -92,9 +85,11 @@ export const Details = () => {
     },
     undefined,
     {
+      enabled: !historical,
       refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
     },
   );
+  const tryInstance = historical ? historicalTaskInstance : liveTry;
 
   const renderValue = (value: unknown): ReactNode => {
     if (value === null || value === undefined || value === "") {
@@ -129,26 +124,32 @@ export const Details = () => {
     : undefined;
 
   const rawTaskInstanceDetails: Array<{ label: string; value: unknown }> = [
-    { label: translate("taskInstance.id"), value: taskInstance?.id },
+    { label: translate("taskInstance.id"), value: tryInstance?.id },
     { label: translate("tryNumber"), value: tryInstance?.try_number },
     { label: translate("taskInstance.maxTries"), value: tryInstance?.max_tries },
     { label: translate("dagId"), value: tryInstance?.dag_id },
-    { label: translate("taskInstance.trigger"), value: triggerWithoutKwargs },
-    { label: translate("taskInstance.triggerer.job"), value: taskInstance?.triggerer_job },
+    ...(historical
+      ? []
+      : [
+          { label: translate("taskInstance.trigger"), value: triggerWithoutKwargs },
+          { label: translate("taskInstance.triggerer.job"), value: taskInstance?.triggerer_job },
+        ]),
   ];
 
   return (
     <Box p={2}>
-      {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? (
+      {selectedTaskInstance === undefined || tryNumber === undefined ? (
         <div />
       ) : (
         <TaskTrySelect
           onSelectTryNumber={onSelectTryNumber}
           selectedTryNumber={tryNumber}
-          taskInstance={taskInstance}
+          taskInstance={selectedTaskInstance}
         />
       )}
-      <ExtraLinks refetchInterval={isStatePending(tryInstance?.state) && refetchInterval} />
+      {historical ? undefined : (
+        <ExtraLinks refetchInterval={isStatePending(tryInstance?.state) && refetchInterval} />
+      )}
       {taskInstance === undefined ||
       ![null, "queued", "scheduled"].includes(taskInstance.state) ? undefined : (
         <BlockingDeps

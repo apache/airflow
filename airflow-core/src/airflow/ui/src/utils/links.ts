@@ -25,9 +25,13 @@ import {
 } from "src/constants/tab";
 import { taskInstanceRoutes } from "src/router";
 
+// Links address the current execution at these coordinates; a try_number would pin the page to one attempt.
 export const getTaskInstanceLink = (
   tiOrParams:
-    | TaskInstanceResponse
+    | Pick<
+        TaskInstanceResponse,
+        "dag_id" | "dag_run_id" | "map_index" | "region_id" | "region_index" | "task_id"
+      >
     | {
         dagId: string;
         dagRunId: string;
@@ -39,9 +43,19 @@ export const getTaskInstanceLink = (
   const tabPath = tab === undefined ? "" : `/${tab}`;
 
   if ("dag_id" in tiOrParams) {
-    return `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
+    const path = `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
       tiOrParams.map_index >= 0 ? `/mapped/${tiOrParams.map_index}` : ""
     }${tabPath}`;
+
+    if (tiOrParams.region_id === undefined) {
+      return path;
+    }
+    const query = new URLSearchParams({
+      region_id: tiOrParams.region_id,
+      region_index: String(tiOrParams.region_index),
+    });
+
+    return `${path}?${query}`;
   }
 
   const { dagId, dagRunId, mapIndex = -1, taskId } = tiOrParams;

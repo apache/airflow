@@ -32,6 +32,7 @@ import Time from "src/components/Time";
 import { useMarkTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
+import { isLoopTaskInstance } from "src/utils/loopTaskInstance";
 
 type Props = {
   readonly onClose: () => void;
@@ -45,6 +46,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const dagRunId = taskInstance.dag_run_id;
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
+  const isRegional = isLoopTaskInstance(taskInstance);
   const { t: translate } = useTranslation();
 
   const [markTaskInstanceDefaultOptions] = useMarkTaskInstanceDefaultOptions();
@@ -52,8 +54,8 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
 
   // Skipping is limited to this task instance, so the options affecting other task instances are ignored.
   const isSkipped = state === "skipped";
-  const past = !isSkipped && selectedOptions.includes("past");
-  const future = !isSkipped && selectedOptions.includes("future");
+  const past = !isSkipped && !isRegional && selectedOptions.includes("past");
+  const future = !isSkipped && !isRegional && selectedOptions.includes("future");
   const upstream = !isSkipped && selectedOptions.includes("upstream");
   const downstream = !isSkipped && selectedOptions.includes("downstream");
 
@@ -86,6 +88,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
       refetchOnMount: "always",
     },
     requestBody: {
+      ...(isRegional ? { region_id: taskInstance.region_id, region_index: taskInstance.region_index } : {}),
       include_downstream: downstream,
       include_future: future,
       include_past: past,
@@ -112,6 +115,9 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
               dagRunId,
               mapIndex,
               requestBody: {
+                ...(isRegional
+                  ? { region_id: taskInstance.region_id, region_index: taskInstance.region_index }
+                  : {}),
                 include_downstream: downstream,
                 include_future: future,
                 include_past: past,
@@ -152,12 +158,12 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
           onChange={setSelectedOptions}
           options={[
             {
-              disabled: isSkipped || taskInstance.logical_date === null,
+              disabled: isSkipped || isRegional || taskInstance.logical_date === null,
               label: translate("dags:runAndTaskActions.options.past"),
               value: "past",
             },
             {
-              disabled: isSkipped || taskInstance.logical_date === null,
+              disabled: isSkipped || isRegional || taskInstance.logical_date === null,
               label: translate("dags:runAndTaskActions.options.future"),
               value: "future",
             },

@@ -62,6 +62,8 @@ export const TaskLink = forwardRef<HTMLAnchorElement, Props>(
     const targetSearchParams = new URLSearchParams(searchParams);
 
     targetSearchParams.delete(SearchParamsKeys.TRY_NUMBER);
+    targetSearchParams.delete(SearchParamsKeys.REGION_ID);
+    targetSearchParams.delete(SearchParamsKeys.REGION_INDEX);
 
     return (
       <RouterLink ref={ref} to={{ pathname: basePath + taskPath, search: targetSearchParams.toString() }}>

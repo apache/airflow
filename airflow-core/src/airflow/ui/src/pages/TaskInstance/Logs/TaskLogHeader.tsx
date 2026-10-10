@@ -31,7 +31,7 @@ import {
 } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, TaskInstanceHistoryResponse } from "openapi/requests/types.gen";
 
 import { IconButton, Menu, Select, LazyClipboard } from "src/system-components";
 
@@ -54,7 +54,7 @@ export type TaskLogHeaderProps = {
   readonly showSource: boolean;
   readonly showTimestamp: boolean;
   readonly sourceOptions?: Array<string>;
-  readonly taskInstance?: TaskInstanceResponse;
+  readonly taskInstance?: TaskInstanceHistoryResponse | TaskInstanceResponse;
   readonly toggleExpanded?: () => void;
   readonly toggleFullscreen: () => void;
   readonly toggleLogLevel: () => void;
@@ -138,7 +138,7 @@ export const TaskLogHeader = ({
 
   return (
     <Box>
-      {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? undefined : (
+      {taskInstance === undefined || tryNumber === undefined ? undefined : (
         <TaskTrySelect
           onSelectTryNumber={onSelectTryNumber}
           selectedTryNumber={tryNumber}
