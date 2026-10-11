@@ -84,6 +84,11 @@ JAVA_TEST_BUNDLE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "java-tes
 JAVA_TEST_BUNDLE_DAGS_PATH = JAVA_TEST_BUNDLE_ROOT_PATH / "src" / "resources" / "dags"
 JAVA_TEST_BUNDLE_LIBS_PATH = JAVA_TEST_BUNDLE_ROOT_PATH / "build" / "bundle"
 
+# Java native-Dag bundle paths (Dags declared in Java, parsed from the JAR by the
+# Dag processor; its JAR goes into the Dag bundle rather than a coordinator root).
+JAVA_NATIVE_BUNDLE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "java-native-bundle"
+JAVA_NATIVE_BUNDLE_LIBS_PATH = JAVA_NATIVE_BUNDLE_ROOT_PATH / "build" / "bundle"
+
 # Go SDK E2E test paths
 GO_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "go-sdk"
 GO_SDK_DAGS_PATH = GO_SDK_ROOT_PATH / "dags"

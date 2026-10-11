@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{total}}개 에셋 중 {{count}}개 업데이트됨",
+  "assetSchedule": "{{total, number}}개 에셋 중 {{count, number}}개 업데이트됨",
   "dagActions": {
     "delete": {
       "button": "Dag 삭제",
@@ -33,7 +33,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "태스크를 찾을 수 없습니다.",
-      "title": "영향을 받는 태스크: {{count}}"
+      "title": "영향을 받는 태스크: {{count, number}}"
     },
     "clear": {
       "button": "{{type}} 지우기",

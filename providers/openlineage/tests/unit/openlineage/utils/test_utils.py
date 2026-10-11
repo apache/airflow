@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import datetime
 import pathlib
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
+from uuid import UUID, uuid4
 
 import pendulum
 import pytest
@@ -45,6 +47,7 @@ from airflow.providers.openlineage.utils.utils import (
     TaskInfo,
     TaskInfoComplete,
     TaskInstanceInfo,
+    TaskInstancePosition,
     _build_labeled_edge_map,
     _extract_ol_info_from_asset_event,
     _get_ol_job_dependencies_from_asset_events,
@@ -58,6 +61,7 @@ from airflow.providers.openlineage.utils.utils import (
     build_task_instance_ol_run_id,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
+    get_airflow_mapped_task_facet,
     get_airflow_run_facet,
     get_airflow_state_run_facet,
     get_dag_documentation,
@@ -68,7 +72,9 @@ from airflow.providers.openlineage.utils.utils import (
     get_job_name,
     get_operator_class,
     get_operator_provider_version,
+    get_orm_task_instance_positions,
     get_parent_information_from_dagrun_conf,
+    get_regional_task_instance_run_id,
     get_root_information_from_dagrun_conf,
     get_runtime_outlet_assets,
     get_task_documentation,
@@ -86,6 +92,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.compat import BashOperator, OperatorSerialization, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
@@ -94,10 +101,15 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
+
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.models.dagbag import DBDagBag
+    from airflow.models.dynamic_region import DynamicRegion
 _UTILS = "airflow.providers.openlineage.utils.utils"
 
 
@@ -403,7 +415,8 @@ def test_dag_run_team_name(mock_getboolean, mock_object_session, mock_get_team_n
 @patch("sqlalchemy.orm.object_session")
 @patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
 def test_dag_run_team_name_from_execution_api_dag_run(mock_getboolean, mock_object_session, team_name):
-    """The task runner has no DB session, so a DagRun carrying `team_name` must be trusted as-is.
+    """
+    The task runner has no DB session, so a DagRun carrying `team_name` must be trusted as-is.
 
     The cascade must stop at the first step — the DB lookup (object_session) must never be reached.
     """
@@ -470,7 +483,8 @@ def test_dag_run_team_name_below_airflow_3_3():
 @patch("sqlalchemy.orm.object_session")
 @patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
 def test_dag_run_team_name_from_scheduler_stamp(mock_getboolean, mock_object_session):
-    """Scheduler stamps _team_name on ORM DagRun objects; the attribute is read back as-is.
+    """
+    Scheduler stamps _team_name on ORM DagRun objects; the attribute is read back as-is.
 
     The cascade must stop at `_team_name` — the DB lookup (object_session) must never be reached.
     """
@@ -1636,7 +1650,7 @@ def test_build_labeled_edge_map_cross_group_via_downstream_join():
 
 
 def test_build_labeled_edge_map_mixed_task_and_group_edges():
-    """task >> TaskGroup produces both task_edges (per-root) and group_edges (group-level)."""
+    """Task >> TaskGroup produces both task_edges (per-root) and group_edges (group-level)."""
     with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         start = EmptyOperator(task_id="start")
         branch = EmptyOperator(task_id="branch")
@@ -1686,7 +1700,7 @@ def test_build_labeled_edge_map_multiple_targets_same_group():
 
 
 def test_build_labeled_edge_map_task_to_taskgroup():
-    """task >> TaskGroup: per-root entries in task_edges, group-level in group_edges."""
+    """Task >> TaskGroup: per-root entries in task_edges, group-level in group_edges."""
     with DAG(dag_id="test", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         start = EmptyOperator(task_id="start")
         with TaskGroup("grp") as tg:
@@ -1730,7 +1744,6 @@ def test_get_tasks_details_with_edge_labels():
 
     See ``_build_labeled_edge_map`` docstring for classification rules and consumer guidance.
     """
-
     with DAG(dag_id="labeled_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         start = BashOperator(task_id="start", bash_command="echo start")
         branch_a = BashOperator(task_id="branch_a", bash_command="echo a")
@@ -3833,8 +3846,218 @@ def test_validate_uuid_invalid():
         assert is_valid_uuid(uuid_str) is False
 
 
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region projection requires Airflow 3.4")
+@pytest.mark.parametrize("mapped", [False, True])
+def test_orm_lineage_facets_project_public_index(dag_maker, session, mapped):
+    with dag_maker(serialized=True):
+        if mapped:
+            PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}, {}])
+        else:
+            EmptyOperator(task_id="work")
+    run = dag_maker.create_dagrun()
+    if mapped:
+        ti = next(ti for ti in run.task_instances if ti.region_index == 2)
+    else:
+        region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
+        session.add(region)
+        session.flush()
+        ti = run.task_instances[0]
+        ti.region_id = region.id
+        ti.region_index = 2
+    session.flush()
+
+    with patch.object(DBDagBag, "get_dag", autospec=True) as get_dag:
+        info = dict(TaskInstanceInfo(ti))
+        facets = get_airflow_mapped_task_facet(ti)
+
+    get_dag.assert_not_called()
+    assert info["map_index"] == (2 if mapped else None)
+    if mapped:
+        assert facets["airflow_mappedTask"].mapIndex == 2
+    else:
+        assert facets == {}
+    assert ti in session
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+@pytest.mark.parametrize("in_loop", [False, True])
+def test_regional_run_id_is_the_execution_uuid_only_inside_a_loop(in_loop):
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("run_id_dag") as dag:
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        if in_loop:
+            create_loop(body, max_iterations=2)
+        else:
+            body()
+    ti = SimpleNamespace(id=uuid4(), region_id=uuid4(), task=dag.get_task("body.work"))
+
+    assert get_regional_task_instance_run_id(ti) == (str(ti.id) if in_loop else None)
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+@pytest.mark.parametrize("mapped", [False, True])
+def test_stored_regional_instance_without_its_task_is_placed_from_its_region(dag_maker, session, mapped):
+    with dag_maker(serialized=True):
+        if mapped:
+            PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+        else:
+            EmptyOperator(task_id="work")
+    run = dag_maker.create_dagrun()
+    ti = max(run.task_instances, key=lambda ti: ti.region_index)
+    if not mapped:
+        region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
+        session.add(region)
+        session.flush()
+        ti.region_id = region.id
+        ti.region_index = 2
+    session.flush()
+    ti.task = None
+
+    with pytest.raises(ValueError, match="has no task attached"):
+        get_regional_task_instance_run_id(ti)
+    with assert_queries_count(1):
+        positions = get_orm_task_instance_positions([ti], session=session)
+
+    assert positions == {
+        ti.id: TaskInstancePosition(in_loop=not mapped, map_index=ti.region_index if mapped else -1)
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+def test_placing_stored_instances_without_a_session_only_refuses_those_needing_their_region():
+    placed = TaskInstance(task=MagicMock(), dag_version_id=uuid7())
+    placed.region_id = UUID(int=0)
+    placed.region_index = -1
+    unplaced = TaskInstance(task=MagicMock(), dag_version_id=uuid7())
+    unplaced.region_id = uuid4()
+    unplaced.region_index = 2
+    unplaced.task = None
+
+    assert get_orm_task_instance_positions([placed], session=None) == {
+        placed.id: TaskInstancePosition(in_loop=False, map_index=-1)
+    }
+    with pytest.raises(ValueError, match="needs the session"):
+        get_orm_task_instance_positions([placed, unplaced], session=None)
+
+
 class TestExtractOlInfoFromAssetEvent:
     """Tests for _extract_ol_info_from_asset_event function."""
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region attribution requires Airflow3.4")
+    @pytest.mark.parametrize("in_loop", [False, True])
+    def test_regional_source_run_identity_follows_its_placement(self, in_loop):
+        logical_date = datetime.datetime(2024, 1, 1, tzinfo=datetime.UTC)
+        ti = SimpleNamespace(
+            id=uuid4(),
+            dag_id="source",
+            task_id="task",
+            try_number=1,
+            region_id=uuid4(),
+            region_index=3,
+        )
+        event = SimpleNamespace(
+            source_task_instance_id=ti.id,
+            source_task_instance=ti,
+            source_dag_id="source",
+            source_task_id="task",
+            source_map_index=3,
+            source_dag_run=SimpleNamespace(logical_date=logical_date),
+        )
+        positions = {ti.id: TaskInstancePosition(in_loop=in_loop, map_index=3)}
+
+        result = _extract_ol_info_from_asset_event(event, positions)
+
+        expected_run_id = (
+            str(ti.id)
+            if in_loop
+            else build_task_instance_ol_run_id(
+                dag_id="source", task_id="task", try_number=1, logical_date=logical_date, map_index=3
+            )
+        )
+        assert result == {"job_name": "source.task", "job_namespace": namespace(), "run_id": expected_run_id}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region attribution requires Airflow3.4")
+    def test_regional_source_without_its_task_or_placement_is_refused(self):
+        ti = SimpleNamespace(id=uuid4(), dag_id="source", task_id="task", region_id=uuid4(), region_index=3)
+        event = SimpleNamespace(source_task_instance=ti, source_dag_run=None)
+
+        with pytest.raises(ValueError, match="has no task attached"):
+            _extract_ol_info_from_asset_event(event)
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region attribution requires Airflow3.4")
+    def test_stored_regional_asset_sources_are_placed_with_one_region_query(self, dag_maker, session):
+        with dag_maker():
+            EmptyOperator(task_id="work")
+        run = dag_maker.create_dagrun()
+        root = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="mapped")
+        loop = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
+        session.add_all([root, loop])
+        session.flush()
+        nested = DynamicRegion(
+            dag_id=run.dag_id,
+            run_id=run.run_id,
+            node_id="nested",
+            parent_region_id=loop.id,
+            parent_region_index=2,
+        )
+        session.add(nested)
+        session.flush()
+        events = []
+        tis = {}
+        for region, task_id in [(root, "mapped"), (loop, "work"), (nested, "nested")]:
+            ti = tis[task_id] = TaskInstance(task=MagicMock(), dag_version_id=uuid7())
+            ti.dag_id = run.dag_id
+            ti.task_id = task_id
+            ti.run_id = run.run_id
+            ti.try_number = 1
+            ti.region_id = region.id
+            ti.region_index = 2
+            ti.task = None
+            for index in range(10):
+                events.append(
+                    SimpleNamespace(
+                        id=len(events),
+                        asset_id=index,
+                        uri=f"test://asset{index}",
+                        extra={},
+                        source_task_instance=ti,
+                        source_dag_id=ti.dag_id,
+                        source_task_id=ti.task_id,
+                        source_run_id=run.run_id,
+                        source_map_index=-1 if task_id == "work" else 2,
+                        source_dag_run=SimpleNamespace(logical_date=run.run_after),
+                    )
+                )
+        session.commit()
+
+        with assert_queries_count(1):
+            dependencies = _get_ol_job_dependencies_from_asset_events(events)
+
+        assert len(dependencies) == 3
+        assert {(item["job_name"], item["run_id"]) for item in dependencies} == {
+            (
+                f"{run.dag_id}.mapped",
+                build_task_instance_ol_run_id(
+                    dag_id=run.dag_id,
+                    task_id="mapped",
+                    try_number=1,
+                    logical_date=run.run_after,
+                    map_index=2,
+                ),
+            ),
+            (f"{run.dag_id}.work", str(tis["work"].id)),
+            (f"{run.dag_id}.nested", str(tis["nested"].id)),
+        }
+        assert all(len(item["asset_events"]) == 10 for item in dependencies)
 
     def test_extract_ol_info_from_task_instance(self):
         """Test extraction from TaskInstance (priority 1)."""
@@ -3846,6 +4069,7 @@ class TestExtractOlInfoFromAssetEvent:
         ti.task_id = "source_task"
         ti.try_number = 1
         ti.map_index = 0
+        ti.region_id = UUID(int=0)
 
         # Mock DagRun
         source_dr = MagicMock()
@@ -3855,6 +4079,7 @@ class TestExtractOlInfoFromAssetEvent:
         # Mock AssetEvent
         asset_event = MagicMock()
         asset_event.source_task_instance = ti
+        asset_event.source_map_index = 0
         asset_event.source_dag_run = source_dr
         asset_event.source_dag_id = None
         asset_event.source_task_id = None
@@ -3883,6 +4108,7 @@ class TestExtractOlInfoFromAssetEvent:
         ti.task_id = "source_task"
         ti.try_number = 1
         ti.map_index = 0
+        ti.region_id = UUID(int=0)
 
         # Mock DagRun with None logical_date
         source_dr = MagicMock()
@@ -3892,6 +4118,7 @@ class TestExtractOlInfoFromAssetEvent:
         # Mock AssetEvent
         asset_event = MagicMock()
         asset_event.source_task_instance = ti
+        asset_event.source_map_index = 0
         asset_event.source_dag_run = source_dr
         asset_event.source_dag_id = None
         asset_event.source_task_id = None
@@ -3916,6 +4143,7 @@ class TestExtractOlInfoFromAssetEvent:
         ti.task_id = "source_task"
         ti.try_number = 1
         ti.map_index = 0
+        ti.region_id = UUID(int=0)
 
         # Mock DagRun with None logical_date but run_after set
         source_dr = MagicMock()
@@ -3925,6 +4153,7 @@ class TestExtractOlInfoFromAssetEvent:
         # Mock AssetEvent
         asset_event = MagicMock()
         asset_event.source_task_instance = ti
+        asset_event.source_map_index = 0
         asset_event.source_dag_run = source_dr
         asset_event.source_dag_id = None
         asset_event.source_task_id = None
@@ -4058,6 +4287,7 @@ class TestGetOlJobDependenciesFromAssetEvents:
         """Test extraction and deduplication of asset events."""
         # Mock asset events
         asset_event1 = MagicMock()
+        asset_event1.source_task_instance = None
         asset_event1.id = 1
         asset_event1.source_run_id = "run1"
         asset_event1.asset_id = 101
@@ -4067,6 +4297,7 @@ class TestGetOlJobDependenciesFromAssetEvents:
         asset_event1.partition_key = None
 
         asset_event2 = MagicMock()
+        asset_event2.source_task_instance = None
         asset_event2.id = 2
         asset_event2.source_run_id = "run2"
         asset_event2.asset_id = 102
@@ -4129,6 +4360,7 @@ class TestGetOlJobDependenciesFromAssetEvents:
         """Test deduplication of duplicate asset events."""
         # Mock asset events
         asset_event1 = MagicMock()
+        asset_event1.source_task_instance = None
         asset_event1.id = 1
         asset_event1.source_run_id = "run1"
         asset_event1.asset_id = 101
@@ -4138,6 +4370,7 @@ class TestGetOlJobDependenciesFromAssetEvents:
         asset_event1.partition_key = None
 
         asset_event2 = MagicMock()
+        asset_event2.source_task_instance = None
         asset_event2.id = 2
         asset_event2.source_run_id = "run2"
         asset_event2.asset_id = 102
@@ -4186,6 +4419,7 @@ class TestGetOlJobDependenciesFromAssetEvents:
         """Test handling when extraction returns None."""
         # Mock asset event
         asset_event = MagicMock()
+        asset_event.source_task_instance = None
         asset_event.id = 1
 
         # Mock extraction returning None
@@ -4197,7 +4431,8 @@ class TestGetOlJobDependenciesFromAssetEvents:
 
 
 class TestGetDagJobDependencyFacet:
-    """Tests for get_dag_job_dependency_facet function.
+    """
+    Tests for get_dag_job_dependency_facet function.
 
     These tests mock only the DB-accessing function (_get_eagerly_loaded_dagrun_consumed_asset_events)
     to test the full flow of facet generation including event processing and facet building.
@@ -4256,6 +4491,7 @@ class TestGetDagJobDependencyFacet:
         ti1.task_id = "source_task1"
         ti1.try_number = 1
         ti1.map_index = 0
+        ti1.region_id = UUID(int=0)
 
         source_dr1 = MagicMock()
         source_dr1.logical_date = logical_date
@@ -4263,6 +4499,7 @@ class TestGetDagJobDependencyFacet:
 
         asset_event1 = MagicMock()
         asset_event1.source_task_instance = ti1
+        asset_event1.source_map_index = 0
         asset_event1.source_dag_run = source_dr1
         asset_event1.source_dag_id = None
         asset_event1.source_task_id = None
@@ -4350,6 +4587,7 @@ class TestGetDagJobDependencyFacet:
         ti.task_id = "source_task"
         ti.try_number = 1
         ti.map_index = 0
+        ti.region_id = UUID(int=0)
 
         source_dr = MagicMock()
         source_dr.logical_date = logical_date
@@ -4357,6 +4595,7 @@ class TestGetDagJobDependencyFacet:
 
         asset_event1 = MagicMock()
         asset_event1.source_task_instance = ti
+        asset_event1.source_map_index = 0
         asset_event1.source_dag_run = source_dr
         asset_event1.source_dag_id = None
         asset_event1.source_task_id = None
@@ -4370,6 +4609,7 @@ class TestGetDagJobDependencyFacet:
 
         asset_event2 = MagicMock()
         asset_event2.source_task_instance = ti  # Same TI
+        asset_event2.source_map_index = 0
         asset_event2.source_dag_run = source_dr  # Same DR
         asset_event2.source_dag_id = None
         asset_event2.source_task_id = None

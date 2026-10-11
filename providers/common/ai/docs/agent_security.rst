@@ -112,7 +112,17 @@ No single layer is sufficient on its own. They work together.
        (``DESCRIBE``/``SHOW``) statements pass; INSERT, UPDATE, DELETE, DROP,
        and writes hidden behind ``EXPLAIN`` are rejected.
      - Does not prevent the agent from reading sensitive data that the
-       database user has SELECT access to.
+       database user has SELECT access to. Without ``allowed_tables`` the check is
+       statement-level only: a side-effecting function inside a SELECT
+       (``nextval``, ``pg_terminate_backend``, ``dblink_exec``) is not blocked.
+       Setting ``allowed_tables`` adds a function check, but it rejects only functions
+       sqlglot cannot type; typed syntax such as T-SQL ``NEXT VALUE FOR`` or Snowflake
+       ``seq.nextval`` still passes. Use a least-privilege role and, where the database
+       supports it, a read-only default for that role or session (for example
+       ``ALTER ROLE <role> SET default_transaction_read_only = on`` on PostgreSQL).
+       The toolset opens its own connection per call, so you cannot set a transaction
+       from the Dag, and a read-only setting is defense in depth: it does not stop every
+       side-effecting function.
    * - **DataFusionToolset: read-only by default**
      - ``allow_writes=False`` (default) validates every SQL query through
        ``validate_sql()`` and rejects CREATE TABLE, CREATE VIEW, INSERT

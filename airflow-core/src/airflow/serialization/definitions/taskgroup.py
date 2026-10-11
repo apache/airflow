@@ -350,6 +350,16 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
 
 
 @attrs.define(kw_only=True, repr=False)
+class SerializedLoopTaskGroup(SerializedTaskGroup):
+    """Serialized loop definition used in protected processes."""
+
+    max_iterations: int
+    has_until: bool
+    terminal_task_id: str
+    gate_task_id: str
+
+
+@attrs.define(kw_only=True, repr=False)
 class SerializedMappedTaskGroup(SerializedTaskGroup):
     """Serialized representation of a MappedTaskGroup used in protected processes."""
 

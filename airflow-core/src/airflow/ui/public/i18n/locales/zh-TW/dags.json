@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} / {{total}} 個資源事件已更新",
+  "assetSchedule": "{{count, number}} / {{total, number}} 個資源事件已更新",
   "dagActions": {
     "delete": {
       "button": "刪除 Dag",
@@ -48,7 +48,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "找不到任務。",
-      "title": "受影響的任務: {{count}}"
+      "title": "受影響的任務: {{count, number}}"
     },
     "clear": {
       "button": "清除 {{type}}",

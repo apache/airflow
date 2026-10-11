@@ -44,8 +44,8 @@
   "deadlineAlerts": {
     "completionRule": "Πρέπει να ολοκληρωθεί εντός {{interval}} από {{reference}}",
     "completionRuleDynamic": "Πρέπει να ολοκληρωθεί εντός μεταβλητού διαστήματος που μετριέται από {{reference}}",
-    "count_one": "{{count}} προθεσμία",
-    "count_other": "{{count}} προθεσμίες",
+    "count_one": "{{count, number}} προθεσμία",
+    "count_other": "{{count, number}} προθεσμίες",
     "referenceType": {
       "AverageRuntimeDeadline": "μέσος χρόνος εκτέλεσης",
       "DagRunLogicalDateDeadline": "λογική ημερομηνία",
@@ -60,13 +60,13 @@
     "label": "Προθεσμία",
     "met": "Τηρήθηκε",
     "missed": "Χάθηκε",
-    "missedCount_one": "{{count}} Χαμένη Προθεσμία",
-    "missedCount_other": "{{count}} Χαμένες Προθεσμίες",
-    "mixedCount": "{{missedCount}} Χαμένες, {{upcomingCount}} Επερχόμενες",
+    "missedCount_one": "{{count, number}} Χαμένη Προθεσμία",
+    "missedCount_other": "{{count, number}} Χαμένες Προθεσμίες",
+    "mixedCount": "{{missedCount, number}} Χαμένες, {{upcomingCount, number}} Επερχόμενες",
     "stillRunning": "Εκτελείται ακόμη",
     "upcoming": "Επερχόμενη",
-    "upcomingCount_one": "{{count}} Επερχόμενη Προθεσμία",
-    "upcomingCount_other": "{{count}} Επερχόμενες Προθεσμίες"
+    "upcomingCount_one": "{{count, number}} Επερχόμενη Προθεσμία",
+    "upcomingCount_other": "{{count, number}} Επερχόμενες Προθεσμίες"
   },
   "extraLinks": "Επιπλέον Σύνδεσμοι",
   "grid": {
@@ -96,7 +96,7 @@
     "info": "INFO",
     "noTryNumber": "Χωρίς αριθμό προσπάθειας",
     "search": {
-      "matchCount": "{{current}} από {{total}}",
+      "matchCount": "{{current, number}} από {{total, number}}",
       "noMatches": "Δεν βρέθηκαν αντιστοιχίες",
       "placeholder": "Αναζήτηση στις καταγραφές..."
     },
@@ -215,8 +215,8 @@
     "code": "Κώδικας",
     "details": "Λεπτομέρειες",
     "logs": "Καταγραφές",
-    "mappedTaskInstances_one": "Στιγμιαία Κατάσταση Εργασίας [{{count}}]",
-    "mappedTaskInstances_other": "Στιγμιαίες Καταστάσεις Εργασίας [{{count}}]",
+    "mappedTaskInstances_one": "Στιγμιαία Κατάσταση Εργασίας [{{count, number}}]",
+    "mappedTaskInstances_other": "Στιγμιαίες Καταστάσεις Εργασίας [{{count, number}}]",
     "overview": "Επισκόπηση",
     "renderedTemplates": "Αποδοθέντα Πρότυπα",
     "requiredActions": "Απαιτούμενες Ενέργειες",
@@ -300,8 +300,8 @@
     "record_one": "Εγγραφή",
     "record_other": "Εγγραφές",
     "selectPrompt": "Επιλέξτε δύο εκδόσεις για να δείτε τι άλλαξε μεταξύ τους.",
-    "summary_one": "{{count}} αλλαγή · σειριοποιημένο Schema {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count}} αλλαγές · σειριοποιημένο Schema {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count, number}} αλλαγή · σειριοποιημένο Schema {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count, number}} αλλαγές · σειριοποιημένο Schema {{baseSchema}} → {{targetSchema}}",
     "target": "Σύγκριση με",
     "truncated": {
       "description": "Οι αλλαγές σε διαδρομές που δεν εμφανίζονται παραλείφθηκαν για να τηρηθεί το όριο, επομένως το πλήθος είναι ένας μικρότερος αριθμός ορίου.",

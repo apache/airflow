@@ -102,8 +102,8 @@ describe("VersionDiff summary", () => {
   it("carries both plural forms, since i18next resolves it with a count", () => {
     // A single `summary` key would render "1 changes" for a one-change comparison.
     expect(dagLocale.versions).not.toHaveProperty("summary");
-    expect(dagLocale.versions.summary_one).toContain("{{count}}");
-    expect(dagLocale.versions.summary_other).toContain("{{count}}");
+    expect(dagLocale.versions.summary_one).toContain("{{count, number}}");
+    expect(dagLocale.versions.summary_other).toContain("{{count, number}}");
   });
 });
 

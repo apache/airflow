@@ -33,7 +33,7 @@
       "importErrorGone": "This import error is no longer recorded. It was probably fixed by a reparse.",
       "neverParsed": "Never",
       "showImportError_one": "View error",
-      "showImportError_other": "View {{count}} errors"
+      "showImportError_other": "View {{count, number}} errors"
     },
     "inactive": "Inactive",
     "neverRefreshed": "Never",

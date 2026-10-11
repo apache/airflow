@@ -37,6 +37,8 @@ type XComEntryProps = {
   readonly dagId: string;
   readonly mapIndex: number;
   readonly open?: boolean;
+  readonly regionId?: string;
+  readonly regionIndex?: number;
   readonly runId: string;
   readonly taskId: string;
   readonly xcomKey: string;
@@ -105,12 +107,23 @@ const XComError = ({ error }: { readonly error: unknown }) => {
   );
 };
 
-export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKey }: XComEntryProps) => {
+export const XComEntry = ({
+  dagId,
+  mapIndex,
+  open = false,
+  regionId,
+  regionIndex,
+  runId,
+  taskId,
+  xcomKey,
+}: XComEntryProps) => {
   const { data, error, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
     dagId,
     dagRunId: runId,
     deserialize: true,
     mapIndex,
+    regionId,
+    regionIndex,
     stringify: false,
     taskId,
     xcomKey,
