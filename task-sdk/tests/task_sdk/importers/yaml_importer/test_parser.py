@@ -479,3 +479,50 @@ def test_published_schema_accepts_null_and_empty_bodies(task):
     validator = jsonschema.Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
     document = {"$schema": HEAD_SCHEMA, "dag_id": "d", "tasks": [task]}
     assert list(validator.iter_errors(document)) == []
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param(
+            "tasks:\n  - {id: up, run: {}}\n  - {id: t, run: {a: {$x: up}}}",
+            id="xcom-short",
+        ),
+        pytest.param(
+            "tasks:\n  - {id: up, run: {}}\n  - {id: t, run: {a: {$xcom: up}}}",
+            id="xcom-long",
+        ),
+        pytest.param(
+            "tasks:\n  - {id: up, run: {}}\n  - {id: t, run: {a: {$x: {task: up, key: rows}}}}",
+            id="xcom-keyed",
+        ),
+        pytest.param(
+            "tasks:\n  - {id: t, run: {a: {$const: {$x: literal}}}}",
+            id="const-around-dollar",
+        ),
+        pytest.param(
+            "tasks:\n  - {id: t, uses: X, with: {k: {$t: 'v-{{ ds }}'}}}",
+            id="template",
+        ),
+        pytest.param(
+            "templates: {base: {run: {r: 1}}}\ntasks:\n  - {id: t, extends: base}",
+            id="extends-bare",
+        ),
+        pytest.param(
+            "tasks:\n  - {id: t, run: {a: {}}}",
+            id="empty-dict-value",
+        ),
+        pytest.param(
+            "tasks:\n  - {id: t, run: {s: x, n: 5, f: 1.5, b: true, z: null}}",
+            id="scalars",
+        ),
+    ],
+)
+def test_valid_shapes_round_trip(body):
+    # Each valid value-grammar shape must be accepted by BOTH the parser and the published
+    # JSON Schema -- the two descriptions of the format must not drift apart.
+    text = f"$schema: {HEAD_SCHEMA}\ndag_id: d\n{textwrap.dedent(body)}"
+    assert list(parse_documents(text))  # the parser accepts it
+    validator = jsonschema.Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
+    for document in (d for d in yaml.safe_load_all(text) if d):
+        assert list(validator.iter_errors(document)) == []  # the published schema agrees
