@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import tomllib
+
 import pytest
-from ci.prek.update_airflow_pyproject_toml import get_exclusion_marker
+from ci.prek.update_airflow_pyproject_toml import build_provider_dependency_entries, get_exclusion_marker
 from packaging.requirements import Requirement
 
 
@@ -56,3 +58,21 @@ def test_get_exclusion_marker_combines_patch_minor_and_platform():
     assert not requirement.marker.evaluate(
         {"python_version": "3.10", "python_full_version": "3.10.1", "platform_machine": "aarch64"}
     )
+
+
+def test_build_provider_dependency_entries_marks_a_provider_without_a_minimum_version():
+    """Without the marker, the extra and `all` would still require a provider excluded for that Python."""
+    marker = get_exclusion_marker({"excluded-python-versions": ["3.15"]})
+
+    extra, all_line = build_provider_dependency_entries(
+        "apache.kafka", "apache-airflow-providers-apache-kafka", None, "", marker
+    )
+
+    (requirement,) = tomllib.loads(extra)["apache.kafka"]
+    (all_requirement,) = tomllib.loads(f'"all" = [\n{all_line}]\n')["all"]
+    for entry in (requirement, all_requirement):
+        parsed = Requirement(entry)
+        assert parsed.name == "apache-airflow-providers-apache-kafka"
+        assert parsed.marker is not None
+        assert not parsed.marker.evaluate({"python_version": "3.15"})
+        assert parsed.marker.evaluate({"python_version": "3.14"})
