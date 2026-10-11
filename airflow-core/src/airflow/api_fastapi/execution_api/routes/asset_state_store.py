@@ -53,7 +53,6 @@ from airflow.state.metastore import MetastoreBackend
 NULL_UUID = UUID(int=0)
 
 
-<<<<<<< HEAD
 class _TIWriterFields(NamedTuple):
     dag_id: str
     run_id: str
@@ -65,14 +64,9 @@ class _TIWriterFields(NamedTuple):
     try_number: int
 
 
-def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFields:
-    """Return exact writer attribution for the execution identified by the token."""
-    row = session.execute(
-=======
 async def _fetch_ti_writer_fields(token: TIToken, session: AsyncSessionDep) -> _TIWriterFields:
-    """Return (dag_id, run_id, task_id, map_index) for the TI identified by the token."""
-    result = await session.execute(
->>>>>>> fcf3abbd73 (convert all asset-state-store endpoint to an async endpoint)
+    """Return exact writer attribution for the execution identified by the token."""
+    result_row = await session.execute(
         select(
             TaskInstance.dag_id,
             TaskInstance.run_id,
@@ -84,7 +78,7 @@ async def _fetch_ti_writer_fields(token: TIToken, session: AsyncSessionDep) -> _
             TaskInstance.try_number,
         ).where(TaskInstance.id == token.id)
     )
-    row = result.one_or_none()
+    row = result_row.one_or_none()
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -168,12 +162,7 @@ async def _put_asset_state_store(
                 session=session,
             )
         else:
-<<<<<<< HEAD
-            writer = _fetch_ti_writer_fields(token, session)
-=======
-            ti_fields = await _fetch_ti_writer_fields(token, session)
-            dag_id, run_id, task_id, map_index = ti_fields
->>>>>>> fcf3abbd73 (convert all asset-state-store endpoint to an async endpoint)
+            writer = await _fetch_ti_writer_fields(token, session)
 
             await backend.aset_asset_state_store(
                 scope,
