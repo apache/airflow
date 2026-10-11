@@ -1,9 +1,9 @@
 {
-  "assetSchedule": "{{total}}개 에셋 중 {{count}}개 업데이트됨",
+  "assetSchedule": "{{total, number}}개 에셋 중 {{count, number}}개 업데이트됨",
   "dagActions": {
     "delete": {
       "button": "Dag 삭제",
-      "warning": "실행 및 태스크를 포함하여 Dag과(와) 관련된 모든 메타데이터가 제거됩니다."
+      "warning": "실행 및 태스크를 포함하여 Dag와 관련된 모든 메타데이터가 제거됩니다."
     }
   },
   "favoriteDag": "Dag 즐겨찾기",
@@ -33,7 +33,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "태스크를 찾을 수 없습니다.",
-      "title": "영향을 받는 태스크: {{count}}"
+      "title": "영향을 받는 태스크: {{count, number}}"
     },
     "clear": {
       "button": "{{type}} 지우기",
@@ -96,7 +96,7 @@
     "pauseNow": "지금 일시 중지"
   },
   "schedulingBanner": {
-    "message": "이 Dag은 실행 완료 대기 중입니다. 진행 중인 Dag 실행이 모두 끝나면 일시 중지됩니다."
+    "message": "이 Dag는 실행 완료 대기 중입니다. 진행 중인 Dag 실행이 모두 끝나면 일시 중지됩니다."
   },
   "schedulingState": {
     "active": "활성",

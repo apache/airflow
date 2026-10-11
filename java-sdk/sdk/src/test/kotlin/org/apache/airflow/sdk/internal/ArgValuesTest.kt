@@ -128,6 +128,25 @@ internal class ArgValuesTest {
         ): Unit = throw NotImplementedError()
 
         override fun clearTaskStateStore(tiId: UUID): Unit = throw NotImplementedError()
+
+        override fun skipDownstreamTasks(taskIds: List<String>): Unit = throw NotImplementedError()
+
+        override fun triggerDagRun(
+          dagId: String,
+          runId: String,
+          logicalDate: OffsetDateTime?,
+          runAfter: OffsetDateTime?,
+          conf: Map<String, Any?>?,
+          resetDagRun: Boolean,
+          note: String?,
+        ): Boolean = throw NotImplementedError()
+
+        override fun getDagRunState(
+          dagId: String,
+          runId: String,
+        ): String = throw NotImplementedError()
+
+        override fun isDagPaused(dagId: String): Boolean = throw NotImplementedError()
       },
     )
 
@@ -141,7 +160,7 @@ internal class ArgValuesTest {
       .distinct()
       .forEach { dag.addTask(it) }
     val def = TaskDef("consumer", NoopArgTask::class.java)
-    Refs.record(dag, listOf("consumer")) { Refs.call<Unit>(def, *inputs.toTypedArray()) }
+    Refs.record(dag, listOf("consumer"), emptyList()) { Refs.call<Unit>("", def, emptyList(), *inputs.toTypedArray()) }
     return contextWithoutTaskDef().also { it.taskDef = def }
   }
 

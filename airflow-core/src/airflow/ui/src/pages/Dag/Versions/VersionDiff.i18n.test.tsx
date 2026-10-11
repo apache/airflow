@@ -20,7 +20,7 @@
  * Separate from VersionDiff.test.tsx: importing the i18n config initializes the shared instance for
  * the whole file, and the sibling asserts on untranslated keys.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 

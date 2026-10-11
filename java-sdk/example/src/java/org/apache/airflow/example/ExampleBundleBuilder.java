@@ -30,7 +30,8 @@ public class ExampleBundleBuilder {
         .register(AnnotationExample.class)
         .register(XComCastingExample.class)
         .register(org.apache.airflow.example.nativedag.AnnotationExample.class)
-        .register(org.apache.airflow.example.nativedag.InterfaceExample.build());
+        .register(org.apache.airflow.example.nativedag.InterfaceExample.build())
+        .register(org.apache.airflow.example.nativedag.TargetExample.build());
   }
 
   public static void main(String[] args) {

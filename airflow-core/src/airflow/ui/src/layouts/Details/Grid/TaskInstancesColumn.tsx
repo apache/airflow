@@ -151,6 +151,7 @@ export const TaskInstancesColumn = ({
               isGroup={node.isGroup}
               isMapped={node.is_mapped}
               label={node.label}
+              loopMaxIterations={node.loop_max_iterations}
               onClick={onCellClick}
               runId={run.run_id}
               taskId={node.id}

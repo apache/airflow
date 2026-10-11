@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
 import { setupServer, type SetupServer } from "msw/node";
@@ -33,7 +33,7 @@ let server: SetupServer;
 
 beforeAll(() => {
   server = setupServer(...handlers);
-  server.listen({ onUnhandledRequest: "bypass" });
+  server.listen({ onUnhandledFrame: "bypass" });
 });
 
 afterEach(() => {
@@ -392,5 +392,34 @@ describe("Dags table", () => {
     const cell = await screen.findByTestId(`table-cell-${columnId}`);
 
     await waitFor(() => expect(cell.firstElementChild).toHaveStyle({ whiteSpace: "nowrap" }));
+  });
+});
+
+describe("Dags display toggle", () => {
+  it("switches between card and table views", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    const cardList = await screen.findByTestId("card-list");
+
+    await waitFor(() =>
+      expect(within(cardList).getByText("tutorial_taskflow_api_success")).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId("table-list")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText(/toggleTableView/iu));
+
+    const tableList = await screen.findByTestId("table-list");
+
+    expect(within(tableList).getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+    expect(screen.queryByTestId("card-list")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText(/toggleCardView/iu));
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("card-list")).getByText("tutorial_taskflow_api_success"),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId("table-list")).toBeNull();
   });
 });

@@ -26,6 +26,7 @@ import { RouterLink } from "src/system-components";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { SelectionHeaderCheckbox, SelectionRowCheckbox } from "src/components/DataTable/useRowSelection";
 import { DrainingBadge } from "src/components/DrainingBadge";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
@@ -57,7 +58,7 @@ export const createColumns = (
   translate: (key: string, options?: Record<string, unknown>) => string,
   runStateContext: RunStateCountsContext,
   { multiTeam, recentTasks }: GetColumnsParams,
-): Array<ColumnDef<DAGWithLatestDagRunsResponse>> => [
+): Array<ColumnDef<DataTableFeatures, DAGWithLatestDagRunsResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,

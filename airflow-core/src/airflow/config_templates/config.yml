@@ -557,8 +557,9 @@ core:
     execution_api_server_url:
       description: |
         The url of the execution api server. Default is ``{BASE_URL}/execution/``
-        where ``{BASE_URL}`` is the base url of the API Server. If ``{BASE_URL}`` is not set,
-        it will use ``http://localhost:8080`` as the default base url.
+        where ``{BASE_URL}`` is the base url of the API Server. If ``{BASE_URL}`` is not set
+        or is a relative path such as ``/airflow``, it is prefixed with ``http://localhost:{PORT}``,
+        where ``{PORT}`` is ``[api] port``.
       version_added: 3.0.0
       type: string
       example: ~
@@ -3317,6 +3318,10 @@ dag_processor:
     refresh_interval:
       description: |
         How often (in seconds) to refresh, or look for new files, in a DAG bundle.
+
+        When this option and ``dag_bundle_config_list`` are left at their defaults, ``airflow standalone``
+        refreshes the Dags folder every ``bundle_refresh_check_interval`` seconds instead, so new Dag
+        files show up within seconds.
       version_added: ~
       type: integer
       example: ~

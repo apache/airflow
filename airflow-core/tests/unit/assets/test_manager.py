@@ -1043,11 +1043,7 @@ class TestAssetMetricsTeamName:
         with dag_maker(dag_id=f"asset_dag_{suffix}", bundle_name=bundle_name, session=session):
             EmptyOperator(task_id="task1", outlets=[asset])
 
-        ti = mock.MagicMock()
-        ti.dag_id = f"asset_dag_{suffix}"
-        ti.task_id = "task1"
-        ti.run_id = "run1"
-        ti.map_index = -1
+        ti = dag_maker.create_dagrun().task_instances[0]
 
         with conf_vars({("core", "multi_team"): multi_team}):
             AssetManager().register_asset_change(task_instance=ti, asset=asset, session=session)

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -85,6 +85,7 @@ describe("TaskInstanceTooltip", () => {
       executor_config: "{}",
       hostname: null,
       id: "test_my_task",
+      in_loop: false,
       logical_date: null,
       map_index: 0,
       max_tries: 3,

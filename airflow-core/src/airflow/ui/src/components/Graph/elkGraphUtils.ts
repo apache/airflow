@@ -45,8 +45,10 @@ export type FormattedNode = {
   childCount?: number;
   edges?: Array<FormattedEdge>;
   isGroup: boolean;
+  isLoop?: boolean;
   isMapped?: boolean;
   isOpen?: boolean;
+  loopMaxIterations?: number;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
   team?: string | null;
   uiColor?: string | null;
@@ -348,12 +350,14 @@ export const generateElkGraph = ({
         edges: internalEdges,
         id: node.id,
         isGroup: true,
+        isLoop: node.is_loop === null ? undefined : node.is_loop,
         isOpen,
         label: node.label,
         layoutOptions: {
           "elk.padding": "[top=80,left=15,bottom=15,right=15]",
           ...(direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : {}),
         },
+        loopMaxIterations: node.loop_max_iterations ?? undefined,
         uiColor: node.ui_color,
         uiFgcolor: node.ui_fgcolor,
       };
@@ -388,9 +392,11 @@ export const generateElkGraph = ({
       height,
       id: node.id,
       isGroup: Boolean(node.children),
+      isLoop: node.is_loop === null ? undefined : node.is_loop,
       isMapped: node.is_mapped === null ? undefined : node.is_mapped,
       label: node.label,
       layoutOptions: direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : undefined,
+      loopMaxIterations: node.loop_max_iterations ?? undefined,
       operator: node.operator,
       setupTeardownType: node.setup_teardown_type,
       team: node.team,

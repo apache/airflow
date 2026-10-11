@@ -768,8 +768,12 @@ class DAG:
 
         This is called by the Dag bag before bagging the Dag.
         """
+        # Imported here because taskgroup imports this module.
+        from airflow.sdk.definitions._internal.loop import check_expansions_over_loop_tasks
+
         self.timetable.validate()
         self.validate_setup_teardown()
+        check_expansions_over_loop_tasks(self)
 
         # We validate owner links on set, but since it's a dict it could be mutated without calling the
         # setter. Validate again here
@@ -1134,6 +1138,10 @@ class DAG:
     def add_result(self, xcom_arg: X) -> X:
         if not _is_valid_dag_result(xcom_arg):
             raise ValueError("Only plain return value can be used as dag result")
+        # Imported here because taskgroup imports this module.
+        from airflow.sdk.definitions._internal.loop import check_dag_result_outside_loop
+
+        check_dag_result_outside_loop(xcom_arg.operator)
         xcom_arg.operator.returns_dag_result = True
         return xcom_arg
 
@@ -1480,7 +1488,8 @@ def _run_task(
     from airflow.utils.session import create_session
 
     taskrun_result: TaskRunResult | None
-    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    map_index = ti.region_index if task.get_needs_expansion() else -1
+    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, map_index)
     while True:
         try:
             log.info("[DAG TEST] running task %s", ti)
@@ -1499,7 +1508,9 @@ def _run_task(
                 dag_id=ti.dag_id,
                 run_id=ti.run_id,
                 try_number=ti.try_number,
-                map_index=ti.map_index,
+                map_index=map_index,
+                region_id=ti.region_id,
+                region_index=ti.region_index,
                 dag_version_id=UUID(str(ti.dag_version_id)),
             )
 
@@ -1551,7 +1562,7 @@ def _run_task(
                 break
             raise
 
-    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, map_index)
     return taskrun_result
 
 

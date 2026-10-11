@@ -28,6 +28,7 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin, normalize_assigned_users
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
+from airflow.providers.common.ai.mixins.usage_budget import UsageBudgetMixin
 from airflow.providers.common.ai.policies.decision import DecisionPolicy
 from airflow.providers.common.ai.utils.decision import (
     DECISION_XCOM_KEY,
@@ -43,7 +44,7 @@ from airflow.providers.common.ai.utils.decision import (
     timed_out_record,
     validate_decision_policy,
 )
-from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY, log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.notifier import BaseNotifier
@@ -60,7 +61,10 @@ except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` wa
     _CORE_WALKER = False
 
 if TYPE_CHECKING:
+    from types import UnionType
+
     from pydantic_ai import Agent
+    from pydantic_ai.agent import AgentRunResult
     from pydantic_ai.usage import UsageLimits
 
     from airflow.sdk import Context
@@ -73,7 +77,7 @@ __all__ = ["DecisionPolicy", "LLMOperator"]
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
-class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
+class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, UsageBudgetMixin):
     """
     Call an LLM with a prompt and return the output.
 
@@ -87,6 +91,11 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
     The Pydantic class must be defined at module scope: classes nested inside
     a function or ``@dag``-decorated body cannot be deserialized from XCom.
 
+    Once ``_clear_usage_budget`` has run, nothing may fail the attempt (raising
+    ``DownstreamTasksSkipped`` to signal success is fine): a failure would be retried
+    with a fresh budget. This applies to subclasses that override ``execute`` or
+    ``execute_complete``.
+
     :param prompt: The prompt to send to the LLM.
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
@@ -99,8 +108,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
         for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the LLM agent.
-    :param output_type: Expected output type. Default ``str``. Set to a Pydantic
-        ``BaseModel`` subclass for structured output; the model instance is
+    :param output_type: Expected output type. Default ``str``. A single type
+        (``str``, ``int``, ``list[str]``, a Pydantic ``BaseModel`` subclass) or a
+        union (``A | B``). For a ``BaseModel`` subclass, the model instance is
         returned to XCom unchanged so downstream tasks can type-hint it
         directly. The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
@@ -125,7 +135,10 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
 
         A dict that omits ``request_limit`` gets the same default of ``50``
         requests -- pass ``"request_limit": None`` explicitly for no request
-        cap. This matches building a ``UsageLimits`` directly. See
+        cap. This matches building a ``UsageLimits`` directly.
+
+        On Airflow >= 3.3, a set ``usage_limits`` bounds the whole task instance:
+        usage from earlier attempts counts against it. See
         :ref:`howto/operator:llm` for the full set of caveats.
     :param require_approval: If ``True``, the task defers after generating
         output and waits for a human reviewer to approve or reject via the
@@ -197,7 +210,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: type = str,
+        output_type: type | UnionType = str,
         agent_params: dict[str, Any] | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
@@ -302,11 +315,12 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
-        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 
         model_confidence = ModelConfidence.from_result(result)
+        if model_confidence.model is not None:
+            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_confidence.model)
         # Gated by the least confident of the fields that reported a confidence; a field whose type
         # reports none is not gated. A bare output type is the one field ``response``.
         fields = list(model_confidence.confidence) or ["response"]
@@ -349,6 +363,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
             # JSON payload that deserializes without an allow-list entry.
             output = output.model_dump()
 
+        self._clear_usage_budget(context)
         return output
 
     def execute_complete(
@@ -359,11 +374,42 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         decision: dict[str, Any] | None = None,
     ) -> Any:
         """Resume after human review and restore the Pydantic model for XCom consumers."""
+        output = self._complete_review(context, generated_output, event, decision)
+        self._clear_usage_budget(context)
+        return output
+
+    def _complete_review(
+        self,
+        context: Context,
+        generated_output: str,
+        event: dict[str, Any],
+        decision: dict[str, Any] | None,
+    ) -> Any:
+        """Resolve the review and rehydrate the output, leaving the usage budget for the caller to clear."""
         output = self._resume_after_review(context, generated_output, event, decision)
         self._finalize_decision(context, event, decision, action=None)
         return rehydrate_pydantic_output(
             self.output_type, output, serialize_output=self._serialize_model_output
         )
+
+    def _run_llm(
+        self, context: Context, agent: Agent[Any, Any], user_prompt: Any, *, usage_limits: UsageLimits | None
+    ) -> AgentRunResult[Any]:
+        """Run the agent, bounding ``usage_limits`` across task retries when the usage budget applies."""
+        # Contexts built without a ``task_instance`` stay valid for runs that have no ``usage_limits``.
+        ti = context["task_instance"] if usage_limits is not None else None
+        self._usage_budget = self._build_usage_budget(context, usage_limits, ti=ti)
+        if self._usage_budget is None:
+            result = self.run_agent_sync(agent, user_prompt, usage_limits=usage_limits)
+            log_run_summary(self.log, result)
+            return result
+        run_usage = self._usage_budget.load()
+        result, attempt_usage = self._run_tracked(
+            agent, user_prompt, run_usage=run_usage, usage_limits=usage_limits
+        )
+        log_run_summary(self.log, result, usage=attempt_usage)
+        self._log_cumulative_usage(run_usage)
+        return result
 
     def _log_review(self, review: ReviewReason, confidence: float | None, threshold: float | None) -> None:
         if review == "below_threshold":
@@ -398,8 +444,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
                 self._push_decision(context, timed_out_record(decision))
             raise
 
-    def _push_decision(self, context: Context, record: dict[str, Any]) -> None:
-        """Expose what the model proposed, its confidence, and what the gate decided, on XCom."""
+    def _push_xcom(self, context: Context, key: str, value: Any) -> None:
+        """Push ``value`` under ``key`` on XCom, honoring ``do_xcom_push`` and a missing task instance."""
         if not self.do_xcom_push:
             return
         try:
@@ -409,10 +455,14 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         push = getattr(ti, "xcom_push", None)
         if not callable(push):
             # A hand-built context (a dict, or no task instance at all) has nowhere to push to; the
-            # record is inspection output, so the run goes on without it.
-            self.log.warning("No task instance in the context; the decision record was not pushed to XCom.")
+            # value is inspection output, so the run goes on without it.
+            self.log.warning("No task instance in the context; %r was not pushed to XCom.", key)
             return
-        push(key=DECISION_XCOM_KEY, value=record)
+        push(key=key, value=value)
+
+    def _push_decision(self, context: Context, record: dict[str, Any]) -> None:
+        """Expose what the model proposed, its confidence, and what the gate decided, on XCom."""
+        self._push_xcom(context, DECISION_XCOM_KEY, record)
 
     def _finalize_decision(
         self, context: Context, event: dict[str, Any], decision: dict[str, Any] | None, *, action: Any

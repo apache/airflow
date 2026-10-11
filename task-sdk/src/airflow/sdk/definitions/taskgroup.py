@@ -32,7 +32,6 @@ from airflow.sdk import TriggerRule
 from airflow.sdk._shared.dagnode.node import TaskGroupMixin
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import (
-    AirflowDagCycleException,
     DuplicateTaskIdFound,
     NodeNotFound,
     TaskAlreadyInTaskGroup,
@@ -561,7 +560,8 @@ class TaskGroup(TaskGroupMixin, DAGNode):
           traversal, O((V + E) log V), avoids the O(N²) blowup the sweep would hit.
 
         Both branches produce the same emission order: level-by-legacy-pass, ties broken by
-        children insertion order.
+        children insertion order. Siblings that depend on each other in a cycle, which
+        ``DAG.check_cycle`` allows, are ordered as one unit (see ``_sort_cyclic_projection``).
         """
         children = self.children
         if not children:
@@ -657,49 +657,16 @@ class TaskGroup(TaskGroupMixin, DAGNode):
                 emitted[i] = 1
                 order_append(nodes[i])
             if len(next_pending) == len(pending):
-                raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+                return self._sort_cyclic_projection(nodes, projected)
             pending = next_pending
         return order
 
     def _sort_via_pass_numbering(
         self, nodes: list[DAGNode], projected: list[tuple[int, ...]]
     ) -> list[DAGNode]:
-        # Sort by (pass_number, insertion_index). pass_number(X) is the earliest pass at
-        # which a greedy-sweep emission of X would occur:
-        #   pass(X) = max over deps d of (pass(d) if idx(d) < idx(X) else pass(d)+1)
-        # A dep declared before X can be emitted in the same pass; a dep declared after X
-        # forces X into the next pass. Computed via Kahn's traversal in O(V + E).
-        n = len(nodes)
-        in_degree = [len(deps) for deps in projected]
-        successors: list[list[int]] = [[] for _ in range(n)]
-        for i, deps in enumerate(projected):
-            for d in deps:
-                successors[d].append(i)
-
-        pass_of = [0] * n
-        queue: deque[int] = deque(i for i in range(n) if in_degree[i] == 0)
-        processed = 0
-        while queue:
-            i = queue.popleft()
-            my_pass = 1
-            for d in projected[i]:
-                d_pass = pass_of[d]
-                if d < i:
-                    if d_pass > my_pass:
-                        my_pass = d_pass
-                elif d_pass + 1 > my_pass:
-                    my_pass = d_pass + 1
-            pass_of[i] = my_pass
-            processed += 1
-            for s in successors[i]:
-                in_degree[s] -= 1
-                if in_degree[s] == 0:
-                    queue.append(s)
-
-        if processed != n:
-            raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
-
-        sorted_indices = sorted(range(n), key=lambda i: (pass_of[i], i))
+        sorted_indices = self._compute_pass_order(projected)
+        if len(sorted_indices) != len(nodes):
+            return self._sort_cyclic_projection(nodes, projected)
         return [nodes[i] for i in sorted_indices]
 
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:

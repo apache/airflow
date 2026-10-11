@@ -74,7 +74,7 @@ def logging_processors(
     if mask_secrets:
         extra_processors += (mask_logs,)
 
-    if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
+    if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors", None)):
         extra_processors += remote_processors
 
     procs, _, final_writer = structlog_processors(
@@ -119,9 +119,6 @@ def configure_logging(
     if mask_secrets:
         extra_processors += (mask_logs,)
 
-    if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
-        extra_processors += remote_processors
-
     configure_logging(
         json_output=json_output,
         log_level=log_level,
@@ -133,6 +130,16 @@ def configure_logging(
         extra_processors=extra_processors,
         callsite_parameters=callsite_params,
     )
+
+    # Build the remote handler after dictConfig(), which closes every previously registered handler.
+    if (
+        not sending_to_supervisor
+        and (remote := load_remote_log_handler())
+        and (remote_processors := getattr(remote, "processors", None))
+    ):
+        current_processors = list(structlog.get_config()["processors"])
+        updated_processors = current_processors[:-1] + list(remote_processors) + [current_processors[-1]]
+        structlog.configure(processors=updated_processors)
 
 
 def logger_at_level(name: str, level: int) -> Logger:

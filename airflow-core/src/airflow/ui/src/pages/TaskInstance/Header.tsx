@@ -22,7 +22,7 @@ import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { Alert } from "src/system-components";
 
@@ -32,6 +32,7 @@ import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { NotePreview } from "src/components/NotePreview";
+import ReactMarkdown from "src/components/ReactMarkdown";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
@@ -40,6 +41,27 @@ import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { useDurationFormat } from "src/utils";
 
 import { stateReasonDisplay } from "./stateReason";
+
+export const HistoryHeader = ({ taskInstance }: { readonly taskInstance: TaskInstanceHistoryResponse }) => {
+  const { t: translate } = useTranslation();
+
+  return (
+    <Box display="flex" flexDirection="column" gap={3}>
+      <HeaderCard
+        icon={<MdOutlineTask />}
+        state={taskInstance.state}
+        stats={[
+          { label: translate("tryNumber"), value: taskInstance.try_number },
+          { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },
+          { label: translate("endDate"), value: <Time datetime={taskInstance.end_date} /> },
+        ]}
+        title={`${taskInstance.task_display_name}${taskInstance.map_index >= 0 ? ` [${taskInstance.map_index}]` : ""}`}
+        type="taskInstance"
+      />
+      <ReactMarkdown>{taskInstance.note ?? ""}</ReactMarkdown>
+    </Box>
+  );
+};
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
