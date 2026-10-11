@@ -52,7 +52,7 @@ except ImportError as e:
     ) from e
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, AsyncIterator, Sequence
+    from collections.abc import AsyncGenerator, AsyncIterator, Iterator, Sequence
 
     from pydantic_ai._run_context import RunContext
     from pydantic_ai.toolsets.abstract import ToolsetTool
@@ -88,6 +88,9 @@ _CLIENT_ERRORS = {
     (-32600, "Session terminated"),
     (-32000, "Connection closed"),
 }
+# What fastmcp raises, in place of the TimeoutError it loses, when the MCP handshake outlasts
+# init_timeout (see fastmcp.client.client).
+_HANDSHAKE_TIMEOUT_MESSAGE = "Failed to initialize server session"
 _CLIENT_ERROR_PREFIXES = (
     "Unexpected content type:",
     "Failed to parse JSON response:",
@@ -131,8 +134,8 @@ def _parse_retry_after(value: str | None) -> float | None:
     return seconds if seconds >= 0 else None
 
 
-def _find(exc: BaseException, types: type[BaseException] | tuple[type[BaseException], ...]) -> Any:
-    """Return the first exception of ``types`` in ``exc``, its causes and any exception groups."""
+def _walk_exceptions(exc: BaseException) -> Iterator[BaseException]:
+    """Yield ``exc``, its causes and the exceptions inside any exception groups, each once."""
     seen: set[int] = set()
     pending: list[BaseException] = [exc]
     while pending:
@@ -140,13 +143,24 @@ def _find(exc: BaseException, types: type[BaseException] | tuple[type[BaseExcept
         if id(current) in seen:
             continue
         seen.add(id(current))
-        if isinstance(current, types):
-            return current
+        yield current
         # Duck-typed: the ExceptionGroup builtin is Python 3.11+, and anyio uses the backport on 3.10.
         if isinstance(grouped := getattr(current, "exceptions", None), (list, tuple)):
             pending.extend(e for e in grouped if isinstance(e, BaseException))
         pending.extend(e for e in (current.__cause__, current.__context__) if e is not None)
-    return None
+
+
+def _find(exc: BaseException, types: type[BaseException] | tuple[type[BaseException], ...]) -> Any:
+    """Return the first exception of ``types`` in ``exc``, its causes and any exception groups."""
+    return next((e for e in _walk_exceptions(exc) if isinstance(e, types)), None)
+
+
+def _is_handshake_timeout(error: BaseException) -> bool:
+    return any(
+        isinstance(e, TimeoutError)
+        or (isinstance(e, RuntimeError) and str(e).endswith(_HANDSHAKE_TIMEOUT_MESSAGE))
+        for e in _walk_exceptions(error)
+    )
 
 
 def _is_client_error(error: McpError) -> bool:
@@ -281,6 +295,9 @@ class DatabricksUnityMCPToolset(AirflowToolset):
     :param databricks_conn_id: Databricks connection whose host and credentials are used. Templated
         when the toolset is passed to ``AgentOperator`` / ``@task.agent``.
     :param tool_prefix: Optional prefix prepended to tool names.
+    :param init_timeout: Seconds to wait for the MCP handshake when connecting. Unity Gateway forwards
+        a response only once the MCP server has finished sending it, so a server that keeps its
+        response stream open needs more than pydantic-ai's default of 5 seconds.
     """
 
     # Rendered, on a copy, by AgentOperator.
@@ -292,10 +309,14 @@ class DatabricksUnityMCPToolset(AirflowToolset):
         *,
         databricks_conn_id: str = DatabricksHook.default_conn_name,
         tool_prefix: str | None = None,
+        init_timeout: float = 30,
     ) -> None:
+        if not init_timeout > 0:
+            raise ValueError(f"init_timeout must be a positive number of seconds, got {init_timeout!r}.")
         self._databricks_conn_id = databricks_conn_id
         self._service_name = service_name
         self._tool_prefix = tool_prefix
+        self._init_timeout = init_timeout
         self._server: Any = None
         self._operations: set[_Operation] = set()
         # A templated name is checked once it has been rendered, when the toolset connects.
@@ -334,7 +355,7 @@ class DatabricksUnityMCPToolset(AirflowToolset):
             auth=auth,
             httpx_client_factory=_build_proxied_client_factory(proxy) if proxy else None,
         )
-        toolset = PydanticAIMCPToolset(transport)
+        toolset = PydanticAIMCPToolset(transport, init_timeout=self._init_timeout)
         return toolset.prefixed(self._tool_prefix) if self._tool_prefix else toolset
 
     async def _resolve_server(self) -> Any:
@@ -391,6 +412,15 @@ class DatabricksUnityMCPToolset(AirflowToolset):
         if (transport_error := _find(error, httpx2.TransportError)) is not None:
             return DatabricksUnityMCPTransportError(
                 f"Could not reach Unity Gateway for MCP Service {service!r}: {transport_error}.{ambiguous}"
+            )
+        if _is_handshake_timeout(error):
+            if during_tool_call:
+                return DatabricksUnityMCPTransportError(
+                    f"Timed out waiting for Unity Gateway to answer MCP Service {service!r}.{ambiguous}"
+                )
+            return DatabricksUnityMCPTransportError(
+                f"Unity Gateway did not complete the MCP handshake for MCP Service {service!r} within "
+                f"{self._init_timeout:g} seconds. Raise init_timeout if the service is slow to answer."
             )
         return None
 

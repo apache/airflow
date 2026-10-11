@@ -66,6 +66,9 @@ class _StubGateway(BaseHTTPRequestHandler):
     service_reply: dict[str, tuple[int, dict[str, str], str | None]] = {}
     notification_status: int | None = None
     tool_call_barrier: threading.Barrier | None = None
+    # Seconds to hold the answer to ``initialize``; ``release`` ends any wait early on teardown.
+    initialize_delay: float = 0
+    release = threading.Event()
     requests: list[tuple[str, str | None, str | None]] = []
 
     def do_POST(self):
@@ -79,6 +82,7 @@ class _StubGateway(BaseHTTPRequestHandler):
         if "id" not in body:
             return self._reply(self.notification_status or 202)
         if method == "initialize":
+            self.release.wait(self.initialize_delay)
             result = {
                 "protocolVersion": body["params"]["protocolVersion"],
                 "capabilities": {"tools": {}},
@@ -138,11 +142,14 @@ def gateway():
     _StubGateway.service_reply = {}
     _StubGateway.notification_status = None
     _StubGateway.tool_call_barrier = None
+    _StubGateway.initialize_delay = 0
+    _StubGateway.release = threading.Event()
     _StubGateway.requests = []
     server = ThreadingHTTPServer(("127.0.0.1", 0), _StubGateway)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     yield server
+    _StubGateway.release.set()
     server.shutdown()
     server.server_close()
 
@@ -466,6 +473,33 @@ class TestErrors:
 
         with pytest.raises(DatabricksUnityMCPTransportError, match="Could not reach Unity Gateway"):
             _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)))
+
+
+class TestHandshakeTimeout:
+    def test_slow_handshake_within_init_timeout_connects(self, gateway, gateway_conn):
+        _StubGateway.initialize_delay = 1
+
+        _, result = _run(
+            _list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID, init_timeout=10))
+        )
+
+        assert result == "echo: hi"
+
+    def test_handshake_beyond_init_timeout_is_a_transport_error(self, gateway, gateway_conn):
+        # Shorter than pydantic-ai's own 5 second default, so this only fails if init_timeout is used.
+        _StubGateway.initialize_delay = 2
+
+        with pytest.raises(DatabricksUnityMCPTransportError, match="within 0.5 seconds. Raise init_timeout"):
+            _run(
+                _list_and_call(
+                    DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID, init_timeout=0.5)
+                )
+            )
+
+    @pytest.mark.parametrize("init_timeout", [0, -1])
+    def test_init_timeout_must_be_positive(self, init_timeout):
+        with pytest.raises(ValueError, match="init_timeout must be a positive number"):
+            DatabricksUnityMCPToolset(SERVICE, init_timeout=init_timeout)
 
 
 class TestFrameworkNeutralTools:
