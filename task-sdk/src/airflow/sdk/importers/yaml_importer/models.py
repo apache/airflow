@@ -19,7 +19,7 @@ Pydantic models for the YAML/JSON Dag format.
 
 These are the single source of truth for the format; they validate an authored
 document (rich Pydantic errors) and back the published JSON Schema. Only the
-format skeleton and value grammar only is described; operator ``with:`` args,
+format skeleton and value grammar are described; operator ``with:`` args,
 Dag- and task-level attributes pass through untyped because the Python
 constructors validate those at import time.
 """
@@ -155,7 +155,7 @@ def _value_discriminator(v: Any) -> str:
     typos, any unknown ``$``-prefixed strings are routed here and rejected.
 
     If such a key is needed, it can be wrapped in ``$const``, which would
-    avoid this discrimator (only used by :class:`Literal`).
+    avoid this discriminator (only used by :class:`Literal`).
     """
     if isinstance(v, dict) and len(v) == 1:
         (key,) = v
@@ -207,7 +207,7 @@ class Literal(RootModel):
         cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
         # Pydantic generates a pretty messy schema from this. Clean it up since
-        # essentially we accept "whatever the format can implicitly accepts".
+        # essentially we accept "whatever the format can implicitly accept".
         schema = handler(core_schema)
         schema["oneOf"] = [
             *(b for b in schema.pop("anyOf") if b.get("type") in ("object", "array")),
