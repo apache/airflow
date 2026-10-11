@@ -46,13 +46,15 @@ Airflow connection:
     :start-after: [START example_claude_agent_sdk]
     :end-before: [END example_claude_agent_sdk]
 
-The model called one tool, ``lookup``. Here is the task log's tool-call group,
-timestamps trimmed:
+The model can call ``list_tables``, ``get_schema`` and ``query``, the tools ``SQLToolset``
+serves. Each call writes a group like this one to the task log. This output is
+illustrative, not captured from a real run; the tool name and timing vary with what the
+model decides to do:
 
 .. code-block:: text
 
-    [info] ::group::Tool call: lookup
-    [info] Tool lookup returned in 0.00s
+    [info] ::group::Tool call: list_tables
+    [info] Tool list_tables returned in 0.00s
     [info] ::endgroup::
 
 Only ``AirflowTools`` and ``tools.run(query(...))`` come from Airflow. ``query()``, the
@@ -77,7 +79,10 @@ exception; give the SDK the MCP server directly instead. Each tool:
   named ``mcp__<server_name>__<tool name>``.
 - Runs through the toolset, so connection resolution, SQL validation,
   ``allowed_tables``, ``allowed_methods`` and result limits behave as they do in
-  :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
+  :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`. Because the
+  built-in tools are off, the model cannot open a result the SDK writes to a file, so each
+  tool is marked with ``SQLToolset``'s 64 KiB result limit as the size the SDK should
+  keep inline.
 - Passes its result through Airflow's secret masker before the model sees it. A
   connection password that turns up in a query result reaches the model as ``***``.
 - Writes a ``Tool call: <name>`` group to the task log. Calls to a toolset are also
@@ -88,22 +93,25 @@ When a tool fails
 -------------------
 
 A failure the model can correct, such as a query naming a table outside
-``allowed_tables``, comes back to it as an MCP tool result with ``isError`` set. The
-model received this block when ``lookup`` answered that a column did not exist:
+``allowed_tables`` or one the database rejects, comes back to it as an MCP tool result
+with ``isError`` set. For a ``query`` call the database rejected, the model would read a
+block shaped like this one (illustrative, not captured from a real run; it shows the
+API-level message the model reads, not the handler's return value or the MCP wire format):
 
 .. code-block:: json
 
     {
       "type": "tool_result",
-      "tool_use_id": "toolu_lookup_1",
-      "content": "Unknown column 'nme'. Did you mean 'name'?",
+      "tool_use_id": "toolu_example_1",
+      "content": "The query tool failed: <database error>\nUse the list_tables and get_schema ... try again.",
       "is_error": true
     }
 
 ``SQLToolset``, ``HookToolset`` and ``ObjectStorageToolset`` allow one correction: a tool
 that keeps failing ends the run with
 ``ToolCallError: query kept failing after 1 correction(s): ...``. The retry budget is
-counted per run of :meth:`~...tools.claude_agent_sdk.AirflowTools.run`, not per model
+counted per run of
+:meth:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools.run`, not per model
 turn: the SDK's handler does not identify which model turn a call belongs to, so calls
 that run at the same time count as one failure, the same way the ADK adapter counts them
 (see :doc:`adk`). A call whose arguments fail the SDK's own JSON Schema validation never
@@ -112,11 +120,20 @@ reaches Airflow's tools, so it is not counted against the budget and not recorde
 
 Any other failure, such as a hook raising, ends the run. The Claude Agent SDK's own tool
 dispatch catches every exception a handler raises and turns it into an error result the
-model reads, so :meth:`~...tools.claude_agent_sdk.AirflowTools.run` has to work around
+model reads, so
+:meth:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools.run` has to work around
 that to still fail the task: it raises
 :class:`~airflow.providers.common.ai.tools.ToolCallError` once the model has read the
 (masked) failure, rather than letting the stream continue to a later
 ``ResultMessage``. Airflow's own retry takes over once the task fails.
+
+A run can also end with a ``ResultMessage`` whose ``is_error`` is set, for example when
+``max_turns`` is reached or the API call fails. ``run()`` does not return that result as
+a success: it raises ``RuntimeError`` with the result's ``subtype``, ``result``,
+``errors``, ``stop_reason``, ``api_error_status`` and ``terminal_reason`` where they are
+set, with long values shortened. If a tool failure of the kind above was also recorded,
+``ToolCallError`` is raised first. ``RuntimeError`` is also raised when the stream ends
+without any ``ResultMessage``.
 
 .. _max_turns:
 
@@ -131,14 +148,20 @@ budget above. Always set ``max_turns`` on ``build_options()`` (or on
 Drive the loop with ``tools.run``
 -----------------------------------
 
+``run()`` takes the stream that ``query()`` or ``ClaudeSDKClient.receive_response()``
+returns. ``ClaudeSDKClient.receive_messages()`` is not supported, because it never ends.
+
 The Claude Agent SDK's tool dispatch hands every handler exception to the model as an
 error result. If you iterate ``query()`` yourself instead of using
-:meth:`~...tools.claude_agent_sdk.AirflowTools.run`, a hook that raises becomes one more
-thing for the model to read, and the task can succeed with an answer written around the
-failure. Airflow's tools log a warning when a failure goes to the model this way.
+:meth:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools.run`,
+a hook that raises becomes one more thing for the model to read, and the task can succeed
+with an answer written around the failure. Airflow's tools log a warning when a failure
+goes to the model this way.
 
 An ``AirflowTools`` instance drives one query at a time: build a new instance per task,
-or call :meth:`run` again only once the previous call has returned.
+or call
+:meth:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools.run` again
+only once the previous call has returned.
 
 Built-in tools run on the worker host
 ----------------------------------------
@@ -148,7 +171,8 @@ Built-in tools run on the worker host
 tools on, including a worker-host ``Bash`` -- the bundled CLI runs as a subprocess on the
 same worker that runs the task, with its environment variables. ``build_options()`` closes all
 of that by default: no built-in tools, no settings sources, and ``strict_mcp_config=True``
-so only the MCP server ``AirflowTools`` builds is used. If you build ``ClaudeAgentOptions``
+so only the MCP servers passed in the options are used: the one ``AirflowTools`` builds
+plus any ``mcp_servers`` you pass to ``build_options()``. If you build ``ClaudeAgentOptions``
 yourself instead, set those fields the same way.
 
 Tracing
