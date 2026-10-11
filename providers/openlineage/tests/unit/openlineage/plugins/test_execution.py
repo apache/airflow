@@ -144,7 +144,9 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
         @conf_vars(
             {
                 ("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}',
-                ("openlineage", "execution_timeout"): "3",
+                # Under the 5s stall of the on-complete extraction, so that one is killed, while leaving
+                # the 1s on-start extraction room for the process start-up on a loaded runner.
+                ("openlineage", "execution_timeout"): "4",
             }
         )
         def test_short_stalled_task_extraction_with_low_execution_is_killed_by_ol_timeout(
