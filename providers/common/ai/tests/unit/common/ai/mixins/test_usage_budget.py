@@ -27,6 +27,8 @@ from pydantic_ai.usage import RunUsage, UsageLimits
 from airflow.providers.common.ai.mixins.usage_budget import UsageBudgetMixin
 from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY, TaskStateStoreUsageBudget
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
 MIXIN_MODULE = "airflow.providers.common.ai.mixins.usage_budget"
 
 
@@ -38,6 +40,7 @@ class _Host(UsageBudgetMixin):
 
 
 class TestBuildUsageBudget:
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @mock.patch(f"{MIXIN_MODULE}.AIRFLOW_V_3_3_PLUS", True)
     def test_builds_budget_from_task_state_store_and_max_tries(self, task_state_store_accessor):
         context = {"task_state_store": task_state_store_accessor}
