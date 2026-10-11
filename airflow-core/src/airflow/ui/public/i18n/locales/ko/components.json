@@ -136,7 +136,7 @@
     "keepPausedDescription": "새 실행과 완료되지 않은 실행은 Dag의 일시 중지가 해제될 때까지 대기합니다.",
     "title": "Dag가 일시 중지됨",
     "unfinishedRunsWillRun_one": "완료되지 않은 Dag 실행 1개가 시작되거나 재개됩니다.",
-    "unfinishedRunsWillRun_other": "완료되지 않은 Dag 실행 {{count}}개가 시작되거나 재개됩니다.",
+    "unfinishedRunsWillRun_other": "완료되지 않은 Dag 실행 {{count, number}}개가 시작되거나 재개됩니다.",
     "unpause": "일시 중지 해제",
     "unpauseDescription": "Dag가 활성화됩니다. 완료되지 않은 실행은 계속되고 스케줄이 재개됩니다. 일시 중지된 백필은 일시 중지 상태로 유지됩니다."
   },
