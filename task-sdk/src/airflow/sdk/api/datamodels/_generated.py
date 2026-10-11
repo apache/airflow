@@ -866,3 +866,4 @@ class TIRunContext(BaseModel):
     start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None
     arg_bindings: Annotated[list[TaskArgBinding] | None, Field(title="Arg Bindings")] = None
     multi_team: Annotated[bool | None, Field(title="Multi Team")] = False
+    log_id_template: Annotated[str | None, Field(title="Log Id Template")] = None
