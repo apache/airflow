@@ -1917,6 +1917,13 @@ ENV BASE_IMAGE=${BASE_IMAGE} \
     PIP_CACHE_DIR=/root/.cache/pip \
     UV_CACHE_DIR=/root/.cache/uv
 
+# GCC 14 in trixie turns incompatible-pointer-types, int-conversion and implicit function declarations
+# into errors, and the hardened Python passes -Werror=implicit-function-declaration on to C extensions.
+# The lowest-dependency tests build old sdists (for example xmlsec 1.3.14 or ibm-db 3.2.0) that only
+# compiled because those were warnings - extensions append CFLAGS after Python's own flags, so this
+# turns them back into warnings for every build in the CI image.
+ENV CFLAGS="-Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration"
+
 
 RUN echo "Base image version: ${BASE_IMAGE}"
 
