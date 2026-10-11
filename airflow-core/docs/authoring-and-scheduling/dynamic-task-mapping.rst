@@ -117,6 +117,37 @@ The ``make_list`` task runs as a normal task and must return a list or dict (see
     This is enforced at the time of the Dag parsing, for both tasks and mapped tasks groups, and will raise an error if you try to use it.
     In the recent example, setting ``trigger_rule=TriggerRule.ALWAYS`` in the ``consumer`` task will raise an error since ``make_list`` is a task-generated mapping.
 
+.. warning:: You cannot expand against an individual XCom
+
+    Indexing an ``XComArg`` with square brackets---for example ``upstream_task['key']``---does **not** perform dictionary access on the upstream task's return value. It returns a new ``XComArg`` that refers to the XCom pushed by the upstream task under that key, which only exists when the upstream task uses ``multiple_outputs=True`` and returns a dictionary.
+
+    Mapping can only expand against the *return value* of an upstream task, not against an individual XCom, so expanding over an indexed ``XComArg`` fails with ``ValueError: cannot map over XCom with custom key``:
+
+    .. code-block:: python
+
+        @task(multiple_outputs=True)
+        def get_params():
+            return {"values": [1, 2, 3]}
+
+        @task
+        def print_value(value):
+            print(value)
+
+        params = get_params()
+
+        # Raises ValueError: cannot map over XCom with custom key 'values'
+        print_value.expand(value=params["values"])
+
+    To expand over one of the values, add an intermediate task that returns it, and expand over the result of that task instead:
+
+    .. code-block:: python
+
+        @task
+        def extract_values(p):
+            return p["values"]
+
+        print_value.expand(value=extract_values(params))
+
 Repeated mapping
 ----------------
 
