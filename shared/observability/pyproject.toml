@@ -26,6 +26,7 @@ classifiers = [
 dependencies = [
     "opentelemetry-api>=1.27.0",
     "pendulum>=3.1.0",
+    "pendulum>=3.3.0; python_version >= \"3.15\"",
     "structlog>=26.1.0",
     "methodtools>=0.4.7",
 ]

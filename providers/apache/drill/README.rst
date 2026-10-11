@@ -45,19 +45,20 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-drill``
 
-The package supports the following python versions: 3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14,3.15
 
 Requirements
 ------------
 
-==========================================  ===========================
+==========================================  =====================================
 PIP package                                 Version required
-==========================================  ===========================
+==========================================  =====================================
+``ijson``                                   ``>=3.6.0; python_version >= "3.15"``
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``sqlalchemy-drill``                        ``>=1.1.0,!=1.1.6,!=1.1.7``
-==========================================  ===========================
+==========================================  =====================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-drill/3.3.4/changelog.html>`_.

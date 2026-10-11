@@ -1688,8 +1688,10 @@ function prepare_filtered_install_set() {
 function install_workspace_without_excluded_providers() {
     local allow_relock="${1:-}"
     local work_dir="/tmp/ci-install-set"
+    local wheel_dir="${PWD}/docker-context-files"
     local python_bin
     local lock_status=0
+    local -a find_links_args=()
     # uv sync --frozen checks every download against the lock's sha256; uv pip install checks only the
     # hashes the export carries, and only under --require-hashes.
     # --no-config rides with --require-hashes: the install runs from the workspace root, and uv would
@@ -1706,6 +1708,15 @@ function install_workspace_without_excluded_providers() {
     # The CI image sets no VIRTUAL_ENV and keeps resolving python3 from PATH.
     python_bin="${VIRTUAL_ENV:+${VIRTUAL_ENV}/bin/python}"
     python_bin="${python_bin:-$(command -v python3)}"
+    if compgen -G "${wheel_dir}/*.whl" > /dev/null; then
+        find_links_args=(--find-links "${wheel_dir}")
+        # A locally built wheel is not the artifact the lock hashed, and uv checks a hash whenever the
+        # requirements file carries one, so the exported hashes are stripped below as well. Dropping
+        # --require-hashes on its own would still fail on the local wheel. Temporary path only.
+        hash_args=(--no-build-isolation-package sphinx-redoc)
+        echo "${COLOR_YELLOW}Using local wheels from docker-context-files:${COLOR_RESET}"
+        ls "${wheel_dir}"/*.whl
+    fi
     echo
     echo "${COLOR_BLUE}Installing the workspace without the providers excluded for this Python version.${COLOR_RESET}"
     echo
@@ -1740,10 +1751,13 @@ function install_workspace_without_excluded_providers() {
     fi
     set -x
     prepare_filtered_install_set
+    if [[ ${#find_links_args[@]} -gt 0 ]]; then
+        sed -i -E '/^[[:space:]]*--hash=/d; s/[[:space:]]*\\$//' "${work_dir}/requirements.txt"
+    fi
     # --exact removes what an earlier cached layer installed and the set no longer contains; plain
     # `uv pip install` would leave an excluded provider's dependencies behind in an incremental build.
     uv pip install --python "${python_bin}" --exact --no-deps --no-python-downloads --no-managed-python \
-        "${hash_args[@]}" --no-binary lxml --no-binary xmlsec \
+        "${hash_args[@]}" --no-binary lxml --no-binary xmlsec "${find_links_args[@]}" \
         --requirement "${work_dir}/requirements.txt"
     mapfile -t member_dirs < "${work_dir}/editables.txt"
     for member_dir in "${member_dirs[@]}"; do

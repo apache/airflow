@@ -27,6 +27,10 @@
 Changelog
 ---------
 
+.. note::
+
+    Python 3.15 is supported with ``pyodbc>=5.4.0``.
+
 4.13.1
 ......
 

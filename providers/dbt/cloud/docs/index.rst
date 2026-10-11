@@ -110,6 +110,7 @@ PIP package                                 Version required
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ``aiohttp``                                 ``>=3.14.0``
+``aiohttp``                                 ``>=3.14.4; python_version >= "3.15"``
 ``tenacity``                                ``>=8.3.0``
 ==========================================  ======================================
 

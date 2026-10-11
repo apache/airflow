@@ -19,8 +19,12 @@ from __future__ import annotations
 
 import requests
 
-from airflow.models.dag import DAG
-from airflow.providers.apache.druid.transfers.hive_to_druid import HiveToDruidOperator
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("airflow.providers.apache.hive")
+
+from airflow.models.dag import DAG  # noqa: E402
+from airflow.providers.apache.druid.transfers.hive_to_druid import HiveToDruidOperator  # noqa: E402
 
 
 class TestDruidHook:

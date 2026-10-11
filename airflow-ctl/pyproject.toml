@@ -25,7 +25,7 @@ license-files = ["LICENSE", "NOTICE"]
 # We do not want to upper-bind Python version unnecessarily. Airflow-ctl is a small tool with
 # minimal dependencies and does not use sophisticated Python features, so it should work with
 # new Python versions once all dependencies are updated to support them.
-requires-python = ">=3.11,!=3.15"
+requires-python = ">=3.11,!=3.16"
 dependencies = [
     # TODO there could be still missing deps such as airflow-core
     "argcomplete>=1.10",

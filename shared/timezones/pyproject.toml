@@ -25,6 +25,7 @@ classifiers = [
 
 dependencies = [
     "pendulum>=3.1.0",
+    "pendulum>=3.3.0; python_version >= \"3.15\"",
     "methodtools>=0.4.7",
 ]
 

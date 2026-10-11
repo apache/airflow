@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from operator import itemgetter
-from typing import TYPE_CHECKING, Annotated, Any, TypeVar
+from typing import TYPE_CHECKING, Annotated, Any, TypeVar, cast
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import case, false, func, select
@@ -59,7 +59,7 @@ def _count_import_errors(bundle_names: Sequence[str], *, session: Session) -> di
     if not bundle_names:
         return {}
     return {
-        bundle_name: count
+        cast("str", bundle_name): count
         for bundle_name, count in session.execute(
             select(ParseImportError.bundle_name, func.count())
             .where(ParseImportError.bundle_name.in_(bundle_names))

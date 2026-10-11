@@ -34,6 +34,9 @@ versions:
   - 0.2.1
   - 0.2.0
 
+excluded-python-versions:
+  - "3.15"
+
 integrations:
   - integration-name: DuckDB
     external-doc-url: https://duckdb.org/
