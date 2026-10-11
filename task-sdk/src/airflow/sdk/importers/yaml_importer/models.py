@@ -27,6 +27,7 @@ constructors validate those at import time.
 from __future__ import annotations
 
 import collections
+import contextlib
 import datetime
 import itertools
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar
@@ -63,6 +64,24 @@ TASK_CALLBACK_KEYS = {
 TASK_ASSET_IO_KEYS = {"inlets", "outlets"}
 
 
+def _as_exclusive_union(schema: JsonSchemaValue) -> JsonSchemaValue:
+    """
+    Rewrite a disjoint ``anyOf`` union in place to ``oneOf``.
+
+    Pydantic emits ``anyOf`` (one or more match) for ``X | Y`` unions, but when
+    the branches are mutually exclusive, ``oneOf`` (exactly one match) accepts
+    the same values but generates better client code.
+
+    Only call this on unions whose branches are provably disjoint; on an
+    overlapping union, ``oneOf`` incorrectly rejects valid values.
+
+    This operation is performed in-place. The same modified object is returned.
+    """
+    with contextlib.suppress(KeyError):
+        schema["oneOf"] = schema.pop("anyOf")
+    return schema
+
+
 class XComTarget(BaseModel):
     """The object form of an XCom reference."""
 
@@ -70,6 +89,14 @@ class XComTarget(BaseModel):
     key: str | None = None
 
     model_config = ConfigDict(extra="forbid")
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        schema = handler(core_schema)
+        _as_exclusive_union(schema["properties"]["key"])
+        return schema
 
 
 class _MarkerRef(BaseModel):
@@ -83,9 +110,8 @@ class _MarkerRef(BaseModel):
     def __get_pydantic_json_schema__(
         cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
-        # Emit the marker as a single key in every accepted spelling, nothing else.
         schema = handler(core_schema)
-        (value_schema,) = schema.get("properties", {}).values()
+        value_schema = _as_exclusive_union(next(iter(schema.get("properties", {}).values())))
         schema["properties"] = {key: value_schema for key in cls._marker_keys}
         schema["additionalProperties"] = False
         if len(cls._marker_keys) > 1:  # Pydantic sets the correct 'required' for the single-variant case.
@@ -238,7 +264,7 @@ class Task(BaseModel):
         schema["properties"]["uses"] = {"type": "string"}
         schema["properties"]["run"] = {"type": "object", "additionalProperties": value_schema}
         schema["properties"]["extends"] = {
-            "anyOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
+            "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
         }
         schema["not"] = {"required": ["uses", "run"]}
         schema["anyOf"] = [{"required": ["uses"]}, {"required": ["run"]}, {"required": ["extends"]}]
@@ -353,6 +379,14 @@ class DagDocument(BaseModel):
     tasks: list[Task] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="allow")
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        schema = handler(core_schema)
+        _as_exclusive_union(schema["properties"]["schedule"])
+        return schema
 
     @model_validator(mode="before")
     @classmethod

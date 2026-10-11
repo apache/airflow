@@ -53,7 +53,7 @@
           "type": "array"
         },
         "extends": {
-          "anyOf": [
+          "oneOf": [
             {
               "type": "string"
             },
@@ -186,7 +186,7 @@
       ],
       "properties": {
         "$x": {
-          "anyOf": [
+          "oneOf": [
             {
               "type": "string"
             },
@@ -197,7 +197,7 @@
           "title": "$X"
         },
         "$xcom": {
-          "anyOf": [
+          "oneOf": [
             {
               "type": "string"
             },
@@ -220,7 +220,8 @@
           "type": "string"
         },
         "key": {
-          "anyOf": [
+          "default": null,
+          "oneOf": [
             {
               "type": "string"
             },
@@ -228,7 +229,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "title": "Key"
         }
       },
@@ -326,7 +326,8 @@
       "type": "string"
     },
     "schedule": {
-      "anyOf": [
+      "default": null,
+      "oneOf": [
         {
           "type": "string"
         },
@@ -337,7 +338,6 @@
           "type": "null"
         }
       ],
-      "default": null,
       "title": "Schedule"
     },
     "templates": {
