@@ -89,14 +89,15 @@ class TestDag:
         assert dag.topological_sort() == ()
 
     def test_dag_topological_sort_task_group_cycle(self):
-        """A TaskGroup that depends on a sibling in a cycle, although check_cycle passes, still sorts."""
+        """A TaskGroup that depends on a sibling in a cycle, which check_cycle only warns about, still sorts."""
         with DAG("dag", schedule=None, start_date=DEFAULT_DATE) as dag:
             bridge = BaseOperator(task_id="bridge")
             with TaskGroup("group"):
                 a = BaseOperator(task_id="a")
                 b = BaseOperator(task_id="b")
             a >> bridge >> b
-        dag.check_cycle()
+        with pytest.warns(TaskGroupCycleDeprecationWarning):
+            dag.check_cycle()
 
         assert [task.task_id for task in dag.topological_sort()] == ["bridge", "group.a", "group.b"]
 
@@ -479,7 +480,6 @@ class TestDag:
 
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule
-        from airflow.sdk import TriggerRule
         from airflow.sdk.exceptions import FailFastDagInvalidTriggerRule
 
         class CustomOperator(BaseOperator):
