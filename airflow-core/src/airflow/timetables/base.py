@@ -17,9 +17,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, TypedDict, runtime_checkable
-
-from typing_extensions import NotRequired
+from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, Protocol, TypedDict, runtime_checkable
 
 from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone

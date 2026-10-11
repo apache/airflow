@@ -31,6 +31,7 @@ import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
 
 import { AliasesPopover, WatchersPopover } from "src/components/Assets/ListPopover";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FilterBar } from "src/components/FilterBar";
@@ -52,7 +53,7 @@ const assetsFilterKeys: Array<FilterableSearchParamsKeys> = [
 
 type AssetRow = { row: { original: AssetResponse } };
 
-const createColumns = (translate: TFunction): Array<ColumnDef<AssetResponse>> => [
+const createColumns = (translate: TFunction): Array<ColumnDef<DataTableFeatures, AssetResponse>> => [
   {
     accessorKey: "name",
     cell: ({ row: { original } }: AssetRow) => (

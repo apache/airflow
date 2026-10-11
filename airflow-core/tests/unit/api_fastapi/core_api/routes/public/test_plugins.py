@@ -105,11 +105,8 @@ class TestGetPlugins:
                 "category": "browse",
                 "nav_top_level": False,
                 "applies_to": {
-                    "dag_tags": ["ml", "production"],
-                    "dag_ids": ["example_dag"],
-                    "task_ids": None,
-                    "operators": None,
-                    "operator_names": None,
+                    "dag.tags.name": ["ml", "production"],
+                    "dag.dag_id": ["example_dag"],
                 },
             },
         ]
@@ -165,27 +162,28 @@ class TestGetPlugins:
 
         assert view.applies_to is None
 
-    def test_applies_to_parses_nested_criteria(self):
+    def test_applies_to_accepts_any_field_path(self):
         from airflow.api_fastapi.core_api.datamodels.plugins import ExternalViewResponse
 
         view = ExternalViewResponse(
             name="Scoped",
             href="https://example.com/",
             applies_to={
-                "dag_tags": ["ml"],
-                "operators": ["KubernetesPodOperator"],
-                "operator_names": ["@task.bash"],
+                "dag.tags.name": ["ml"],
+                "operator_name": ["@task.bash"],
+                "state": ["failed", "upstream_failed"],
             },
         )
 
         assert view.applies_to is not None
-        assert view.applies_to.dag_tags == ["ml"]
-        assert view.applies_to.operators == ["KubernetesPodOperator"]
-        assert view.applies_to.operator_names == ["@task.bash"]
-        assert view.applies_to.dag_ids is None
-        assert view.applies_to.task_ids is None
+        # An open map: the key set is whatever the entity records expose, not a fixed list.
+        assert view.applies_to.root == {
+            "dag.tags.name": ["ml"],
+            "operator_name": ["@task.bash"],
+            "state": ["failed", "upstream_failed"],
+        }
 
-    def test_applies_to_rejects_unknown_criteria(self):
+    def test_applies_to_rejects_non_list_values(self):
         from pydantic import ValidationError
 
         from airflow.api_fastapi.core_api.datamodels.plugins import ExternalViewResponse
@@ -194,7 +192,7 @@ class TestGetPlugins:
             ExternalViewResponse(
                 name="Scoped",
                 href="https://example.com/",
-                applies_to={"dag_tag": ["ml"]},
+                applies_to={"state": "failed"},
             )
 
     def test_invalid_external_view_destination_should_log_warning_and_continue(self, test_client, caplog):

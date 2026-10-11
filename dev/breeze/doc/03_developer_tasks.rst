@@ -34,12 +34,12 @@ You can use additional ``breeze`` flags to choose your environment. You can spec
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
 environments as we have in matrix builds in the CI. See next chapter for backend selection.
 
-For example, you can choose to run Python 3.10 tests with MySQL as backend and with mysql version 8
+For example, you can choose to run Python 3.11 tests with MySQL as backend and with mysql version 8
 as follows:
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend mysql --mysql-version 8.0
+    breeze --python 3.11 --backend mysql --mysql-version 8.0
 
 .. note:: Note for Windows WSL2 users
 
@@ -57,9 +57,9 @@ with ``--builder``. For example:
 
 .. code-block:: bash
 
-    breeze --docker-host unix://$HOME/.colima/default/docker.sock --python 3.10 --backend mysql --mysql-version 8.0
+    breeze --docker-host unix://$HOME/.colima/default/docker.sock --python 3.11 --backend mysql --mysql-version 8.0
     # or:
-    breeze --builder=default --python 3.10 --backend mysql --mysql-version 8.0
+    breeze --builder=default --python 3.11 --backend mysql --mysql-version 8.0
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -486,7 +486,7 @@ When you are starting Airflow from local sources, www asset compilation is autom
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend mysql start-airflow
+    breeze --python 3.11 --backend mysql start-airflow
 
 You can also use it to start different executor.
 
@@ -499,7 +499,7 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 
 .. code-block:: bash
 
-    breeze start-airflow --python 3.10 --backend mysql --use-airflow-version 2.7.0
+    breeze start-airflow --python 3.11 --backend mysql --use-airflow-version 2.7.0
 
 When you are installing version from PyPI, it's also possible to specify extras that should be used
 when installing Airflow - you can provide several extras separated by coma - for example to install
@@ -527,13 +527,13 @@ To start Airflow with an integration, use the following command:
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend postgres --integration <integration_name>
+    breeze --python 3.11 --backend postgres --integration <integration_name>
 
 For example, to run Airflow with Kafka:
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend postgres --integration kafka
+    breeze --python 3.11 --backend postgres --integration kafka
 
 Check the available integrations by running:
 

@@ -32,6 +32,7 @@ import type { HITLDetail } from "openapi/requests/types.gen";
 import { IconButton, RouterLink } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { HITLReviewDrawer } from "src/components/HITLReview/HITLReviewDrawer.tsx";
@@ -114,7 +115,7 @@ const taskInstanceColumns = ({
   runId?: string;
   taskId?: string;
   translate: TFunction;
-}): Array<ColumnDef<HITLDetail>> => [
+}): Array<ColumnDef<DataTableFeatures, HITLDetail>> => [
   {
     accessorKey: "task_instance_state",
     cell: ({ row: { original } }: HITLRow) => (

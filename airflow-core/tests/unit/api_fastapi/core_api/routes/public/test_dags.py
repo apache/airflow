@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 import pendulum
@@ -58,8 +58,8 @@ pytestmark = pytest.mark.db_test
 DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "display1"
 DAG2_ID = "test_dag2"
-DAG1_START_DATE = datetime(2018, 6, 15, 0, 0, tzinfo=timezone.utc)
-DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=timezone.utc)
+DAG1_START_DATE = datetime(2018, 6, 15, 0, 0, tzinfo=UTC)
+DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=UTC)
 DAG3_ID = "test_dag3"
 DAG4_ID = "test_dag4"
 DAG4_DISPLAY_NAME = "display4"
@@ -71,8 +71,8 @@ ASSET_DEP_DAG2_ID = "test_asset_dep_dag2"
 TASK_ID = "op1"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 API_PREFIX = "/dags"
-DAG3_START_DATE_1 = datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-DAG3_START_DATE_2 = datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+DAG3_START_DATE_1 = datetime(2018, 1, 1, 12, 0, 0, tzinfo=UTC)
+DAG3_START_DATE_2 = datetime(2019, 1, 1, 12, 0, 0, tzinfo=UTC)
 
 _DEADLINE_CALLBACK_PATH = "tests.unit.api_fastapi.core_api.routes.public.test_dags._noop_deadline_callback"
 
@@ -129,13 +129,13 @@ class TestDagEndpoint:
             is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
-            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=UTC),
         )
 
         dagrun_failed = DagRun(
             dag_id=DAG3_ID,
             run_id="run1",
-            logical_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            logical_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=UTC),
             start_date=DAG3_START_DATE_1,
             run_type=DagRunType.SCHEDULED,
             state=DagRunState.FAILED,
@@ -145,7 +145,7 @@ class TestDagEndpoint:
         dagrun_success = DagRun(
             dag_id=DAG3_ID,
             run_id="run2",
-            logical_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            logical_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=UTC),
             start_date=DAG3_START_DATE_2,
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
@@ -607,7 +607,7 @@ class TestGetDags(TestDagEndpoint):
             ),
             (
                 {
-                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=UTC) + timedelta(days=1)).isoformat(),
                     "exclude_stale": False,
                 },
                 2,
@@ -616,7 +616,7 @@ class TestGetDags(TestDagEndpoint):
             (
                 {
                     "dag_run_end_date_gte": DAG3_START_DATE_2.isoformat(),
-                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=UTC) + timedelta(days=1)).isoformat(),
                     "exclude_stale": False,
                     "last_dag_run_state": "success",
                 },
@@ -626,7 +626,7 @@ class TestGetDags(TestDagEndpoint):
             (
                 {
                     "dag_run_start_date_gte": DAG2_START_DATE.isoformat(),
-                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=UTC) + timedelta(days=1)).isoformat(),
                 },
                 0,
                 [],
@@ -1784,8 +1784,8 @@ class TestDagDetails(TestDagEndpoint):
             DagRun(
                 dag_id=DAG2_ID,
                 run_id="running_run_1",
-                logical_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=timezone.utc),
-                start_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=timezone.utc),
+                logical_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=UTC),
+                start_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=UTC),
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1795,8 +1795,8 @@ class TestDagDetails(TestDagEndpoint):
             DagRun(
                 dag_id=DAG2_ID,
                 run_id="queued_run_1",
-                logical_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
-                start_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
+                logical_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=UTC),
+                start_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=UTC),
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.QUEUED,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1807,8 +1807,8 @@ class TestDagDetails(TestDagEndpoint):
             DagRun(
                 dag_id=DAG2_ID,
                 run_id="success_run_1",
-                logical_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
-                start_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
+                logical_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=UTC),
+                start_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=UTC),
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.SUCCESS,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1839,6 +1839,13 @@ class TestDagDetails(TestDagEndpoint):
         response = test_client.get(f"/dags/{DAG1_ID}/details")
         assert response.status_code == 200
         assert response.json()["team_name"] is None
+
+    def test_dag_details_should_not_query_on_event_loop(self, test_client, event_loop_queries):
+        """Regression for #74239: the latest Dag version must not be queried during serialization."""
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        assert response.json()["latest_dag_version"]["version_number"] == 1
+        assert event_loop_queries == []
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_dag_details_includes_team_name(self, session, test_client):
@@ -2037,7 +2044,7 @@ class TestDeleteDAG(TestDagEndpoint):
         with dag_maker(
             dag_id,
             dag_display_name=dag_display_name,
-            start_date=datetime(2024, 10, 10, tzinfo=timezone.utc),
+            start_date=datetime(2024, 10, 10, tzinfo=UTC),
         ):
             EmptyOperator(task_id="dummy")
 
@@ -2100,7 +2107,7 @@ class TestDeleteDAG(TestDagEndpoint):
         with dag_maker(
             deadline_dag_id,
             schedule=None,
-            start_date=datetime(2024, 10, 10, tzinfo=timezone.utc),
+            start_date=datetime(2024, 10, 10, tzinfo=UTC),
             deadline=_deadline_alert(),
         ):
             EmptyOperator(task_id="task1")

@@ -18,6 +18,7 @@ eleventyComputed:
   {% set deps = pv.provider.dependencies or [] %}
   {% set extras = pv.provider.optional_extras or {} %}
   {% set conns = pv.provider.connection_types or [] %}
+  {% set uriSchemes = pv.provider.uri_schemes or [] %}
   {% set providerModules = pv.modules %}
   {% set currentVersion = pv.provider.version %}
   {% set pythonVersion = pv.provider.requires_python %}
@@ -28,6 +29,7 @@ eleventyComputed:
   {% set deps = pv.versionData.dependencies or [] %}
   {% set extras = pv.versionData.optional_extras or {} %}
   {% set conns = pv.versionData.connection_types or [] %}
+  {% set uriSchemes = pv.versionData.uri_schemes or [] %}
   {% set providerModules = pv.versionData.modules or [] %}
   {% set currentVersion = pv.version %}
   {% set pythonVersion = pv.versionData.requires_python %}
@@ -306,6 +308,32 @@ eleventyComputed:
     {% endif %}
   </section>
 
+  {# URI schemes grouped by the Airflow feature that routes them to the provider #}
+  {% set schemeGroups = uriSchemes | uriSchemeGroups %}
+  {% if schemeGroups.length > 0 %}
+  <section class="uri-schemes card">
+    <h3>
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+      </svg>
+      URI Schemes ({{ uriSchemes.length }})
+    </h3>
+    <p>Schemes this release registers in provider.yaml, grouped by the Airflow feature that routes them to the provider.</p>
+    <dl>
+      {% for group in schemeGroups %}
+      <div>
+        <dt><a href="{{ group.docsUrl }}" target="_blank" rel="noopener">{{ group.label }}</a></dt>
+        <dd>
+          {% for s in group.schemes %}
+          <code title="{{ s.detail }}">{{ s.scheme }}://</code>
+          {% endfor %}
+        </dd>
+      </div>
+      {% endfor %}
+    </dl>
+  </section>
+  {% endif %}
+
   {% if totalModules > 0 %}
   {# Module Type Tabs: sorted by module count (busiest first), overflow into a "More" menu #}
   {% set moduleTabsVisibleCount = 8 %}
@@ -444,6 +472,12 @@ eleventyComputed:
               {% if module.docs_url %}
               <a href="{{ module.docs_url }}" target="_blank" rel="noopener" class="docs-link">
                 View Docs
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+              </a>
+              {% endif %}
+              {% if module.guide_url %}
+              <a href="{{ module.guide_url }}" target="_blank" rel="noopener" class="guide-link" title="How-to guide section for {{ module.name }}">
+                Guide
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
               </a>
               {% endif %}

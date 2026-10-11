@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.ai.batch import dispatch, results, state
@@ -331,13 +331,13 @@ class LLMBatchOperator(BaseOperator):
                         batch_id=self.batch_id,
                         key=key,
                         spec=spec,
-                        submitted_at=reattach_submitted_at or datetime.now(timezone.utc).isoformat(),
+                        submitted_at=reattach_submitted_at or datetime.now(UTC).isoformat(),
                         reattached=True,
                     )
 
             # Record the intent before the paid call so a crash between "request sent" and
             # "response recorded" leaves a trace the next attempt can act on.
-            intent_at = datetime.now(timezone.utc).isoformat()
+            intent_at = datetime.now(UTC).isoformat()
             state.write_intent(
                 result_path_osp,
                 key=key,
@@ -356,7 +356,7 @@ class LLMBatchOperator(BaseOperator):
                 request_params=self.request_params,
                 completion_window=self.completion_window,
             )
-            submitted_at = datetime.now(timezone.utc).isoformat()
+            submitted_at = datetime.now(UTC).isoformat()
             state.write_submitted(
                 result_path_osp,
                 key=key,
@@ -469,7 +469,7 @@ class LLMBatchOperator(BaseOperator):
                 "submit and recording the response); re-attaching instead of resubmitting.",
                 recovered_batch_id,
             )
-            submitted_at = record.intent_at or datetime.now(timezone.utc).isoformat()
+            submitted_at = record.intent_at or datetime.now(UTC).isoformat()
             state.write_submitted(
                 result_path_osp,
                 key=key,
@@ -771,7 +771,7 @@ class LLMBatchOperator(BaseOperator):
             merge_diagnostics=merge_diagnostics,
             custom_id_prefix=key16,
             submitted_at=record.submitted_at or "",
-            completed_at=datetime.now(timezone.utc).isoformat(),
+            completed_at=datetime.now(UTC).isoformat(),
         )
 
     def on_kill(self) -> None:

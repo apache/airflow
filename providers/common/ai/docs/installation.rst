@@ -109,7 +109,7 @@ On Airflow 2.11 the operators, decorators, hooks and toolsets run as they do on 
   0.3 release, which Airflow 2's ``ObjectStoragePath`` rejects; 2.11.1 and later cap it.
   Leave out the ``skills``, ``git`` and ``modal`` extras: they need Airflow 3, and without
   constraints ``pip`` upgrades Airflow to satisfy them.
-* Python 3.10 to 3.12: the provider needs 3.10 or later, and Airflow 2.11 supports up to 3.12.
+* Python 3.11 to 3.12: the provider needs 3.11 or later, and Airflow 2.11 supports up to 3.12.
 
 Next steps
 ----------

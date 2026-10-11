@@ -268,7 +268,7 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
             return result
         return importer.import_definition(definition, bundle)
 
-    def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
+    def get_source_code(self, definition: DagDefinition, dag_id: str | None = None) -> DagSourceCode:
         """
         Return the source of a single archive member.
 
@@ -281,7 +281,7 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
         importer = self._get_internal_importer(definition)
         if importer is None:
             raise ValueError(f"No internal importer to read source for {definition!r}")
-        return importer.get_source_code(definition)
+        return importer.get_source_code(definition, dag_id)
 
     def _register_internal(
         self, importer: AbstractDagImporter[Any], extensions: list[str] | None = None

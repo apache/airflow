@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from typing_extensions import TypeIs
 
+    from airflow.models.dynamic_region import ProducerContext
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
 
@@ -117,7 +118,13 @@ class SchedulerDictOfListsExpandInput:
             raise NotFullyPopulated(set(self.value).difference(literal_keys))
         return functools.reduce(operator.mul, literal_values, 1)
 
-    def _get_map_lengths(self, run_id: str, *, session: Session) -> dict[str, int]:
+    def _get_map_lengths(
+        self,
+        run_id: str,
+        *,
+        session: Session,
+        producer_contexts: Mapping[str, ProducerContext] | None = None,
+    ) -> dict[str, int]:
         """
         Return dict of argument name to map length.
 
@@ -130,7 +137,7 @@ class SchedulerDictOfListsExpandInput:
         # more efficient to do one single db call and unpack the value here?
         def _get_length(v: ExpandArgument) -> int | None:
             if isinstance(v, SchedulerXComArg):
-                return get_task_map_length(v, run_id, session=session)
+                return get_task_map_length(v, run_id, session=session, producer_contexts=producer_contexts)
 
             # Unfortunately a user-defined TypeGuard cannot apply negative type
             # narrowing. https://github.com/python/typing/discussions/1013
@@ -145,10 +152,16 @@ class SchedulerDictOfListsExpandInput:
             raise NotFullyPopulated(set(self.value).difference(map_lengths))
         return map_lengths
 
-    def get_total_map_length(self, run_id: str, *, session: Session) -> int:
+    def get_total_map_length(
+        self,
+        run_id: str,
+        *,
+        session: Session,
+        producer_contexts: Mapping[str, ProducerContext] | None = None,
+    ) -> int:
         if not self.value:
             return 0
-        lengths = self._get_map_lengths(run_id, session=session)
+        lengths = self._get_map_lengths(run_id, session=session, producer_contexts=producer_contexts)
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
@@ -177,12 +190,18 @@ class SchedulerListOfDictsExpandInput:
             return len(self.value)
         raise NotFullyPopulated({"expand_kwargs() argument"})
 
-    def get_total_map_length(self, run_id: str, *, session: Session) -> int:
+    def get_total_map_length(
+        self,
+        run_id: str,
+        *,
+        session: Session,
+        producer_contexts: Mapping[str, ProducerContext] | None = None,
+    ) -> int:
         from airflow.serialization.definitions.xcom_arg import get_task_map_length
 
         if isinstance(self.value, Sized):
             return len(self.value)
-        length = get_task_map_length(self.value, run_id, session=session)
+        length = get_task_map_length(self.value, run_id, session=session, producer_contexts=producer_contexts)
         if length is None:
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length

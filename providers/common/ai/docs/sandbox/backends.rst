@@ -248,6 +248,8 @@ The runtime remains a deployment choice. The default Docker runtime shares the
 host kernel; choose a stronger runtime such as Kata when your threat model needs
 a VM boundary.
 
+.. _sandbox-backend-sbx:
+
 sbx (Docker Sandboxes, local)
 -----------------------------
 

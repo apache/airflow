@@ -25,7 +25,7 @@
     "connection_other": "커넥션들",
     "delete": {
       "deleteConnection_one": "커넥션 1개 삭제",
-      "deleteConnection_other": "커넥션 {{count}}개 삭제",
+      "deleteConnection_other": "커넥션 {{count, number}}개 삭제",
       "firstConfirmMessage_one": "다음 커넥션을 삭제하려고 합니다:",
       "firstConfirmMessage_other": "다음 커넥션들을 삭제하려고 합니다:",
       "title": "커넥션 삭제"
@@ -153,7 +153,7 @@
     },
     "delete": {
       "deleteVariable_one": "변수 1개 삭제",
-      "deleteVariable_other": "변수 {{count}}개 삭제",
+      "deleteVariable_other": "변수 {{count, number}}개 삭제",
       "firstConfirmMessage_one": "다음 변수를 삭제하려고 합니다:",
       "firstConfirmMessage_other": "다음 변수들을 삭제하려고 합니다:",
       "title": "변수 삭제",

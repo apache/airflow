@@ -37,6 +37,7 @@ import {
   useDefaultTaskInstanceTab,
   useDefaultTaskGroupsExpanded,
   useMarkTaskInstanceDefaultOptions,
+  useShowDagsListRecentTasks,
   type LandingPageOption,
 } from "src/hooks/useUserSettings";
 import { useDocumentTitle } from "src/utils";
@@ -182,6 +183,7 @@ export const Settings = () => {
   const [defaultTaskInstanceTab, setDefaultTaskInstanceTab] = useDefaultTaskInstanceTab();
   const [defaultLandingPage, setDefaultLandingPage] = useDefaultLandingPage();
   const [matchAnywhere, setMatchAnywhere] = useDefaultMatchAnywhere();
+  const [showRecentTasks, setShowRecentTasks] = useShowDagsListRecentTasks();
 
   const taskInstanceTabOptions: Array<SelectOption<DefaultTaskInstanceTab>> = [
     { label: translate("dag:tabs.logs"), value: "logs" },
@@ -249,6 +251,20 @@ export const Settings = () => {
             }
             helper={translate("settings.search.matchAnywhere.helper")}
             label={translate("settings.search.matchAnywhere.label")}
+          />
+        </Section>
+        <Section title={translate("settings.dagsList.title")}>
+          <SettingRow
+            control={
+              <Switch
+                aria-label={translate("settings.dagsList.recentTasks.label")}
+                checked={showRecentTasks}
+                data-testid="dags-list-show-recent-tasks"
+                onCheckedChange={(event) => setShowRecentTasks(event.checked)}
+              />
+            }
+            helper={translate("settings.dagsList.recentTasks.helper")}
+            label={translate("settings.dagsList.recentTasks.label")}
           />
         </Section>
         <Section title={translate("settings.graph.title")}>

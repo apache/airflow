@@ -56,10 +56,15 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddArgBindingsToTIRunContext,
     AddCallbackRunEndpoint,
     AddDagRunNoteUpdateEndpoint,
+    AddLoopContext,
     AddMultiTeamToTIRunContext,
     AddStoppedTaskReport,
+    AddTaskInstanceRegionCoordinates,
     AddTerminalStateRetryReasonField,
-    IdentifyRetiredTaskStateUpdates,
+    IdentifyArchivedTaskStateUpdates,
+)
+from airflow.api_fastapi.execution_api.versions.v2026_10_30_xcom_params import (
+    AddPreviousIterationToXComFilterParams,
 )
 
 bundle = VersionBundle(
@@ -69,10 +74,13 @@ bundle = VersionBundle(
         AddArgBindingsToTIRunContext,
         AddCallbackRunEndpoint,
         AddDagRunNoteUpdateEndpoint,
+        AddLoopContext,
         AddTerminalStateRetryReasonField,
         AddMultiTeamToTIRunContext,
+        AddPreviousIterationToXComFilterParams,
         AddStoppedTaskReport,
-        IdentifyRetiredTaskStateUpdates,
+        AddTaskInstanceRegionCoordinates,
+        IdentifyArchivedTaskStateUpdates,
     ),
     Version(
         "2026-06-30",

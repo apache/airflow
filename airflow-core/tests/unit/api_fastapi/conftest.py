@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import datetime
 import os
 from typing import TYPE_CHECKING
@@ -26,6 +27,8 @@ import time_machine
 from fastapi import FastAPI
 from fastapi.routing import Mount
 from fastapi.testclient import TestClient
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -206,6 +209,31 @@ def deny_dag_edit_access():
 
 
 @pytest.fixture
+def event_loop_queries():
+    """
+    Collect the SQL statements executed on the event loop thread.
+
+    FastAPI serializes responses on the event loop, so a statement collected here blocks the whole
+    API server while it waits for a database connection.
+    """
+    statements: list[str] = []
+
+    def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        # Only the event loop thread has a running loop; threadpool workers raise here.
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        statements.append(statement)
+
+    event.listen(Engine, "before_cursor_execute", before_cursor_execute)
+    try:
+        yield statements
+    finally:
+        event.remove(Engine, "before_cursor_execute", before_cursor_execute)
+
+
+@pytest.fixture
 def client(request):
     """This fixture is more flexible than test_client, as it allows to specify which apps to include."""
 
@@ -268,7 +296,7 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
                 EmptyOperator(task_id=f"task{task_number + 1}")
         dag_maker.create_dagrun(
             run_id=f"run{version_number}",
-            logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
+            logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.UTC),
             session=session,
         )
         session.commit()

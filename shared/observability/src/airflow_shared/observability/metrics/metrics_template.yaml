@@ -411,8 +411,10 @@ metrics:
   - name: "managed_agent.served"
     description: "Number of managed agent invocations answered through a managed-agent toolset,
     emitted once per answer. Metric with tool and platform tagging; a toolset over a failover
-    group reports the platform as ``failover``, and ``unknown`` means the agent's identity could
-    not be resolved. Read next to ``managed_agent.failover``, which records each transition by
+    group reports the platform as ``failover``, and platform is the literal string ``unknown``
+    when the agent's identity fails to resolve -- a connection lookup failing, or a bug in the
+    subclass's own ``agent_ref`` implementation -- a case in which the call still proceeds after
+    logging a warning. Read next to ``managed_agent.failover``, which records each transition by
     platform."
     type: "counter"
     legacy_name: "-"

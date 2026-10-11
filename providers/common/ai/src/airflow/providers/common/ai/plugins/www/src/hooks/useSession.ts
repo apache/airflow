@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { ApiError, createApi } from "src/api";
+import { ApiError, createApi, type TaskRegion } from "src/api";
 import { type SessionResponse, isTerminalStatus } from "src/types/feedback";
 
 const POLL_INTERVAL_MS = 3000;
@@ -42,13 +42,14 @@ export function useSession(
   runId: string,
   taskId: string,
   mapIndex: number,
+  region?: TaskRegion,
 ): UseSessionReturn {
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [taskActive, setTaskActive] = useState<boolean | undefined>(undefined);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const apiRef = useRef(createApi(dagId, runId, taskId, mapIndex));
+  const apiRef = useRef(createApi(dagId, runId, taskId, mapIndex, region));
 
   const stopPolling = useCallback(() => {
     if (timerRef.current) {

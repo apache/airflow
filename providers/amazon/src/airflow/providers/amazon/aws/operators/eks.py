@@ -1189,7 +1189,7 @@ class EksPodOperator(KubernetesPodOperator):
                 connection_extras = conn.extra_dejson
                 self.log.info("Successfully resolved connection extras for deferral.")
 
-        trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
+        trigger_start_time = datetime.datetime.now(tz=datetime.UTC)
 
         if self.pod is None or self.pod.metadata is None:
             raise RuntimeError("Pod must be created with metadata before deferring")

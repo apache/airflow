@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_sql_query:
 
-Natural language to SQL: ``LLMSQLQueryOperator``
-================================================
+Natural language to SQL: ``LLMSQLQueryOperator`` and ``@task.llm_sql``
+======================================================================
 
 .. note::
 

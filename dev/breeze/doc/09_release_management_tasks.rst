@@ -1238,7 +1238,7 @@ Example usage:
 
 .. code-block:: bash
 
-     breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why
+     breeze release-management constraints-version-check --python 3.11 --airflow-constraints-mode constraints-source-providers --explain-why
 
 
 -----

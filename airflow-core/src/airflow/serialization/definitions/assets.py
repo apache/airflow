@@ -28,8 +28,7 @@ from airflow.serialization.dag_dependency import DagDependency
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator, MutableSequence
-
-    from typing_extensions import Self
+    from typing import Self
 
     from airflow.models.asset import AssetModel
 

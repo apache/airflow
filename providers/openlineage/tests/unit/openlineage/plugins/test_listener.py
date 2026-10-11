@@ -46,6 +46,7 @@ from airflow.providers.common.compat.sdk import (
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
+from airflow.providers.openlineage.plugins.macros import lineage_run_id
 from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 from airflow.utils import types
@@ -60,6 +61,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 EXPECTED_TRY_NUMBER_1 = 1
@@ -1138,6 +1140,75 @@ class TestOpenLineageListenerAirflow2:
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 tests")
 class TestOpenLineageListenerAirflow3:
+    @pytest.mark.parametrize("state", ["success", "failed", "skipped"])
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+    def test_manual_regional_event_uses_same_execution_uuid(self, mocker, state):
+        from airflow.sdk import DAG, task_group
+        from airflow.sdk.definitions._internal.loop import create_loop
+
+        listener, ti = self._create_listener_and_task_instance(runtime_ti=False)
+        listener._executor = mocker.Mock(spec=ProcessPoolExecutor)
+        listener.adapter.build_dag_run_id.side_effect = OpenLineageAdapter.build_dag_run_id
+        listener.adapter.build_task_instance_run_id.side_effect = (
+            OpenLineageAdapter.build_task_instance_run_id
+        )
+        with DAG("loop_dag") as loop_dag:
+
+            @task_group
+            def body():
+                EmptyOperator(task_id="work")
+
+            create_loop(body, max_iterations=2)
+        ti.task = loop_dag.get_task("body.work")
+        ti.region_id = uuid.uuid4()
+        ti.region_index = 2
+        mocker.patch(
+            "airflow.providers.openlineage.plugins.listener.get_airflow_run_facet",
+            autospec=True,
+            return_value={},
+        )
+        submit = mocker.patch.object(listener, "submit_callable", autospec=True)
+
+        listener._on_task_instance_manual_state_change(ti, ti.dag_run, state)
+
+        assert submit.call_args.kwargs["run_id"] == str(ti.id)
+        listener.adapter.build_task_instance_run_id.assert_not_called()
+
+    @pytest.mark.parametrize("state", ["running", "success", "failed", "skipped"])
+    @pytest.mark.parametrize("map_index", [-1, 2])
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_regional_listener_events_share_macro_execution_identity(self, state, map_index):
+        from airflow.sdk import DAG, task_group
+        from airflow.sdk.definitions._internal.loop import create_loop
+
+        listener, ti = self._create_listener_and_task_instance()
+        with DAG("loop_dag") as loop_dag:
+
+            @task_group
+            def body():
+                EmptyOperator(task_id="work")
+
+            create_loop(body, max_iterations=2)
+        ti.task = loop_dag.get_task("body.work")
+        listener.adapter.build_dag_run_id.side_effect = OpenLineageAdapter.build_dag_run_id
+        listener.adapter.build_task_instance_run_id.side_effect = (
+            OpenLineageAdapter.build_task_instance_run_id
+        )
+        ti.region_id = uuid.uuid4()
+        ti.region_index = 2
+        ti.map_index = map_index
+        kwargs = {"error": ValueError("test")} if state == "failed" else {}
+
+        getattr(listener, f"on_task_instance_{state}")(None, ti, **kwargs)
+
+        method = {"running": "start_task", "failed": "fail_task"}.get(state, "complete_task")
+        assert getattr(listener.adapter, method).call_args.kwargs["run_id"] == str(ti.id)
+        assert lineage_run_id(ti) == str(ti.id)
+        listener.adapter.build_task_instance_run_id.assert_not_called()
+
     @pytest.mark.skip("Rendering fields is not migrated yet in Airflow 3")
     @patch("airflow.models.BaseOperator.render_template")
     def test_listener_does_not_change_task_instance(self, render_mock, mock_supervisor_comms, spy_agency):

@@ -21,7 +21,7 @@ from __future__ import annotations
 import lzma
 import os
 import zlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -379,7 +379,7 @@ def _as_iso(modified: Any) -> str | None:
     if isinstance(modified, datetime):
         return modified.isoformat()
     if isinstance(modified, (int, float)) and modified > 0:
-        return datetime.fromtimestamp(modified, tz=timezone.utc).isoformat()
+        return datetime.fromtimestamp(modified, tz=UTC).isoformat()
     return None
 
 
