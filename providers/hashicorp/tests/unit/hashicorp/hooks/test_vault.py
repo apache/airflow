@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.providers.hashicorp.hooks.vault import VaultHook
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import xfail_on_python_315
 
 
 class TestVaultHook:
@@ -425,6 +426,7 @@ class TestVaultHook:
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @mock.patch("googleapiclient.discovery.build")
+    @xfail_on_python_315("The google provider is excluded on Python 3.15")
     def test_gcp_init_params(
         self, mock_build, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes
     ):
@@ -477,6 +479,7 @@ class TestVaultHook:
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @mock.patch("googleapiclient.discovery.build")
+    @xfail_on_python_315("The google provider is excluded on Python 3.15")
     def test_gcp_dejson(
         self, mock_build, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes
     ):
@@ -531,6 +534,7 @@ class TestVaultHook:
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @mock.patch("googleapiclient.discovery.build")
+    @xfail_on_python_315("The google provider is excluded on Python 3.15")
     def test_gcp_dict_dejson(
         self, mock_build, mock_hvac, mock_get_connection, mock_get_credentials, mock_get_scopes
     ):

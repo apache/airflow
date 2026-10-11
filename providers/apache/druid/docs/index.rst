@@ -135,11 +135,11 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-apache-druid[apache.hive]
 
 
-===============  ========================================
+===============  ==================================================================
 Extra            Dependencies
-===============  ========================================
-``apache.hive``  ``apache-airflow-providers-apache-hive``
-===============  ========================================
+===============  ==================================================================
+``apache.hive``  ``apache-airflow-providers-apache-hive; python_version != "3.15"``
+===============  ==================================================================
 
 Downloading official packages
 -----------------------------

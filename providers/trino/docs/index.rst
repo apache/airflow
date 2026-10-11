@@ -141,12 +141,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-trino[google]
 
 
-===============  ========================================
+===============  =============================================================
 Extra            Dependencies
-===============  ========================================
-``google``       ``apache-airflow-providers-google``
+===============  =============================================================
+``google``       ``apache-airflow-providers-google; python_version != "3.15"``
 ``openlineage``  ``apache-airflow-providers-openlineage``
-===============  ========================================
+===============  =============================================================
 
 Downloading official packages
 -----------------------------

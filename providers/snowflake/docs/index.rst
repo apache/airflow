@@ -102,6 +102,8 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 ==========================================  ========================================================================
 PIP package                                 Version required
 ==========================================  ========================================================================
+``aiohttp``                                 ``>=3.14.0``
+``aiohttp``                                 ``>=3.14.5; python_version >= "3.15"``
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
@@ -115,8 +117,10 @@ PIP package                                 Version required
 ``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
 ``pyOpenSSL``                               ``>=22.1.0``
 ``snowflake-connector-python``              ``>=3.17.0``
+``snowflake-connector-python``              ``>=5.2.0; python_version >= "3.15"``
 ``snowflake-sqlalchemy``                    ``>=1.7.0``
-``sqlalchemy``                              ``>=1.4.54,<2.1``
+``snowflake-sqlalchemy``                    ``>=2.1.0; python_version >= "3.15"``
+``sqlalchemy``                              ``>=1.4.54; python_version < "3.15"``
 ``snowflake-snowpark-python``               ``>=1.17.0,<9999; python_version < "3.12"``
 ``snowflake-snowpark-python``               ``>=1.27.0,<9999; python_version >= "3.12" and python_version < "3.14"``
 ``setuptools``                              ``>=80.0.0,<9999``
@@ -154,13 +158,13 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-snowflake[common.ai]
 
 
-===================  =====================================================
+===================  ===============================================================================
 Extra                Dependencies
-===================  =====================================================
-``common.ai``        ``apache-airflow-providers-common-ai[openai]>=1.0.0``
-``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0``
+===================  ===============================================================================
+``common.ai``        ``apache-airflow-providers-common-ai[openai]>=1.0.0; python_version != "3.15"``
+``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0; python_version != "3.15"``
 ``openlineage``      ``apache-airflow-providers-openlineage>=2.16.0``
-===================  =====================================================
+===================  ===============================================================================
 
 Downloading official packages
 -----------------------------

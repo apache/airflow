@@ -114,12 +114,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-common-messaging[amazon]
 
 
-================  ================================================
+================  ==========================================================================
 Extra             Dependencies
-================  ================================================
+================  ==========================================================================
 ``amazon``        ``apache-airflow-providers-amazon>=9.7.0``
-``apache.kafka``  ``apache-airflow-providers-apache-kafka>=1.9.0``
-================  ================================================
+``apache.kafka``  ``apache-airflow-providers-apache-kafka>=1.9.0; python_version != "3.15"``
+================  ==========================================================================
 
 Downloading official packages
 -----------------------------

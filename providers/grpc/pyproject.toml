@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.11"
@@ -68,6 +69,7 @@ dependencies = [
     "google-auth>=1.0.0, <3.0.0",
     "google-auth-httplib2>=0.0.1",
     "grpcio>=1.59.0",
+    "grpcio>=1.84.0; python_version >= \"3.15\"",
 ]
 
 [dependency-groups]

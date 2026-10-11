@@ -76,6 +76,10 @@ versions:
   - 1.0.0
 
 
+excluded-python-versions:
+  # grpcio-tools 1.84+ has 3.15 wheels but requires protobuf 7; Snowflake's connector requires protobuf <7.
+  - "3.15"
+
 integrations:
   - integration-name: Yandex.Cloud
     external-doc-url: https://cloud.yandex.com/

@@ -23,8 +23,12 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.transfers.azure_blob_to_s3 import AzureBlobStorageToS3Operator
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("airflow.providers.microsoft.azure")
+
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook  # noqa: E402
+from airflow.providers.amazon.aws.transfers.azure_blob_to_s3 import AzureBlobStorageToS3Operator  # noqa: E402
 
 TASK_ID = "test-gcs-list-operator"
 CONTAINER_NAME = "test-container"

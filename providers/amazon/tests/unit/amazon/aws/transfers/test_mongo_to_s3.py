@@ -21,15 +21,19 @@ from unittest import mock
 
 import pytest
 
-from airflow.models import DAG, DagRun, TaskInstance
-from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
-from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from tests_common.test_utils.markers import skip_module_on_python_315_without
 
-from tests_common.test_utils.compat import timezone
-from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+skip_module_on_python_315_without("bson")
+
+from airflow.models import DAG, DagRun, TaskInstance  # noqa: E402
+from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator  # noqa: E402
+from airflow.utils.state import DagRunState  # noqa: E402
+from airflow.utils.types import DagRunType  # noqa: E402
+
+from tests_common.test_utils.compat import timezone  # noqa: E402
+from tests_common.test_utils.dag import sync_dag_to_db  # noqa: E402
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields  # noqa: E402
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS  # noqa: E402
 
 TASK_ID = "test_mongo_to_s3_operator"
 MONGO_CONN_ID = "default_mongo"

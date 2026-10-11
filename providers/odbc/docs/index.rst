@@ -106,6 +106,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``pyodbc``                                  ``>=5.0.0; python_version < "3.13"``
 ``pyodbc``                                  ``>=5.2.0; python_version >= "3.13"``
+``pyodbc``                                  ``>=5.4.0; python_version >= "3.15"``
 ==========================================  =====================================
 
 Downloading official packages

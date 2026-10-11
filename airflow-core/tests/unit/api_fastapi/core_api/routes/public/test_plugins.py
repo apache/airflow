@@ -28,7 +28,7 @@ from airflow.plugins_manager import AirflowPlugin
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, xfail_on_python_315
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = pytest.mark.db_test
@@ -36,6 +36,7 @@ pytestmark = pytest.mark.db_test
 
 @skip_if_force_lowest_dependencies_marker
 class TestGetPlugins:
+    @xfail_on_python_315("Plugins of the providers excluded on Python 3.15 are not loaded")
     @pytest.mark.parametrize(
         ("query_params", "expected_total_entries", "expected_names"),
         [
@@ -260,6 +261,7 @@ class TestGetPlugins:
         assert react["action_type"] == "react"
         assert react["bundle_url"] == "https://example.com/inspect.js"
 
+    @xfail_on_python_315("Plugins of the providers excluded on Python 3.15 are not loaded")
     def test_invalid_external_view_destination_should_log_warning_and_continue(self, test_client, caplog):
         caplog.set_level("WARNING", "airflow.api_fastapi.core_api.routes.public.plugins")
 

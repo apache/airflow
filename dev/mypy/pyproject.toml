@@ -21,7 +21,7 @@ description = "Apache Airflow Mypy plugins"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-requires-python = ">=3.11,!=3.15"
+requires-python = ">=3.11,!=3.16"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
