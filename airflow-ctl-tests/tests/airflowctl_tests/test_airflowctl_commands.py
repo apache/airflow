@@ -179,8 +179,8 @@ def test_hardcoded_xcom_key_would_collide():
 
     hardcoded = xcom_add_template[0].format(date_param=DATE_PARAM_1, xcom_key="test_xcom_key")
     also_hardcoded = xcom_add_template[0].format(date_param=DATE_PARAM_2, xcom_key="test_xcom_key")
-    # With a hardcoded key, only the dag-run-id differs â€" but if the same date
-    # is reused (e.g. across retries), the commands are fully identical â†' collision.
+    # With a hardcoded key, only the dag-run-id differs â€” but if the same date
+    # is reused (e.g. across retries), the commands are fully identical â†’ collision.
     assert "test_xcom_key" in hardcoded
     assert "test_xcom_key" in also_hardcoded
 
