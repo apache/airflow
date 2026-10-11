@@ -41,7 +41,7 @@ from paramiko.config import SSH_PORT
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.connection import get_async_connection
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook, Connection, timezone
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, Connection
 from airflow.providers.sftp.exceptions import ConnectionNotOpenedException
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
@@ -630,12 +630,14 @@ class SFTPHook(SSHHook):
     @handle_connection_management
     def get_mod_time(self, path: str) -> str:
         """
-        Get an entry's modification time.
+        Get an entry's modification time as a ``%Y%m%d%H%M%S`` UTC string.
 
         :param path: full path to the remote file
         """
         ftp_mdtm = self.conn.stat(path).st_mtime  # type: ignore[union-attr]
-        return datetime.datetime.fromtimestamp(ftp_mdtm).strftime("%Y%m%d%H%M%S")  # type: ignore
+        return datetime.datetime.fromtimestamp(ftp_mdtm, tz=datetime.UTC).strftime(  # type: ignore[arg-type]
+            "%Y%m%d%H%M%S"
+        )
 
     @handle_connection_management
     def path_exists(self, path: str) -> bool:
@@ -1281,7 +1283,7 @@ class SFTPHookAsync(BaseHook):
         Make SFTP async connection.
 
         Looks for last modified time in the specific file path and returns last modification time for
-         the file path.
+         the file path as a ``%Y%m%d%H%M%S`` UTC string.
 
         :param path: full path to the remote file
         """
@@ -1290,7 +1292,9 @@ class SFTPHookAsync(BaseHook):
         except asyncssh.SFTPNoSuchFile:
             raise AirflowException("No files matching")
         modified_time = ftp_mdtm.mtime
-        mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore[arg-type]
+        mod_time = datetime.datetime.fromtimestamp(  # type: ignore[arg-type]
+            modified_time, tz=datetime.UTC
+        ).strftime("%Y%m%d%H%M%S")
         self.log.info("Found File %s last modified: %s", str(path), str(mod_time))
         return mod_time
 
@@ -1336,10 +1340,10 @@ class SFTPHookAsync(BaseHook):
 
     @staticmethod
     def _mod_time_to_utc(mod_time: int | float | str) -> datetime.datetime:
-        """Convert a modification time, either an epoch timestamp or ``%Y%m%d%H%M%S`` string, to UTC."""
-        if not isinstance(mod_time, str):
-            mod_time = datetime.datetime.fromtimestamp(float(mod_time)).strftime("%Y%m%d%H%M%S")
-        return timezone.convert_to_utc(datetime.datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
+        """Convert an epoch timestamp or a ``%Y%m%d%H%M%S`` UTC string to an aware UTC datetime."""
+        if isinstance(mod_time, str):
+            return datetime.datetime.strptime(mod_time, "%Y%m%d%H%M%S").replace(tzinfo=datetime.UTC)
+        return datetime.datetime.fromtimestamp(float(mod_time), tz=datetime.UTC).replace(microsecond=0)
 
     @handle_connection_management
     async def isdir(self, path: str) -> bool:
