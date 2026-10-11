@@ -2218,8 +2218,8 @@ def test_outside_seed_upstream_selects_all_current_loop_occurrences(loop_run, se
     assert scope.archive_ids == {ti.id for ti in tis if ti.task_id != "outside" and iteration(ti) > 0}
 
 
-@pytest.mark.parametrize("upstream", [False, True])
-def test_outside_predecessor_selects_all_mapped_loop_occurrences(dag_maker, session, upstream):
+@pytest.fixture
+def mapped_loop_after_predecessor(dag_maker, session):
     @task_group
     def body():
         PythonOperator.partial(task_id="process", python_callable=list).expand(op_kwargs=[{}, {}])
@@ -2252,29 +2252,44 @@ def test_outside_predecessor_selects_all_mapped_loop_occurrences(dag_maker, sess
                 )
             )
     session.flush()
-    tis = dr.get_task_instances(session=session)
-    if upstream:
-        seed = next(ti for ti in tis if ti.region_id == child.id and ti.region_index == 0)
-    else:
-        seed = next(ti for ti in tis if ti.task_id == "before")
+    return loop, child, dr.get_task_instances(session=session)
+
+
+def test_outside_predecessor_selects_all_mapped_loop_occurrences(mapped_loop_after_predecessor, session):
+    loop, child, tis = mapped_loop_after_predecessor
+    before = next(ti for ti in tis if ti.task_id == "before")
 
     scope = select_loop_clear_scope(
-        [seed],
-        upstream=upstream,
+        [before],
+        upstream=False,
         downstream=True,
         later_loop_iterations=False,
         session=session,
     )
 
-    if upstream:
-        # The predecessor is selected, but its other descendants are not relatives of the seed.
-        assert scope.retry_ids == {seed.id} | {
-            ti.id
-            for ti in tis
-            if ti.task_id == "before" or (ti.task_id == loop.gate_task_id and ti.region_index == 1)
-        }
-    else:
-        assert scope.retry_ids == {ti.id for ti in tis}
+    assert scope.retry_ids == {ti.id for ti in tis}
+    assert not scope.archive_ids
+
+
+def test_loop_upstream_and_downstream_scope_excludes_other_map_indexes(
+    mapped_loop_after_predecessor, session
+):
+    loop, child, tis = mapped_loop_after_predecessor
+    seed = next(ti for ti in tis if ti.region_id == child.id and ti.region_index == 0)
+
+    scope = select_loop_clear_scope(
+        [seed],
+        upstream=True,
+        downstream=True,
+        later_loop_iterations=False,
+        session=session,
+    )
+
+    assert scope.retry_ids == {seed.id} | {
+        ti.id
+        for ti in tis
+        if ti.task_id == "before" or (ti.task_id == loop.gate_task_id and ti.region_index == 1)
+    }
     assert not scope.archive_ids
 
 
