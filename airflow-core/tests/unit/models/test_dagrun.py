@@ -68,7 +68,7 @@ from airflow.models.dagrun import (
 )
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.dynamic_region import LOOP_DECISION_KEY, SENTINEL_REGION_ID, DynamicRegion
+from airflow.models.dynamic_region import LOOP_DECISION_REASON_KEY, SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import (
@@ -6449,11 +6449,10 @@ def test_rerun_gate_continues_while_superseded_later_passes_terminate(completed_
     clear_loop_task_instances([gates[2]], downstream=False, session=session)
     rerun = session.get(TaskInstance, gates[2].id)
     rerun.state = State.SUCCESS
-    session.add(XComModelV2(task_instance_id=rerun.id, key=LOOP_DECISION_KEY, value="continue"))
     session.flush()
     group, _ = TaskCoordinateResolver(DBDagBag(), session).loop_context(rerun)
 
-    dr.complete_loop_gate(rerun, group, State.SUCCESS, session=session)
+    dr.complete_loop_gate(rerun, group, State.SUCCESS, stop=False, reason=None, session=session)
 
     assert gates[4].state == State.RESTARTING
     assert session.scalars(
@@ -6464,6 +6463,37 @@ def test_rerun_gate_continues_while_superseded_later_passes_terminate(completed_
             TaskInstance.region_index == 3,
         )
     ).all() == [None]
+
+
+@pytest.mark.parametrize(
+    ("index", "state", "stored"),
+    [(4, State.SUCCESS, ["why"]), (4, State.FAILED, ["why"]), (2, State.SUCCESS, []), (2, State.FAILED, [])],
+    ids=["last-success", "last-failed", "earlier-success", "earlier-failed"],
+)
+def test_complete_loop_gate_records_the_reason_only_without_a_later_pass(
+    completed_loop, session, index, state, stored
+):
+    dr, loop, _ = completed_loop
+    gate = next(
+        ti
+        for ti in dr.get_task_instances(session=session)
+        if ti.task_id == loop.gate_task_id and ti.region_index == index
+    )
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+    group, _ = resolver.loop_context(gate)
+    before = len(dr.get_task_instances(session=session))
+
+    dr.complete_loop_gate(gate, group, state, stop=index == 4, reason="why", session=session)
+
+    assert len(dr.get_task_instances(session=session)) == before
+    assert (
+        session.scalars(
+            select(XComModelV2.value).where(
+                XComModelV2.task_instance_id == gate.id, XComModelV2.key == LOOP_DECISION_REASON_KEY
+            )
+        ).all()
+        == stored
+    )
 
 
 @pytest.fixture

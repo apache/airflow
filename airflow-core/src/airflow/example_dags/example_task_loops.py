@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 # [START refine_estimate]
-from airflow.sdk import dag, task, task_group
+from airflow.sdk import LoopDecision, dag, task, task_group
 
 
 @dag(schedule=None, catchup=False, tags=["example"])
@@ -38,7 +38,8 @@ def refine_estimate():
         evaluate(improve())
 
     def accurate_enough(*, loop):
-        return loop.result["error"] < 0.000001
+        error = loop.result["error"]
+        return LoopDecision(stop=error < 0.000001, reason=f"error {error:.2g}, needs < 1e-06")
 
     @task
     def finished():

@@ -130,6 +130,8 @@ Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
 
+.. autoapiclass:: airflow.sdk.LoopDecision
+
 .. autoclass:: airflow.sdk.TaskInstance
 
 .. autoapiclass:: airflow.sdk.XComArg

@@ -51,9 +51,8 @@ from airflow.api_fastapi.execution_api.security import (
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.exceptions import TaskNotFound
-from airflow.models.dagrun import DagRun, InvalidLoopDecision, validate_loop_decision
+from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import (
-    LOOP_DECISION_KEY,
     LOOP_XCOM_PREFIX,
     SENTINEL_REGION_ID,
     AmbiguousProducerError,
@@ -683,11 +682,11 @@ def get_xcom(
         [
             (
                 status.HTTP_400_BAD_REQUEST,
-                "The key is empty, the value is too large to map, or is unserializable",
+                "The key is empty or reserved, the value is too large to map, or is unserializable",
             ),
             (
                 status.HTTP_409_CONFLICT,
-                "Several live task instances match the producer, or the loop gate is no longer running",
+                "Several live task instances match the producer",
             ),
         ]
     ),
@@ -698,7 +697,6 @@ def set_xcom(
     task_id: str,
     key: Annotated[str, Path(min_length=1)],
     session: SessionDep,
-    dag_bag: DagBagDep,
     value: Annotated[
         JsonValue,
         Body(
@@ -729,43 +727,7 @@ def set_xcom(
     """Set an Airflow XCom."""
     from airflow.configuration import conf
 
-    region_id: UUID | None = None
-    region_index: int | None = None
-    if key == LOOP_DECISION_KEY:
-        caller = session.get(TaskInstance, token.id)
-        if (
-            value not in ("continue", "stop")
-            or mapped_length is not None
-            or dag_result
-            or map_index != -1
-            or caller is None
-            or (dag_id, run_id, task_id) != (caller.dag_id, caller.run_id, caller.task_id)
-        ):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid loop decision write")
-        session.execute(
-            select(DagRun)
-            .where(DagRun.dag_id == caller.dag_id, DagRun.run_id == caller.run_id)
-            .with_for_update()
-        ).scalar_one()
-        caller = session.scalar(
-            select(TaskInstance)
-            .where(TaskInstance.id == token.id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-        if caller is None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Loop gate is no longer running")
-        loop = TaskCoordinateResolver(dag_bag, session).loop_context(caller)
-        if loop is None or loop[0].gate_task_id != caller.task_id:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Loop decisions require the pinned loop gate")
-        if caller.state != TaskInstanceState.RUNNING or caller.working_set is not True:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Loop gate is no longer running")
-        try:
-            validate_loop_decision(value, caller.region_index, loop[0])
-        except InvalidLoopDecision as error:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
-        region_id, region_index = caller.region_id, caller.region_index
-    elif key.startswith(LOOP_XCOM_PREFIX):
+    if key.startswith(LOOP_XCOM_PREFIX):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
 
     # Validate that the provided key is not empty
@@ -814,8 +776,6 @@ def set_xcom(
                 run_id=run_id,
                 task_id=task_id,
                 map_index=map_index,
-                region_id=region_id,
-                region_index=region_index,
                 session=session,
             ),
             serialize=False,
@@ -881,8 +841,6 @@ def _find_writer_id(
     run_id: str,
     task_id: str,
     map_index: int,
-    region_id: UUID | None = None,
-    region_index: int | None = None,
     session: SessionDep,
 ) -> UUID | None:
     """Resolve the attempt a write targets: the caller's own, or the live attempt of another task."""
@@ -890,9 +848,7 @@ def _find_writer_id(
         TaskInstance.dag_id == dag_id,
         TaskInstance.run_id == run_id,
         TaskInstance.task_id == task_id,
-        *build_coordinate_filters(
-            TaskInstance, map_index=map_index, region_id=region_id, region_index=region_index
-        ),
+        *build_coordinate_filters(TaskInstance, map_index=map_index),
     )
     own = session.scalar(
         select(TaskInstance.id)
@@ -918,8 +874,6 @@ def _get_writer_id(
     run_id: str,
     task_id: str,
     map_index: int,
-    region_id: UUID | None = None,
-    region_index: int | None = None,
     session: SessionDep,
 ) -> UUID:
     owner = _find_writer_id(
@@ -928,8 +882,6 @@ def _get_writer_id(
         run_id=run_id,
         task_id=task_id,
         map_index=map_index,
-        region_id=region_id,
-        region_index=region_index,
         session=session,
     )
     if owner is None:
