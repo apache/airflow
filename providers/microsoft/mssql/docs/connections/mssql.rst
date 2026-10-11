@@ -99,15 +99,14 @@ and set ``dbapi_driver`` to ``mssql_python`` in the connection extra:
         "extra": {"dbapi_driver": "mssql_python", "TrustServerCertificate": "yes"}
     }'
 
-Things to know when using ``mssql_python``:
+Notes
+~~~~~
 
-* ``dbapi_driver`` accepts ``pymssql`` (the default) or ``mssql_python``. The name is case-insensitive.
-* Every other extra is passed to ``mssql_python.connect`` as a connection string keyword, for example
-  ``Encrypt``, ``TrustServerCertificate`` or ``Authentication`` (for Microsoft Entra ID sign-in). The
-  host and port are sent as ``Server=host,port``.
-* The SQLAlchemy scheme defaults to ``mssql+mssqlpython``, which needs SQLAlchemy 2.1 or newer. It can still
-  be changed with the ``sqlalchemy_scheme`` extra or the hook argument.
-* The driver does not understand the plain ``%s`` parameter marker. Write SQL parameters as ``?`` with a
-  list or tuple, or as ``%(name)s`` with a dict. The hook's default placeholder for generated statements
-  is ``?`` and can be overridden with the ``placeholder`` extra.
-* ``mssql-python`` pools connections at the driver level by default.
+* ``dbapi_driver`` accepts ``pymssql`` (the default) or ``mssql_python`` and is case-insensitive.
+* Additional driver options, such as ``Encrypt``, ``TrustServerCertificate`` and
+  ``Authentication``, can be supplied through connection extras.
+* The default SQLAlchemy scheme is ``mssql+mssqlpython``, which requires SQLAlchemy 2.1
+  or newer. Override it using ``sqlalchemy_scheme`` in the connection extra or hook argument.
+* Use ``?`` placeholders with positional parameters or ``%(name)s`` with named parameters.
+  Plain ``%s`` placeholders are not supported. The hook defaults to ``?`` for generated statements.
+* Driver-level connection pooling is enabled by default.
