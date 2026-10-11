@@ -51,7 +51,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,!=3.15.*"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -96,7 +96,7 @@ dependencies = [
     "apache-airflow-providers-fab>=2.2.0"
 ]
 "google" = [
-    "apache-airflow-providers-google>=10.24.0"
+    "apache-airflow-providers-google>=10.24.0; python_version != \"3.15\""
 ]
 "sdk" = [
     "databricks-sdk==0.10.0",
@@ -120,7 +120,7 @@ dev = [
     "apache-airflow-providers-common-ai",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
-    "apache-airflow-providers-google",
+    "apache-airflow-providers-google; python_version != \"3.15\"",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     # Need to exclude 1.3.0 due to missing aarch64 binaries, fixed with 1.3.1++

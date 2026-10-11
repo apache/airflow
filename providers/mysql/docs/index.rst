@@ -144,16 +144,16 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-mysql[mysql-connector-python]
 
 
-==========================  ========================================
+==========================  =============================================================
 Extra                       Dependencies
-==========================  ========================================
+==========================  =============================================================
 ``mysql-connector-python``
 ``amazon``                  ``apache-airflow-providers-amazon``
 ``openlineage``             ``apache-airflow-providers-openlineage``
-``presto``                  ``apache-airflow-providers-presto``
-``trino``                   ``apache-airflow-providers-trino``
+``presto``                  ``apache-airflow-providers-presto; python_version != "3.15"``
+``trino``                   ``apache-airflow-providers-trino; python_version != "3.15"``
 ``vertica``                 ``apache-airflow-providers-vertica``
-==========================  ========================================
+==========================  =============================================================
 
 Downloading official packages
 -----------------------------

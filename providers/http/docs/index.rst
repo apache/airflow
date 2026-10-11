@@ -107,6 +107,7 @@ PIP package                                 Version required
 ``requests``                                ``>=2.32.0,<3``
 ``requests-toolbelt``                       ``>=1.0.0``
 ``aiohttp``                                 ``>=3.14.0``
+``aiohttp``                                 ``>=3.14.4; python_version >= "3.15"``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ``pydantic``                                ``>=2.11.0``

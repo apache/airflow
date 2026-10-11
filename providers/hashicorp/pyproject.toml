@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.11"
@@ -71,7 +72,7 @@ dependencies = [
     "boto3>=1.42.93",
 ]
 "google" = [
-    "apache-airflow-providers-google"
+    "apache-airflow-providers-google; python_version != \"3.15\""
 ]
 
 [dependency-groups]
@@ -80,7 +81,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
-    "apache-airflow-providers-google",
+    "apache-airflow-providers-google; python_version != \"3.15\"",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 

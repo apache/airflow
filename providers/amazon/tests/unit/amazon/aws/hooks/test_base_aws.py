@@ -51,6 +51,7 @@ from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionW
 from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_module_on_python_315_without
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytest.importorskip("aiobotocore")
@@ -564,6 +565,7 @@ class TestAwsBaseHook:
             )
 
     def test_get_credentials_from_gcp_credentials(self):
+        skip_module_on_python_315_without("google.auth")
         mock_connection = Connection(
             extra=json.dumps(
                 {

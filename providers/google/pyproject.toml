@@ -51,7 +51,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,!=3.15.*"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -159,7 +159,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "apache.beam" = [
-    "apache-airflow-providers-apache-beam>=6.2.2",
+    "apache-airflow-providers-apache-beam>=6.2.2; python_version != \"3.15\"",
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.25.0",
@@ -180,16 +180,16 @@ dependencies = [
     "apache-airflow-providers-amazon>=2.6.0",
 ]
 "apache.cassandra" = [
-    "apache-airflow-providers-apache-cassandra"
+    "apache-airflow-providers-apache-cassandra; python_version != \"3.14\" and python_version != \"3.15\""
 ]
 "microsoft.azure" = [
-    "apache-airflow-providers-microsoft-azure>=13.0.0",
+    "apache-airflow-providers-microsoft-azure>=13.0.0; python_version != \"3.15\"",
 ]
 "microsoft.mssql" = [
     "apache-airflow-providers-microsoft-mssql"
 ]
 "mongo" = [
-    "apache-airflow-providers-mongo"
+    "apache-airflow-providers-mongo; python_version != \"3.15\""
 ]
 "mysql" = [
     "apache-airflow-providers-mysql"
@@ -201,10 +201,10 @@ dependencies = [
     "apache-airflow-providers-postgres"
 ]
 "presto" = [
-    "apache-airflow-providers-presto"
+    "apache-airflow-providers-presto; python_version != \"3.15\""
 ]
 "salesforce" = [
-    "apache-airflow-providers-salesforce"
+    "apache-airflow-providers-salesforce; python_version != \"3.15\""
 ]
 "sftp" = [
     "apache-airflow-providers-sftp>=5.3.3"
@@ -213,7 +213,7 @@ dependencies = [
     "apache-airflow-providers-ssh"
 ]
 "trino" = [
-    "apache-airflow-providers-trino"
+    "apache-airflow-providers-trino; python_version != \"3.15\""
 ]
 "http" = [
     "apache-airflow-providers-http"
@@ -222,7 +222,7 @@ dependencies = [
     "apache-airflow-providers-standard"
 ]
 "common.ai" = [
-    "apache-airflow-providers-common-ai>=0.11.0",
+    "apache-airflow-providers-common-ai>=0.11.0; python_version != \"3.15\"",
 ]
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=2.0.0"
@@ -234,28 +234,28 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
-    "apache-airflow-providers-apache-beam",
-    "apache-airflow-providers-apache-cassandra",
+    "apache-airflow-providers-apache-beam; python_version != \"3.15\"",
+    "apache-airflow-providers-apache-cassandra; python_version != \"3.14\" and python_version != \"3.15\"",
     "apache-airflow-providers-cncf-kubernetes",
-    "apache-airflow-providers-common-ai",
+    "apache-airflow-providers-common-ai; python_version != \"3.15\"",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-facebook",
     "apache-airflow-providers-http",
-    "apache-airflow-providers-microsoft-azure",
+    "apache-airflow-providers-microsoft-azure; python_version != \"3.15\"",
     "apache-airflow-providers-microsoft-mssql",
-    "apache-airflow-providers-mongo",
+    "apache-airflow-providers-mongo; python_version != \"3.15\"",
     "apache-airflow-providers-mysql",
     "apache-airflow-providers-openlineage",
     "apache-airflow-providers-oracle",
     "apache-airflow-providers-postgres",
-    "apache-airflow-providers-presto",
-    "apache-airflow-providers-salesforce",
+    "apache-airflow-providers-presto; python_version != \"3.15\"",
+    "apache-airflow-providers-salesforce; python_version != \"3.15\"",
     "apache-airflow-providers-sftp",
     "apache-airflow-providers-ssh",
     "apache-airflow-providers-standard",
-    "apache-airflow-providers-trino",
+    "apache-airflow-providers-trino; python_version != \"3.15\"",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-apache-kafka",
     "apache-airflow-providers-common-sql[pandas,polars]",

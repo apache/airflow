@@ -79,6 +79,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
+excluded-python-versions:
+  - "3.15"
+
 integrations:
   - integration-name: Alibaba Cloud OSS
     external-doc-url: https://www.alibabacloud.com/help/product/31815.htm

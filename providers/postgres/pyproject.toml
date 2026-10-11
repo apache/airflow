@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.11"
@@ -63,6 +64,7 @@ dependencies = [
     "apache-airflow-providers-common-sql>=1.32.0",
     "psycopg[binary]>=3.2.9; python_version < '3.14'",
     "psycopg[binary]>=3.3.3; python_version >= '3.14'",
+    "psycopg[binary]>=3.3.6; python_version >= \"3.15\"",
     # psycopg2-binary and asyncpg must stay default dependencies while this provider still
     # supports Airflow cores older than 3.4.0. Those cores normalize the sync metadata-DB conn
     # to ``postgresql+psycopg2://`` (see core ``_upgrade_postgres_metastore_conn``) and derive
@@ -73,7 +75,9 @@ dependencies = [
     # supported Airflow is >= 3.4.0; tracked at https://github.com/apache/airflow/issues/68453
     "psycopg2-binary>=2.9.9; python_version < '3.13'",
     "psycopg2-binary>=2.9.10; python_version >= '3.13'",
+    "psycopg2-binary>=2.9.13; python_version >= \"3.15\"",
     "asyncpg>=0.30.0",
+    "asyncpg>=0.32.0; python_version >= \"3.15\"",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -84,9 +88,10 @@ dependencies = [
 ]
 "asyncpg" = [
     "asyncpg>=0.30.0",
+    "asyncpg>=0.32.0; python_version >= \"3.15\"",
 ]
 "microsoft.azure" = [
-    "apache-airflow-providers-microsoft-azure>=12.8.0"
+    "apache-airflow-providers-microsoft-azure>=12.8.0; python_version != \"3.15\""
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage"
@@ -95,6 +100,7 @@ dependencies = [
     'pandas>=2.1.2; python_version <"3.13"',
     'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
     'pandas>=2.3.3; python_version >="3.14"',
+    'pandas>=3.0.6; python_version >="3.15"',
 ]
 "polars" = [
     "polars>=1.26.0"
@@ -102,9 +108,11 @@ dependencies = [
 "psycopg2" = [
     "psycopg2-binary>=2.9.9; python_version < '3.13'",
     "psycopg2-binary>=2.9.10; python_version >= '3.13'",
+    "psycopg2-binary>=2.9.13; python_version >= \"3.15\"",
 ]
 "sqlalchemy" = [
-    "sqlalchemy>=1.4.54,!=2.1.0"
+    "sqlalchemy>=1.4.54,!=2.1.0",
+    "sqlalchemy>=2.1.4; python_version >= \"3.15\"",
 ]
 
 [dependency-groups]
@@ -115,7 +123,7 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
-    "apache-airflow-providers-microsoft-azure",
+    "apache-airflow-providers-microsoft-azure; python_version != \"3.15\"",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",

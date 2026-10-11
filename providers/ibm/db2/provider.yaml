@@ -33,6 +33,9 @@ excluded-platforms:
 versions:
   - 0.1.0
 
+excluded-python-versions:
+  - "3.15"
+
 integrations:
   - integration-name: IBM Db2
     external-doc-url: https://www.ibm.com/products/db2

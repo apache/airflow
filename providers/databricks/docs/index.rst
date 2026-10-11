@@ -158,7 +158,7 @@ Extra               Dependencies
 ``amazon``          ``apache-airflow-providers-amazon>=9.22.0``
 ``azure-identity``  ``azure-identity>=1.25.3``
 ``fab``             ``apache-airflow-providers-fab>=2.2.0``
-``google``          ``apache-airflow-providers-google>=10.24.0``
+``google``          ``apache-airflow-providers-google>=10.24.0; python_version != "3.15"``
 ``sdk``             ``databricks-sdk==0.10.0``
 ``standard``        ``apache-airflow-providers-standard``
 ``openlineage``     ``apache-airflow-providers-openlineage>=2.16.0``

@@ -52,7 +52,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, xfail_on_python_315
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 from tests_common.test_utils.taskinstance import TaskInstanceWrapper
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
@@ -210,6 +210,7 @@ class TestSQLExecuteQueryOperator:
         assert result == [(1, "Alice"), (2, "Bob")]
 
     @skip_if_force_lowest_dependencies_marker
+    @xfail_on_python_315("The google provider that registers gcpbigquery is excluded on Python 3.15")
     def test_sql_operator_extra_dejson_fields_to_hook_params(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -735,6 +736,7 @@ class TestSQLCheckOperatorDbHook:
                 self._operator._hook
 
     @skip_if_force_lowest_dependencies_marker
+    @xfail_on_python_315("The snowflake provider is excluded on Python 3.15")
     def test_sql_operator_hook_params_snowflake(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -756,6 +758,7 @@ class TestSQLCheckOperatorDbHook:
             assert not self._operator._hook.log_sql
 
     @skip_if_force_lowest_dependencies_marker
+    @xfail_on_python_315("The google provider that registers gcpbigquery is excluded on Python 3.15")
     def test_sql_operator_hook_params_biguery(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -770,6 +773,7 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.location == "us-east1"
 
     @skip_if_force_lowest_dependencies_marker
+    @xfail_on_python_315("The snowflake provider is excluded on Python 3.15")
     def test_sql_operator_hook_params_templated(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",

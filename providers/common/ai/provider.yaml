@@ -41,6 +41,9 @@ versions:
   - 0.1.1
   - 0.1.0
 
+excluded-python-versions:
+  - "3.15"
+
 integrations:
   - integration-name: Common AI
     external-doc-url: https://airflow.apache.org/docs/apache-airflow-providers-common-ai/

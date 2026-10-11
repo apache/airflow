@@ -26,17 +26,21 @@ from pathlib import Path
 
 import pytest
 
-from airflow.jobs.job import Job
-from airflow.models import TaskInstance
-from airflow.providers.common.compat.sdk import timezone
-from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
-from airflow.providers.openlineage.plugins.listener import OpenLineageListener
-from airflow.utils.state import State
-from airflow.utils.types import DagRunType
+from tests_common.test_utils.markers import skip_module_on_python_315_without
 
-from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+skip_module_on_python_315_without("airflow.providers.google")
+
+from airflow.jobs.job import Job  # noqa: E402
+from airflow.models import TaskInstance  # noqa: E402
+from airflow.providers.common.compat.sdk import timezone  # noqa: E402
+from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain  # noqa: E402
+from airflow.providers.openlineage.plugins.listener import OpenLineageListener  # noqa: E402
+from airflow.utils.state import State  # noqa: E402
+from airflow.utils.types import DagRunType  # noqa: E402
+
+from tests_common.test_utils.config import conf_vars  # noqa: E402
+from tests_common.test_utils.db import clear_db_runs  # noqa: E402
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS  # noqa: E402
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag

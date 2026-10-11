@@ -127,12 +127,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-hashicorp[boto3]
 
 
-==========  ===================================
+==========  =============================================================
 Extra       Dependencies
-==========  ===================================
+==========  =============================================================
 ``boto3``   ``boto3>=1.42.93``
-``google``  ``apache-airflow-providers-google``
-==========  ===================================
+``google``  ``apache-airflow-providers-google; python_version != "3.15"``
+==========  =============================================================
 
 Downloading official packages
 -----------------------------
