@@ -1463,6 +1463,106 @@ COPY <<"EOF" /install_airflow_when_building_images.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
+function has_providers_excluded_for_python() {
+    local python_minor="${AIRFLOW_PYTHON_VERSION%.*}"
+    local status
+    python3 "$( dirname "${BASH_SOURCE[0]}" )/filter_ci_install_set.py" --root "${PWD}" \
+        --python-minor "${python_minor}" --probe
+    status=$?
+    # 0 and 10 are the probe's two answers. Anything else is the probe itself failing, and must not
+    # read as "nothing is excluded" - that would silently install the set this whole path avoids.
+    case "${status}" in
+        0) return 0 ;;
+        10) return 1 ;;
+        *)
+            echo
+            echo "${COLOR_RED}Could not determine excluded providers (exit ${status}).${COLOR_RESET}"
+            echo
+            exit "${status}"
+            ;;
+    esac
+}
+
+function prepare_filtered_install_set() {
+    local status
+    local kept_package
+    local -a kept_packages=()
+    local -a package_args=()
+    python3 "$( dirname "${BASH_SOURCE[0]}" )/filter_ci_install_set.py" --root "${PWD}" \
+        --python-minor "${python_minor}" --packages "${work_dir}/packages.txt" \
+        --editables "${work_dir}/editables.txt" || { status=$?; set +x; return "${status}"; }
+    mapfile -t kept_packages < "${work_dir}/packages.txt"
+    for kept_package in "${kept_packages[@]}"; do
+        package_args+=(--package "${kept_package}")
+    done
+    # Exporting the lock for the kept members is the whole filter: uv emits their closure with the
+    # hashes and the markers that already encode each provider's exclusions, so no second resolution
+    # runs and the install cannot drift from uv.lock.
+    uv export --frozen "${package_args[@]}" --group ci-image --no-emit-workspace \
+        --output-file "${work_dir}/requirements.txt" || { status=$?; set +x; return "${status}"; }
+}
+
+function install_workspace_without_excluded_providers() {
+    local allow_relock="${1:-}"
+    local python_minor="${AIRFLOW_PYTHON_VERSION%.*}"
+    local work_dir="/tmp/ci-install-set"
+    local python_bin
+    local status=0
+    # --no-config rides with --require-hashes: the install runs from the workspace root, and uv would
+    # otherwise apply the root's constraint-dependencies, which --require-hashes rejects for not being
+    # pinned with "==". It drops the rest of [tool.uv] too; of that, exclude-newer cannot matter for an
+    # exact set installed with --no-deps, and no-build-isolation-package is passed back explicitly.
+    local -a hash_args=(--require-hashes --no-config --no-build-isolation-package sphinx-redoc)
+    local -a member_dirs=()
+    local -a editable_args=()
+    local member_dir
+    mkdir -p "${work_dir}"
+    # The PROD build stage puts the base interpreter (/usr/python/bin) ahead of the venv on PATH, so
+    # `command -v python3` would point the install at the base interpreter instead of ${VIRTUAL_ENV}.
+    # The CI image sets no VIRTUAL_ENV and keeps resolving python3 from PATH.
+    python_bin="${VIRTUAL_ENV:+${VIRTUAL_ENV}/bin/python}"
+    python_bin="${python_bin:-$(command -v python3)}"
+    echo
+    echo "${COLOR_BLUE}Installing the workspace without providers excluded for Python ${python_minor}.${COLOR_RESET}"
+    echo
+    set -x
+    prepare_filtered_install_set || status=$?
+    set +x
+    if [[ ${status} -ne 0 ]]; then
+        if [[ ${allow_relock} != "allow-relock" || ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+            echo
+            echo "${COLOR_RED}Failing because the filtered installation failed and fallback is disabled.${COLOR_RESET}"
+            echo
+            exit "${status}"
+        fi
+        echo
+        echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies not reflected in uv.lock.${COLOR_RESET}"
+        echo
+        echo "${COLOR_BLUE}Falling back to re-resolving dependencies (uv lock, then filtered install).${COLOR_RESET}"
+        echo
+        set -x
+        uv lock --no-python-downloads --no-managed-python
+        prepare_filtered_install_set
+        set +x
+    fi
+    # Nothing below may fail silently, and nothing has to say so: no caller tests this function, so
+    # errexit is in force from here on.
+    set -x
+    # --exact removes what an earlier cached layer installed and the set no longer contains; plain
+    # `uv pip install` would leave an excluded provider's dependencies behind in an incremental build.
+    uv pip install --python "${python_bin}" --exact --no-deps --no-python-downloads --no-managed-python \
+        "${hash_args[@]}" --no-binary lxml --no-binary xmlsec \
+        --requirement "${work_dir}/requirements.txt"
+    mapfile -t member_dirs < "${work_dir}/editables.txt"
+    for member_dir in "${member_dirs[@]}"; do
+        editable_args+=(--editable "${member_dir}")
+    done
+    uv pip install --python "${python_bin}" --no-deps --no-python-downloads --no-managed-python \
+        --no-binary lxml --no-binary xmlsec "${editable_args[@]}"
+    uv pip check --python "${python_bin}"
+    set +x
+}
+
 function install_from_sources() {
     local extra_sync_flags
     extra_sync_flags=""
@@ -1481,6 +1581,15 @@ function install_from_sources() {
         echo
         echo "${COLOR_BLUE}Attempting to upgrade all packages to highest versions.${COLOR_RESET}"
         echo
+        if has_providers_excluded_for_python; then
+            # Re-lock at the highest resolution, then install that lock without the excluded providers.
+            # uv sync would install every member, including the excluded ones and their dependencies.
+            set -x
+            uv lock --resolution highest --no-python-downloads --no-managed-python
+            set +x
+            install_workspace_without_excluded_providers
+            return
+        fi
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
@@ -1490,6 +1599,12 @@ function install_from_sources() {
             --no-python-downloads --no-managed-python
     else
         set +x
+        if has_providers_excluded_for_python; then
+            # Mirror the frozen path below: a lock that does not yet carry a new dependency makes the
+            # helper stop with "<name> is not in the lock", so re-lock and filter again when allowed.
+            install_workspace_without_excluded_providers "allow-relock"
+            return
+        fi
         echo
         echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
         echo
@@ -1606,6 +1721,139 @@ common::get_constraints_location
 common::show_packaging_tool_version_and_location
 
 install_airflow_when_building_images
+EOF
+
+# The content below is automatically copied from scripts/docker/filter_ci_install_set.py
+COPY <<"EOF" /filter_ci_install_set.py
+#!/usr/bin/env python
+"""
+Select the workspace members the CI image installs for one Python minor.
+
+``uv sync --all-packages`` installs every workspace member, including providers excluded for this
+Python minor, and the third-party packages only those providers reach - some of which have no wheels
+for the new interpreter. Listing the members that are kept lets the installer export the lock for
+exactly those: ``uv export --package <member>`` emits the lock's own closure, already carrying the
+hashes and the environment markers that encode each provider's exclusions, so the install filters
+itself on the target interpreter. No second resolution runs, so nothing can drift from the lock.
+
+Exclusions are read from ``generated/provider_dependencies.json``, which the provider tooling
+regenerates from each ``provider.yaml``. Only providers appear there, so a core distribution can
+never drop out of the install set by accident.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import tomllib
+from glob import glob
+from pathlib import Path
+
+PROVIDER_DEPENDENCIES_PATH = Path("generated") / "provider_dependencies.json"
+GLOB_CHARACTERS = frozenset("*?[")
+EXIT_HAS_EXCLUDED_MEMBERS = 0
+EXIT_NO_EXCLUDED_MEMBERS = 10
+
+
+def has_glob_characters(pattern: str) -> bool:
+    return any(character in GLOB_CHARACTERS for character in pattern)
+
+
+def find_workspace_members(root: Path, patterns: list[str]) -> list[Path]:
+    """Expand the ``[tool.uv.workspace] members`` patterns into directories holding a manifest."""
+    members: list[Path] = []
+    for pattern in patterns:
+        if has_glob_characters(pattern):
+            matches = [Path(match) for match in glob(str(root / pattern))]
+            members.extend(match for match in matches if (match / "pyproject.toml").is_file())
+            continue
+        member = root / pattern
+        if not member.is_dir():
+            raise ValueError(f"Workspace member {pattern!r} does not exist under {root}")
+        if not (member / "pyproject.toml").is_file():
+            raise ValueError(f"Workspace member {pattern!r} has no pyproject.toml")
+        members.append(member)
+    return sorted(set(members))
+
+
+def load_manifest(directory: Path) -> dict:
+    return tomllib.loads((directory / "pyproject.toml").read_text(encoding="utf-8"))
+
+
+def read_distribution_name(directory: Path) -> str:
+    name = load_manifest(directory).get("project", {}).get("name")
+    if not name:
+        raise ValueError(f"No project.name in {directory / 'pyproject.toml'}")
+    return name
+
+
+def build_provider_distribution_name(provider_id: str) -> str:
+    """Turn a provider id from the generated metadata (``apache.kafka``) into its distribution name."""
+    return "apache-airflow-providers-" + provider_id.replace(".", "-")
+
+
+def read_excluded_distributions(root: Path, minor: str) -> set[str]:
+    """Return the distribution names of providers excluded for ``minor``."""
+    metadata = json.loads((root / PROVIDER_DEPENDENCIES_PATH).read_text(encoding="utf-8"))
+    return {
+        build_provider_distribution_name(provider_id)
+        for provider_id, details in metadata.items()
+        if minor in details.get("excluded-python-versions", [])
+    }
+
+
+def split_members(root: Path, minor: str) -> tuple[dict[str, Path], set[str]]:
+    """Split the workspace into the members kept for ``minor`` and the excluded distribution names."""
+    patterns = load_manifest(root).get("tool", {}).get("uv", {}).get("workspace", {}).get("members", [])
+    excluded = read_excluded_distributions(root, minor)
+    kept: dict[str, Path] = {}
+    seen_excluded: set[str] = set()
+    for member in find_workspace_members(root, patterns):
+        name = read_distribution_name(member)
+        if name in excluded:
+            seen_excluded.add(name)
+        else:
+            kept[name] = member
+    return kept, seen_excluded
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--root", type=Path, required=True, help="Workspace root")
+    parser.add_argument("--python-minor", required=True, help="Target Python major.minor, e.g. 3.15")
+    parser.add_argument("--packages", type=Path, help="Where to write the kept distribution names")
+    parser.add_argument("--editables", type=Path, help="Where to write the kept member directories")
+    parser.add_argument(
+        "--probe",
+        action="store_true",
+        help=f"Exit {EXIT_HAS_EXCLUDED_MEMBERS} when some member is excluded, "
+        f"{EXIT_NO_EXCLUDED_MEMBERS} when none is, and non-zero otherwise on failure",
+    )
+    args = parser.parse_args(argv)
+    root = args.root.resolve()
+
+    kept, excluded = split_members(root, args.python_minor)
+    if args.probe:
+        return EXIT_HAS_EXCLUDED_MEMBERS if excluded else EXIT_NO_EXCLUDED_MEMBERS
+    if args.packages:
+        args.packages.write_text("".join(f"{name}\n" for name in sorted(kept)), encoding="utf-8")
+    if args.editables:
+        args.editables.write_text(
+            "".join(f"{path}\n" for path in sorted(str(path) for path in kept.values())),
+            encoding="utf-8",
+        )
+    print(
+        f"Excluded members for Python {args.python_minor}: {len(excluded)}; kept members: {len(kept)}",
+        file=sys.stderr,
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
 EOF
 
 # The content below is automatically copied from scripts/docker/install_additional_dependencies.sh
@@ -2292,7 +2540,7 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
 
 WORKDIR ${AIRFLOW_HOME}
 
-COPY --from=scripts install_from_docker_context_files.sh install_airflow_when_building_images.sh \
+COPY --from=scripts install_from_docker_context_files.sh install_airflow_when_building_images.sh filter_ci_install_set.py \
      install_additional_dependencies.sh create_prod_venv.sh get_distribution_specs.py /scripts/docker/
 
 # Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
