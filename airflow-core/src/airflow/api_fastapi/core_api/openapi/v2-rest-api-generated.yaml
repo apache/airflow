@@ -13294,6 +13294,8 @@ components:
         port:
           anyOf:
           - type: integer
+            minimum: 0
+            maximum: 65535
           - type: 'null'
           title: Port
         password:
