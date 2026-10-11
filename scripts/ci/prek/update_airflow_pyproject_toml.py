@@ -286,8 +286,10 @@ if __name__ == "__main__":
                 f'"{provider_id}" = [\n    "{distribution_name}>={min_provider_version}{exclusion_marker}"{comment}\n]\n'
             )
         else:
-            all_optional_dependencies.append(f'"{provider_id}" = [\n    "{distribution_name}"\n]\n')
-            all_provider_lines.append(f'    "{distribution_name}",\n')
+            all_optional_dependencies.append(
+                f'"{provider_id}" = [\n    "{distribution_name}{exclusion_marker}"\n]\n'
+            )
+            all_provider_lines.append(f'    "{distribution_name}{exclusion_marker}",\n')
     all_optional_dependencies.append('"all" = [\n')
     optional_apache_airflow_dependencies = get_optional_dependencies(AIRFLOW_PYPROJECT_TOML_FILE)
     # Filtered against every provider id rather than against `all_providers`: a provider left out of
