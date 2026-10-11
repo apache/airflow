@@ -156,41 +156,12 @@ def _make_ti(
     return ti
 
 
-def _make_task_state_store_accessor():
-    """A ``MagicMock(spec=TaskStateStoreAccessor)`` backed by a plain dict.
-
-    For a test that engages the usage budget (``usage_limits`` set, Airflow >= 3.3): a
-    bare ``MagicMock()``'s ``.get()`` returns a non-``None``, non-dict value, which trips
-    ``TaskStateStoreUsageBudget.load()``'s malformed-record ``ValueError``.
-
-    ``TaskStateStoreAccessor`` doesn't exist below Airflow 3.3; several callers of this
-    helper exercise ``execute()`` paths (e.g. ``usage_limits`` forwarding) that don't
-    depend on the task state store at all on those Airflow versions -- ``_build_usage_budget``
-    returns ``None`` before ever touching ``context["task_state_store"]``. Falling back
-    to a plain method-name spec keeps this helper importable there too, instead of
-    forcing every caller to skip on Airflow version for a dependency they don't have.
-    """
-    try:
-        from airflow.sdk.execution_time.context import TaskStateStoreAccessor
-    except ImportError:
-        spec = ["get", "set", "delete"]
-    else:
-        spec = TaskStateStoreAccessor
-
-    store = {}
-    accessor = MagicMock(spec=spec)
-    accessor.get.side_effect = lambda key, default=None: store.get(key, default)
-    accessor.set.side_effect = lambda key, value, retention=None: store.__setitem__(key, value)
-    accessor.delete.side_effect = lambda key: store.pop(key, None)
-    return accessor
-
-
 def _make_context(ti=None, task_state_store=None):
     """A context whose ``task_instance`` is a configured ti. Other keys stay generic mocks.
 
     :param task_state_store: Backs ``context["task_state_store"]`` when given -- pass
-        :func:`_make_task_state_store_accessor` for a test that sets ``usage_limits``
-        on Airflow >= 3.3 (see that helper's docstring for why the default won't do).
+        the ``task_state_store_accessor`` fixture for a test that sets ``usage_limits``
+        on Airflow >= 3.3 (see that fixture's docstring for why the default won't do).
     """
     ti = ti if ti is not None else _make_ti()
 
@@ -591,7 +562,9 @@ class TestAgentOperatorExecute:
         mock_agent.run_sync.assert_not_called()
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_forwards_usage_limits_to_run_sync(self, mock_hook_cls, make_mock_run_result):
+    def test_execute_forwards_usage_limits_to_run_sync(
+        self, mock_hook_cls, make_mock_run_result, task_state_store_accessor
+    ):
         """``usage_limits`` is forwarded to ``agent.run_sync`` on the non-durable path."""
         mock_agent = _make_mock_agent("ok", make_mock_run_result)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -603,14 +576,16 @@ class TestAgentOperatorExecute:
             llm_conn_id="my_llm",
             usage_limits=limits,
         )
-        op.execute(context=_make_context(task_state_store=_make_task_state_store_accessor()))
+        op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         mock_agent.run_sync.assert_called_once_with(
             "run", usage_limits=limits, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, make_mock_run_result):
+    def test_execute_coerces_usage_limits_dict_before_run_sync(
+        self, mock_hook_cls, make_mock_run_result, task_state_store_accessor
+    ):
         """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
         mock_agent = _make_mock_agent("ok", make_mock_run_result)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -621,7 +596,7 @@ class TestAgentOperatorExecute:
             llm_conn_id="my_llm",
             usage_limits={"cost_limit": "0.5"},
         )
-        op.execute(context=_make_context(task_state_store=_make_task_state_store_accessor()))
+        op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         _, kwargs = mock_agent.run_sync.call_args
         assert kwargs["usage_limits"] == UsageLimits(cost_limit=Decimal("0.5"))
@@ -636,7 +611,13 @@ class TestAgentOperatorExecute:
     )
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_renders_templated_usage_limits_dict_then_coerces(
-        self, mock_hook_cls, field, rendered, expected, make_mock_run_result
+        self,
+        mock_hook_cls,
+        field,
+        rendered,
+        expected,
+        make_mock_run_result,
+        task_state_store_accessor,
     ):
         """The template chain end to end, for each ``_COERCERS`` type: Jinja renders
         the dict's string leaf (still a string -- Jinja never converts type), then
@@ -654,7 +635,7 @@ class TestAgentOperatorExecute:
         op.render_template_fields({"params": {"value": rendered}})
         assert op.usage_limits == {field: rendered}
 
-        op.execute(context=_make_context(task_state_store=_make_task_state_store_accessor()))
+        op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         _, kwargs = mock_agent.run_sync.call_args
         assert getattr(kwargs["usage_limits"], field) == expected
@@ -675,7 +656,9 @@ class TestAgentOperatorExecute:
         ],
     )
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_raises_when_cost_cap_exceeded(self, mock_hook_cls, cap_kwargs):
+    def test_execute_raises_when_cost_cap_exceeded(
+        self, mock_hook_cls, cap_kwargs, task_state_store_accessor
+    ):
         """A real run whose cost exceeds the configured cap raises ``UsageLimitExceeded``."""
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(_build_priced_response), **kw
@@ -684,10 +667,10 @@ class TestAgentOperatorExecute:
         op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", **cap_kwargs)
 
         with pytest.raises(UsageLimitExceeded, match=r"cost_limit.*0\.05"):
-            op.execute(context=_make_context(task_state_store=_make_task_state_store_accessor()))
+            op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_completes_when_cost_stays_under_cap(self, mock_hook_cls):
+    def test_execute_completes_when_cost_stays_under_cap(self, mock_hook_cls, task_state_store_accessor):
         """A real run costing less than the configured ``cost_limit`` completes and returns the model output."""
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(_build_priced_response), **kw
@@ -700,10 +683,7 @@ class TestAgentOperatorExecute:
             usage_limits={"cost_limit": str(PRICED_COST * 2)},
         )
 
-        assert (
-            op.execute(context=_make_context(task_state_store=_make_task_state_store_accessor()))
-            == "the answer"
-        )
+        assert op.execute(context=_make_context(task_state_store=task_state_store_accessor)) == "the answer"
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_raises_valueerror_for_unparsable_usage_limits_value(self, mock_hook_cls):
@@ -901,7 +881,11 @@ class TestAgentOperatorExecute:
     )
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_cache_prompt_reaches_the_model_request(
-        self, mock_hook_cls, cache_prompt, expected_anthropic_messages
+        self,
+        mock_hook_cls,
+        cache_prompt,
+        expected_anthropic_messages,
+        task_state_store_accessor,
     ):
         """The cache settings arrive on the model request, alongside the caller's own settings."""
         seen: dict[str, Any] = {}
@@ -921,7 +905,7 @@ class TestAgentOperatorExecute:
             cache_prompt=cache_prompt,
             agent_params={"model_settings": {"temperature": 0}},
         )
-        op.execute(context=_make_context(task_state_store=_make_task_state_store_accessor()))
+        op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         assert seen["temperature"] == 0
         assert seen.get("anthropic_cache_messages") is expected_anthropic_messages
@@ -1863,7 +1847,9 @@ class TestAgentOperatorMessageHistory:
         assert len(restored) == 2
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_usage_limits_still_forwarded_with_history(self, mock_hook_cls, make_mock_run_result):
+    def test_usage_limits_still_forwarded_with_history(
+        self, mock_hook_cls, make_mock_run_result, task_state_store_accessor
+    ):
         """Adding message_history does not drop usage_limits from the run_sync call."""
         mock_agent = _make_mock_agent("ok", make_mock_run_result)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -1872,7 +1858,7 @@ class TestAgentOperatorMessageHistory:
         op = AgentOperator(
             task_id="t", prompt="run", llm_conn_id="c", usage_limits=limits, message_history=[]
         )
-        op.execute(context=_make_context(task_state_store=_make_task_state_store_accessor()))
+        op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         kwargs = mock_agent.run_sync.call_args.kwargs
         assert kwargs["usage_limits"] is limits
@@ -2385,7 +2371,10 @@ class TestAgentOperatorUsageBudget:
     @patch("airflow.providers.common.ai.operators.agent.log_run_usage", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_failure_with_a_seeded_budget_reports_only_this_attempts_usage(
-        self, mock_hook_cls, mock_log_run_usage
+        self,
+        mock_hook_cls,
+        mock_log_run_usage,
+        task_state_store_accessor,
     ):
         """A failed attempt on top of a non-zero seeded cross-attempt budget must report
         only the usage it itself incurred -- in the XCom, in the persisted budget, and
@@ -2398,8 +2387,7 @@ class TestAgentOperatorUsageBudget:
 
         mock_agent.run_sync.side_effect = _run_sync
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        accessor = _make_task_state_store_accessor()
-        accessor.set(
+        task_state_store_accessor.set(
             USAGE_BUDGET_KEY,
             {
                 "version": 1,
@@ -2412,7 +2400,7 @@ class TestAgentOperatorUsageBudget:
         op = AgentOperator(
             task_id="t", prompt="run", llm_conn_id="c", usage_limits=UsageLimits(request_limit=5)
         )
-        context = _make_context(task_state_store=accessor)
+        context = _make_context(task_state_store=task_state_store_accessor)
         with pytest.raises(UsageLimitExceeded):
             op.execute(context=context)
 
@@ -2424,7 +2412,7 @@ class TestAgentOperatorUsageBudget:
         assert pushes["usage"]["tool_calls"] == 0
         assert Decimal(pushes["usage"]["cost"]) == Decimal("0.1")
 
-        saved = accessor.get(USAGE_BUDGET_KEY)
+        saved = task_state_store_accessor.get(USAGE_BUDGET_KEY)
         assert saved["usage"]["requests"] == 3
         assert Decimal(saved["usage"]["cost"]) == Decimal("0.15")
 
@@ -2458,12 +2446,15 @@ class TestAgentOperatorUsageBudget:
     )
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_success_with_a_seeded_budget_logs_the_cumulative_total(
-        self, mock_hook_cls, mock_log_property, make_mock_run_result
+        self,
+        mock_hook_cls,
+        mock_log_property,
+        make_mock_run_result,
+        task_state_store_accessor,
     ):
         """A successful attempt on top of a seeded cross-attempt budget must log the
         cumulative total across attempts, not just this attempt's own usage."""
-        accessor = _make_task_state_store_accessor()
-        accessor.set(
+        task_state_store_accessor.set(
             USAGE_BUDGET_KEY,
             {
                 "version": 1,
@@ -2479,7 +2470,7 @@ class TestAgentOperatorUsageBudget:
         op = AgentOperator(
             task_id="t", prompt="run", llm_conn_id="c", usage_limits=UsageLimits(request_limit=5)
         )
-        op.execute(context=_make_context(task_state_store=accessor))
+        op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         assert (
             call(
@@ -2508,7 +2499,9 @@ class TestAgentOperatorUsageBudget:
         ],
     )
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_failure_writes_state_store_across_exception_shapes(self, mock_hook_cls, make_exc):
+    def test_failure_writes_state_store_across_exception_shapes(
+        self, mock_hook_cls, make_exc, task_state_store_accessor
+    ):
         """An ordinary Exception, a cancel, and a BaseException all still persist
         usage-so-far to the task state store, so a later attempt's seed reflects this
         attempt's spend."""
@@ -2520,21 +2513,22 @@ class TestAgentOperatorUsageBudget:
 
         mock_agent.run_sync.side_effect = _run_sync
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        accessor = _make_task_state_store_accessor()
 
         op = AgentOperator(
             task_id="t", prompt="run", llm_conn_id="c", usage_limits=UsageLimits(request_limit=5)
         )
         with pytest.raises(BaseException):  # noqa: B017, PT011 -- deliberately generic, see parametrize
-            op.execute(context=_make_context(task_state_store=accessor))
+            op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
-        saved = accessor.get(USAGE_BUDGET_KEY)
+        saved = task_state_store_accessor.get(USAGE_BUDGET_KEY)
         assert saved["usage"]["requests"] == 1
         assert saved["usage"]["cost"] == "0.1"
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_seeded_budget_at_cap_blocks_before_any_new_request(self, mock_hook_cls):
+    def test_seeded_budget_at_cap_blocks_before_any_new_request(
+        self, mock_hook_cls, task_state_store_accessor
+    ):
         """A seed already at/over the cap raises before the first new request --
         the model is never called."""
         call_count = {"n": 0}
@@ -2546,8 +2540,7 @@ class TestAgentOperatorUsageBudget:
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(_count_and_build_priced_response), **kw
         )
-        accessor = _make_task_state_store_accessor()
-        accessor.set(
+        task_state_store_accessor.set(
             USAGE_BUDGET_KEY,
             {"version": 1, "max_tries": 0, "usage": dump_run_usage(RunUsage(cost=Decimal("0.15")))},
             retention=None,
@@ -2556,35 +2549,37 @@ class TestAgentOperatorUsageBudget:
         op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", usage_limits={"cost_limit": "0.10"})
 
         with pytest.raises(UsageLimitExceeded):
-            op.execute(context=_make_context(task_state_store=accessor))
+            op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         assert call_count["n"] == 0
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_success_deletes_the_budget_key(self, mock_hook_cls, make_mock_run_result):
+    def test_success_deletes_the_budget_key(
+        self, mock_hook_cls, make_mock_run_result, task_state_store_accessor
+    ):
         """A successful task must not leave a budget behind that blocks a later
         clear-and-rerun (mirrors durable's cleanup-on-success)."""
         mock_agent = _make_mock_agent("ok", make_mock_run_result)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        accessor = _make_task_state_store_accessor()
 
         op = AgentOperator(
             task_id="t", prompt="run", llm_conn_id="c", usage_limits=UsageLimits(request_limit=5)
         )
-        op.execute(context=_make_context(task_state_store=accessor))
+        op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
-        accessor.delete.assert_called_once_with(USAGE_BUDGET_KEY)
+        task_state_store_accessor.delete.assert_called_once_with(USAGE_BUDGET_KEY)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_post_run_failure_leaves_budget_key_in_place(self, mock_hook_cls, make_mock_run_result):
+    def test_post_run_failure_leaves_budget_key_in_place(
+        self, mock_hook_cls, make_mock_run_result, task_state_store_accessor
+    ):
         """A step after the run (here: emitting message_history) that fails must not
         delete the budget -- the retry still needs to see the money already spent
         (mirrors test_cleanup_skipped_when_post_run_step_fails)."""
         mock_agent = _make_mock_agent("ok", make_mock_run_result)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        accessor = _make_task_state_store_accessor()
 
         op = AgentOperator(
             task_id="t",
@@ -2595,17 +2590,19 @@ class TestAgentOperatorUsageBudget:
         )
         with patch.object(op, "_emit_message_history", side_effect=RuntimeError("xcom down")):
             with pytest.raises(RuntimeError, match="xcom down"):
-                op.execute(context=_make_context(task_state_store=accessor))
+                op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
-        accessor.delete.assert_not_called()
+        task_state_store_accessor.delete.assert_not_called()
         # `assert_not_called` alone is trivially true even if the run's usage was never
         # saved -- also assert the successful run's spend was persisted (the failure
         # happens in a post-run step, after `_run_agent_tracked`'s save).
-        saved = accessor.get(USAGE_BUDGET_KEY)
+        saved = task_state_store_accessor.get(USAGE_BUDGET_KEY)
         assert saved["usage"]["requests"] == 1
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_budget_not_engaged_when_usage_limits_none(self, mock_hook_cls, make_mock_run_result):
+    def test_budget_not_engaged_when_usage_limits_none(
+        self, mock_hook_cls, make_mock_run_result, task_state_store_accessor
+    ):
         """usage_limits=None means no cross-attempt budget -- the accessor is never
         touched even though the context has one."""
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
@@ -2619,18 +2616,17 @@ class TestAgentOperatorUsageBudget:
 
         mock_agent.run_sync.side_effect = _run_sync
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        accessor = _make_task_state_store_accessor()
 
         op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c")
-        result = op.execute(context=_make_context(task_state_store=accessor))
+        result = op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         assert result == "ok"
-        accessor.get.assert_not_called()
-        accessor.set.assert_not_called()
-        accessor.delete.assert_not_called()
+        task_state_store_accessor.get.assert_not_called()
+        task_state_store_accessor.set.assert_not_called()
+        task_state_store_accessor.delete.assert_not_called()
         assert seen["usage_at_call"] == RunUsage()
 
-    @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_3_PLUS", False)
+    @patch("airflow.providers.common.ai.mixins.usage_budget.AIRFLOW_V_3_3_PLUS", False)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_budget_not_engaged_below_3_3(self, mock_hook_cls, make_mock_run_result):
         """On < 3.3 each attempt still counts on its own, even with usage_limits set."""
@@ -2679,31 +2675,35 @@ class TestAgentOperatorUsageBudget:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_hitl_regeneration_shares_the_cross_attempt_budget(self, mock_hook_cls, make_mock_run_result):
+    def test_hitl_regeneration_shares_the_cross_attempt_budget(
+        self, mock_hook_cls, make_mock_run_result, task_state_store_accessor
+    ):
         """regenerate_with_feedback runs through the same seeded RunUsage object and
         persists the cumulative total, so a regeneration's spend also counts against the cap."""
         mock_agent = _make_mock_agent("revised", make_mock_run_result, cost=Decimal("0.05"))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        accessor = _make_task_state_store_accessor()
 
         op = AgentOperator(
             task_id="t", prompt="p", llm_conn_id="c", usage_limits=UsageLimits(request_limit=5)
         )
-        op._usage_budget = TaskStateStoreUsageBudget(accessor, max_tries=0)
+        op._usage_budget = TaskStateStoreUsageBudget(task_state_store_accessor, max_tries=0)
         op._run_usage = RunUsage(requests=3)
 
         op.regenerate_with_feedback(feedback="more detail", message_history=[])
 
         assert mock_agent.run_sync.call_args.kwargs["usage"] is op._run_usage
         assert op._run_usage.requests == 4
-        saved = accessor.get(USAGE_BUDGET_KEY)
+        saved = task_state_store_accessor.get(USAGE_BUDGET_KEY)
         assert saved["usage"]["requests"] == 4
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @patch.object(AgentOperator, "_build_durable_storage", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_durable_replay_does_not_double_count_against_cross_attempt_request_limit(
-        self, mock_hook_cls, mock_build_storage
+        self,
+        mock_hook_cls,
+        mock_build_storage,
+        task_state_store_accessor,
     ):
         """Durable replay must not double-count a request against a cross-attempt
         request_limit. Without the replay ledger cancelling the replayed request,
@@ -2736,7 +2736,6 @@ class TestAgentOperatorUsageBudget:
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(model_fn), **kw
         )
-        accessor = _make_task_state_store_accessor()
         limits = UsageLimits(request_limit=2)
 
         op1 = AgentOperator(
@@ -2749,7 +2748,7 @@ class TestAgentOperatorUsageBudget:
             usage_limits=limits,
         )
         with pytest.raises(RuntimeError, match="boom"):
-            op1.execute(context=_make_context(task_state_store=accessor))
+            op1.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         op2 = AgentOperator(
             task_id="t",
@@ -2760,14 +2759,16 @@ class TestAgentOperatorUsageBudget:
             toolsets=[FunctionToolset(tools=[flaky_tool])],
             usage_limits=limits,
         )
-        context2 = _make_context(task_state_store=accessor)
+        context2 = _make_context(task_state_store=task_state_store_accessor)
         result = op2.execute(context=context2)
 
         assert result == "done"
         assert call_count["tool"] == 2
         # Success deletes the key, so read the last write before that delete; .get()
         # after execute() would only see the deletion.
-        last_saved = [c.args[1] for c in accessor.set.call_args_list if c.args[0] == USAGE_BUDGET_KEY][-1]
+        last_saved = [
+            c.args[1] for c in task_state_store_accessor.set.call_args_list if c.args[0] == USAGE_BUDGET_KEY
+        ][-1]
         assert last_saved["usage"]["requests"] == 2
         assert last_saved["usage"]["cost"] == "0.20"
         pushes = {
@@ -2779,7 +2780,10 @@ class TestAgentOperatorUsageBudget:
     @patch.object(AgentOperator, "_build_durable_storage", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_durable_replay_of_multiple_cached_model_steps_does_not_go_stale(
-        self, mock_hook_cls, mock_build_storage
+        self,
+        mock_hook_cls,
+        mock_build_storage,
+        task_state_store_accessor,
     ):
         """Replaying step 0 must not change what step 1's cached entry was
         fingerprinted against. The replayed response flows into the message history
@@ -2811,7 +2815,6 @@ class TestAgentOperatorUsageBudget:
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(model_fn), **kw
         )
-        accessor = _make_task_state_store_accessor()
 
         op1 = AgentOperator(
             task_id="t",
@@ -2822,7 +2825,7 @@ class TestAgentOperatorUsageBudget:
             toolsets=[FunctionToolset(tools=[tool_a, tool_b])],
         )
         with pytest.raises(RuntimeError, match="boom"):
-            op1.execute(context=_make_context(task_state_store=accessor))
+            op1.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         op2 = AgentOperator(
             task_id="t",
@@ -2832,7 +2835,7 @@ class TestAgentOperatorUsageBudget:
             enable_tool_logging=False,
             toolsets=[FunctionToolset(tools=[tool_a, tool_b])],
         )
-        result = op2.execute(context=_make_context(task_state_store=accessor))
+        result = op2.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         assert result == "done"
         assert call_count["tool_b"] == 2
@@ -2846,42 +2849,44 @@ class TestAgentOperatorUsageBudget:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_failed_store_write_does_not_mask_a_raised_usage_limit_exceeded(self, mock_hook_cls):
+    def test_failed_store_write_does_not_mask_a_raised_usage_limit_exceeded(
+        self, mock_hook_cls, task_state_store_accessor
+    ):
         """Removing the try/except inside ``TaskStateStoreUsageBudget.save()`` turns
         this red with ``RuntimeError`` instead of ``UsageLimitExceeded``."""
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(_build_priced_response), **kw
         )
-        accessor = _make_task_state_store_accessor()
-        accessor.set.side_effect = RuntimeError("store down")
+        task_state_store_accessor.set.side_effect = RuntimeError("store down")
 
         op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", usage_limits={"cost_limit": "0.05"})
 
         with pytest.raises(UsageLimitExceeded):
-            op.execute(context=_make_context(task_state_store=accessor))
+            op.execute(context=_make_context(task_state_store=task_state_store_accessor))
         # Proves `save()` (and its internal try/except around `accessor.set`) was
         # actually reached -- without this, the assertion above passes just as well if
         # the whole `self._usage_budget.save(...)` call in `_run_agent_tracked` were
         # removed, since the cost cap alone already raises `UsageLimitExceeded`.
-        accessor.set.assert_called()
+        task_state_store_accessor.set.assert_called()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_failed_store_write_does_not_mask_a_successful_run(self, mock_hook_cls):
+    def test_failed_store_write_does_not_mask_a_successful_run(
+        self, mock_hook_cls, task_state_store_accessor
+    ):
         """A failed store write does not stop the run's own output from being returned."""
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(_build_priced_response), **kw
         )
-        accessor = _make_task_state_store_accessor()
-        accessor.set.side_effect = RuntimeError("store down")
+        task_state_store_accessor.set.side_effect = RuntimeError("store down")
 
         op = AgentOperator(
             task_id="t", prompt="run", llm_conn_id="c", usage_limits={"cost_limit": str(PRICED_COST * 2)}
         )
 
-        assert op.execute(context=_make_context(task_state_store=accessor)) == "the answer"
+        assert op.execute(context=_make_context(task_state_store=task_state_store_accessor)) == "the answer"
         # Proves save() was reached; see test_failed_store_write_does_not_mask_a_raised_usage_limit_exceeded.
-        accessor.set.assert_called()
+        task_state_store_accessor.set.assert_called()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @pytest.mark.parametrize(
@@ -2898,21 +2903,24 @@ class TestAgentOperatorUsageBudget:
     )
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_malformed_stored_value_raises_valueerror_naming_the_key(
-        self, mock_hook_cls, raw, make_mock_run_result
+        self,
+        mock_hook_cls,
+        raw,
+        make_mock_run_result,
+        task_state_store_accessor,
     ):
         """A malformed budget record fails the task before the agent runs, with an
         error naming the key to delete."""
         mock_agent = _make_mock_agent("ok", make_mock_run_result)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        accessor = _make_task_state_store_accessor()
-        accessor.set(USAGE_BUDGET_KEY, raw, retention=None)
+        task_state_store_accessor.set(USAGE_BUDGET_KEY, raw, retention=None)
 
         op = AgentOperator(
             task_id="t", prompt="run", llm_conn_id="c", usage_limits=UsageLimits(request_limit=5)
         )
 
         with pytest.raises(ValueError, match=USAGE_BUDGET_KEY):
-            op.execute(context=_make_context(task_state_store=accessor))
+            op.execute(context=_make_context(task_state_store=task_state_store_accessor))
         mock_agent.run_sync.assert_not_called()
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -2951,7 +2959,9 @@ class TestAgentOperatorUsageBudget:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_exception_before_the_agent_run_reports_zero_usage(self, mock_hook_cls):
+    def test_exception_before_the_agent_run_reports_zero_usage(
+        self, mock_hook_cls, task_state_store_accessor
+    ):
         """The store already has a seeded cumulative total (requests=2, cost=0.05), but
         this attempt never issued any call before raising, so it must report 0 -- not
         the seeded cumulative total. The seed is non-zero so the test can tell "reports
@@ -2959,8 +2969,7 @@ class TestAgentOperatorUsageBudget:
         mock_hook_cls.get_hook.return_value.create_agent.return_value = MagicMock(
             spec=["run_sync", "instrument"]
         )
-        accessor = _make_task_state_store_accessor()
-        accessor.set(
+        task_state_store_accessor.set(
             USAGE_BUDGET_KEY,
             {
                 "version": 1,
@@ -2973,7 +2982,7 @@ class TestAgentOperatorUsageBudget:
         op = AgentOperator(
             task_id="t", prompt="run", llm_conn_id="c", usage_limits=UsageLimits(request_limit=5)
         )
-        context = _make_context(task_state_store=accessor)
+        context = _make_context(task_state_store=task_state_store_accessor)
 
         with patch.object(op, "_run_agent_tracked", side_effect=RuntimeError("boom before the agent run")):
             with pytest.raises(RuntimeError, match="boom before the agent run"):
@@ -3021,14 +3030,17 @@ class TestAgentOperatorUsageBudget:
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_hitl_branch_success_also_deletes_the_budget_key(
-        self, mock_hook_cls, mock_run_hitl, make_mock_run_result
+        self,
+        mock_hook_cls,
+        mock_run_hitl,
+        make_mock_run_result,
+        task_state_store_accessor,
     ):
         """The HITL branch returns early, before the non-HITL cleanup code -- it needs
         its own delete call."""
         mock_agent = _make_mock_agent("Initial output", make_mock_run_result)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_run_hitl.return_value = "Approved output"
-        accessor = _make_task_state_store_accessor()
 
         op = AgentOperator(
             task_id="t",
@@ -3037,10 +3049,10 @@ class TestAgentOperatorUsageBudget:
             enable_hitl_review=True,
             usage_limits=UsageLimits(request_limit=5),
         )
-        result = op.execute(context=_make_context(task_state_store=accessor))
+        result = op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
         assert result == "Approved output"
-        accessor.delete.assert_called_once_with(USAGE_BUDGET_KEY)
+        task_state_store_accessor.delete.assert_called_once_with(USAGE_BUDGET_KEY)
 
 
 _E2E_USAGE = RequestUsage(input_tokens=100_000, output_tokens=10_000)
