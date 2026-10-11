@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 from argparse import BooleanOptionalAction
-from datetime import UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from textwrap import dedent
 from typing import Any
@@ -28,10 +28,20 @@ from unittest import mock
 
 import httpx
 import pytest
+import time_machine
 
 from airflowctl.api.client import Client
-from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, ConnectionTestResponse
-from airflowctl.api.operations import ConnectionsOperations, DagRunOperations, ServerResponseError
+from airflowctl.api.datamodels.generated import (
+    ClearTaskInstancesBody,
+    ConnectionTestResponse,
+    TriggerDAGRunPostBody,
+)
+from airflowctl.api.operations import (
+    ConnectionsOperations,
+    DagRunOperations,
+    DagsOperations,
+    ServerResponseError,
+)
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
@@ -781,53 +791,19 @@ class TestCliConfigMethods:
             if command.name == "command2":
                 assert command.args == expected_command_2_args
 
-    def test_trigger_dag_run_defaults_logical_date_to_now(self):
-        """Test that trigger command defaults logical_date to now when not provided."""
-        from datetime import datetime
+    @time_machine.travel("2025-01-01 12:00:00+00:00", tick=False)
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(DagsOperations, "trigger", autospec=True)
+    def test_trigger_dag_run_defaults_logical_date_when_omitted(self, mocked_trigger, mocked_print_as):
+        """The trigger CLI supplies logical_date when it is omitted."""
+        args = cli_parser.get_parser().parse_args(["dags", "trigger", "example_dag"])
 
-        from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
+        args.func(args, api_client=mock.MagicMock(spec=Client))
 
-        # Simulate the logic in _get_func from cli_config.py
-        # This is the actual code path that runs when user doesn't provide --logical-date
-
-        # Step 1: Simulate CLI args being parsed (logical_date=None)
-        method_params = {
-            "trigger_dag_run": {
-                "dag_run_id": None,
-                "data_interval_start": None,
-                "data_interval_end": None,
-                "logical_date": None,  # User did not provide --logical-date
-                "run_after": None,
-                "conf": None,
-                "note": None,
-                "partition_key": None,
-            }
-        }
-
-        # Step 2: Apply the defaulting logic (from cli_config.py lines 622-630)
-        datamodel = TriggerDAGRunPostBody
-        datamodel_param_name = "trigger_dag_run"
-
-        if (
-            datamodel.__name__ == "TriggerDAGRunPostBody"
-            and "logical_date" in method_params[datamodel_param_name]
-            and method_params[datamodel_param_name]["logical_date"] is None
-        ):
-            method_params[datamodel_param_name]["logical_date"] = datetime.now(UTC)
-
-        # Step 3: Create the Pydantic model (what happens in the actual code)
-        trigger_body = datamodel.model_validate(method_params[datamodel_param_name])
-
-        # Step 4: Verify logical_date was set to now
-        assert trigger_body.logical_date is not None, "logical_date should be defaulted to now"
-        assert isinstance(trigger_body.logical_date, datetime)
-
-        # Verify it's close to current time (within 5 seconds)
-        time_diff = abs((datetime.now(UTC) - trigger_body.logical_date).total_seconds())
-        assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
-
-        # Also verify timezone is UTC
-        assert trigger_body.logical_date.tzinfo is not None, "logical_date should have timezone info"
+        trigger_body = mocked_trigger.call_args.kwargs["trigger_dag_run"]
+        assert isinstance(trigger_body, TriggerDAGRunPostBody)
+        assert trigger_body.logical_date == datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
+        mocked_print_as.assert_called_once()
 
     def test_apply_datamodel_defaults_trigger_dag_run_with_none(self):
         """Test _apply_datamodel_defaults sets logical_date to now when None for TriggerDAGRunPostBody."""
@@ -1046,13 +1022,21 @@ class TestCliConfigMethods:
     def test_connections_test_reaches_the_printer(self, mocked_test, mocked_print_as):
         """``connections test`` has no CRUD-verb prefix, so argparse used to leave ``args.output`` undefined."""
         mocked_test.return_value = ConnectionTestResponse(status=True, message="ok")
-        args = cli_parser.get_parser().parse_args(
-            ["connections", "test", "--connection-id", "my_conn", "--conn-type", "http"]
-        )
+        args = cli_parser.get_parser().parse_args(["connections", "test", "my_conn", "http"])
 
         args.func(args, api_client=mock.MagicMock(spec=Client))
 
         assert mocked_print_as.call_args.kwargs["output"] == "json"
+        connection = mocked_test.call_args.kwargs["connection"]
+        assert connection.connection_id == "my_conn"
+        assert connection.conn_type == "http"
+
+    def test_connections_test_requires_positional_body_fields(self):
+        """The connection test command requires its connection ID and type positionally."""
+        parser = cli_parser.get_parser()
+
+        with pytest.raises(SystemExit):
+            parser.parse_args(["connections", "test", "my_conn"])
 
     @pytest.mark.parametrize(
         ("output", "parse", "expected"),

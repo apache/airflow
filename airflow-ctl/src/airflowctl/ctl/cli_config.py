@@ -488,6 +488,7 @@ CLICommand = ActionCommand | GroupCommand | GroupCommandParser
 class CommandFactory:
     """Factory class that creates 1-1 mapping with airflowctl/api/operations."""
 
+    datamodel_fields_with_cli_defaults = {("TriggerDAGRunPostBody", "logical_date")}
     datamodels_extended_map: dict[str, list[str]]
     operations: list[dict]
     args_map: dict[tuple, list[Arg]]
@@ -691,7 +692,7 @@ class CommandFactory:
         arg_help: str,
     ) -> Arg:
         """
-        Build a positional ``Arg`` for a required primitive parameter.
+        Build a positional ``Arg`` for a required parameter.
 
         ``argparse`` rejects ``default`` and ``dest`` on positional arguments,
         so this helper keeps both unset and uses the raw parameter name (with
@@ -736,7 +737,8 @@ class CommandFactory:
 
             is_required = field_type.is_required()
             is_bool = annotation is bool
-            if is_required and not is_bool:
+            has_cli_default = (parameter_type, field) in self.datamodel_fields_with_cli_defaults
+            if is_required and not is_bool and not has_cli_default:
                 commands.append(
                     self._create_positional_arg(
                         parameter_key=field,
@@ -833,7 +835,7 @@ class CommandFactory:
         # Handle TriggerDAGRunPostBody: default logical_date to now
         # This matches the Airflow UI behavior where the form pre-fills with current time
         if (
-            datamodel.__name__ == "TriggerDAGRunPostBody"
+            (datamodel.__name__, "logical_date") in self.datamodel_fields_with_cli_defaults
             and "logical_date" in params
             and params["logical_date"] is None
         ):

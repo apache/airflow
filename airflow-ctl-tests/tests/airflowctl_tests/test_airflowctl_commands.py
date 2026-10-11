@@ -69,13 +69,13 @@ TEST_COMMANDS = [
     "config list",
     "config lint",
     # Connections commands
-    "connections create --connection-id=test_con --conn-type=mysql --password=TEST_PASS -o json",
+    "connections create test_con mysql --password=TEST_PASS -o json",
     "connections list",
     "connections list -o yaml",
     "connections list -o table",
     "connections get test_con",
     "connections get test_con -o json",
-    "connections update --connection-id=test_con --conn-type=postgres",
+    "connections update test_con postgres",
     "connections import tests/airflowctl_tests/fixtures/test_connections.json",
     "connections delete test_con",
     "connections delete test_import_conn",
@@ -179,8 +179,8 @@ def test_hardcoded_xcom_key_would_collide():
 
     hardcoded = xcom_add_template[0].format(date_param=DATE_PARAM_1, xcom_key="test_xcom_key")
     also_hardcoded = xcom_add_template[0].format(date_param=DATE_PARAM_2, xcom_key="test_xcom_key")
-    # With a hardcoded key, only the dag-run-id differs â€” but if the same date
-    # is reused (e.g. across retries), the commands are fully identical â†’ collision.
+    # With a hardcoded key, only the dag-run-id differs â€" but if the same date
+    # is reused (e.g. across retries), the commands are fully identical â†' collision.
     assert "test_xcom_key" in hardcoded
     assert "test_xcom_key" in also_hardcoded
 
