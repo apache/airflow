@@ -410,7 +410,7 @@ class DagDocument(BaseModel):
                 raise ValueError("default_args is not supported; use 'templates' with 'extends' instead")
             for k in DAG_CALLBACK_KEYS:
                 if k in data:
-                    raise ValueError(f"Dag-level {k!r} is not implemented yet")
+                    raise ValueError(f"Dag-level {k!r} not yet implemented")
         return data
 
     @model_validator(mode="before")
