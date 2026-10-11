@@ -155,7 +155,7 @@ def _value_discriminator(v: Any) -> str:
     typos, any unknown ``$``-prefixed strings are routed here and rejected.
 
     If such a key is needed, it can be wrapped in ``$const``, which would
-    avoid this discrimator (only used by :class:`_Literal`).
+    avoid this discrimator (only used by :class:`Literal`).
     """
     if isinstance(v, dict) and len(v) == 1:
         (key,) = v
@@ -174,7 +174,7 @@ def _value_discriminator(v: Any) -> str:
     return "literal"
 
 
-class _Literal(RootModel):
+class Literal(RootModel):
     """
     A literal value.
 
@@ -202,16 +202,32 @@ class _Literal(RootModel):
                 )
         return v
 
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        # Pydantic generates a pretty messy schema from this. Clean it up since
+        # essentially we accept "whatever the format can implicitly accepts".
+        schema = handler(core_schema)
+        schema["oneOf"] = [
+            *(b for b in schema.pop("anyOf") if b.get("type") in ("object", "array")),
+            {"type": "boolean"},
+            {"type": "null"},
+            {"type": "number"},
+            {"type": "string"},
+        ]
+        return schema
+
 
 Value = Annotated[
     Annotated[XComRef, Tag("xcom")]
     | Annotated[TemplateRef, Tag("template")]
     | Annotated[ConstRef, Tag("const")]
-    | Annotated[_Literal, Tag("literal")],
+    | Annotated[Literal, Tag("literal")],
     Discriminator(_value_discriminator),
 ]
 
-_Literal.model_rebuild()
+Literal.model_rebuild()
 
 
 class Task(BaseModel):
@@ -353,7 +369,7 @@ def _iter_xcom_task_ids(value: Any):
     """Yield task ids referenced by any XComRef inside a resolved value."""
     if isinstance(value, XComRef):
         yield value.target if isinstance(value.target, str) else value.target.task
-    elif isinstance(value, _Literal):
+    elif isinstance(value, Literal):
         yield from _iter_xcom_task_ids(value.root)
     elif isinstance(value, dict):
         for v in value.values():

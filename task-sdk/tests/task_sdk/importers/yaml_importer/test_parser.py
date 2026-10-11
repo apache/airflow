@@ -33,12 +33,12 @@ from airflow.sdk.importers.yaml_importer import YamlDagParseError, parse_documen
 from airflow.sdk.importers.yaml_importer.models import (
     ConstRef,
     DagDocument,
+    Literal,
     Task,
     TemplateRef,
     TimetableSchedule,
     XComRef,
     XComTarget,
-    _Literal,
 )
 
 SCHEMA_PATH = pathlib.Path(yaml_importer.__file__).with_name("schema.json")
@@ -57,7 +57,7 @@ def _task(task_yaml: str):
 
 def test_literal_by_default():
     t = _task("- {id: t, run: {region: 'eu', n: 5, flag: true}}")
-    assert isinstance(t.run["region"], _Literal)
+    assert isinstance(t.run["region"], Literal)
     assert t.run["region"].root == "eu"
     assert t.run["n"].root == 5
     assert t.run["flag"].root is True
@@ -209,7 +209,7 @@ def test_extends_merges_shallow_task_wins():
     assert isinstance(t, Task)
     assert t.uses.endswith("S3ToRedshiftOperator")
     assert t.model_extra["retries"] == 2  # from retryable
-    assert isinstance(t.with_["schema"], _Literal)  # inherited
+    assert isinstance(t.with_["schema"], Literal)  # inherited
     assert t.with_["table"].root == "sales"  # own
     assert t.with_["conn_id"].root == "override"  # one-level with-merge, task wins
 

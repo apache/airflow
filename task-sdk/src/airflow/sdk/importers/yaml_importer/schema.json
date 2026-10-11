@@ -14,6 +14,70 @@
       "title": "ConstRef",
       "type": "object"
     },
+    "Literal": {
+      "description": "A literal value.",
+      "not": {
+        "not": {
+          "patternProperties": {
+            "^\\$": false
+          }
+        },
+        "type": "object"
+      },
+      "oneOf": [
+        {
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/XComRef"
+              },
+              {
+                "$ref": "#/$defs/TemplateRef"
+              },
+              {
+                "$ref": "#/$defs/ConstRef"
+              },
+              {
+                "$ref": "#/$defs/Literal"
+              }
+            ]
+          },
+          "type": "object"
+        },
+        {
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/XComRef"
+              },
+              {
+                "$ref": "#/$defs/TemplateRef"
+              },
+              {
+                "$ref": "#/$defs/ConstRef"
+              },
+              {
+                "$ref": "#/$defs/Literal"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Literal"
+    },
     "Task": {
       "additionalProperties": true,
       "description": "A ready-made operator (uses) or task with custom code (run).",
@@ -79,7 +143,7 @@
                 "$ref": "#/$defs/ConstRef"
               },
               {
-                "$ref": "#/$defs/_Literal"
+                "$ref": "#/$defs/Literal"
               }
             ]
           },
@@ -106,7 +170,7 @@
                 "$ref": "#/$defs/ConstRef"
               },
               {
-                "$ref": "#/$defs/_Literal"
+                "$ref": "#/$defs/Literal"
               }
             ]
           },
@@ -245,81 +309,6 @@
       ],
       "title": "XComTarget",
       "type": "object"
-    },
-    "_Literal": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "oneOf": [
-              {
-                "$ref": "#/$defs/XComRef"
-              },
-              {
-                "$ref": "#/$defs/TemplateRef"
-              },
-              {
-                "$ref": "#/$defs/ConstRef"
-              },
-              {
-                "$ref": "#/$defs/_Literal"
-              }
-            ]
-          },
-          "type": "object"
-        },
-        {
-          "items": {
-            "oneOf": [
-              {
-                "$ref": "#/$defs/XComRef"
-              },
-              {
-                "$ref": "#/$defs/TemplateRef"
-              },
-              {
-                "$ref": "#/$defs/ConstRef"
-              },
-              {
-                "$ref": "#/$defs/_Literal"
-              }
-            ]
-          },
-          "type": "array"
-        },
-        {
-          "type": "string"
-        },
-        {
-          "type": "integer"
-        },
-        {
-          "type": "number"
-        },
-        {
-          "type": "boolean"
-        },
-        {
-          "format": "date-time",
-          "type": "string"
-        },
-        {
-          "format": "date",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "description": "A literal value.",
-      "not": {
-        "not": {
-          "patternProperties": {
-            "^\\$": false
-          }
-        },
-        "type": "object"
-      },
-      "title": "_Literal"
     }
   },
   "additionalProperties": true,
