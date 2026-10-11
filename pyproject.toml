@@ -32,7 +32,7 @@ description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-requires-python = ">=3.11,!=3.15"
+requires-python = ">=3.11,!=3.16"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -51,6 +51,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 
@@ -104,7 +105,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-akeyless>=0.1.0"
 ]
 "alibaba" = [
-    "apache-airflow-providers-alibaba>=3.0.0"
+    "apache-airflow-providers-alibaba>=3.0.0; python_version !=\"3.15\""
 ]
 "amazon" = [
     "apache-airflow-providers-amazon>=9.0.0"
@@ -113,16 +114,16 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-anthropic>=0.1.0"
 ]
 "apache.arrow" = [
-    "apache-airflow-providers-apache-arrow>=0.1.0"
+    "apache-airflow-providers-apache-arrow>=0.1.0; python_version !=\"3.15\""
 ]
 "apache.beam" = [
-    "apache-airflow-providers-apache-beam>=5.8.1"
+    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.15\""
 ]
 "apache.cassandra" = [
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
+    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\" and python_version !=\"3.15\""
 ]
 "apache.drill" = [
-    "apache-airflow-providers-apache-drill>=2.8.1"
+    "apache-airflow-providers-apache-drill>=2.8.1; python_version !=\"3.15\""
 ]
 "apache.druid" = [
     "apache-airflow-providers-apache-druid>=3.12.0"
@@ -131,19 +132,19 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-flink>=1.6.0"
 ]
 "apache.hdfs" = [
-    "apache-airflow-providers-apache-hdfs>=4.6.0"
+    "apache-airflow-providers-apache-hdfs>=4.6.0; python_version !=\"3.15\""
 ]
 "apache.hive" = [
-    "apache-airflow-providers-apache-hive>=8.2.1"
+    "apache-airflow-providers-apache-hive>=8.2.1; python_version !=\"3.15\""
 ]
 "apache.iceberg" = [
-    "apache-airflow-providers-apache-iceberg>=1.2.0"
+    "apache-airflow-providers-apache-iceberg>=1.2.0; python_version !=\"3.15\""
 ]
 "apache.impala" = [
-    "apache-airflow-providers-apache-impala>=1.5.2"
+    "apache-airflow-providers-apache-impala>=1.5.2; python_version !=\"3.15\""
 ]
 "apache.kafka" = [
-    "apache-airflow-providers-apache-kafka>=1.6.1"
+    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.15\""
 ]
 "apache.kylin" = [
     "apache-airflow-providers-apache-kylin>=3.8.0"
@@ -155,13 +156,13 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-pig>=4.6.0"
 ]
 "apache.pinot" = [
-    "apache-airflow-providers-apache-pinot>=4.5.1"
+    "apache-airflow-providers-apache-pinot>=4.5.1; python_version !=\"3.15\""
 ]
 "apache.spark" = [
-    "apache-airflow-providers-apache-spark>=4.11.1"
+    "apache-airflow-providers-apache-spark>=4.11.1; python_version !=\"3.15\""
 ]
 "apache.tinkerpop" = [
-    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\""
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\" and python_version !=\"3.15\""
 ]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
@@ -179,7 +180,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-celery>=3.8.3"
 ]
 "clickhousedb" = [
-    "apache-airflow-providers-clickhousedb>=1.0.0"
+    "apache-airflow-providers-clickhousedb>=1.0.0; python_version !=\"3.15\""
 ]
 "cloudant" = [
     "apache-airflow-providers-cloudant>=4.0.1"
@@ -188,10 +189,10 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cncf-kubernetes>=9.0.0"
 ]
 "cohere" = [
-    "apache-airflow-providers-cohere>=1.4.0"
+    "apache-airflow-providers-cohere>=1.4.0; python_version !=\"3.15\""
 ]
 "common.ai" = [
-    "apache-airflow-providers-common-ai>=0.1.0"
+    "apache-airflow-providers-common-ai>=0.1.0; python_version !=\"3.15\""
 ]
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
@@ -206,7 +207,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-common-sql>=1.18.0"
 ]
 "databricks" = [
-    "apache-airflow-providers-databricks>=6.11.0"
+    "apache-airflow-providers-databricks>=6.11.0; python_version !=\"3.15\""
 ]
 "datadog" = [
     "apache-airflow-providers-datadog>=3.8.0"
@@ -224,7 +225,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-docker>=3.14.1"
 ]
 "duckdb" = [
-    "apache-airflow-providers-duckdb>=0.2.0"
+    "apache-airflow-providers-duckdb>=0.2.0; python_version !=\"3.15\""
 ]
 "edge3" = [
     "apache-airflow-providers-edge3>=1.0.0"
@@ -233,7 +234,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-elasticsearch>=6.6.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "exasol" = [
-    "apache-airflow-providers-exasol>=4.6.1"
+    "apache-airflow-providers-exasol>=4.6.1; python_version !=\"3.15\""
 ]
 "fab" = [
     "apache-airflow-providers-fab>=3.6.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -251,7 +252,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-github>=2.8.0"
 ]
 "google" = [
-    "apache-airflow-providers-google>=10.24.0"
+    "apache-airflow-providers-google>=10.24.0; python_version !=\"3.15\""
 ]
 "grpc" = [
     "apache-airflow-providers-grpc>=3.7.0"
@@ -263,7 +264,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-http>=4.13.2"
 ]
 "ibm.db2" = [
-    "apache-airflow-providers-ibm-db2>=0.1.0; platform_machine !=\"aarch64\""
+    "apache-airflow-providers-ibm-db2>=0.1.0; python_version !=\"3.15\" and platform_machine !=\"aarch64\""
 ]
 "ibm.mq" = [
     "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\""
@@ -272,13 +273,13 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-imap>=3.8.0"
 ]
 "influxdb" = [
-    "apache-airflow-providers-influxdb>=2.8.0"
+    "apache-airflow-providers-influxdb>=2.8.0; python_version !=\"3.15\""
 ]
 "informatica" = [
     "apache-airflow-providers-informatica>=0.1.1"
 ]
 "jdbc" = [
-    "apache-airflow-providers-jdbc>=4.5.2"
+    "apache-airflow-providers-jdbc>=4.5.2; python_version !=\"3.15\""
 ]
 "jenkins" = [
     "apache-airflow-providers-jenkins>=3.7.2"
@@ -287,22 +288,22 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-keycloak>=0.0.1"
 ]
 "microsoft.azure" = [
-    "apache-airflow-providers-microsoft-azure>=10.5.1"
+    "apache-airflow-providers-microsoft-azure>=10.5.1; python_version !=\"3.15\""
 ]
 "microsoft.mssql" = [
     "apache-airflow-providers-microsoft-mssql>=3.9.2"
 ]
 "microsoft.psrp" = [
-    "apache-airflow-providers-microsoft-psrp>=3.0.0"
+    "apache-airflow-providers-microsoft-psrp>=3.0.0; python_version !=\"3.15\""
 ]
 "microsoft.winrm" = [
-    "apache-airflow-providers-microsoft-winrm>=3.6.1"
+    "apache-airflow-providers-microsoft-winrm>=3.6.1; python_version !=\"3.15\""
 ]
 "modal" = [
-    "apache-airflow-providers-modal>=0.1.0"
+    "apache-airflow-providers-modal>=0.1.0; python_version !=\"3.15\""
 ]
 "mongo" = [
-    "apache-airflow-providers-mongo>=4.2.2"
+    "apache-airflow-providers-mongo>=4.2.2; python_version !=\"3.15\""
 ]
 "mysql" = [
     "apache-airflow-providers-mysql>=5.7.2"
@@ -311,7 +312,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-neo4j>=3.8.0"
 ]
 "odbc" = [
-    "apache-airflow-providers-odbc>=4.8.0"
+    "apache-airflow-providers-odbc>=4.8.0; python_version !=\"3.15\""
 ]
 "openai" = [
     "apache-airflow-providers-openai>=1.5.0"
@@ -335,7 +336,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-pagerduty>=3.8.1"
 ]
 "papermill" = [
-    "apache-airflow-providers-papermill>=3.8.2"
+    "apache-airflow-providers-papermill>=3.8.2; python_version !=\"3.15\""
 ]
 "pgvector" = [
     "apache-airflow-providers-pgvector>=1.4.0"
@@ -347,19 +348,19 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-postgres>=5.13.1"
 ]
 "presto" = [
-    "apache-airflow-providers-presto>=5.7.0"
+    "apache-airflow-providers-presto>=5.7.0; python_version !=\"3.15\""
 ]
 "qdrant" = [
-    "apache-airflow-providers-qdrant>=1.3.0"
+    "apache-airflow-providers-qdrant>=1.3.0; python_version !=\"3.15\""
 ]
 "redis" = [
     "apache-airflow-providers-redis>=4.0.0"
 ]
 "salesforce" = [
-    "apache-airflow-providers-salesforce>=5.9.0"
+    "apache-airflow-providers-salesforce>=5.9.0; python_version !=\"3.15\""
 ]
 "samba" = [
-    "apache-airflow-providers-samba>=4.9.0"
+    "apache-airflow-providers-samba>=4.9.0; python_version !=\"3.15\""
 ]
 "segment" = [
     "apache-airflow-providers-segment>=3.7.0"
@@ -380,7 +381,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-smtp>=1.8.1"
 ]
 "snowflake" = [
-    "apache-airflow-providers-snowflake>=5.8.0"
+    "apache-airflow-providers-snowflake>=5.8.0; python_version !=\"3.15\""
 ]
 "sqlite" = [
     "apache-airflow-providers-sqlite>=3.9.1"
@@ -401,19 +402,19 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-teradata>=2.6.1"
 ]
 "trino" = [
-    "apache-airflow-providers-trino>=5.8.1"
+    "apache-airflow-providers-trino>=5.8.1; python_version !=\"3.15\""
 ]
 "vertica" = [
     "apache-airflow-providers-vertica>=3.9.1"
 ]
 "vespa" = [
-    "apache-airflow-providers-vespa>=0.1.0; python_version !=\"3.14\""
+    "apache-airflow-providers-vespa>=0.1.0"
 ]
 "weaviate" = [
-    "apache-airflow-providers-weaviate>=3.0.0"
+    "apache-airflow-providers-weaviate>=3.0.0; python_version !=\"3.15\""
 ]
 "yandex" = [
-    "apache-airflow-providers-yandex>=4.0.0"
+    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.15\""
 ]
 "ydb" = [
     "apache-airflow-providers-ydb>=1.4.0"
@@ -426,76 +427,76 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-akeyless>=0.1.0",
-    "apache-airflow-providers-alibaba>=3.0.0",
+    "apache-airflow-providers-alibaba>=3.0.0; python_version !=\"3.15\"",
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-anthropic>=0.1.0",
-    "apache-airflow-providers-apache-arrow>=0.1.0",
-    "apache-airflow-providers-apache-beam>=5.8.1",
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
-    "apache-airflow-providers-apache-drill>=2.8.1",
+    "apache-airflow-providers-apache-arrow>=0.1.0; python_version !=\"3.15\"",
+    "apache-airflow-providers-apache-beam>=5.8.1; python_version !=\"3.15\"",
+    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\" and python_version !=\"3.15\"",
+    "apache-airflow-providers-apache-drill>=2.8.1; python_version !=\"3.15\"",
     "apache-airflow-providers-apache-druid>=3.12.0",
     "apache-airflow-providers-apache-flink>=1.6.0",
-    "apache-airflow-providers-apache-hdfs>=4.6.0",
-    "apache-airflow-providers-apache-hive>=8.2.1",
-    "apache-airflow-providers-apache-iceberg>=1.2.0",
-    "apache-airflow-providers-apache-impala>=1.5.2",
-    "apache-airflow-providers-apache-kafka>=1.6.1",
+    "apache-airflow-providers-apache-hdfs>=4.6.0; python_version !=\"3.15\"",
+    "apache-airflow-providers-apache-hive>=8.2.1; python_version !=\"3.15\"",
+    "apache-airflow-providers-apache-iceberg>=1.2.0; python_version !=\"3.15\"",
+    "apache-airflow-providers-apache-impala>=1.5.2; python_version !=\"3.15\"",
+    "apache-airflow-providers-apache-kafka>=1.6.1; python_version !=\"3.15\"",
     "apache-airflow-providers-apache-kylin>=3.8.0",
     "apache-airflow-providers-apache-livy>=3.9.2",
     "apache-airflow-providers-apache-pig>=4.6.0",
-    "apache-airflow-providers-apache-pinot>=4.5.1",
-    "apache-airflow-providers-apache-spark>=4.11.1",
-    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-apache-pinot>=4.5.1; python_version !=\"3.15\"",
+    "apache-airflow-providers-apache-spark>=4.11.1; python_version !=\"3.15\"",
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\" and python_version !=\"3.15\"",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
     "apache-airflow-providers-atlassian-jira>=2.7.1",
     "apache-airflow-providers-celery>=3.8.3",
-    "apache-airflow-providers-clickhousedb>=1.0.0",
+    "apache-airflow-providers-clickhousedb>=1.0.0; python_version !=\"3.15\"",
     "apache-airflow-providers-cloudant>=4.0.1",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
-    "apache-airflow-providers-cohere>=1.4.0",
-    "apache-airflow-providers-common-ai>=0.1.0",
+    "apache-airflow-providers-cohere>=1.4.0; python_version !=\"3.15\"",
+    "apache-airflow-providers-common-ai>=0.1.0; python_version !=\"3.15\"",
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-common-sql>=1.18.0",
-    "apache-airflow-providers-databricks>=6.11.0",
+    "apache-airflow-providers-databricks>=6.11.0; python_version !=\"3.15\"",
     "apache-airflow-providers-datadog>=3.8.0",
     "apache-airflow-providers-dbt-cloud>=3.11.0",
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
-    "apache-airflow-providers-duckdb>=0.2.0",
+    "apache-airflow-providers-duckdb>=0.2.0; python_version !=\"3.15\"",
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
-    "apache-airflow-providers-exasol>=4.6.1",
+    "apache-airflow-providers-exasol>=4.6.1; python_version !=\"3.15\"",
     "apache-airflow-providers-fab>=3.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-github>=2.8.0",
-    "apache-airflow-providers-google>=10.24.0",
+    "apache-airflow-providers-google>=10.24.0; python_version !=\"3.15\"",
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
-    "apache-airflow-providers-ibm-db2>=0.1.0; platform_machine !=\"aarch64\"",
+    "apache-airflow-providers-ibm-db2>=0.1.0; python_version !=\"3.15\" and platform_machine !=\"aarch64\"",
     "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\"",
     "apache-airflow-providers-imap>=3.8.0",
-    "apache-airflow-providers-influxdb>=2.8.0",
+    "apache-airflow-providers-influxdb>=2.8.0; python_version !=\"3.15\"",
     "apache-airflow-providers-informatica>=0.1.1",
-    "apache-airflow-providers-jdbc>=4.5.2",
+    "apache-airflow-providers-jdbc>=4.5.2; python_version !=\"3.15\"",
     "apache-airflow-providers-jenkins>=3.7.2",
     "apache-airflow-providers-keycloak>=0.0.1",
-    "apache-airflow-providers-microsoft-azure>=10.5.1",
+    "apache-airflow-providers-microsoft-azure>=10.5.1; python_version !=\"3.15\"",
     "apache-airflow-providers-microsoft-mssql>=3.9.2",
-    "apache-airflow-providers-microsoft-psrp>=3.0.0",
-    "apache-airflow-providers-microsoft-winrm>=3.6.1",
-    "apache-airflow-providers-modal>=0.1.0",
-    "apache-airflow-providers-mongo>=4.2.2",
+    "apache-airflow-providers-microsoft-psrp>=3.0.0; python_version !=\"3.15\"",
+    "apache-airflow-providers-microsoft-winrm>=3.6.1; python_version !=\"3.15\"",
+    "apache-airflow-providers-modal>=0.1.0; python_version !=\"3.15\"",
+    "apache-airflow-providers-mongo>=4.2.2; python_version !=\"3.15\"",
     "apache-airflow-providers-mysql>=5.7.2",
     "apache-airflow-providers-neo4j>=3.8.0",
-    "apache-airflow-providers-odbc>=4.8.0",
+    "apache-airflow-providers-odbc>=4.8.0; python_version !=\"3.15\"",
     "apache-airflow-providers-openai>=1.5.0",
     "apache-airflow-providers-openfaas>=3.7.0",
     "apache-airflow-providers-openlineage>=2.3.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -503,33 +504,33 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-opsgenie>=5.8.0",
     "apache-airflow-providers-oracle>=3.12.0",
     "apache-airflow-providers-pagerduty>=3.8.1",
-    "apache-airflow-providers-papermill>=3.8.2",
+    "apache-airflow-providers-papermill>=3.8.2; python_version !=\"3.15\"",
     "apache-airflow-providers-pgvector>=1.4.0",
     "apache-airflow-providers-pinecone>=2.1.1",
     "apache-airflow-providers-postgres>=5.13.1",
-    "apache-airflow-providers-presto>=5.7.0",
-    "apache-airflow-providers-qdrant>=1.3.0",
+    "apache-airflow-providers-presto>=5.7.0; python_version !=\"3.15\"",
+    "apache-airflow-providers-qdrant>=1.3.0; python_version !=\"3.15\"",
     "apache-airflow-providers-redis>=4.0.0",
-    "apache-airflow-providers-salesforce>=5.9.0",
-    "apache-airflow-providers-samba>=4.9.0",
+    "apache-airflow-providers-salesforce>=5.9.0; python_version !=\"3.15\"",
+    "apache-airflow-providers-samba>=4.9.0; python_version !=\"3.15\"",
     "apache-airflow-providers-segment>=3.7.0",
     "apache-airflow-providers-sendgrid>=4.0.0",
     "apache-airflow-providers-sftp>=5.0.0",
     "apache-airflow-providers-singularity>=3.7.0",
     "apache-airflow-providers-slack>=8.9.1",
     "apache-airflow-providers-smtp>=1.8.1",
-    "apache-airflow-providers-snowflake>=5.8.0",
+    "apache-airflow-providers-snowflake>=5.8.0; python_version !=\"3.15\"",
     "apache-airflow-providers-sqlite>=3.9.1",
     "apache-airflow-providers-ssh>=3.14.0",
     "apache-airflow-providers-standard>=0.0.1",
     "apache-airflow-providers-tableau>=5.0.0",
     "apache-airflow-providers-telegram>=4.7.0",
     "apache-airflow-providers-teradata>=2.6.1",
-    "apache-airflow-providers-trino>=5.8.1",
+    "apache-airflow-providers-trino>=5.8.1; python_version !=\"3.15\"",
     "apache-airflow-providers-vertica>=3.9.1",
-    "apache-airflow-providers-vespa>=0.1.0; python_version !=\"3.14\"",
-    "apache-airflow-providers-weaviate>=3.0.0",
-    "apache-airflow-providers-yandex>=4.0.0",
+    "apache-airflow-providers-vespa>=0.1.0",
+    "apache-airflow-providers-weaviate>=3.0.0; python_version !=\"3.15\"",
+    "apache-airflow-providers-yandex>=4.0.0; python_version !=\"3.15\"",
     "apache-airflow-providers-ydb>=1.4.0",
     "apache-airflow-providers-zendesk>=4.9.0",
 ]
@@ -545,7 +546,7 @@ apache-airflow = "airflow.__main__:main"
     "atlasclient>=0.1.2",
 ]
 "apache-webhdfs" = [
-    "apache-airflow-providers-apache-hdfs",
+    "apache-airflow-providers-apache-hdfs; python_version !=\"3.15\"",
 ]
 "amazon-aws-auth" = [
    "apache-airflow-providers-amazon[python3-saml]",
@@ -565,7 +566,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-fab[oauth]",
 ]
 "ldap" = [
-    "python-ldap>=3.4.4",
+    "python-ldap>=3.4.4; python_version != \"3.15\"",
 ]
 "pandas" = [
     "apache-airflow-providers-common-sql[pandas]",
@@ -1443,7 +1444,7 @@ docs-gen = [
 # special case for google's leveldb dependency that is notriously difficult to install
 # we are not installing it by default we only install it in CI image when image is built
 leveldb = [
-    "plyvel>=1.5.1"
+    "plyvel>=1.5.1; python_version != \"3.15\""
 ]
 
 # Aggregate of every group the CI image installs by default. Single source of
@@ -1478,13 +1479,28 @@ no-build-isolation-package = ["sphinx-redoc"]
 # move. Published wheels are unaffected: overrides only shape uv.lock and the CI image. Drop this
 # once run-llama/llama_index#22939 and BerriAI/litellm#40317 land and google-cloud-aiplatform
 # lifts its litellm cap (<1.86 below Python 3.14) far enough to reach the fixed litellm.
-override-dependencies = ["openai>=2.47.0,<3"]
+override-dependencies = [
+    "openai>=2.47.0,<3",
+]
 # The override replaces every package's openai requirement, not only pydantic-ai-slim's, so the
 # resolver no longer rejects a release that needs openai>=3 unconditionally, and only `pip check`
 # in the image build catches it. Cap each such package here at its last openai 2.x release, which
 # is what the resolver would pick without the override. azure-ai-projects 2.5.0 moved to
 # openai>=3.0.0; the Azure provider needs >=2.2.0.
-constraint-dependencies = ["azure-ai-projects<2.5"]
+constraint-dependencies = [
+    "azure-ai-projects<2.5",
+    # apache-beam 2.76.0 and 2.77.0 cap pyarrow below 26 and numpy below 2.5. Beam is excluded on 3.15, but the universal
+    # lock still resolves one version of each for every interpreter. These marker-scoped constraints fork the lock so 3.15
+    # gets the first releases with wheels (numpy 2.5.2, pyarrow 26.0.0). They are constraints rather than overrides because
+    # an override is a direct requirement for lowest-direct, which then installs its floor on every interpreter.
+    "numpy>=2.5.2; python_version == '3.15'",
+    "pyarrow>=26.0.0; python_version == '3.15'",
+    # Keep the other interpreters on the releases they locked before 3.15 support: pydantic 2.14 needs a typing fix in
+    # lang_sdk_processor.py, and pinecone 10 caps msgspec<0.22 while 3.15 needs msgspec>=0.22 for wheels.
+    "pydantic<2.14; python_version < '3.15'",
+    "pinecone>=10; python_version < '3.15'",
+    "pinecone<10; python_version >= '3.15'",
+]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
 
@@ -1652,6 +1668,32 @@ typesafe-sdk = "2026-09-19T00:00:00Z"
 # 1.9.3 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-10-10.
 boat-sdk = "2026-10-11T00:00:00Z"
+# Temporary: pydantic 2.14.0 and pydantic-core 2.50.0 are the first releases with Python 3.15 wheels
+# for the core runtime. Both were published 2026-10-08, inside the "4 days" exclude-newer window.
+# Remove once the rolling window advances past 2026-10-08.
+pydantic = "2026-10-09T00:00:00Z"
+pydantic-core = "2026-10-09T00:00:00Z"
+# Temporary: httptools 0.9.0 (Python 3.15 wheels for the core runtime) was published 2026-10-09,
+# inside the "4 days" exclude-newer window. Remove once the rolling window advances past 2026-10-09.
+httptools = "2026-10-10T00:00:00Z"
+# Temporary: aiohttp 3.14.5 (Python 3.15 wheels for the core and provider runtimes) was published
+# 2026-10-11, inside the "4 days" exclude-newer window. Remove once the rolling window advances past 2026-10-11.
+aiohttp = "2026-10-12T00:00:00Z"
+# Temporary: pyarrow 26.0.0 (Python 3.15 wheels for the provider and dev runtimes) was published
+# 2026-10-09, inside the "4 days" exclude-newer window. Remove once the rolling window advances past 2026-10-09.
+pyarrow = "2026-10-10T00:00:00Z"
+# Temporary: sqlalchemy-utils 0.43.0 (the first release that works with SQLAlchemy 2.1, which the Python 3.15 floor selects) was
+# published 2026-10-09, inside the "4 days" exclude-newer window. Remove once the rolling window advances past 2026-10-09.
+sqlalchemy-utils = "2026-10-10T00:00:00Z"
+# Temporary: ijson 3.6.0 (Python 3.15 wheels) was published 2026-10-12, inside the "4 days" exclude-newer window.
+# Remove once the rolling window advances past 2026-10-12.
+ijson = "2026-10-13T00:00:00Z"
+# Temporary: pendulum 3.3.0 (Python 3.15 wheels) was published 2026-10-12, inside the "4 days" exclude-newer window.
+# Remove once the rolling window advances past 2026-10-12.
+pendulum = "2026-10-13T00:00:00Z"
+# Temporary: pyvespa 1.2.9 (the first release declaring Python 3.14 and 3.15 support) was published 2026-10-13,
+# inside the "4 days" exclude-newer window. Remove once the rolling window advances past 2026-10-13.
+pyvespa = "2026-10-14T00:00:00Z"
 
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),

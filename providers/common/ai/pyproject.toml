@@ -58,7 +58,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,!=3.15.*"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -66,7 +66,7 @@ requires-python = ">=3.11"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.21.0",
+    "apache-airflow-providers-common-compat>=1.21.0",  # use next version
     "apache-airflow-providers-standard>=1.20.0",
     # 2.33.0 is the first release that works with anthropic>=1: it moved to httpx2 alongside
     # the SDK and stopped passing temperature/top_p/top_k as messages.create() kwargs, both
@@ -186,7 +186,7 @@ dev = [
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-git",
-    "apache-airflow-providers-modal",
+    "apache-airflow-providers-modal; python_version != \"3.15\"",
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",

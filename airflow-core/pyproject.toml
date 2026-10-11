@@ -40,7 +40,7 @@ license-files = ["LICENSE", "NOTICE"]
 # We proactively exclude the next major version to avoid dependency conflicts, then test it and
 # bump the upper binding once ready. Providers that don't support it yet are marked with
 # != constraint - until they support it - which also excludes resolving uv workspace dependencies.
-requires-python = ">=3.11,!=3.15"
+requires-python = ">=3.11,!=3.16"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -59,6 +59,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 
@@ -91,6 +92,8 @@ dependencies = [
     # support for Airflow 3.1.
     "cryptography>=44.0.3",
     "deprecated>=1.2.13",
+    # dill 0.4.1 fails on Python 3.15 (code objects no longer have co_lnotab); 0.4.2 will add 3.15 support.
+    # Raise the floor for 3.15 once it is released.
     "dill>=0.2.2",
     # Cap below 0.137.0: FastAPI 0.137 switched to lazy router inclusion, which breaks cadwyn's
     # versioned router generation (RouterGenerationError) and fails api-server / dag-processor
@@ -114,6 +117,7 @@ dependencies = [
     "lazy-object-proxy>=1.2.0",
     'libcst >=1.8.2; python_version < "3.14"',
     'libcst >=1.8.6; python_version >= "3.14"',
+    'libcst >=1.9.0; python_version >= "3.15"',
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "methodtools>=0.4.7",
@@ -133,9 +137,13 @@ dependencies = [
     "packaging>=25.0",
     "pathspec>=0.9.0",
     'pendulum>=3.1.0',
+    'pendulum>=3.3.0; python_version >= "3.15"',
     "pluggy>=1.5.0",
+    "pluggy>=1.6.0; python_version >= \"3.15\"",
     "psutil>=5.8.0",
     "pydantic>=2.12.0",
+    # pydantic pins pydantic-core exactly; 2.14.0 pairs with pydantic-core 2.50.0, the first stable pairing with Python 3.15 wheels.
+    "pydantic>=2.14.0; python_version >= \"3.15\"",
     # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
     # See https://github.com/pygments/pygments/issues/2834
     "pygments>=2.0.1,!=2.19.0",
@@ -148,7 +156,9 @@ dependencies = [
     "rich-argparse>=1.0.0",
     "rich>=13.6.0",
     "setproctitle>=1.3.3",
+    "setproctitle>=1.3.8; python_version >= \"3.15\"",
     "sqlalchemy[asyncio]>=2.0.50,!=2.1.0",
+    "sqlalchemy[asyncio]>=2.1.4; python_version >= \"3.15\"",
     "svcs>=25.1.0",
     "tabulate>=0.9.0",
     "tenacity>=8.3.0",
@@ -165,6 +175,7 @@ dependencies = [
     "apache-airflow-providers-standard>=1.9.0",
     # Start of shared logging dependencies
     "msgspec>=0.19.0",
+    "msgspec>=0.22.0; python_version >= \"3.15\"",
     "pygtrie>=2.5.0",
     "structlog>=26.1.0",
     # End of shared logging dependencies
@@ -173,6 +184,7 @@ dependencies = [
     # End of shared configuration dependencies
     # Start of shared listeners dependencies
     "pluggy>=1.5.0",
+    "pluggy>=1.6.0; python_version >= \"3.15\"",
     # End of shared listeners dependencies
     "isoduration>=20.11.0",
 ]
@@ -182,8 +194,11 @@ dependencies = [
 "async" = [
     "eventlet>=0.37.0",
     "gevent>=25.4.1",
+    "gevent>=26.5.0; python_version >= \"3.15\"",
     "greenlet>=3.1.0; python_version < '3.14'",
     "greenlet>=3.3.2; python_version >= '3.14'",
+    # 3.5.1-3.5.3 raise "greenlet context must be a contextvars.Context or None" with SQLAlchemy async engines on 3.15.
+    "greenlet>=3.5.4; python_version >= '3.15'",
     "greenback>=1.2.1",
 ]
 "graphviz" = [
@@ -193,12 +208,13 @@ dependencies = [
     "graphviz>=0.20; sys_platform != 'darwin'",
 ]
 "kerberos"  = [
-    "pykerberos>=1.1.13",
-    "requests-kerberos>=0.14.0",
-    "thrift-sasl>=0.4.2",
+    "pykerberos>=1.1.13; python_version != \"3.15\"",
+    "requests-kerberos>=0.14.0; python_version != \"3.15\"",
+    "thrift-sasl>=0.4.2; python_version != \"3.15\"",
 ]
 "memray" = [
     "memray>=1.19.0",
+    "memray>=1.20.0; python_version >= \"3.15\"",
 ]
 "gunicorn" = [
     "gunicorn>=23.0.0,!=25.1.0",

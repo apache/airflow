@@ -41,7 +41,7 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.providers_manager import provider_incompatibility_reason
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, xfail_on_python_315
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = pytest.mark.db_test
@@ -963,6 +963,7 @@ class TestPluginsManager:
         assert not import_errors
 
     @skip_if_force_lowest_dependencies_marker
+    @xfail_on_python_315("Entry point plugins of the providers excluded on Python 3.15 are not loaded")
     def test_does_not_double_import_entrypoint_provider_plugins(self):
         from airflow import plugins_manager
 

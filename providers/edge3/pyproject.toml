@@ -56,6 +56,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.11"
@@ -66,11 +67,12 @@ requires-python = ">=3.11"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.0,!=3.1.0",
-    "apache-airflow-providers-common-compat>=1.15.0",
+    "apache-airflow-providers-common-compat>=1.15.0",  # use next version
     "pydantic>=2.11.0",
     "retryhttp>=1.4.0",
     "aiofiles>=23.2.0",
     "aiohttp>=3.14.0",
+    "aiohttp>=3.14.4; python_version >= \"3.15\"",
 ]
 
 [dependency-groups]

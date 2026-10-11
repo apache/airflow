@@ -72,6 +72,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
+excluded-python-versions:
+  - "3.15"
+
 integrations:
   - integration-name: Windows Remote Management (WinRM)
     external-doc-url: https://docs.microsoft.com/en-us/windows/win32/winrm/portal

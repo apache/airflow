@@ -45,11 +45,16 @@ function has_providers_excluded_for_python() {
 # uv sync --all-packages installs every workspace member, including providers excluded for this
 # Python minor and the third-party packages only they need. Resolve the members that are not excluded
 # for this interpreter, with the lock's pins as constraints, and install exactly that result.
+#
+# TEMPORARY: wheels in docker-context-files/ are passed as --find-links when present, so a dependency
+# without a wheel for this Python can use a locally supplied wheel. Remove that once upstream publishes it.
 function install_workspace_without_excluded_providers() {
     local python_minor="${AIRFLOW_PYTHON_VERSION%.*}"
     local work_dir="/tmp/ci-install-set"
+    local wheel_dir="${PWD}/docker-context-files"
     local python_bin
     local platform_arch
+    local -a find_links_args=()
     local -a member_dirs=()
     local -a editable_args=()
     local member_dir
@@ -62,6 +67,11 @@ function install_workspace_without_excluded_providers() {
             exit 1
             ;;
     esac
+    if compgen -G "${wheel_dir}/*.whl" > /dev/null; then
+        find_links_args=(--find-links "${wheel_dir}")
+        echo "${COLOR_YELLOW}Using local wheels from docker-context-files:${COLOR_RESET}"
+        ls "${wheel_dir}"/*.whl
+    fi
     echo
     echo "${COLOR_BLUE}Installing the workspace without providers excluded for Python ${python_minor}.${COLOR_RESET}"
     echo
@@ -71,9 +81,9 @@ function install_workspace_without_excluded_providers() {
     python3 "$( dirname "${BASH_SOURCE[0]}" )/filter_ci_install_set.py" --root "${PWD}" \
         --constraints "${work_dir}/pins.txt" --python-minor "${python_minor}" --platform "${platform_arch}" \
         --workdir "${work_dir}" --output "${work_dir}/requirements.txt" \
-        --editables "${work_dir}/editables.txt"
+        --editables "${work_dir}/editables.txt" "${find_links_args[@]}"
     uv pip install --python "${python_bin}" --no-deps --no-python-downloads --no-managed-python \
-        --no-binary lxml --no-binary xmlsec --requirement "${work_dir}/requirements.txt"
+        --no-binary lxml --no-binary xmlsec "${find_links_args[@]}" --requirement "${work_dir}/requirements.txt"
     mapfile -t member_dirs < "${work_dir}/editables.txt"
     for member_dir in "${member_dirs[@]}"; do
         editable_args+=(--editable "${member_dir}")

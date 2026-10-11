@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.11"
@@ -60,7 +61,7 @@ requires-python = ">=3.11"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-ssh>=7.0.0",
-    "apache-airflow-providers-common-compat>=1.12.0",
+    "apache-airflow-providers-common-compat>=1.12.0",  # use next version
     "paramiko>=4.0.0",
     "asyncssh>=2.12.0; python_version < '3.14'",
     "asyncssh>=2.22.0; python_version >= '3.14'",

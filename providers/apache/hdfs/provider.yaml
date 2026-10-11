@@ -81,6 +81,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
+excluded-python-versions:
+  - "3.15"
+
 integrations:
   - integration-name: Hadoop Distributed File System (HDFS)
     external-doc-url: https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html

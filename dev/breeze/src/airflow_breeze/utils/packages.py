@@ -474,6 +474,33 @@ def get_pip_package_name(provider_id: str) -> str:
     return "apache-airflow-providers-" + provider_id.replace(".", "-")
 
 
+# Mirrors EXCLUDED_PLATFORM_MACHINES in scripts/ci/prek/common_prek_utils.py.
+EXCLUDED_PLATFORM_MACHINES: dict[str, list[str]] = {
+    "linux/arm64": ["aarch64"],
+    "darwin/arm64": ["arm64"],
+}
+
+
+def get_exclusion_marker(provider_dependencies: dict[str, Any]) -> str:
+    """
+    Return the environment marker, escaped for a TOML basic string, that skips a provider where it is excluded.
+
+    :param provider_dependencies: the provider's entry in ``generated/provider_dependencies.json``
+    :return: ``; <marker>`` or an empty string when the provider is not excluded anywhere
+    """
+    conditions = []
+    for version in provider_dependencies.get("excluded-python-versions", []):
+        if version.count(".") == 2:
+            conditions.append(f'python_full_version != \\"{version}.*\\"')
+        else:
+            conditions.append(f'python_version != \\"{version}\\"')
+    for platform in provider_dependencies.get("excluded-platforms", []):
+        conditions.extend(
+            f'platform_machine != \\"{machine}\\"' for machine in EXCLUDED_PLATFORM_MACHINES.get(platform, [])
+        )
+    return f"; {' and '.join(conditions)}" if conditions else ""
+
+
 def get_dist_package_name_prefix(provider_id: str) -> str:
     """
     Returns Wheel package name prefix for the package id.
@@ -980,9 +1007,8 @@ def regenerate_pyproject_toml(
     context["AIRFLOW_DOC_URL"] = (
         "https://airflow.staged.apache.org" if version_suffix else "https://airflow.apache.org"
     )
-    cross_provider_ids = set(
-        get_provider_dependencies()[provider_details.provider_id]["cross-providers-deps"]
-    )
+    all_provider_dependencies = get_provider_dependencies()
+    cross_provider_ids = set(all_provider_dependencies[provider_details.provider_id]["cross-providers-deps"])
     cross_provider_dependencies = []
     # Add cross-provider dependencies to the optional dependencies if they are missing
     for provider_id in sorted(cross_provider_ids):
@@ -991,12 +1017,15 @@ def regenerate_pyproject_toml(
                 f"[info]Provider {provider_id} in suspended list, skipping adding to optional dependencies.\n"
             )
             continue
-        cross_provider_dependencies.append(f'    "{get_pip_package_name(provider_id)}",')
+        requirement = get_pip_package_name(provider_id) + get_exclusion_marker(
+            all_provider_dependencies.get(provider_id, {})
+        )
+        cross_provider_dependencies.append(f'    "{requirement}",')
         if f'"{provider_id}" = [' not in optional_dependencies and get_pip_package_name(
             provider_id
         ) not in "\n".join(required_dependencies):
             optional_dependencies.append(f'"{provider_id}" = [')
-            optional_dependencies.append(f'    "{get_pip_package_name(provider_id)}"')
+            optional_dependencies.append(f'    "{requirement}"')
             optional_dependencies.append("]")
     context["EXTRAS_REQUIREMENTS"] = "\n".join(optional_dependencies)
     formatted_dependency_groups = "\n".join(dependency_groups)

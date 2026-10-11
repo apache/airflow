@@ -51,7 +51,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,!=3.15.*"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -60,7 +60,7 @@ requires-python = ">=3.11"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-sql>=1.32.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
+    "apache-airflow-providers-common-compat>=1.8.0",  # use next version
     # Workaround until we get https://github.com/JohnOmernik/sqlalchemy-drill/issues/94 fixed.
     "sqlalchemy-drill>=1.1.0,!=1.1.6,!=1.1.7",
 ]

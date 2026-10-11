@@ -89,6 +89,9 @@ versions:
   - 2.0.0
   - 1.0.0
 
+excluded-python-versions:
+  - "3.15"
+
 integrations:
   - integration-name: Trino
     external-doc-url: https://trino.io/docs/

@@ -41,6 +41,7 @@ from airflow_breeze.utils.packages import (
     get_cross_provider_dependencies_for_extras,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
+    get_exclusion_marker,
     get_long_package_name,
     get_min_airflow_version,
     get_pip_package_name,
@@ -644,3 +645,29 @@ def test_process_line_with_next_version_comment(
 
     assert result == (expected_line, expected_modified)
     assert mock_run_command.call_args.args[0] == ["git", "tag", "--list", "providers-common-compat/1.20.0*"]
+
+
+@pytest.mark.parametrize(
+    ("provider_dependencies", "expected"),
+    [
+        pytest.param({}, "", id="not-excluded"),
+        pytest.param({"excluded-python-versions": [], "excluded-platforms": []}, "", id="empty-exclusions"),
+        pytest.param(
+            {"excluded-python-versions": ["3.14", "3.15"]},
+            '; python_version != \\"3.14\\" and python_version != \\"3.15\\"',
+            id="python-minors",
+        ),
+        pytest.param(
+            {"excluded-python-versions": ["3.10.0"]},
+            '; python_full_version != \\"3.10.0.*\\"',
+            id="python-patch",
+        ),
+        pytest.param(
+            {"excluded-python-versions": ["3.15"], "excluded-platforms": ["linux/arm64", "darwin/arm64"]},
+            '; python_version != \\"3.15\\" and platform_machine != \\"aarch64\\" and platform_machine != \\"arm64\\"',
+            id="python-and-platforms",
+        ),
+    ],
+)
+def test_get_exclusion_marker(provider_dependencies, expected):
+    assert get_exclusion_marker(provider_dependencies) == expected

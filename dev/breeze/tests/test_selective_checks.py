@@ -2259,7 +2259,6 @@ def test_excluded_providers():
                     "3.14": [
                         "apache.cassandra",  # Enable when the next release after 3.29.3 is available
                         "apache.tinkerpop",
-                        "vespa",
                     ],
                     "3.15": [
                         "alibaba",
@@ -2290,18 +2289,14 @@ def test_excluded_providers():
                         "microsoft.winrm",
                         "modal",
                         "mongo",
-                        "mysql",
                         "odbc",
                         "papermill",
-                        "pgvector",
-                        "postgres",
                         "presto",
                         "qdrant",
                         "salesforce",
                         "samba",
                         "snowflake",
                         "trino",
-                        "vespa",
                         "weaviate",
                         "yandex",
                     ],

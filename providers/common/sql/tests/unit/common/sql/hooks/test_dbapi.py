@@ -22,13 +22,18 @@ import logging
 from unittest import mock
 
 import pytest
-from pyodbc import Cursor
 
-from airflow.models import Connection
-from airflow.providers.common.compat.sdk import BaseHook
-from airflow.providers.common.sql.dialects.dialect import Dialect
-from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("pyodbc")
+
+from pyodbc import Cursor  # noqa: E402
+
+from airflow.models import Connection  # noqa: E402
+from airflow.providers.common.compat.sdk import BaseHook  # noqa: E402
+from airflow.providers.common.sql.dialects.dialect import Dialect  # noqa: E402
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler  # noqa: E402
+from airflow.providers.common.sql.hooks.sql import DbApiHook  # noqa: E402
 
 
 class DbApiHookInProvider(DbApiHook):

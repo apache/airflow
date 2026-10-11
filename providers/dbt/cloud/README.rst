@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-dbt-cloud``
 
-The package supports the following python versions: 3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14,3.15
 
 Requirements
 ------------
@@ -59,6 +59,7 @@ PIP package                                 Version required
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ``aiohttp``                                 ``>=3.14.0``
+``aiohttp``                                 ``>=3.14.4; python_version >= "3.15"``
 ``tenacity``                                ``>=8.3.0``
 ==========================================  ======================================
 

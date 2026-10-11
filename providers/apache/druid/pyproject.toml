@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.11"
@@ -60,7 +61,7 @@ requires-python = ">=3.11"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-sql>=1.32.0",
-    "apache-airflow-providers-common-compat>=1.10.1",
+    "apache-airflow-providers-common-compat>=1.10.1",  # use next version
     "pydruid>=0.6.6",
 ]
 
@@ -68,7 +69,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "apache.hive" = [
-    "apache-airflow-providers-apache-hive"
+    "apache-airflow-providers-apache-hive; python_version != \"3.15\""
 ]
 
 [dependency-groups]
@@ -76,7 +77,7 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
-    "apache-airflow-providers-apache-hive",
+    "apache-airflow-providers-apache-hive; python_version != \"3.15\"",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)

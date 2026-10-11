@@ -50,7 +50,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.11,!=3.14.*"
+requires-python = ">=3.11,!=3.14.*,!=3.15.*"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -58,7 +58,7 @@ requires-python = ">=3.11,!=3.14.*"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
+    "apache-airflow-providers-common-compat>=1.8.0",  # use next version
     "cassandra-driver>=3.29.3; python_version >= '3.13' and python_version < '3.14'",
     "cassandra-driver>=3.29.2; python_version >= '3.12' and python_version < '3.13'",
     "cassandra-driver>=3.29.1; python_version < '3.12'",

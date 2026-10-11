@@ -21,7 +21,11 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.amazon.aws.transfers.exasol_to_s3 import ExasolToS3Operator
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("airflow.providers.exasol")
+
+from airflow.providers.amazon.aws.transfers.exasol_to_s3 import ExasolToS3Operator  # noqa: E402
 
 BASE_PATH = "airflow.providers.amazon.aws.transfers.exasol_to_s3.{}"
 

@@ -109,6 +109,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``slack-sdk``                               ``>=3.36.0``
 ``aiohttp``                                 ``>=3.14.0``
+``aiohttp``                                 ``>=3.14.4; python_version >= "3.15"``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ==========================================  ======================================
