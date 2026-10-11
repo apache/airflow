@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Iterable, Sequence
 from typing import Annotated, Literal, cast
 from uuid import UUID
 
@@ -145,6 +145,7 @@ from airflow.models.taskinstance import (
     TaskInstance as TI,
     apply_loop_clear_scope,
     clear_task_instances,
+    find_relevant_relatives,
     select_loop_clear_scope,
 )
 from airflow.ti_deps.dep_context import DepContext
@@ -1091,13 +1092,14 @@ def post_clear_task_instances(
         normal_task_ids = {t for t in task_markers_to_clear if not isinstance(t, tuple)}
 
         def _find_relatives(
-            run_id: str, direction: Literal["upstream", "downstream"]
+            run_id: str,
+            normal_tasks: Iterable[str],
+            mapped_tasks: Iterable[tuple[str, int]],
+            direction: Literal["upstream", "downstream"],
         ) -> Collection[str | tuple[str, int]]:
-            from airflow.models.taskinstance import find_relevant_relatives
-
             return find_relevant_relatives(
-                normal_task_ids,
-                mapped_tasks_tuples,
+                normal_tasks,
+                mapped_tasks,
                 dag=dag,
                 run_id=run_id,
                 direction=direction,
@@ -1123,9 +1125,13 @@ def post_clear_task_instances(
             # before the downstream pass would also select every descendant of those upstream tasks.
             relatives: set[str | tuple[str, int]] = set()
             if upstream:
-                relatives.update(_find_relatives(dag_run_id, "upstream"))
+                relatives.update(
+                    _find_relatives(dag_run_id, normal_task_ids, mapped_tasks_tuples, "upstream")
+                )
             if downstream:
-                relatives.update(_find_relatives(dag_run_id, "downstream"))
+                relatives.update(
+                    _find_relatives(dag_run_id, normal_task_ids, mapped_tasks_tuples, "downstream")
+                )
             normal_task_ids.update(t for t in relatives if not isinstance(t, tuple))
             mapped_tasks_tuples.update(t for t in relatives if isinstance(t, tuple))
 
