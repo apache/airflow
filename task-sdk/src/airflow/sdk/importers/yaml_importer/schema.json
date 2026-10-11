@@ -16,28 +16,29 @@
     },
     "Task": {
       "additionalProperties": true,
-      "anyOf": [
-        {
-          "required": [
-            "uses"
-          ]
-        },
-        {
-          "required": [
-            "run"
-          ]
-        },
-        {
-          "required": [
-            "extends"
-          ]
-        }
-      ],
       "description": "A ready-made operator (uses) or task with custom code (run).",
       "not": {
-        "required": [
-          "uses",
-          "run"
+        "allOf": [
+          {
+            "properties": {
+              "uses": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "uses"
+            ]
+          },
+          {
+            "properties": {
+              "run": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "run"
+            ]
+          }
         ]
       },
       "properties": {
@@ -86,7 +87,11 @@
           "type": "object"
         },
         "uses": {
-          "type": "string"
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "run": {
           "additionalProperties": {
@@ -105,7 +110,10 @@
               }
             ]
           },
-          "type": "object"
+          "type": [
+            "object",
+            "null"
+          ]
         }
       },
       "required": [

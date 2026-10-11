@@ -133,13 +133,14 @@ def test_code_discrimination():
     assert code.uses is None
 
 
-def test_no_body_is_error():
-    with pytest.raises(YamlDagParseError, match="exactly one"):
-        _task("- {id: t}")
+def test_no_body_is_allowed():
+    t = _task("- {id: t}")
+    assert t.uses is None
+    assert t.run is None
 
 
 def test_both_bodies_is_error():
-    with pytest.raises(YamlDagParseError, match="exactly one"):
+    with pytest.raises(YamlDagParseError, match="at most one"):
         _task("- {id: t, uses: X, run: {}}")
 
 
@@ -147,14 +148,21 @@ def test_both_bodies_is_error():
     "task",
     [
         pytest.param("{id: t, uses: null}", id="uses-null"),
-        pytest.param('{id: t, uses: ""}', id="uses-empty"),
         pytest.param("{id: t, run: null}", id="run-null"),
+        pytest.param("{id: t, uses: null, run: null}", id="both-null"),
+        pytest.param("{id: t, uses: X, run: null}", id="uses-with-run-null"),
     ],
 )
-def test_empty_body_is_error(task):
-    # A present-but-empty body (null / "") is not a usable body, even though the key exists.
-    with pytest.raises(YamlDagParseError, match="must not be empty"):
-        _task(f"- {task}")
+def test_null_body_is_allowed(task):
+    # An explicit null body means "no body" (like omission), so a generator may emit it.
+    t = _task(f"- {task}")
+    assert t.run is None
+
+
+def test_empty_uses_is_rejected():
+    # An empty string is not a valid import path; null is the way to say "no body".
+    with pytest.raises(YamlDagParseError, match="at least 1 character"):
+        _task('- {id: t, uses: ""}')
 
 
 def test_python_field_names_not_accepted_as_aliases():
@@ -448,11 +456,26 @@ def test_example_fixture_conforms_to_published_schema():
 @pytest.mark.parametrize(
     "bad_task",
     [
-        pytest.param({"id": "t"}, id="no-body-no-extends"),
         pytest.param({"id": "t", "uses": "a.b.C", "run": {}}, id="both-bodies"),
+        pytest.param({"id": "t", "uses": ""}, id="empty-uses"),
     ],
 )
 def test_published_schema_rejects_invalid_tasks(bad_task):
     validator = jsonschema.Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
     document = {"$schema": HEAD_SCHEMA, "dag_id": "d", "tasks": [bad_task]}
     assert list(validator.iter_errors(document))
+
+
+@pytest.mark.parametrize(
+    "task",
+    [
+        pytest.param({"id": "t"}, id="no-body"),
+        pytest.param({"id": "t", "uses": None}, id="uses-null"),
+        pytest.param({"id": "t", "run": None}, id="run-null"),
+        pytest.param({"id": "t", "uses": "a.b.C", "run": None}, id="uses-with-run-null"),
+    ],
+)
+def test_published_schema_accepts_null_and_empty_bodies(task):
+    validator = jsonschema.Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
+    document = {"$schema": HEAD_SCHEMA, "dag_id": "d", "tasks": [task]}
+    assert list(validator.iter_errors(document)) == []

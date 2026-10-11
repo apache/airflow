@@ -218,16 +218,16 @@ class Task(BaseModel):
     """
     A ready-made operator (``uses``) or task with custom code (``run``).
 
-    Exactly one body (either ``uses`` or ``run``) may be present once
-    templates (``extends``) are merged. Unknown keys are operator arguments;
-    they pass through untyped.
+    At most one of ``uses`` or ``run`` may carry a body; ``null`` or omission
+    means no body. A task with neither will be turned by the importer into an
+    ``EmptyOperator``. Unknown keys pass through untyped as operator arguments.
     """
 
     id_: str = Field(alias="id")
     needs: list[str] = Field(default_factory=list)
     extends: list[str] = Field(default_factory=list)
     with_: dict[str, Value] = Field(default_factory=dict, alias="with")
-    uses: str | None = None
+    uses: str | None = Field(default=None, min_length=1)
     run: dict[str, Value] | None = None
 
     model_config = ConfigDict(
@@ -245,14 +245,8 @@ class Task(BaseModel):
             for k in TASK_CALLBACK_KEYS:
                 if k in data:
                     raise ValueError(f"{k!r} (callback) not yet implemented")
-            bodies = [k for k in ("uses", "run") if k in data]
-            if len(bodies) != 1:
-                raise ValueError(
-                    f"task {data.get('id')!r} must have exactly one of 'uses' or 'run'"
-                    + (f"; got {bodies}" if bodies else "")
-                )
-            if data[bodies[0]] is None or data[bodies[0]] == "":  # present but empty is not a body
-                raise ValueError(f"task {data.get('id')!r}: {bodies[0]!r} must not be empty")
+            if sum(1 for k in ("uses", "run") if data.get(k) is not None) > 1:
+                raise ValueError(f"task {data.get('id')!r} may not set both 'uses' or 'run'")
         return data
 
     @classmethod
@@ -261,13 +255,17 @@ class Task(BaseModel):
     ) -> JsonSchemaValue:
         schema = handler(core_schema)
         value_schema = schema["properties"]["with"]["additionalProperties"]
-        schema["properties"]["uses"] = {"type": "string"}
-        schema["properties"]["run"] = {"type": "object", "additionalProperties": value_schema}
+        schema["properties"]["uses"] = {"type": ["string", "null"], "minLength": 1}
+        schema["properties"]["run"] = {"type": ["object", "null"], "additionalProperties": value_schema}
         schema["properties"]["extends"] = {
             "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]
         }
-        schema["not"] = {"required": ["uses", "run"]}
-        schema["anyOf"] = [{"required": ["uses"]}, {"required": ["run"]}, {"required": ["extends"]}]
+        schema["not"] = {
+            "allOf": [
+                {"required": ["uses"], "properties": {"uses": {"type": "string"}}},
+                {"required": ["run"], "properties": {"run": {"type": "object"}}},
+            ]
+        }
         return schema
 
 
