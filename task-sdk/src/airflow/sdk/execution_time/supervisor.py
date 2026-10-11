@@ -2213,7 +2213,10 @@ class ActivitySubprocess(WatchedSubprocess):
     def _handle_get_task_breadcrumbs(
         self, msg: GetTaskBreadcrumbs, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
-        api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
+        api_resp = self.client.task_instances.get_task_breakcrumbs(
+            dag_id=msg.dag_id,
+            run_id=msg.run_id,
+        )
         resp = TaskBreadcrumbsResult.from_api_response(api_resp)
         return resp, {}
 
@@ -3111,6 +3114,7 @@ def supervise_task(
         log_file_descriptor: BinaryIO | TextIO | None = None
         if log_path:
             logger, log_file_descriptor = _configure_logging(log_path, client)
+            logger = logger.bind(ti_id=str(ti.id))
 
         backends = ensure_secrets_backend_loaded()
         log.info(

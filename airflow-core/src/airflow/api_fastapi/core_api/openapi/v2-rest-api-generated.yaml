@@ -386,6 +386,15 @@ paths:
           - type: string
           - type: 'null'
           title: Source Task Id
+      - name: source_task_instance_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Source Task Instance Id
       - name: source_run_id
         in: query
         required: false
@@ -3115,6 +3124,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -4839,6 +4854,24 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       - name: limit
         in: query
         required: false
@@ -4889,6 +4922,15 @@ paths:
           - type: string
           - type: 'null'
           title: Task Id
+      - name: task_instance_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Instance Id
       - name: run_id
         in: query
         required: false
@@ -5150,6 +5192,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '422':
           description: Validation Error
           content:
@@ -5193,6 +5241,24 @@ paths:
           type: integer
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       - name: try_number
         in: query
         required: false
@@ -5220,12 +5286,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6378,9 +6456,26 @@ paths:
         required: false
         schema:
           type: integer
-          minimum: -1
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       - name: limit
         in: query
         required: false
@@ -6416,6 +6511,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6456,13 +6569,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: all_map_indices
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: false
-          title: All Map Indices
       - name: map_index
         in: query
         required: false
@@ -6471,6 +6577,31 @@ paths:
           minimum: -1
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
+      - name: all_map_indices
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: All Map Indices
       responses:
         '204':
           description: Successful Response
@@ -6486,12 +6617,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6538,9 +6681,26 @@ paths:
         required: false
         schema:
           type: integer
-          minimum: -1
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -6560,12 +6720,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6611,9 +6783,26 @@ paths:
         required: false
         schema:
           type: integer
-          minimum: -1
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       requestBody:
         required: true
         content:
@@ -6647,6 +6836,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6692,9 +6887,26 @@ paths:
         required: false
         schema:
           type: integer
-          minimum: -1
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       requestBody:
         required: true
         content:
@@ -6719,12 +6931,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6771,9 +6995,26 @@ paths:
         required: false
         schema:
           type: integer
-          minimum: -1
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '204':
           description: Successful Response
@@ -6789,12 +7030,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6841,9 +7094,26 @@ paths:
         required: false
         schema:
           type: integer
-          minimum: -1
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       - name: deserialize
         in: query
         required: false
@@ -6892,6 +7162,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -6969,6 +7245,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -7014,9 +7296,26 @@ paths:
         required: false
         schema:
           type: integer
-          minimum: -1
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '204':
           description: Successful Response
@@ -7044,6 +7343,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -7100,6 +7405,24 @@ paths:
             minimum: -1
           - type: 'null'
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       - name: limit
         in: query
         required: false
@@ -7317,17 +7640,18 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `key, dag_id,
-            run_id, task_id, map_index, timestamp, run_after`'
+            run_id, task_id, map_index, region_id, region_index, timestamp, run_after`'
           default:
           - dag_id
           - task_id
           - run_id
-          - map_index
+          - region_id
+          - region_index
           - key
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `key, dag_id, run_id,
-          task_id, map_index, timestamp, run_after`'
+          task_id, map_index, region_id, region_index, timestamp, run_after`'
       responses:
         '200':
           description: Successful Response
@@ -7471,6 +7795,24 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -7490,12 +7832,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -7548,6 +7902,23 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
       requestBody:
         required: true
         content:
@@ -7632,6 +8003,24 @@ paths:
           type: integer
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -7650,12 +8039,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -7691,6 +8092,24 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       - name: run_after_gte
         in: query
         required: false
@@ -8124,6 +8543,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -8171,6 +8596,24 @@ paths:
         schema:
           type: integer
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -8190,12 +8633,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8238,6 +8693,24 @@ paths:
           type: integer
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -8257,12 +8730,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8274,7 +8759,10 @@ paths:
       tags:
       - Task Instance
       summary: Get Task Instance Tries
-      description: Get list of task instances history.
+      description: 'Get list of task instances history.
+
+
+        Tries recorded before the task had regions are not included once it has them.'
       operationId: get_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
@@ -8305,6 +8793,24 @@ paths:
           type: integer
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -8324,12 +8830,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8341,6 +8859,10 @@ paths:
       tags:
       - Task Instance
       summary: Get Mapped Task Instance Tries
+      description: 'Get list of task instances history for a mapped task instance.
+
+
+        Tries recorded before the task had regions are not included once it has them.'
       operationId: get_mapped_task_instance_tries
       security:
       - OAuth2PasswordBearer: []
@@ -8370,6 +8892,24 @@ paths:
         schema:
           type: integer
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -8389,12 +8929,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8436,6 +8988,24 @@ paths:
         schema:
           type: integer
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -8455,12 +9025,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8513,6 +9095,23 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
       requestBody:
         required: true
         content:
@@ -8611,6 +9210,24 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       - name: cursor
         in: query
         required: false
@@ -8625,6 +9242,23 @@ paths:
         description: Cursor for keyset-based pagination. Pass an empty string for
           the first page, then use ``next_cursor`` from the response. When ``cursor``
           is provided, ``offset`` is ignored.
+      - name: loop_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Loop Id
+      - name: iteration
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: 0
+          - type: 'null'
+          title: Iteration
       - name: task_id
         in: query
         required: false
@@ -9344,6 +9978,24 @@ paths:
           type: integer
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -9363,12 +10015,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -9415,6 +10079,24 @@ paths:
         schema:
           type: integer
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -9434,12 +10116,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -9551,6 +10245,23 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
       requestBody:
         required: true
         content:
@@ -9629,6 +10340,23 @@ paths:
         schema:
           type: string
           title: Group Id
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
       requestBody:
         required: true
         content:
@@ -9666,6 +10394,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -9719,6 +10453,23 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
       requestBody:
         required: true
         content:
@@ -9756,6 +10507,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -9809,6 +10566,23 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
       requestBody:
         required: true
         content:
@@ -9846,6 +10620,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -10378,13 +11158,6 @@ paths:
           type: boolean
           default: false
           title: Full Content
-      - name: map_index
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: -1
-          title: Map Index
       - name: token
         in: query
         required: false
@@ -10393,6 +11166,31 @@ paths:
           - type: string
           - type: 'null'
           title: Token
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       - name: accept
         in: header
         required: false
@@ -10443,6 +11241,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -10492,6 +11296,24 @@ paths:
           type: integer
           default: -1
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -10523,6 +11345,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -10955,6 +11783,23 @@ paths:
         schema:
           type: integer
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
       requestBody:
         required: true
         content:
@@ -11038,6 +11883,23 @@ paths:
         schema:
           type: integer
           title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -11057,12 +11919,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -11112,6 +11986,23 @@ paths:
           - type: integer
           - type: 'null'
           title: Try Number
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
       responses:
         '200':
           description: Successful Response
@@ -11131,12 +12022,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -11166,6 +12069,24 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       - name: limit
         in: query
         required: false
@@ -11393,6 +12314,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '422':
           description: Validation Error
           content:
@@ -11667,6 +12594,12 @@ components:
         source_map_index:
           type: integer
           title: Source Map Index
+        source_task_instance_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Source Task Instance Id
         created_dagruns:
           items:
             $ref: '#/components/schemas/DagRunAssetReference'
@@ -11947,6 +12880,24 @@ components:
           - type: integer
           - type: 'null'
           title: Map Index
+        task_instance_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Instance Id
+        region_id:
+          type: string
+          format: uuid
+          title: Region Id
+        region_index:
+          type: integer
+          title: Region Index
+        try_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
       type: object
       required:
       - kind
@@ -12811,6 +13762,17 @@ components:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
+        region_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+        region_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
         note:
           anyOf:
           - type: string
@@ -13190,6 +14152,30 @@ components:
           description: Clear every task in this task group. Mutually exclusive with
             `task_ids`. The group's tasks are resolved on the server from the dag
             structure, so all of them are targeted regardless of how many there are.
+        task_instance_ids:
+          anyOf:
+          - items:
+              type: string
+              format: uuid
+            type: array
+            minItems: 1
+          - type: 'null'
+          title: Task Instance Ids
+          description: Exact current executions in one DAG run. Mutually exclusive
+            with task_ids and task_group_id.
+        whole_expansion_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          title: Whole Expansion Ids
+          description: Selected execution IDs whose entire mapped expansion should
+            be cleared.
+        include_later_loop_iterations:
+          type: boolean
+          title: Include Later Loop Iterations
+          description: Clear later iterations when the selection includes a loop gate.
+          default: true
         dag_run_id:
           anyOf:
           - type: string
@@ -15378,6 +16364,12 @@ components:
           type: string
           format: date-time
           title: When
+        task_instance_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Instance Id
         dag_id:
           anyOf:
           - type: string
@@ -16007,6 +16999,20 @@ components:
       type: object
       title: LastAssetEventResponse
       description: Last asset event response serializer.
+    LoopIterationResponse:
+      properties:
+        loop_id:
+          type: string
+          title: Loop Id
+        iteration:
+          type: integer
+          title: Iteration
+      type: object
+      required:
+      - loop_id
+      - iteration
+      title: LoopIterationResponse
+      description: A task execution's position in an enclosing loop.
     MaterializeAssetBody:
       properties:
         dag_run_id:
@@ -16093,6 +17099,17 @@ components:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
+        region_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+        region_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
         note:
           anyOf:
           - type: string
@@ -16775,6 +17792,10 @@ components:
       description: TaskInstanceHistory Collection serializer for responses.
     TaskInstanceHistoryResponse:
       properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
         task_id:
           type: string
           title: Task Id
@@ -16787,6 +17808,17 @@ components:
         map_index:
           type: integer
           title: Map Index
+        region_id:
+          type: string
+          format: uuid
+          title: Region Id
+        region_index:
+          type: integer
+          title: Region Index
+        loop_iteration:
+          anyOf:
+          - $ref: '#/components/schemas/LoopIterationResponse'
+          - type: 'null'
         start_date:
           anyOf:
           - type: string
@@ -16885,6 +17917,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
         state_reason:
           anyOf:
           - type: string
@@ -16896,6 +17933,7 @@ components:
             or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
+      - id
       - task_id
       - dag_id
       - dag_run_id
@@ -16942,6 +17980,20 @@ components:
         map_index:
           type: integer
           title: Map Index
+        region_id:
+          type: string
+          format: uuid
+          title: Region Id
+        region_index:
+          type: integer
+          title: Region Index
+        in_loop:
+          type: boolean
+          title: In Loop
+        loop_iteration:
+          anyOf:
+          - $ref: '#/components/schemas/LoopIterationResponse'
+          - type: 'null'
         logical_date:
           anyOf:
           - type: string
@@ -17093,6 +18145,7 @@ components:
       - dag_id
       - dag_run_id
       - map_index
+      - in_loop
       - logical_date
       - run_after
       - start_date
@@ -17972,6 +19025,18 @@ components:
           type: integer
           title: Map Index
           default: -1
+        region_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+        region_index:
+          anyOf:
+          - type: integer
+            minimum: -1.0
+          - type: 'null'
+          title: Region Index
       additionalProperties: false
       type: object
       required:
@@ -17997,6 +19062,13 @@ components:
         map_index:
           type: integer
           title: Map Index
+        region_id:
+          type: string
+          format: uuid
+          title: Region Id
+        region_index:
+          type: integer
+          title: Region Index
         task_id:
           type: string
           title: Task Id
@@ -18053,6 +19125,13 @@ components:
         map_index:
           type: integer
           title: Map Index
+        region_id:
+          type: string
+          format: uuid
+          title: Region Id
+        region_index:
+          type: integer
+          title: Region Index
         task_id:
           type: string
           title: Task Id
@@ -18112,6 +19191,13 @@ components:
         map_index:
           type: integer
           title: Map Index
+        region_id:
+          type: string
+          format: uuid
+          title: Region Id
+        region_index:
+          type: integer
+          title: Region Index
         task_id:
           type: string
           title: Task Id
@@ -18164,6 +19250,18 @@ components:
           type: integer
           title: Map Index
           default: -1
+        region_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+        region_index:
+          anyOf:
+          - type: integer
+            minimum: -1.0
+          - type: 'null'
+          title: Region Index
       additionalProperties: false
       type: object
       required:

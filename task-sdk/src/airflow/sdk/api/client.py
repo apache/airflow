@@ -477,7 +477,11 @@ class TaskInstanceOperations:
         resp = self.client.get("task-instances/states", params=params)
         return TaskStatesResponse.model_validate_json(resp.read())
 
-    def get_task_breakcrumbs(self, dag_id: str, run_id: str) -> TaskBreadcrumbsResponse:
+    def get_task_breakcrumbs(
+        self,
+        dag_id: str,
+        run_id: str,
+    ) -> TaskBreadcrumbsResponse:
         params = {"dag_id": dag_id, "run_id": run_id}
         resp = self.client.get("task-instances/breadcrumbs", params=params)
         return TaskBreadcrumbsResponse.model_validate_json(resp.read())
@@ -596,9 +600,20 @@ class XComOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def head(self, dag_id: str, run_id: str, task_id: str, key: str) -> XComCountResponse:
+    def head(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        *,
+        previous_iteration: bool = False,
+    ) -> XComCountResponse:
         """Get the number of mapped XCom values."""
-        resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}")
+        params: dict[str, str | int] = {}
+        if previous_iteration:
+            params["previous_iteration"] = True
+        resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
 
         # content_range: str | None
         if not (content_range := resp.headers["Content-Range"]) or not content_range.startswith(
@@ -615,9 +630,13 @@ class XComOperations:
         key: str,
         map_index: int | None = None,
         include_prior_dates: bool = False,
+        *,
+        previous_iteration: bool = False,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
-        params = {}
+        params: dict[str, str | int] = {}
+        if previous_iteration:
+            params["previous_iteration"] = True
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
         if include_prior_dates:
@@ -656,7 +675,7 @@ class XComOperations:
         mapped_length: int | None = None,
     ) -> OKResponse:
         """Set a XCom value via the API server."""
-        params: dict[str, Any] = {}
+        params: dict[str, str | int] = {}
         if dag_result:
             params["dag_result"] = dag_result
         if map_index is not None and map_index >= 0:
@@ -678,10 +697,9 @@ class XComOperations:
         map_index: int | None = None,
     ) -> OKResponse:
         """Delete a XCom with given key via the API server."""
+        params: dict[str, str | int] = {}
         if map_index is not None and map_index >= 0:
-            params = {"map_index": map_index}
-        else:
-            params = {}
+            params["map_index"] = map_index
         self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
@@ -695,9 +713,17 @@ class XComOperations:
         task_id: str,
         key: str,
         offset: int,
+        *,
+        previous_iteration: bool = False,
     ) -> XComSequenceIndexResponse | ErrorResponse:
+        params: dict[str, str | int] = {}
+        if previous_iteration:
+            params["previous_iteration"] = True
         try:
-            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}")
+            resp = self.client.get(
+                f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}",
+                params=params,
+            )
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.error(
@@ -733,8 +759,12 @@ class XComOperations:
         stop: int | None,
         step: int | None,
         include_prior_dates: bool = False,
+        *,
+        previous_iteration: bool = False,
     ) -> XComSequenceSliceResponse:
-        params = {}
+        params: dict[str, str | int] = {}
+        if previous_iteration:
+            params["previous_iteration"] = True
         if start is not None:
             params["start"] = start
         if stop is not None:
