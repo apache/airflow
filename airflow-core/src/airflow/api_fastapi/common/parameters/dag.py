@@ -65,6 +65,8 @@ class _DagDisplayNamePrefixSearchParam(_PrefixSearchParam):
     def _prefix_clause(self, term: str):
         lower = self._prefix_lower_bound(term)
         if lower and not lower.isascii():
+            # Keep this fallback scoped to Dag lists; the shared matcher is tracked in
+            # https://github.com/apache/airflow/issues/74551
             return func.substr(self.attribute, 1, len(lower)) == lower
         return super()._prefix_clause(term)
 
