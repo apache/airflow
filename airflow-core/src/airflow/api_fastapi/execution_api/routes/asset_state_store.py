@@ -56,6 +56,10 @@ from airflow.state import get_state_backend
 from airflow.state.metastore import MetastoreBackend
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 446150dbe2 (update latest chnage to async func)
 class _TIWriterFields(NamedTuple):
     dag_id: str
     run_id: str
@@ -82,7 +86,7 @@ async def _fetch_ti_writer_fields(token: TIToken, session: AsyncSessionDep) -> _
             TaskInstance.try_number,
         ).where(TaskInstance.id == token.id)
     )
-    row = result.one_or_none()
+    row = result_row.one_or_none()
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
