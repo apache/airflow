@@ -734,14 +734,26 @@ class CommandFactory:
                 except AttributeError:
                     annotation = field_type.annotation
 
+            is_required = field_type.is_required()
+            is_bool = annotation is bool
+            if is_required and not is_bool:
+                commands.append(
+                    self._create_positional_arg(
+                        parameter_key=field,
+                        arg_type=self._python_type_from_string(annotation),
+                        arg_help=f"{field} for {parameter_key} operation",
+                    )
+                )
+                continue
+
             commands.append(
                 self._create_arg(
                     arg_flags=(f"--{self._sanitize_arg_parameter_key(field)}",),
                     arg_type=self._python_type_from_string(annotation),
-                    arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                    arg_action=argparse.BooleanOptionalAction if is_bool else None,  # type: ignore
                     arg_help=f"{field} for {parameter_key} operation",
                     arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
-                    if annotation is bool
+                    if is_bool
                     else None,
                 )
             )

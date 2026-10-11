@@ -74,33 +74,24 @@ def no_op_method():
 def test_args_create():
     return [
         (
-            "--dag-id",
+            "dag_id",
             {
                 "help": "dag_id for backfill operation",
-                "action": None,
-                "default": None,
                 "type": str,
-                "dest": None,
             },
         ),
         (
-            "--from-date",
+            "from_date",
             {
                 "help": "from_date for backfill operation",
-                "action": None,
-                "default": None,
                 "type": str,
-                "dest": None,
             },
         ),
         (
-            "--to-date",
+            "to_date",
             {
                 "help": "to_date for backfill operation",
-                "action": None,
-                "default": None,
                 "type": str,
-                "dest": None,
             },
         ),
         (
@@ -282,11 +273,10 @@ class TestCommandFactory:
                     for arg, test_arg in zip(sub_command.args, test_args_create):
                         assert arg.flags[0] == test_arg[0]
                         assert arg.kwargs["help"] == test_arg[1]["help"]
-                        assert arg.kwargs["action"] == test_arg[1]["action"]
-                        assert arg.kwargs["default"] == test_arg[1]["default"]
-                        assert arg.kwargs["type"] == test_arg[1]["type"]
-                        assert arg.kwargs["dest"] == test_arg[1]["dest"]
-                        print(arg.flags)
+                        for key, expected in test_arg[1].items():
+                            if key == "help":
+                                continue
+                            assert arg.kwargs.get(key) == expected
                 elif sub_command.name == "list":
                     for arg, test_arg in zip(sub_command.args, test_args_list):
                         assert arg.flags[0] == test_arg[0]
@@ -461,6 +451,46 @@ class TestCommandFactory:
         assert version_arg.kwargs["type"] is int
         assert note_arg.flags == ("--note",)
         assert note_arg.kwargs["default"] is None
+
+    def test_command_factory_required_datamodel_fields_are_positional(self, tmp_path):
+        """Required request-body fields stay positional while optional defaults remain flags."""
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
+            file_content="""
+                class BackfillsOperations(BaseOperations):
+                    def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
+                        self.response = self.client.post("backfills", json=backfill.model_dump(mode="json"))
+                        return BackfillResponse.model_validate_json(self.response.content)
+            """,
+        )
+
+        command_factory = CommandFactory(file_path=str(temp_file))
+        create_args = []
+        for generated_group_command in command_factory.group_commands:
+            if generated_group_command.name != "backfills":
+                continue
+            for sub_command in generated_group_command.subcommands:
+                if sub_command.name == "create":
+                    create_args = list(sub_command.args)
+                    break
+
+        assert [arg.flags[0] for arg in create_args[:3]] == ["dag_id", "from_date", "to_date"]
+        assert create_args[3].flags == ("--run-backwards",)
+        assert create_args[4].flags == ("--dag-run-conf",)
+        assert create_args[5].flags == ("--reprocess-behavior",)
+        assert create_args[6].flags == ("--max-active-runs",)
+
+        parser = argparse.ArgumentParser()
+        for arg in create_args:
+            arg.add_to_parser(parser)
+
+        parsed = parser.parse_args(["dag-1", "2024-01-01T00:00:00Z", "2024-01-02T00:00:00Z"])
+        assert parsed.dag_id == "dag-1"
+        assert parsed.from_date == "2024-01-01T00:00:00Z"
+        assert parsed.to_date == "2024-01-02T00:00:00Z"
+
+        with pytest.raises(SystemExit):
+            parser.parse_args(["dag-1", "2024-01-01T00:00:00Z"])
 
     def test_command_factory_primitive_param_with_default_keeps_flag(self, tmp_path):
         """Primitive parameters with a default value keep the ``--flag`` form."""
