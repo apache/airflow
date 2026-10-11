@@ -124,6 +124,7 @@ integrations:
       - /docs/apache-airflow-providers-databricks/operators/run_now.rst
       - /docs/apache-airflow-providers-databricks/operators/task.rst
       - /docs/apache-airflow-providers-databricks/operators/agent.rst
+      - /docs/apache-airflow-providers-databricks/operators/genie.rst
     logo: /docs/integration-logos/Databricks.png
     tags: [service]
   - integration-name: Databricks SQL
