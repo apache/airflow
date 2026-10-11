@@ -418,8 +418,19 @@ class TestMsSqlHookDbapiDriver:
         assert hook.dbapi_driver == "mssql_python"
         assert hook.sqlalchemy_scheme == "mssql+mssqlpython"
 
-    def test_unsupported_driver_raises(self):
-        hook = _mssql_hook('{"dbapi_driver": "odbc"}')
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            pytest.param('{"dbapi_driver": "odbc"}', id="unknown-string"),
+            pytest.param('{"dbapi_driver": ""}', id="empty-string"),
+            pytest.param('{"dbapi_driver": false}', id="false"),
+            pytest.param('{"dbapi_driver": 0}', id="zero"),
+            pytest.param('{"dbapi_driver": ["mssql_python"]}', id="list"),
+            pytest.param('{"dbapi_driver": {"name": "mssql_python"}}', id="dict"),
+        ],
+    )
+    def test_unsupported_driver_raises(self, extra):
+        hook = _mssql_hook(extra)
         with pytest.raises(ValueError, match="Unsupported dbapi_driver"):
             _ = hook.dbapi_driver
 
@@ -481,12 +492,13 @@ class TestMsSqlHookDbapiDriver:
             timeout=5,
         )
 
-    def test_mssql_python_autocommit_uses_property(self):
+    @pytest.mark.parametrize("autocommit", [True, False])
+    def test_mssql_python_autocommit_uses_property(self, autocommit):
         hook = _mssql_hook('{"dbapi_driver": "mssql_python"}')
         conn = mock.Mock()
-        hook.set_autocommit(conn, True)
-        assert conn.autocommit is True
-        assert hook.get_autocommit(conn) is True
+        hook.set_autocommit(conn, autocommit)
+        assert conn.autocommit is autocommit
+        assert hook.get_autocommit(conn) is autocommit
 
     def test_mssql_python_rows_become_tuples(self):
         class Row:
