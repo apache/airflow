@@ -14,14 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Native YAML/JSON Dag format for Airflow (`$schema` version 2026-10-30).
 
-Public API:
-  * `parse_documents` -- lazily load + validate a YAML/JSON stream into `DagDocument`s
-  * `DagDocument`                     -- the validated document (schema source of truth)
-  * `YamlDagParseError`               -- raised for malformed/non-conforming documents
-"""
+"""Native YAML/JSON Dag format for Airflow."""
 
 from __future__ import annotations
 

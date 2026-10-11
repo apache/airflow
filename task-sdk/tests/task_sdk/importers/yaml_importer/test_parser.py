@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Unit tests for the YAML Dag format parser (airflow.sdk.importers.yaml_importer)."""
 
 from __future__ import annotations
 
@@ -163,6 +162,21 @@ def test_empty_uses_is_rejected():
     # An empty string is not a valid import path; null is the way to say "no body".
     with pytest.raises(YamlDagParseError, match="at least 1 character"):
         _task('- {id: t, uses: ""}')
+
+
+@pytest.mark.parametrize(
+    "doc",
+    [
+        pytest.param("dag_id: ''\ntasks: []", id="dag-id"),
+        pytest.param("dag_id: d\ntasks:\n  - {id: '', run: {}}", id="task-id"),
+        pytest.param("dag_id: d\nschedule: {uses: '', with: {}}\ntasks: []", id="timetable-uses"),
+    ],
+)
+def test_empty_identifiers_rejected(doc):
+    # Identifiers must be non-empty here; Airflow's validate_key enforces the full
+    # charset/length rules later, when the importer builds the Dag.
+    with pytest.raises(YamlDagParseError, match="at least 1 character"):
+        list(parse_documents(f"$schema: {HEAD_SCHEMA}\n{doc}"))
 
 
 def test_python_field_names_not_accepted_as_aliases():

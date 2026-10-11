@@ -19,10 +19,10 @@ Schema version resolution and forward migration to the head shape.
 
 A document with an older ``$schema`` is migrated to the head shape by walking
 the Cadwyn version bundle and applying each ``VersionChange``'s forward request
-converters (`@convert_request_to_next_version_for(DagDocument)`), oldest to
+converters (``@convert_request_to_next_version_for(DagDocument)``), oldest to
 newest.
 
-Only whole-document request converters keyed on `DagDocument` are applied; a
+Only whole-document request converters keyed on ``DagDocument`` are applied; a
 bundle carrying any other cadwyn instruction is rejected at construction rather
 than migrating a document with half its changes applied. (See documentation on
 :meth:`DagDocumentMigrator._reject_unsupported_instructions` for rationale.)

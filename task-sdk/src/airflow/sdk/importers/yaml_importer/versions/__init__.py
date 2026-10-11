@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Cadwyn `VersionBundle` for the YAML Dag format, keyed by `$schema` version (a dated URL).
+Cadwyn ``VersionBundle`` for the YAML Dag format keyed by ``$schema``.
 
-The `cadwyn` import is deferred so importing this package does not pull in
+The ``cadwyn`` import is deferred, so importing this package does not pull in
 FastAPI/Starlette. Versions are newest-first.
 """
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 @functools.cache
 def get_bundle() -> VersionBundle:
-    """Build the format's `VersionBundle` lazily (newest-to-oldest)."""
+    """Build the format's ``VersionBundle`` lazily (newest-to-oldest)."""
     from cadwyn import HeadVersion, Version, VersionBundle
 
     return VersionBundle(HeadVersion(), Version("2026-10-30"))

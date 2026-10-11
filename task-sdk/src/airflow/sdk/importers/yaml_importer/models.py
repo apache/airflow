@@ -239,7 +239,7 @@ class Task(BaseModel):
     ``EmptyOperator``. Unknown keys pass through untyped as operator arguments.
     """
 
-    id_: str = Field(alias="id")
+    id_: str = Field(alias="id", min_length=1)
     needs: list[str] = Field(default_factory=list)
     extends: list[str] = Field(default_factory=list)
     with_: dict[str, Value] = Field(default_factory=dict, alias="with")
@@ -307,7 +307,7 @@ class TaskTemplate(BaseModel):
 class TimetableSchedule(BaseModel):
     """A constructed timetable."""
 
-    uses: str
+    uses: str = Field(min_length=1)
     with_: dict[str, Any] = Field(default_factory=dict, alias="with")
 
     model_config = ConfigDict(extra="forbid")
@@ -387,7 +387,7 @@ class DagDocument(BaseModel):
     """
 
     schema_: str = Field(alias="$schema")
-    dag_id: str
+    dag_id: str = Field(min_length=1)
     schedule: Schedule = None
     templates: dict[str, TaskTemplate] = Field(default_factory=dict)
     tasks: list[Task] = Field(default_factory=list)

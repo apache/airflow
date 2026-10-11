@@ -107,6 +107,7 @@
       },
       "properties": {
         "id": {
+          "minLength": 1,
           "title": "Id",
           "type": "string"
         },
@@ -226,6 +227,7 @@
       "description": "A constructed timetable.",
       "properties": {
         "uses": {
+          "minLength": 1,
           "title": "Uses",
           "type": "string"
         },
@@ -319,6 +321,7 @@
       "type": "string"
     },
     "dag_id": {
+      "minLength": 1,
       "title": "Dag Id",
       "type": "string"
     },

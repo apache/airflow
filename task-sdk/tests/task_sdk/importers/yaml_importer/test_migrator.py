@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Unit tests for the YAML Dag version migrator (airflow.sdk.importers.yaml_importer.migrator)."""
 
 from __future__ import annotations
 
@@ -35,7 +34,11 @@ HEAD_SCHEMA = migrator.schema_from_version("2026-10-30")
 
 
 class _RenameOwnerAttr(VersionChange):
-    "test-only: 2026-10-30 spelled the attribute `owner_old`; head renamed it to `owner`."
+    """
+    Test-only fake version change.
+
+    This changes an attribute from ``owner_old`` to ``owner``.
+    """
 
     description = __doc__
     instructions_to_migrate_to_previous_version = ()
