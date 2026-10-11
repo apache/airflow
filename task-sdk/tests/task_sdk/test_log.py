@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
 from unittest import mock
 
 import pytest
 import structlog
 
 from airflow.sdk import log as sdk_log
+from airflow.sdk.log import upload_to_remote
 
 
 class TestConfigureLogging:
@@ -87,3 +89,54 @@ class TestConfigureLogging:
 
         mock_load_remote_log_handler.assert_called_once_with()
         assert processors == (initial_processor, sdk_log.mask_logs, final_renderer)
+
+
+class LegacyRemoteLogIO:
+    """A handler whose ``upload`` predates the ``ti_context`` keyword."""
+
+    def __init__(self):
+        self.calls: list[tuple] = []
+
+    def upload(self, path, ti):
+        self.calls.append((path, ti))
+
+
+class ContextAwareRemoteLogIO:
+    """A handler that opts in to receiving the run context."""
+
+    def __init__(self):
+        self.calls: list[tuple] = []
+
+    def upload(self, path, ti, *, ti_context=None):
+        self.calls.append((path, ti, ti_context))
+
+
+@mock.patch("airflow.sdk.log.relative_path_from_logger", return_value=Path("dag/task/1.log"))
+@mock.patch("airflow.sdk.log.load_remote_log_handler")
+class TestUploadToRemoteTIContext:
+    def test_legacy_handler_does_not_receive_ti_context(self, mock_load_handler, mock_relative_path):
+        handler = LegacyRemoteLogIO()
+        mock_load_handler.return_value = handler
+        ti, ti_context = mock.Mock(), mock.Mock()
+
+        upload_to_remote(mock.MagicMock(), ti, ti_context=ti_context)
+
+        assert handler.calls == [("dag/task/1.log", ti)]
+
+    def test_opted_in_handler_receives_ti_context(self, mock_load_handler, mock_relative_path):
+        handler = ContextAwareRemoteLogIO()
+        mock_load_handler.return_value = handler
+        ti, ti_context = mock.Mock(), mock.Mock()
+
+        upload_to_remote(mock.MagicMock(), ti, ti_context=ti_context)
+
+        assert handler.calls == [("dag/task/1.log", ti, ti_context)]
+
+    def test_no_ti_context_keeps_handler_default(self, mock_load_handler, mock_relative_path):
+        handler = ContextAwareRemoteLogIO()
+        mock_load_handler.return_value = handler
+        ti = mock.Mock()
+
+        upload_to_remote(mock.MagicMock(), ti)
+
+        assert handler.calls == [("dag/task/1.log", ti, None)]
