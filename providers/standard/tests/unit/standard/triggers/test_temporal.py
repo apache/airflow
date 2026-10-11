@@ -50,6 +50,30 @@ def test_input_validation_tz():
         DateTimeTrigger(moment)
 
 
+def test_input_target_time_validation_tz():
+    """
+    Tests that the DateTimeTrigger validates input to moment arg
+    """
+
+    target_time = datetime.datetime(2020, 1, 1, 0, 0, 0)
+
+    assert DateTimeTrigger(target_time=target_time).moment == datetime.datetime(
+        2020, 1, 1, 0, 0, 0, tzinfo=datetime.UTC
+    )
+
+    target_time = "2020-01-01T00:00:00"
+
+    assert DateTimeTrigger(target_time=target_time).moment == datetime.datetime(
+        2020, 1, 1, 0, 0, 0, tzinfo=datetime.UTC
+    )
+
+    target_time = "2020-01-01T00:00:00-02:00"
+
+    assert DateTimeTrigger(target_time=target_time).moment == datetime.datetime(
+        2020, 1, 1, 2, 0, 0, tzinfo=datetime.UTC
+    )
+
+
 def test_datetime_trigger_serialization():
     """
     Tests that the DateTimeTrigger correctly serializes its arguments

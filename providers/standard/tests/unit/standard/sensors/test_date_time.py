@@ -166,27 +166,6 @@ class TestDateTimeSensor:
 
         assert op.execute_complete(context=ctx, event=event.payload) is None
 
-    @pytest.mark.asyncio
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test only for AF >= 3.3")
-    async def test_triggerer_target_time_localizes(self):
-        """Simulates the triggerer path: start_trigger_args carries the raw target_time, which
-        the triggerer renders in place (never going through the worker's execute())."""
-        dag = DAG(
-            dag_id="full_run_triggerer_path_dag",
-            start_date=pendulum.datetime(2020, 1, 1, tz="UTC"),
-            schedule=None,
-        )
-        op = DateTimeSensorAsync(
-            task_id="full_run_triggerer_path",
-            target_time="2020-01-01 00:00:00+00:00",
-            start_from_trigger=True,
-            dag=dag,
-        )
-
-        trigger = DateTimeTrigger(**op.start_trigger_args.trigger_kwargs)
-
-        assert trigger.moment == datetime.datetime(2020, 1, 1, 0, 0, tzinfo=datetime.UTC)
-
     def test_moment_localizes_naive_datetime(self):
         """A naive datetime target_time is localized to UTC via _moment (mirrors old isoformat())."""
         op = DateTimeSensor(task_id="naive", target_time=datetime.datetime(2020, 1, 1), dag=self.dag)
