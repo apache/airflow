@@ -474,6 +474,16 @@ For non-partitioned Dags, per-event run creation respects ``max_active_runs`` an
 :ref:`config:scheduler__max_dagruns_to_create_per_loop` budget. Events left over
 remain queued for subsequent scheduler passes.
 
+For non-partitioned asset-triggered Dags, ``catchup=False`` consumes only events
+queued for that Dag. It does not discard a queued backlog: with batching disabled,
+each queued event still produces its own run.
+
+With ``catchup=True``, once queued events satisfy the asset condition, the scheduler
+also includes older, unconsumed events for the Dag's scheduled assets and aliases,
+including events emitted before the Dag started consuming them. Events already
+consumed by a run of that Dag are excluded in both modes. ``batch_asset_events``
+controls whether the eligible events produce separate runs or are consumed together.
+
 .. code-block:: python
 
     from airflow.sdk import DAG, Asset, AssetTriggeredTimetable

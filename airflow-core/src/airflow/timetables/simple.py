@@ -304,12 +304,6 @@ class AssetTriggeredTimetable(_TrivialTimetable):
 DEFAULT_PARTITION_MAPPER = IdentityMapper()
 
 
-def _coerce_partition_mapper_config(
-    config: dict[SerializedAssetBase, PartitionMapper] | None,
-) -> dict[SerializedAssetBase, PartitionMapper]:
-    return config or {}
-
-
 @attrs.define(eq=False, repr=False, kw_only=True, slots=False)
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
@@ -322,7 +316,9 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
 
     asset_condition: SerializedAssetBase = attrs.field(alias="assets", converter=_coerce_asset_condition)
     partition_mapper_config: dict[SerializedAssetBase, PartitionMapper] = attrs.field(
-        factory=dict, converter=_coerce_partition_mapper_config
+        factory=dict,
+        # Mypy's attrs plugin does not recognize converter factories.
+        converter=attrs.converters.default_if_none(factory=dict),  # type: ignore[misc]
     )
     default_partition_mapper: PartitionMapper = DEFAULT_PARTITION_MAPPER
     batch_asset_events: bool = attrs.field(
