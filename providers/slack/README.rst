@@ -48,7 +48,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-slack``
 
-The package supports the following python versions: 3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14,3.15
 
 Requirements
 ------------
@@ -61,6 +61,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``slack-sdk``                               ``>=3.36.0``
 ``aiohttp``                                 ``>=3.14.0``
+``aiohttp``                                 ``>=3.14.4; python_version >= "3.15"``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ==========================================  ======================================

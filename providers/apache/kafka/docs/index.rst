@@ -146,13 +146,13 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-apache-kafka[google]
 
 
-====================  ====================================================
+====================  =============================================================
 Extra                 Dependencies
-====================  ====================================================
-``google``            ``apache-airflow-providers-google``
+====================  =============================================================
+``google``            ``apache-airflow-providers-google; python_version != "3.15"``
 ``msk``               ``aws-msk-iam-sasl-signer-python>=1.0.1``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-====================  ====================================================
+====================  =============================================================
 
 Downloading official packages
 -----------------------------

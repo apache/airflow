@@ -26,6 +26,10 @@
 Changelog
 ---------
 
+.. note::
+
+    Python 3.15 is supported with ``ijson>=3.6.0``.
+
 3.3.4
 .....
 

@@ -35,6 +35,9 @@ versions:
   - 0.2.0
   - 0.1.0
 
+excluded-python-versions:
+  - "3.15"
+
 integrations:
   - integration-name: Modal
     external-doc-url: https://modal.com/docs

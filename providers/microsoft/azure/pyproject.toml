@@ -51,7 +51,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,!=3.15.*"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -122,7 +122,7 @@ dependencies = [
     "apache-airflow-providers-common-messaging>=2.0.0"
 ]
 "google" = [
-    "apache-airflow-providers-google"
+    "apache-airflow-providers-google; python_version != \"3.15\""
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"
@@ -136,7 +136,7 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-messaging",
-    "apache-airflow-providers-google",
+    "apache-airflow-providers-google; python_version != \"3.15\"",
     "apache-airflow-providers-openlineage",
     "apache-airflow-providers-oracle",
     "apache-airflow-providers-sftp",

@@ -25,6 +25,7 @@ classifiers = [
 
 dependencies = [
     "msgspec>=0.19.0",
+    "msgspec>=0.22.0; python_version >= \"3.15\"",
     "pygtrie>=2.5.0",
     "structlog>=26.1.0",
 ]

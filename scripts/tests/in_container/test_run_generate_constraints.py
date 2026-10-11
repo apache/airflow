@@ -20,9 +20,37 @@ import json
 import re
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 import run_generate_constraints as m
+
+
+@mock.patch.object(m, "download_latest_constraint_file", autospec=True)
+@mock.patch.object(m, "find_pre_release_provider_pins", autospec=True, return_value={})
+@mock.patch.object(
+    m,
+    "build_pinned_provider_requirements",
+    autospec=True,
+    return_value=["apache-airflow-providers-http==5.3.4"],
+)
+@mock.patch.object(m, "run_command", autospec=True, side_effect=RuntimeError("installation captured"))
+def test_pypi_install_does_not_reintroduce_excluded_providers_through_all(
+    mock_run, mock_requirements, mock_candidates, mock_download, tmp_path
+):
+    config = _config(tmp_path / "latest.txt", tmp_path / "current.txt")
+    config.python = "3.15"
+    config.fail_on_pending_provider_candidates = False
+    config.github_actions = False
+
+    with pytest.raises(RuntimeError, match="installation captured"):
+        m.generate_constraints_pypi_providers(config)
+
+    command = mock_run.call_args.kwargs["cmd"]
+    assert f"apache-airflow=={m.AIRFLOW_VERSION}" in command
+    assert f"apache-airflow-core[all]=={m.AIRFLOW_CORE_VERSION}" in command
+    assert "apache-airflow-providers-http==5.3.4" in command
+    assert not any(arg.startswith("apache-airflow[all]") for arg in command)
 
 
 def _config(
@@ -338,7 +366,28 @@ class TestBuildPinnedProviderRequirements:
         assert m.build_pinned_provider_requirements("3.11", True) == [
             "apache-airflow-providers-amazon==9.0.0rc1",
             "apache-airflow-providers-cncf-kubernetes==10.20.0",
+            "apache-airflow-providers-brand-new",
         ]
+
+    @pytest.mark.parametrize(
+        ("python_version", "provider_version", "expected"),
+        [
+            ("3.14", "6.20.0", ["apache-airflow-providers-snowflake==6.20.0"]),
+            ("3.15", "6.20.0", []),
+            ("3.15", "6.21.0rc1", ["apache-airflow-providers-snowflake==6.21.0rc1"]),
+            ("3.15", "6.21.0", ["apache-airflow-providers-snowflake==6.21.0"]),
+            ("3.15", None, ["apache-airflow-providers-snowflake"]),
+        ],
+    )
+    def test_snowflake_requires_a_release_with_python_315_support(
+        self, monkeypatch, python_version, provider_version, expected
+    ):
+        monkeypatch.setattr(
+            m, "get_all_active_provider_distributions", lambda _: ["apache-airflow-providers-snowflake"]
+        )
+        monkeypatch.setattr(m, "find_newest_version_in_pypi", lambda *args: provider_version)
+
+        assert m.build_pinned_provider_requirements(python_version, True) == expected
 
     def test_the_python_version_and_the_pre_release_choice_reach_the_lookup(self, monkeypatch):
         """Providers excluded on a Python version must not be named, nor pinned to a version it cannot install."""

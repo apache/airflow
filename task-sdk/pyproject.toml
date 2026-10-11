@@ -24,7 +24,7 @@ license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 # Supporting new Python releases typically takes 4-7 months due to all our provider dependencies.
 # We proactively limit the version to allow time for all dependencies to update.
-requires-python = ">=3.11,!=3.15"
+requires-python = ">=3.11,!=3.16"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
@@ -44,6 +44,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 dependencies = [
@@ -59,6 +60,7 @@ dependencies = [
     "jinja2>=3.1.5",
     "methodtools>=0.4.7",
     "msgspec>=0.19.0",
+    "msgspec>=0.22.0; python_version >= \"3.15\"",
     "psutil>=6.1.0",
     "python-dateutil>=2.7.0",
     "pyyaml>=6.0.3",
@@ -67,10 +69,12 @@ dependencies = [
     "truststore>=0.10.0",
     # Start of shared timezones dependencies
     "pendulum>=3.1.0",
+    "pendulum>=3.3.0; python_version >= \"3.15\"",
     # End of shared timezones dependencies
     # Start of shared secrets_masker dependencies
     "colorlog>=6.8.2",
     "pydantic>2.11.0",
+    "pydantic>=2.14.0; python_version >= \"3.15\"",
     # End of shared secrets_masker dependencies
     # Start of shared logging dependencies
     "pygtrie>=2.5.0",
@@ -81,6 +85,7 @@ dependencies = [
     # End of shared configuration dependencies
     # Start of shared listeners dependencies
     "pluggy>=1.5.0",
+    "pluggy>=1.6.0; python_version >= \"3.15\"",
     # End of shared listeners dependencies
     # Start of shared module-loading dependencies
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -231,7 +236,8 @@ dev = [
     "apache-airflow-devel-common",
     "pandas>=2.1.2; python_version <\"3.13\"",
     "pandas>=2.2.3; python_version >=\"3.13\" and python_version <\"3.14\"",
-    "pandas>=2.3.3; python_version >=\"3.14\""
+    "pandas>=2.3.3; python_version >=\"3.14\"",
+    "pandas>=3.0.6; python_version >=\"3.15\""
 ]
 docs = [
     "apache-airflow-devel-common[docs]",

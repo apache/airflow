@@ -22,13 +22,34 @@ import logging
 from unittest import mock
 
 import pytest
-from pyodbc import Cursor
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+
+class Cursor:
+    """Stands in for ``pyodbc.Cursor`` as a mock spec.
+
+    DbApiHook is the base of every SQL hook, so these tests have to run wherever common.sql does.
+    pyodbc has no 3.15 wheels, and only the DB-API surface below is exercised through the spec.
+    """
+
+    description: list[tuple] = []
+    rowcount: int = -1
+    fast_executemany: bool = False
+
+    def execute(self, *args, **kwargs): ...
+
+    def executemany(self, *args, **kwargs): ...
+
+    def fetchone(self, *args, **kwargs): ...
+
+    def fetchall(self, *args, **kwargs): ...
+
+    def close(self, *args, **kwargs): ...
 
 
 class DbApiHookInProvider(DbApiHook):

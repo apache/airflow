@@ -20,7 +20,6 @@ from io import FileIO
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pyiceberg.table import Table
 
 from airflow.providers.common.sql.config import DataSourceConfig, FormatType
 from airflow.providers.common.sql.datafusion.exceptions import (
@@ -34,6 +33,12 @@ from airflow.providers.common.sql.datafusion.format_handlers import (
     ParquetFormatHandler,
     get_format_handler,
 )
+
+from tests_common.test_utils.markers import skip_on_python_315_without
+
+# Only the two iceberg tests need pyiceberg and the iceberg provider; the CSV, Parquet, Avro and
+# validation tests in this module run everywhere.
+needs_iceberg = skip_on_python_315_without("pyiceberg", "airflow.providers.apache.iceberg")
 
 
 class TestFormatHandlers:
@@ -86,8 +91,11 @@ class TestFormatHandlers:
         ):
             handler.register_data_source_format(session_context_mock)
 
+    @needs_iceberg
     @patch("airflow.providers.apache.iceberg.hooks.iceberg.IcebergHook")
     def test_iceberg_handler_success(self, mock_iceberg_hook_cls, session_context_mock):
+        from pyiceberg.table import Table
+
         mock_hook = MagicMock()
         mock_iceberg_hook_cls.return_value = mock_hook
         mock_iceberg_table = MagicMock(spec=Table)
@@ -116,6 +124,7 @@ class TestFormatHandlers:
         assert mock_iceberg_table.io.properties["s3.access-key-id"] == "test_key"
         assert mock_iceberg_table.io.properties["s3.secret-access-key"] == "test_secret"
 
+    @needs_iceberg
     @patch("airflow.providers.apache.iceberg.hooks.iceberg.IcebergHook")
     def test_iceberg_handler_failure(self, mock_iceberg_hook_cls, session_context_mock):
         mock_hook = MagicMock()

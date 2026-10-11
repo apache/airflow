@@ -48,6 +48,9 @@ versions:
   - 1.1.0
   - 1.0.0
 
+excluded-python-versions:
+  - "3.15"
+
 integrations:
   - integration-name: Iceberg
     logo: /docs/integration-logos/iceberg.png

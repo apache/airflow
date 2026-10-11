@@ -23,8 +23,12 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("airflow.providers.google")
+
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook  # noqa: E402
+from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator  # noqa: E402
 
 TASK_ID = "test-gcs-list-operator"
 GCS_BUCKET = "test-bucket"

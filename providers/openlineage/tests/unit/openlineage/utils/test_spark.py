@@ -39,6 +39,8 @@ from airflow.providers.openlineage.utils.spark import (
     inject_transport_information_into_spark_properties,
 )
 
+from tests_common.test_utils.markers import xfail_on_python_315
+
 EXAMPLE_CONTEXT = {
     "ti": MagicMock(
         dag_id="dag_id",
@@ -127,6 +129,9 @@ def test_get_transport_information_as_spark_properties(mock_ol_listener):
 
 
 @patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+@xfail_on_python_315(
+    "confluent-kafka is not installed on Python 3.15, where the apache.kafka provider is excluded"
+)
 def test_get_transport_information_as_spark_properties_unsupported_transport_type(mock_ol_listener):
     kafka_config = KafkaConfig(
         topic="my_topic",
@@ -148,6 +153,9 @@ def test_get_transport_information_as_spark_properties_unsupported_transport_typ
 
 
 @patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+@xfail_on_python_315(
+    "confluent-kafka is not installed on Python 3.15, where the apache.kafka provider is excluded"
+)
 def test_get_transport_information_as_spark_properties_composite_transport_type(mock_ol_listener):
     fake_listener = mock.MagicMock()
     mock_ol_listener.return_value = fake_listener
