@@ -35,6 +35,55 @@
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
+function has_providers_excluded_for_python() {
+    local python_minor="${AIRFLOW_PYTHON_VERSION%.*}"
+    PYTHONPATH="$( dirname "${BASH_SOURCE[0]}" )" python3 -c \
+        'from pathlib import Path; import sys; from filter_ci_install_set import split_members; sys.exit(not split_members(Path.cwd(), sys.argv[1])[1])' \
+        "${python_minor}"
+}
+
+# uv sync --all-packages installs every workspace member, including providers excluded for this
+# Python minor and the third-party packages only they need. Resolve the members that are not excluded
+# for this interpreter, with the lock's pins as constraints, and install exactly that result.
+function install_workspace_without_excluded_providers() {
+    local python_minor="${AIRFLOW_PYTHON_VERSION%.*}"
+    local work_dir="/tmp/ci-install-set"
+    local python_bin
+    local platform_arch
+    local -a member_dirs=()
+    local -a editable_args=()
+    local member_dir
+    mkdir -p "${work_dir}"
+    python_bin="$(command -v python3)"
+    case "$(uname -m)" in
+        x86_64 | aarch64) platform_arch="$(uname -m)" ;;
+        *)
+            echo "Unsupported architecture for the filtered install: $(uname -m)"
+            exit 1
+            ;;
+    esac
+    echo
+    echo "${COLOR_BLUE}Installing the workspace without providers excluded for Python ${python_minor}.${COLOR_RESET}"
+    echo
+    set -x
+    uv export --frozen --all-packages --group ci-image --no-hashes --no-emit-workspace \
+        --output-file "${work_dir}/pins.txt"
+    python3 "$( dirname "${BASH_SOURCE[0]}" )/filter_ci_install_set.py" --root "${PWD}" \
+        --constraints "${work_dir}/pins.txt" --python-minor "${python_minor}" --platform "${platform_arch}" \
+        --workdir "${work_dir}" --output "${work_dir}/requirements.txt" \
+        --editables "${work_dir}/editables.txt"
+    uv pip install --python "${python_bin}" --no-deps --no-python-downloads --no-managed-python \
+        --no-binary lxml --no-binary xmlsec --requirement "${work_dir}/requirements.txt"
+    mapfile -t member_dirs < "${work_dir}/editables.txt"
+    for member_dir in "${member_dirs[@]}"; do
+        editable_args+=(--editable "${member_dir}")
+    done
+    uv pip install --python "${python_bin}" --no-deps --no-python-downloads --no-managed-python \
+        --no-binary lxml --no-binary xmlsec "${editable_args[@]}"
+    uv pip check --python "${python_bin}"
+    set +x
+}
+
 function install_from_sources() {
     local extra_sync_flags
     extra_sync_flags=""
@@ -53,6 +102,15 @@ function install_from_sources() {
         echo
         echo "${COLOR_BLUE}Attempting to upgrade all packages to highest versions.${COLOR_RESET}"
         echo
+        if has_providers_excluded_for_python; then
+            # Re-lock at the highest resolution, then install that lock without the excluded providers.
+            # uv sync would install every member, including the excluded ones and their dependencies.
+            set -x
+            uv lock --resolution highest --no-python-downloads --no-managed-python
+            set +x
+            install_workspace_without_excluded_providers
+            return
+        fi
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
@@ -62,6 +120,10 @@ function install_from_sources() {
             --no-python-downloads --no-managed-python
     else
         set +x
+        if has_providers_excluded_for_python; then
+            install_workspace_without_excluded_providers
+            return
+        fi
         echo
         echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
         echo
