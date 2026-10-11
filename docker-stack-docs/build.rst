@@ -938,6 +938,13 @@ previous images that can matter when you extend or run the image are:
   wrong Python. The image build fails when this happens, but a custom image that installs extra apt
   packages is not checked. Check what ``apt-get install --simulate`` would install before adding packages
   that might depend on ``python3``, and prefer the runtime library packages over their ``-dev`` variants.
+* **C extensions are compiled more strictly.** The Debian 13 images come with GCC 14, which turns
+  incompatible pointer types, integer conversions and implicit function declarations into errors, and the
+  hardened Python passes ``-Werror=implicit-function-declaration`` on to every C extension it builds. Old
+  source distributions that compiled with warnings before - for example ``xmlsec`` 1.3.14 or ``ibm-db``
+  3.2.0 - fail to build. Prefer versions with wheels or newer releases; if you have to build such a
+  package, setting ``CFLAGS="-Wno-error=incompatible-pointer-types -Wno-error=int-conversion
+  -Wno-error=implicit-function-declaration"`` for the installation turns the errors back into warnings.
 * **apt does not refresh the shared library cache.** The base images ship ``libc-bin`` without its
   ``dpkg`` trigger, so installing a shared library does not run ``ldconfig``, and anything that looks
   libraries up through the cache - such as ``ctypes.util.find_library()`` - does not find it. The image
