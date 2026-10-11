@@ -86,13 +86,17 @@ class MsSqlHook(DbApiHook):
     @property
     def dbapi_driver(self) -> str:
         """DBAPI driver, either ``pymssql`` (default) or ``mssql_python``, from the connection extra."""
-        driver = str(self.connection_extra_lower.get("dbapi_driver") or self.DBAPI_DRIVER_PYMSSQL).lower()
-        if driver not in self.SUPPORTED_DBAPI_DRIVERS:
+        driver = self.connection_extra_lower.get("dbapi_driver")
+        if driver is None:
+            return self.DBAPI_DRIVER_PYMSSQL
+
+        if not isinstance(driver, str) or driver.lower() not in self.SUPPORTED_DBAPI_DRIVERS:
             raise ValueError(
                 f"Unsupported dbapi_driver {driver!r} in the connection extra. "
-                f"Supported values: {', '.join(self.SUPPORTED_DBAPI_DRIVERS)}"
+                f"Supported values: {', '.join(sorted(self.SUPPORTED_DBAPI_DRIVERS))}"
             )
-        return driver
+
+        return driver.lower()
 
     @property
     def sqlalchemy_scheme(self) -> str:
