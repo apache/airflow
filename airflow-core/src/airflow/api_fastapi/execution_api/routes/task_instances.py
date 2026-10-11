@@ -91,7 +91,7 @@ from airflow.api_fastapi.execution_api.services.task_instances import (
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.configuration import conf
-from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
+from airflow.exceptions import AirflowException, InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
@@ -374,6 +374,9 @@ def ti_run(
                         "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
                     },
                 )
+
+        with contextlib.suppress(AirflowException):  # no LogTemplate row: worker falls back to conf
+            context.log_id_template = dr.get_log_template(session=session).elasticsearch_id
 
         # Only set if they are non-null
         if ti.next_method:
