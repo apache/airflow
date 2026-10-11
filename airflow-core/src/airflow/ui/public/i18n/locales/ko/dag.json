@@ -68,6 +68,17 @@
     "upcomingCount_one": "예정된 데드라인 {{count, number}}건",
     "upcomingCount_other": "예정된 데드라인 {{count, number}}건"
   },
+  "execution": {
+    "clearSelected": "선택한 실행 항목 지우기",
+    "empty": "이 실행에 실행 항목이 없습니다.",
+    "iteration": "{{node}} · 반복 {{index}}",
+    "mapped_one": "{{task}} (이 페이지의 매핑된 태스크 {{count, number}}개)",
+    "mapped_other": "{{task}} (이 페이지의 매핑된 태스크 {{count, number}}개)",
+    "page": "실행 항목 {{total, number}}개 중 {{start, number}}–{{end, number}}개 표시",
+    "runTasks": "태스크 실행",
+    "select": "{{task}} 선택",
+    "title": "실행 항목"
+  },
   "extraLinks": "추가 링크",
   "grid": {
     "buttons": {
@@ -107,6 +118,42 @@
     "viewPreviousTry": "이전 {{tryNumber}}번째 시도의 로그 보기",
     "waitingToRetry": "{{tryNumber}}번째 시도는 재시도 대기 중입니다.",
     "warning": "경고"
+  },
+  "loop": {
+    "filter": {
+      "all": "모든 반복",
+      "invocation": "호출",
+      "label": "반복"
+    },
+    "history": {
+      "capLabel": "제한: {{max}}",
+      "iterationsAxis": "반복 횟수",
+      "stats": {
+        "capHits": "제한 도달",
+        "medianIterations": "반복 횟수 중앙값"
+      },
+      "title": "실행별 반복 횟수"
+    },
+    "iteration": "반복 {{index}}",
+    "iterations": "반복",
+    "outcome": "결과",
+    "reason": {
+      "cap_reached": "반복 제한({{max}})에 도달함",
+      "failed": "{{index}}번째 반복에서 실패함",
+      "iteration_failed": "{{taskId}}에서 {{index}}번째 반복이 실패함",
+      "ran_to_cap": "허용된 {{max}}회 반복을 모두 실행함",
+      "removed": "제거됨",
+      "running": "실행 중",
+      "skipped": "건너뜀",
+      "stopped_early": "{{index}}번째 반복에서 조기 중단됨"
+    },
+    "rules": {
+      "behaviour": "동작",
+      "boundedFor": "정해진 횟수만큼 반복 실행",
+      "exitCriteria": "종료 조건",
+      "maxIterations": "최대 반복 횟수",
+      "whileUntil": "{{criteria}}까지 반복"
+    }
   },
   "notFound": {
     "back": "뒤로",

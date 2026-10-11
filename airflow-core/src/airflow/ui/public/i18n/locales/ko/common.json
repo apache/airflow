@@ -168,6 +168,7 @@
   "generateToken": "토큰 생성",
   "includedIn": "포함됨",
   "key": "키",
+  "loading": "로드 중…",
   "logLevel": {
     "hide": "로그 레벨 숨기기",
     "hotkey": "l",
@@ -289,6 +290,13 @@
         "label": "태스크 지우기 기본 선택"
       },
       "title": "지우기"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Dags 목록에 각 Dag의 최근 태스크 상태를 표시합니다. 끄면 이를 불러오지 않으므로 Dag가 많은 환경에서 도움이 될 수 있습니다.",
+        "label": "최근 태스크 표시"
+      },
+      "title": "Dags 목록"
     },
     "description": "이 환경설정은 이 브라우저에만 저장되며 앱 전체에 적용됩니다.",
     "general": {
@@ -412,6 +420,7 @@
     "upstream_failed": "업스트림 실패"
   },
   "switchDag": "$t(dag_one) 전환",
+  "switchDagRun": "$t(dagRun_one) 전환",
   "table": {
     "completedAt": "완료 시간",
     "createdAt": "생성 시간",
@@ -457,6 +466,8 @@
     "executorConfig": "실행기 구성",
     "hostname": "호스트 이름",
     "id": "ID",
+    "iteration": "반복",
+    "loopIterations": "실행된 반복 횟수",
     "maxTries": "최대 시도 횟수",
     "pid": "PID",
     "pool": "풀",
