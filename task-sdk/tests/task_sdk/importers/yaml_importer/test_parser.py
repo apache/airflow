@@ -140,7 +140,7 @@ def test_no_body_is_allowed():
 
 
 def test_both_bodies_is_error():
-    with pytest.raises(YamlDagParseError, match="at most one"):
+    with pytest.raises(YamlDagParseError, match="may not set both 'uses' and 'run'"):
         _task("- {id: t, uses: X, run: {}}")
 
 

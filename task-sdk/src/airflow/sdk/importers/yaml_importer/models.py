@@ -262,7 +262,7 @@ class Task(BaseModel):
                 if k in data:
                     raise ValueError(f"{k!r} (callback) not yet implemented")
             if sum(1 for k in ("uses", "run") if data.get(k) is not None) > 1:
-                raise ValueError(f"task {data.get('id')!r} may not set both 'uses' or 'run'")
+                raise ValueError(f"task {data.get('id')!r} may not set both 'uses' and 'run'")
         return data
 
     @classmethod
