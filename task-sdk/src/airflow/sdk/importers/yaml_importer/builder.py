@@ -37,6 +37,7 @@ import datetime
 import functools
 import graphlib
 import inspect
+import json
 import keyword
 import linecache
 import re
@@ -46,7 +47,12 @@ import attrs
 
 from airflow.sdk import DAG, BaseOperator, XComArg, literal, task as task_decorators
 from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
 from airflow.sdk.importers.yaml_importer.models import (
+    CONST_KEY,
+    FILE_KEYS,
+    TEMPLATE_KEYS,
+    XCOM_KEYS,
     ConstRef,
     FileRef,
     Literal,
@@ -69,6 +75,7 @@ class YamlDagBuildError(ValueError):
 
 _BASE_TASK_ARGS = frozenset(BaseOperator.__init__._BaseOperatorMeta__param_names)  # type: ignore[attr-defined]
 _UNSUPPORTED_TASK_ARGS = frozenset({"task_id", "dag", "task_group", "default_args"})
+_MARKER_KEYS = frozenset({*XCOM_KEYS, *TEMPLATE_KEYS, *FILE_KEYS, CONST_KEY})
 
 
 @attrs.define(kw_only=True)
@@ -87,6 +94,7 @@ class DagBuilder:
 
     def build(self, doc: DagDocument) -> DAG:
         tasks = {t.id_: t for t in doc.tasks}
+        _reject_reserved_extra_keys(doc.model_extra or {})
         extras = _coerce_temporal(doc.model_extra or {}, DAG)
         with DAG(dag_id=doc.dag_id, schedule=_build_schedule(doc.schedule), **extras) as dag:
             for task_id in _topological_order(doc.tasks):
@@ -104,18 +112,35 @@ class DagBuilder:
         """
         Build a stub from a "run:" task.
 
-        The task body is a registered SDK task handler resolved at run time; the
-        run mapping binds as that handler's arguments, where XCom references
-        resolve natively. The stub is fed a callable whose parameters are the
-        run argument names, so serialization can build and later validate
-        (AIP-108) the handler's argument spec.
+        The stub is fed a callable whose parameters are the run argument names,
+        so serialization can build and later validate (AIP-108) the handler's
+        argument spec.
+
+        The "real" task body should be a registered SDK task handler resolved at
+        run time; the run mapping binds as that handler's arguments. Only a
+        top-level ``$x`` (an upstream return value) crosses the binding; every
+        other argument must be a JSON-serializable literal.
         """
+        if task.with_:
+            raise YamlDagBuildError(
+                f"task {task.id_!r}: a run: task takes its inputs under 'run:', not 'with:'"
+            )
         run_kwargs: dict[str, Any] = {}
         for name, value in args.items():
             if not name.isidentifier() or keyword.iskeyword(name):
                 raise YamlDagBuildError(f"task {task.id_!r}: run argument {name!r} is not a valid identifier")
+            if name in KNOWN_CONTEXT_KEYS:
+                raise YamlDagBuildError(f"task {task.id_!r}: run argument cannot be named {name!r}")
             _reject_unbindable_run_marker(task.id_, value)
-            run_kwargs[name] = self._lower(value, protect=False)
+            if not isinstance(lowered := self._lower(value, protect=False), XComArg):
+                try:
+                    json.dumps(lowered, allow_nan=False)
+                except (TypeError, ValueError):
+                    raise YamlDagBuildError(
+                        f"task {task.id_!r}: run argument {name!r} must be JSON-serializable, "
+                        f"not a {type(lowered).__name__}"
+                    ) from None
+            run_kwargs[name] = lowered
         decorator = task_decorators.stub(
             task_id=task.id_, **_coerce_temporal(task.model_extra or {}, BaseOperator)
         )
@@ -139,6 +164,7 @@ class DagBuilder:
                 f"task {task.id_!r}: {unknown} are not task-level (BaseOperator) arguments; "
                 "operator-specific arguments belong under 'with'"
             )
+        _reject_reserved_extra_keys(task.model_extra or {})
 
         if (args := task.run) is not None:
             return self._build_stub_task(task, args)
@@ -264,14 +290,14 @@ def _restrict_template_fields(
     return op
 
 
-def _reject_unbindable_run_marker(task_id: str, value: Any) -> None:
+def _reject_unbindable_run_marker(task_id: str, value: Any, *, top_level: bool = True) -> None:
     """
     Reject value-grammar a task handler's argument binding cannot carry.
 
-    The binding carries only literals and an upstream task's return value, so a
-    template (``$t``) or a keyed XCom (``$x`` with a ``key``) anywhere in a run
-    argument is an error. A plain ``$x`` (return value), ``$f``, ``$const`` and
-    literals are fine.
+    The binding carries a JSON literal or a single top-level ``$x`` (an upstream
+    task's return value). So a template (``$t``) or a keyed ``$x`` anywhere, or a
+    plain ``$x`` nested inside a container instead of passed as its own argument,
+    is an error. ``$f`` and ``$const`` lower to literals and are fine.
     """
     if isinstance(value, TemplateRef):
         raise YamlDagBuildError(
@@ -285,15 +311,40 @@ def _reject_unbindable_run_marker(task_id: str, value: Any) -> None:
                 f"task {task_id!r}: a keyed XCom ($x with 'key') is not supported in a run: task; "
                 "only a task's return value crosses the handler boundary"
             )
+        if not top_level:
+            raise YamlDagBuildError(
+                f"task {task_id!r}: an XCom ($x) nested inside a run argument is not supported; pass "
+                "the upstream output as its own top-level run argument"
+            )
         return
     if isinstance(value, Literal):
-        _reject_unbindable_run_marker(task_id, value.root)
+        _reject_unbindable_run_marker(task_id, value.root, top_level=top_level)
     elif isinstance(value, dict):
         for item in value.values():
-            _reject_unbindable_run_marker(task_id, item)
+            _reject_unbindable_run_marker(task_id, item, top_level=False)
     elif isinstance(value, list):
         for item in value:
-            _reject_unbindable_run_marker(task_id, item)
+            _reject_unbindable_run_marker(task_id, item, top_level=False)
+
+
+def _reject_reserved_extra_keys(extras: Any) -> None:
+    """
+    Reject a marker key ($x/$t/$f/$const) nested in Dag- or task-level arguments.
+
+    These arguments pass straight to ``DAG`` or the operator, never through the
+    value grammar, so a marker written there (e.g. ``params: {p: {$f: x}}``)
+    would be taken as a literal dict rather than flagged. Only marker keys are
+    rejected, so a genuine ``$`` key such as a JSON Schema ``$ref`` in a param
+    default is kept.
+    """
+    if isinstance(extras, dict):
+        for key, val in extras.items():
+            if key in _MARKER_KEYS:
+                raise YamlDagBuildError(f"marker key {key!r} may only be used in 'with:' or 'run:'")
+            _reject_reserved_extra_keys(val)
+    elif isinstance(extras, list):
+        for item in extras:
+            _reject_reserved_extra_keys(item)
 
 
 def _coerce_temporal(mapping: dict[str, Any], target: type) -> dict[str, Any]:

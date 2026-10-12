@@ -303,20 +303,26 @@ def test_import_code_task_builds_stub_operator(mock_bundle):
 
 
 def test_import_mixed_container_keeps_literal_siblings_literal(mock_bundle):
+    (mock_bundle.path / "note.txt").write_text("hello")
     definition = _def(
         mock_bundle,
         "dag.yaml",
         _doc(f"""
             - {{id: up, uses: {OP}, with: {{payload: x}}}}
-            - {{id: t, uses: {OP}, with: {{payload: {{a: {{$x: up}}, b: '{{{{ not a template }}}}'}}}}}}
+            - {{id: t, uses: {OP}, with: {{payload: {{a: {{$x: up}}, b: '{{{{ not a template }}}}', c: {{$const: 7}}, d: {{$f: note.txt}}}}}}}}
         """),
     )
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert result.success, result.errors
     payload = result.dags[0].get_task("t").payload
     assert isinstance(payload["a"], XComArg)  # $x still resolves
-    assert isinstance(payload["b"], LiteralValue)  # literal sibling protected from rendering
+    # the container renders ($x present), so every literal sibling -- plain, $const, $f -- stays wrapped
+    assert isinstance(payload["b"], LiteralValue)
     assert payload["b"].value == "{{ not a template }}"
+    assert isinstance(payload["c"], LiteralValue)
+    assert payload["c"].value == 7
+    assert isinstance(payload["d"], LiteralValue)
+    assert payload["d"].value == "hello"
 
 
 def test_import_code_task_rejects_non_identifier_arg(mock_bundle):
@@ -347,6 +353,53 @@ def test_import_run_rejects_keyed_xcom(mock_bundle):
     assert any("keyed XCom" in e.message for e in result.errors)
 
 
+def test_import_run_task_rejects_with(mock_bundle):
+    definition = _def(mock_bundle, "dag.yaml", _doc("- {id: t, run: {n: 1}, with: {region: eu}}"))
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert any("takes its inputs under 'run:'" in e.message for e in result.errors)
+
+
+def test_import_run_rejects_nested_xcom(mock_bundle):
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"""
+            - {{id: a, uses: {OP}, with: {{payload: x}}}}
+            - {{id: t, run: {{items: [{{$x: a}}]}}}}
+        """),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert any("nested inside a run argument" in e.message for e in result.errors)
+
+
+def test_import_run_rejects_non_json_literal(mock_bundle):
+    definition = _def(mock_bundle, "dag.yaml", _doc("- {id: t, run: {day: 2024-01-01}}"))
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert any("must be JSON-serializable" in e.message for e in result.errors)
+
+
+def test_import_run_rejects_context_key_arg(mock_bundle):
+    definition = _def(mock_bundle, "dag.yaml", _doc("- {id: t, run: {ds: 1}}"))
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert any("cannot be named" in e.message for e in result.errors)
+
+
+def test_import_rejects_marker_key_in_extras(mock_bundle):
+    # Dag-level extras bypass the value grammar; a marker nested there is a typo, not a literal dict.
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP}, with: {{payload: x}}}}", extra="params: {p: {$f: README.md}}\n"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert any("marker key '$f'" in e.message for e in result.errors)
+
+
 @pytest.mark.parametrize("marker", ["{$x: a}", "{$t: 'v'}", "{$f: q.sql}"])
 def test_import_marker_on_non_template_field_errors(mock_bundle, marker):
     (mock_bundle.path / "q.sql").write_text("SELECT 1")  # exists, so this is not a missing-file error
@@ -360,7 +413,7 @@ def test_import_marker_on_non_template_field_errors(mock_bundle, marker):
     )
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert not result.dags
-    assert any("only allowed on template_fields" in e.message for e in result.errors)
+    assert any("only allowed on templated fields" in e.message for e in result.errors)
 
 
 def test_import_base_operator_arg_in_with_errors(mock_bundle):
