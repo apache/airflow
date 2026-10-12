@@ -386,6 +386,8 @@ def _psycopg3_connect_args(sql_alchemy_conn: str | None) -> dict[str, Any]:
     name. PgBouncer supports prepared statements from 1.21 but only enables them by
     default from 1.24; Airflow's own chart pins 1.23.1 and sets
     ``pool_mode = transaction``, so the recommended deployment is an affected one.
+    This disables preparation outright, not just the automatic threshold, so bulk
+    ``executemany`` writes re-parse per row rather than reusing one prepared statement.
     Overridable via ``[database] sql_alchemy_connect_args``.
     """
     if not sql_alchemy_conn or not sql_alchemy_conn.startswith(
@@ -408,7 +410,8 @@ def _get_connect_args(mode: Literal["sync", "async"]) -> Any:
         if defaults:
             log.warning(
                 "[database] %s is not a mapping, so the psycopg3 default "
-                "prepare_threshold=None could not be applied.",
+                "prepare_threshold=None was not applied. Engine creation will "
+                "fail unless it resolves to a mapping.",
                 key,
             )
         return configured

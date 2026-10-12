@@ -2,7 +2,7 @@ psycopg3 statement preparation is now disabled by default
 
 Airflow 3.4 makes psycopg3 the default Postgres driver for the metadata database. psycopg3 prepares a statement server-side once it has been executed ``prepare_threshold`` times (5 by default). A pooler running in transaction mode routes consecutive transactions on one client connection to different server connections, so unless it tracks prepared statements itself, queries begin failing with ``InvalidSqlStatementName`` -- or ``DuplicatePreparedStatement`` where several clients generate the same statement name -- once the threshold is crossed.
 
-Airflow now sets ``prepare_threshold = None`` on both the sync and async psycopg3 engines, which disables the behaviour.
+Airflow now sets ``prepare_threshold = None`` on both the sync and async psycopg3 engines, which disables the behaviour. This turns preparation off entirely rather than only raising the threshold, so Postgres re-parses each statement and bulk ``executemany`` writes no longer reuse a single prepared statement.
 
 **Who this affected:** PgBouncer has supported prepared statements since 1.21, but only enables them by default from 1.24, where ``max_prepared_statements`` defaults to 200. The Airflow Helm chart sets ``pool_mode = transaction`` and ships PgBouncer 1.23.1 without setting ``max_prepared_statements``, so the recommended deployment was an affected one. Other poolers may not support prepared statements at all.
 
