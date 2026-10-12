@@ -33,6 +33,7 @@ already exists when the downstream operator is constructed.
 
 from __future__ import annotations
 
+import datetime
 import keyword
 import linecache
 from typing import TYPE_CHECKING, Any, cast
@@ -81,7 +82,8 @@ class DagBuilder:
 
     def build(self, doc: DagDocument) -> DAG:
         tasks = {t.id_: t for t in doc.tasks}
-        with DAG(dag_id=doc.dag_id, schedule=_build_schedule(doc.schedule), **(doc.model_extra or {})) as dag:
+        extras = _coerce_temporal(doc.model_extra or {})
+        with DAG(dag_id=doc.dag_id, schedule=_build_schedule(doc.schedule), **extras) as dag:
             # A task depended by another task must be built first.
             for task_id in _topological_order(doc.tasks):
                 self._operators[task_id] = self._build_operator(tasks[task_id])
@@ -113,7 +115,7 @@ class DagBuilder:
                 raise YamlDagBuildError(f"task {task.id_!r}: run argument {name!r} is not a valid identifier")
             _reject_unbindable_run_marker(task.id_, value)
             run_kwargs[name] = self._lower(value, protect=False)
-        decorator = task_decorators.stub(task_id=task.id_, **(task.model_extra or {}))
+        decorator = task_decorators.stub(task_id=task.id_, **_coerce_temporal(task.model_extra or {}))
         return decorator(self._stub_callable(tuple(run_kwargs)))(**run_kwargs).operator
 
     def _build_operator(self, task: Task) -> BaseOperator:
@@ -151,8 +153,8 @@ class DagBuilder:
                 render_fields.append(name)
         if off_template:
             raise YamlDagBuildError(f"task {task.id_!r}: value grammar only allowed on template_fields")
-        if extras := task.model_extra:  # Merge in task-level arguments (raw, never templated).
-            kwargs.update(extras)
+        if task.model_extra:  # Merge in task-level arguments (raw, never templated).
+            kwargs.update(_coerce_temporal(task.model_extra))
 
         return _restrict_template_fields(op_cls(task_id=task.id_, **kwargs), task.with_, render_fields)
 
@@ -277,6 +279,32 @@ def _reject_unbindable_run_marker(task_id: str, value: Any) -> None:
     elif isinstance(value, list):
         for item in value:
             _reject_unbindable_run_marker(task_id, item)
+
+
+def _coerce_temporal(mapping: dict[str, Any]) -> dict[str, Any]:
+    """
+    Promote YAML-native dates and ISO date/datetime strings to datetimes.
+
+    Dag/operator arguments such as ``start_date`` are datetimes, but YAML has
+    distinct date and date-time formats. Convert dates to midnight times.
+
+    Strings are also parsed automatically to datetimes if they LOOK like the ISO
+    8601 format. This helps with JSON compatibility.
+    """
+    return {key: _to_datetime(value) for key, value in mapping.items()}
+
+
+def _to_datetime(value: Any) -> Any:
+    if isinstance(value, datetime.datetime):
+        return value
+    if isinstance(value, datetime.date):
+        return datetime.datetime.combine(value, datetime.time.min)
+    if isinstance(value, str):
+        try:
+            return datetime.datetime.fromisoformat(value)
+        except ValueError:
+            return value
+    return value
 
 
 def _build_schedule(schedule: Any) -> Any:

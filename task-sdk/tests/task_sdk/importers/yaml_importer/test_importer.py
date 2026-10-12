@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import datetime
 import inspect
 import textwrap
 import zipfile
@@ -187,6 +188,26 @@ def test_import_schedule_cron(mock_bundle):
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert result.success, result.errors
     assert result.dags[0].schedule == "0 3 * * *"
+
+
+@pytest.mark.parametrize(
+    ("value", "hour"),
+    [("2024-01-01", 0), ("'2024-01-01'", 0), ("2024-01-01T03:30:00", 3)],  # YAML date, ISO string, datetime
+)
+def test_import_coerces_temporal_start_date(mock_bundle, value, hour):
+    # A YAML date or ISO string for a temporal arg is promoted to a (localized) datetime so DAG()
+    # accepts it, rather than failing with an unhelpful cast error (format section 2d).
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP}, with: {{payload: x}}}}", extra=f"start_date: {value}\n"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    start = result.dags[0].start_date
+    assert isinstance(start, datetime.datetime)  # promoted from date/string
+    assert start.tzinfo is not None  # localized by DAG()
+    assert (start.year, start.month, start.day, start.hour) == (2024, 1, 1, hour)
 
 
 def test_import_code_task_builds_stub_operator(mock_bundle):
