@@ -757,6 +757,48 @@ class TestDatabricksWorkflowPluginAirflow3:
             m.repair_app.dependency_overrides.clear()
 
     @pytest.mark.db_test
+    def test_clear_repaired_and_downstream_clears_only_repaired_and_downstream(self, dag_maker, session):
+        """Runs against a real serialized Dag: the repaired task and its downstream are cleared, others kept."""
+        from airflow.models.serialized_dag import SerializedDagModel
+        from airflow.providers.databricks.plugins import databricks_workflow as m
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.utils.state import TaskInstanceState
+
+        with dag_maker("clear_downstream", serialized=True):
+            upstream = EmptyOperator(task_id="upstream")
+            repaired = EmptyOperator(task_id="repaired")
+            downstream = EmptyOperator(task_id="downstream")
+            EmptyOperator(task_id="unrelated")
+            upstream >> repaired >> downstream
+        dag_run = dag_maker.create_dagrun()
+        states = {
+            "upstream": TaskInstanceState.SUCCESS,
+            "repaired": TaskInstanceState.FAILED,
+            "downstream": TaskInstanceState.UPSTREAM_FAILED,
+            "unrelated": TaskInstanceState.FAILED,
+        }
+        for ti in dag_run.get_task_instances(session=session):
+            ti.state = states[ti.task_id]
+        session.flush()
+        dag = SerializedDagModel.get_dag("clear_downstream", session=session)
+
+        m._clear_repaired_and_downstream(dag, dag_run.run_id, ["repaired"], session, logger)
+        session.flush()
+
+        after = {ti.task_id: ti.state for ti in dag_run.get_task_instances(session=session)}
+        assert after["upstream"] == TaskInstanceState.SUCCESS
+        assert after["unrelated"] == TaskInstanceState.FAILED
+        assert after["repaired"] is None
+        assert after["downstream"] is None
+
+    def test_clear_repaired_and_downstream_noop_without_tasks(self):
+        from airflow.providers.databricks.plugins import databricks_workflow as m
+
+        dag = Mock()
+        m._clear_repaired_and_downstream(dag, "run1", [], Mock(), logger)
+        dag.clear.assert_not_called()
+
+    @pytest.mark.db_test
     def test_repair_links_survive_serialized_dag_round_trip(self, dag_maker, session):
         """After serialization the API server renders the repair URLs the tasks stored in XCom."""
         from airflow.models.serialized_dag import SerializedDagModel
