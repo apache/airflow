@@ -196,8 +196,10 @@ class WorkflowTrigger(BaseTrigger):
                 }
                 if self.external_task_group_id:
                     kwargs["task_group_id"] = self.external_task_group_id
+                    kwargs["task_ids"] = None
                 else:
-                    kwargs["task_ids"] = list(self.external_task_ids)
+                    kwargs["task_ids"] = list(self.external_task_ids or [])
+                    kwargs["task_group_id"] = None
 
                 run_id_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(**kwargs)
             else:
