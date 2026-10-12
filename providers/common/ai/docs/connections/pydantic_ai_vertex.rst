@@ -57,8 +57,10 @@ Model
     mean Vertex AI Express Mode credentials (see "Credentials" below), so its
     presence alone cannot tell the two platforms apart. To reach the
     Generative Language API instead, prefix the model explicitly with
-    ``google:`` -- that spelling routes to a different provider regardless of
-    which fields this connection sets.
+    ``google:``. On this connection type that spelling requires ``API Key``
+    and must not set Vertex-only fields (``GCP Project``, ``Location / Region``,
+    ``Service Account Info``), because the ``google:`` provider accepts only
+    an API key.
 
 GCP Project
     Google Cloud project ID. Falls back to the ``GOOGLE_CLOUD_PROJECT``
