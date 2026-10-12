@@ -7713,9 +7713,10 @@ class TestSchedulerJob:
         # Pending TIs never started: still SKIPPED.
         assert mapped_tis[1].state == State.SKIPPED
         assert mapped_tis[2].state == State.SKIPPED
-        # Teardown is left alone so it can still run.
+        # Teardown never started: SKIPPED like any other pending TI (the run is
+        # already FAILED, so it would never run anyway).
         session.refresh(teardown_ti)
-        assert teardown_ti.state is None
+        assert teardown_ti.state == State.SKIPPED
 
     def test_do_schedule_max_active_runs_task_removed(self, session, dag_maker):
         """Test that tasks in removed state don't count as actively running."""
