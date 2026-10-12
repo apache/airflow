@@ -18,5 +18,3 @@ Airflow now sets ``prepare_threshold = None`` on both the sync and async psycopg
     PSYCOPG3_CONNECT_ARGS = {"prepare_threshold": 5}
 
 Anything set there takes precedence over the default. The same applies to ``sql_alchemy_connect_args_async`` for the async engine. Operators running PgBouncer 1.21 or newer can instead set ``max_prepared_statements`` on the pooler and keep preparation enabled on both sides.
-
-**Not covered:** the Celery result backend builds its own engine and does not read these options. If ``[celery] result_backend`` is unset, Airflow derives a psycopg3 URL from ``sql_alchemy_conn``, and that engine still prepares statements. Set ``[celery] result_backend_sqlalchemy_engine_options`` to ``{"connect_args": {"prepare_threshold": null}}``, or configure ``result_backend`` explicitly, if you run Celery behind a transaction-mode pooler.
