@@ -375,7 +375,7 @@ class IndexedTaskOutcomes:
                 BaseExceptionGroup("Sub-task failures", self.exceptions) if self.exceptions else None
             )
         if self.exceptions:
-            raise self._failure_for_the_runner()
+            raise self._pick_failure_for_runner()
         if self.total == 0:
             raise AirflowSkipException("The input to iterate over is empty.")
         if self.skipped and len(self.skipped) == self.total:
@@ -421,7 +421,7 @@ class IndexedTaskOutcomes:
         while the parent has attempts left (``IndexedTaskInstance.is_eligible_to_retry``). A group
         of failures is retried when each of them is: an item's own ``AirflowTaskTimeout`` next to
         another item's ``ValueError`` makes a ``BaseExceptionGroup``, which the runner retries like
-        any failure. The policy's decision is the one :meth:`_failure_for_the_runner` took for
+        any failure. The policy's decision is the one :meth:`_pick_failure_for_runner` took for
         ``raised`` when it chose it, so the policy is not evaluated again for the callbacks: a
         policy that calls a model may answer differently each time, and the callbacks must say
         what the exception handed over says.
@@ -500,7 +500,7 @@ class IndexedTaskOutcomes:
             )
         return None
 
-    def _failure_for_the_runner(self) -> BaseException:
+    def _pick_failure_for_runner(self) -> BaseException:
         """
         Pick the exception the runner decides the task's outcome on.
 
@@ -736,21 +736,6 @@ class IterableOperator(BaseOperator):
                 "every downstream task would run. Use .expand() for it instead."
             )
 
-    @staticmethod
-    def _unprefixed_task_id(operator: MappedOperator) -> str:
-        """
-        Return the wrapped operator's task id without its task group's prefix.
-
-        ``partial()`` already gave the wrapped operator the prefixed id, and ``BaseOperator.__init__``
-        prefixes the id it gets once more, since an IterableOperator is not built from a mapped
-        operator. Handing it the bare id keeps the two equal. The same rule as ``label``, which cannot
-        be used here because it returns the display name when there is one.
-        """
-        task_group = operator.task_group
-        if task_group and task_group.node_id and task_group.prefix_group_id:
-            return operator.task_id[len(task_group.node_id) + 1 :]
-        return operator.task_id
-
     def __init__(
         self,
         *,
@@ -765,7 +750,7 @@ class IterableOperator(BaseOperator):
         super().__init__(
             **{
                 **kwargs,
-                "task_id": self._unprefixed_task_id(operator),
+                "task_id": operator.task_id_without_group_prefix,
                 "owner": operator.owner,
                 "email": operator.email,
                 "email_on_retry": operator.email_on_retry,
@@ -1273,7 +1258,7 @@ class IterableOperator(BaseOperator):
             await executor.run_sync(report)
 
     @staticmethod
-    def _fingerprint(mapped_kwargs: Mapping[str, Any]) -> str | None:
+    def _compute_fingerprint(mapped_kwargs: Mapping[str, Any]) -> str | None:
         """
         Digest one sub-task's input, stored on its checkpoint to tell whether the checkpoint still applies.
 
@@ -1288,7 +1273,7 @@ class IterableOperator(BaseOperator):
             return None
         return hashlib.sha256(serialized.encode()).hexdigest()
 
-    def _partial_inputs_from_upstream(self, unmapped_task: BaseOperator) -> dict[str, Any]:
+    def _collect_partial_inputs_from_upstream(self, unmapped_task: BaseOperator) -> dict[str, Any]:
         """
         Collect the rendered values of the partial kwargs an upstream task provides.
 
@@ -1334,8 +1319,8 @@ class IterableOperator(BaseOperator):
         # template must read the same task_state_store as execute() does.
         self._render_unmapped_operator(indexed_ti.context_for(context), unmapped_task, jinja_env)
         # Taken once rendered, so the partial kwargs an upstream provides are in it with their value.
-        indexed_ti.input_fingerprint = self._fingerprint(
-            {**mapped_kwargs, **self._partial_inputs_from_upstream(unmapped_task)}
+        indexed_ti.input_fingerprint = self._compute_fingerprint(
+            {**mapped_kwargs, **self._collect_partial_inputs_from_upstream(unmapped_task)}
         )
         return indexed_ti
 

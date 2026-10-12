@@ -975,7 +975,7 @@ class TestIterableOperator:
                 store._data["_iterable_0"] = IndexedTaskState(
                     status=TaskInstanceState.SUCCESS,
                     result="from_checkpoint",
-                    fingerprint=IterableOperator._fingerprint({"arg1": 1}),
+                    fingerprint=IterableOperator._compute_fingerprint({"arg1": 1}),
                 ).serialize()
                 store._data["_iterable_1"] = IndexedTaskState(
                     status=TaskInstanceState.UP_FOR_RETRY
@@ -1003,26 +1003,30 @@ class TestIterableOperator:
                 store._data["_iterable_0"] = IndexedTaskState(
                     status=TaskInstanceState.SUCCESS,
                     result="from_the_old_item",
-                    fingerprint=IterableOperator._fingerprint({"arg1": "old"}),
+                    fingerprint=IterableOperator._compute_fingerprint({"arg1": "old"}),
                 ).serialize()
                 store._data["_iterable_1"] = IndexedTaskState(
                     status=TaskInstanceState.SUCCESS,
                     result="from_checkpoint",
-                    fingerprint=IterableOperator._fingerprint({"arg1": 2}),
+                    fingerprint=IterableOperator._compute_fingerprint({"arg1": 2}),
                 ).serialize()
 
                 materialized = list(iterable_op.execute(context=context))
 
                 assert materialized == [("new", None, None), "from_checkpoint"]
-                assert store["_iterable_0"]["fingerprint"] == IterableOperator._fingerprint({"arg1": "new"})
+                assert store["_iterable_0"]["fingerprint"] == IterableOperator._compute_fingerprint(
+                    {"arg1": "new"}
+                )
 
     def test_fingerprint(self):
         """The digest follows the content, not the key order, and gives up on what serde cannot serialize."""
-        assert IterableOperator._fingerprint({"a": 1, "b": [1, 2]}) == IterableOperator._fingerprint(
-            {"b": [1, 2], "a": 1}
+        assert IterableOperator._compute_fingerprint(
+            {"a": 1, "b": [1, 2]}
+        ) == IterableOperator._compute_fingerprint({"b": [1, 2], "a": 1})
+        assert IterableOperator._compute_fingerprint({"a": 1}) != IterableOperator._compute_fingerprint(
+            {"a": 2}
         )
-        assert IterableOperator._fingerprint({"a": 1}) != IterableOperator._fingerprint({"a": 2})
-        assert IterableOperator._fingerprint({"a": object()}) is None
+        assert IterableOperator._compute_fingerprint({"a": object()}) is None
 
     def test_execute_does_not_leak_unmapped_operator_into_parent_context(self):
         """
@@ -1446,7 +1450,7 @@ class TestIterableOperator:
         2. IterableOperator no longer retries failed sub-tasks in-process — retries (if any) are
            handled by Airflow retrying the whole IterableOperator task instance
         3. The failing sub-task's own exception is raised, regardless of whether the wrapped operator
-           has retries configured (one failure is not wrapped in a group, see _failure_for_the_runner)
+           has retries configured (one failure is not wrapped in a group, see _pick_failure_for_runner)
         """
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
@@ -1713,8 +1717,8 @@ class TestIterableOperator:
                 checkpoint = context["task_state_store"]["_iterable_0"]
 
         assert checkpoint["status"] == "up_for_retry"
-        assert IterableOperator._fingerprint(failing) is not None
-        assert checkpoint["fingerprint"] == IterableOperator._fingerprint(failing)
+        assert IterableOperator._compute_fingerprint(failing) is not None
+        assert checkpoint["fingerprint"] == IterableOperator._compute_fingerprint(failing)
         assert checkpoint["try_number"] == 3
 
     def test_parent_timeout_runs_the_retry_callback_while_retries_are_left(self):
@@ -3716,7 +3720,7 @@ class TestFingerprintCoversPartialInputsFromUpstream:
             iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([{"arg1": "a"}]))
         iterable_op.partial_kwargs = {"arg2": upstream, "op_kwargs": {"y": upstream, "z": 1}, "retries": 2}
 
-        inputs = iterable_op._partial_inputs_from_upstream(rendered)
+        inputs = iterable_op._collect_partial_inputs_from_upstream(rendered)
 
         assert inputs == {"arg2": "rendered-arg2", "op_kwargs.y": "rendered-y"}
 

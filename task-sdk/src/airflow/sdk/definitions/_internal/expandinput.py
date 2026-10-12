@@ -116,7 +116,7 @@ class Source:
         return await asyncio.to_thread(value.__getitem__, index)
 
 
-def index_for_each_field(map_index: int, lengths: Mapping[str, int]) -> dict[str, int]:
+def compute_index_for_each_field(map_index: int, lengths: Mapping[str, int]) -> dict[str, int]:
     """
     Split a cross-product position into one index per expand argument.
 
@@ -299,7 +299,7 @@ class DictOfListsExpandInput(ExpandInput):
 
     def _expand_mapped_field(self, key: str, value: Any, map_index: int, all_lengths: dict[str, int]) -> Any:
         # Use the original user input to retain argument order.
-        found_index = index_for_each_field(map_index, {k: all_lengths[k] for k in self.value})[key]
+        found_index = compute_index_for_each_field(map_index, {k: all_lengths[k] for k in self.value})[key]
         if isinstance(value, Sequence):
             return value[found_index]
         if not isinstance(value, dict):
@@ -321,7 +321,7 @@ class DictOfListsExpandInput(ExpandInput):
         lengths = {key: await source.alen() for key, source in sources.items()}
 
         async def aget(index: int) -> Mapping[str, Any]:
-            positions = index_for_each_field(index, lengths)
+            positions = compute_index_for_each_field(index, lengths)
             return {key: await source.aget(positions[key]) for key, source in sources.items()}
 
         return Resolved(math.prod(lengths.values()), aget)

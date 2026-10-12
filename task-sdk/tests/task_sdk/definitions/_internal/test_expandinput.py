@@ -31,7 +31,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     MappedArgument,
     Resolved,
     Source,
-    index_for_each_field,
+    compute_index_for_each_field,
 )
 from airflow.sdk.exceptions import UnmappableXComTypePushed, XComForMappingNotPushed
 
@@ -316,21 +316,21 @@ class TestIndexForEachField:
         ],
     )
     def test_last_argument_varies_fastest(self, map_index, expected):
-        assert index_for_each_field(map_index, {"a": 2, "b": 3, "c": 2}) == expected
+        assert compute_index_for_each_field(map_index, {"a": 2, "b": 3, "c": 2}) == expected
 
     def test_single_argument_is_the_position_itself(self):
-        assert index_for_each_field(4, {"a": 9}) == {"a": 4}
+        assert compute_index_for_each_field(4, {"a": 9}) == {"a": 4}
 
     def test_matches_itertools_product_order(self):
         import itertools
 
         lengths = {"a": 2, "b": 3, "c": 2}
-        positions = [tuple(index_for_each_field(i, lengths).values()) for i in range(12)]
+        positions = [tuple(compute_index_for_each_field(i, lengths).values()) for i in range(12)]
         assert positions == list(itertools.product(range(2), range(3), range(2)))
 
     def test_zero_length_argument_cannot_be_expanded(self):
         with pytest.raises(RuntimeError, match="cannot expand field mapped to length 0"):
-            index_for_each_field(0, {"a": 2, "b": 0})
+            compute_index_for_each_field(0, {"a": 2, "b": 0})
 
     @pytest.mark.asyncio
     async def test_expand_and_iterate_pick_the_same_item_for_a_position(self):

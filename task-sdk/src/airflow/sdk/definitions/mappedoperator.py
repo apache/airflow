@@ -478,6 +478,20 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("task_display_name") or self.task_id
 
     @property
+    def task_id_without_group_prefix(self) -> str:
+        """
+        The task id without its task group's prefix.
+
+        ``partial()`` already gave this operator the prefixed id, and ``BaseOperator.__init__`` prefixes
+        the id it gets once more, so an IterableOperator wrapping this operator is handed this one to
+        keep the two equal. The same rule as ``label``, which returns the display name when there is one.
+        """
+        task_group = self.task_group
+        if task_group and task_group.node_id and task_group.prefix_group_id:
+            return self.task_id[len(task_group.node_id) + 1 :]
+        return self.task_id
+
+    @property
     def owner(self) -> str:
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 
