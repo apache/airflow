@@ -58,6 +58,15 @@ def get_provider_info():
                 "tags": ["azure"],
             },
             {
+                "integration-name": "Microsoft Azure Container Apps Jobs",
+                "external-doc-url": "https://learn.microsoft.com/en-us/azure/container-apps/jobs",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-microsoft-azure/operators/container_apps.rst"
+                ],
+                "logo": "/docs/integration-logos/Microsoft-Azure.png",
+                "tags": ["azure"],
+            },
+            {
                 "integration-name": "Microsoft Azure Container Instances",
                 "external-doc-url": "https://azure.microsoft.com/en-us/services/container-instances/",
                 "logo": "/docs/integration-logos/Container-Instances.svg",
@@ -159,6 +168,10 @@ def get_provider_info():
         ],
         "operators": [
             {
+                "integration-name": "Microsoft Azure Container Apps Jobs",
+                "python-modules": ["airflow.providers.microsoft.azure.operators.container_apps"],
+            },
+            {
                 "integration-name": "Microsoft Azure Analysis Services",
                 "python-modules": ["airflow.providers.microsoft.azure.operators.analysis_services"],
             },
@@ -247,6 +260,10 @@ def get_provider_info():
         ],
         "hooks": [
             {
+                "integration-name": "Microsoft Azure Container Apps Jobs",
+                "python-modules": ["airflow.providers.microsoft.azure.hooks.container_apps"],
+            },
+            {
                 "integration-name": "Microsoft Azure Analysis Services",
                 "python-modules": ["airflow.providers.microsoft.azure.hooks.analysis_services"],
             },
@@ -320,6 +337,10 @@ def get_provider_info():
             },
         ],
         "triggers": [
+            {
+                "integration-name": "Microsoft Azure Container Apps Jobs",
+                "python-modules": ["airflow.providers.microsoft.azure.triggers.container_apps"],
+            },
             {
                 "integration-name": "Microsoft Azure Analysis Services",
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.analysis_services"],
