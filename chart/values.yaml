@@ -3535,7 +3535,7 @@ dags:
 
     depth: 1
 
-    # The number of consecutive failures before aborting (git-sync v4).
+    # The number of consecutive failures before aborting.
     # Set to 0 to abort on the first failure, or -1 to retry indefinitely.
     maxFailures: 5
 
