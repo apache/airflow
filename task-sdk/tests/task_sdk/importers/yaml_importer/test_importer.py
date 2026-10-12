@@ -103,8 +103,14 @@ def test_might_contain_dag(mock_bundle):
     importer = YamlDagImporter()
     has = _def(mock_bundle, "has.yaml", f"$schema: {HEAD_SCHEMA}\ndag_id: d\ntasks: []\n")
     nope = _def(mock_bundle, "nope.yaml", "just: config\n")
+    # A $schema that is not the canonical Dag URL (e.g. a JSON-Schema file) must not be picked up.
+    other = _def(mock_bundle, "schema.yaml", "$schema: https://json-schema.org/draft/2020-12/schema\n")
+    # The canonical URL merely mentioned, without a $schema declaration, must not be picked up either.
+    mention = _def(mock_bundle, "mention.yaml", f"note: see {HEAD_SCHEMA}\n")
     assert importer.might_contain_dag(has, safe_mode=True)
     assert not importer.might_contain_dag(nope, safe_mode=True)
+    assert not importer.might_contain_dag(other, safe_mode=True)
+    assert not importer.might_contain_dag(mention, safe_mode=True)
     assert importer.might_contain_dag(nope, safe_mode=False)  # sniff skipped
 
 

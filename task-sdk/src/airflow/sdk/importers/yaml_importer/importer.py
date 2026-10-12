@@ -42,6 +42,7 @@ from airflow.sdk.importers.base import (
     get_file_suffix,
 )
 from airflow.sdk.importers.yaml_importer.builder import DagBuilder, YamlDagBuildError
+from airflow.sdk.importers.yaml_importer.migrator import _SCHEMA_URL
 from airflow.sdk.importers.yaml_importer.parser import YamlDagParseError, parse_documents
 
 if TYPE_CHECKING:
@@ -53,6 +54,11 @@ if TYPE_CHECKING:
     from airflow.sdk.importers.base import DagDefinition
 
 log = logging.getLogger(__name__)
+
+# The sniff matches the canonical Dag ``$schema`` URL, not a bare ``$schema``, so a JSON-Schema
+# file (or any other YAML declaring a $schema) in the bundle is not queued and then stuck as a
+# parse error. Derived from the migrator's URL template to stay in sync.
+_DAG_SCHEMA_PREFIX = _SCHEMA_URL.partition("{date}")[0].encode()
 
 
 class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
@@ -150,10 +156,17 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
         return DagSourceCode(source_code=definition.read_text(encoding="utf-8"), language="yaml")
 
     def might_contain_dag(self, definition: DagDefinition, safe_mode: bool) -> bool:
-        """Cheap sniff: a DAG document declares a ``$schema``. Keep the file if the read fails."""
+        """
+        Cheap sniff: the file declares a ``$schema`` set to the canonical Dag URL.
+
+        Both are required so a file that merely mentions the URL (without a ``$schema`` declaration)
+        is skipped. The sniff stays lenient past that -- a malformed Dag still reaches the parser and
+        gets a clear error rather than silently disappearing. Keep the file if the read fails.
+        """
         if not safe_mode:
             return True
         try:
-            return b"$schema" in definition.read_bytes()
+            data = definition.read_bytes()
         except OSError:
             return True
+        return b"$schema" in data and _DAG_SCHEMA_PREFIX in data
