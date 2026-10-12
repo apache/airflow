@@ -321,12 +321,12 @@ def ti_run(
             read = build_xcom_read_query(producer_ids=select(TI.id).where(TI.id == task_instance_id))
             entity = xcom_entity(read)
             xcom_keys = list(session.scalars(read.with_only_columns(entity.key)))
-        task_reschedule_count = (
-            session.scalar(
-                select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == task_instance_id)
-            )
-            or 0
-        )
+        task_reschedule_count, first_task_reschedule_start_date = session.execute(
+            select(
+                func.count(TaskReschedule.id),
+                func.min(TaskReschedule.start_date),
+            ).where(TaskReschedule.ti_id == task_instance_id)
+        ).one()
 
         context = TIRunContext(
             dag_run=dr,
@@ -352,6 +352,8 @@ def ti_run(
                 terminal_task_id=group.terminal_task_id,
                 terminal_is_mapped=terminal.get_needs_expansion(),
             )
+        if first_task_reschedule_start_date is not None:
+            context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
