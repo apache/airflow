@@ -1988,7 +1988,7 @@ class TestDagRun:
     def test_dagrun_deadline_failure_does_not_abort_dagrun(
         self, _, mock_stats_incr, interval, failure, session, deadline_test_dag
     ):
-        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
@@ -2028,7 +2028,7 @@ class TestDagRun:
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(
-                    datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+                    datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
                 ),
                 interval=VariableInterval("missing_key"),
                 callback=AsyncCallback(empty_callback_for_deadline),
@@ -2069,7 +2069,7 @@ class TestDagRun:
         """DagRuns are created under ``prohibit_commit``, so creating a deadline, skipping one whose
         interval will not resolve, and resolving a ``VariableInterval`` out of the metadata database
         all have to leave the scheduler's session uncommitted."""
-        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(future_date),
