@@ -123,7 +123,7 @@ UNREACHABLE_MODULES = {"voyageai", "sentence_transformers"}
 DEPRECATED_UPSTREAM_MODULES = {"github"}
 
 # Modules that ARE reachable through `infer_model` (unlike UNREACHABLE_MODULES) but are excluded
-# by decision because `PydanticAIHook` has no way to supply the credentials they require.
+# by decision because `PydanticAIHook` cannot supply the credentials they require from a connection.
 # `PydanticAIHook._get_provider_kwargs()` -- the generic connection type's only credential path
 # (`hooks/pydantic_ai.py`) -- always sends `api_key` (from `conn.password`) and/or `base_url`
 # (from `conn.host`). `pydantic_ai.providers.openai_codex.OpenAICodexProvider.__init__` accepts
@@ -136,15 +136,14 @@ DEPRECATED_UPSTREAM_MODULES = {"github"}
 # `_read_codex_cli_credentials()` helper: a read-only load of the Codex CLI's on-disk
 # `~/.codex/auth.json`, populated by the OAuth authorization-code + PKCE login flow the Codex CLI
 # itself performs (see `pydantic_ai.providers.openai_codex`'s module docstring and
-# `OpenAICodexOAuthFlow`) -- not by anything `hooks/pydantic_ai.py` can express. No `pydanticai`
-# connection field maps to an OAuth credential or a `credential_source`, so a `pydanticai`
-# connection can never drive this provider regardless of what's configured on it. Advertising a
-# vendor no configuration on this connection type can ever reach is worse than not listing it
-# (mirrors `DEPRECATED_UPSTREAM_MODULES`'s reasoning, for a different cause: hook-incompatible
-# auth rather than a retired backend). `test_hook_incompatible_auth_modules_stay_incompatible`
-# below guards the reversal: if pydantic-ai gives one of these providers an `api_key`/`base_url`
-# constructor parameter, this must fail so a human re-evaluates whether the module belongs back
-# in `LABELS` and `provider.yaml`, instead of it staying excluded forever on a stale rationale.
+# `OpenAICodexOAuthFlow`) -- not by anything `hooks/pydantic_ai.py` can express. So credentials
+# configured on a `pydanticai` connection (password/host) can never drive this provider; only
+# the ambient Codex CLI login can, via that fallback. The services page lists only vendors a
+# connection's credentials can drive, so these modules stay off it.
+# `test_hook_incompatible_auth_modules_stay_incompatible` below guards the reversal: if
+# pydantic-ai gives one of these providers an `api_key`/`base_url` constructor parameter, this
+# must fail so a human re-evaluates whether the module belongs back in `LABELS` and
+# `provider.yaml`, instead of it staying excluded forever on a stale rationale.
 HOOK_INCOMPATIBLE_AUTH_MODULES = {"openai_codex"}
 
 # `pydantic_ai.providers.openai_codex` (the sole `HOOK_INCOMPATIBLE_AUTH_MODULES` member) was
