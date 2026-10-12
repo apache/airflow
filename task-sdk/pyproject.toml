@@ -229,6 +229,10 @@ dev = [
     "pandas>=2.2.3; python_version >=\"3.13\" and python_version <\"3.14\"",
     "pandas>=2.3.3; python_version >=\"3.14\""
 ]
+benchmarks = [
+    "apache-airflow-devel-common",
+    "pytest-codspeed>=5.0.3",
+]
 docs = [
     "apache-airflow-devel-common[docs]",
 ]
