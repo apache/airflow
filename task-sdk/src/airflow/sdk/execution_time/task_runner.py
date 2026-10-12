@@ -158,6 +158,7 @@ from airflow.sdk.execution_time.loop import LoopContextAccessor
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.tracing import detail_span
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.importers.python_importer import PythonDagImporter, get_dagbag_import_timeout
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.serde import allow_class, iter_pydantic_models
@@ -1119,6 +1120,13 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         _fail_lang_sdk_task(what, importer.coordinator_classpath, log)
 
     dag_file_parse_start = time.monotonic()
+    import_timeout = (
+        get_dagbag_import_timeout(dag_absolute_path)
+        if PythonDagImporter().can_handle(dag_absolute_path)
+        else 0
+    )
+    if import_timeout > 0:
+        SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=import_timeout))
     bag = BundleDagBag(
         dag_folder=dag_absolute_path,
         safe_mode=False,
@@ -1126,6 +1134,8 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         bundle_path=bundle_instance.path,
         bundle_name=bundle_info.name,
     )
+    if import_timeout > 0:
+        SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=0))
     dag_file_parse_ms = int((time.monotonic() - dag_file_parse_start) * 1000)
     if TYPE_CHECKING:
         assert what.ti.dag_id

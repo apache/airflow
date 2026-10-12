@@ -24,6 +24,7 @@ import json
 import os
 import textwrap
 import time
+import zipfile
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -237,6 +238,7 @@ class CustomOperator(BaseOperator):
     ],
 )
 @pytest.mark.parametrize("map_index", [-1, 3])
+@pytest.mark.usefixtures("mock_supervisor_comms")
 def test_parse(test_dags_dir: Path, make_ti_context, coordinates, map_index):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
@@ -283,7 +285,116 @@ def test_parse(test_dags_dir: Path, make_ti_context, coordinates, map_index):
     assert ti.map_index == map_index
 
 
+@pytest.mark.parametrize(
+    ("policy_timeout", "expected_sends"),
+    [
+        pytest.param(
+            12.5,
+            [
+                mock.call(SetExecutionTimeout(timeout_seconds=12.5)),
+                mock.call(SetExecutionTimeout(timeout_seconds=0)),
+            ],
+            id="armed_then_cleared",
+        ),
+        pytest.param(0, [], id="policy_disables_timeout"),
+    ],
+)
+@mock.patch("airflow.sdk.execution_time.task_runner.get_dagbag_import_timeout", autospec=True)
+def test_parse_arms_supervisor_import_timeout(
+    mock_get_timeout,
+    test_dags_dir: Path,
+    make_ti_context,
+    mock_supervisor_comms,
+    policy_timeout,
+    expected_sends,
+):
+    mock_get_timeout.return_value = policy_timeout
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="super_basic",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        parse(what, mock.Mock())
+
+    mock_get_timeout.assert_called_once_with(str(test_dags_dir / "super_basic.py"))
+    assert mock_supervisor_comms.send.call_args_list == expected_sends
+
+
+@mock.patch("airflow.sdk.execution_time.task_runner.get_dagbag_import_timeout", autospec=True)
+def test_parse_does_not_arm_supervisor_import_timeout_for_zipped_dag(
+    mock_get_timeout, test_dags_dir: Path, tmp_path: Path, make_ti_context, mock_supervisor_comms
+):
+    mock_get_timeout.return_value = 30
+    source = (test_dags_dir / "super_basic.py").read_text().replace("super_basic", "zipped_basic")
+    with zipfile.ZipFile(tmp_path / "zipped.zip", "w") as archive:
+        archive.writestr("zipped_basic.py", source)
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="zipped_basic",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="zipped.zip",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(tmp_path), "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        ti = parse(what, mock.Mock())
+
+    assert ti.task.dag.dag_id == "zipped_basic"
+    mock_get_timeout.assert_not_called()
+    mock_supervisor_comms.send.assert_not_called()
+
+
 @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
+@pytest.mark.usefixtures("mock_supervisor_comms")
 def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
     """Test that checks that the BundleDagBag is constructed as expected during parsing"""
     mock_bag_instance = mock.Mock()
@@ -358,6 +469,7 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
         ),
     ),
 )
+@pytest.mark.usefixtures("mock_supervisor_comms")
 def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, expected_error):
     """Check for nice error messages on dag not found."""
     what = StartupDetails(
@@ -402,6 +514,7 @@ def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, 
     log.error.assert_has_calls([expected_error])
 
 
+@pytest.mark.usefixtures("mock_supervisor_comms")
 def test_parse_not_found_does_not_reschedule_when_max_attempts_reached(test_dags_dir: Path, make_ti_context):
     """
     If the startup reschedule attempt limit is reached, parsing failures should not be rescheduled
@@ -883,6 +996,7 @@ def test_with_a_tracer_provider_installed_the_dag_runs_sampling_decision_holds(m
     assert task_code_exporter.get_finished_spans() == ()
 
 
+@pytest.mark.usefixtures("mock_supervisor_comms")
 def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
     """Check that the bundle path is added to sys.path, so Dags can import shared modules."""
     tmp_path.joinpath("util.py").write_text("NAME = 'dag_name'")
@@ -943,6 +1057,7 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
 @mock.patch("airflow.sdk.execution_time.task_runner.get_listener_manager")
 @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
 @mock.patch("airflow.sdk.execution_time.bundles.DagBundlesManager")
+@pytest.mark.usefixtures("mock_supervisor_comms")
 def test_bundle_initialize_parsing_context(
     mock_manager_cls,
     mock_bag_cls,
