@@ -368,7 +368,8 @@ def prefix_search_param_factory(
     """
     Build a FastAPI ``Depends`` returning a :class:`_PrefixSearchParam` for prefix matching.
 
-    The default implementation uses range comparisons to allow B-tree index scans.
+    Prefer this over :func:`search_param_factory` for performance: prefix matching uses a
+    B-tree index range scan, while substring matching requires a full table scan.
     ``param_class`` can specialize matching for expressions requiring different predicates.
     """
     DESCRIPTION = (

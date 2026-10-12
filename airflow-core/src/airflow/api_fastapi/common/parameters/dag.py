@@ -396,10 +396,7 @@ QueryDagDisplayNamePrefixPatternSearch = Annotated[
             DagModel.dag_display_name,
             "dag_display_name_prefix_pattern",
             param_class=_DagDisplayNamePrefixSearchParam,
-            description=(
-                "Case-sensitive prefix match. Non-ASCII prefixes use substring equality instead of "
-                'index range comparisons. See "Filtering with pattern parameters".'
-            ),
+            description='Case-sensitive prefix match. See "Filtering with pattern parameters".',
         )
     ),
 ]
