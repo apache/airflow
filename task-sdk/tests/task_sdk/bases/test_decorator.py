@@ -510,6 +510,60 @@ def test_iterate_without_arguments_names_iterate_in_the_error():
             add_one.iterate()
 
 
+@pytest.mark.parametrize(("method", "noun"), [("expand", "mapping"), ("iterate", "iterating")])
+def test_expand_and_iterate_refuse_upstream_input_under_trigger_rule_always(method, noun):
+    """``expand()`` and ``iterate()`` share their checks: each names itself in the message."""
+    with DAG("test_dag"):
+
+        @task
+        def numbers():
+            return [1, 2]
+
+        @task(trigger_rule="always")
+        def add_one(x):
+            return x + 1
+
+        with pytest.raises(ValueError, match=f"Task-generated {noun} within a task using '{method}'"):
+            getattr(add_one, method)(x=numbers())
+
+
+@pytest.mark.parametrize(("method", "noun"), [("expand_kwargs", "mapping"), ("iterate_kwargs", "iterating")])
+def test_expand_kwargs_and_iterate_kwargs_share_their_checks(method, noun):
+    with DAG("test_dag"):
+
+        @task
+        def number():
+            return 1
+
+        @task
+        def add_one(x):
+            return x + 1
+
+        @task(trigger_rule="always")
+        def add_one_always(x):
+            return x + 1
+
+        with pytest.raises(TypeError, match="expected XComArg or list\\[dict\\], not list"):
+            getattr(add_one, method)([1])
+        with pytest.raises(ValueError, match=f"Task-generated {noun} within a task using '{method}'"):
+            getattr(add_one_always, method)([{"x": number()}])
+
+
+def test_iterate_gives_a_teardown_task_the_teardown_trigger_rule():
+    """The teardown rule ``expand()`` applies holds for ``iterate()`` too."""
+    from airflow.sdk import TriggerRule, teardown
+
+    with DAG("test_dag"):
+
+        @teardown
+        def clean_up(x):
+            return x
+
+        xcom_arg = clean_up.iterate(x=[1, 2])
+
+    assert xcom_arg.operator.trigger_rule == TriggerRule.ALL_DONE_SETUP_SUCCESS
+
+
 def test_iterate_ignores_multiple_outputs_inferred_from_return_annotation():
     with DAG("test_dag"):
 

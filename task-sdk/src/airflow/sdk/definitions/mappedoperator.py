@@ -208,21 +208,36 @@ class OperatorPartial:
             warnings.warn(f"Task {task_id} was never mapped!", category=UserWarning, stacklevel=1)
 
     def expand(self, **mapped_kwargs: OperatorExpandArgument) -> MappedOperator:
-        if not mapped_kwargs:
-            raise TypeError("no arguments to expand against")
         # task_concurrency only has meaning for Iterable Tasks (as the sub-task thread
         # count consumed by IterableOperator via .iterate()/.iterate_kwargs()).
         # A plain .expand() never reaches that code path, so reject it here rather than silently
         # accepting a dead value.
         if "task_concurrency" in self.kwargs:
             raise TypeError(TASK_CONCURRENCY_REJECTED)
-        validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
-        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
+        self._validate_expand_arguments("expand", mapped_kwargs)
         # Since the input is already checked at parse time, we can set strict
         # to False to skip the checks on execution.
         return self._expand(DictOfListsExpandInput(mapped_kwargs), strict=False)
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> MappedOperator:
+        # See the comment in expand() above: task_concurrency has no meaning outside iterate().
+        if "task_concurrency" in self.kwargs:
+            raise TypeError(TASK_CONCURRENCY_REJECTED)
+        self._validate_expand_kwargs_argument(kwargs)
+        return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
+
+    def _validate_expand_arguments(
+        self, name: Literal["expand", "iterate"], mapped_kwargs: dict[str, OperatorExpandArgument]
+    ) -> None:
+        """Check the keyword arguments of ``expand()`` or ``iterate()``, which take the same input."""
+        if not mapped_kwargs:
+            raise TypeError(f"no arguments to {name} against")
+        validate_mapping_kwargs(self.operator_class, name, mapped_kwargs)
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
+
+    @staticmethod
+    def _validate_expand_kwargs_argument(kwargs: OperatorExpandKwargsArgument) -> None:
+        """Check the argument of ``expand_kwargs()`` or ``iterate_kwargs()``: a list of dicts or an XComArg."""
         from airflow.sdk.definitions.xcom_arg import XComArg
 
         if isinstance(kwargs, Sequence):
@@ -231,10 +246,6 @@ class OperatorPartial:
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
-        # See the comment in expand() above: task_concurrency has no meaning outside iterate().
-        if "task_concurrency" in self.kwargs:
-            raise TypeError(TASK_CONCURRENCY_REJECTED)
-        return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(
         self,
@@ -313,11 +324,7 @@ class OperatorPartial:
         :class:`~airflow.sdk.definitions.iterableoperator.IterableOperator` instead of one task
         instance per item.
         """
-        if not mapped_kwargs:
-            raise TypeError("no arguments to iterate against")
-
-        validate_mapping_kwargs(self.operator_class, "iterate", mapped_kwargs)
-        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
+        self._validate_expand_arguments("iterate", mapped_kwargs)
         # Since the input is already checked at parse time, we can set strict
         # to False to skip the checks on execution.
         return self._iterate(DictOfListsExpandInput(mapped_kwargs), strict=False)
@@ -326,14 +333,7 @@ class OperatorPartial:
         self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True
     ) -> IterableOperator:
         """Iterate the operator over a list of dicts or an XComArg; see :meth:`iterate`."""
-        from airflow.sdk.definitions.xcom_arg import XComArg
-
-        if isinstance(kwargs, Sequence):
-            for item in kwargs:
-                if not isinstance(item, (XComArg, Mapping)):
-                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
-        elif not isinstance(kwargs, XComArg):
-            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        self._validate_expand_kwargs_argument(kwargs)
         return self._iterate(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _iterate(self, expand_input: ExpandInput, *, strict: bool) -> IterableOperator:

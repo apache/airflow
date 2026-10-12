@@ -23,7 +23,18 @@ import textwrap
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from contextlib import suppress
 from functools import cached_property, partial, update_wrapper
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Protocol, TypeVar, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Generic,
+    Literal,
+    ParamSpec,
+    Protocol,
+    TypeVar,
+    cast,
+    overload,
+)
 
 import attr
 import typing_extensions
@@ -603,45 +614,67 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         super()._validate_arg_names(func, kwargs)
 
     def expand(self, **map_kwargs: OperatorExpandArgument) -> XComArg:
-        if self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS and any(
-            [isinstance(expanded, XComArg) for expanded in map_kwargs.values()]
-        ):
-            raise ValueError(
-                "Task-generated mapping within a task using 'expand' is not allowed with trigger rule 'always'."
-            )
-        if not map_kwargs:
-            raise TypeError("no arguments to expand against")
         # task_concurrency only has meaning for Iterable Tasks (as the sub-task thread
         # count consumed by IterableOperator via .iterate()/.iterate_kwargs()).
         # A plain .expand() never reaches that code path, so reject it here rather than silently
         # accepting a dead value.
         if "task_concurrency" in self.kwargs:
             raise TypeError(TASK_CONCURRENCY_REJECTED)
-        self._validate_arg_names("expand", map_kwargs)
-        prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
+        self._validate_expand_arguments("expand", "mapping", map_kwargs)
         # Since the input is already checked at parse time, we can set strict
         # to False to skip the checks on execution.
+        return XComArg(operator=self._expand(DictOfListsExpandInput(map_kwargs), strict=False))
+
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
+        # See the comment in expand() above: task_concurrency has no meaning outside iterate().
+        if "task_concurrency" in self.kwargs:
+            raise TypeError(TASK_CONCURRENCY_REJECTED)
+        self._validate_expand_kwargs_argument("expand_kwargs", "mapping", kwargs)
+        return XComArg(operator=self._expand(ListOfDictsExpandInput(kwargs), strict=strict))
+
+    def _validate_expand_arguments(
+        self, name: Literal["expand", "iterate"], noun: str, map_kwargs: dict[str, Any]
+    ) -> None:
+        """
+        Check the keyword arguments of ``expand()`` or ``iterate()``, which take the same input.
+
+        ``name`` is the method the user called and ``noun`` what it does to the task ("mapping",
+        "iterating"), both for the error messages. A teardown task's trigger rule is set here too.
+        """
+        if self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS and any(
+            isinstance(expanded, XComArg) for expanded in map_kwargs.values()
+        ):
+            raise ValueError(
+                f"Task-generated {noun} within a task using {name!r} is not allowed with trigger rule 'always'."
+            )
+        if not map_kwargs:
+            raise TypeError(f"no arguments to {name} against")
+        self._validate_arg_names(name, map_kwargs)
+        prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         if self.is_teardown:
             if "trigger_rule" in self.kwargs:
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        return XComArg(operator=self._expand(DictOfListsExpandInput(map_kwargs), strict=False))
 
-    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
+    def _validate_expand_kwargs_argument(
+        self,
+        name: Literal["expand_kwargs", "iterate_kwargs"],
+        noun: str,
+        kwargs: OperatorExpandKwargsArgument,
+    ) -> None:
+        """Check the argument of ``expand_kwargs()`` or ``iterate_kwargs()``: a list of dicts or an XComArg."""
         if (
             self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS
             and not isinstance(kwargs, XComArg)
             and any(
-                [
-                    isinstance(v, XComArg)
-                    for kwarg in kwargs
-                    if not isinstance(kwarg, XComArg)
-                    for v in kwarg.values()
-                ]
+                isinstance(v, XComArg)
+                for kwarg in kwargs
+                if not isinstance(kwarg, XComArg)
+                for v in kwarg.values()
             )
         ):
             raise ValueError(
-                "Task-generated mapping within a task using 'expand_kwargs' is not allowed with trigger rule 'always'."
+                f"Task-generated {noun} within a task using {name!r} is not allowed with trigger rule 'always'."
             )
         if isinstance(kwargs, Sequence):
             for item in kwargs:
@@ -649,10 +682,6 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
-        # See the comment in expand() above: task_concurrency has no meaning outside iterate().
-        if "task_concurrency" in self.kwargs:
-            raise TypeError(TASK_CONCURRENCY_REJECTED)
-        return XComArg(operator=self._expand(ListOfDictsExpandInput(kwargs), strict=strict))
 
     def _expand(
         self,
@@ -776,47 +805,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         :class:`~airflow.sdk.definitions.iterableoperator.IterableOperator` instead of one task
         instance per item.
         """
-        if self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS and any(
-            [isinstance(expanded, XComArg) for expanded in map_kwargs.values()]
-        ):
-            raise ValueError(
-                "Task-generated iterating within a task using 'iterate' is not allowed with trigger rule 'always'."
-            )
-        if not map_kwargs:
-            raise TypeError("no arguments to iterate against")
-        self._validate_arg_names("iterate", map_kwargs)
-        prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
-        # Since the input is already checked at parse time, we can set strict
-        # to False to skip the checks on execution.
-        if self.is_teardown:
-            if "trigger_rule" in self.kwargs:
-                raise ValueError("Trigger rule not configurable for teardown tasks.")
-            self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
+        self._validate_expand_arguments("iterate", "iterating", map_kwargs)
         return self._iterate(DictOfListsExpandInput(map_kwargs), strict=False)
 
     def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
         """Iterate the task over a list of dicts or an XComArg; see :meth:`iterate`."""
-        if (
-            self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS
-            and not isinstance(kwargs, XComArg)
-            and any(
-                [
-                    isinstance(v, XComArg)
-                    for kwarg in kwargs
-                    if not isinstance(kwarg, XComArg)
-                    for v in kwarg.values()
-                ]
-            )
-        ):
-            raise ValueError(
-                "Task-generated iterating within a task using 'iterate_kwargs' is not allowed with trigger rule 'always'."
-            )
-        if isinstance(kwargs, Sequence):
-            for item in kwargs:
-                if not isinstance(item, (XComArg, Mapping)):
-                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
-        elif not isinstance(kwargs, XComArg):
-            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        self._validate_expand_kwargs_argument("iterate_kwargs", "iterating", kwargs)
         return self._iterate(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _iterate(self, expand_input: ExpandInput, *, strict: bool) -> XComArg:
