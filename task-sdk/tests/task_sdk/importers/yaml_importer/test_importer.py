@@ -38,6 +38,7 @@ class _RecordingOperator(BaseOperator):
     """A trivial operator with one templated field (``payload``) and one plain field (``note``)."""
 
     template_fields = ("payload",)
+    template_ext = (".sql",)  # non-empty so the importer emptying it to () is observable, not vacuous
 
     def __init__(self, *, payload=None, note=None, **kwargs):
         super().__init__(**kwargs)
@@ -147,6 +148,8 @@ def test_import_builds_operator_dag(mock_bundle):
     assert a.payload == "hi"  # literal
     assert isinstance(b.payload, XComArg)  # $x -> XComArg
     assert b.upstream_task_ids == {"a"}  # XCom wired the dependency
+    assert "payload" in b.template_fields  # $x opted the field into rendering
+    assert "payload" not in a.template_fields  # a's unmarked literal was dropped from rendering
 
 
 def test_import_wires_needs(mock_bundle):
@@ -176,7 +179,10 @@ def test_import_bodyless_task_with_args_errors(mock_bundle):
     definition = _def(mock_bundle, "dag.yaml", _doc("- {id: a, with: {x: 1}}"))
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert not result.dags
-    assert result.errors
+    assert any(
+        "Invalid arguments were passed to EmptyOperator" in e.message and "'x'" in e.message
+        for e in result.errors
+    )
 
 
 def test_import_schedule_cron(mock_bundle):
@@ -338,7 +344,7 @@ def test_import_literal_by_default(mock_bundle):
     a = result.dags[0].get_task("a")
     assert a.payload == "{{ ds }}"  # kept literal
     assert tuple(a.template_fields) == ()  # not rendered
-    assert tuple(a.template_ext) == ()  # and the suffix-based file-load foot-gun is closed
+    assert tuple(a.template_ext) == ()
 
 
 def test_import_template_marker_sets_template_fields(mock_bundle):
@@ -465,7 +471,7 @@ def test_import_unknown_operator_errors(mock_bundle):
     definition = _def(mock_bundle, "dag.yaml", _doc("- {id: a, uses: does.not.Exist, with: {}}"))
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert not result.dags
-    assert result.errors
+    assert any("No module named" in e.message for e in result.errors)
 
 
 def test_import_one_bad_document_fails_whole_file(mock_bundle):
