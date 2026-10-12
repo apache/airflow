@@ -938,6 +938,12 @@ previous images that can matter when you extend or run the image are:
   wrong Python. The image build fails when this happens, but a custom image that installs extra apt
   packages is not checked. Check what ``apt-get install --simulate`` would install before adding packages
   that might depend on ``python3``, and prefer the runtime library packages over their ``-dev`` variants.
+* **The image's Python packages are held.** On the Debian 13 images, Debian's own ``python3`` packages
+  conflict with the image's ``python-3.X`` packages, so a package that apt can only satisfy with them -
+  for example NodeSource's ``nodejs`` - would make apt remove the image's Python without asking. The
+  image marks its Python packages with ``apt-mark hold``, so apt reports the ``python3`` conflict and the
+  installation fails instead. Install that software some other way - for Node.js, copy the ``node`` binary
+  from the official ``node`` image - rather than releasing the hold.
 * **C extensions are compiled more strictly.** The Debian 13 images come with GCC 14, which turns
   incompatible pointer types, integer conversions and implicit function declarations into errors, and the
   hardened Python passes ``-Werror=implicit-function-declaration`` on to every C extension it builds. Old

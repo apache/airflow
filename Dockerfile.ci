@@ -392,6 +392,20 @@ function compile_python_stdlib() {
     /usr/python/bin/python -m compileall -q -j "$(nproc)" -o 0 -o 1 -o 2 "${stdlib}" || true
 }
 
+function hold_hardened_python() {
+    # The Debian 13 hardened images install their Python as packages that conflict with Debian's own
+    # python3. A package depending on python3 - for example NodeSource's nodejs - therefore makes apt
+    # remove the image's Python and install Debian's, without asking. Holding the packages turns that
+    # into an apt error instead, in this build and in images extending it.
+    local packages
+    packages=$(dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' 'python-3.*' 'libpython-3.*' 2>/dev/null \
+        | awk '$1 == "ii" {print $2}' || true)
+    if [[ -n "${packages}" ]]; then
+        # shellcheck disable=SC2086
+        apt-mark hold ${packages}
+    fi
+}
+
 function check_no_system_python() {
     # Python - from the hardened base image or compiled from sources - must stay the only Python in the
     # image. A system Python pulled in as a dependency of an apt package shares its shared libraries
@@ -559,6 +573,7 @@ function install_debian_runtime_dependencies() {
     check_no_system_python
     link_python
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        hold_hardened_python
         restore_thread_stack_size
         compile_python_stdlib
     fi
@@ -664,6 +679,7 @@ else
     check_no_system_python
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         link_python
+        hold_hardened_python
         restore_thread_stack_size
         compile_python_stdlib
     else
