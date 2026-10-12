@@ -22,7 +22,12 @@ from enum import Enum
 from typing import get_args
 
 from keycloak import KeycloakAdmin, KeycloakError
-from keycloak.exceptions import KeycloakGetError, KeycloakPostError, raise_error_from_response
+from keycloak.exceptions import (
+    KeycloakGetError,
+    KeycloakPostError,
+    KeycloakPutError,
+    raise_error_from_response,
+)
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 from airflow.api_fastapi.common.types import MenuItem
@@ -138,6 +143,8 @@ def create_permissions_command(args):
 
     teams = _parse_teams(args.teams)
     _ensure_multi_team_enabled(teams=teams, command_name="create-permissions")
+    _get_permissions_to_create(client, client_uuid, teams=teams)
+
     if teams:
         # Role policies are only needed for team-scoped (group+role) authorization.
         for role_name in TEAM_ROLE_NAMES:
@@ -148,6 +155,8 @@ def create_permissions_command(args):
     _create_permissions(client, client_uuid, teams=teams, _dry_run=args.dry_run)
     if not teams:
         _attach_default_role_permissions(client, client_uuid, _dry_run=args.dry_run)
+
+    _ensure_resource_server_decision_strategy(client, client_uuid, _dry_run=args.dry_run)
 
 
 @cli_utils.action_cli
@@ -159,9 +168,14 @@ def create_all_command(args):
     client_uuid = _get_client_uuid(args)
     teams = _parse_teams(args.teams)
     _ensure_multi_team_enabled(teams=teams, command_name="create-all")
+    _validate_permission_creation_plan(teams)
 
     _create_scopes(client, client_uuid, _dry_run=args.dry_run)
     _create_resources(client, client_uuid, teams=teams, _dry_run=args.dry_run)
+
+    if not args.dry_run:
+        _get_permissions_to_create(client, client_uuid, teams=teams)
+
     _create_group_membership_mapper(client, client_uuid, _dry_run=args.dry_run)
     if teams:
         # Role policies are only needed for team-scoped (group+role) authorization.
@@ -173,6 +187,7 @@ def create_all_command(args):
     _create_permissions(client, client_uuid, teams=teams, _dry_run=args.dry_run)
     if not teams:
         _attach_default_role_permissions(client, client_uuid, _dry_run=args.dry_run)
+    _ensure_resource_server_decision_strategy(client, client_uuid, _dry_run=args.dry_run)
 
 
 def _get_client(args):
@@ -258,6 +273,38 @@ def _ensure_multi_team_enabled(*, teams: list[str], command_name: str) -> None:
         raise SystemExit(f"{command_name} requires core.multi_team=True when --teams is used.")
 
 
+def _ensure_resource_server_decision_strategy(
+    client: KeycloakAdmin,
+    client_uuid: str,
+    *,
+    _dry_run: bool = False,
+) -> None:
+    realm = client.connection.realm_name
+    url = f"admin/realms/{realm}/clients/{client_uuid}/authz/resource-server"
+
+    response = client.connection.raw_get(url)
+    settings = raise_error_from_response(
+        response,
+        KeycloakGetError,
+        expected_codes=[200],
+    )
+
+    if settings.get("decisionStrategy") == "AFFIRMATIVE":
+        return
+
+    if _dry_run:
+        print("Would set resource-server decision strategy to AFFIRMATIVE.")
+        return
+
+    payload = {**settings, "decisionStrategy": "AFFIRMATIVE"}
+    response = client.connection.raw_put(url, data=json.dumps(payload))
+    raise_error_from_response(
+        response,
+        KeycloakPutError,
+        expected_codes=[204],
+    )
+
+
 def _ensure_default_role_policies(client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False) -> None:
     for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
         _ensure_role_policy(client, client_uuid, role_name, _dry_run=_dry_run)
@@ -284,6 +331,8 @@ def _get_default_permission_configs() -> list[dict]:
     permission_configs = []
 
     for resource in KeycloakResource:
+        if resource == KeycloakResource.MENU:
+            continue
         if resource in user_resources:
             write_roles = user_roles
         elif resource in op_resources:
@@ -312,7 +361,7 @@ def _get_default_permission_configs() -> list[dict]:
 
     permission_configs.append(
         {
-            "name": "MenuAccess",
+            "name": "DefaultMenuAccess",
             "type": "scope-based",
             "resources": [item.value for item in MenuItem],
             "scope_names": ["MENU"],
@@ -394,6 +443,47 @@ def _create_scopes(client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = 
     print("Scopes created successfully.")
 
 
+def _get_resource_names_to_create(
+    teams: list[str],
+) -> tuple[list[str], list[str]]:
+    """Build standard and menu resource names without querying Keycloak."""
+    standard_names = [resource.value for resource in KeycloakResource]
+    existing = set(standard_names)
+
+    for team in teams:
+        for resource_name in TEAM_SCOPED_RESOURCE_NAMES:
+            name = f"{resource_name}:{team}"
+            if name not in existing:
+                standard_names.append(name)
+                existing.add(name)
+
+    menu_names = [item.value for item in MenuItem]
+    return standard_names, menu_names
+
+
+def _validate_permission_creation_plan(
+    teams: list[str],
+    *,
+    include_global_admin: bool = True,
+    scopes: list[dict] | None = None,
+) -> None:
+    """Validate permission prerequisites against a provisioning plan."""
+    standard_names, menu_names = _get_resource_names_to_create(teams)
+    resources = [{"name": name} for name in standard_names + menu_names]
+
+    if scopes is None:
+        scopes = _get_scopes_to_create()
+
+    _validate_required_authz_objects(
+        _get_permission_configs(
+            teams,
+            include_global_admin=include_global_admin,
+        ),
+        scopes=scopes,
+        resources=resources,
+    )
+
+
 def _get_resources_to_create(
     client: KeycloakAdmin,
     client_uuid: str,
@@ -416,18 +506,9 @@ def _get_resources_to_create(
         {"id": scope["id"], "name": scope["name"]} for scope in all_scopes if scope["name"] == "MENU"
     ]
 
-    standard_resources = [(resource.value, scopes) for resource in KeycloakResource]
-
-    if teams:
-        existing = {resource_name for resource_name, _ in standard_resources}
-        for team in teams:
-            for resource_name in TEAM_SCOPED_RESOURCE_NAMES:
-                name = f"{resource_name}:{team}"
-                if name in existing:
-                    continue
-                standard_resources.append((name, scopes))
-                existing.add(name)
-    menu_resources = [(item.value, menu_scopes) for item in MenuItem]
+    standard_names, menu_names = _get_resource_names_to_create(teams)
+    standard_resources = [(name, scopes) for name in standard_names]
+    menu_resources = [(name, menu_scopes) for name in menu_names]
 
     return standard_resources, menu_resources
 
@@ -477,18 +558,41 @@ def _create_resources(client: KeycloakAdmin, client_uuid: str, *, teams: list[st
     print("Resources created successfully.")
 
 
-def _get_permissions_to_create(
-    client: KeycloakAdmin,
-    client_uuid: str,
+def _validate_required_authz_objects(
+    permission_configs: list[dict],
+    *,
+    scopes: list[dict],
+    resources: list[dict],
+) -> None:
+    """Validate that permission prerequisites exist."""
+    available_resources = {resource["name"] for resource in resources}
+    available_scopes = {scope["name"] for scope in scopes}
+
+    required_resources = {
+        name for permission in permission_configs for name in permission.get("resources", [])
+    }
+    required_scopes = {
+        name for permission in permission_configs for name in permission.get("scope_names", [])
+    }
+
+    missing_resources = required_resources - available_resources
+    missing_scopes = required_scopes - available_scopes
+
+    if missing_resources or missing_scopes:
+        raise ValueError(
+            "Cannot create permissions: "
+            f"missing resources={sorted(missing_resources)}, "
+            f"missing scopes={sorted(missing_scopes)}. "
+            "Run create-scopes and create-resources first."
+        )
+
+
+def _get_permission_configs(
     teams: list[str],
     *,
     include_global_admin: bool = True,
 ) -> list[dict]:
-    """
-    Get the actual permissions to be created with filtered scopes/resources.
-
-    Returns a list of permission descriptors with actual filtered data.
-    """
+    """Build permission definitions without querying Keycloak."""
     if not teams:
         perm_configs = _get_default_permission_configs()
     else:
@@ -573,27 +677,29 @@ def _get_permissions_to_create(
                 "resources": [item.value for item in MenuItem],
             }
         )
+    return perm_configs
 
+
+def _get_permissions_to_create(
+    client: KeycloakAdmin,
+    client_uuid: str,
+    teams: list[str],
+    *,
+    include_global_admin: bool = True,
+) -> list[dict]:
+    """Validate permission prerequisites and resolve names to Keycloak IDs."""
+    perm_configs = _get_permission_configs(
+        teams,
+        include_global_admin=include_global_admin,
+    )
     all_scopes = client.get_client_authz_scopes(client_uuid)
     all_resources = client.get_client_authz_resources(client_uuid)
 
-    if not teams:
-        available_resources = {resource["name"] for resource in all_resources}
-        available_scopes = {scope["name"] for scope in all_scopes}
-
-        required_resources = {name for permission in perm_configs for name in permission["resources"]}
-        required_scopes = {name for permission in perm_configs for name in permission["scope_names"]}
-
-        missing_resources = required_resources - available_resources
-        missing_scopes = required_scopes - available_scopes
-
-        if missing_resources or missing_scopes:
-            raise ValueError(
-                "Cannot create default permissions: "
-                f"missing resources={sorted(missing_resources)}, "
-                f"missing scopes={sorted(missing_scopes)}. "
-                "Run create-scopes and create-resources first."
-            )
+    _validate_required_authz_objects(
+        perm_configs,
+        scopes=all_scopes,
+        resources=all_resources,
+    )
 
     result = []
 
@@ -812,6 +918,13 @@ def create_team_command(args):
     team = args.team
     _ensure_multi_team_enabled(teams=[team], command_name="create-team")
 
+    scopes = client.get_client_authz_scopes(client_uuid)
+    _validate_permission_creation_plan(
+        [team],
+        include_global_admin=False,
+        scopes=scopes,
+    )
+
     _create_resources(client, client_uuid, teams=[team], _dry_run=args.dry_run)
     _create_group_membership_mapper(client, client_uuid, _dry_run=args.dry_run)
     _create_permissions(client, client_uuid, teams=[team], include_global_admin=False, _dry_run=args.dry_run)
@@ -822,6 +935,7 @@ def create_team_command(args):
     _attach_superadmin_permissions(client, client_uuid, team, _dry_run=args.dry_run)
     _update_read_only_permission_resources(client, client_uuid, _dry_run=args.dry_run)
     _update_admin_permission_resources(client, client_uuid, _dry_run=args.dry_run)
+    _ensure_resource_server_decision_strategy(client, client_uuid, _dry_run=args.dry_run)
 
 
 @cli_utils.action_cli
