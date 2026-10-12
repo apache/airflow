@@ -99,7 +99,7 @@ class TestSpellChecker:
 
     @mock.patch.object(filters.ImportableModuleFilter, "_skip", autospec=True, return_value=False)
     def test_importable_module_lookup_only_runs_for_words_still_misspelled(self, mock_skip, checker):
-        list(checker.find_misspellings("the zorp"))
+        list(checker.find_misspellings("(the) zorp"))
 
         assert [c.args[1] for c in mock_skip.call_args_list] == ["zorp"]
 
