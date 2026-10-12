@@ -55,7 +55,7 @@ refusing to provision unless the Deployment Manager has declared
 ``host_network_policy="deny-all"``, which means a bare ``SandboxSpec()`` is refused
 under the default ``host_network_policy="unknown"`` rather than silently getting
 an open sandbox. On OpenSandbox the default and ``allow_egress_to`` become a policy
-for the server's egress sidecar, and the backend refuses to provision unless that
+for the server's egress sidecar, and the backend destroys the sandbox and fails the task unless that
 sidecar runs in ``dns+nft`` mode, the one that drops connections to unlisted
 addresses rather than only name resolution (see
 :ref:`the OpenSandbox backend <sandbox-backend-opensandbox>`). ``allow_egress_to``

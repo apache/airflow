@@ -221,12 +221,16 @@ class TestCreate:
     @pytest.fixture(autouse=True)
     def egress_sidecar(self):
         """Answer the egress sidecar's ``GET /policy``, reporting ``enforcement_mode`` (dns+nft unless a test sets it)."""
-        sidecar = SimpleNamespace(enforcement_mode="dns+nft", status_code=200, requests=[])
+        sidecar = SimpleNamespace(
+            enforcement_mode="dns+nft", status_code=200, transient_status=None, requests=[]
+        )
 
-        def send(_client, request, **_kwargs):
+        def send(_transport, request):
             sidecar.requests.append(request)
             if isinstance(sidecar.enforcement_mode, Exception):
                 raise sidecar.enforcement_mode
+            if sidecar.transient_status is not None and len(sidecar.requests) == 1:
+                return httpx.Response(sidecar.transient_status, text="retry", request=request)
             if sidecar.status_code != 200:
                 return httpx.Response(sidecar.status_code, text="upstream failed", request=request)
             body = {"status": "ok", "mode": "deny_all", "policy": {"defaultAction": "deny"}}
@@ -234,7 +238,7 @@ class TestCreate:
                 body["enforcementMode"] = sidecar.enforcement_mode
             return httpx.Response(200, json=body, request=request)
 
-        with mock.patch.object(httpx.Client, "send", autospec=True, side_effect=send):
+        with mock.patch.object(httpx.HTTPTransport, "handle_request", autospec=True, side_effect=send):
             yield sidecar
 
     @mock.patch("opensandbox.SandboxSync.create", autospec=True)
@@ -345,11 +349,43 @@ class TestCreate:
         assert request.extensions["timeout"]["read"] == 12
         create.return_value.destroy.assert_not_called()
 
+    @pytest.mark.parametrize("transient_status", [None, 502, 503])
+    @mock.patch("opensandbox.SandboxSync.create", autospec=True)
+    def test_policy_readback_uses_owned_transport_with_proxy_environment(
+        self, create, transient_status, egress_sidecar, monkeypatch
+    ):
+        monkeypatch.setenv("HTTP_PROXY", "http://proxy.invalid:3128")
+        monkeypatch.setenv("HTTPS_PROXY", "http://proxy.invalid:3128")
+        monkeypatch.setenv("NO_PROXY", "")
+        egress_sidecar.transient_status = transient_status
+        sandbox = _created(_deny_policy())
+        sandbox.connection_config = sandbox.connection_config.with_transport_if_missing()
+        shared_transport = sandbox.connection_config.transport
+        create.return_value = sandbox
+        backend = OpenSandboxBackend()
+        backend._connection_config = mock.sentinel.connection_config
+        transport_init = httpx.HTTPTransport.__init__
+        with (
+            mock.patch.object(
+                httpx.HTTPTransport, "__init__", autospec=True, side_effect=transport_init
+            ) as init,
+            mock.patch.object(
+                type(shared_transport), "close", autospec=True, side_effect=type(shared_transport).close
+            ) as close,
+        ):
+            assert backend.create(spec=SandboxSpec()) == "created"
+        assert len(egress_sidecar.requests) == (1 if transient_status is None else 2)
+        assert all(call.kwargs.get("proxy") is None for call in init.call_args_list)
+        close.assert_called_once()
+        assert close.call_args.args[0] is not shared_transport
+        shared_transport.close()
+        sandbox.destroy.assert_not_called()
+
     @pytest.mark.parametrize(
         ("sidecar", "reason"),
         [
             ({"enforcement_mode": "dns"}, r"enforces it in 'dns' mode.*\[egress\] mode = \"dns\+nft\""),
-            ({"enforcement_mode": None}, "does not report an enforcement mode"),
+            ({"enforcement_mode": None}, "does not report an enforcement mode.*Upgrade.*v1.0.1 or later"),
             ({"enforcement_mode": httpx.ConnectError("refused")}, r"could not be read back \(ConnectError\)"),
             ({"status_code": 500}, r"could not be read back \(SandboxApiException, HTTP 500\)"),
         ],

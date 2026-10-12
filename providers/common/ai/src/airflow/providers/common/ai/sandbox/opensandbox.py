@@ -328,10 +328,13 @@ class OpenSandboxBackend(SandboxBackend):
         # its enforcementMode, so read that response with the SDK's generated egress client.
         config = sandbox.connection_config
         endpoint = sandbox.get_endpoint(DEFAULT_EGRESS_PORT)
+        # OpenSandbox 1.1.0 has no new_owned_transport(); give this client its own SDK transport.
+        transport = config.model_copy(update={"transport": None}).with_transport_if_missing().transport
         with Client(
             base_url=f"{config.protocol}://{endpoint.endpoint}",
             headers=endpoint.build_request_headers(config),
             timeout=httpx.Timeout(config.request_timeout.total_seconds()),
+            httpx_args={"transport": transport},
         ) as client:
             response = get_policy.sync_detailed(client=client)
         handle_api_error(response, "Get egress policy")
@@ -353,15 +356,20 @@ class OpenSandboxBackend(SandboxBackend):
                 mode = OpenSandboxBackend._get_egress_enforcement_mode(sandbox)
                 if mode == _ADDRESS_LAYER_EGRESS_MODE:
                     return
-                problem = (
-                    f"its egress sidecar enforces it in {mode!r} mode"
-                    if mode is not None
-                    else "its egress sidecar does not report an enforcement mode"
-                ) + (
-                    f', and only "{_ADDRESS_LAYER_EGRESS_MODE}" stops connections to numeric addresses '
-                    "rather than name resolution alone. Set "
-                    f'[egress] mode = "{_ADDRESS_LAYER_EGRESS_MODE}" in the server configuration, or pass '
-                    "SandboxSpec(block_network=False) for a sandbox that may reach the network."
+                if mode is None:
+                    problem = (
+                        "its egress sidecar does not report an enforcement mode. Upgrade the egress "
+                        "sidecar to v1.0.1 or later and configure it to run in dns+nft mode."
+                    )
+                else:
+                    problem = (
+                        f"its egress sidecar enforces it in {mode!r} mode, and only "
+                        f'"{_ADDRESS_LAYER_EGRESS_MODE}" stops connections to numeric addresses '
+                        "rather than name resolution alone. Set "
+                        f'[egress] mode = "{_ADDRESS_LAYER_EGRESS_MODE}" in the server configuration.'
+                    )
+                problem += (
+                    " Or pass SandboxSpec(block_network=False) for a sandbox that may reach the network."
                 )
         except Exception as e:
             code = _get_status_code(e)
