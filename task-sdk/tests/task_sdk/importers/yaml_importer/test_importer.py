@@ -202,9 +202,7 @@ def test_import_code_task_builds_stub_operator(mock_bundle):
     assert getattr(b, "is_stub", False) is True  # the real stub operator Airflow serializes
     assert b.queue == "handlers"  # task-level attribute passed through
     assert isinstance(b.op_kwargs["value"], XComArg)  # $x -> XComArg, bound as a handler argument
-    # op_kwargs is a template field, so the literal is protected to stay literal when rendered.
-    assert isinstance(b.op_kwargs["label"], LiteralValue)
-    assert b.op_kwargs["label"].value == "done"
+    assert b.op_kwargs["label"] == "done"  # literal bound verbatim (run args are never rendered)
     assert b.upstream_task_ids == {"a"}  # $x wired the dependency
     # The stub is fed a callable whose ordered parameters are the run argument names, so core
     # serialization can build the handler arg-binding spec (AIP-108) from a real signature.
@@ -235,6 +233,29 @@ def test_import_code_task_rejects_non_identifier_arg(mock_bundle):
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert not result.dags
     assert any("not a valid identifier" in e.message for e in result.errors)
+
+
+def test_import_run_rejects_template(mock_bundle):
+    # A $t in run: cannot be carried by the handler binding (it would arrive unrendered); reject it.
+    definition = _def(mock_bundle, "dag.yaml", _doc("- {id: a, run: {day: {$t: '{{ ds }}'}}}"))
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert any("template ($t)" in e.message for e in result.errors)
+
+
+def test_import_run_rejects_keyed_xcom(mock_bundle):
+    # Only a task's return value crosses the handler boundary; a keyed $x is rejected at build time.
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc("""
+            - {id: a, run: {}}
+            - {id: b, run: {v: {$x: {task: a, key: k}}}}
+        """),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert any("keyed XCom" in e.message for e in result.errors)
 
 
 @pytest.mark.parametrize("marker", ["{$x: a}", "{$t: 'v'}", "{$f: q.sql}"])

@@ -99,11 +99,11 @@ class DagBuilder:
         """
         Build a stub from a "run:" task.
 
-        The task body is a registered SDK task handler resolved at run time; each run argument binds
-        as a handler argument -- a literal value, or an upstream task's return value (``$x``). The
-        binding carries no rendering, so templates (``$t``) and keyed XCom (``$x`` with a ``key``)
-        are rejected. The stub is fed a callable whose parameters are the run argument names, so
-        serialization can build and later validate (AIP-108) the handler's argument spec.
+        The task body is a registered SDK task handler resolved at run time; the
+        run mapping binds as that handler's arguments, where XCom references
+        resolve natively. The stub is fed a callable whose parameters are the
+        run argument names, so serialization can build and later validate
+        (AIP-108) the handler's argument spec.
         """
         from airflow.sdk import task as task_decorators  # Lazy to avoid provider registration.
 
@@ -112,8 +112,6 @@ class DagBuilder:
             if not name.isidentifier() or keyword.iskeyword(name):
                 raise YamlDagBuildError(f"task {task.id_!r}: run argument {name!r} is not a valid identifier")
             _reject_unbindable_run_marker(task.id_, value)
-            # Not protected: run arguments bind as literal/XCom, they are never rendered, and a
-            # LiteralValue wrapper is not JSON-serializable for the handler arg binding.
             run_kwargs[name] = self._lower(value, protect=False)
         decorator = task_decorators.stub(task_id=task.id_, **(task.model_extra or {}))
         return decorator(self._stub_callable(tuple(run_kwargs)))(**run_kwargs).operator
@@ -253,9 +251,10 @@ def _reject_unbindable_run_marker(task_id: str, value: Any) -> None:
     """
     Reject value-grammar a task handler's argument binding cannot carry.
 
-    The binding carries only literals and an upstream task's return value, so a template (``$t``)
-    or a keyed XCom (``$x`` with a ``key``) anywhere in a run argument is an error. A plain
-    ``$x`` (return value), ``$f``, ``$const`` and literals are fine.
+    The binding carries only literals and an upstream task's return value, so a
+    template (``$t``) or a keyed XCom (``$x`` with a ``key``) anywhere in a run
+    argument is an error. A plain ``$x`` (return value), ``$f``, ``$const`` and
+    literals are fine.
     """
     if isinstance(value, TemplateRef):
         raise YamlDagBuildError(
