@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextvars
 import inspect
 import logging
 import os
@@ -35,7 +36,7 @@ from asyncio import (
     wrap_future,
 )
 from collections.abc import AsyncIterable, Callable, Iterator
-from concurrent.futures import Executor, ThreadPoolExecutor
+from concurrent.futures import Executor, Future as ConcurrentFuture, ThreadPoolExecutor
 from contextlib import suppress
 from typing import Any
 
@@ -150,7 +151,7 @@ class AsyncAwareExecutor(Executor):
             coro = func(*args, **kwargs)
         else:
             # Wrap thread pool future as asyncio.Future for consistent return type
-            return wrap_future(self._thread_pool.submit(func, *args, **kwargs), loop=self._loop)
+            return wrap_future(self._submit_to_thread_pool(func, *args, **kwargs), loop=self._loop)
 
         async def guarded():
             try:
@@ -170,8 +171,17 @@ class AsyncAwareExecutor(Executor):
 
     async def run_sync(self, func: Callable[..., Any], *args, **kwargs) -> Any:
         """Run a sync callable in this executor's thread pool and await its result."""
-        future = self._thread_pool.submit(func, *args, **kwargs)
-        return await wrap_future(future, loop=self._loop)
+        return await wrap_future(self._submit_to_thread_pool(func, *args, **kwargs), loop=self._loop)
+
+    def _submit_to_thread_pool(self, func: Callable[..., Any], *args, **kwargs) -> ConcurrentFuture[Any]:
+        """
+        Run ``func`` on a pool thread in a copy of the caller's context, as ``asyncio.to_thread`` does.
+
+        A pool thread keeps its own context from one call to the next: without the copy, a sync
+        item would run without the log bindings and the span its caller has, and would see the
+        context variables the previous item on that thread set.
+        """
+        return self._thread_pool.submit(contextvars.copy_context().run, func, *args, **kwargs)
 
     def imap_unordered(
         self,

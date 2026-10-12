@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import threading
 import time
 from concurrent.futures import Executor
@@ -32,6 +33,9 @@ async def aiter(items):
     """Expose a list as the async iterable ``AsyncAwareExecutor.imap_unordered`` consumes."""
     for item in items:
         yield item
+
+
+_ITEM = contextvars.ContextVar("_ITEM", default=None)
 
 
 class TestAsyncAwareExecutor:
@@ -337,3 +341,28 @@ class TestAsyncAwareExecutor:
 
         release.set()
         assert elapsed < 1.0
+
+    @pytest.mark.parametrize("call", ["run_sync", "submit"])
+    def test_a_sync_callable_runs_in_a_copy_of_the_callers_context(self, call):
+        """
+        A pool thread does not carry its own context from one call to the next: each call sees what
+        its caller set, and not what the previous call on the same thread set.
+        """
+
+        def read_then_set(name):
+            seen = _ITEM.get()
+            _ITEM.set(f"set by {name}")
+            return seen
+
+        async def run(name):
+            _ITEM.set(f"caller of {name}")
+            if call == "run_sync":
+                return await executor.run_sync(read_then_set, name)
+            return await executor.submit(read_then_set, name)
+
+        with event_loop() as loop:
+            with AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
+                first = loop.run_until_complete(run("first"))
+                second = loop.run_until_complete(run("second"))
+
+        assert (first, second) == ("caller of first", "caller of second")
