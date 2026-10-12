@@ -36,6 +36,7 @@ from __future__ import annotations
 import datetime
 import functools
 import graphlib
+import inspect
 import keyword
 import linecache
 import re
@@ -149,12 +150,16 @@ class DagBuilder:
             op_cls = import_string(task.uses)
 
         template_fields = set(getattr(op_cls, "template_fields", ()))
+        temporal = _temporal_fields(op_cls)
         kwargs: dict[str, Any] = {}
         render_fields: list[str] = []
         off_template: list[str] = []
         for name, value in task.with_.items():
             needs_render, has_marker = _field_markers(value)
-            kwargs[name] = self._lower(value, protect=needs_render)
+            lowered = self._lower(value, protect=needs_render)
+            if name in temporal and not has_marker:  # a literal date/ISO string for a datetime arg
+                lowered = _to_datetime(lowered)
+            kwargs[name] = lowered
             if has_marker and name not in template_fields:
                 off_template.append(name)
             if needs_render:
@@ -321,7 +326,7 @@ def _to_datetime(value: Any) -> Any:
     return value
 
 
-# We annotate arguments with either stdlib datetime or pendulum DateTime.
+# Airflow annotates arguments with either stdlib datetime or pendulum DateTime.
 # Matched by name (see _temporal_fields) rather than resolved to avoid having
 # to evaluate dynamically.
 _TEMPORAL_TYPE_NAMES = frozenset({"datetime", "DateTime"})
@@ -331,19 +336,20 @@ _TYPE_NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*")
 @functools.cache
 def _temporal_fields(target: type) -> frozenset[str]:
     """
-    Names of *target*'s arguments annotated as a datetime type.
+    Names of *target*'s constructor arguments annotated as a datetime type.
 
-    The annotation is read as text and matched against the datetime type names
-    we use; it is never resolved, so one referring to a ``TYPE_CHECKING``-only
-    name does not need importing. This is not perfect; we'll try to fix edge
-    cases as we go.
+    The annotation text is matched against the datetime type names Airflow uses;
+    it is never resolved, so one referring to a ``TYPE_CHECKING``-only name does
+    not need importing. The constructor signature is read -- not class
+    attributes -- so attrs field aliases and operator-specific arguments are
+    covered. This is not perfect (a datetime type reached under another alias is
+    missed); we'll fix edge cases as we go.
     """
-    found: set[str] = set()
-    for klass in getattr(target, "__mro__", (target,)):
-        for name, annotation in getattr(klass, "__annotations__", {}).items():
-            if name not in found and _is_temporal_annotation(str(annotation)):
-                found.add(name)
-    return frozenset(found)
+    try:
+        params = inspect.signature(target).parameters
+    except (TypeError, ValueError):
+        return frozenset()
+    return frozenset(name for name, p in params.items() if _is_temporal_annotation(str(p.annotation)))
 
 
 def _is_temporal_annotation(annotation: str) -> bool:

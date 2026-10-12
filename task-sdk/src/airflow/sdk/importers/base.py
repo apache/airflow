@@ -74,12 +74,15 @@ class DagDefinition(ABC):
         """
         Return a readable handle to a resource stored next to this definition.
 
-        The handle supports ``read_bytes()``. Resolution matches a Python Dag's
-        default Jinja search path (relative to the directory of the definition's
-        own file) and raises if *relpath* escapes it.
+        The handle supports ``read_bytes()``. Resolution is relative to the
+        directory of the definition's own file and raises if *relpath* escapes
+        it. This is close to a Python Dag's default Jinja search path, but
+        stricter: a path escaping via a symlink is rejected (Jinja's
+        ``FileSystemLoader`` would allow it), and a Dag-level
+        ``template_searchpath`` is not consulted.
 
-        The base cannot locate siblings; a definition type that can
-        hold them overrides this.
+        The base cannot locate siblings; a definition type that can hold them
+        overrides this.
         """
         raise NotImplementedError(f"{type(self).__name__} cannot resolve sibling resources")
 
