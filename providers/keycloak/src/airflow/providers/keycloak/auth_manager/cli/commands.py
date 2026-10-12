@@ -263,59 +263,81 @@ def _ensure_default_role_policies(client: KeycloakAdmin, client_uuid: str, *, _d
         _ensure_role_policy(client, client_uuid, role_name, _dry_run=_dry_run)
 
 
+def _get_default_permission_configs() -> list[dict]:
+    """Build resource-scoped permissions for non-team installations."""
+    read_roles = [*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME]
+    user_roles = ["User", "Op", "Admin", SUPER_ADMIN_ROLE_NAME]
+    op_roles = ["Op", "Admin", SUPER_ADMIN_ROLE_NAME]
+    admin_roles = ["Admin", SUPER_ADMIN_ROLE_NAME]
+
+    user_resources = {
+        KeycloakResource.DAG,
+        KeycloakResource.ASSET,
+    }
+    op_resources = {
+        KeycloakResource.CONNECTION,
+        KeycloakResource.POOL,
+        KeycloakResource.VARIABLE,
+        KeycloakResource.BACKFILL,
+    }
+
+    permission_configs = []
+
+    for resource in KeycloakResource:
+        if resource in user_resources:
+            write_roles = user_roles
+        elif resource in op_resources:
+            write_roles = op_roles
+        else:
+            write_roles = admin_roles
+
+        permission_configs.extend(
+            [
+                {
+                    "name": f"{resource.value}Read",
+                    "type": "scope-based",
+                    "resources": [resource.value],
+                    "scope_names": ["GET", "LIST"],
+                    "role_names": read_roles,
+                },
+                {
+                    "name": f"{resource.value}Write",
+                    "type": "scope-based",
+                    "resources": [resource.value],
+                    "scope_names": ["POST", "PUT", "DELETE"],
+                    "role_names": write_roles,
+                },
+            ]
+        )
+
+    permission_configs.append(
+        {
+            "name": "MenuAccess",
+            "type": "scope-based",
+            "resources": [item.value for item in MenuItem],
+            "scope_names": ["MENU"],
+            "role_names": read_roles,
+        }
+    )
+
+    return permission_configs
+
+
 def _attach_default_role_permissions(
     client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
 ) -> None:
-    for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
-        _attach_policy_to_scope_permission(
-            client,
-            client_uuid,
-            permission_name="ReadOnly",
-            policy_name=_role_policy_name(role_name),
-            scope_names=["GET", "MENU", "LIST"],
-            resource_names=[],
-            decision_strategy="AFFIRMATIVE",
-            _dry_run=_dry_run,
-        )
-
-    for role_name in ("User", "Op", "Admin", SUPER_ADMIN_ROLE_NAME):
-        _attach_policy_to_resource_permission(
-            client,
-            client_uuid,
-            permission_name="User",
-            policy_name=_role_policy_name(role_name),
-            resource_names=[KeycloakResource.DAG.value, KeycloakResource.ASSET.value],
-            decision_strategy="AFFIRMATIVE",
-            _dry_run=_dry_run,
-        )
-
-    for role_name in ("Op", "Admin", SUPER_ADMIN_ROLE_NAME):
-        _attach_policy_to_resource_permission(
-            client,
-            client_uuid,
-            permission_name="Op",
-            policy_name=_role_policy_name(role_name),
-            resource_names=[
-                KeycloakResource.CONNECTION.value,
-                KeycloakResource.POOL.value,
-                KeycloakResource.VARIABLE.value,
-                KeycloakResource.BACKFILL.value,
-            ],
-            decision_strategy="AFFIRMATIVE",
-            _dry_run=_dry_run,
-        )
-
-    for role_name in ("Admin", SUPER_ADMIN_ROLE_NAME):
-        _attach_policy_to_scope_permission(
-            client,
-            client_uuid,
-            permission_name="Admin",
-            policy_name=_role_policy_name(role_name),
-            scope_names=_get_extended_resource_methods() + ["LIST"],
-            resource_names=[],
-            decision_strategy="AFFIRMATIVE",
-            _dry_run=_dry_run,
-        )
+    for permission in _get_default_permission_configs():
+        for role_name in permission["role_names"]:
+            _attach_policy_to_scope_permission(
+                client,
+                client_uuid,
+                permission_name=permission["name"],
+                policy_name=_role_policy_name(role_name),
+                scope_names=permission["scope_names"],
+                resource_names=permission["resources"],
+                decision_strategy="AFFIRMATIVE",
+                _dry_run=_dry_run,
+            )
 
 
 def _update_read_only_permission_resources(
@@ -468,33 +490,7 @@ def _get_permissions_to_create(
     Returns a list of permission descriptors with actual filtered data.
     """
     if not teams:
-        perm_configs = [
-            {
-                "name": "ReadOnly",
-                "type": "scope-based",
-                "scope_names": ["GET", "MENU", "LIST"],
-            },
-            {
-                "name": "Admin",
-                "type": "scope-based",
-                "scope_names": _get_extended_resource_methods() + ["LIST"],
-            },
-            {
-                "name": "User",
-                "type": "resource-based",
-                "resources": [KeycloakResource.DAG.value, KeycloakResource.ASSET.value],
-            },
-            {
-                "name": "Op",
-                "type": "resource-based",
-                "resources": [
-                    KeycloakResource.CONNECTION.value,
-                    KeycloakResource.POOL.value,
-                    KeycloakResource.VARIABLE.value,
-                    KeycloakResource.BACKFILL.value,
-                ],
-            },
-        ]
+        perm_configs = _get_default_permission_configs()
     else:
         perm_configs = []
         for team in teams:
@@ -581,6 +577,24 @@ def _get_permissions_to_create(
     all_scopes = client.get_client_authz_scopes(client_uuid)
     all_resources = client.get_client_authz_resources(client_uuid)
 
+    if not teams:
+        available_resources = {resource["name"] for resource in all_resources}
+        available_scopes = {scope["name"] for scope in all_scopes}
+
+        required_resources = {name for permission in perm_configs for name in permission["resources"]}
+        required_scopes = {name for permission in perm_configs for name in permission["scope_names"]}
+
+        missing_resources = required_resources - available_resources
+        missing_scopes = required_scopes - available_scopes
+
+        if missing_resources or missing_scopes:
+            raise ValueError(
+                "Cannot create default permissions: "
+                f"missing resources={sorted(missing_resources)}, "
+                f"missing scopes={sorted(missing_scopes)}. "
+                "Run create-scopes and create-resources first."
+            )
+
     result = []
 
     for config in perm_configs:
@@ -611,6 +625,18 @@ def _get_permissions_to_create(
 
 def _preview_permissions(client: KeycloakAdmin, client_uuid: str, teams: list[str]):
     """Preview permissions that would be created."""
+    if not teams:
+        print("Permissions to be created:")
+        for permission in _get_default_permission_configs():
+            scope_names = ", ".join(permission["scope_names"])
+            resource_names = ", ".join(permission["resources"])
+            print(
+                f"  - {permission['name']} "
+                f"(type: scope-based, scopes: {scope_names}, "
+                f"resources: {resource_names})"
+            )
+        print()
+        return
     permissions = _get_permissions_to_create(client, client_uuid, teams=teams)
 
     print("Permissions to be created:")

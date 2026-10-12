@@ -27,7 +27,10 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
     SUPER_ADMIN_ROLE_NAME,
     TEAM_ROLE_NAMES,
     TEAM_SCOPED_RESOURCE_NAMES,
+    _create_permissions,
+    _get_default_permission_configs,
     _get_extended_resource_methods,
+    _get_permissions_to_create,
     _get_resource_methods,
     _update_admin_permission_resources,
     _update_read_only_permission_resources,
@@ -53,6 +56,116 @@ EXPECTED_TEAM_MENU_RESOURCES = sorted(["Assets", "Dags", "Docs", *DAG_BUNDLES_ME
 EXPECTED_TEAM_ADMIN_MENU_RESOURCES = sorted(
     ["Assets", "Connections", "Dags", "Docs", "Pools", "Variables", "XComs", *DAG_BUNDLES_MENU]
 )
+
+
+@pytest.mark.parametrize(
+    ("permission_name", "resources", "scopes", "roles"),
+    [
+        (
+            "PoolRead",
+            ["Pool"],
+            ["GET", "LIST"],
+            ["Viewer", "User", "Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "PoolWrite",
+            ["Pool"],
+            ["POST", "PUT", "DELETE"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "DagWrite",
+            ["Dag"],
+            ["POST", "PUT", "DELETE"],
+            ["User", "Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "ConfigurationWrite",
+            ["Configuration"],
+            ["POST", "PUT", "DELETE"],
+            ["Admin", "SuperAdmin"],
+        ),
+        (
+            "MenuAccess",
+            [item.value for item in MenuItem],
+            ["MENU"],
+            ["Viewer", "User", "Op", "Admin", "SuperAdmin"],
+        ),
+    ],
+)
+def test_get_default_permission_configs(permission_name, resources, scopes, roles):
+    matches = [
+        permission
+        for permission in _get_default_permission_configs()
+        if permission["name"] == permission_name
+    ]
+
+    assert matches == [
+        {
+            "name": permission_name,
+            "type": "scope-based",
+            "resources": resources,
+            "scope_names": scopes,
+            "role_names": roles,
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("missing_resource", "missing_scope"),
+    [
+        ("Pool", None),
+        (None, "POST"),
+        ("Pool", "POST"),
+    ],
+)
+def test_default_permissions_reject_missing_resources_or_scopes(missing_resource, missing_scope):
+    client = Mock(
+        spec=[
+            "get_client_authz_resources",
+            "get_client_authz_scopes",
+        ]
+    )
+    resource_names = [resource.value for resource in KeycloakResource] + [item.value for item in MenuItem]
+
+    client.get_client_authz_resources.return_value = [
+        {"_id": f"resource-{name}", "name": name} for name in resource_names if name != missing_resource
+    ]
+    client.get_client_authz_scopes.return_value = [
+        {"id": name.lower(), "name": name}
+        for name in ["GET", "LIST", "POST", "PUT", "DELETE", "MENU"]
+        if name != missing_scope
+    ]
+
+    with pytest.raises(ValueError, match="Cannot create default permissions:") as exc_info:
+        _get_permissions_to_create(client, "test-id", teams=[])
+
+    expected_resources = [missing_resource] if missing_resource else []
+    expected_scopes = [missing_scope] if missing_scope else []
+
+    assert str(exc_info.value) == (
+        "Cannot create default permissions: "
+        f"missing resources={expected_resources}, "
+        f"missing scopes={expected_scopes}. "
+        "Run create-scopes and create-resources first."
+    )
+
+
+def test_default_permission_preview_without_existing_resources(capsys):
+    client = Mock(spec=[])
+
+    _create_permissions(
+        client,
+        "test-id",
+        teams=[],
+        _dry_run=True,
+    )
+
+    output = capsys.readouterr().out
+
+    assert "PoolRead (type: scope-based, scopes: GET, LIST, resources: Pool)" in output
+    assert "PoolWrite (type: scope-based, scopes: POST, PUT, DELETE, resources: Pool)" in output
+    assert client.mock_calls == []
 
 
 @pytest.mark.db_test
@@ -239,12 +352,13 @@ class TestCommands:
     ):
         client = Mock()
         mock_get_client.return_value = client
-        scopes = [{"id": "1", "name": "GET"}, {"id": "2", "name": "MENU"}, {"id": "3", "name": "LIST"}]
-        resources = [
-            {"_id": "r1", "name": "Dag"},
-            {"_id": "r2", "name": "Asset"},
-            {"_id": "r3", "name": "Connection"},
+        scopes = [
+            {"id": name.lower(), "name": name} for name in ["GET", "LIST", "POST", "PUT", "DELETE", "MENU"]
         ]
+        resources = [
+            {"_id": f"resource-{resource.value}", "name": resource.value} for resource in KeycloakResource
+        ]
+        resources.extend({"_id": f"menu-{item.value}", "name": item.value} for item in MenuItem)
 
         client.get_clients.return_value = [
             {"id": "dummy-id", "clientId": "dummy-client"},
@@ -278,56 +392,44 @@ class TestCommands:
         client.get_client_authz_resources.assert_called_once_with("test-id")
 
         # Verify scope-based permissions are created with correct payloads
-        scope_calls = [
-            call(
-                client_id="test-id",
-                payload={
-                    "name": "ReadOnly",
-                    "type": "scope",
-                    "logic": "POSITIVE",
-                    "decisionStrategy": "UNANIMOUS",
-                    "scopes": ["1", "2", "3"],  # GET, MENU, LIST
-                },
-            ),
-            call(
-                client_id="test-id",
-                payload={
-                    "name": "Admin",
-                    "type": "scope",
-                    "logic": "POSITIVE",
-                    "decisionStrategy": "UNANIMOUS",
-                    "scopes": ["1", "2", "3"],  # GET, MENU, LIST (only these exist in mock)
-                },
-            ),
-        ]
-        client.create_client_authz_scope_permission.assert_has_calls(scope_calls, any_order=True)
+        expected_calls = []
 
-        # Verify resource-based permissions are created with correct payloads
-        resource_calls = [
+        for resource in KeycloakResource:
+            for suffix, scope_ids in [
+                ("Read", ["get", "list"]),
+                ("Write", ["post", "put", "delete"]),
+            ]:
+                expected_calls.append(
+                    call(
+                        client_id="test-id",
+                        payload={
+                            "name": f"{resource.value}{suffix}",
+                            "type": "scope",
+                            "logic": "POSITIVE",
+                            "decisionStrategy": "UNANIMOUS",
+                            "scopes": scope_ids,
+                            "resources": [f"resource-{resource.value}"],
+                        },
+                    )
+                )
+
+        expected_calls.append(
             call(
                 client_id="test-id",
                 payload={
-                    "name": "User",
+                    "name": "MenuAccess",
                     "type": "scope",
                     "logic": "POSITIVE",
                     "decisionStrategy": "UNANIMOUS",
-                    "resources": ["r1", "r2"],  # Dag, Asset
+                    "scopes": ["menu"],
+                    "resources": [f"menu-{item.value}" for item in MenuItem],
                 },
-                skip_exists=True,
-            ),
-            call(
-                client_id="test-id",
-                payload={
-                    "name": "Op",
-                    "type": "scope",
-                    "logic": "POSITIVE",
-                    "decisionStrategy": "UNANIMOUS",
-                    "resources": ["r3"],  # Connection
-                },
-                skip_exists=True,
-            ),
-        ]
-        client.create_client_authz_resource_based_permission.assert_has_calls(resource_calls, any_order=True)
+            )
+        )
+
+        client.create_client_authz_scope_permission.assert_has_calls(expected_calls, any_order=True)
+        assert client.create_client_authz_scope_permission.call_count == len(expected_calls)
+        client.create_client_authz_resource_based_permission.assert_not_called()
         mock_ensure_default_role_policies.assert_called_once_with(client, "test-id", _dry_run=False)
         mock_attach_default_role_permissions.assert_called_once_with(client, "test-id", _dry_run=False)
 
@@ -563,84 +665,62 @@ class TestCommands:
             mock_ensure_role_policy.assert_any_call(client, "test-id", role_name, _dry_run=False)
 
         mock_create_permissions.assert_called_once_with(client, "test-id", teams=[], _dry_run=False)
-        for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
-            mock_attach_scope_policy.assert_any_call(
-                client,
-                "test-id",
-                permission_name="ReadOnly",
-                policy_name=f"Allow-{role_name}",
-                scope_names=["GET", "MENU", "LIST"],
-                resource_names=[],
-                decision_strategy="AFFIRMATIVE",
-                _dry_run=False,
-            )
-        for role_name in ("Admin", SUPER_ADMIN_ROLE_NAME):
-            mock_attach_scope_policy.assert_any_call(
-                client,
-                "test-id",
-                permission_name="Admin",
-                policy_name=f"Allow-{role_name}",
-                scope_names=_get_extended_resource_methods() + ["LIST"],
-                resource_names=[],
-                decision_strategy="AFFIRMATIVE",
-                _dry_run=False,
-            )
-        for role_name in ("User", "Op", "Admin"):
-            mock_attach_resource_policy.assert_any_call(
-                client,
-                "test-id",
-                permission_name="User",
-                policy_name=f"Allow-{role_name}",
-                resource_names=["Dag", "Asset"],
-                decision_strategy="AFFIRMATIVE",
-                _dry_run=False,
-            )
-        for role_name in ("Op", "Admin"):
-            mock_attach_resource_policy.assert_any_call(
-                client,
-                "test-id",
-                permission_name="Op",
-                policy_name=f"Allow-{role_name}",
-                resource_names=["Connection", "Pool", "Variable", "Backfill"],
-                decision_strategy="AFFIRMATIVE",
-                _dry_run=False,
-            )
-        for role_name in ("User", "Op", "Admin", SUPER_ADMIN_ROLE_NAME):
-            mock_attach_resource_policy.assert_any_call(
-                client,
-                "test-id",
-                permission_name="User",
-                policy_name=f"Allow-{role_name}",
-                resource_names=["Dag", "Asset"],
-                decision_strategy="AFFIRMATIVE",
-                _dry_run=False,
-            )
+        read_roles = ["Viewer", "User", "Op", "Admin", "SuperAdmin"]
 
-        for role_name in ("Op", "Admin", SUPER_ADMIN_ROLE_NAME):
-            mock_attach_resource_policy.assert_any_call(
-                client,
-                "test-id",
-                permission_name="Op",
-                policy_name=f"Allow-{role_name}",
-                resource_names=["Connection", "Pool", "Variable", "Backfill"],
-                decision_strategy="AFFIRMATIVE",
-                _dry_run=False,
-            )
-        user_permission_policies = {
-            c.kwargs["policy_name"]
-            for c in mock_attach_resource_policy.call_args_list
-            if c.kwargs["permission_name"] == "User"
-        }
-        op_permission_policies = {
-            c.kwargs["policy_name"]
-            for c in mock_attach_resource_policy.call_args_list
-            if c.kwargs["permission_name"] == "Op"
+        write_roles_by_resource = {
+            "AdminView": ["Admin", "SuperAdmin"],
+            "Asset": ["User", "Op", "Admin", "SuperAdmin"],
+            "AssetAlias": ["Admin", "SuperAdmin"],
+            "Backfill": ["Op", "Admin", "SuperAdmin"],
+            "Configuration": ["Admin", "SuperAdmin"],
+            "Connection": ["Op", "Admin", "SuperAdmin"],
+            "Custom": ["Admin", "SuperAdmin"],
+            "Dag": ["User", "Op", "Admin", "SuperAdmin"],
+            "Menu": ["Admin", "SuperAdmin"],
+            "Pool": ["Op", "Admin", "SuperAdmin"],
+            "Team": ["Admin", "SuperAdmin"],
+            "Variable": ["Op", "Admin", "SuperAdmin"],
+            "View": ["Admin", "SuperAdmin"],
         }
 
-        assert "Allow-Viewer" not in user_permission_policies
+        expected_calls = []
 
-        assert "Allow-Viewer" not in op_permission_policies
-        assert "Allow-User" not in op_permission_policies
+        for resource, write_roles in write_roles_by_resource.items():
+            for suffix, scopes, roles in [
+                ("Read", ["GET", "LIST"], read_roles),
+                ("Write", ["POST", "PUT", "DELETE"], write_roles),
+            ]:
+                for role in roles:
+                    expected_calls.append(
+                        call(
+                            client,
+                            "test-id",
+                            permission_name=f"{resource}{suffix}",
+                            policy_name=f"Allow-{role}",
+                            scope_names=scopes,
+                            resource_names=[resource],
+                            decision_strategy="AFFIRMATIVE",
+                            _dry_run=False,
+                        )
+                    )
+
+        for role in read_roles:
+            expected_calls.append(
+                call(
+                    client,
+                    "test-id",
+                    permission_name="MenuAccess",
+                    policy_name=f"Allow-{role}",
+                    scope_names=["MENU"],
+                    resource_names=[item.value for item in MenuItem],
+                    decision_strategy="AFFIRMATIVE",
+                    _dry_run=False,
+                )
+            )
+
+        mock_attach_scope_policy.assert_has_calls(expected_calls, any_order=True)
+        assert mock_attach_scope_policy.call_count == len(expected_calls)
+        mock_attach_resource_policy.assert_not_called()
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._update_admin_permission_resources")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._update_read_only_permission_resources")
@@ -999,18 +1079,11 @@ class TestCommands:
     ):
         client = Mock()
         mock_get_client.return_value = client
-        scopes = [{"id": "1", "name": "GET"}, {"id": "2", "name": "MENU"}, {"id": "3", "name": "LIST"}]
-        resources = [
-            {"_id": "r1", "name": "Dag"},
-            {"_id": "r2", "name": "Asset"},
-        ]
 
         client.get_clients.return_value = [
             {"id": "dummy-id", "clientId": "dummy-client"},
             {"id": "test-id", "clientId": "test_client_id"},
         ]
-        client.get_client_authz_scopes.return_value = scopes
-        client.get_client_authz_resources.return_value = resources
 
         params = [
             "keycloak-auth-manager",
@@ -1029,8 +1102,8 @@ class TestCommands:
             create_permissions_command(self.arg_parser.parse_args(params))
 
         client.get_clients.assert_called_once_with()
-        client.get_client_authz_scopes.assert_called_once_with("test-id")
-        client.get_client_authz_resources.assert_called_once_with("test-id")
+        client.get_client_authz_scopes.assert_not_called()
+        client.get_client_authz_resources.assert_not_called()
         # In dry-run mode, no permissions should be created
         client.create_client_authz_scope_permission.assert_not_called()
         client.create_client_authz_resource_based_permission.assert_not_called()
