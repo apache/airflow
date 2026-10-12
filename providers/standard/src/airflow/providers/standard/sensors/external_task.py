@@ -66,6 +66,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
 
+
 XCOM_EXTERNAL_RUN_ID = "external_run_id"
 
 
@@ -555,6 +556,12 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if event["status"] == "success":
             self.log.info("External tasks %s has executed successfully.", self.external_task_ids)
+            if "run_id" in event:
+                try:
+                    ti = context["ti"]
+                    ti.xcom_push(key=XCOM_EXTERNAL_RUN_ID, value=event["run_id"])
+                except Exception:
+                    self.log.exception("Failed to push external run_id to XCom.")
         elif event["status"] == "skipped":
             raise AirflowSkipException("External job has skipped skipping.")
         elif event["status"] == "failed":
