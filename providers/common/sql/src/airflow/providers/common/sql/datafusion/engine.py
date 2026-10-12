@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import os
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
@@ -83,10 +84,14 @@ class DataFusionEngine(LoggingMixin):
                 datasource_config.uri, connection_config=connection_config
             )
             canonical_uri = storage_provider.normalize_uri(datasource_config.uri)
-            schema = storage_provider.get_scheme(canonical_uri)
-            # abfs(s) folds account+container into one host token that never equals the store's
-            # own container name, so DataFusion's omitted-host default can't match; host is
-            # required here, not just a uniform convenience for the other schemes.
+            # Providers written before get_scheme() took a uri define it without parameters.
+            schema = (
+                storage_provider.get_scheme(canonical_uri)
+                if inspect.signature(storage_provider.get_scheme).parameters
+                else storage_provider.get_scheme()
+            )
+            # abfs(s) folds account+container into one host token, so the container-name host
+            # DataFusion defaults to when host is omitted would miss the registered store.
             host = urlsplit(canonical_uri).netloc
             self.session_context.register_object_store(schema=schema, store=object_store, host=host)
             self.log.info("Registered object store for schema: %s host: %s", schema, host)
@@ -248,6 +253,9 @@ class DataFusionEngine(LoggingMixin):
                     credentials.update(
                         {"client_id": conn.login, "client_secret": conn.password, "tenant_id": tenant_id}
                     )
+                    if not conn.host:
+                        # login holds the client_id here, so it cannot name the storage account.
+                        credentials["account"] = None
                     credential_tier = "client_secret"
                 elif shared_access_key := _get_wasb_extra_field(extra_dejson, "shared_access_key"):
                     # Checked ahead of sas_token to match WasbHook.get_conn's precedence.
@@ -361,7 +369,8 @@ class DataFusionEngine(LoggingMixin):
 
         From ``host`` (its netloc's first label) when set, falling back to ``login`` only when
         ``host`` is empty -- login holds the service-principal client_id otherwise, not the
-        account name. Returns ``None`` when neither is set, so the binding falls back to
+        account name (the caller drops the login-derived account for service principals).
+        Returns ``None`` when neither is set, so the binding falls back to
         ``AZURE_STORAGE_ACCOUNT_NAME`` rather than the literal string ``"None"``. Reimplemented
         locally instead of importing
         ``airflow.providers.microsoft.azure.utils.parse_blob_account_url``, to avoid pulling in

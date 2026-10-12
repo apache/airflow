@@ -52,7 +52,6 @@ class StorageType(str, Enum):
     LOCAL = "local"
 
 
-# Canonical scheme-to-storage-type mapping; object_storage_provider.py's SCHEMES read from here.
 STORAGE_TYPE_SCHEMES: dict[StorageType, tuple[str, ...]] = {
     StorageType.S3: ("s3://",),
     StorageType.GCS: ("gs://",),

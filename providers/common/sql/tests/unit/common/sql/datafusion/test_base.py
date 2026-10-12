@@ -63,6 +63,17 @@ def test_get_scheme_returns_matching_scheme():
     assert S3ObjectStorageProvider().get_scheme("s3://example-bucket/path") == "s3://"
 
 
+def test_zero_arg_get_scheme_subclass_still_resolves_bucket():
+    class LegacyProvider(ObjectStorageProvider):
+        def create_object_store(self, path, connection_config=None):
+            return None
+
+        def get_scheme(self):
+            return "s3://"
+
+    assert LegacyProvider().get_bucket("s3://example-bucket/path") == "example-bucket"
+
+
 def test_get_scheme_raises_for_unrecognized_uri():
     with pytest.raises(ValueError, match="does not match any known scheme"):
         S3ObjectStorageProvider().get_scheme("gs://example-bucket/path")

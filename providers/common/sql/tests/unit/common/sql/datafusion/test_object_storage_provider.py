@@ -220,8 +220,6 @@ class TestObjectStorageProvider:
 
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
     def test_azure_provider_abfs_uri_account_used_when_connection_resolves_none(self, mock_azure):
-        """A connection resolving no account must not fall back to AZURE_STORAGE_ACCOUNT_NAME
-        when the URI names one."""
         provider = AzureObjectStorageProvider()
         connection_config = ConnectionConfig(
             conn_id="wasb_default",
@@ -234,6 +232,41 @@ class TestObjectStorageProvider:
 
         mock_azure.assert_called_once_with(
             container_name="demo-container", account="uri-account", access_key="fake_key"
+        )
+
+    @pytest.mark.parametrize("account", [None, "usgovacct"])
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
+    def test_azure_provider_abfs_uri_sovereign_host_without_endpoint_raises(
+        self, mock_azure, account, monkeypatch
+    ):
+        monkeypatch.delenv("AZURE_STORAGE_ENDPOINT", raising=False)
+        monkeypatch.delenv("AZURE_ENDPOINT", raising=False)
+        credentials = {"access_key": "fake_key"}
+        if account:
+            credentials["account"] = account
+        connection_config = ConnectionConfig(conn_id="wasb_default", credentials=credentials)
+
+        with pytest.raises(ObjectStoreCreationException, match="no endpoint override"):
+            AzureObjectStorageProvider().create_object_store(
+                "abfss://demo-container@usgovacct.dfs.core.usgovcloudapi.net/path", connection_config
+            )
+
+        mock_azure.assert_not_called()
+
+    @pytest.mark.parametrize("env_var", ["AZURE_STORAGE_ENDPOINT", "AZURE_ENDPOINT"])
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
+    def test_azure_provider_abfs_uri_sovereign_host_with_endpoint_env_passes(
+        self, mock_azure, env_var, monkeypatch
+    ):
+        monkeypatch.setenv(env_var, "https://usgovacct.blob.core.usgovcloudapi.net")
+        connection_config = ConnectionConfig(conn_id="wasb_default", credentials={"access_key": "fake_key"})
+
+        AzureObjectStorageProvider().create_object_store(
+            "abfss://demo-container@usgovacct.dfs.core.usgovcloudapi.net/path", connection_config
+        )
+
+        mock_azure.assert_called_once_with(
+            container_name="demo-container", account="usgovacct", access_key="fake_key"
         )
 
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
@@ -282,15 +315,12 @@ class TestObjectStorageProvider:
             ),
             ("abfss://demo-container@myaccount.dfs.core.windows.net", "az://myaccount.demo-container"),
             ("az://demo-container/path", "az://demo-container/path"),
-            # Same container name, different accounts -- must not collide (az://devacct.data vs
-            # az://prodacct.data).
+            # Same container name on different accounts maps to distinct hosts.
             ("abfss://data@devacct.dfs.core.windows.net/data.csv", "az://devacct.data/data.csv"),
             ("abfss://data@prodacct.dfs.core.windows.net/data.csv", "az://prodacct.data/data.csv"),
         ],
     )
     def test_azure_provider_normalize_uri(self, uri, expected):
-        """Folds account and container into one host token; container alone would collide for
-        two different accounts sharing a container name. az:// passes through unchanged."""
         provider = AzureObjectStorageProvider()
 
         assert provider.normalize_uri(uri) == expected
@@ -316,7 +346,6 @@ class TestObjectStorageProvider:
         assert local_store == mock_local.return_value
 
     def test_local_provider_get_scheme_ignores_bare_path(self):
-        """A bare path is only reachable via an explicit storage_type=StorageType.LOCAL."""
         provider = LocalObjectStorageProvider()
 
         assert provider.get_scheme("/data/x.csv") == "file://"

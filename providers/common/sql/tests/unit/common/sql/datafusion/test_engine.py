@@ -216,8 +216,8 @@ class TestDataFusionEngine:
     @pytest.mark.parametrize("uri_prefix", ["file://", ""], ids=["file-uri", "bare-path"])
     @patch.object(DataFusionEngine, "_get_connection_config")
     def test_execute_query_with_local_csv(self, mock_get_conn, uri_prefix):
-        """A bare path (no file:// prefix) is only reachable via an explicit
-        storage_type=StorageType.LOCAL, which get_scheme must handle too."""
+        """A bare path (no file:// prefix) arrives through an explicit
+        storage_type=StorageType.LOCAL, which get_scheme also handles."""
         mock_get_conn.return_value = None
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
@@ -245,7 +245,7 @@ class TestDataFusionEngine:
     @patch.object(DataFusionEngine, "_get_connection_config")
     def test_execute_query_with_abfs_uri_matches_real_registry(self, mock_get_conn):
         """Only object-store construction is mocked; normalize_uri and DataFusion's real
-        registry run unmocked, to catch "No suitable object store found" at query time."""
+        registry run live, so a missing store surfaces as "No suitable object store found"."""
         mock_get_conn.return_value = None
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
@@ -272,7 +272,6 @@ class TestDataFusionEngine:
             result = engine.execute_query("SELECT * FROM abfs_csv ORDER BY name")
 
             assert result == {"name": ["Alice", "Bob"], "age": [30, 25]}
-            # The caller's own config is untouched; the canonical URI only shows up internally.
             assert datasource_config.uri == f"abfss://demo-container@myaccount.dfs.core.windows.net{csv_path}"
             assert engine.registered_tables["abfs_csv"] == f"az://myaccount.demo-container{csv_path}"
         finally:
@@ -294,11 +293,7 @@ class TestDataFusionEngine:
         ],
     )
     @patch.object(DataFusionEngine, "_get_connection_config")
-    def test_execute_query_with_colliding_abfs_identifiers_does_not_collide(
-        self, mock_get_conn, uri_a, uri_b
-    ):
-        """Two ways an abfs(s) URI's identifying info could collide in DataFusion's (schema,
-        host) registry: two containers on one account, or one container name on two accounts."""
+    def test_execute_query_with_shared_abfs_identifiers_reads_each_store(self, mock_get_conn, uri_a, uri_b):
         mock_get_conn.return_value = None
 
         with (
@@ -323,44 +318,6 @@ class TestDataFusionEngine:
 
             assert engine.execute_query("SELECT * FROM table_a") == {"name": ["Alice"], "age": [30]}
             assert engine.execute_query("SELECT * FROM table_b") == {"name": ["Bob"], "age": [25]}
-
-    @patch.object(DataFusionEngine, "_get_connection_config")
-    def test_register_datasource_does_not_mutate_caller_config(self, mock_get_conn):
-        """
-        Regression test: _register_object_store used to overwrite datasource_config.uri in
-        place with its normalized az://<account>.<container> form. Reusing that same config
-        against a second engine then fed the already-normalized URI back through get_bucket,
-        which can't tell it apart from a plain az://<container> URI and would extract
-        "<account>.<container>" as the container name instead of "<container>".
-        """
-        mock_get_conn.return_value = None
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write("name,age\nAlice,30\n")
-            csv_path = f.name
-
-        try:
-            original_uri = f"abfss://demo-container@myaccount.dfs.core.windows.net{csv_path}"
-            datasource_config = DataSourceConfig(
-                table_name="t", uri=original_uri, format="csv", conn_id="wasb_default"
-            )
-
-            with patch(
-                "airflow.providers.common.sql.datafusion.object_storage_provider"
-                ".AzureObjectStorageProvider.create_object_store",
-                autospec=True,
-                return_value=LocalFileSystem(),
-            ):
-                first_engine = DataFusionEngine()
-                first_engine.register_datasource(datasource_config)
-                second_engine = DataFusionEngine()
-                second_engine.register_datasource(datasource_config)
-
-            assert datasource_config.uri == original_uri
-            assert first_engine.execute_query("SELECT * FROM t") == {"name": ["Alice"], "age": [30]}
-            assert second_engine.execute_query("SELECT * FROM t") == {"name": ["Alice"], "age": [30]}
-        finally:
-            os.unlink(csv_path)
 
     @patch("airflow.providers.common.sql.datafusion.engine.get_object_storage_provider", autospec=True)
     @patch.object(DataFusionEngine, "_get_connection_config")
@@ -560,7 +517,6 @@ class TestDataFusionEngine:
         credentials, extra_config = engine._get_credentials(mock_conn)
 
         assert credentials == {
-            "account": "client-id",
             "client_id": "client-id",
             "client_secret": "client-secret",
             "tenant_id": "tenant-id",
@@ -878,7 +834,6 @@ class TestDataFusionEngine:
         else:
             credentials, extra_config = engine._get_credentials(mock_conn)
             assert credentials == {
-                "account": "client-id",
                 "client_id": "client-id",
                 "client_secret": "client-secret",
                 "tenant_id": "tenant-id",

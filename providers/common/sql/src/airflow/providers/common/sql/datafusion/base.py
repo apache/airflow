@@ -35,7 +35,6 @@ if TYPE_CHECKING:
 class ObjectStorageProvider(LoggingMixin, ABC):
     """Abstract base class for object storage providers."""
 
-    #: URL schemes this provider recognizes, e.g. ``("s3://",)``.
     SCHEMES: ClassVar[tuple[str, ...]] = ()
 
     @property
@@ -48,10 +47,12 @@ class ObjectStorageProvider(LoggingMixin, ABC):
         """Create and return a DataFusion object store instance."""
         raise NotImplementedError
 
-    def get_scheme(self, uri: str) -> str:
-        """Return whichever of ``SCHEMES`` this ``uri`` starts with."""
+    def get_scheme(self, uri: str | None = None) -> str:
+        """Return whichever of ``SCHEMES`` ``uri`` starts with, or the first one when ``uri`` is omitted."""
+        if uri is None and self.SCHEMES:
+            return self.SCHEMES[0]
         for scheme in self.SCHEMES:
-            if uri.startswith(scheme):
+            if uri and uri.startswith(scheme):
                 return scheme
         raise ValueError(f"{uri!r} does not match any known scheme: {self.SCHEMES}")
 
@@ -59,14 +60,15 @@ class ObjectStorageProvider(LoggingMixin, ABC):
         """
         Return the canonical ``uri`` to register under.
 
-        Default is identity; a provider overrides this when its URI shape doesn't match
+        Default is identity; a provider overrides this when its URI shape differs from
         DataFusion's (schema, host) registry key.
         """
         return uri
 
     def get_bucket(self, path: str) -> str | None:
         """Extract the bucket name from the given path."""
-        for scheme in self.SCHEMES:
+        # Subclasses written before SCHEMES existed only override the zero-arg get_scheme().
+        for scheme in self.SCHEMES or (self.get_scheme(),):
             if path and path.startswith(scheme):
                 return path[len(scheme) :].split("/", 1)[0]
         return None

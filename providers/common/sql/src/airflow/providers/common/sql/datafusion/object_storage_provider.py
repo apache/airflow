@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import tempfile
 from pathlib import Path
@@ -104,9 +105,12 @@ class GCSObjectStorageProvider(ObjectStorageProvider):
                 Path(temp_key_path).unlink(missing_ok=True)
 
 
-# Host suffix matched loosely (not pinned to dfs.core.windows.net) to also cover sovereign
-# clouds, consistent with DataFusionEngine._resolve_wasb_account's AZURE_STORAGE_ENDPOINT tolerance.
-_ABFS_URI_RE = re.compile(r"^abfss?://(?P<container>[^@/]+)@(?P<account>[^./]+)\.[^/]+(?P<path>/.*)?$")
+_ABFS_URI_RE = re.compile(
+    r"^abfss?://(?P<container>[^@/]+)@(?P<account>[^./]+)\.(?P<host>[^/]+)(?P<path>/.*)?$"
+)
+# MicrosoftAzure has no endpoint kwarg, so a non-public host only reaches the right cloud when
+# AZURE_STORAGE_ENDPOINT/AZURE_ENDPOINT redirects the binding; same rule as _resolve_wasb_account.
+_AZURE_PUBLIC_HOST_SUFFIX = ".core.windows.net"
 _ABFS_SCHEMES = ("abfs://", "abfss://")
 
 
@@ -130,8 +134,23 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
             )
         return super().get_bucket(path)
 
+    def _validate_uri_host(self, path: str) -> None:
+        match = _ABFS_URI_RE.match(path)
+        if not match:
+            return
+        host = match.group("host").lower()
+        if host == _AZURE_PUBLIC_HOST_SUFFIX[1:] or host.endswith(_AZURE_PUBLIC_HOST_SUFFIX):
+            return
+        if os.environ.get("AZURE_STORAGE_ENDPOINT") or os.environ.get("AZURE_ENDPOINT"):
+            return
+        raise ValueError(
+            f"URI {path!r} host {match.group('host')!r} is not a public *{_AZURE_PUBLIC_HOST_SUFFIX} "
+            "endpoint, and DataFusion's Azure Blob Storage binding has no endpoint override, so the "
+            "request would go to the public cloud. A sovereign cloud is supported once the "
+            "AZURE_STORAGE_ENDPOINT environment variable is set."
+        )
+
     def _get_uri_account(self, path: str) -> str | None:
-        """Return the storage account embedded in an ``abfs(s)://`` URI, if any."""
         match = _ABFS_URI_RE.match(path)
         return match.group("account") if match else None
 
@@ -141,9 +160,7 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
 
         DataFusion's registry keys on (schema, host) alone, so container-only would collide for
         two different accounts sharing a container name. Account and container names never
-        contain a dot, so joining on one is unambiguous. ``az://`` passes through unchanged --
-        it never carried an account, so that collision is a pre-existing limit of the scheme
-        itself, not something this normalization can resolve.
+        contain a dot, so joining on one is unambiguous. ``az://`` URIs pass through unchanged.
         """
         if match := _ABFS_URI_RE.match(path):
             return f"az://{match.group('account')}.{match.group('container')}{match.group('path') or ''}"
@@ -158,6 +175,7 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
             credentials = connection_config.credentials
             container = self.get_bucket(path)
 
+            self._validate_uri_host(path)
             uri_account = self._get_uri_account(path)
             resolved_account = credentials.get("account")
             if uri_account and resolved_account and uri_account.lower() != resolved_account.lower():
@@ -168,8 +186,8 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
                     "them."
                 )
             if uri_account and not resolved_account:
-                # Without this, MicrosoftAzure falls back to AZURE_STORAGE_ACCOUNT_NAME, which can
-                # silently point at a different account than the one named in the URI.
+                # Pins the URI's account; MicrosoftAzure otherwise falls back to AZURE_STORAGE_ACCOUNT_NAME,
+                # which can name a different account.
                 credentials = {**credentials, "account": uri_account}
 
             azure_store = MicrosoftAzure(container_name=container, **credentials)
@@ -196,12 +214,12 @@ class LocalObjectStorageProvider(ObjectStorageProvider):
         """Create a Local object store."""
         return LocalFileSystem()
 
-    def get_scheme(self, uri: str) -> str:
+    def get_scheme(self, uri: str | None = None) -> str:
         """
         Return "file://" regardless of ``uri``.
 
-        A bare path with no prefix is only reachable via an explicit
-        ``storage_type=StorageType.LOCAL``, so matching against ``uri`` won't work.
+        A bare path (no ``file://`` prefix) arrives only through an explicit
+        ``storage_type=StorageType.LOCAL``, so the scheme is fixed rather than read from ``uri``.
         """
         return "file://"
 
