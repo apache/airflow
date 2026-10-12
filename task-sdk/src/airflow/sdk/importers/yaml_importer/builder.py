@@ -37,9 +37,10 @@ import keyword
 import linecache
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.sdk import DAG, XComArg
+import attrs
+
+from airflow.sdk import DAG, XComArg, literal
 from airflow.sdk._shared.module_loading import import_string
-from airflow.sdk.definitions._internal.templater import LiteralValue
 from airflow.sdk.importers.yaml_importer.models import (
     ConstRef,
     FileRef,
@@ -52,8 +53,9 @@ from airflow.sdk.importers.yaml_importer.models import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk import BaseOperator
-    from airflow.sdk.importers.base import _SiblingResource
+    from airflow.sdk.importers.base import DagDefinition
     from airflow.sdk.importers.yaml_importer.models import DagDocument, Task, Value
 
 
@@ -61,6 +63,7 @@ class YamlDagBuildError(ValueError):
     """A validated document could not be built into a DAG."""
 
 
+@attrs.define(kw_only=True)
 class DagBuilder:
     """
     Build a :class:`DagDocument` into a :class:`DAG`.
@@ -69,10 +72,10 @@ class DagBuilder:
     and is discarded with the instance.
     """
 
-    def __init__(self, sibling: Callable[[str], _SiblingResource]) -> None:
-        self._sibling = sibling
-        self._operators: dict[str, BaseOperator] = {}
-        self._stub_callables: dict[tuple[str, ...], Callable[..., None]] = {}
+    _definition: DagDefinition
+    _bundle: BaseDagBundle
+    _operators: dict[str, BaseOperator] = attrs.field(factory=dict, init=False)
+    _stub_callables: dict[tuple[str, ...], Callable[..., None]] = attrs.field(factory=dict, init=False)
 
     def build(self, doc: DagDocument) -> DAG:
         tasks = {t.id_: t for t in doc.tasks}
@@ -85,6 +88,9 @@ class DagBuilder:
             for task in doc.tasks:
                 for upstream in sorted(task.get_dependency_ids()):
                     self._operators[upstream] >> self._operators[task.id_]
+        dag.bundle_name = self._bundle.name
+        dag.fileloc = repr(self._definition)
+        dag.relative_fileloc = self._definition.get_relative_loc(self._bundle.path)
         return dag
 
     def _build_stub_task(self, task: Task, args: dict[str, Value]) -> BaseOperator:
@@ -167,7 +173,7 @@ class DagBuilder:
 
     @staticmethod
     def _protect(value: Any, protect: bool) -> Any:
-        return LiteralValue(value) if protect else value
+        return literal(value) if protect else value
 
     def _xcom_arg(self, value: XComRef) -> XComArg:
         """Resolve an :class:`XComRef` against the already-built operators."""
@@ -181,7 +187,7 @@ class DagBuilder:
     def _read_file(self, rel_path: str) -> str:
         """Read a ``$f`` at build time, relative to the document."""
         try:
-            return self._sibling(rel_path).read_bytes().decode("utf-8")
+            return self._definition.sibling(rel_path).read_bytes().decode("utf-8")
         except (OSError, ValueError) as exc:
             raise YamlDagBuildError(f"cannot read $f {rel_path!r}: {exc}") from exc
 
