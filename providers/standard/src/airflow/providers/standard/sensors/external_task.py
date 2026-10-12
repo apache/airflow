@@ -80,9 +80,6 @@ class ExternalDagLink(BaseOperatorLink):
     Operator link for ExternalTaskSensor and ExternalTaskMarker.
 
     It allows users to access DAG waited with ExternalTaskSensor or cleared by ExternalTaskMarker.
-
-    On Airflow 3, the link opens the external Dag run that ExternalTaskSensor matched, the external
-    Dag's runs list if it matched several runs, or the external Dag itself if no run is known yet.
     """
 
     name = "External DAG"
