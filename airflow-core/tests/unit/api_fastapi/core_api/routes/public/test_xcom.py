@@ -714,6 +714,20 @@ class TestGetXComEntries(TestXComEndpoint):
             "total_entries": len(expected_entries),
         }
 
+    def test_should_respond_200_with_unicode_dag_display_name_prefix(self, test_client):
+        self._create_xcom_entries("카페매출집계", run_id, logical_date_parsed, TEST_TASK_ID)
+        self._create_xcom_entries("커피매출집계", run_id, logical_date_parsed, TEST_TASK_ID)
+
+        response = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            params={"dag_display_name_prefix_pattern": "카페"},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert {entry["dag_id"] for entry in body["xcom_entries"]} == {"카페매출집계"}
+
     @conf_vars({("core", "multi_team"): "True"})
     def test_should_respond_200_with_team_name(self, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)

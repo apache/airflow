@@ -5214,7 +5214,7 @@ export type GetXcomEntriesData = {
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive prefix match. Non-ASCII prefixes use substring equality instead of index range comparisons. See "Filtering with pattern parameters".
      */
     dagDisplayNamePrefixPattern?: string | null;
     dagId: string;
