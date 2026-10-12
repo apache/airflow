@@ -97,6 +97,89 @@ def powerbi_workspace_list_trigger(timeout=TIMEOUT) -> PowerBIWorkspaceListTrigg
 
 
 class TestPowerBITrigger:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["Completed", "Failed", "TimedOut", "Cancelled", "Disabled"])
+    @mock.patch.object(PowerBIHook, "run", autospec=True)
+    async def test_enhanced_refresh_terminal_event(self, mock_run, powerbi_trigger, status):
+        history = {
+            "value": [{"requestId": DATASET_REFRESH_ID, "refreshType": "ViaEnhancedApi", "status": "Unknown"}]
+        }
+        details = {
+            "status": "Unknown",
+            "extendedStatus": status,
+            "messages": [{"type": "Error", "message": "Synthetic engine message"}],
+            "serviceExceptionJson": '{"errorCode":"SyntheticRefreshError"}',
+        }
+        mock_run.side_effect = [history, details, history, details]
+
+        events = [event async for event in powerbi_trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == ("success" if status == "Completed" else "error")
+        assert events[0].payload["dataset_refresh_status"] == status
+        assert events[0].payload["dataset_refresh_id"] == DATASET_REFRESH_ID
+        if status != "Completed":
+            assert "Synthetic engine message" in events[0].payload["message"]
+            assert "SyntheticRefreshError" in events[0].payload["message"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["InProgress", "NotStarted", "Unknown"])
+    @mock.patch("airflow.providers.microsoft.azure.triggers.powerbi.asyncio.sleep", autospec=True)
+    @mock.patch.object(PowerBIHook, "run", autospec=True)
+    async def test_enhanced_refresh_messages_do_not_end_polling(
+        self, mock_run, mock_sleep, powerbi_trigger, status
+    ):
+        history = {
+            "value": [{"requestId": DATASET_REFRESH_ID, "refreshType": "ViaEnhancedApi", "status": "Unknown"}]
+        }
+        active = {
+            "status": "Unknown",
+            "extendedStatus": status,
+            "messages": [{"type": "Error", "message": "Synthetic retried attempt error"}],
+        }
+        mock_run.side_effect = [
+            history,
+            active,
+            history,
+            active,
+            history,
+            {"status": "Completed", "extendedStatus": "Completed"},
+        ]
+
+        events = [event async for event in powerbi_trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "success"
+        assert events[0].payload["dataset_refresh_status"] == "Completed"
+        mock_sleep.assert_awaited_once_with(CHECK_INTERVAL)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.microsoft.azure.triggers.powerbi.time.monotonic", autospec=True)
+    @mock.patch("airflow.providers.microsoft.azure.triggers.powerbi.asyncio.sleep", autospec=True)
+    @mock.patch.object(PowerBIHook, "run", autospec=True)
+    async def test_enhanced_refresh_unknown_times_out(
+        self, mock_run, mock_sleep, mock_monotonic, powerbi_trigger
+    ):
+        history = {
+            "value": [{"requestId": DATASET_REFRESH_ID, "refreshType": "ViaEnhancedApi", "status": "Unknown"}]
+        }
+        details = {"status": "Unknown", "extendedStatus": "Unknown"}
+        mock_run.side_effect = [history, details, history, details]
+        mock_monotonic.return_value = 0
+
+        async def advance_clock(delay):
+            mock_monotonic.return_value = TIMEOUT + 1
+
+        mock_sleep.side_effect = advance_clock
+
+        events = [event async for event in powerbi_trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "error"
+        assert events[0].payload["dataset_refresh_status"] == "In Progress"
+        assert "Timeout occurred" in events[0].payload["message"]
+        mock_sleep.assert_awaited_once_with(CHECK_INTERVAL)
+
     @mock.patch.object(PowerBIHook, "get_connection", side_effect=get_airflow_connection)
     def test_powerbi_trigger_serialization(self, connection):
         """Asserts that the PowerBI Trigger correctly serializes its arguments and classpath."""
