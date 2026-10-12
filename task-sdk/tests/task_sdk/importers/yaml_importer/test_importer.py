@@ -490,14 +490,19 @@ def test_import_duplicate_dag_id_across_documents_errors(mock_bundle):
 
 
 def test_import_dependency_cycle_errors(mock_bundle):
+    # a <-> b form the cycle; c only depends on it and must not be reported as part of it.
     definition = _def(
         mock_bundle,
         "dag.yaml",
         _doc(f"""
             - {{id: a, uses: {OP}, with: {{payload: x}}, needs: [b]}}
             - {{id: b, uses: {OP}, with: {{payload: y}}, needs: [a]}}
+            - {{id: c, uses: {OP}, with: {{payload: z}}, needs: [a]}}
         """),
     )
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert not result.dags
-    assert any("cycle" in e.message for e in result.errors)
+    (error,) = [e for e in result.errors if "cycle" in e.message]
+    assert "'a'" in error.message
+    assert "'b'" in error.message
+    assert "'c'" not in error.message

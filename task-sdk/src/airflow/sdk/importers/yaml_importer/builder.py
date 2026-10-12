@@ -34,6 +34,7 @@ already exists when the downstream operator is constructed.
 from __future__ import annotations
 
 import datetime
+import graphlib
 import keyword
 import linecache
 from typing import TYPE_CHECKING, Any, cast
@@ -343,15 +344,8 @@ def _field_markers(value: Any) -> tuple[bool, bool]:
 
 def _topological_order(tasks: list[Task]) -> list[str]:
     """Return task ids ordered so every task follows the tasks it depends on."""
-    upstreams = {task.id_: task.get_dependency_ids() for task in tasks}
-    order: list[str] = []
-    done: set[str] = set()
-    remaining = [task.id_ for task in tasks]
-    while remaining:
-        ready = [task_id for task_id in remaining if upstreams[task_id] <= done]
-        if not ready:
-            raise YamlDagBuildError(f"dependency cycle among tasks: {sorted(remaining)}")
-        order.extend(ready)
-        done.update(ready)
-        remaining = [task_id for task_id in remaining if task_id not in done]
-    return order
+    graph = {task.id_: task.get_dependency_ids() for task in tasks}
+    try:
+        return list(graphlib.TopologicalSorter(graph).static_order())
+    except graphlib.CycleError as exc:
+        raise YamlDagBuildError(f"dependency cycle among tasks: {exc.args[1]}") from exc
