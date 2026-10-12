@@ -22,6 +22,7 @@ import multiprocessing
 import os
 import signal
 import time
+from multiprocessing import SimpleQueue
 from pathlib import Path
 from unittest import mock
 
@@ -95,12 +96,10 @@ def _make_task_workload():
     )
 
 
-def _write_large_results_to_queue(result_queue, activity_queue, unread_messages, result_count, payload_size):
+def _write_large_results_to_queue(result_queue, worker_queue, result_count, payload_size):
     payload = RuntimeError("x" * payload_size)
     for _ in range(result_count):
-        workload = activity_queue.get()
-        with unread_messages:
-            unread_messages.value -= 1
+        workload = worker_queue.get()
         key = LocalExecutor.get_workload_key(workload)
         result_queue.put((os.getpid(), key, workload.running_state, None))
         result_queue.put((os.getpid(), key, State.SUCCESS, payload))
@@ -141,6 +140,7 @@ def _add_mock_worker(executor, mocker, pid):
     proc.pid = pid
     proc.is_alive.return_value = True
     executor.workers[pid] = proc
+    executor._worker_queues[pid] = SimpleQueue()
     return proc
 
 
@@ -199,20 +199,10 @@ class TestLocalExecutor:
         executor.start()
 
         try:
-            # No workers should be pre-spawned
+            # No workers should be pre-spawned; they are created on dispatch
             assert len(executor.workers) == 0
             mock_freeze.assert_not_called()
             mock_unfreeze.assert_not_called()
-
-            # Simulate a queued message so _check_workers spawns one worker on demand
-            with executor._unread_messages:
-                executor._unread_messages.value = 1
-            executor.activity_queue.put(None)  # poison pill so the worker exits cleanly
-            executor._check_workers()
-
-            assert len(executor.workers) == 1
-            # gc.freeze is still not used for non-fork
-            mock_freeze.assert_not_called()
         finally:
             executor.end()
 
@@ -291,7 +281,6 @@ class TestLocalExecutor:
 
         # By that time Queues are already shutdown so we cannot check if they are empty
         assert len(executor.running) == 0
-        assert executor._unread_messages.value == 0
 
         for ti in success_tis:
             assert executor.event_buffer[TaskInstanceUuid(ti.id)][0] == State.SUCCESS
@@ -342,29 +331,29 @@ class TestLocalExecutor:
 
     def test_end_drains_results_while_joining_workers(self):
         executor = LocalExecutor(parallelism=1)
-        executor.activity_queue = mock.MagicMock()
         executor.result_queue = mock.MagicMock()
         proc = mock.MagicMock(spec=multiprocessing.Process)
         proc.is_alive.side_effect = [True, True, True, False]
         executor.workers = {1: proc}
+        executor._worker_queues = {1: mock.MagicMock()}
 
         with mock.patch.object(executor, "_read_results") as mock_read_results:
             executor.end()
 
-        executor.activity_queue.put.assert_called_once_with(None)
+        executor._worker_queues[1].put.assert_called_once_with(None)
         assert proc.join.call_args_list == [mock.call(timeout=0.05), mock.call(timeout=0.05)]
         assert mock_read_results.call_count == 3
         proc.close.assert_called_once()
-        executor.activity_queue.close.assert_called_once()
+        executor._worker_queues[1].close.assert_called_once()
         executor.result_queue.close.assert_called_once()
 
     def test_end_terminates_workers_and_closes_resources_on_interrupt(self):
         executor = LocalExecutor(parallelism=1)
-        executor.activity_queue = mock.MagicMock()
         executor.result_queue = mock.MagicMock()
         proc = mock.MagicMock(spec=multiprocessing.Process)
         proc.is_alive.side_effect = [True, True]
         executor.workers = {1: proc}
+        executor._worker_queues = {1: mock.MagicMock()}
 
         with (
             mock.patch.object(executor, "_read_results", side_effect=[KeyboardInterrupt, None]),
@@ -375,7 +364,7 @@ class TestLocalExecutor:
 
         mock_terminate_worker_process.assert_called_once_with(proc)
         proc.close.assert_called_once()
-        executor.activity_queue.close.assert_called_once()
+        executor._worker_queues[1].close.assert_called_once()
         executor.result_queue.close.assert_called_once()
 
     def test_terminate_joins_worker_after_sigterm(self):
@@ -417,22 +406,19 @@ class TestLocalExecutor:
         result_count = 8
         payload_size = 128 * 1024
         submitted = [_make_task_workload() for _ in range(result_count)]
+        worker_queue = ctx.SimpleQueue()
         for workload in submitted:
             executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
+            worker_queue.put(workload)
         with mock.patch.object(executor, "_check_workers", autospec=True):
             executor._process_workloads(submitted)
         proc = ctx.Process(
             target=_write_large_results_to_queue,
-            args=(
-                executor.result_queue,
-                executor.activity_queue,
-                executor._unread_messages,
-                result_count,
-                payload_size,
-            ),
+            args=(executor.result_queue, worker_queue, result_count, payload_size),
         )
         proc.start()
         executor.workers = {proc.pid: proc}
+        executor._worker_queues = {proc.pid: worker_queue}
 
         executor.end()
 
@@ -441,7 +427,40 @@ class TestLocalExecutor:
         assert all(state == State.SUCCESS for state, _ in executor.event_buffer.values())
         assert not executor.running
         assert not executor._worker_tasks
-        assert executor._unread_messages.value == 0
+
+    @skip_non_fork_mp_start
+    @pytest.mark.execution_timeout(30)
+    def test_workload_runs_after_worker_holding_read_lock_is_killed(self, mocker):
+        """
+        A worker SIGKILLed while blocked reading its input must not wedge the executor.
+
+        Regression for #74575: with one shared SimpleQueue, the worker blocked in get() holds the queue's
+        read lock, so killing it left the lock held and every later workload stuck in queued.
+        """
+        mocker.patch.object(BaseExecutor, "run_workload", autospec=True, return_value=0)
+        executor = LocalExecutor(parallelism=2)
+        executor.start()
+        try:
+            # Let the workers come up and block on their input. Kill them all so whichever one holds the
+            # shared read lock on the old queue is certainly dead (the OOM-killer case).
+            time.sleep(0.5)
+            for pid, proc in list(executor.workers.items()):
+                os.kill(pid, signal.SIGKILL)
+                proc.join(timeout=5)
+
+            workload = _make_task_workload()
+            key = executor.get_task_key(workload.ti)
+            executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
+
+            deadline = time.monotonic() + 20
+            while key not in executor.event_buffer and time.monotonic() < deadline:
+                executor.heartbeat()
+                time.sleep(0.05)
+
+            assert key in executor.event_buffer
+            assert executor.event_buffer[key][0] == State.SUCCESS
+        finally:
+            executor.end()
 
     @pytest.mark.parametrize(
         ("conf_values", "expected_server"),
@@ -568,7 +587,6 @@ class TestLocalExecutor:
 
         try:
             # Verify each executor has its own queues
-            assert team_a_executor.activity_queue is not team_b_executor.activity_queue
             assert team_a_executor.result_queue is not team_b_executor.result_queue
 
             # Verify each executor has its own workers dict
@@ -582,9 +600,6 @@ class TestLocalExecutor:
                 # forkserver/spawn use lazy spawning
                 assert len(team_a_executor.workers) == 0
                 assert len(team_b_executor.workers) == 0
-
-            # Verify each executor has its own unread_messages counter
-            assert team_a_executor._unread_messages is not team_b_executor._unread_messages
 
             # Verify each has correct team config
             assert team_a_executor.conf.team_name == "team_a"
@@ -647,7 +662,6 @@ class TestLocalExecutorBookkeeping:
         executor.heartbeat()
 
         assert executor.running == {executor.get_task_key(first.ti)}
-        assert executor._unread_messages.value == 1
         assert second in executor.executor_queues[second.type].values()
         assert executor.has_task(first.ti)
         metrics = {call.args[0]: call.kwargs["value"] for call in gauge.call_args_list[-3:]}
@@ -688,7 +702,7 @@ class TestLocalExecutorBookkeeping:
         key, coordinates = executor.get_task_key(workload.ti), workload.ti.key
         executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
         executor.heartbeat()
-        submitted = executor.activity_queue.get()
+        submitted = executor._worker_queues[proc.pid].get()
         workload.ti.id = uuid7()
         workload.ti.try_number += 1
         assert executor.get_workload_key(submitted) == key
@@ -708,8 +722,7 @@ class TestLocalExecutorBookkeeping:
         key = executor.get_task_key(workload.ti)
         executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
         executor.heartbeat()
-        executor.activity_queue.get()
-        executor._unread_messages.value = 0
+        executor._worker_queues[proc.pid].get()
 
         def died_after_start():
             executor.result_queue.put((proc.pid, key, None, None))
@@ -729,8 +742,7 @@ class TestLocalExecutorBookkeeping:
         key = executor.get_task_key(workload.ti)
         executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
         executor.heartbeat()
-        executor.activity_queue.get()
-        executor._unread_messages.value = 0
+        executor._worker_queues[proc.pid].get()
         proc.is_alive.return_value = False
         executor.sync()
         assert not executor.workers
