@@ -285,6 +285,8 @@ class TestSmtpNotifier:
             with pytest.raises(ValueError, match="You should provide `from_email`"):
                 notifier({"dag": create_dag_without_db(TEST_DAG_ID)})
 
+        mock_smtphook_hook.return_value.__enter__.return_value.send_email_smtp.assert_not_called()
+
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_custom_smtp_conn_id(self, mock_smtphook_hook, create_dag_without_db):
         """Test that a custom smtp_conn_id is correctly passed to SmtpHook."""

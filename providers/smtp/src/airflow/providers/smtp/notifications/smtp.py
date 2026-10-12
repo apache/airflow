@@ -130,7 +130,10 @@ class SmtpNotifier(BaseNotifier):
             # value; see the sender precedence in the class docstring.
             self.from_email = smtp.from_email or conf.get("email", "from_email", fallback=None)
             if self.from_email is None:
-                raise ValueError("You should provide `from_email` or define it in the connection")
+                raise ValueError(
+                    "You should provide `from_email`, define it in the connection, "
+                    "or configure [email] from_email"
+                )
             fields_to_re_render.append("from_email")
         if self.subject is None:
             smtp_default_templated_subject_path: str

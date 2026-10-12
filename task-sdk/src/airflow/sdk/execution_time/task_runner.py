@@ -2234,16 +2234,18 @@ def _send_error_email_notification(
     if not to_emails:
         return
 
+    # SmtpNotifier resolves the sender itself, preferring the SMTP connection's from_email extra
+    # over the [email] from_email config, so passing a value here would hide the extra.
+    from_email = None
+    if not using_smtp_notifier:
+        from_email = conf.get("email", "from_email", fallback="airflow@airflow")
+
     try:
         notifier = notifier_class(
             to=to_emails,
             subject=subject,
             html_content=html_content,
-            # SmtpNotifier resolves the sender itself, preferring the SMTP connection's from_email
-            # extra over the [email] from_email config; passing a value here would hide the extra.
-            from_email=None
-            if using_smtp_notifier
-            else conf.get("email", "from_email", fallback="airflow@airflow"),
+            from_email=from_email,
         )
         notifier(email_context)
     except Exception:
