@@ -1129,7 +1129,7 @@ class SetRenderedMapIndex(BaseModel):
     type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
 
 
-class SetExecutionTimeout(BaseModel):
+class SetTimeout(BaseModel):
     """
     Tell the supervisor how long the task process may take before it must be stopped from outside.
 
@@ -1138,7 +1138,7 @@ class SetExecutionTimeout(BaseModel):
     """
 
     timeout_seconds: Annotated[float, Field(ge=0)]
-    type: Literal["SetExecutionTimeout"] = "SetExecutionTimeout"
+    type: Literal["SetTimeout"] = "SetTimeout"
 
 
 class TriggerDagRun(TriggerDAGRunPayload):
@@ -1345,7 +1345,7 @@ ToSupervisor = Annotated[
     | RetryTask
     | SetAssetStateStoreByName
     | SetAssetStateStoreByUri
-    | SetExecutionTimeout
+    | SetTimeout
     | SetRenderedFields
     | SetRenderedMapIndex
     | SetTaskStateStore

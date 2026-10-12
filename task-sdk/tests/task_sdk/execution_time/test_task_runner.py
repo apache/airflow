@@ -152,9 +152,9 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
-    SetExecutionTimeout,
     SetRenderedFields,
     SetTaskStateStore,
+    SetTimeout,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
@@ -291,8 +291,8 @@ def test_parse(test_dags_dir: Path, make_ti_context, coordinates, map_index):
         pytest.param(
             12.5,
             [
-                mock.call(SetExecutionTimeout(timeout_seconds=12.5)),
-                mock.call(SetExecutionTimeout(timeout_seconds=0)),
+                mock.call(SetTimeout(timeout_seconds=12.5)),
+                mock.call(SetTimeout(timeout_seconds=0)),
             ],
             id="armed_then_cleared",
         ),
@@ -6704,7 +6704,7 @@ class TestRunExecuteCallable:
             _run_execute_callable(context={}, execute=execute, task=task)
 
         task.on_kill.assert_called_once()
-        mock_supervisor_comms.send.assert_called_once_with(SetExecutionTimeout(timeout_seconds=0.01))
+        mock_supervisor_comms.send.assert_called_once_with(SetTimeout(timeout_seconds=0.01))
 
     def test_fast_fails_when_timeout_already_elapsed(self, mock_supervisor_comms):
         """A non-positive timeout fast-fails before running the callable and still calls on_kill."""

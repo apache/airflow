@@ -116,9 +116,9 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTimeout,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
@@ -1126,7 +1126,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         else 0
     )
     if import_timeout > 0:
-        SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=import_timeout))
+        SUPERVISOR_COMMS.send(SetTimeout(timeout_seconds=import_timeout))
     bag = BundleDagBag(
         dag_folder=dag_absolute_path,
         safe_mode=False,
@@ -1135,7 +1135,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         bundle_name=bundle_info.name,
     )
     if import_timeout > 0:
-        SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=0))
+        SUPERVISOR_COMMS.send(SetTimeout(timeout_seconds=0))
     dag_file_parse_ms = int((time.monotonic() - dag_file_parse_start) * 1000)
     if TYPE_CHECKING:
         assert what.ti.dag_id
@@ -2274,7 +2274,7 @@ def _run_execute_callable(
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
-            SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=timeout_seconds))
+            SUPERVISOR_COMMS.send(SetTimeout(timeout_seconds=timeout_seconds))
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)

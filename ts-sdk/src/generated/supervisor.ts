@@ -571,15 +571,15 @@ export type Type66 = "SetAssetStateStoreByName";
 export type Uri9 = string;
 export type Key16 = string;
 export type Type67 = "SetAssetStateStoreByUri";
-export type TimeoutSeconds = number;
-export type Type68 = "SetExecutionTimeout";
-export type Type69 = "SetRenderedFields";
+export type Type68 = "SetRenderedFields";
 export type RenderedMapIndex3 = string;
-export type Type70 = "SetRenderedMapIndex";
+export type Type69 = "SetRenderedMapIndex";
 export type TiId8 = string;
 export type Key17 = string;
 export type ExpiresAt = string | null;
-export type Type71 = "SetTaskStateStore";
+export type Type70 = "SetTaskStateStore";
+export type TimeoutSeconds = number;
+export type Type71 = "SetTimeout";
 export type Key18 = string;
 export type DagId21 = string;
 export type RunId14 = string;
@@ -1758,19 +1758,6 @@ export interface SetAssetStateStoreByUri {
   type?: Type67;
 }
 /**
- * Tell the supervisor how long the task process may take before it must be stopped from outside.
- *
- * Sent before parsing a plain Python Dag file with ``dagbag_import_timeout`` and before ``execute()``
- * with the task's ``execution_timeout``. ``0`` clears the deadline.
- *
- * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "SetExecutionTimeout".
- */
-export interface SetExecutionTimeout {
-  timeout_seconds: TimeoutSeconds;
-  type?: Type68;
-}
-/**
  * Payload for setting RTIF for a task instance.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1778,7 +1765,7 @@ export interface SetExecutionTimeout {
  */
 export interface SetRenderedFields {
   rendered_fields: RenderedFields;
-  type?: Type69;
+  type?: Type68;
 }
 export interface RenderedFields {
   [k: string]: JsonValue;
@@ -1791,7 +1778,7 @@ export interface RenderedFields {
  */
 export interface SetRenderedMapIndex {
   rendered_map_index: RenderedMapIndex3;
-  type?: Type70;
+  type?: Type69;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1802,6 +1789,19 @@ export interface SetTaskStateStore {
   key: Key17;
   value: JsonValue;
   expires_at: ExpiresAt;
+  type?: Type70;
+}
+/**
+ * Tell the supervisor how long the task process may take before it must be stopped from outside.
+ *
+ * Sent before parsing a plain Python Dag file with ``dagbag_import_timeout`` and before ``execute()``
+ * with the task's ``execution_timeout``. ``0`` clears the deadline.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "SetTimeout".
+ */
+export interface SetTimeout {
+  timeout_seconds: TimeoutSeconds;
   type?: Type71;
 }
 /**

@@ -23,7 +23,7 @@ pinned to an older version simply never sends it, so there is nothing to strip o
 way down. Only *changes* to bodies that already existed at an earlier dated version
 require a ``VersionChange`` entry below.
 
-``SetExecutionTimeout.timeout_seconds`` accepts ``0`` (clear the deadline) since the same
+``SetTimeout.timeout_seconds`` accepts ``0`` (clear the deadline) since the same
 version that introduced the body, so it needs no entry either.
 """
 
