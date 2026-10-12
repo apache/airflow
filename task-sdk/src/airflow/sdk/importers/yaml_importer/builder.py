@@ -41,7 +41,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import attrs
 
-from airflow.sdk import DAG, BaseOperator, XComArg, literal
+from airflow.sdk import DAG, BaseOperator, XComArg, literal, task as task_decorators
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.importers.yaml_importer.models import (
     ConstRef,
@@ -108,8 +108,6 @@ class DagBuilder:
         run argument names, so serialization can build and later validate
         (AIP-108) the handler's argument spec.
         """
-        from airflow.sdk import task as task_decorators  # Lazy to avoid provider registration.
-
         run_kwargs: dict[str, Any] = {}
         for name, value in args.items():
             if not name.isidentifier() or keyword.iskeyword(name):
