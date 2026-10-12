@@ -374,14 +374,38 @@ def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
     return True
 
 
+def _psycopg3_connect_args(sql_alchemy_conn: str | None) -> dict[str, Any]:
+    """
+    Disable psycopg3's automatic server-side statement preparation.
+
+    psycopg3 prepares a statement server-side after ``prepare_threshold`` executions
+    (5 by default). Transaction pooling can route the next transaction to a different
+    server connection, so a pooler that does not itself track prepared statements --
+    PgBouncer before 1.24, or any PgBouncer with ``max_prepared_statements = 0`` --
+    then fails with ``DuplicatePreparedStatement``. Airflow's own chart pins PgBouncer
+    1.23.1 and sets ``pool_mode = transaction``, so the recommended deployment is an
+    affected one. Overridable via ``[database] sql_alchemy_connect_args``.
+    """
+    if not sql_alchemy_conn or not sql_alchemy_conn.startswith(
+        ("postgresql+psycopg://", "postgresql+psycopg_async://")
+    ):
+        return {}
+    return {"prepare_threshold": None}
+
+
 def _get_connect_args(mode: Literal["sync", "async"]) -> Any:
-    key = {
-        "sync": "sql_alchemy_connect_args",
-        "async": "sql_alchemy_connect_args_async",
+    key, sql_alchemy_conn = {
+        "sync": ("sql_alchemy_connect_args", SQL_ALCHEMY_CONN),
+        "async": ("sql_alchemy_connect_args_async", SQL_ALCHEMY_CONN_ASYNC),
     }[mode]
-    if conf.has_option("database", key):
-        return conf.getimport("database", key)
-    return {}
+    defaults = _psycopg3_connect_args(sql_alchemy_conn)
+    if not conf.has_option("database", key):
+        return defaults
+    configured = conf.getimport("database", key)
+    if not isinstance(configured, dict):
+        return configured
+    # Anything the operator sets wins, including putting prepare_threshold back.
+    return {**defaults, **configured}
 
 
 def create_metadata_engine(
