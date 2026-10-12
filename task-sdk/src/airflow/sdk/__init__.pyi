@@ -114,6 +114,7 @@ from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
     AssetAndTimeSchedule,
     AssetOrTimeSchedule,
+    AssetTriggeredTimetable,
     PartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
@@ -147,6 +148,7 @@ __all__ = [
     "AssetAndTimeSchedule",
     "AssetAny",
     "AssetOrTimeSchedule",
+    "AssetTriggeredTimetable",
     "AssetWatcher",
     "AsyncCallback",
     "BaseAsyncOperator",
