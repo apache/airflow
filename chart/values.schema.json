@@ -8106,6 +8106,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                     }
                 },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into PgBouncer pod (templated).",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    }
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
