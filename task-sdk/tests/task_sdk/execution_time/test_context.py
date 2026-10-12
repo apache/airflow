@@ -367,6 +367,17 @@ class TestConnectionAccessor:
         )
 
 
+class TestMaskConnectionSecrets:
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_masks_raw_and_url_encoded_password(self, mock_mask_secret):
+        from airflow.sdk.execution_time.context import _mask_connection_secrets
+
+        _mask_connection_secrets(Connection(conn_id="c", conn_type="azure", password="s3cr3t/+x"))
+
+        mock_mask_secret.assert_any_call("s3cr3t/+x")
+        mock_mask_secret.assert_any_call("s3cr3t%2F%2Bx")
+
+
 class TestVariableAccessor:
     def test_getattr_variable(self, mock_supervisor_comms):
         """

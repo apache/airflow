@@ -27,6 +27,7 @@ from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
+from urllib.parse import quote
 from uuid import UUID
 
 import attrs
@@ -187,6 +188,7 @@ def _mask_connection_secrets(conn: Connection) -> None:
     """Mask sensitive connection fields from logs."""
     if conn.password:
         mask_secret(conn.password)
+        mask_secret(quote(conn.password, safe=""))
     if conn.extra:
         mask_secret(conn.extra)
 
@@ -195,6 +197,7 @@ async def _amask_connection_secrets(conn: Connection) -> None:
     """Async version: mask sensitive connection fields from logs."""
     if conn.password:
         await amask_secret(conn.password)
+        await amask_secret(quote(conn.password, safe=""))
     if conn.extra:
         await amask_secret(conn.extra)
 

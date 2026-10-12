@@ -30,6 +30,7 @@ response instead of forwarding the empty result via ``send_msg``.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 from uuid import UUID
 
 from airflow.sdk.api.datamodels._generated import (
@@ -95,6 +96,7 @@ def handle_get_connection(client: Client, msg: GetConnection) -> tuple[BaseModel
     if isinstance(conn, ConnectionResponse):
         if conn.password:
             mask_secret(conn.password)
+            mask_secret(quote(conn.password, safe=""))
         if conn.extra:
             mask_secret(conn.extra)
         return ConnectionResult.from_conn_response(conn), {"exclude_unset": True, "by_alias": True}
