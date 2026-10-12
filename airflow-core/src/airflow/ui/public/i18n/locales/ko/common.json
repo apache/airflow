@@ -168,7 +168,7 @@
   "generateToken": "토큰 생성",
   "includedIn": "포함됨",
   "key": "키",
-  "loading": "로드 중…",
+  "loading": "로드 중...",
   "logLevel": {
     "hide": "로그 레벨 숨기기",
     "hotkey": "l",

@@ -16,19 +16,19 @@
       "unfavorite": "즐겨찾기 해제"
     },
     "favoriteState": "즐겨찾기 상태",
-    "favoriteStatePlaceholder": "즐겨찾기 상태 선택…",
+    "favoriteStatePlaceholder": "즐겨찾기 상태 선택...",
     "noTimetableTypesFound": "타임테이블 유형을 찾을 수 없습니다",
     "paused": {
       "active": "활성",
       "all": "모두",
       "paused": "일시 중지됨"
     },
-    "pausedPlaceholder": "일시 중지 상태 선택…",
+    "pausedPlaceholder": "일시 중지 상태 선택...",
     "pausedState": "일시 중지 상태",
     "requiresHitlAction": "필수 작업",
     "runIdPatternFilter": "Dag 실행 검색",
     "runState": "실행 상태",
-    "runStatePlaceholder": "실행 상태 선택…",
+    "runStatePlaceholder": "실행 상태 선택...",
     "timetableType": "타임테이블 유형"
   },
   "folders": {
@@ -125,7 +125,7 @@
     "drainingTooltip": "{{dagDisplayName}}: 실행 완료 대기 중입니다. 진행 중인 Dag 실행이 모두 끝나면 일시 중지됩니다. 클릭하여 다시 활성화하세요.",
     "label": "스케줄링 상태",
     "paused": "일시 중지됨",
-    "placeholder": "스케줄링 상태 선택…"
+    "placeholder": "스케줄링 상태 선택..."
   },
   "search": {
     "advanced": "고급 검색",
