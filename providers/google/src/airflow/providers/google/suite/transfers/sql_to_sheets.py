@@ -53,6 +53,8 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         "spreadsheet_id",
         "spreadsheet_range",
         "impersonation_chain",
+        "gcp_conn_id",
+        "conn_id",
     )
 
     template_fields_renderers = {"sql": "sql"}

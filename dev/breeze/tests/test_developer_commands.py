@@ -20,15 +20,51 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from click import UsageError
 from click.testing import CliRunner
 
-from airflow_breeze.commands.developer_commands import build_docs
+from airflow_breeze.commands.developer_commands import build_docs, down, run
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 
 
 @pytest.fixture
 def runner():
     return CliRunner()
+
+
+def test_down_rejects_conflicting_project_selectors(runner):
+    with pytest.raises(UsageError, match="--all-worktrees and --project-name cannot be used together"):
+        runner.invoke(
+            down,
+            ["--all-worktrees", "--project-name", "foobar"],
+            standalone_mode=False,
+            catch_exceptions=False,
+        )
+
+
+@pytest.mark.parametrize("linked", [False, True])
+def test_down_preserves_volumes_without_startup_cleanup(runner, tmp_path, linked):
+    with (
+        patch(
+            "airflow_breeze.commands.developer_commands.perform_environment_checks", autospec=True
+        ) as checks,
+        patch(
+            "airflow_breeze.commands.developer_commands.bring_compose_projects_down",
+            autospec=True,
+            return_value=[],
+        ) as teardown,
+        patch(
+            "airflow_breeze.commands.developer_commands.get_main_git_dir_for_worktree",
+            autospec=True,
+            return_value=tmp_path if linked else None,
+        ),
+        patch("airflow_breeze.commands.developer_commands.AIRFLOW_ROOT_PATH", tmp_path),
+    ):
+        result = runner.invoke(down, ["--preserve-volumes"])
+    assert result.exit_code == 0
+    checks.assert_called_once_with(cleanup_stale_worktrees=False)
+    assert teardown.call_args.kwargs["preserve_volumes"] is True
+    assert teardown.call_args.kwargs["current_worktree"] == (str(tmp_path.resolve()) if linked else "")
 
 
 class TestBuildDocsPythonVersion:
@@ -73,3 +109,35 @@ class TestBuildDocsPythonVersion:
 
         assert result.exit_code != 0
         assert "no such option" in result.output.lower()
+
+
+class TestRunIncludeMypyVolume:
+    @pytest.fixture(autouse=True)
+    def _no_docker(self, monkeypatch):
+        monkeypatch.setenv("SKIP_SAVING_CHOICES", "true")
+        monkeypatch.delenv("INCLUDE_MYPY_VOLUME", raising=False)
+        monkeypatch.setattr(
+            "airflow_breeze.commands.developer_commands.bring_compose_project_down", lambda *a, **kw: None
+        )
+        for name in ("fix_ownership_using_docker", "remove_docker_networks"):
+            monkeypatch.setattr(f"airflow_breeze.utils.docker_command_utils.{name}", lambda *a, **kw: None)
+
+    def _invoke(self, runner: CliRunner, args: list[str], env: dict[str, str] | None = None):
+        with (
+            patch("airflow_breeze.commands.ci_image_commands.build_ci_image_if_needed"),
+            patch("airflow_breeze.utils.docker_command_utils.execute_command_in_shell") as mock_shell,
+        ):
+            mock_shell.return_value.returncode = 0
+            runner.invoke(run, [*args, "true"], env=env, catch_exceptions=False)
+        return mock_shell.call_args.kwargs["shell_params"]
+
+    @pytest.mark.parametrize(
+        ("args", "env", "expected"),
+        [
+            pytest.param([], None, False, id="default"),
+            pytest.param(["--include-mypy-volume"], None, True, id="flag"),
+            pytest.param([], {"INCLUDE_MYPY_VOLUME": "true"}, True, id="env"),
+        ],
+    )
+    def test_include_mypy_volume_is_passed_to_shell_params(self, runner, args, env, expected):
+        assert self._invoke(runner, args, env=env).include_mypy_volume is expected

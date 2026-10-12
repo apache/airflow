@@ -26,6 +26,7 @@ import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FilterBar } from "src/components/FilterBar";
@@ -39,7 +40,10 @@ import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } 
 
 type DeadlineRow = { row: { original: DeadlineResponse } };
 
-const createColumns = (translate: TFunction, multiTeam: boolean): Array<ColumnDef<DeadlineResponse>> => [
+const createColumns = (
+  translate: TFunction,
+  multiTeam: boolean,
+): Array<ColumnDef<DataTableFeatures, DeadlineResponse>> => [
   {
     accessorKey: "dag_id",
     cell: ({ row: { original } }: DeadlineRow) => (
@@ -137,7 +141,8 @@ export const Deadlines = () => {
   const deadlineTimeLte = searchParams.get(SearchParamsKeys.DEADLINE_TIME_LTE);
   const teams = searchParams.getAll(SearchParamsKeys.TEAMS);
 
-  const missedFilter = filteredMissed === "true" ? true : filteredMissed === "false" ? false : undefined;
+  const missedFilter =
+    filteredMissed === "true" || filteredMissed === "false" ? filteredMissed === "true" : undefined;
 
   const { data, error, isFetching, isLoading } = useDeadlinesServiceGetDeadlines({
     dagId: filteredDagId !== null && filteredDagId !== "" ? filteredDagId : "~",

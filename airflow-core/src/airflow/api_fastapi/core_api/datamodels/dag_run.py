@@ -236,6 +236,13 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     note: str | None = None
     partition_key: str | None = None
     bundle_version: str | None = None
+    drain_dag: bool = Field(
+        default=False,
+        description="Drain the Dag together with this run. Draining changes the whole Dag: unfinished "
+        "runs can start or resume except those held by paused backfills. No scheduled runs are created, "
+        "and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining "
+        "to complete. Requires the same permission as pausing the Dag.",
+    )
 
     @model_validator(mode="after")
     def check_data_intervals(self):

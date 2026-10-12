@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, it, expect, vi } from "vitest";
 
@@ -69,6 +69,14 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     const pill = await screen.findByTestId("paused-pill");
 
     expect(pill).toHaveTextContent("filters.paused.active");
+  });
+
+  it("does not add the default paused filter when a scheduling state is already selected", async () => {
+    render(<AppWrapper initialEntries={["/dags?scheduling_state=active"]} />);
+
+    await waitFor(() => expect(screen.getByTestId("scheduling_state-pill")).toBeInTheDocument());
+
+    expect(screen.queryByTestId("paused-pill")).not.toBeInTheDocument();
   });
 
   it("shows all dags after removing the paused filter", async () => {

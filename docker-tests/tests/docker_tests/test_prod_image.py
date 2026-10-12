@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 from importlib.util import find_spec
+from tomllib import loads as load_tomllib
 
 import pytest
 import yaml
@@ -35,11 +36,6 @@ from docker_tests.docker_utils import (
 
 PROD_IMAGE_PROVIDERS_FILE_PATH = AIRFLOW_ROOT_PATH / "prod_image_installed_providers.txt"
 AIRFLOW_CORE_PYPROJECT_TOML = AIRFLOW_ROOT_PATH / "airflow-core" / "pyproject.toml"
-
-try:
-    from tomllib import loads as load_tomllib
-except ImportError:
-    from tomli import loads as load_tomllib  # type: ignore[no-redef]
 
 airflow_core_pyproject_toml = load_tomllib(AIRFLOW_CORE_PYPROJECT_TOML.read_text())
 
@@ -242,9 +238,6 @@ class TestPythonPackages:
         if package_name == "providers":
             excluded_imports = {f"airflow.providers.{pid}" for pid in excluded_ids}
             import_names = [name for name in import_names if name not in excluded_imports]
-            # FAB provider has import issues on Python 3.13
-            if python_minor == "3.13":
-                import_names = [name for name in import_names if name != "airflow.providers.fab"]
         if import_names:
             run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
 

@@ -296,10 +296,12 @@ The Analytics Operator is ideal for performing efficient, high-performance analy
 Supported Storage Systems
 -------------------------
 - S3
+- GCS
+- Azure Blob Storage
 - Local File System
 
 .. note::
-   GCS, Azure, HTTP, Delta, Iceberg are not yet supported but will be added in the future.
+   HTTP, Delta are not yet supported but will be added in the future.
 
 
 
@@ -340,6 +342,83 @@ S3 Storage
     :dedent: 4
     :start-after: [START howto_analytics_operator_with_s3]
     :end-before: [END howto_analytics_operator_with_s3]
+
+GCS Storage
+-----------
+Use a ``conn_id`` pointing to a ``google_cloud_platform`` connection. Credentials are
+resolved in this order:
+
+1. ``key_path`` -- a service account JSON file on disk
+2. ``keyfile_dict`` -- the service account JSON contents, inline
+3. the ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable
+4. Application Default Credentials -- the local ``gcloud`` CLI credentials file, or
+   the GCE/GKE metadata server
+
+``key_path`` and ``keyfile_dict`` are mutually exclusive. ``key_secret_name``,
+``credential_config_file``, and ``impersonation_chain`` are not supported.
+
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_analytics_operator_with_gcs]
+    :end-before: [END howto_analytics_operator_with_gcs]
+
+Azure Storage
+-------------
+Use an ``az://`` URI with a ``conn_id`` pointing to a ``wasb`` connection.
+``abfs://`` and ``abfss://`` URIs are not recognized yet. The account name
+comes from ``host`` (its first DNS label) when set, falling back to
+``login`` only when ``host`` is empty; only the public
+``*.blob.core.windows.net`` cloud is supported, since DataFusion's binding
+otherwise has no endpoint override -- unless the worker sets
+``AZURE_STORAGE_ENDPOINT``/``AZURE_ENDPOINT`` for a real sovereign-cloud
+hostname. A ``host:port`` address (the Azurite emulator's shape, e.g.
+``azurite:10000``) is never a real DNS hostname and always raises instead,
+even with those variables set: put the account name in ``login`` with
+``host`` left empty for Azurite, alongside those same variables and
+``AZURE_ALLOW_HTTP=true``. ``client_secret_auth_config`` (the authority
+override ``WasbHook`` honors) is not read here.
+
+The connection supplies one of the following credentials, checked in this
+order (matching ``WasbHook.get_conn``):
+
+1. Azure AD service principal -- ``tenant_id`` extra, with ``login`` as the
+   client ID and ``password`` as the client secret (both required together)
+2. Shared key -- the ``shared_access_key`` extra
+3. SAS token -- ``sas_token`` extra, as a query string
+4. Shared key -- ``password``, or the ``account_key`` extra
+5. None of the above -- ambient auth (see below)
+
+**A worker environment variable can override the connection, but only from a
+higher-priority tier.** DataFusion reads ``AZURE_*`` environment variables
+first, and resolves credentials in this priority order:
+
+1. Bearer token
+2. Access key -- the shared-key connection's tier
+3. Workload identity
+4. Client secret -- the service-principal connection's tier
+5. SAS -- the SAS connection's tier
+
+Only a complete credential from an earlier tier can override the
+connection -- a single bearer or access-key variable, or every variable a
+multi-field tier needs. This raises when found, naming the variables,
+instead of silently using the wrong identity.
+
+With no explicit credential, authentication falls back to ``AZURE_*``
+environment variables, managed identity, or workload identity. Unlike
+``WasbHook`` (which tries ``az login`` automatically), DataFusion's
+underlying ``object_store`` binding only tries the Azure CLI if
+``AZURE_USE_AZURE_CLI=true`` is set; otherwise it defaults straight to
+IMDS managed identity.
+
+``connection_string``, ``managed_identity_client_id``, ``workload_identity_tenant_id``,
+and a URL-form ``sas_token`` are not supported.
+
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_analytics_operator_with_azure]
+    :end-before: [END howto_analytics_operator_with_azure]
 
 Local File System Storage
 -------------------------

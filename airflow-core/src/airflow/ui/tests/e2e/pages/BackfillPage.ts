@@ -77,8 +77,10 @@ function getColumnIndex(columnMap: Map<string, number>, name: string): number {
   return index;
 }
 
+// Columns getBackfillDetailsByDateRange reads; findBackfillRowByDateRange waits for all of them.
+const DETAIL_COLUMNS = ["From", "To", "Reprocess Behavior", "Created at", "Completed at"];
+
 export class BackfillPage extends BasePage {
-  public readonly backfillDateError: Locator;
   public readonly backfillFromTrigger: Locator;
   public readonly backfillModeRadio: Locator;
   public readonly backfillRunButton: Locator;
@@ -104,7 +106,6 @@ export class BackfillPage extends BasePage {
     this.backfillToTrigger = page.getByTestId("datetime-input").nth(1);
     this.backfillRunButton = page.getByRole("button", { name: "Run Backfill" });
     this.backfillsTable = page.getByTestId("table-list");
-    this.backfillDateError = page.getByText("Start Date must be before the End Date");
     this.cancelButton = page.getByRole("button", { name: "Cancel backfill" });
     this.pauseButton = page.getByRole("button", { name: "Pause backfill" });
     this.unpauseButton = page.getByRole("button", { name: "Unpause backfill" });
@@ -283,7 +284,14 @@ export class BackfillPage extends BasePage {
             const fromIndex = columnMap.get("From");
             const toIndex = columnMap.get("To");
 
-            if (fromIndex === undefined || toIndex === undefined) {
+            // Headers come from the "common" and "components" i18next namespaces, which load in
+            // parallel. With useSuspense: false a header renders its raw key (e.g.
+            // `backfill.reprocessBehavior`) until its namespace arrives.
+            if (
+              fromIndex === undefined ||
+              toIndex === undefined ||
+              !DETAIL_COLUMNS.every((column) => columnMap.has(column))
+            ) {
               return false;
             }
 
@@ -316,7 +324,7 @@ export class BackfillPage extends BasePage {
         },
         {
           intervals: [2000, 5000],
-          message: `Backfill row with dates ${expectedFrom} ~ ${expectedTo} not found in table`,
+          message: `Backfill row with dates ${expectedFrom} ~ ${expectedTo} not found (waiting for columns: ${DETAIL_COLUMNS.join(", ")})`,
           timeout,
         },
       )
@@ -356,14 +364,6 @@ export class BackfillPage extends BasePage {
     };
   }
 
-  public getColumnHeader(columnName: string): Locator {
-    return this.backfillsTable.getByRole("columnheader", { name: columnName });
-  }
-
-  public getFilterButton(): Locator {
-    return this.page.getByRole("button", { name: /filter table columns/i });
-  }
-
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
     await expect(async () => {
       await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
@@ -382,16 +382,6 @@ export class BackfillPage extends BasePage {
     await this.triggerButton.click({ timeout: 15_000 });
     await this.backfillModeRadio.click();
     await expect(this.backfillFromTrigger).toBeVisible();
-  }
-
-  public async openFilterMenu(): Promise<void> {
-    await expect(async () => {
-      if (!(await this.page.getByRole("menu").isVisible())) {
-        await this.getFilterButton().click();
-      }
-      await expect(this.page.getByRole("menu")).toBeVisible({ timeout: 3000 });
-      await this.page.getByRole("menuitem").first().click({ timeout: 3000, trial: true });
-    }).toPass({ intervals: [1000], timeout: 15_000 });
   }
 
   public async pauseBackfillViaApi(backfillId: number): Promise<boolean> {
@@ -463,10 +453,6 @@ export class BackfillPage extends BasePage {
       }
       await expect(dateInput).toHaveCount(0, { timeout: 800 });
     }).toPass({ intervals: [300, 700, 1500], timeout: 15_000 });
-  }
-
-  public async toggleColumn(columnName: string): Promise<void> {
-    await this.page.getByRole("menuitem", { name: columnName }).click();
   }
 
   public async togglePauseState(): Promise<void> {

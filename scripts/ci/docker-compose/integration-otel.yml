@@ -19,6 +19,8 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.155.0
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for OTEL/opentelemetry hooks."
     container_name: "breeze-otel-collector"
     command: [--config=/etc/otel-collector-config.yml]
@@ -29,6 +31,9 @@ services:
       - "28889:8889"    # Prometheus exporter metrics
 
   prometheus:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
     image: prom/prometheus:v3.5.4
     container_name: "breeze-prometheus"
     user: "0"
@@ -41,6 +46,9 @@ services:
       - ./prometheus-config.yml:/etc/prometheus/prometheus.yml
 
   grafana:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
     image: grafana/grafana:8.2.4
     container_name: "breeze-grafana"
     environment:
@@ -57,6 +65,9 @@ services:
       - ./grafana/volume/provisioning:/grafana/provisioning
 
   jaeger:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
     image: jaegertracing/all-in-one:1.57
     container_name: "breeze-jaeger"
     environment:

@@ -340,18 +340,25 @@ class AssetManager(LoggingMixin):
             "partition_key": partition_key,
         }
         if task_instance:
+            # TaskInstance imports the asset manager.
+            from airflow.models.task_coordinates import get_public_map_index
+
+            source_map_index = get_public_map_index(task_instance, session=session)
             event_kwargs.update(
                 source_task_id=task_instance.task_id,
                 source_dag_id=task_instance.dag_id,
                 source_run_id=task_instance.run_id,
-                source_map_index=task_instance.map_index,
+                source_map_index=source_map_index,
+                source_task_instance_id=task_instance.id,
             )
 
         asset_event = AssetEvent(**event_kwargs)
         session.add(asset_event)
         session.flush()
 
-        dags_to_queue_from_asset = {ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused}
+        dags_to_queue_from_asset = {
+            ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused and not ref.dag.is_draining
+        }
 
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
@@ -379,7 +386,7 @@ class AssetManager(LoggingMixin):
                 dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
                     for alias_ref in asset_alias_model.scheduled_dags
-                    if not alias_ref.dag.is_paused
+                    if not alias_ref.dag.is_paused and not alias_ref.dag.is_draining
                 }
         else:
             asset_alias_models = []
@@ -395,6 +402,7 @@ class AssetManager(LoggingMixin):
                         DagScheduleAssetUriReference.uri == asset.uri,
                     ),
                     DagModel.is_paused.is_(False),
+                    DagModel.is_draining.is_(False),
                 )
             )
         )
@@ -686,6 +694,7 @@ class AssetManager(LoggingMixin):
                     target_dag=target_dag,
                     rollup_fingerprint=fingerprint,
                     asset_id=asset_id,
+                    allow_reuse=timetable.batch_asset_events,
                     session=session,
                 )
                 log_record = PartitionedAssetKeyLog(
@@ -707,6 +716,7 @@ class AssetManager(LoggingMixin):
         target_dag: DagModel,
         rollup_fingerprint: dict,
         asset_id: int,
+        allow_reuse: bool,
         session: Session,
     ) -> AssetPartitionDagRun:
         """
@@ -735,17 +745,25 @@ class AssetManager(LoggingMixin):
           one, the producing assets disagree; picking one would be order-dependent, so the
           carried date is suppressed to ``None`` (and re-adoptable by a later event).
         - Otherwise (the dates agree, or this event carries none) the existing value is kept.
+
+        When ``allow_reuse=True``, an existing pending APDR for the same
+        ``(target_dag, partition_key)`` is reused — multiple events accumulate on one
+        APDR. When ``allow_reuse=False`` (set when the timetable's ``batch_asset_events``
+        is ``False``), a new APDR is always created so each event gets its own APDR
+        and the scheduler produces one DagRun per event.
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
-            latest_apdr: AssetPartitionDagRun | None = session.scalar(
-                select(AssetPartitionDagRun)
-                .where(
-                    AssetPartitionDagRun.partition_key == target_key,
-                    AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
+            latest_apdr: AssetPartitionDagRun | None = None
+            if allow_reuse:
+                latest_apdr = session.scalar(
+                    select(AssetPartitionDagRun)
+                    .where(
+                        AssetPartitionDagRun.partition_key == target_key,
+                        AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
+                    )
+                    .order_by(AssetPartitionDagRun.id.desc())
+                    .limit(1)
                 )
-                .order_by(AssetPartitionDagRun.id.desc())
-                .limit(1)
-            )
             if latest_apdr and latest_apdr.created_dag_run_id is None:
                 existing_partition_date = latest_apdr.partition_date
                 if existing_partition_date is None:

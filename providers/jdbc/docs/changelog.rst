@@ -26,6 +26,32 @@
 Changelog
 ---------
 
+5.6.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Exclude SQLAlchemy 2.1.0 (#73865)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+5.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make SQLAlchemy an optional dependency (#72373)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.5.1
 .....
 

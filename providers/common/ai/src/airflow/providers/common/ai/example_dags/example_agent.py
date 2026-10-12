@@ -31,6 +31,11 @@ try:
 except Exception:
     SQLToolset = None  # type: ignore[assignment,misc]
 
+try:
+    from pydantic_ai_harness import CodeMode
+except ImportError:
+    CodeMode = None  # type: ignore[assignment,misc]
+
 
 # [START howto_decorator_agent_structured_output_class]
 # Pydantic output classes must be defined at module scope so downstream
@@ -276,7 +281,7 @@ example_agent_operator_hitl_review()
 
 
 # [START howto_operator_agent_code_mode]
-if SQLToolset is not None:
+if SQLToolset is not None and CodeMode is not None:
 
     @dag(tags=["example"])
     def example_agent_operator_code_mode():
@@ -288,7 +293,7 @@ if SQLToolset is not None:
             toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["customers", "orders"])],
             # Requires the `code-mode` extra:
             #   pip install "apache-airflow-providers-common-ai[code-mode]"
-            code_mode=True,
+            capabilities=[CodeMode(max_tool_calls=200)],
         )
 
     # [END howto_operator_agent_code_mode]

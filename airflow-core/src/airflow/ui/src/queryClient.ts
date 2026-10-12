@@ -18,24 +18,14 @@
  */
 import { MutationCache, QueryClient } from "@tanstack/react-query";
 
-import { OpenAPI } from "openapi/requests/core/OpenAPI";
-
 import { toaster } from "src/system-components";
 
+// Imported for its side effect: configures the generated client's base URL and path
+// encoding. Kept in its own module so the configuration is applied before any module
+// that requests something while the app is initializing. See src/basePath.
+import "src/basePath";
 import i18n from "src/i18n/config";
 import { getErrorStatus } from "src/utils";
-
-// Dynamically set the base URL for XHR requests based on the meta tag.
-OpenAPI.BASE = document.querySelector("head>base")?.getAttribute("href") ?? "";
-if (OpenAPI.BASE.endsWith("/")) {
-  OpenAPI.BASE = OpenAPI.BASE.slice(0, -1);
-}
-
-// Encode path params as full URI components so values containing "/" (e.g. a variable key like
-// "/foo") become "%2Ffoo" rather than a literal "//", which proxies may collapse. The generated
-// client otherwise defaults to encodeURI, which leaves "/" untouched.
-// The backend automatically decodes path params.
-OpenAPI.ENCODE_PATH = encodeURIComponent;
 
 const RETRY_COUNT = 3;
 
@@ -43,11 +33,9 @@ const retryFunction = (failureCount: number, error: unknown) => {
   const { status } = error as { status?: number };
 
   // Do not retry for client errors (4xx). 429 should be eventually retried though.
-  if (status !== undefined && status >= 400 && status < 500 && status !== 429) {
-    return false;
-  }
-
-  return failureCount < RETRY_COUNT;
+  return (
+    (status === undefined || status < 400 || status >= 500 || status === 429) && failureCount < RETRY_COUNT
+  );
 };
 
 // Track active 403 toast to prevent duplicates when multiple mutations fail

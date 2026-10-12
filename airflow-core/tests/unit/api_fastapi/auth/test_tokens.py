@@ -424,6 +424,49 @@ class TestRevokeToken:
         ):
             validator.revoke_token(token)
 
+    def test_revoke_token_db_error_is_logged_as_error(self):
+        """A valid token that cannot be revoked stays usable, so the failure is logged as an error."""
+        import time
+        from unittest.mock import patch
+
+        from sqlalchemy.exc import SQLAlchemyError
+
+        now = int(time.time())
+        payload = {
+            "sub": "user",
+            "jti": "db-error-jti",
+            "exp": now + 3600,
+            "iat": now,
+            "nbf": now,
+            "aud": "test",
+        }
+        token = jwt.encode(payload, "secret", algorithm="HS256")
+        validator = JWTValidator(
+            secret_key="secret", audience="test", algorithm=["HS256"], leeway=0, issuer=None
+        )
+        with (
+            patch("airflow.api_fastapi.auth.tokens.log") as mock_log,
+            patch("airflow.models.revoked_token.RevokedToken.revoke", side_effect=SQLAlchemyError("db down")),
+        ):
+            validator.revoke_token(token)
+
+        mock_log.exception.assert_called_once()
+        assert "db-error-jti" in mock_log.exception.call_args.args
+
+    def test_revoke_token_invalid_token_is_not_logged_as_error(self):
+        """A token that does not validate is already unusable, so it is only a warning."""
+        from unittest.mock import patch
+
+        validator = JWTValidator(
+            secret_key="secret", audience="test", algorithm=["HS256"], leeway=0, issuer=None
+        )
+        with patch("airflow.api_fastapi.auth.tokens.log") as mock_log:
+            validator.revoke_token("invalid-token")
+
+        mock_log.exception.assert_not_called()
+        mock_log.error.assert_not_called()
+        mock_log.warning.assert_called_once()
+
 
 @pytest.fixture(scope="session")
 def rsa_private_key():

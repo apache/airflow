@@ -49,6 +49,57 @@ class TestS3ToFTPOperator:
         mock_s3_hook_get_key.return_value.download_fileobj.assert_called_once_with(mock_local_tmp_file_value)
         mock_ftp_hook_store_file.assert_called_once_with(operator.ftp_path, mock_local_tmp_file_value.name)
 
+    @pytest.mark.parametrize(
+        ("keys", "expected", "skipped"),
+        [
+            pytest.param(
+                ["source/pre_one.txt", "source/xpre_two.txt", "source/pre_again_pre_.txt"],
+                [
+                    ("source/pre_one.txt", "/destination/new_one.txt"),
+                    ("source/pre_again_pre_.txt", "/destination/new_again_pre_.txt"),
+                ],
+                ["xpre_two.txt"],
+                id="prefix-only-at-start",
+            ),
+            pytest.param(
+                ["source/pre_one.txt", "source/pre_dir/pre_two.txt", "source/pre_dir/other.txt"],
+                [
+                    ("source/pre_one.txt", "/destination/new_one.txt"),
+                    ("source/pre_dir/pre_two.txt", "/destination/pre_dir/new_two.txt"),
+                ],
+                ["pre_dir/other.txt"],
+                id="nested-keys-keep-their-directory",
+            ),
+        ],
+    )
+    @mock.patch.object(S3ToFTPOperator, "_download_from_s3")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_ftp.FTPHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_ftp.S3Hook")
+    def test_execute_matches_the_prefix_on_the_file_name(
+        self, mock_s3_hook_class, mock_ftp_hook_class, mock_download_from_s3, keys, expected, skipped
+    ):
+        """The prefix matches only the start of the file name, and only that leading occurrence is
+        renamed. ``list_keys`` recurses, so a nested key is matched on its file name and keeps its
+        directory, while the old substring rule still decides which skipped keys are reported."""
+        mock_s3_hook = mock_s3_hook_class.return_value
+        mock_s3_hook.list_keys.return_value = keys
+        operator = S3ToFTPOperator(
+            task_id=TASK_ID,
+            s3_bucket=BUCKET,
+            s3_key="source/",
+            ftp_path="/destination/",
+            s3_filenames="pre_",
+            ftp_filenames="new_",
+        )
+
+        with mock.patch.object(operator.log, "warning") as mock_log_warning:
+            operator.execute(None)
+
+        assert mock_download_from_s3.call_args_list == [
+            mock.call(mock_s3_hook, mock_ftp_hook_class.return_value, *call) for call in expected
+        ]
+        mock_log_warning.assert_called_once_with(mock.ANY, len(skipped), "pre_", skipped, "")
+
 
 class TestS3ToFTPOperatorInit:
     """Unit tests for S3ToFTPOperator.__init__ that do not require an FTP server."""

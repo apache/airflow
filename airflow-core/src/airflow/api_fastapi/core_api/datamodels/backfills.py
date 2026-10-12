@@ -44,6 +44,14 @@ class BackfillPostBody(StrictBaseModel):
         "then the ``[core] rerun_with_latest_version`` config option, "
         "and finally ``True`` (the historical default for backfills).",
     )
+    drain_dag: bool = Field(
+        default=False,
+        description="Drain the Dag together with the backfill. Draining changes the whole Dag: unfinished "
+        "runs can start or resume except those held by paused backfills. No scheduled runs are created, "
+        "and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining "
+        "to complete. Requires the same permission as pausing the Dag. "
+        "Ignored by the dry-run endpoint.",
+    )
 
 
 class BackfillResponse(BaseModel):

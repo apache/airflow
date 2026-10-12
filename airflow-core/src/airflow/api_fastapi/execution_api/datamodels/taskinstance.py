@@ -20,7 +20,7 @@ import uuid
 from collections.abc import Iterable
 from datetime import timedelta
 from enum import Enum
-from typing import Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, TypeVar
 
 from pydantic import (
     AwareDatetime,
@@ -32,6 +32,7 @@ from pydantic import (
     model_validator,
 )
 
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
@@ -45,6 +46,9 @@ from airflow.utils.state import (
     TerminalTIState,
 )
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance as TaskInstanceModel
 
 AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
 
@@ -67,6 +71,12 @@ class TIEnterRunningPayload(StrictBaseModel):
     """When the task started executing"""
 
 
+class DagRunNoteUpdatePayload(StrictBaseModel):
+    """Schema for updating the DagRun note associated with a task instance."""
+
+    note: str | None = Field(None, max_length=1000)
+
+
 # Create an enum to give a nice name in the generated datamodels
 class TerminalStateNonSuccess(str, Enum):
     """TaskInstance states that can be reported without extra information."""
@@ -75,16 +85,20 @@ class TerminalStateNonSuccess(str, Enum):
     SKIPPED = TerminalTIState.SKIPPED
     REMOVED = TerminalTIState.REMOVED
     UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED
+    SERVER_TERMINATED = "server_terminated"
 
 
 class TITerminalStatePayload(StrictBaseModel):
-    """Schema for updating TaskInstance to a terminal state except SUCCESS state."""
+    """Report a terminal outcome other than SUCCESS, or acknowledge server-requested termination."""
 
     state: TerminalStateNonSuccess
 
     end_date: UtcDateTime
     """When the task completed executing"""
     rendered_map_index: str | None = None
+    retry_reason: str | None = None
+    hostname: str | None = None
+    pid: int | None = None
 
 
 class TISuccessStatePayload(StrictBaseModel):
@@ -238,7 +252,7 @@ def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
 
     if state == TIState.SUCCESS:
         return "success"
-    if state in set(TerminalTIState):
+    if state in set(TerminalTIState) or state == TerminalStateNonSuccess.SERVER_TERMINATED:
         return "_terminal_"
     if state == TIState.DEFERRED:
         return "deferred"
@@ -274,7 +288,7 @@ class TIHeartbeatInfo(StrictBaseModel):
 
 # This model is not used in the API, but it is included in generated OpenAPI schema
 # for use in the client SDKs.
-class TaskInstance(BaseModel):
+class TaskInstance(OmitsMissingRegion, BaseModel):
     """Schema for TaskInstance model with minimal required fields needed for Runtime."""
 
     id: uuid.UUID
@@ -285,12 +299,27 @@ class TaskInstance(BaseModel):
     try_number: int
     dag_version_id: uuid.UUID
     map_index: int = -1
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     hostname: str | None = None
     context_carrier: dict | None = None
     # The supervisor routes tasks to a coordinator by queue. The default keeps
     # hand-built instances (tests, dry runs) valid; the executor workload
     # always sends the real value.
     queue: str = "default"
+
+
+_RuntimeTI = TypeVar("_RuntimeTI", bound=TaskInstance)
+
+
+def task_instance_to_runtime(ti: TaskInstanceModel, *, model: type[_RuntimeTI], map_index: int) -> _RuntimeTI:
+    """Build a runtime identity with a prepared public map index and the region a client sees."""
+    from airflow.models.task_coordinates import get_public_region
+
+    region_id, region_index = get_public_region(ti.region_id, ti.region_index)
+    return model.model_validate(ti, from_attributes=True).model_copy(
+        update={"map_index": map_index, "region_id": region_id, "region_index": region_index}
+    )
 
 
 class AssetReferenceAssetEventDagRun(StrictBaseModel):
@@ -398,11 +427,23 @@ class DagRun(StrictBaseModel):
         return values
 
 
+class LoopContext(BaseModel):
+    """Pinned loop definition and enclosing iteration for a task execution."""
+
+    node_id: str
+    index: int = Field(ge=0)
+    max_iterations: int = Field(gt=0)
+    terminal_task_id: str
+    terminal_is_mapped: bool
+
+
 class TIRunContext(BaseModel):
     """Response schema for TaskInstance run context."""
 
     dag_run: DagRun
     """DAG run information for the task instance."""
+
+    loop: LoopContext | None = None
 
     task_reschedule_count: int = 0
     """How many times the task has been rescheduled."""
@@ -447,6 +488,17 @@ class TIRunContext(BaseModel):
     ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
+    multi_team: bool = False
+    """
+    Whether the deployment runs in multi-team mode.
+
+    Sent explicitly because a worker cannot read ``core.multi_team`` itself: its config is
+    not guaranteed to match the scheduler's, and reading it as disabled while it is in fact
+    enabled would drop team scoping and apply a team's plugins to every task. ``team_name``
+    cannot stand in for this, being ``None`` both for a teamless task and for every task
+    when multi-team is off.
+    """
+
 
 class PrevSuccessfulDagRunResponse(BaseModel):
     """Schema for response with previous successful DagRun information for Task Template Context."""
@@ -457,7 +509,7 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: UtcDateTime | None = None
 
 
-class PreviousTIResponse(BaseModel):
+class PreviousTIResponse(OmitsMissingRegion, BaseModel):
     """Schema for response with previous TaskInstance information."""
 
     task_id: str
@@ -469,6 +521,8 @@ class PreviousTIResponse(BaseModel):
     state: str | None = None
     try_number: int
     map_index: int | None = -1
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     duration: float | None = None
 
 

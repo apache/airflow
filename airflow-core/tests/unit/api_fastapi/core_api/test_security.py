@@ -21,7 +21,9 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException, Request
+from itsdangerous import URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -30,6 +32,7 @@ from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
+    AssetDetails,
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
@@ -42,13 +45,18 @@ from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
+    PermittedAssetEventByAssetFilter,
+    PermittedAssetFilter,
     _build_dag_run_access_requests,
     get_user,
     is_safe_url,
+    permitted_asset_filter_factory,
+    requires_access_asset,
     requires_access_backfill,
     requires_access_connection,
     requires_access_connection_bulk,
     requires_access_dag,
+    requires_access_dag_from_file_token,
     requires_access_event_log,
     requires_access_pool,
     requires_access_pool_bulk,
@@ -57,6 +65,7 @@ from airflow.api_fastapi.core_api.security import (
     resolve_user_from_token,
 )
 from airflow.models import Connection, Pool, Variable
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
@@ -199,17 +208,47 @@ class TestFastApiSecurity:
         assert result == resolved_user
         mock_resolve_user_from_token.assert_called_once_with("cookie_token")
 
+    @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
+    async def test_get_user_explicit_credential_beats_cookie_user(self, mock_resolve_user_from_token):
+        """An explicitly supplied credential wins over the cookie-derived session user.
+
+        `JWTRefreshMiddleware` resolves a user from the `_token` cookie alone and stamps
+        it on `request.state`. When the client *also* presents an explicit credential,
+        that credential is the identity the caller asked to act as, so it must be the one
+        that is resolved — otherwise the request executes, and is audit-logged, as the
+        cookie's principal instead.
+        """
+        from airflow.api_fastapi.core_api.security import USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+
+        cookie_user = Mock(name="cookie_user")
+        token_user = Mock(name="token_user")
+        mock_resolve_user_from_token.return_value = token_user
+
+        request = Mock()
+        request.state.user = cookie_user
+        request.state.user_authenticated_via = USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+        request.cookies = {COOKIE_NAME_JWT_TOKEN: "cookie_token"}
+
+        bearer_credentials = Mock()
+        bearer_credentials.scheme = "bearer"
+        bearer_credentials.credentials = "bearer_token"
+
+        result = await get_user(request, None, bearer_credentials)
+
+        assert result == token_user
+        assert result != cookie_user
+        mock_resolve_user_from_token.assert_called_once_with("bearer_token")
+
     @pytest.mark.parametrize(
-        ("oauth_token", "bearer_credentials_creds", "cookies", "expected"),
+        ("bearer_credentials_creds", "cookies", "expected"),
         [
-            ("oauth_token", None, {}, "oauth_token"),
-            (None, "bearer_credentials_creds", {}, "bearer_credentials_creds"),
-            (None, None, {COOKIE_NAME_JWT_TOKEN: "cookie_token"}, "cookie_token"),
+            ("bearer_credentials_creds", {}, "bearer_credentials_creds"),
+            (None, {COOKIE_NAME_JWT_TOKEN: "cookie_token"}, "cookie_token"),
         ],
     )
     @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
     async def test_get_user_with_token(
-        self, mock_resolve_user_from_token, oauth_token, bearer_credentials_creds, cookies, expected
+        self, mock_resolve_user_from_token, bearer_credentials_creds, cookies, expected
     ):
         user = Mock()
         mock_resolve_user_from_token.return_value = user
@@ -223,7 +262,7 @@ class TestFastApiSecurity:
             bearer_credentials.scheme = "bearer"
             bearer_credentials.credentials = bearer_credentials_creds
 
-        result = await get_user(request, oauth_token, bearer_credentials)
+        result = await get_user(request, None, bearer_credentials)
 
         assert result == user
         mock_resolve_user_from_token.assert_called_once_with(expected)
@@ -327,6 +366,66 @@ class TestFastApiSecurity:
             details=DagDetails(id=expected_dag_id, team_name=mock_get_team_name.return_value),
             user=user,
         )
+
+    @patch.object(DagBundleModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_dag_from_file_token_no_dag_reparse_scoped_to_files_team(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        # Reparsing a file with no registered Dag is authorized on the dedicated REPARSE_ALL
+        # permission, scoped to the file's own team (from its bundle), so a caller cannot reparse
+        # another team's file.
+        auth_manager = Mock()
+        auth_manager.authorize_view.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = "team_b"
+
+        secret_key = "secret"
+        request = Mock()
+        request.app.state.secret_key = secret_key
+        token = URLSafeSerializer(secret_key).dumps(
+            {"bundle_name": "team_b_bundle", "relative_fileloc": "dags/broken.py"}
+        )
+        session = Mock()
+        session.scalars.return_value = []  # no registered Dags
+        session.scalar.return_value = 1  # an import error row exists
+        user = Mock()
+
+        requires_access_dag_from_file_token("PUT")(token, request, user, session)
+
+        mock_get_team_name.assert_called_once_with("team_b_bundle", session=session)
+        auth_manager.authorize_view.assert_called_once_with(
+            access_view=AccessView.REPARSE_ALL, user=user, team_name="team_b"
+        )
+
+    @patch.object(DagBundleModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_dag_from_file_token_no_dag_reparse_forbidden(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        # Without REPARSE_ALL on the file's team, reparse of a no-Dag file is denied with a
+        # message that names the no-registered-Dag case.
+        auth_manager = Mock()
+        auth_manager.authorize_view.return_value = False
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = None
+
+        secret_key = "secret"
+        request = Mock()
+        request.app.state.secret_key = secret_key
+        token = URLSafeSerializer(secret_key).dumps(
+            {"bundle_name": "some_bundle", "relative_fileloc": "dags/broken.py"}
+        )
+        session = Mock()
+        session.scalars.return_value = []
+        session.scalar.return_value = 1
+        user = Mock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            requires_access_dag_from_file_token("PUT")(token, request, user, session)
+
+        assert exc_info.value.status_code == 403
+        assert exc_info.value.detail == "You do not have permission to reparse files with no registered Dag"
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
@@ -1485,6 +1584,98 @@ class TestFastApiSecurity:
             ],
             user=user,
         )
+
+    @pytest.mark.parametrize(
+        ("path_params", "name_and_uri", "expected_details"),
+        [
+            pytest.param(
+                {"asset_id": "1"},
+                ("simple1", "s3://bucket/key/1"),
+                AssetDetails(id="1", name="simple1", uri="s3://bucket/key/1"),
+                id="existing-asset",
+            ),
+            pytest.param({"asset_id": "1"}, None, AssetDetails(id="1"), id="missing-asset"),
+            pytest.param({}, None, AssetDetails(id=None), id="no-asset-id"),
+        ],
+    )
+    @patch.object(AssetModel, "get_name_and_uri")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_asset_resolves_name_and_uri(
+        self, mock_get_auth_manager, mock_get_name_and_uri, path_params, name_and_uri, expected_details
+    ):
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_asset.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_name_and_uri.return_value = name_and_uri
+
+        fastapi_request = Mock(spec=Request)
+        fastapi_request.path_params = path_params
+        user = Mock(spec=BaseUser)
+
+        requires_access_asset("GET")(fastapi_request, user)
+
+        auth_manager.is_authorized_asset.assert_called_once_with(
+            method="GET", details=expected_details, user=user
+        )
+        if path_params:
+            mock_get_name_and_uri.assert_called_once_with(1)
+        else:
+            mock_get_name_and_uri.assert_not_called()
+
+    @patch.object(AssetModel, "get_name_and_uri")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_asset_skips_lookup_for_non_numeric_id(
+        self, mock_get_auth_manager, mock_get_name_and_uri
+    ):
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_asset.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+
+        fastapi_request = Mock(spec=Request)
+        fastapi_request.path_params = {"asset_id": "not-a-number"}
+        user = Mock(spec=BaseUser)
+
+        requires_access_asset("GET")(fastapi_request, user)
+
+        mock_get_name_and_uri.assert_not_called()
+        auth_manager.is_authorized_asset.assert_called_once_with(
+            method="GET", details=AssetDetails(id="not-a-number"), user=user
+        )
+
+    @pytest.mark.parametrize(
+        ("filter_class", "model", "expected_column"),
+        [
+            pytest.param(PermittedAssetFilter, AssetModel, "asset.id IN", id="assets"),
+            pytest.param(
+                PermittedAssetEventByAssetFilter, AssetEvent, "asset_event.asset_id IN", id="asset-events"
+            ),
+        ],
+    )
+    def test_permitted_asset_filters_scope_on_asset_id(self, filter_class, model, expected_column):
+        rendered = str(filter_class({1, 2}).to_orm(select(model)))
+        assert expected_column in rendered
+
+    def test_permitted_asset_event_filter_keeps_events_of_deleted_assets(self):
+        rendered = str(PermittedAssetEventByAssetFilter({1}).to_orm(select(AssetEvent)))
+        assert "asset_event.asset_id NOT IN (SELECT asset.id" in rendered
+
+    @pytest.mark.parametrize(
+        "filter_class",
+        [
+            pytest.param(PermittedAssetFilter, id="default"),
+            pytest.param(PermittedAssetEventByAssetFilter, id="events"),
+        ],
+    )
+    def test_permitted_asset_filter_factory(self, filter_class):
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.get_authorized_assets.return_value = {1, 3}
+        user = Mock(spec=BaseUser)
+
+        permitted_filter = permitted_asset_filter_factory("GET", filter_class)(user, auth_manager)
+
+        assert isinstance(permitted_filter, filter_class)
+        assert permitted_filter.value == {1, 3}
+        auth_manager.get_authorized_assets.assert_called_once_with(user=user, method="GET")
 
 
 class TestAuthManagerDependency:

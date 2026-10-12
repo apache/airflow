@@ -28,6 +28,7 @@
   - [Workflow Architecture Overview](#workflow-architecture-overview)
   - [Branch-Specific Behavior](#branch-specific-behavior)
   - [Tests Workflow Structure](#tests-workflow-structure)
+  - [Runners](#runners)
   - [Implementation Details](#implementation-details)
   - [CodeQL scan](#codeql-scan)
   - [Publishing documentation](#publishing-documentation)
@@ -261,6 +262,7 @@ Here's what each workflow group does and when it runs:
 | **Additional PROD Image Tests**    | Final validation of production images (AMD only)            | Yes     | Yes     | Yes       |
 | **Kubernetes Tests**               | Tests deployment in Kubernetes environments                 | Yes     | Yes     | Yes (1)   |
 | **Distribution Tests**             | Tests Task SDK and CLI tools (AMD only)                     | Yes     | Yes     | Yes       |
+| **Agent Framework Tests**          | Tests Common AI's adapters for other agent frameworks (4)   | Yes     | Yes     | No        |
 | **Finalize Tests**                 | Publishes results and updates shared resources              | Yes     | Yes (2) | Yes (2)   |
 
 #### AMD-Only Workflows
@@ -310,6 +312,61 @@ Special tests (integration and system tests) run selectively:
 - When complete test coverage is required for thorough validation
 - In canary runs for scheduled quality checks
 - When dependency upgrades require thorough testing
+
+**`(4)` Agent Framework Tests**
+
+The [Common AI provider](../../../../providers/common/ai/docs/index.rst) lets an agent built with
+another framework use Airflow's toolsets, through small adapters in
+[`airflow.providers.common.ai.tools`](../../../../providers/common/ai/src/airflow/providers/common/ai/tools).
+The adapter tests import the framework they adapt, so they only run where that framework is
+installed. Today that is two frameworks, [Strands Agents](https://strandsagents.com/), an open-source
+agent SDK from AWS, and [Google ADK](https://google.github.io/adk-docs/), and neither can be installed
+in the workspace: Strands caps `mcp`, and ADK caps `opentelemetry` and `websockets`, below the versions
+`uv.lock` resolves. The regular test jobs therefore skip their adapter tests.
+
+This job runs once per framework, each installing its framework into the CI image and running the
+Common AI tool tests (`providers/common/ai/tests/unit/common/ai/tools`), so a breaking release of one
+framework does not hide the other's result. It runs on `main` only, on amd64, when Common AI or
+common.sql code, the Common AI dependencies or `uv.lock` change, or when the run tests everything.
+
+- Outside a canary run, every package in the image keeps its version and the frameworks' caps on them
+  are overridden, so the adapters are tested against the same dependencies as the rest of Airflow.
+- On a canary run, the frameworks' own dependency pins win, which is the environment a user who
+  installs them gets.
+
+Both install the newest framework releases older than the repository's uv `exclude-newer` window, so a
+release that breaks an adapter fails this job about that long after it ships. The job is not a
+dependency of **Finalize Tests**, so such a release does not stop the image cache from being pushed.
+
+## Runners
+
+Two kinds of GitHub-hosted runner are used, and which one a job gets depends on what
+the job actually needs.
+
+**`ubuntu-22.04` / `ubuntu-22.04-arm`** (2 cores, 7-16 GB RAM, privileged) is the
+default for anything that builds or runs a container, installs Airflow, or runs a real
+test suite. Jobs that get their runner from selective checks (`amd-runners` /
+`arm-runners`, see [04_selective_checks.md](04_selective_checks.md)) always land here.
+
+**`ubuntu-slim`** (1 core, 5 GB RAM, 14 GB disk) is used for the short bookkeeping jobs
+around the edges of CI — computing a matrix, posting a Slack notification, closing stale
+issues, checking a newsfragment name. It is a container rather than a VM and runs
+unprivileged, which constrains what can go on it:
+
+- **No Docker daemon.** The Docker *client* is on the image, but nothing can build an
+  image, start a container, or use a Docker-container action. Anything touching Breeze
+  is out.
+- **`python3` is Ubuntu's system interpreter**, so it is [PEP 668](https://peps.python.org/pep-0668/) externally managed and
+  a bare `pip install` fails. Stdlib-only scripts are fine; a job that needs
+  dependencies must bring its own interpreter. For anything driven by `uv run`, use
+  `astral-sh/setup-uv` with `version-file: uv.lock` — that installs the uv version the
+  workspace is locked to, and `uv run` then provisions its own Python.
+- **Minimal toolset** — `git`, `gh`, `jq`, `node`, `curl` are present; Java and Go are
+  not. `actions/setup-*` still works, since those actions download into the tool cache.
+- **One core**, so give a job that does real work a timeout with some slack in it.
+
+When adding a job, reach for `ubuntu-slim` if it only shuffles metadata around, and
+`ubuntu-22.04` otherwise.
 
 ## Implementation Details
 

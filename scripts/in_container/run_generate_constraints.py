@@ -21,6 +21,7 @@ import ast
 import json
 import os
 import sys
+import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
@@ -35,13 +36,8 @@ from in_container_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, click, cons
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
-
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
-PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.10")
+PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.11")
 GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 PYPI_JSON_API_URL = "https://pypi.org/pypi/{distribution}/json"
 PYPI_LOOKUP_PARALLELISM = 8

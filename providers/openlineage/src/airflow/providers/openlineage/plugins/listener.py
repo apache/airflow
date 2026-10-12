@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 
 import psutil
 from openlineage.client.serde import Serde
+from sqlalchemy.orm import object_session
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
@@ -51,6 +52,8 @@ from airflow.providers.openlineage.utils.utils import (
     get_dag_parent_run_facet,
     get_dag_run_dag_and_task_from_ti,
     get_job_name,
+    get_orm_task_instance_positions,
+    get_regional_task_instance_run_id,
     get_task_documentation,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
@@ -181,6 +184,18 @@ class OpenLineageListener:
             if TYPE_CHECKING:
                 assert task
             start_date = task_instance.start_date
+
+            # Only sensors in reschedule mode re-run without a new try_number, so only they can
+            # repeat a START for a run id that already emitted one. Other operators can also have
+            # TaskReschedule rows (a missing-Dag startup failure writes them before any listener
+            # hook fires), and those attempts have emitted nothing yet.
+            if (
+                getattr(task, "reschedule", False)
+                and task_instance.get_template_context().get("task_reschedule_count", 0) > 0
+            ):
+                self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
+                return
+
             self._on_task_instance_running(task_instance, dag, dagrun, task, start_date)
     else:
 
@@ -234,11 +249,6 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_running():
-            context = task_instance.get_template_context()
-            if hasattr(context, "task_reschedule_count") and context["task_reschedule_count"] > 0:
-                self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
-                return
-
             date = dagrun.logical_date
             if AIRFLOW_V_3_0_PLUS and date is None:
                 date = dagrun.run_after
@@ -253,7 +263,9 @@ class OpenLineageListener:
                 clear_number=clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
+            task_uuid = get_regional_task_instance_run_id(
+                task_instance
+            ) or self.adapter.build_task_instance_run_id(
                 dag_id=task_instance.dag_id,
                 task_id=task_instance.task_id,
                 try_number=task_instance.try_number,
@@ -415,7 +427,9 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
+            task_uuid = get_regional_task_instance_run_id(
+                task_instance
+            ) or self.adapter.build_task_instance_run_id(
                 dag_id=task_instance.dag_id,
                 task_id=task_instance.task_id,
                 try_number=task_instance.try_number,
@@ -591,7 +605,9 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
+            task_uuid = get_regional_task_instance_run_id(
+                task_instance
+            ) or self.adapter.build_task_instance_run_id(
                 dag_id=task_instance.dag_id,
                 task_id=task_instance.task_id,
                 try_number=task_instance.try_number,
@@ -743,7 +759,9 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
+            task_uuid = get_regional_task_instance_run_id(
+                task_instance
+            ) or self.adapter.build_task_instance_run_id(
                 dag_id=task_instance.dag_id,
                 task_id=task_instance.task_id,
                 try_number=task_instance.try_number,
@@ -894,13 +912,17 @@ class OpenLineageListener:
             # pickler loses TaskGroup attributes and crashes event emission -- see
             # the equivalent note in `on_dag_run_running` (listener.py ~868).
             date = dagrun.logical_date or dagrun.run_after
-            task_uuid = self.adapter.build_task_instance_run_id(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                try_number=ti.try_number,
-                logical_date=date,
-                map_index=ti.map_index,
-            )
+            position = get_orm_task_instance_positions([ti], session=object_session(ti))[ti.id]
+            if position.in_loop:
+                task_uuid = str(ti.id)
+            else:
+                task_uuid = self.adapter.build_task_instance_run_id(
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    try_number=ti.try_number,
+                    logical_date=date,
+                    map_index=position.map_index,
+                )
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=ti.dag_id,
                 logical_date=date,

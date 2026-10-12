@@ -240,8 +240,28 @@ def load_policy_plugins(pm: pluggy.PluginManager):
     pm.load_setuptools_entrypoints("airflow.policy")
 
 
+def _translate_asyncpg_sslmode(async_uri: str) -> str:
+    """
+    Rename the libpq ``sslmode`` query param to asyncpg's ``ssl`` equivalent.
+
+    asyncpg has no ``sslmode`` connect arg -- SQLAlchemy's asyncpg dialect passes URL
+    query params straight to ``asyncpg.connect()``, which spells the option ``ssl`` and
+    accepts the same libpq mode strings (``disable``/``prefer``/``require``/``verify-ca``/
+    ``verify-full``). A sync Postgres URI commonly carries ``sslmode`` (the official Helm
+    chart sets it unconditionally), so the derived async URI must translate it; otherwise
+    every async DB call raises ``TypeError: connect() got an unexpected keyword argument
+    'sslmode'``.
+    """
+    url = make_url(async_uri)
+    if "sslmode" not in url.query:
+        return async_uri
+    query = dict(url.query)
+    query["ssl"] = query.pop("sslmode")
+    return url.set(query=query).render_as_string(hide_password=False)
+
+
 def _get_async_conn_uri_from_sync(sync_uri):
-    # Mapping of backend to async driver:
+    # Derive the async URI scheme from the sync one by swapping in the async driver:
     AIO_LIBS_MAPPING = {
         "sqlite": "aiosqlite",
         "postgresql": "psycopg_async" if _USE_PSYCOPG3 else "asyncpg",
@@ -251,9 +271,15 @@ def _get_async_conn_uri_from_sync(sync_uri):
     scheme, rest = sync_uri.split(":", maxsplit=1)
     scheme = scheme.split("+", maxsplit=1)[0]
     aiolib = AIO_LIBS_MAPPING.get(scheme)
-    if aiolib:
-        return f"{scheme}+{aiolib}:{rest}"
-    return sync_uri
+    if not aiolib:
+        return sync_uri
+    async_uri = f"{scheme}+{aiolib}:{rest}"
+    if aiolib == "asyncpg":
+        # asyncpg-only: it is not libpq-based and has no ``sslmode`` connect arg. A
+        # libpq-based async driver (e.g. psycopg3) understands ``sslmode`` natively and
+        # would in turn reject ``ssl``, so this translation must stay gated on asyncpg.
+        async_uri = _translate_asyncpg_sslmode(async_uri)
+    return async_uri
 
 
 def configure_vars():
@@ -401,13 +427,7 @@ def create_async_metadata_engine(
 
 
 def _configure_async_session() -> None:
-    """
-    Configure async SQLAlchemy session.
-
-    This exists so tests can reconfigure the session. How SQLAlchemy configures
-    this does not work well with Pytest and you can end up with issues when the
-    session and runs in a different event loop from the test itself.
-    """
+    """Configure the async engine and session factory."""
     global AsyncSession, async_engine
 
     if not SQL_ALCHEMY_CONN_ASYNC:
@@ -642,6 +662,12 @@ def dispose_orm(do_log: bool = True):
         async_engine.sync_engine.dispose()
         async_engine = None
         AsyncSession = None
+
+
+async def dispose_async_engine() -> None:
+    """Close checked-in connections on their event loop, retaining the engine and session factory."""
+    if async_engine is not None:
+        await async_engine.dispose()
 
 
 def reconfigure_orm(disable_connection_pool=False, pool_class=None):

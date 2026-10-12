@@ -27,6 +27,78 @@
 Changelog
 ---------
 
+3.25.0
+......
+
+Features
+~~~~~~~~
+
+* ``Carry task attempt UUIDs through remote executor providers (#73917)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use configured default queue for Celery executor callbacks (#73552)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Correlate executor task events by attempt UUID (#73916)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+3.24.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix airflow celery stop crashing on stale PID file (#72817)``
+
+Misc
+~~~~
+
+* ``Unify executor workload queues (#63491)``
+* ``Stop recommending psycopg3 connection strings on older Airflow (#70619)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove note about airflow 2.7.0 from docs (#72913)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+3.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``Parse additional Kafka, Redis & SQS options in 'broker_transport_options' (#70228)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mismatched AirflowConfigException in celery and edge3 (#72437)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
 3.23.1
 ......
 

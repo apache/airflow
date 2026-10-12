@@ -26,6 +26,92 @@
 Changelog
 ---------
 
+7.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``Notify downstream Dags when COPY INTO writes a Unity (Databricks) table (#74191)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AsyncToSync error in Databricks deferrable operators on Airflow 3.0 (#74406)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Databricks async connection test on Airflow before 3.1 (#74427)``
+   * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+7.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add environments and trigger named parameters to Databricks operators (#72505)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Skip Dag params with no value when forwarding them to Databricks (#71782)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix grammar in the Databricks submit-run guide and operator docstring (#73145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+7.20.0
+.......
+
+.. warning::
+  ``DatabricksSQLStatementsSensor`` now rejects the combination of ``statement`` and
+  ``statement_id`` when the Dag is parsed rather than when the task runs, and the check is
+  ``is not None``, so an empty string counts as provided. ``statement="SELECT 1"`` together
+  with ``statement_id=""`` — or with a ``statement_id`` template that renders to ``None``
+  under ``render_template_as_native_obj=True`` — ran the statement in 7.19.0 and now raises
+  at Dag parse time. Pass exactly one of the two and omit the other entirely instead of
+  passing an empty value. The argument-validation errors in this sensor are also now
+  ``ValueError`` rather than ``AirflowException``.
+
+Features
+~~~~~~~~
+
+* ``Propagate OpenLineage context to Databricks job runs (#72643)``
+* ``Add performance_target to Databricks RunNow and CreateJobs operators (#72148)``
+* ``Add deferrable mode to Databricks SQL warehouse operators (#71752)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Report a retried Databricks task once, from its last attempt (#72313)``
+* ``Fix Databricks hook dropping tasks beyond the first page of a run (#72304)``
+* ``Validate DatabricksSQLStatementsSensor exclusivity at __init__ (#70831)``
+
+Misc
+~~~~
+
+* ``Use non-deprecated user_agent_entry param in DatabricksSqlHook (#72103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Warn about the DatabricksSQLStatementsSensor exclusivity tightening (#72761)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
 7.19.0
 ......
 

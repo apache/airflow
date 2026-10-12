@@ -805,6 +805,24 @@ class TestPostVariable(TestVariableEndpoint):
             ]
         }
 
+    @pytest.mark.parametrize(
+        "body",
+        [[{"key": "new variable key", "value": "new variable value"}], '{"key": "a"}', 42],
+        ids=["list", "string", "number"],
+    )
+    def test_post_should_respond_422_for_non_dict_json_body(self, test_client, session, body):
+        """The audit-log dependency reads the body before validation, so a non-object body still gets a 422."""
+        response = test_client.post("/variables", json=body)
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body"]
+        check_last_log(
+            session,
+            dag_id=None,
+            event="post_variable",
+            logical_date=None,
+            expected_extra={"method": "POST"},
+        )
+
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
         body = {

@@ -18,13 +18,6 @@
 Celery Executor
 ===============
 
-.. note::
-
-    As of Airflow 2.7.0, you need to install the ``celery`` provider package to use this executor.
-    This can be done by installing ``apache-airflow-providers-celery>=3.3.0`` or by installing Airflow
-    with the ``celery`` extra: ``pip install 'apache-airflow[celery]'``.
-
-
 ``CeleryExecutor`` is one of the ways you can scale out the number of workers. For this
 to work, you need to setup a Celery backend (**RabbitMQ**, **Redis**, **Redis Sentinel** ...),
 install the required dependencies (such as ``librabbitmq``, ``redis`` ...) and
@@ -282,3 +275,11 @@ resource perspective (for say very lightweight tasks where one worker
 could take thousands of tasks without a problem), or from an environment
 perspective (you want a worker running from within the Spark cluster
 itself because it needs a very specific environment and security rights).
+
+Task-instance identity
+----------------------
+
+CeleryExecutor uses task-instance UUIDs for scheduler bookkeeping when the Airflow version supports
+them, including adoption and revocation. Celery's external task identifier remains the
+transport identity, so existing work can be adopted after a scheduler upgrade. Older
+supported Airflow versions retain coordinate keys; the provider's minimum Airflow version is unchanged.

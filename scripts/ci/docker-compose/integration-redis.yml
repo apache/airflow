@@ -19,6 +19,8 @@ services:
   redis:
     image: redis:5.0.1
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for Redis tests."
     volumes:
       - redis-db-volume:/data/redis
@@ -29,11 +31,14 @@ services:
       interval: 5s
       timeout: 30s
       start_period: 30s
+      start_interval: 1s
       retries: 50
     restart: "on-failure"
   redis-cluster:
     image: redis:7-alpine
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for Redis cluster mode tests."
     # All three masters share one network namespace so the cluster can be formed without
     # inter-container discovery. The cluster is created against the container's own IP rather
@@ -58,6 +63,7 @@ services:
       interval: 5s
       timeout: 30s
       start_period: 30s
+      start_interval: 1s
       retries: 50
     restart: "on-failure"
   airflow:
@@ -70,3 +76,6 @@ services:
         condition: service_healthy
 volumes:
   redis-db-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"

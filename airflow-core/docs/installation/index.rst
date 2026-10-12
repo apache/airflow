@@ -59,7 +59,7 @@ you can install Airflow directly from PyPI with the command below:
 
     pipx run apache-airflow standalone
 
-Alternatively similar with Astral ``uv``:
+Alternatively, you can do something similar with Astral ``uv``:
 
 .. code-block:: bash
 
@@ -395,7 +395,7 @@ control theory - where there are two types of systems:
    the system and adjust the knobs continuously to make sure the system is running smoothly.
 
 Airflow (and generally any modern systems running usually on cloud services, with multiple layers responsible
-for resources as well multiple parameters to control their behaviour) is a complex system and it fall
+for resources as well multiple parameters to control their behaviour) is a complex system and it falls
 much more in the second category. If you decide to run Airflow in production on your own, you should be
 prepared for the monitor/observe/adjust feedback loop to make sure the system is running smoothly.
 

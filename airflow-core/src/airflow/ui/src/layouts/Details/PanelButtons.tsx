@@ -16,24 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type Dispatch, type RefObject, type SetStateAction, useEffect, useRef } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 
-import {
-  Box,
-  createListCollection,
-  Flex,
-  Popover,
-  Portal,
-  Select,
-  type SelectValueChangeDetails,
-  VStack,
-} from "@chakra-ui/react";
+import { Box, Flex, Popover, Portal, Select, type SelectValueChangeDetails, VStack } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
 import { LuChartGantt } from "react-icons/lu";
 import { MdOutlineAccountTree, MdSettings } from "react-icons/md";
-import type { ImperativePanelGroupHandle } from "react-resizable-panels";
+import type { GroupImperativeHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -54,7 +45,6 @@ import { SHOW_ALL_DEPENDENCIES_KEY } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
-import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
 import { RunTypeLegend } from "./Grid/RunTypeLegend";
@@ -62,35 +52,17 @@ import { GridFilters } from "./GridFilters";
 import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
 import { VersionIndicatorSelect } from "./VersionIndicatorSelect";
+import { getWidthBasedConfig } from "./runLimitConfig";
 
 type Props = {
+  readonly containerWidth: number;
   readonly dagView: DagView;
   readonly limit: number;
-  readonly panelGroupRef: RefObject<ImperativePanelGroupHandle | null>;
+  readonly panelGroupRef: RefObject<GroupImperativeHandle | null>;
   readonly setDagView: (value: DagView) => void;
   readonly setLimit: (value: number) => void;
   readonly setShowVersionIndicatorMode: Dispatch<SetStateAction<VersionIndicatorOptions>>;
   readonly showVersionIndicatorMode: VersionIndicatorOptions;
-};
-
-const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) => {
-  const breakpoints = enableResponsiveOptions
-    ? [
-        { limit: 100, min: 1600, options: ["1", "5", "10", "25", "50"] }, // xl: extra large screens
-        { limit: 25, min: 1024, options: ["1", "5", "10", "25"] }, // lg: large screens
-        { limit: 10, min: 384, options: ["1", "5", "10"] }, // md: medium screens
-        { limit: 5, min: 0, options: ["1", "5"] }, // sm: small screens and below
-      ]
-    : [{ limit: 5, min: 0, options: ["1", "5", "10", "25", "50"] }];
-
-  const config = breakpoints.find(({ min }) => width >= min) ?? breakpoints[breakpoints.length - 1];
-
-  return {
-    displayRunOptions: createListCollection({
-      items: config?.options.map((value) => ({ label: value, value })) ?? [],
-    }),
-    limit: config?.limit ?? 5,
-  };
 };
 
 /**
@@ -111,6 +83,7 @@ const OptionsTrigger = ({ label }: { readonly label: string }) => (
 );
 
 export const PanelButtons = ({
+  containerWidth,
   dagView,
   limit,
   panelGroupRef,
@@ -127,8 +100,6 @@ export const PanelButtons = ({
     SHOW_ALL_DEPENDENCIES_KEY,
     false,
   );
-  const containerRef = useRef<HTMLDivElement>(null);
-  const containerWidth = useContainerWidth(containerRef);
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
     const runLimit = Number(event.value[0]);
 
@@ -137,20 +108,14 @@ export const PanelButtons = ({
 
   const enableResponsiveOptions = dagView === "gantt";
 
-  const { displayRunOptions, limit: defaultLimit } = getWidthBasedConfig(
-    containerWidth,
-    enableResponsiveOptions,
-  );
-
-  useEffect(() => {
-    if (enableResponsiveOptions && limit > defaultLimit) {
-      setLimit(defaultLimit);
-    }
-  }, [defaultLimit, enableResponsiveOptions, limit, setLimit]);
+  const { displayRunOptions } = getWidthBasedConfig(containerWidth, enableResponsiveOptions);
 
   const handleFocus = (view: string) => {
     if (panelGroupRef.current) {
-      const newLayout = view === "graph" ? [70, 30] : [30, 70];
+      const newLayout =
+        view === "graph"
+          ? { "details-panel": 30, "main-panel": 70 }
+          : { "details-panel": 70, "main-panel": 30 };
 
       panelGroupRef.current.setLayout(newLayout);
       // Used setTimeout to ensure DOM has been updated
@@ -204,7 +169,7 @@ export const PanelButtons = ({
   });
 
   return (
-    <Box position="relative" ref={containerRef} width="100%" zIndex={1}>
+    <Box position="relative" width="100%" zIndex={1}>
       <Flex justifyContent="space-between">
         <ButtonGroupToggle
           bg="bg"

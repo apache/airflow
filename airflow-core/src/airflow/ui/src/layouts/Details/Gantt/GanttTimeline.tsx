@@ -37,11 +37,13 @@ import type { GridTask } from "src/layouts/Details/Grid/utils";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
+import { useDurationFormat } from "src/utils";
+
 import {
   type GanttDataItem,
   GANTT_TIME_AXIS_TICK_COUNT,
   buildGanttTimeAxisTicks,
-  buildMaxTryByTaskId,
+  buildMaxTryByKey,
   getGanttSegmentTo,
   gridSummariesToTaskIdMap,
 } from "./utils";
@@ -56,7 +58,9 @@ const MIN_BAR_WIDTH_PX = GANTT_STATE_ICON_SIZE_PX;
 const MIN_SEGMENT_RENDER_PX = 5;
 
 /** Minimum horizontal gap (px) between time-axis labels before one is dropped. */
-const MIN_TICK_SPACING_PX = 80;
+// Sized for the widest CLDR narrow label, not the old "HH:MM:SS": German runs ~14 chars
+// ("1 Std., 2 Min."), roughly 84px at font-size xs, so 80px let ticks collide in wider locales.
+const MIN_TICK_SPACING_PX = 110;
 
 /** Short mark above the axis bottom border, aligned with each timestamp. */
 const GANTT_AXIS_TICK_HEIGHT_PX = 6;
@@ -64,7 +68,6 @@ const GANTT_AXIS_TICK_HEIGHT_PX = 6;
 type Props = {
   readonly dagId: string;
   readonly flatNodes: Array<GridTask>;
-  readonly ganttDataItems: Array<GanttDataItem>;
   readonly gridSummaries: Array<LightGridTaskInstanceSummary>;
   readonly maxMs: number;
   readonly minMs: number;
@@ -87,6 +90,7 @@ const toTooltipSummary = (
 
   return {
     child_states: null,
+    loop_iteration: segment.loopIteration,
     max_end_date: segment.end_when ?? dayjs(segment.x[1]).toISOString(),
     min_start_date: segment.start_when ?? dayjs(segment.x[0]).toISOString(),
     state: segment.state ?? null,
@@ -105,7 +109,6 @@ const toTooltipSummary = (
 export const GanttTimeline = ({
   dagId,
   flatNodes,
-  ganttDataItems,
   gridSummaries,
   maxMs,
   minMs,
@@ -115,6 +118,7 @@ export const GanttTimeline = ({
   scrollContainerRef,
   virtualizerScrollPaddingStart,
 }: Props) => {
+  const { locale } = useDurationFormat();
   const location = useLocation();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const [bodyWidthPx, setBodyWidthPx] = useState(0);
@@ -143,15 +147,14 @@ export const GanttTimeline = ({
   }, []);
 
   const summaryByTaskId = gridSummariesToTaskIdMap(gridSummaries);
-  // Precompute max try per task once (O(n)) so getGanttSegmentTo can do O(1) lookups.
-  const maxTryByTaskId = buildMaxTryByTaskId(ganttDataItems);
+  const maxTryByKey = buildMaxTryByKey(rowSegments.flat());
   const spanMs = Math.max(1, maxMs - minMs);
 
   // Derive tick count from available width so labels never overlap.
-  // Each "HH:MM:SS" label is ~8 chars at font-size xs; allow MIN_TICK_SPACING_PX per tick.
+  // Allow MIN_TICK_SPACING_PX per tick so labels never overlap.
   const tickCount =
     bodyWidthPx > 0 ? Math.max(2, Math.floor(bodyWidthPx / MIN_TICK_SPACING_PX)) : GANTT_TIME_AXIS_TICK_COUNT;
-  const timeTicks = buildGanttTimeAxisTicks(minMs, maxMs, tickCount);
+  const timeTicks = buildGanttTimeAxisTicks(minMs, maxMs, { locale, tickCount });
 
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,
@@ -284,10 +287,10 @@ export const GanttTimeline = ({
             // from the filtered list so the adjacent execution bar keeps rounded corners.
             const segments =
               bodyWidthPx > 0
-                ? allSegments.filter((segment) =>
-                    segment.state !== "scheduled" && segment.state !== "queued"
-                      ? true
-                      : segmentLayout(segment).widthPx >= MIN_SEGMENT_RENDER_PX,
+                ? allSegments.filter(
+                    (segment) =>
+                      (segment.state !== "scheduled" && segment.state !== "queued") ||
+                      segmentLayout(segment).widthPx >= MIN_SEGMENT_RENDER_PX,
                   )
                 : allSegments;
             const taskId = node.id;
@@ -325,7 +328,7 @@ export const GanttTimeline = ({
                     const to = getGanttSegmentTo({
                       dagId,
                       item: segment,
-                      maxTryByTaskId,
+                      maxTryByKey,
                       pathname,
                       runId,
                       searchParams: baseSearchParams,
@@ -336,13 +339,17 @@ export const GanttTimeline = ({
 
                     // Task groups don't have a try number
                     const touchesNext =
-                      tryNumber === undefined ? false : segments[segIndex + 1]?.tryNumber === tryNumber;
+                      tryNumber !== undefined &&
+                      segments[segIndex + 1]?.taskInstanceId === segment.taskInstanceId &&
+                      segments[segIndex + 1]?.tryNumber === tryNumber;
                     const touchesPrev =
-                      tryNumber === undefined ? false : segments[segIndex - 1]?.tryNumber === tryNumber;
+                      tryNumber !== undefined &&
+                      segments[segIndex - 1]?.taskInstanceId === segment.taskInstanceId &&
+                      segments[segIndex - 1]?.tryNumber === tryNumber;
 
                     return (
                       <TaskInstanceTooltip
-                        key={`${taskId}-${tryNumber ?? -1}-${state ?? "none"}-${x[0]}`}
+                        key={`${segment.taskInstanceId ?? taskId}-${tryNumber ?? -1}-${state ?? "none"}-${x[0]}`}
                         openDelay={500}
                         positioning={{
                           offset: { crossAxis: 0, mainAxis: 5 },
@@ -380,6 +387,18 @@ export const GanttTimeline = ({
                               justifyContent="center"
                               minH={0}
                               p={0}
+                              // Aggregate task-group bars are the envelope of their children's
+                              // runtime, not a real running task. Overlay a diagonal stripe so
+                              // they read as an aggregate at a glance and don't get mistaken for
+                              // a single long-running task.
+                              style={
+                                node.isGroup === true
+                                  ? {
+                                      backgroundImage:
+                                        "repeating-linear-gradient(45deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 3px, transparent 3px, transparent 6px)",
+                                    }
+                                  : undefined
+                              }
                               variant="solid"
                               w="100%"
                             >

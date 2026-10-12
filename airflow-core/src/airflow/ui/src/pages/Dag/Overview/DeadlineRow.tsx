@@ -26,6 +26,7 @@ import { RouterLink } from "src/system-components";
 
 import Time from "src/components/Time";
 
+import { useDurationFormat } from "src/utils";
 import { translateCompletionRule } from "src/utils/deadlines";
 
 type DeadlineRowProps = {
@@ -35,8 +36,9 @@ type DeadlineRowProps = {
 
 export const DeadlineRow = ({ alert, deadline }: DeadlineRowProps) => {
   const { t: translate } = useTranslation("dag");
+  const { locale } = useDurationFormat();
 
-  const completionRule = translateCompletionRule(translate, alert);
+  const completionRule = translateCompletionRule(translate, alert, locale);
 
   return (
     <HStack justifyContent="space-between" px={2} py={1.5} width="100%">

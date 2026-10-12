@@ -43,6 +43,7 @@ import { TaskNames } from "./TaskNames";
 import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
+import { useGridScrollRestore } from "./useGridScrollRestore";
 import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -64,7 +65,10 @@ type Props = {
 };
 
 const GRID_INNER_SCROLL_PADDING_START_PX = GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX;
-const ScrollbarSpacer = () => <Box aria-hidden flexShrink={0} minWidth="16px" width="16px" />;
+// Reserves right-edge space for the scrollbar, and widens to fit the newer/reset pager buttons when shown.
+const ScrollbarSpacer = ({ width = "16px" }: { readonly width?: string }) => (
+  <Box aria-hidden flexShrink={0} minWidth={width} width={width} />
+);
 
 export const Grid = ({
   dagRunState,
@@ -87,7 +91,7 @@ export const Grid = ({
   const usesSharedScroll = Boolean(sharedScrollContainerRef && showGantt);
 
   const { openGroupIds, toggleGroupId } = useGroups();
-  const { dagId = "" } = useParams();
+  const { dagId = "", groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const [searchParams] = useSearchParams();
 
   const filterRoot = searchParams.get("root") ?? undefined;
@@ -111,6 +115,8 @@ export const Grid = ({
 
   const { handleNewerRuns, handleOlderRuns, hasNewerRuns, hasOlderRuns, latestNotVisible } =
     useGridPagination({ gridRuns: dataGridRuns, limit, offset, setOffset });
+
+  const scrollbarSpacerWidth = hasNewerRuns || latestNotVisible ? "32px" : "16px";
 
   const { summariesByRunId } = useGridTiSummariesStream({
     dagId,
@@ -180,6 +186,8 @@ export const Grid = ({
   const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
   const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
+  const headerPad = usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX;
+
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,
     estimateSize: () => ROW_HEIGHT,
@@ -187,8 +195,10 @@ export const Grid = ({
     getScrollElement: () =>
       usesSharedScroll ? (sharedScrollContainerRef?.current ?? null) : scrollContainerRef.current,
     overscan: 5,
-    scrollPaddingStart: usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX,
+    scrollPaddingStart: headerPad,
   });
+
+  useGridScrollRestore({ dagId, flatNodes, headerPad, rowVirtualizer, selectedGroupId, selectedTaskId });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
@@ -230,8 +240,10 @@ export const Grid = ({
             <DurationAxis top={`${GRID_HEADER_HEIGHT_PX}px`} />
             <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2}px`} />
             <DurationAxis top="4px" />
-            <Flex flexDirection="row-reverse">
-              {!showGantt && <ScrollbarSpacer />}
+            {/* Isolated so version indicators stay beneath the sticky task name column when scrolled
+              behind it. Pagination buttons sit outside on purpose: the older-runs button overlaps that column. */}
+            <Flex flexDirection="row-reverse" style={{ isolation: "isolate" }}>
+              {!showGantt && <ScrollbarSpacer width={scrollbarSpacerWidth} />}
               {runsWithVersionFlags?.map((dr) => (
                 <Bar
                   key={dr.run_id}
@@ -260,8 +272,8 @@ export const Grid = ({
         <Box left={0} position="sticky" zIndex={1} {...taskNameColumnStyles}>
           <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
         </Box>
-        <Flex flexDirection="row-reverse" flexShrink={0}>
-          {!showGantt && <ScrollbarSpacer />}
+        <Flex flexDirection="row-reverse" flexShrink={0} style={{ isolation: "isolate" }}>
+          {!showGantt && <ScrollbarSpacer width={scrollbarSpacerWidth} />}
           {gridRuns?.map((dr: GridRunsResponse) => (
             <TaskInstancesColumn
               key={dr.run_id}

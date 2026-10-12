@@ -44,7 +44,7 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.10}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.11}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -298,9 +298,13 @@ function determine_airflow_to_use() {
         # Generate constraints from uv.lock and use them to install development dependencies
         # via the Python script. --no-cache is needed - otherwise there is possibility of
         # overriding temporary environments by multiple parallel processes
+        # --all-packages: without it the export only covers the root project's dependencies.
+        # Anything that only a workspace member's dependency group pulls in, such
+        # as mcp through common.ai's pydantic-ai-slim[mcp], stays unpinned and resolves fresh
+        # from PyPI instead of following uv.lock.
         local constraint_file="/tmp/constraints-from-lock.txt"
         uv export --frozen --no-hashes --no-emit-project --no-emit-workspace --no-editable --no-header \
-            --no-annotate > "${constraint_file}" 2>/dev/null || true
+            --no-annotate --all-packages > "${constraint_file}" 2>/dev/null || true
         uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint "${constraint_file}"
         # Some packages might leave legacy typing module which causes test issues
@@ -342,16 +346,13 @@ function check_boto_upgrade() {
 
 # Upgrade sqlalchemy to the latest version to run tests with it
 function check_upgrade_sqlalchemy() {
-    # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. Is should be removed once we
-    # upgrade FAB to v5 (PR #50960).
-    if [[ "${UPGRADE_SQLALCHEMY=}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
+    if [[ "${UPGRADE_SQLALCHEMY=}" != "true" ]]; then
         return
     fi
     echo
     echo "${COLOR_BLUE}Upgrading sqlalchemy to the latest version to run tests with it${COLOR_RESET}"
     echo
-    uv sync --all-packages --no-install-package apache-airflow-providers-fab --resolution highest \
-        --no-python-downloads --no-managed-python
+    uv sync --all-packages --resolution highest --no-python-downloads --no-managed-python
 }
 
 # Download minimum supported version of sqlalchemy to run tests with it
@@ -428,7 +429,7 @@ function reinstall_shared_distributions() {
 # export. Providers cannot run arbitrary code through this hook. Maintainers should
 # review every addition to this list as a privileged change. See
 # contributing-docs/12_provider_distributions.rst.
-PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=("ibm.mq")
+PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=()
 
 function run_pre_extras_install_if_registered() {
     local provider_id="${1}"

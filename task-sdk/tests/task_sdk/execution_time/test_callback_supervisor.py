@@ -48,6 +48,8 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
 )
 
+from tests_common.test_utils.config import conf_vars
+
 
 def callback_no_args():
     """A simple callback that takes no arguments."""
@@ -552,6 +554,17 @@ class TestCallbackSubprocessStart:
             self.mock_super_start.call_args.kwargs["target"]()
 
         assert exc_info.value.code == 1
+
+    @pytest.mark.parametrize("option_value", ["True", "False"])
+    def test_start_keeps_bare_fork_regardless_of_exec_option(self, base_start_kwargs, option_value):
+        """
+        ``[core] execute_tasks_new_python_interpreter`` is a task-process opt-in and must not reach the
+        callback child: its target is a closure, which only a bare fork can run.
+        """
+        with conf_vars({("core", "execute_tasks_new_python_interpreter"): option_value}):
+            CallbackSubprocess.start(**base_start_kwargs)
+
+        assert self.mock_super_start.call_args.kwargs.get("use_exec", False) is False
 
 
 class TestSuperviseCallbackExchangesTokenFirst:

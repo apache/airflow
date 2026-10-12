@@ -17,9 +17,15 @@
 from __future__ import annotations
 
 import asyncio
+import re
+import threading
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic_ai import Agent, DeferredToolRequests
+from pydantic_ai._run_context import RunContext
+from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.models.function import FunctionModel
 from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.toolsets.hook import (
@@ -83,6 +89,61 @@ class TestHookToolsetInit:
         hook = _FakeHook()
         ts = HookToolset(hook, allowed_methods=["list_keys"])
         assert "FakeHook" in ts.id
+
+
+class _FakeConnHook(_FakeHook):
+    """A hook that names its connection attribute, like every provider hook does."""
+
+    conn_name_attr = "fake_conn_id"
+
+    def __init__(self, fake_conn_id: str = "fake_default"):
+        self.fake_conn_id = fake_conn_id
+
+
+class TestHookToolsetConnId:
+    def test_conn_id_is_read_from_the_hooks_conn_name_attr(self):
+        ts = HookToolset(_FakeConnHook("warehouse"), allowed_methods=["list_keys"])
+
+        assert ts.conn_id == "warehouse"
+        assert ts.id == "hook-_FakeConnHook-warehouse"
+
+    def test_a_hook_without_conn_name_attr_has_no_conn_id(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"])
+
+        assert ts.conn_id is None
+        assert ts.id == "hook-_FakeHook"
+
+    def test_setting_conn_id_copies_the_hook(self):
+        """The hook in the Dag file is shared by every task instance that uses the toolset."""
+        hook = _FakeConnHook("tenant_{{ customer }}")
+        ts = HookToolset(hook, allowed_methods=["list_keys"])
+
+        ts.conn_id = "tenant_acme"
+
+        assert ts.conn_id == "tenant_acme"
+        assert ts._hook is not hook
+        assert hook.fake_conn_id == "tenant_{{ customer }}"
+
+    def test_setting_conn_id_on_a_hook_without_one_raises(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"])
+
+        with pytest.raises(AttributeError, match="keeps no connection ID"):
+            ts.conn_id = "x"
+
+    def test_falls_back_to_conn_id_when_conn_name_attr_is_not_set(self):
+        """WasbHook and KubernetesHook declare one attribute and keep the ID in ``conn_id``."""
+
+        class _WasbShapedHook(_FakeHook):
+            conn_name_attr = "wasb_conn_id"
+
+            def __init__(self, wasb_conn_id: str):
+                self.conn_id = wasb_conn_id
+
+        ts = HookToolset(_WasbShapedHook("blob_{{ customer }}"), allowed_methods=["list_keys"])
+        ts.conn_id = "blob_acme"
+
+        assert ts.conn_id == "blob_acme"
+        assert ts.id == "hook-_WasbShapedHook-blob_acme"
 
 
 class TestHookToolsetGetTools:
@@ -200,10 +261,51 @@ class TestHookToolsetCallTool:
 
         result = asyncio.run(
             ts.call_tool(
-                "storage_read_file", {"key": "test.txt"}, ctx=MagicMock(), tool=tools["storage_read_file"]
+                "storage_read_file",
+                {"key": "test.txt"},
+                ctx=MagicMock(spec=RunContext),
+                tool=tools["storage_read_file"],
             )
         )
         assert result == "contents of test.txt"
+
+    @pytest.mark.enable_redact
+    def test_a_result_carrying_a_registered_secret_reaches_the_model_masked(self, registered_secret):
+        hook = _FakeHook()
+        ts = HookToolset(hook, allowed_methods=["read_file"])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+
+        result = asyncio.run(
+            ts.call_tool(
+                "read_file",
+                {"key": registered_secret},
+                ctx=MagicMock(spec=RunContext),
+                tool=tools["read_file"],
+            )
+        )
+
+        assert result == "contents of ***"
+
+    def test_the_hook_method_runs_off_the_event_loop_thread(self):
+        calls: list[int] = []
+
+        class _ThreadRecordingHook:
+            def whoami(self) -> str:
+                """Report the calling thread."""
+                calls.append(threading.get_ident())
+                return "ok"
+
+        ts = HookToolset(_ThreadRecordingHook(), allowed_methods=["whoami"])
+
+        async def call() -> int:
+            tools = await ts.get_tools(ctx=MagicMock(spec=RunContext))
+            await ts.call_tool("whoami", {}, ctx=MagicMock(spec=RunContext), tool=tools["whoami"])
+            return threading.get_ident()
+
+        loop_thread = asyncio.run(call())
+
+        assert calls
+        assert calls[0] != loop_thread
 
 
 class TestBuildJsonSchemaFromSignature:
@@ -339,3 +441,148 @@ class TestSerializeForLlm:
         obj = object()
         result = serialize_for_llm(obj)
         assert "object" in result
+
+
+class _RecordingKwargsHook:
+    """Records its calls; ``list_keys`` takes **kwargs, so validation alone would let extra names in."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str | None, dict[str, object]]] = []
+
+    def list_keys(self, bucket: str, prefix: str | None = None, **kwargs: object) -> list[str]:
+        """List object keys in a bucket."""
+        self.calls.append((bucket, prefix, kwargs))
+        return [f"{bucket}/{prefix}"]
+
+    def copy(self, bucket: str, key: str, tags: dict[str, str] | None = None) -> str:
+        """Copy an object, adding a tag as a side effect."""
+        self.calls.append((bucket, key, {"tags": dict(tags or {})}))
+        if tags is not None:
+            tags["copied"] = "yes"
+        return key
+
+
+class _RecordingHook:
+    """Records the arguments its method receives."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str | None]] = []
+
+    def list_keys(self, bucket: str, prefix: str | None = None) -> list[str]:
+        """
+        List object keys in a bucket.
+
+        :param bucket: Name of the bucket.
+        :param prefix: Key prefix to filter by.
+        """
+        self.calls.append((bucket, prefix))
+        return [f"{bucket}/{prefix}"]
+
+
+class TestHookToolsetPinnedArguments:
+    @staticmethod
+    def _tools(ts: HookToolset) -> dict:
+        return asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+
+    def test_a_pinned_argument_is_left_out_of_the_schema(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"], pinned_arguments={"bucket": "reports"})
+
+        schema = self._tools(ts)["list_keys"].tool_def.parameters_json_schema
+
+        assert "bucket" not in schema["properties"]
+        assert "required" not in schema
+        assert "prefix" in schema["properties"]
+
+    def test_the_pinned_value_is_passed_on_every_call(self):
+        hook = _RecordingHook()
+        ts = HookToolset(hook, allowed_methods=["list_keys"], pinned_arguments={"bucket": "reports"})
+        tools = self._tools(ts)
+
+        asyncio.run(
+            ts.call_tool(
+                "list_keys", {"prefix": "2026/"}, ctx=MagicMock(spec=RunContext), tool=tools["list_keys"]
+            )
+        )
+
+        assert hook.calls == [("reports", "2026/")]
+
+    @pytest.mark.parametrize(
+        ("method", "missing"),
+        [
+            pytest.param("read_file", "read_file() does not take bucket", id="another_name"),
+            pytest.param("request", "request() does not take bucket", id="kwargs_only"),
+        ],
+    )
+    def test_every_allowed_method_has_to_take_the_pin_by_name(self, method, missing):
+        """A method that does not would let the model choose the value through it."""
+        with pytest.raises(ValueError, match=re.escape(missing)):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys", method], pinned_arguments={"bucket": "x"})
+
+    def test_a_pin_on_a_catch_all_parameter_is_rejected(self):
+        with pytest.raises(ValueError, match=r"request\(\) does not take kwargs"):
+            HookToolset(_FakeHook(), allowed_methods=["request"], pinned_arguments={"kwargs": {"b": "x"}})
+
+    def test_methods_that_all_take_the_pin_by_name_are_accepted(self):
+        ts = HookToolset(
+            _RecordingKwargsHook(), allowed_methods=["copy", "list_keys"], pinned_arguments={"bucket": "x"}
+        )
+
+        assert set(self._tools(ts)) == {"copy", "list_keys"}
+
+    @pytest.mark.parametrize(
+        ("hook_cls", "expected_call"),
+        [
+            pytest.param(_RecordingHook, ("reports", "x"), id="named_parameters"),
+            pytest.param(_RecordingKwargsHook, ("reports", "x", {}), id="also_kwargs"),
+        ],
+    )
+    def test_the_model_cannot_override_it_in_a_real_run(self, hook_cls, expected_call):
+        """The model is told the argument is fixed, whether or not the method also takes **kwargs."""
+        hook = hook_cls()
+        ts = HookToolset(hook, allowed_methods=["list_keys"], pinned_arguments={"bucket": "reports"})
+        attempts = iter([{"bucket": "payroll", "prefix": "x"}, {"prefix": "x"}])
+
+        def model(messages, info):
+            retried = [p for m in messages for p in m.parts if isinstance(p, RetryPromptPart)]
+            returned = [p for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
+            if returned:
+                return ModelResponse(parts=[TextPart(str(retried[0].content))])
+            return ModelResponse(parts=[ToolCallPart("list_keys", next(attempts), tool_call_id="c")])
+
+        answer = Agent(FunctionModel(model), toolsets=[ts]).run_sync("list").output
+
+        assert "bucket is fixed for this tool" in answer
+        assert hook.calls == [expected_call]
+
+    def test_an_approval_gate_is_never_asked_about_a_pinned_argument(self):
+        """The refusal happens during validation, before an approval gate sees the call."""
+        ts = HookToolset(
+            _RecordingHook(), allowed_methods=["list_keys"], pinned_arguments={"bucket": "reports"}
+        )
+        attempts = iter([{"bucket": "payroll", "prefix": "x"}, {"prefix": "x"}])
+
+        def model(messages, info):
+            return ModelResponse(parts=[ToolCallPart("list_keys", next(attempts), tool_call_id="c")])
+
+        agent = Agent(
+            FunctionModel(model),
+            toolsets=[ts.approval_required()],
+            output_type=[str, DeferredToolRequests],
+        )
+        output = agent.run_sync("list").output
+
+        assert isinstance(output, DeferredToolRequests)
+        assert [call.args for call in output.approvals] == [{"prefix": "x"}]
+
+    def test_a_method_that_modifies_its_argument_cannot_change_the_pin(self):
+        hook = _RecordingKwargsHook()
+        ts = HookToolset(
+            hook, allowed_methods=["copy"], pinned_arguments={"bucket": "reports", "tags": {"a": "1"}}
+        )
+        tools = self._tools(ts)
+        ctx = MagicMock(spec=RunContext)
+
+        for _ in range(2):
+            asyncio.run(ts.call_tool("copy", {"key": "k"}, ctx=ctx, tool=tools["copy"]))
+
+        assert [call[2]["tags"] for call in hook.calls] == [{"a": "1"}, {"a": "1"}]

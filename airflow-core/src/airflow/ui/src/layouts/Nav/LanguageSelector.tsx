@@ -19,19 +19,39 @@
 import { useState, useCallback } from "react";
 
 import { Field, VStack, Box, Text } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import { Select, type SingleValue } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
-import { supportedLanguages } from "src/i18n/config";
+import { resolveExtraLanguages, supportedLanguages } from "src/i18n/config";
+
+const builtinCodes = new Set<string>(supportedLanguages.map((lang) => lang.code));
+
+// The browser's own name for a plugin language code, falling back to the raw code.
+const getPluginLanguageName = (code: string): string => {
+  try {
+    return new Intl.DisplayNames([code], { type: "language" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+};
 
 const LanguageSelector = () => {
   const { i18n, t: translate } = useTranslation();
   const [selectedLang, setSelectedLang] = useState(i18n.resolvedLanguage ?? i18n.language);
 
-  const options = supportedLanguages.map((lang) => ({
-    label: lang.name,
-    value: lang.code,
-  }));
+  // Plugin-contributed languages, listed by the server, offered alongside the built-in ones.
+  const { data: pluginLanguages = [] } = useQuery({
+    queryFn: resolveExtraLanguages,
+    queryKey: ["uiPluginLanguages"],
+  });
+
+  const options = [
+    ...supportedLanguages.map((lang) => ({ label: lang.name, value: lang.code })),
+    ...pluginLanguages
+      .filter((code) => !builtinCodes.has(code))
+      .map((code) => ({ label: getPluginLanguageName(code), value: code })),
+  ];
 
   const handleLanguageChange = useCallback(
     (selectedOption: SingleValue<{ label: string; value: string }>) => {

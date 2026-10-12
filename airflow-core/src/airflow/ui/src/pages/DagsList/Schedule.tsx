@@ -52,7 +52,7 @@ export const Schedule = ({
         timetableSummary={timetableSummary}
       />
     ) : (
-      <Tooltip content={timetableDescription}>
+      <Tooltip content={timetableDescription} portalled>
         <Text fontSize="sm">
           <FiCalendar style={{ display: "inline" }} /> {timetableSummary}
         </Text>

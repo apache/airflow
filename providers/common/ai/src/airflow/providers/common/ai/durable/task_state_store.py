@@ -37,10 +37,10 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 
 from airflow.providers.common.ai.durable.base import TOOL_RESULT_SENTINEL
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.sdk.execution_time.context import NEVER_EXPIRE
 
 if TYPE_CHECKING:
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.execution_time.context import TaskStateStoreAccessor
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 
 class TaskStateStoreDurableStorage:
@@ -75,13 +75,15 @@ class TaskStateStoreDurableStorage:
         # attempt; those are reclaimed by the DAG-run cascade, not here.
         self._keys: set[str] = set()
 
-    def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> None:
+    def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> bool:
         """
         Serialize and store a ModelResponse with the request fingerprint that produced it.
 
         Best-effort: the save runs *after* the live model call already succeeded, so a
         failed write (e.g. a value over the backend's size limit) must not fail the step.
         It is skipped with a warning and simply re-runs live on the next retry.
+
+        :return: ``True`` if the entry was written, ``False`` if it was skipped.
         """
         try:
             self._store.set(
@@ -94,8 +96,9 @@ class TaskStateStoreDurableStorage:
             )
         except Exception:
             log.warning("Durable: skipping cache for model response", key=key, exc_info=True)
-            return
+            return False
         self._keys.add(key)
+        return True
 
     def load_model_response(self, key: str) -> tuple[ModelResponse | None, str | None]:
         """
@@ -119,13 +122,15 @@ class TaskStateStoreDurableStorage:
         fingerprint = raw.get("fingerprint")
         return messages[0], fingerprint if isinstance(fingerprint, str) else None  # type: ignore[return-value]
 
-    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> None:
+    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> bool:
         """
         Store a tool call result with the call fingerprint that produced it.
 
         Non-serializable results (e.g. BinaryContent from MCP tools) are skipped
         with a warning -- the tool call still succeeds, but won't be replayed on
         retry.
+
+        :return: ``True`` if the entry was written, ``False`` if it was skipped.
         """
         try:
             # The store validates against pydantic ``JsonValue``, which is stricter than
@@ -141,7 +146,7 @@ class TaskStateStoreDurableStorage:
                 key=key,
                 type=type(result).__name__,
             )
-            return
+            return False
         try:
             # Best-effort like the model-response save: a write that fails after the tool
             # already ran (e.g. an oversize value) must not fail the step -- skip and re-run
@@ -153,8 +158,9 @@ class TaskStateStoreDurableStorage:
             )
         except Exception:
             log.warning("Durable: skipping cache for tool result", key=key, exc_info=True)
-            return
+            return False
         self._keys.add(key)
+        return True
 
     def load_tool_result(self, key: str) -> tuple[bool, Any, str | None]:
         """

@@ -70,6 +70,7 @@ class S3ToSqlOperator(BaseOperator):
         "table",
         "column_list",
         "sql_conn_id",
+        "aws_conn_id",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#f4a460"

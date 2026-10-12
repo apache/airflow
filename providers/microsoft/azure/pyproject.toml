@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==4.0.2"]
+requires = ["flit_core==4.1.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-azure"
-version = "15.0.1"
+version = "15.2.1"
 description = "Provider package apache-airflow-providers-microsoft-azure for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -45,14 +45,13 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -60,35 +59,40 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.13.0",
-    "adlfs>=2023.10.0",
+    "apache-airflow-providers-common-compat>=1.21.0",
+    "adlfs>=2026.5.0",
     "aiohttp>=3.14.0",
     "azure-batch>=15.0.0",
     # 2.2.0 adds force deletion support for Hosted agents and agent versions.
     "azure-ai-projects>=2.2.0",
-    "azure-cosmos>=4.6.0",
-    "azure-mgmt-cosmosdb>=3.0.0",
-    "azure-datalake-store>=0.0.45",
-    "azure-identity>=1.3.1",
-    "azure-keyvault-secrets>=4.1.0",
+    "azure-cosmos>=4.15.0",
+    "azure-mgmt-cosmosdb>=9.9.0",
+    "azure-datalake-store>=1.0.1",
+    "azure-identity>=1.25.3",
+    "azure-keyvault-secrets>=4.10.0",
     "azure-mgmt-datalake-store>=0.5.0",
-    "azure-mgmt-resource>=2.2.0",
-    "azure-storage-blob>=12.26.0",
-    "azure-mgmt-storage>=16.0.0",
-    "azure-storage-file-share>=12.7.0",
-    "azure-servicebus>=7.12.1",
-    "azure-synapse-spark>=0.2.0",
-    "azure-synapse-artifacts>=0.17.0",
-    "azure-storage-file-datalake>=12.9.1",
+    "azure-mgmt-resource>=25.0.0",
+    "azure-storage-blob>=12.28.0",
+    "azure-mgmt-storage>=24.0.1",
+    "azure-storage-file-share>=12.24.0",
+    "azure-servicebus>=7.14.3",
+    "azure-synapse-spark>=0.7.0",
+    "azure-synapse-artifacts>=0.22.0",
+    "azure-storage-file-datalake>=12.23.0",
     # azure-kusto-data 5.0.0 pins requests to a specific version which makes resolving dependencies harder
     "azure-kusto-data>=4.1.0,!=5.0.0",
     "azure-mgmt-datafactory>=10.0.0",
-    "azure-mgmt-containerregistry>=8.0.0",
-    "azure-mgmt-compute>=33.0.0",
+    "azure-mgmt-containerregistry>=15.0.0",
+    "azure-mgmt-compute>=37.2.0",
     "azure-mgmt-containerinstance>=10.1.0",
     "msgraph-core>=1.3.3",
     "msgraphfs>=0.3.0",
-    "microsoft-kiota-http>=1.9.4,<2.0.0",
+    # microsoft-kiota-http 1.13+ passes request options in request.extensions, which msgraph-core
+    # 1.5.1 ignores: its AsyncGraphTransport then skips the whole middleware chain (no redirects,
+    # no retries). Remove the <1.13.0 cap once a msgraph-core release reads request.extensions;
+    # tracked at https://github.com/apache/airflow/issues/74089
+    # and https://github.com/microsoftgraph/msgraph-sdk-python-core/issues/1128
+    "microsoft-kiota-http>=1.9.4,<1.13.0",
     "microsoft-kiota-serialization-json>=1.9.4",
     "microsoft-kiota-serialization-text>=1.9.4",
     "microsoft-kiota-abstractions>=1.9.4,<2.0.0",
@@ -164,8 +168,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.0.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.0.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.2.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.2.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

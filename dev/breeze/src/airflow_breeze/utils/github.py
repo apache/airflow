@@ -23,7 +23,7 @@ import sys
 import tempfile
 import zipfile
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -159,7 +159,7 @@ def log_github_rate_limit_error(response: Response) -> None:
     remaining_int = int(remaining) if remaining and remaining.isdigit() else None
 
     if reset and reset.isdigit():
-        reset_dt = datetime.fromtimestamp(int(reset), tz=timezone.utc)
+        reset_dt = datetime.fromtimestamp(int(reset), tz=UTC)
         reset_time = reset_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
     else:
         reset_time = "unknown"
@@ -342,7 +342,7 @@ def get_tag_date(tag: str) -> str | None:
     timestamp: int = (
         tag_object.committed_date if hasattr(tag_object, "committed_date") else tag_object.tagged_date
     )
-    return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.fromtimestamp(timestamp, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def download_artifact_from_run_id(run_id: str, output_file: Path, github_repository: str, github_token: str):

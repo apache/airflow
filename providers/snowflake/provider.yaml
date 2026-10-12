@@ -23,12 +23,15 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1787011200
+source-date-epoch: 1791328852
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.19.0
+  - 6.18.0
+  - 6.17.0
   - 6.16.1
   - 6.16.0
   - 6.15.0
@@ -158,6 +161,7 @@ hooks:
       - airflow.providers.snowflake.hooks.snowflake
       - airflow.providers.snowflake.hooks.snowflake_sql_api
       - airflow.providers.snowflake.hooks.snowflake_cortex_agent
+      - airflow.providers.snowflake.hooks.cortex_model
 
 transfers:
   - source-integration-name: Amazon Simple Storage Service (S3)
@@ -295,11 +299,51 @@ connection-types:
             - string
             - 'null'
           format: password
+  - hook-class-name: airflow.providers.snowflake.hooks.cortex_model.PydanticAISnowflakeHook
+    hook-name: "Pydantic AI (Snowflake Cortex)"
+    connection-type: pydanticai_snowflake
+    external-services:
+      - Snowflake Cortex
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - login
+        - host
+        - password
+      relabeling: {}
+      placeholders:
+        extra: '{"model": "snowflake:claude-4-sonnet", "snowflake_conn_id": "snowflake_default"}'
+    conn-fields:
+      model:
+        label: Model
+        description: "Cortex model identifier (e.g. snowflake:claude-4-sonnet)"
+        schema:
+          type:
+            - string
+            - 'null'
+      fallback_conn_ids:
+        label: Fallback Connections
+        description: "Connection IDs to fail over to, in order, while this provider is unavailable."
+        schema:
+          type:
+            - array
+            - 'null'
+          items:
+            type: string
+      snowflake_conn_id:
+        label: Snowflake Connection ID
+        description: "Connection ID of an existing Snowflake connection to source credentials from."
+        schema:
+          type:
+            - string
+            - 'null'
 
 triggers:
   - integration-name: Snowflake
     python-modules:
       - airflow.providers.snowflake.triggers.snowflake_trigger
+      - airflow.providers.snowflake.triggers.snowpark_containers
 
 config:
   snowflake:
