@@ -63,10 +63,23 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import DAG, Asset, AssetAlias, BaseHook, TaskGroup, WeightRule, XComArg, teardown
+from airflow.sdk import (
+    DAG,
+    Asset,
+    AssetAlias,
+    BaseHook,
+    TaskGroup,
+    TriggerRule,
+    WeightRule,
+    XComArg,
+    task as task_decorator,
+    task_group,
+    teardown,
+)
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS, BaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.security import permissions
@@ -1664,6 +1677,7 @@ class TestStringifiedDAGs:
             "retries": 0,
             "retry_delay": timedelta(0, 300),
             "retry_exponential_backoff": 0,
+            "returns_dag_result": False,
             "run_as_user": None,
             "start_date": None,
             "start_from_trigger": False,
@@ -1782,6 +1796,94 @@ class TestStringifiedDAGs:
             serialized_task.get("arg2")
             == "<callable unit.serialization.test_dag_serialization.TestStringifiedDAGs.test_template_field_via_callable_serialization.<locals>.fn_returns_callable.<locals>.get_arg>"
         )
+
+    @pytest.mark.parametrize("mapped", [False, True])
+    @pytest.mark.parametrize("is_result", [False, True])
+    def test_dag_result_declaration_survives_serialization(self, mapped, is_result):
+        @task_decorator
+        def value(v):
+            return v
+
+        with DAG("serialized_dag_result", schedule=None) as dag:
+            output = value.expand(v=[1, 2]) if mapped else value(1)
+            if is_result:
+                dag.add_result(output)
+
+        encoded = DagSerialization.to_dict(dag)
+        DagSerialization.validate_schema(encoded)
+        restored = DagSerialization.from_json(DagSerialization.to_json(dag))
+        assert restored.get_task("value").returns_dag_result is is_result
+
+        operator = (
+            OperatorSerialization.serialize_mapped_operator(output.operator)
+            if mapped
+            else OperatorSerialization.serialize_operator(output.operator)
+        )
+        operator.pop("returns_dag_result", None)
+        assert OperatorSerialization.deserialize_operator(operator).returns_dag_result is False
+
+    @pytest.mark.parametrize("conditional", [False, True])
+    @pytest.mark.parametrize("mapped_terminal", [False, True])
+    def test_loop_group_serialization(self, conditional, mapped_terminal):
+        @task_decorator
+        def terminal(value):
+            return value
+
+        @task_group(group_id="body")
+        def body():
+            if mapped_terminal:
+                terminal.expand(value=[1, 2])
+            else:
+                terminal(1)
+
+        def converged(loop):
+            return loop.result
+
+        with DAG("loop_serialization", schedule=None) as dag:
+            start = BaseOperator(task_id="start")
+            loop = create_loop(body, max_iterations=3, until=converged if conditional else None)
+            finish = BaseOperator(task_id="finish")
+            start >> loop >> finish
+
+        encoded = DagSerialization.to_dict(dag)
+        DagSerialization.validate_schema(encoded)
+        restored = DagSerialization.from_json(DagSerialization.to_json(dag))
+        restored_loop = restored.task_group.children["body"]
+        assert restored_loop.max_iterations == 3
+        assert restored_loop.has_until is conditional
+        assert restored_loop.terminal_task_id == "body.terminal"
+        assert restored_loop.gate_task_id == ("body.converged" if conditional else "body.__loop_gate")
+        gate = restored.get_task(restored_loop.gate_task_id)
+        assert gate.upstream_task_ids == {"body.terminal"}
+        assert gate.downstream_task_ids == {"finish"}
+        assert gate.trigger_rule == TriggerRule.ALL_SUCCESS
+        assert restored.get_task("body.terminal").upstream_task_ids == {"start"}
+        assert restored_loop.dag is restored
+        assert restored_loop.parent_group is restored.task_group
+
+    def test_task_using_a_loop_task_serializes_with_the_gate_as_its_upstream(self):
+        @task_decorator
+        def report(value):
+            return value
+
+        @task_group(group_id="body")
+        def body():
+            BaseOperator(task_id="first") >> BaseOperator(task_id="terminal")
+
+        with DAG("loop_outside_edge", schedule=None) as dag:
+            loop = create_loop(body, max_iterations=3)
+            report(loop["first"].output)
+
+        encoded = DagSerialization.to_dict(dag)
+        DagSerialization.validate_schema(encoded)
+        restored = DagSerialization.from_json(DagSerialization.to_json(dag))
+
+        assert restored.get_task("report").upstream_task_ids == {"body.__loop_gate"}
+        assert restored.get_task("body.__loop_gate").downstream_task_ids == {"report"}
+        assert restored.get_task("body.first").downstream_task_ids == {"body.terminal"}
+        assert [arg.operator.task_id for arg in dag.get_task("report").op_args] == ["body.first"]
+        assert "body.first" in str(restored.get_task("report").op_args[0])
+        assert "body.__loop_gate" not in str(restored.get_task("report").op_args[0])
 
     def test_task_group_serialization(self):
         """

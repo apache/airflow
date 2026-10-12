@@ -82,6 +82,8 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
     dagRunId: hitlDetail.task_instance.dag_run_id,
     mapIndex: hitlDetail.task_instance.map_index,
     onSuccess: onResponded,
+    regionId: hitlDetail.task_instance.region_id,
+    regionIndex: hitlDetail.task_instance.region_index,
     taskId: hitlDetail.task_instance.task_id,
   });
 

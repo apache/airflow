@@ -69,6 +69,7 @@ def import_all_models():
     import airflow.models.dagbundle
     import airflow.models.dagwarning
     import airflow.models.deadline_alert
+    import airflow.models.dynamic_region
     import airflow.models.errors
     import airflow.models.revoked_token
     import airflow.models.serialized_dag

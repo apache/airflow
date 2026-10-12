@@ -44,8 +44,8 @@
   "deadlineAlerts": {
     "completionRule": "Ha de completar-se dins de {{interval}} de {{reference}}",
     "completionRuleDynamic": "Ha de completar-se dins d'un interval variable mesurat des de {{reference}}",
-    "count_one": "{{count}} termini",
-    "count_other": "{{count}} terminis",
+    "count_one": "{{count, number}} termini",
+    "count_other": "{{count, number}} terminis",
     "referenceType": {
       "AverageRuntimeDeadline": "durada mitjana d'execució",
       "DagRunLogicalDateDeadline": "data lògica",
@@ -60,13 +60,13 @@
     "label": "Termini",
     "met": "Complert",
     "missed": "No complert",
-    "missedCount_one": "{{count}} Termini no complert",
-    "missedCount_other": "{{count}} Terminis no complerts",
-    "mixedCount": "{{missedCount}} No complerts, {{upcomingCount}} Propers",
+    "missedCount_one": "{{count, number}} Termini no complert",
+    "missedCount_other": "{{count, number}} Terminis no complerts",
+    "mixedCount": "{{missedCount, number}} No complerts, {{upcomingCount, number}} Propers",
     "stillRunning": "Encara s'està executant",
     "upcoming": "Propers",
-    "upcomingCount_one": "{{count}} Termini proper",
-    "upcomingCount_other": "{{count}} Terminis propers"
+    "upcomingCount_one": "{{count, number}} Termini proper",
+    "upcomingCount_other": "{{count, number}} Terminis propers"
   },
   "extraLinks": "Enllaços addicionals",
   "grid": {
@@ -96,7 +96,7 @@
     "info": "INFO",
     "noTryNumber": "Sense número d'intent",
     "search": {
-      "matchCount": "{{current}} de {{total}}",
+      "matchCount": "{{current, number}} de {{total, number}}",
       "noMatches": "Sense resultats",
       "placeholder": "Cercar registres..."
     },
@@ -215,8 +215,8 @@
     "code": "Codi",
     "details": "Detalls",
     "logs": "Registres",
-    "mappedTaskInstances_one": "Instància de tasca [{{count}}]",
-    "mappedTaskInstances_other": "Instàncies de tasca [{{count}}]",
+    "mappedTaskInstances_one": "Instància de tasca [{{count, number}}]",
+    "mappedTaskInstances_other": "Instàncies de tasca [{{count, number}}]",
     "overview": "Visió general",
     "renderedTemplates": "Plantilles renderitzades",
     "requiredActions": "Accions requerides",
@@ -300,8 +300,8 @@
     "record_one": "Registre",
     "record_other": "Registres",
     "selectPrompt": "Seleccioneu dues versions per veure què ha canviat entre elles.",
-    "summary_one": "{{count}} canvi · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count}} canvis · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count, number}} canvi · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count, number}} canvis · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
     "target": "Comparar amb",
     "truncated": {
       "description": "S'han omès els canvis de les rutes no mostrades per respectar el límit, de manera que el recompte és un mínim.",

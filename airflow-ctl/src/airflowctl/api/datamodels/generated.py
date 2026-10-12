@@ -263,6 +263,17 @@ class TaskIds(RootModel[tuple[str, int]]):
     root: Annotated[tuple[str, int], Field(max_length=2, min_length=2)]
 
 
+class TaskInstanceIds(RootModel[list[UUID]]):
+    root: Annotated[
+        list[UUID],
+        Field(
+            description="Exact current executions in one DAG run. Mutually exclusive with task_ids and task_group_id.",
+            min_length=1,
+            title="Task Instance Ids",
+        ),
+    ]
+
+
 class ClearTaskInstancesBody(BaseModel):
     """
     Request body for Clear Task Instances endpoint.
@@ -291,6 +302,27 @@ class ClearTaskInstancesBody(BaseModel):
             title="Task Group Id",
         ),
     ] = None
+    task_instance_ids: Annotated[
+        TaskInstanceIds | None,
+        Field(
+            description="Exact current executions in one DAG run. Mutually exclusive with task_ids and task_group_id.",
+            title="Task Instance Ids",
+        ),
+    ] = None
+    whole_expansion_ids: Annotated[
+        list[UUID] | None,
+        Field(
+            description="Selected execution IDs whose entire mapped expansion should be cleared.",
+            title="Whole Expansion Ids",
+        ),
+    ] = None
+    include_later_loop_iterations: Annotated[
+        bool | None,
+        Field(
+            description="Clear later iterations when the selection includes a loop gate.",
+            title="Include Later Loop Iterations",
+        ),
+    ] = True
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
@@ -879,6 +911,7 @@ class DagWarningType(str, Enum):
     DUPLICATE_DAG_ID = "duplicate dag id"
     NON_EXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
+    TASK_GROUP_CYCLE = "task group cycle"
 
 
 class DetailedHealthStatus(str, Enum):
@@ -908,6 +941,7 @@ class EventLogResponse(BaseModel):
 
     event_log_id: Annotated[int, Field(title="Event Log Id")]
     when: Annotated[datetime, Field(title="When")]
+    task_instance_id: Annotated[UUID | None, Field(title="Task Instance Id")] = None
     dag_id: Annotated[str | None, Field(title="Dag Id")]
     task_id: Annotated[str | None, Field(title="Task Id")]
     run_id: Annotated[str | None, Field(title="Run Id")]
@@ -1056,6 +1090,15 @@ class LastAssetEventResponse(BaseModel):
 
     id: Annotated[Id | None, Field(title="Id")] = None
     timestamp: Annotated[datetime | None, Field(title="Timestamp")] = None
+
+
+class LoopIterationResponse(BaseModel):
+    """
+    A task execution's position in an enclosing loop.
+    """
+
+    loop_id: Annotated[str, Field(title="Loop Id")]
+    iteration: Annotated[int, Field(title="Iteration")]
 
 
 class MaterializeAssetBody(BaseModel):
@@ -1517,6 +1560,10 @@ class VersionInfo(BaseModel):
     git_version: Annotated[str | None, Field(title="Git Version")]
 
 
+class RegionIndex(RootModel[int]):
+    root: Annotated[int, Field(ge=-1, title="Region Index")]
+
+
 class XComCreateBody(BaseModel):
     """
     Payload serializer for creating an XCom entry.
@@ -1528,6 +1575,8 @@ class XComCreateBody(BaseModel):
     key: Annotated[str, Field(title="Key")]
     value: Annotated[Any, Field(title="Value")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[RegionIndex | None, Field(title="Region Index")] = None
 
 
 class XComResponse(BaseModel):
@@ -1539,6 +1588,8 @@ class XComResponse(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -1557,6 +1608,8 @@ class XComResponseNative(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -1576,6 +1629,8 @@ class XComResponseString(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -1596,6 +1651,8 @@ class XComUpdateBody(BaseModel):
     )
     value: Annotated[Any, Field(title="Value")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[RegionIndex | None, Field(title="Region Index")] = None
 
 
 class AssetAliasCollectionResponse(BaseModel):
@@ -1622,6 +1679,7 @@ class AssetEventResponse(BaseModel):
     source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
     source_map_index: Annotated[int, Field(title="Source Map Index")]
+    source_task_instance_id: Annotated[UUID | None, Field(title="Source Task Instance Id")] = None
     created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
@@ -1684,6 +1742,10 @@ class AssetStateStoreLastUpdatedBy(BaseModel):
     run_id: Annotated[str | None, Field(title="Run Id")] = None
     task_id: Annotated[str | None, Field(title="Task Id")] = None
     map_index: Annotated[int | None, Field(title="Map Index")] = None
+    task_instance_id: Annotated[UUID | None, Field(title="Task Instance Id")] = None
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
+    try_number: Annotated[int | None, Field(title="Try Number")] = None
 
 
 class AssetStateStoreResponse(BaseModel):
@@ -1965,6 +2027,8 @@ class BulkTaskInstanceBody(BaseModel):
         extra="forbid",
     )
     new_state: TaskInstanceState | None = None
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     note: Annotated[Note | None, Field(title="Note")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
@@ -2474,6 +2538,8 @@ class PatchTaskInstanceBody(BaseModel):
         extra="forbid",
     )
     new_state: TaskInstanceState | None = None
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     note: Annotated[Note | None, Field(title="Note")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
@@ -2573,10 +2639,14 @@ class TaskInstanceHistoryResponse(BaseModel):
     TaskInstanceHistory serializer for responses.
     """
 
+    id: Annotated[UUID, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
+    loop_iteration: LoopIterationResponse | None = None
     start_date: Annotated[datetime | None, Field(title="Start Date")]
     end_date: Annotated[datetime | None, Field(title="End Date")]
     duration: Annotated[float | None, Field(title="Duration")]
@@ -2599,6 +2669,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")]
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None
+    note: Annotated[str | None, Field(title="Note")] = None
     state_reason: Annotated[
         str | None,
         Field(
@@ -2618,6 +2689,10 @@ class TaskInstanceResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
+    in_loop: Annotated[bool, Field(title="In Loop")]
+    loop_iteration: LoopIterationResponse | None = None
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     run_after: Annotated[datetime, Field(title="Run After")]
     start_date: Annotated[datetime | None, Field(title="Start Date")]
