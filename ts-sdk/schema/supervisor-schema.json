@@ -3801,10 +3801,10 @@
       "type": "object"
     },
     "SetExecutionTimeout": {
-      "description": "Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process.",
+      "description": "Tell the supervisor how long the task process may take before it must be stopped from outside.\n\nSent before parsing a plain Python Dag file with ``dagbag_import_timeout`` and before ``execute()``\nwith the task's ``execution_timeout``. ``0`` clears the deadline.",
       "properties": {
         "timeout_seconds": {
-          "exclusiveMinimum": 0,
+          "minimum": 0,
           "title": "Timeout Seconds",
           "type": "number"
         },

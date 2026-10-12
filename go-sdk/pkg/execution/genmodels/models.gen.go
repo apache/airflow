@@ -1533,8 +1533,12 @@ type SetAssetStateStoreByURI struct {
 	Value JsonValue `msgpack:"value"`
 }
 
-// Tell the supervisor the task's “execution_timeout“ so it can enforce it from
-// outside the task process.
+// Tell the supervisor how long the task process may take before it must be stopped
+// from outside.
+//
+// Sent before parsing a plain Python Dag file with “dagbag_import_timeout“ and
+// before “execute()“
+// with the task's “execution_timeout“. “0“ clears the deadline.
 type SetExecutionTimeout struct {
 	// TimeoutSeconds corresponds to the JSON schema field "timeout_seconds".
 	TimeoutSeconds float64 `msgpack:"timeout_seconds"`

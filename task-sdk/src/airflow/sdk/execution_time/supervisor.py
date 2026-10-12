@@ -1954,21 +1954,22 @@ class ActivitySubprocess(WatchedSubprocess):
 
     def _handle_execution_timeout_if_needed(self):
         """
-        Enforce ``execution_timeout`` from outside the task process.
+        Enforce the task process's current timeout from outside it.
 
         The task process raises ``AirflowTaskTimeout`` itself when the timeout elapses, which is the only
         place ``on_kill``, the retry policy, callbacks and listeners can run. That needs a process that can
         still run Python signal handlers; one that has not reported a terminal state within the grace period
         is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
 
-        The deadline is armed by ``SetExecutionTimeout``, which the task process sends right before
-        ``execute()``. Anything before that (bundle load, Dag parsing) is not covered here.
+        The deadline is armed by ``SetExecutionTimeout``: with ``dagbag_import_timeout`` around parsing a
+        plain Python Dag file and with ``execution_timeout`` right before ``execute()``. Bundle loading and
+        zipped Dags, whose members are each imported under their own timeout, are not covered.
         """
         if self._execution_timeout_due_in() > 0:
             return
         self._execution_timeout_enforce_at = None
         self.process_log.error(
-            "Task did not stop before execution_timeout elapsed; terminating process",
+            "Task did not stop before its timeout elapsed; terminating process",
             timeout_seconds=self._execution_timeout_seconds,
             grace_period_seconds=KILLED_TASK_CLEANUP_TIME,
         )
@@ -2109,6 +2110,10 @@ class ActivitySubprocess(WatchedSubprocess):
     def _handle_set_execution_timeout(
         self, msg: SetExecutionTimeout, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
+        if msg.timeout_seconds == 0:
+            self._execution_timeout_seconds = None
+            self._execution_timeout_enforce_at = None
+            return None, {}
         self._execution_timeout_seconds = msg.timeout_seconds
         self._execution_timeout_enforce_at = time.monotonic() + msg.timeout_seconds + KILLED_TASK_CLEANUP_TIME
         return None, {}

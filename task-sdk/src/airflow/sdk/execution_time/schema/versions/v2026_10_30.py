@@ -22,6 +22,9 @@ A brand-new message body needs no field-level migration instructions here: a lan
 pinned to an older version simply never sends it, so there is nothing to strip on the
 way down. Only *changes* to bodies that already existed at an earlier dated version
 require a ``VersionChange`` entry below.
+
+``SetExecutionTimeout.timeout_seconds`` accepts ``0`` (clear the deadline) since the same
+version that introduced the body, so it needs no entry either.
 """
 
 from __future__ import annotations
