@@ -23,10 +23,10 @@ import json
 import os
 import threading
 import time
-from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Mapping, Sequence
+from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from functools import partial
-from typing import TYPE_CHECKING, Any
+from functools import partial, wraps
+from typing import TYPE_CHECKING, Any, TypeVar
 
 try:
     # Python 3.11+
@@ -71,6 +71,9 @@ if TYPE_CHECKING:
     from airflow.sdk.types import Logger
 
 
+# The outcome an indexed task's step returns, kept as it is by keeps_failure_to_its_item.
+Outcome = TypeVar("Outcome")
+
 # The trigger rules under which one skipped upstream task instance skips a task, whatever the other
 # upstream task instances did (see TriggerRuleDep). A skipped iteration has the same effect on a
 # downstream task with one of these rules as a skipped mapped task instance would.
@@ -86,6 +89,33 @@ FAIL_WITHOUT_RETRY = (AirflowFailException, AirflowSensorTimeout, AirflowTaskTer
 
 # How strongly a retry policy decision speaks for the task when several indexed tasks failed: one the
 # policy says must not be retried fails the task, one it says to retry makes it retry on its terms.
+def keeps_failure_to_its_item(
+    step: Callable[..., Awaitable[Outcome]],
+) -> Callable[..., Awaitable[Outcome | tuple[IndexedTaskInstance, None, BaseException]]]:
+    """
+    Make what an indexed task's step raises that indexed task's outcome, not the end of the task.
+
+    ``step`` is a coroutine method of :class:`IterableOperator` taking the indexed task as its first
+    argument after ``self``. Whatever it raises, a ``BaseException`` included, is returned as
+    ``(task, None, raised)``: the siblings go on, the run counts it with the other outcomes, and a
+    non-``Exception`` still fails the task at once (see ``IterableOperator._fail_fast_for``). A
+    cancellation and the parent's ``execution_timeout`` are not the step's outcome and go on unchanged.
+    """
+
+    @wraps(step)
+    async def kept(
+        self: IterableOperator, task: IndexedTaskInstance, *args: Any, **kwargs: Any
+    ) -> Outcome | tuple[IndexedTaskInstance, None, BaseException]:
+        try:
+            return await step(self, task, *args, **kwargs)
+        except (asyncio.CancelledError, AirflowTaskTimeout):
+            raise
+        except BaseException as e:
+            return task, None, e
+
+    return kept
+
+
 class Checkpoints:
     """
     Decide whether one attempt of an IterableOperator may resume from its per-index checkpoints.
@@ -1080,52 +1110,11 @@ class IterableOperator(BaseOperator):
         outcomes: IndexedTaskOutcomes,
     ) -> tuple[IndexedTaskInstance, Any | None, BaseException | None]:
         # See _run_tasks: checkpoints are consulted only on a retry that is not a rerun after a clear.
-        try:
-            indexed_task_state = await task.aget_state() if trust_checkpoints else None
-        except (asyncio.CancelledError, AirflowTaskTimeout):
-            raise
-        except BaseException as e:
-            # Without its checkpoint the item cannot tell whether it already succeeded: it fails this
-            # attempt rather than run work a SUCCESS checkpoint may cover, and the retry reads it again.
-            return task, None, e
-        if indexed_task_state is not None and (
-            indexed_task_state.try_number < since or indexed_task_state.fingerprint != task.input_fingerprint
+        if (
+            trust_checkpoints
+            and (replayed := await self._replay_checkpoint(task, context, since)) is not None
         ):
-            self.log.info(
-                "Running task instance %s for %s again: its checkpoint is from before the task was "
-                "cleared or for another input",
-                task.index,
-                task.task_id,
-            )
-            indexed_task_state = None
-        if indexed_task_state is not None and indexed_task_state.status == TaskInstanceState.SUCCESS:
-            self.log.info(
-                "Skipping task instance %s for %s which already succeeded on a previous attempt",
-                task.index,
-                task.task_id,
-            )
-            # The checkpoint stays SUCCESS whatever fails here, so the retry replays it again rather
-            # than run the item: the same rule as a publish that fails after a fresh SUCCESS.
-            try:
-                if indexed_task_state.result is not None:
-                    await self.axcom_push(task, indexed_task_state.result)
-                for key, value in (indexed_task_state.xcoms or {}).items():
-                    await task.axcom_push(key=key, value=value)
-                if indexed_task_state.outlet_events:
-                    indexed_task_state.replay_outlet_events(context["outlet_events"])
-            except (asyncio.CancelledError, AirflowTaskTimeout):
-                raise
-            except BaseException as e:
-                return task, None, e
-            return task, None, None
-        if indexed_task_state is not None and indexed_task_state.status == TaskInstanceState.SKIPPED:
-            return (
-                task,
-                None,
-                AirflowSkipException(
-                    f"Sub-task {task.task_id}[{task.index}] was skipped on a previous attempt"
-                ),
-            )
+            return replayed
 
         # Pulled before the kill and reached after it. on_kill() reaches the operators that started
         # and the stop flag keeps the executor from pulling more; an item is neither until its runner
@@ -1201,60 +1190,111 @@ class IterableOperator(BaseOperator):
                 outcomes.note_failed(indexed_task_runner)
             raise
         except AirflowSkipException as skipped:
-            return await self._record_skip(executor, task, indexed_task_runner, skipped)
+            return await self._record_skip(task, executor, indexed_task_runner, skipped)
         except BaseException as e:
             return await self._record_failure(task, indexed_task_runner, outcomes, e)
 
-        # The work is done and checkpointed: from here on only its report and publication can fail.
-        # A failure leaves the SUCCESS checkpoint as it is, so the retry replays the result from it
-        # (the branch at the top) instead of running the operator again for work that already
-        # finished, and reports nothing again.
-        try:
-            # Reported once the checkpoint is written, not when execute returned: the callback then
-            # speaks for work a retry will not run again, and a checkpoint write that fails fires
-            # nothing, as a plain task whose result could not be pushed fires no success callback.
-            # A callback that raises, a BaseException included, fails the sub-task without touching
-            # its checkpoint.
-            await self._report_item(executor, task, indexed_task_runner.report_success)
-            # The result is only checkpointed when the sub-task pushes XComs and returned something,
-            # so the same condition decides whether there is a return_value_<index> to push at all.
+        return await self._publish(task, executor, context, indexed_task_runner, indexed_task_state, result)
+
+    @keeps_failure_to_its_item
+    async def _replay_checkpoint(
+        self, task: IndexedTaskInstance, context: Context, since: int
+    ) -> tuple[IndexedTaskInstance, None, BaseException | None] | None:
+        """
+        Settle an indexed task from its checkpoint on a retry, or return None for it to run.
+
+        A checkpoint from before a clear (an older ``try_number`` than ``since``) or for another input
+        is not trusted. A SUCCESS checkpoint is replayed: its result, other XComs and outlet events
+        are pushed again, as the runner deleted the XComs before this attempt. A SKIPPED one is
+        skipped again. A read or a replay that fails is the indexed task's outcome and leaves the
+        checkpoint as it is: the indexed task cannot tell whether it already succeeded, so it does
+        not run, and the next retry reads or replays the checkpoint again.
+        """
+        indexed_task_state = await task.aget_state()
+        if indexed_task_state is None:
+            return None
+        if indexed_task_state.try_number < since or indexed_task_state.fingerprint != task.input_fingerprint:
+            self.log.info(
+                "Running task instance %s for %s again: its checkpoint is from before the task was "
+                "cleared or for another input",
+                task.index,
+                task.task_id,
+            )
+            return None
+        if indexed_task_state.status == TaskInstanceState.SUCCESS:
+            self.log.info(
+                "Skipping task instance %s for %s which already succeeded on a previous attempt",
+                task.index,
+                task.task_id,
+            )
             if indexed_task_state.result is not None:
                 await self.axcom_push(task, indexed_task_state.result)
-            indexed_task_runner.merge_outlet_events_into(context["outlet_events"])
-        except (asyncio.CancelledError, AirflowTaskTimeout):
-            raise
-        except BaseException as e:
-            return task, None, e
+            for key, value in (indexed_task_state.xcoms or {}).items():
+                await task.axcom_push(key=key, value=value)
+            if indexed_task_state.outlet_events:
+                indexed_task_state.replay_outlet_events(context["outlet_events"])
+            return task, None, None
+        if indexed_task_state.status == TaskInstanceState.SKIPPED:
+            return (
+                task,
+                None,
+                AirflowSkipException(
+                    f"Sub-task {task.task_id}[{task.index}] was skipped on a previous attempt"
+                ),
+            )
+        return None
+
+    @keeps_failure_to_its_item
+    async def _publish(
+        self,
+        task: IndexedTaskInstance,
+        executor: AsyncAwareExecutor,
+        context: Context,
+        runner: IndexedTaskRunner,
+        indexed_task_state: IndexedTaskState,
+        result: Any | None,
+    ) -> tuple[IndexedTaskInstance, Any | None, None]:
+        """
+        Report a succeeded indexed task and publish its result, once its SUCCESS checkpoint is written.
+
+        Reported then, not when execute returned: the callback speaks for work a retry will not run
+        again, and a checkpoint write that fails fires nothing, as a plain task whose result could
+        not be pushed fires no success callback. A report or a push that fails, a callback raising a
+        BaseException included, leaves the checkpoint as it is, so the retry replays the result
+        (see :meth:`_replay_checkpoint`) instead of running the operator again, and reports nothing
+        again.
+        """
+        await self._report_item(executor, task, runner.report_success)
+        # The result is only checkpointed when the sub-task pushes XComs and returned something,
+        # so the same condition decides whether there is a return_value_<index> to push at all.
+        if indexed_task_state.result is not None:
+            await self.axcom_push(task, indexed_task_state.result)
+        runner.merge_outlet_events_into(context["outlet_events"])
         return task, result, None
 
+    @keeps_failure_to_its_item
     async def _record_skip(
         self,
-        executor: AsyncAwareExecutor,
         task: IndexedTaskInstance,
+        executor: AsyncAwareExecutor,
         runner: IndexedTaskRunner,
         skipped: AirflowSkipException,
-    ) -> tuple[IndexedTaskInstance, None, BaseException]:
+    ) -> tuple[IndexedTaskInstance, None, AirflowSkipException]:
         """
         Checkpoint a skipped indexed task as SKIPPED, report it and return the skip as the outcome.
 
-        Guarded as the report of a success is: a checkpoint write that fails, or a BaseException
-        from ``on_skipped_callback``, is this indexed task's outcome instead of ending the whole
-        task, so the siblings go on. A failed write leaves no checkpoint and the retry runs the
+        A checkpoint write that fails, or a BaseException from ``on_skipped_callback``, is the indexed
+        task's outcome, as for a success. A failed write leaves no checkpoint and the retry runs the
         indexed task again; a failed report leaves the SKIPPED checkpoint, which the retry replays.
         """
-        try:
-            await task.aset_state(
-                IndexedTaskState(
-                    status=TaskInstanceState.SKIPPED,
-                    fingerprint=task.input_fingerprint,
-                    try_number=task.try_number,
-                )
+        await task.aset_state(
+            IndexedTaskState(
+                status=TaskInstanceState.SKIPPED,
+                fingerprint=task.input_fingerprint,
+                try_number=task.try_number,
             )
-            await self._report_item(executor, task, runner.report_skip)
-        except (asyncio.CancelledError, AirflowTaskTimeout):
-            raise
-        except BaseException as e:
-            return task, None, e
+        )
+        await self._report_item(executor, task, runner.report_skip)
         return task, None, skipped
 
     async def _record_failure(

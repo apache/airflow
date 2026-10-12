@@ -61,6 +61,7 @@ from airflow.sdk.definitions.iterableoperator import (
     IndexedTaskOutcomes,
     IterableOperator,
     IterationState,
+    keeps_failure_to_its_item,
 )
 from airflow.sdk.exceptions import (
     AirflowFailException,
@@ -4337,3 +4338,45 @@ def test_deserialization_allowed_values_are_those_of_the_iterated_operator():
 
     assert isinstance(iterated, IterableOperator)
     assert iterated.deserialization_allowed_values() == [int]
+
+
+class TestKeepsFailureToItsItem:
+    """The rule an indexed task's steps share: what a step raises is that indexed task's outcome."""
+
+    class Steps:
+        """Stands in for IterableOperator: the decorator only needs a method taking the task first."""
+
+        @keeps_failure_to_its_item
+        async def step(self, task, raised=None, *, result="done"):
+            """Raise ``raised`` when given, else return the outcome."""
+            if raised is not None:
+                raise raised
+            return task, result, None
+
+    @pytest.mark.parametrize(
+        "raised",
+        [RuntimeError("store down"), AirflowSkipException("skip"), DeadlockImminentError("re-entry")],
+        ids=["exception", "airflow-exception", "base-exception"],
+    )
+    def test_what_the_step_raises_is_returned_as_the_outcome(self, raised):
+        task = object()
+
+        assert asyncio.run(self.Steps().step(task, raised)) == (task, None, raised)
+
+    @pytest.mark.parametrize(
+        "raised",
+        [asyncio.CancelledError(), AirflowTaskTimeout("parent timeout")],
+        ids=["cancelled", "parent-timeout"],
+    )
+    def test_a_cancellation_or_the_parents_timeout_goes_on(self, raised):
+        with pytest.raises(type(raised)):
+            asyncio.run(self.Steps().step(object(), raised))
+
+    def test_the_outcome_of_a_step_that_succeeds_is_kept(self):
+        task = object()
+
+        assert asyncio.run(self.Steps().step(task, result="pushed")) == (task, "pushed", None)
+
+    def test_the_step_keeps_its_name_and_docstring(self):
+        assert self.Steps.step.__name__ == "step"
+        assert self.Steps.step.__doc__ == "Raise ``raised`` when given, else return the outcome."
