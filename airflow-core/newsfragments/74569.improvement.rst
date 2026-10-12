@@ -1,1 +1,0 @@
-Validate Human-in-the-loop ``params_input`` against each param's JSON Schema when it is submitted; an invalid answer now returns ``400`` and the request stays open.
