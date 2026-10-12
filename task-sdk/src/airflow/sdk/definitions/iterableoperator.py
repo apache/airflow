@@ -1383,22 +1383,42 @@ class IterableOperator(BaseOperator):
         They belong in the fingerprint next to the iterated kwargs: clearing the upstream together with
         this task can change them while the input stays the same, and a checkpoint written with the old
         value must not be replayed. Only XComArg values count, read back from the unmapped operator
-        once rendered, at the top level or inside a mapping such as a ``@task``'s ``op_kwargs``. Other
+        once rendered, wherever they sit in a partial kwarg: at the top level, or at any depth of the
+        mappings, lists and tuples it holds, such as a ``@task``'s ``op_kwargs`` and ``op_args``. Other
         templated values are left out on purpose: one like ``{{ ti.try_number }}`` changes with every
         attempt and would make every checkpoint look stale.
         """
         inputs: dict[str, Any] = {}
         for key, value in self.partial_kwargs.items():
-            if isinstance(value, XComArg):
-                inputs[key] = getattr(unmapped_task, key, None)
-            elif isinstance(value, Mapping):
-                rendered = getattr(unmapped_task, key, None)
-                for name, nested in value.items():
-                    if isinstance(nested, XComArg):
-                        inputs[f"{key}.{name}"] = (
-                            rendered.get(name) if isinstance(rendered, Mapping) else None
-                        )
+            self._collect_upstream_values(key, value, getattr(unmapped_task, key, None), inputs)
         return inputs
+
+    @classmethod
+    def _collect_upstream_values(
+        cls, path: str, declared: Any, rendered: Any, inputs: dict[str, Any]
+    ) -> None:
+        """
+        Record under its path the rendered value of every XComArg in ``declared``, at any depth.
+
+        ``declared`` is a partial kwarg as written in the DAG and ``rendered`` the same value once
+        rendered, walked side by side: a mapping by key (``op_kwargs.cfg.x``), a list or tuple by
+        position (``op_args[0]``). A part rendered into another shape than it was declared in is
+        recorded as None.
+        """
+        if isinstance(declared, XComArg):
+            inputs[path] = rendered
+        elif isinstance(declared, Mapping):
+            for name, nested in declared.items():
+                value = rendered.get(name) if isinstance(rendered, Mapping) else None
+                cls._collect_upstream_values(f"{path}.{name}", nested, value, inputs)
+        elif isinstance(declared, (list, tuple)):
+            for position, nested in enumerate(declared):
+                value = (
+                    rendered[position]
+                    if isinstance(rendered, (list, tuple)) and position < len(rendered)
+                    else None
+                )
+                cls._collect_upstream_values(f"{path}[{position}]", nested, value, inputs)
 
     def _create_task(
         self,

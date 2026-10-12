@@ -3944,8 +3944,14 @@ class TestFingerprintCoversPartialInputsFromUpstream:
     """
 
     @staticmethod
-    def _run_twice(partial_value_on_retry, arg2_first="from-upstream", arg2_is_upstream=True):
-        """Attempt 1: item 2 fails. Attempt 2 (retry or clear): item 2 succeeds. Returns runs and results."""
+    def _run_twice(
+        partial_value_on_retry, arg2_first="from-upstream", arg2_is_upstream=True, shape=lambda value: value
+    ):
+        """
+        Attempt 1: item 2 fails. Attempt 2 (retry or clear): item 2 succeeds. Returns runs and results.
+
+        ``shape`` places the upstream value in the partial kwarg: as it is, or deep in a list or mapping.
+        """
         upstream_value = [arg2_first]
         runs = []
         original_execute = MockOperator.execute
@@ -3956,8 +3962,9 @@ class TestFingerprintCoversPartialInputsFromUpstream:
 
         with DAG("test_dag") as dag:
             if arg2_is_upstream:
-                arg2 = make_xcom_arg(None)
-                arg2.resolve = lambda *args, **kwargs: upstream_value[0]
+                upstream = make_xcom_arg(None)
+                upstream.resolve = lambda *args, **kwargs: upstream_value[0]
+                arg2 = shape(upstream)
             else:
                 arg2 = arg2_first
             expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2, "fail_on_first_attempt": True}])
@@ -3979,17 +3986,34 @@ class TestFingerprintCoversPartialInputsFromUpstream:
                 results = list(iterable_op.execute(context=context))
         return runs, results
 
-    def test_a_changed_upstream_value_runs_the_item_again(self):
-        runs, results = self._run_twice("changed-upstream")
+    # Where the upstream value sits in the partial kwarg, and how to read it back once rendered.
+    SHAPES = {
+        "top level": (lambda value: value, lambda rendered: rendered),
+        "in a list": (lambda value: [value, "literal"], lambda rendered: rendered[0]),
+        "two levels into a mapping": (
+            lambda value: {"cfg": {"x": value, "when": "{{ ti.try_number }}"}},
+            lambda rendered: rendered["cfg"]["x"],
+        ),
+        "in a list in a mapping": (
+            lambda value: {"paths": ["literal", value]},
+            lambda rendered: rendered["paths"][1],
+        ),
+    }
+
+    @pytest.mark.parametrize(("shape", "read"), SHAPES.values(), ids=SHAPES.keys())
+    def test_a_changed_upstream_value_runs_the_item_again(self, shape, read):
+        runs, results = self._run_twice("changed-upstream", shape=shape)
 
         assert (2, 1) in runs
-        assert results == [(1, "changed-upstream", None), (2, "changed-upstream", None)]
+        assert [read(value[1]) for value in results] == ["changed-upstream", "changed-upstream"]
 
-    def test_an_unchanged_upstream_value_keeps_the_checkpoint(self):
-        runs, results = self._run_twice("from-upstream")
+    @pytest.mark.parametrize(("shape", "read"), SHAPES.values(), ids=SHAPES.keys())
+    def test_an_unchanged_upstream_value_keeps_the_checkpoint(self, shape, read):
+        """A templated neighbour of the upstream value, rendered anew each attempt, does not count."""
+        runs, results = self._run_twice("from-upstream", shape=shape)
 
         assert (2, 1) not in runs
-        assert results == [(1, "from-upstream", None), (2, "from-upstream", None)]
+        assert [read(value[1]) for value in results] == ["from-upstream", "from-upstream"]
 
     def test_a_templated_partial_value_does_not_make_checkpoints_stale(self):
         """Only upstream values count: a value rendered anew every attempt must not force a rerun."""
@@ -4000,14 +4024,30 @@ class TestFingerprintCoversPartialInputsFromUpstream:
 
     def test_partial_inputs_from_upstream_are_read_from_the_rendered_operator(self):
         upstream = make_xcom_arg(None)
-        rendered = SimpleNamespace(arg2="rendered-arg2", op_kwargs={"y": "rendered-y", "z": 1}, retries=2)
+        rendered = SimpleNamespace(
+            arg2="rendered-arg2",
+            op_kwargs={"y": "rendered-y", "z": 1, "cfg": {"x": "rendered-x", "when": 3}},
+            op_args=["rendered-0", 1, ("rendered-2-0",)],
+            retries=2,
+        )
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([{"arg1": "a"}]))
-        iterable_op.partial_kwargs = {"arg2": upstream, "op_kwargs": {"y": upstream, "z": 1}, "retries": 2}
+        iterable_op.partial_kwargs = {
+            "arg2": upstream,
+            "op_kwargs": {"y": upstream, "z": 1, "cfg": {"x": upstream, "when": "{{ ti.try_number }}"}},
+            "op_args": [upstream, 1, (upstream,)],
+            "retries": 2,
+        }
 
         inputs = iterable_op._collect_partial_inputs_from_upstream(rendered)
 
-        assert inputs == {"arg2": "rendered-arg2", "op_kwargs.y": "rendered-y"}
+        assert inputs == {
+            "arg2": "rendered-arg2",
+            "op_kwargs.y": "rendered-y",
+            "op_kwargs.cfg.x": "rendered-x",
+            "op_args[0]": "rendered-0",
+            "op_args[2][0]": "rendered-2-0",
+        }
 
 
 CALLBACKS: list = []
