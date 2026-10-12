@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import attrs
 
-from airflow.sdk import DAG, XComArg, literal
+from airflow.sdk import DAG, BaseOperator, XComArg, literal
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.importers.yaml_importer.models import (
     ConstRef,
@@ -54,13 +54,15 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
-    from airflow.sdk import BaseOperator
     from airflow.sdk.importers.base import DagDefinition
     from airflow.sdk.importers.yaml_importer.models import DagDocument, Task, Value
 
 
 class YamlDagBuildError(ValueError):
     """A validated document could not be built into a DAG."""
+
+
+_BASE_TASK_ARGS = frozenset(BaseOperator.__init__._BaseOperatorMeta__param_names)  # type: ignore[attr-defined]
 
 
 @attrs.define(kw_only=True)
@@ -115,6 +117,16 @@ class DagBuilder:
 
     def _build_operator(self, task: Task) -> BaseOperator:
         """Instantiate *task* as an operator."""
+        if misplaced := sorted(k for k in task.with_ if k in _BASE_TASK_ARGS):
+            raise YamlDagBuildError(
+                f"task {task.id_!r}: {misplaced} are task-level arguments; set them at task level, not under 'with'"
+            )
+        if unknown := sorted(k for k in (task.model_extra or {}) if k not in _BASE_TASK_ARGS):
+            raise YamlDagBuildError(
+                f"task {task.id_!r}: {unknown} are not task-level (BaseOperator) arguments; "
+                "operator-specific arguments belong under 'with'"
+            )
+
         if (args := task.run) is not None:
             return self._build_stub_task(task, args)
 

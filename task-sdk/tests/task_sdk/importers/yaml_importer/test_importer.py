@@ -239,6 +239,29 @@ def test_import_marker_on_non_template_field_errors(mock_bundle, marker):
     assert any("only allowed on template_fields" in e.message for e in result.errors)
 
 
+def test_import_base_operator_arg_in_with_errors(mock_bundle):
+    # `with:` is the operator-specific namespace; a BaseOperator (task-level) arg like `retries`
+    # there is rejected rather than silently accepted.
+    definition = _def(
+        mock_bundle, "dag.yaml", _doc(f"- {{id: a, uses: {OP}, with: {{payload: x, retries: 2}}}}")
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert any("'retries'" in e.message and "not under 'with'" in e.message for e in result.errors)
+
+
+@pytest.mark.parametrize(
+    "body", ["- {{id: a, uses: {op}, with: {{payload: x}}, note: 1}}", "- {{id: a, run: {{}}, note: 1}}"]
+)
+def test_import_operator_arg_at_task_level_errors(mock_bundle, body):
+    # Task-level keys must be BaseOperator args; an operator-specific key (`note`) there is rejected
+    # (for both `uses:` and `run:` tasks) instead of being passed through raw.
+    definition = _def(mock_bundle, "dag.yaml", _doc(body.format(op=OP)))
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert any("not task-level" in e.message and "'note'" in e.message for e in result.errors)
+
+
 def test_import_literal_by_default(mock_bundle):
     # A bare Jinja-looking string on a field the operator class *does* template is NOT rendered:
     # literal by default, and the instance's template_fields is emptied of it.
