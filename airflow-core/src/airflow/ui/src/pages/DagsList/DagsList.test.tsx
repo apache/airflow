@@ -43,7 +43,7 @@ afterEach(() => {
 afterAll(() => server.close());
 
 describe("Dag Filters", () => {
-  it("passes an exact scheduling state from the URL to the API", async () => {
+  it("passes the draining scheduling state from the URL to the API", async () => {
     let requestedSchedulingState: string | null = null;
 
     server.use(
@@ -54,10 +54,11 @@ describe("Dag Filters", () => {
       }),
     );
 
-    render(<AppWrapper initialEntries={["/dags?scheduling_state=active"]} />);
+    render(<AppWrapper initialEntries={["/dags?scheduling_state=draining"]} />);
 
-    await waitFor(() => expect(requestedSchedulingState).toBe("active"));
-    expect(await screen.findByTestId("scheduling_state-pill")).toHaveTextContent("schedulingState.active");
+    await waitFor(() => expect(requestedSchedulingState).toBe("draining"));
+    // Draining is a choice within the Paused state pill, not a pill of its own.
+    expect(await screen.findByTestId("paused-pill")).toHaveTextContent("draining.label");
   });
 
   it("Filter by selected run state, matching the latest run by default", async () => {
