@@ -612,6 +612,13 @@ class SnowflakeHook(DbApiHook):
         if token_file_path:
             conn_config["token_file_path"] = token_file_path
 
+        impersonation_path = self._get_field(extra_dict, "workload_identity_impersonation_path")
+
+        if impersonation_path:
+            if isinstance(impersonation_path, str):
+                impersonation_path = [step.strip() for step in impersonation_path.split(",") if step.strip()]
+            conn_config["workload_identity_impersonation_path"] = impersonation_path
+
     def _add_authentication_config(
         self,
         conn_config: dict[str, Any],
