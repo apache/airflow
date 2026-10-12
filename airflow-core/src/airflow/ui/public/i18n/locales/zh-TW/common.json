@@ -220,8 +220,8 @@
     "receivedAssetEvents": "收到的資源事件"
   },
   "pause": "暫停",
-  "pendingDagRun_one": "{{count}} 個待執行的 Dag 執行",
-  "pendingDagRun_other": "{{count}} 個待執行的 Dag 執行",
+  "pendingDagRun_one": "{{count, number}} 個待執行的 Dag 執行",
+  "pendingDagRun_other": "{{count, number}} 個待執行的 Dag 執行",
   "presetFilters": {
     "deleteTitle": "刪除預設篩選條件",
     "deleteWarning": "預設篩選條件僅儲存在此瀏覽器中。",
@@ -493,8 +493,8 @@
   "taskInstance_one": "任務實例",
   "taskInstance_other": "任務實例",
   "teams": {
-    "more_one": "還有 {{count}} 個",
-    "more_other": "還有 {{count}} 個",
+    "more_one": "還有 {{count, number}} 個",
+    "more_other": "還有 {{count, number}} 個",
     "none": "沒有團隊",
     "title": "團隊"
   },
@@ -525,21 +525,21 @@
     "bulkClear": {
       "error": "批次清除 {{resourceName}} 請求失敗",
       "success": {
-        "description": "已成功清除 {{count}} 個 {{resourceName}}。鍵：{{keys}}",
+        "description": "已成功清除 {{count, number}} 個 {{resourceName}}。鍵：{{keys}}",
         "title": "已提交批次清除 {{resourceName}} 請求"
       }
     },
     "bulkDelete": {
       "error": "批次刪除 {{resourceName}} 請求失敗",
       "success": {
-        "description": "已成功刪除 {{count}} 個 {{resourceName}}。鍵：{{keys}}",
+        "description": "已成功刪除 {{count, number}} 個 {{resourceName}}。鍵：{{keys}}",
         "title": "已提交批次刪除 {{resourceName}} 請求"
       }
     },
     "bulkUpdate": {
       "error": "批次更新 {{resourceName}} 請求失敗",
       "success": {
-        "description": "已成功更新 {{count}} 個 {{resourceName}}。鍵：{{keys}}",
+        "description": "已成功更新 {{count, number}} 個 {{resourceName}}。鍵：{{keys}}",
         "title": "已提交批次更新 {{resourceName}} 請求"
       }
     },
@@ -560,7 +560,7 @@
     "import": {
       "error": "匯入 {{resourceName}} 請求失敗",
       "success": {
-        "description": "已成功匯入 {{count}} 個 {{resourceName}}。",
+        "description": "已成功匯入 {{count, number}} 個 {{resourceName}}。",
         "title": "已提交匯入 {{resourceName}} 請求"
       }
     },

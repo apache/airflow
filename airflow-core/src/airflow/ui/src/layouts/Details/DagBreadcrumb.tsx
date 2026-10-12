@@ -30,6 +30,7 @@ import type { TaskInstanceState } from "openapi/requests/types.gen";
 
 import { BreadcrumbRow, CrumbLink, CrumbStack, CrumbText, type CrumbShape } from "src/components/Breadcrumb";
 
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { DagRunSwitcherButton } from "./DagRunSwitcherButton";
@@ -102,6 +103,7 @@ export const DagBreadcrumb = () => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const { dagId = "", groupId, mapIndex = "-1", runId, taskId } = useParams();
   const { pathname } = useLocation();
+  const coordinates = useTaskInstanceCoordinates();
   const refetchInterval = useAutoRefresh({ dagId });
   const parsedMapIndex = parseInt(mapIndex, 10);
 
@@ -124,7 +126,7 @@ export const DagBreadcrumb = () => {
   const { data: task } = useTaskServiceGetTask({ dagId, taskId }, undefined, { enabled: Boolean(taskId) });
 
   const { data: mappedTaskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
-    { dagId, dagRunId: runId ?? "", mapIndex: parsedMapIndex, taskId: taskId ?? "" },
+    { ...coordinates, dagId, dagRunId: runId ?? "", mapIndex: parsedMapIndex, taskId: taskId ?? "" },
     undefined,
     { enabled: Boolean(runId) && Boolean(taskId) && mapIndex !== "-1" && !isNaN(parsedMapIndex) },
   );
@@ -137,7 +139,7 @@ export const DagBreadcrumb = () => {
   // Expanded instances are a list rather than one instance, so there is no single state to show —
   // and asking for one without a map index is a guaranteed 404.
   const { data: taskInstance } = useTaskInstanceServiceGetTaskInstance(
-    { dagId, dagRunId: runId ?? "", taskId: taskId ?? "" },
+    { ...coordinates, dagId, dagRunId: runId ?? "", taskId: taskId ?? "" },
     undefined,
     {
       enabled: Boolean(runId) && Boolean(taskId) && !hasExpandedInstances,

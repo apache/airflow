@@ -20,6 +20,7 @@ import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type {
+  GanttTaskInstance,
   LightGridTaskInstanceSummary,
   TaskInstanceHistoryResponse,
   TaskInstanceResponse,
@@ -33,18 +34,28 @@ import { formatNumber, sortStateEntries, useDurationFormat } from "src/utils";
 
 /** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */
 type LightGridTaskInstanceSummaryWithWhen = {
+  readonly loop_iteration?: GanttTaskInstance["loop_iteration"];
   readonly queued_when?: string | null;
   readonly scheduled_when?: string | null;
 } & LightGridTaskInstanceSummary;
 
 type Props = {
+  readonly loopMaxIterations?: number | null;
   readonly runId?: string | null;
   readonly taskInstance?:
     LightGridTaskInstanceSummaryWithWhen | TaskInstanceHistoryResponse | TaskInstanceResponse;
   readonly tooltip?: string | null;
 } & Omit<TooltipProps, "content">;
 
-const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, tooltip, ...rest }: Props) => {
+const TaskInstanceTooltip = ({
+  children,
+  loopMaxIterations,
+  positioning,
+  runId,
+  taskInstance,
+  tooltip,
+  ...rest
+}: Props) => {
   const { i18n, t: translate } = useTranslation();
   const { formatElapsed, renderDuration } = useDurationFormat();
 
@@ -77,6 +88,24 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
               {"dag_run_id" in taskInstance || (runId !== undefined && runId !== null && runId !== "") ? (
                 <Text>
                   {translate("runId")}: {"dag_run_id" in taskInstance ? taskInstance.dag_run_id : runId}
+                </Text>
+              ) : undefined}
+              {"loop_iteration" in taskInstance &&
+              taskInstance.loop_iteration !== null &&
+              taskInstance.loop_iteration !== undefined ? (
+                <Text>
+                  {translate("taskInstance.iteration")}: {taskInstance.loop_iteration.iteration} (
+                  {taskInstance.loop_iteration.loop_id})
+                </Text>
+              ) : undefined}
+              {"loop_iterations_count" in taskInstance &&
+              taskInstance.loop_iterations_count !== null &&
+              taskInstance.loop_iterations_count !== undefined ? (
+                <Text>
+                  {translate("taskInstance.loopIterations")}: {taskInstance.loop_iterations_count}
+                  {loopMaxIterations === null || loopMaxIterations === undefined
+                    ? undefined
+                    : `/${loopMaxIterations}`}
                 </Text>
               ) : undefined}
               {"scheduled_when" in taskInstance &&

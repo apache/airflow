@@ -32,7 +32,7 @@ list; there is no auto-discovery.
     toolset = HookToolset(
         http_hook,
         allowed_methods=["run"],
-        tool_name_prefix="http_",
+        tool_prefix="http",
     )
 
 For each listed method, the introspection engine:
@@ -168,8 +168,11 @@ Parameters
 - ``hook``: An instantiated Airflow Hook. Its connection ID is templated.
 - ``allowed_methods``: Method names to expose as tools. Required. Methods
   are validated with ``hasattr`` + ``callable`` at instantiation time.
-- ``tool_name_prefix``: Optional prefix prepended to each tool name
-  (e.g. ``"s3_"`` produces ``"s3_list_keys"``).
+- ``tool_prefix``: Optional prefix joined to each tool name with an underscore
+  (e.g. ``"s3"`` produces ``"s3_list_keys"``). Must be a valid Python identifier.
+  ``tool_name_prefix`` is deprecated and concatenated as given (``"s3_"`` produces
+  ``"s3_list_keys"``); passing both raises ``ValueError`` unless ``tool_name_prefix``
+  equals ``"<tool_prefix>_"``.
 - ``pinned_arguments``: Arguments fixed by the Dag author rather than chosen by the
   model. See above.
 - ``max_retries``: How many times the model may correct a call with invalid arguments,
@@ -218,7 +221,7 @@ reflection-based adapter, so the work is choosing the method list.
     HookToolset(
         s3_hook,
         allowed_methods=["list_keys", "read_key"],
-        tool_name_prefix="s3_",
+        tool_prefix="s3",
     )
 
 **Credentials and where it runs.** The hook instance is yours, so the credential

@@ -10,8 +10,8 @@
   },
   "requiredAction_one": "要対応項目",
   "requiredAction_other": "要対応項目",
-  "requiredActionCount_one": "要対応項目 ({{count}} 件)",
-  "requiredActionCount_other": "要対応項目 ({{count}} 件)",
+  "requiredActionCount_one": "要対応項目 ({{count, number}} 件)",
+  "requiredActionCount_other": "要対応項目 ({{count, number}} 件)",
   "requiredActionState": "要対応状態",
   "response": {
     "created": "以下の日時に応答が作成されました",

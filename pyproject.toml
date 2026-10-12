@@ -161,7 +161,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
 "apache.tinkerpop" = [
-    "apache-airflow-providers-apache-tinkerpop>=1.0.0"
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\""
 ]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
@@ -407,7 +407,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-vertica>=3.9.1"
 ]
 "vespa" = [
-    "apache-airflow-providers-vespa>=0.1.0"
+    "apache-airflow-providers-vespa>=0.1.0; python_version !=\"3.14\""
 ]
 "weaviate" = [
     "apache-airflow-providers-weaviate>=3.0.0"
@@ -445,7 +445,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
     "apache-airflow-providers-apache-spark>=4.11.1",
-    "apache-airflow-providers-apache-tinkerpop>=1.0.0",
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
@@ -527,7 +527,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-teradata>=2.6.1",
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
-    "apache-airflow-providers-vespa>=0.1.0",
+    "apache-airflow-providers-vespa>=0.1.0; python_version !=\"3.14\"",
     "apache-airflow-providers-weaviate>=3.0.0",
     "apache-airflow-providers-yandex>=4.0.0",
     "apache-airflow-providers-ydb>=1.4.0",
