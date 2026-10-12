@@ -41,6 +41,8 @@ if TYPE_CHECKING:
 
 _PASSWORD = "snowflake42"
 
+IMPERSONATION_PATH = ["arn:aws:iam::123456789012:role/a", "arn:aws:iam::123456789012:role/b"]
+
 BASE_CONNECTION_KWARGS: dict = {
     "login": "user",
     "conn_type": "snowflake",
@@ -1926,6 +1928,23 @@ class TestPytestSnowflakeHook:
 
         assert "token" not in conn_params
         assert "token_file_path" not in conn_params
+
+    @pytest.mark.parametrize(
+        "impersonation_path",
+        [IMPERSONATION_PATH, ", ".join(IMPERSONATION_PATH)],
+        ids=["list", "comma-separated"],
+    )
+    def test_get_conn_params_forwards_workload_identity_impersonation_path(self, impersonation_path):
+        """A list or a comma-separated string reaches the connector as a list, in order."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["authenticator"] = "WORKLOAD_IDENTITY"
+        connection_kwargs["extra"]["workload_identity_provider"] = "AWS"
+        connection_kwargs["extra"]["workload_identity_impersonation_path"] = impersonation_path
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["workload_identity_impersonation_path"] == IMPERSONATION_PATH
 
     def test_get_conn_params_pat_authenticator_passes_password_as_token(self):
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
