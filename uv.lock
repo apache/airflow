@@ -6776,7 +6776,7 @@ requires-dist = [
     { name = "azure-mgmt-datalake-store", specifier = ">=0.5.0" },
     { name = "azure-mgmt-resource", specifier = ">=25.0.0" },
     { name = "azure-mgmt-storage", specifier = ">=24.0.1" },
-    { name = "azure-search-documents", specifier = ">=11.6.0" },
+    { name = "azure-search-documents", specifier = ">=11.6.0,!=12.0.0" },
     { name = "azure-servicebus", specifier = ">=7.14.3" },
     { name = "azure-storage-blob", specifier = ">=12.28.0" },
     { name = "azure-storage-file-datalake", specifier = ">=12.23.0" },
@@ -10381,16 +10381,17 @@ wheels = [
 
 [[package]]
 name = "azure-search-documents"
-version = "12.0.0"
+version = "11.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "azure-common" },
     { name = "azure-core" },
     { name = "isodate" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/59/dc/bb4db263381aa5b29414e280a8535a343d877a3831a501ef39332174c85c/azure_search_documents-12.0.0.tar.gz", hash = "sha256:8e6d73ec0ed1623083435b757e34324db65d72d4e09cca061a59fc7e90c8ddbc", size = 386222, upload-time = "2026-05-01T20:28:22.269Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cf/68/9d59a0bed5fd9581b45444e8abc3ecda97e0466ae0f03affc7cddfb9fa74/azure_search_documents-11.6.0.tar.gz", hash = "sha256:fcc807076ff82024be576ffccb0d0f3261e5c2a112a6666b86ec70bbdb2e1d64", size = 311194, upload-time = "2025-10-09T22:04:03.655Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a4/b1/4869a064dbb79fb4ecac684de51a8f8f7a93a315f3f9cc4bf8a65cc413cd/azure_search_documents-12.0.0-py3-none-any.whl", hash = "sha256:d88114e4179cd753845711042380a4571e7faa8619addf5e017928ebe37fc0d1", size = 352117, upload-time = "2026-05-01T20:28:23.989Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/4c/d74e5c3ccc0b9ead0e400a2d70ded67554b56a5d799aaa8bf5baaacf4aea/azure_search_documents-11.6.0-py3-none-any.whl", hash = "sha256:c3eb2deaf7926844e99a881830861225ef68e8b3bc067a76019e87fc7f5586dc", size = 307935, upload-time = "2025-10-09T22:04:05.008Z" },
 ]
 
 [[package]]
