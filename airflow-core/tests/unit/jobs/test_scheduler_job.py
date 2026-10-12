@@ -5957,6 +5957,49 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @pytest.mark.parametrize("upstream_state", [State.RUNNING, State.DEFERRED])
+    def test_verify_integrity_updates_dag_version_for_waiting_tasks(self, dag_maker, session, upstream_state):
+        with dag_maker("test_version_update_with_waiting_task", serialized=False, session=session) as dag:
+            upstream = BashOperator(task_id="upstream", bash_command="echo upstream")
+            downstream = BashOperator(task_id="downstream", bash_command="echo downstream")
+            upstream >> downstream
+
+        dr = dag_maker.create_dagrun()
+        assert dr.bundle_version is None
+        upstream_ti = dr.get_task_instance("upstream", session=session)
+        upstream_ti.state = upstream_state
+        downstream_ti = dr.get_task_instance("downstream", session=session)
+        assert downstream_ti.state is None
+        original_version_id = downstream_ti.dag_version_id
+        session.commit()
+
+        downstream.bash_command = "echo updated downstream"
+        SerializedDagModel.write_dag(
+            LazyDeserializedDAG.from_dag(dag), bundle_name=dag_maker.bundle_name, session=session
+        )
+        session.commit()
+        latest_version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
+        assert latest_version_id != original_version_id
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner._schedule_dag_run(dr, session)
+        session.commit()
+
+        session.refresh(upstream_ti)
+        session.refresh(downstream_ti)
+        assert upstream_ti.dag_version_id == latest_version_id
+        assert downstream_ti.state is None
+        assert downstream_ti.dag_version_id == latest_version_id
+
+        upstream_ti.state = State.SUCCESS
+        session.commit()
+        self.job_runner._schedule_dag_run(dr, session)
+        session.commit()
+
+        session.refresh(downstream_ti)
+        assert downstream_ti.state == State.SCHEDULED
+        assert downstream_ti.dag_version_id == latest_version_id
+
     def test_verify_integrity_not_called_for_versioned_bundles(self, dag_maker, session):
         with dag_maker("test_verify_integrity_if_dag_not_changed") as dag:
             BashOperator(task_id="dummy", bash_command="echo hi")
