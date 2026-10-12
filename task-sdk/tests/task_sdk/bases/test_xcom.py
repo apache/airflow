@@ -313,6 +313,18 @@ class TestXComIterable:
             "skipped": [],
         }
 
+    def test_an_iterable_read_through_loop_previous_is_refused_when_pushed(self):
+        """
+        "Previous" is relative to the reader: pushed on, the iterable would point a later reader at
+        another iteration's items, so serializing it, as a push or a checkpoint does, is refused.
+        """
+        iterable = XComIterable(task_id="task", dag_id="dag", run_id="run", length=2, previous_iteration=True)
+
+        with pytest.raises(TypeError, match="read through loop.previous cannot be pushed as is"):
+            iterable.serialize()
+        with pytest.raises(TypeError, match="read through loop.previous cannot be pushed as is"):
+            BaseXCom.serialize_value(iterable)
+
     def test_deserialize_restores_fields(self):
         data = {"task_id": "task", "dag_id": "dag", "run_id": "run", "map_index": 2, "length": 5}
         iterable = XComIterable.deserialize(data, version=1)

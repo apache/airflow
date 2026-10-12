@@ -593,7 +593,8 @@ class XComIterable(Sequence):
 
     Inside a loop, the result an iterated terminal pushed in the previous iteration
     (``loop.previous``) has ``previous_iteration`` set, so its elements are read from that
-    iteration too and not from the current one.
+    iteration too and not from the current one. "Previous" is relative to whoever reads, so
+    such an iterable cannot be pushed on: :meth:`serialize` refuses it (see there).
     """
 
     def __init__(
@@ -684,7 +685,20 @@ class XComIterable(Sequence):
         return query
 
     def serialize(self) -> dict:
-        """Ensure the object is JSON serializable."""
+        """
+        Ensure the object is JSON serializable.
+
+        An iterable read through ``loop.previous`` is refused: its items are read from the
+        iteration before the reader's, so pushed as a return value or an XCom, or checkpointed,
+        it would point at another iteration's items for every later reader. Push the values the
+        task needs instead, ``list(loop.previous)`` for all of them.
+        """
+        if self.previous_iteration:
+            raise TypeError(
+                f"The result of {self.task_id!r} read through loop.previous cannot be pushed as is: "
+                "it reads the iteration before its reader's, so a later reader would get other items. "
+                "Push the values you need instead, for example list(loop.previous)."
+            )
         data = {
             "task_id": self.task_id,
             "dag_id": self.dag_id,
@@ -693,9 +707,6 @@ class XComIterable(Sequence):
             "length": self.length,
             "skipped": self.skipped,
         }
-        if self.previous_iteration:
-            # Only when set, so a value pushed outside a loop keeps its earlier form.
-            data["previous_iteration"] = True
         return data
 
     @classmethod
