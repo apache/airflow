@@ -353,7 +353,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             return self._poke_af3(context, dttm_filter)
         return self._poke_af2(context, dttm_filter)
 
-    def _push_external_run_ids_to_xcom(
+    def _push_external_run_id_to_xcom(
         self, context: Context, dttm_filter: Sequence[datetime.datetime]
     ) -> None:
         try:
@@ -361,7 +361,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                 logical_date = dttm_filter[0]
                 external_run_id = f"scheduled__{logical_date.isoformat()}"
 
-                ti = context.get("ti")
+                ti = context["ti"]
                 ti.xcom_push(key=XCOM_EXTERNAL_RUN_ID, value=external_run_id)
         except Exception:
             self.log.exception("Failed to push external run_id to XCom.")
@@ -406,7 +406,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         count = _get_count(self.allowed_states)
         count_allowed = self._calculate_count(count, dttm_filter)
         if count_allowed == len(dttm_filter):
-            self._push_external_run_ids_to_xcom(context, dttm_filter)
+            self._push_external_run_id_to_xcom(context, dttm_filter)
             return True
         return False
 
@@ -486,7 +486,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
             count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
             if count_allowed == len(dttm_filter):
-                self._push_external_run_ids_to_xcom(context, dttm_filter)
+                self._push_external_run_id_to_xcom(context, dttm_filter)
                 return True
             return False
 
