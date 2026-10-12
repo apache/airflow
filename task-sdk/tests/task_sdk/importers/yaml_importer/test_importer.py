@@ -216,6 +216,19 @@ def test_import_coerces_temporal_start_date(mock_bundle, value, hour):
     assert (start.year, start.month, start.day, start.hour) == (2024, 1, 1, hour)
 
 
+def test_import_does_not_coerce_nontemporal_arg(mock_bundle):
+    # _coerce_temporal introspects the target's argument types and only promotes datetime-typed ones.
+    # A date-looking string on a non-temporal arg (owner: str) keeps its type instead of becoming a datetime.
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP}, owner: '2024-01-01', with: {{payload: x}}}}"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").owner == "2024-01-01"
+
+
 def test_import_code_task_builds_stub_operator(mock_bundle):
     # A code task (run:) builds the stub operator Airflow understands (@task.stub). Its body is a
     # registered SDK task handler; the run mapping binds as that handler's arguments (op_kwargs),

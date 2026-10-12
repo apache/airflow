@@ -92,12 +92,13 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
         bundle: BaseDagBundle,
     ) -> DagImportResult:
         result = DagImportResult(definition=definition)
+        ref = repr(definition)
         try:
             source = definition.read_text(encoding="utf-8")
         except Exception as exc:
             result.errors.append(
                 DagImportError(
-                    source_reference=repr(definition),
+                    source_reference=ref,
                     message=str(exc),
                     error_type="import",
                     stacktrace=traceback.format_exc(),
@@ -108,11 +109,9 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
         # A parse failure fails the whole file (like a Python module that won't
         # import). All documents' failures are reported together.
         try:
-            documents = list(parse_documents(source, source=repr(definition)))
+            documents = list(parse_documents(source, source=ref))
         except YamlDagParseError as exc:
-            result.errors.append(
-                DagImportError(source_reference=repr(definition), message=str(exc), error_type="parse")
-            )
+            result.errors.append(DagImportError(source_reference=ref, message=str(exc), error_type="parse"))
             return result
 
         dags: dict[str, DAG] = {}
@@ -139,7 +138,7 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
             result.errors.append(
                 DagImportError(
-                    source_reference=repr(definition),
+                    source_reference=ref,
                     message=f"{summary}:\n{detail}",
                     error_type="import",
                     stacktrace=stacktrace,

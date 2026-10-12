@@ -34,10 +34,12 @@ already exists when the downstream operator is constructed.
 from __future__ import annotations
 
 import datetime
+import functools
 import graphlib
 import keyword
 import linecache
-from typing import TYPE_CHECKING, Any, cast
+import re
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import attrs
 
@@ -83,7 +85,7 @@ class DagBuilder:
 
     def build(self, doc: DagDocument) -> DAG:
         tasks = {t.id_: t for t in doc.tasks}
-        extras = _coerce_temporal(doc.model_extra or {})
+        extras = _coerce_temporal(doc.model_extra or {}, DAG)
         with DAG(dag_id=doc.dag_id, schedule=_build_schedule(doc.schedule), **extras) as dag:
             # A task depended by another task must be built first.
             for task_id in _topological_order(doc.tasks):
@@ -114,7 +116,9 @@ class DagBuilder:
                 raise YamlDagBuildError(f"task {task.id_!r}: run argument {name!r} is not a valid identifier")
             _reject_unbindable_run_marker(task.id_, value)
             run_kwargs[name] = self._lower(value, protect=False)
-        decorator = task_decorators.stub(task_id=task.id_, **_coerce_temporal(task.model_extra or {}))
+        decorator = task_decorators.stub(
+            task_id=task.id_, **_coerce_temporal(task.model_extra or {}, BaseOperator)
+        )
         return decorator(self._stub_callable(tuple(run_kwargs)))(**run_kwargs).operator
 
     def _build_operator(self, task: Task) -> BaseOperator:
@@ -153,7 +157,7 @@ class DagBuilder:
         if off_template:
             raise YamlDagBuildError(f"task {task.id_!r}: value grammar only allowed on template_fields")
         if task.model_extra:  # Merge in task-level arguments (raw, never templated).
-            kwargs.update(_coerce_temporal(task.model_extra))
+            kwargs.update(_coerce_temporal(task.model_extra, BaseOperator))
 
         return _restrict_template_fields(op_cls(task_id=task.id_, **kwargs), task.with_, render_fields)
 
@@ -280,17 +284,21 @@ def _reject_unbindable_run_marker(task_id: str, value: Any) -> None:
             _reject_unbindable_run_marker(task_id, item)
 
 
-def _coerce_temporal(mapping: dict[str, Any]) -> dict[str, Any]:
+def _coerce_temporal(mapping: dict[str, Any], target: type) -> dict[str, Any]:
     """
     Promote YAML-native dates and ISO date/datetime strings to datetimes.
 
-    Dag/operator arguments such as ``start_date`` are datetimes, but YAML has
-    distinct date and date-time formats. Convert dates to midnight times.
+    Some fields on a Dag or operator are datetimes, but YAML has distinct date
+    and date-time formats, so a bare ``2024-01-01`` or a quoted ISO string would
+    otherwise reach the datetime field unconverted. A date becomes midnight; an
+    ISO string is parsed (which also helps JSON compatibility).
 
-    Strings are also parsed automatically to datetimes if they LOOK like the ISO
-    8601 format. This helps with JSON compatibility.
+    Only values bound to a *target* argument annotated as ``datetime`` are
+    coerced. A non-temporal argument is left untouched, so a string that merely
+    looks like a date keeps its type.
     """
-    return {key: _to_datetime(value) for key, value in mapping.items()}
+    temporal = _temporal_fields(target)
+    return {key: _to_datetime(value) if key in temporal else value for key, value in mapping.items()}
 
 
 def _to_datetime(value: Any) -> Any:
@@ -306,6 +314,36 @@ def _to_datetime(value: Any) -> Any:
     return value
 
 
+# We annotate arguments with either stdlib datetime or pendulum DateTime.
+# Matched by name (see _temporal_fields) rather than resolved to avoid having
+# to evaluate dynamically.
+_TEMPORAL_TYPE_NAMES = frozenset({"datetime", "DateTime"})
+_TYPE_NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*")
+
+
+@functools.cache
+def _temporal_fields(target: type) -> frozenset[str]:
+    """
+    Names of *target*'s arguments annotated as a datetime type.
+
+    The annotation is read as text and matched against the datetime type names
+    we use; it is never resolved, so one referring to a ``TYPE_CHECKING``-only
+    name does not need importing. This is not perfect; we'll try to fix edge
+    cases as we go.
+    """
+    found: set[str] = set()
+    for klass in getattr(target, "__mro__", (target,)):
+        for name, annotation in getattr(klass, "__annotations__", {}).items():
+            if name not in found and _is_temporal_annotation(str(annotation)):
+                found.add(name)
+    return frozenset(found)
+
+
+def _is_temporal_annotation(annotation: str) -> bool:
+    """Return True if *annotation* names a datetime type, ignoring any module prefix."""
+    return any(ref.rsplit(".", 1)[-1] in _TEMPORAL_TYPE_NAMES for ref in _TYPE_NAME_RE.findall(annotation))
+
+
 def _build_schedule(schedule: Any) -> Any:
     """Build *schedule* into a schedule construct for :class:`DAG`."""
     if isinstance(schedule, TimetableSchedule):
@@ -313,31 +351,35 @@ def _build_schedule(schedule: Any) -> Any:
     return schedule
 
 
-def _field_markers(value: Any) -> tuple[bool, bool]:
-    """
-    Scan a value-grammar node for ``(needs_render, has_marker)``.
+class _FieldMarkers(NamedTuple):
+    """Flags describing a value-grammar node's templating needs."""
 
-    ``needs_render`` is True when it carries a ``$t`` or ``$x`` anywhere (the field must render);
-    ``has_marker`` is True when it carries any of ``$x``/``$t``/``$f`` (only allowed on a templated
-    field). ``$const`` is a force-literal escape, not a marker.
+    needs_render: bool  # carries $t or $x anywhere -- the field must render
+    has_marker: bool  # carries $x/$t/$f -- only allowed on a templated field
+
+
+def _field_markers(value: Any) -> _FieldMarkers:
     """
-    if isinstance(value, XComRef):
-        return True, True
-    if isinstance(value, TemplateRef):
-        return True, True
+    Scan a value-grammar node for its :class:`_FieldMarkers`.
+
+    ``$const`` is a force-literal escape, not a marker.
+    """
+    if isinstance(value, (XComRef, TemplateRef)):
+        return _FieldMarkers(needs_render=True, has_marker=True)
     if isinstance(value, FileRef):
-        return False, True
+        return _FieldMarkers(needs_render=False, has_marker=True)
     if isinstance(value, ConstRef):
-        return False, False
+        return _FieldMarkers(needs_render=False, has_marker=False)
     if isinstance(value, Literal):
         return _field_markers(value.root)
-    if isinstance(value, dict):
-        flags = [_field_markers(v) for v in value.values()]
-        return any(r for r, _ in flags), any(m for _, m in flags)
-    if isinstance(value, list):
-        flags = [_field_markers(v) for v in value]
-        return any(r for r, _ in flags), any(m for _, m in flags)
-    return False, False
+    if isinstance(value, (dict, list)):
+        children = value.values() if isinstance(value, dict) else value
+        flags = [_field_markers(v) for v in children]
+        return _FieldMarkers(
+            needs_render=any(f.needs_render for f in flags),
+            has_marker=any(f.has_marker for f in flags),
+        )
+    return _FieldMarkers(needs_render=False, has_marker=False)
 
 
 def _topological_order(tasks: list[Task]) -> list[str]:
