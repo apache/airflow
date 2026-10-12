@@ -235,11 +235,15 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     err_decoder: TypeAdapter[ErrorResponse] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
 
-    _thread_lock: threading.Lock = attrs.field(factory=threading.Lock, repr=False)
+    # Reentrant, so that a send() which interrupts its own thread's (a signal handler on the main
+    # thread) is let in instead of waiting for itself, and can tell from _exchanging whether that
+    # thread was in the middle of a request. The RLock records its owner when it is taken, so no
+    # moment is left where the thread holds the lock but is not yet known as its holder.
+    _thread_lock: threading.RLock = attrs.field(factory=threading.RLock, repr=False)
     _async_lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, repr=False)
-    # The thread exchanging a request while it holds _thread_lock, so send() can tell a call that
-    # would wait for its own thread from one that waits for another.
-    _channel_owner: int | None = attrs.field(default=None, repr=False, init=False)
+    # Whether the thread holding _thread_lock is between writing a request and reading its
+    # response. Only that thread can read it as True once it holds the lock itself.
+    _exchanging: bool = attrs.field(default=False, repr=False, init=False)
 
     def _make_frame(self, msg: SendMsgType) -> _RequestFrame:
         carrier: dict[str, str] = {}
@@ -257,15 +261,19 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         itself in the middle of a request raises :class:`DeadlockImminentError`, as waiting there
         would never end.
         """
-        if self._channel_owner == threading.get_ident():
-            raise DeadlockImminentError(msg)
         frame_bytes = self._make_frame(msg).as_bytes()
         with self._thread_lock:
+            # Another thread's request makes the acquire above wait for it. This thread's own lets
+            # it in again: in the middle of that request, the call would wait for its own response,
+            # so it raises; before the request is written or after its response is read, the
+            # channel is free and this call is exchanged whole in between.
+            if self._exchanging:
+                raise DeadlockImminentError(msg)
             return self._exchange(msg, frame_bytes)
 
     def _exchange(self, msg: SendMsgType, frame_bytes: bytes | bytearray) -> ReceiveMsgType | None:
         """Write one request and read its response; the caller holds ``_thread_lock``."""
-        self._channel_owner = threading.get_ident()
+        self._exchanging = True
         try:
             self.socket.sendall(frame_bytes)
             if isinstance(msg, ResendLoggingFD):
@@ -284,7 +292,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
             return self._get_response()
         finally:
-            self._channel_owner = None
+            self._exchanging = False
 
     def _locked_exchange(
         self, msg: SendMsgType, frame_bytes: bytes | bytearray, abandoned: threading.Event

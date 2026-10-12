@@ -41,6 +41,21 @@ from airflow.sdk.execution_time.comms import (
 )
 
 
+def _is_taken(lock) -> bool:
+    """Whether a thread holds ``lock``, asked from a thread of its own: an RLock lets its owner in again."""
+    free: list[bool] = []
+
+    def probe():
+        free.append(lock.acquire(blocking=False))
+        if free[0]:
+            lock.release()
+
+    prober = threading.Thread(target=probe)
+    prober.start()
+    prober.join()
+    return not free[0]
+
+
 class TestCommsModels:
     """Test Pydantic models used in task communication for proper validation."""
 
@@ -347,7 +362,7 @@ class TestCommsDecoder:
             await cancelled
 
         try:
-            assert decoder._thread_lock.locked(), "the channel was released before the response was read"
+            assert _is_taken(decoder._thread_lock), "the channel was released before the response was read"
 
             results: list = []
             sender = threading.Thread(
@@ -359,7 +374,7 @@ class TestCommsDecoder:
             await asyncio.to_thread(sender.join, 5)
 
             assert [result.key for result in results] == ["next"]
-            assert not decoder._thread_lock.locked()
+            assert not _is_taken(decoder._thread_lock)
         except BaseException:
             # Unblocks a read left in recv, so a failure here ends the test instead of hanging the
             # loop's executor shutdown.
@@ -495,7 +510,7 @@ class TestCommsDecoder:
         assert result.key == "outer"
         assert len(raised) == 1
         assert "already in the middle of a request" in str(raised[0])
-        assert not decoder._thread_lock.locked()
+        assert not _is_taken(decoder._thread_lock)
 
     @pytest.mark.skipif(not hasattr(signal, "setitimer"), reason="needs SIGALRM timers")
     def test_a_signal_handler_calling_send_during_a_send_raises_instead_of_freezing(self, socket_pair):
@@ -527,10 +542,10 @@ class TestCommsDecoder:
         assert result.key == "interrupted"
         assert len(raised) == 1
 
-    def test_a_failed_request_leaves_no_owner_behind(self, socket_pair):
+    def test_a_failed_request_leaves_no_request_in_flight_behind(self, socket_pair):
         """
-        A request that fails mid-exchange releases the channel and its owner, so the thread's next
-        call is served instead of being taken for a call from inside a request.
+        A request that fails mid-exchange releases the channel and clears its in-flight mark, so the
+        thread's next call is served instead of being taken for a call from inside a request.
         """
         r, w = socket_pair
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
@@ -540,9 +555,43 @@ class TestCommsDecoder:
             with pytest.raises(EOFError):
                 decoder.send(GetVariable(key="lost"))
 
-        assert decoder._channel_owner is None
-        assert not decoder._thread_lock.locked()
+        assert decoder._exchanging is False
+        assert not _is_taken(decoder._thread_lock)
         assert decoder.send(GetVariable(key="next")) is not None
+
+    # Waiting for its own thread would never end: the limit turns a regression into a failure.
+    @pytest.mark.execution_timeout(10)
+    @pytest.mark.parametrize("where", ["before the request is written", "after the response is read"])
+    def test_a_send_interrupting_its_own_thread_outside_a_request_is_served(self, socket_pair, where):
+        """
+        A signal handler can land after the interrupted send() took the channel but before it wrote
+        its request, or after it read its response but before it let the channel go. Nothing of the
+        interrupted request is on the wire then, so the handler's call is exchanged whole in between
+        instead of waiting for its own thread, and both callers get their own response.
+        """
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+        threading.Thread(target=self._serve, args=(w, 2), daemon=True).start()
+        from_the_handler: list = []
+        original_exchange = CommsDecoder._exchange
+
+        def interrupted(self, msg, frame_bytes):
+            # Only the outer request is interrupted: the handler's own send() exchanges unpatched.
+            if msg.key != "interrupted":
+                return original_exchange(self, msg, frame_bytes)
+            if where == "before the request is written":
+                from_the_handler.append(self.send(GetVariable(key="from the handler")))
+                return original_exchange(self, msg, frame_bytes)
+            result = original_exchange(self, msg, frame_bytes)
+            from_the_handler.append(self.send(GetVariable(key="from the handler")))
+            return result
+
+        with mock.patch.object(CommsDecoder, "_exchange", interrupted):
+            result = decoder.send(GetVariable(key="interrupted"))
+
+        assert result.key == "interrupted"
+        assert [response.key for response in from_the_handler] == ["from the handler"]
+        assert not _is_taken(decoder._thread_lock)
 
     def test_concurrent_sync_and_async_callers_each_get_their_own_response(self, socket_pair):
         """Twenty threads calling send() and twenty coroutines calling asend() at once never cross responses."""
