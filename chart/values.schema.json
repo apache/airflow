@@ -9841,7 +9841,7 @@
                             "default": 1
                         },
                         "maxFailures": {
-                            "description": "The number of consecutive failures before aborting (git-sync v4). Set to 0 to abort on the first failure, or -1 to retry indefinitely.",
+                            "description": "The number of consecutive failures before aborting. Set to 0 to abort on the first failure, or -1 to retry indefinitely.",
                             "type": "integer",
                             "default": 5
                         },

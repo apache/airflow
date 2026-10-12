@@ -81,11 +81,27 @@ Using Git-Sync
 --------------
 
 Git-Sync retries failed synchronizations to tolerate temporary Git repository outages.
-By default, ``dags.gitSync.maxFailures`` is ``5``. With the default Git-Sync v4 image,
+By default, ``dags.gitSync.maxFailures`` is ``5``. With the default Git-Sync image,
 the process exits after five consecutive failures, allowing four retries. A successful
-synchronization resets the failure counter. Retries use the configured synchronization interval.
+synchronization resets the failure counter.
 This setting applies to both sidecar and init containers. Set ``dags.gitSync.maxFailures``
 to ``0`` to exit on the first failure, or ``-1`` to retry indefinitely.
+
+After a failed synchronization, Git-Sync waits for ``dags.gitSync.period`` before retrying.
+The default delay is ``5s``, and each retry uses the same delay. With the default failure
+limit, the four retries add a total of 20 seconds of waiting, plus the time spent on the
+five synchronization attempts. The legacy ``dags.gitSync.wait`` setting, in seconds,
+overrides ``period`` when it is nonzero.
+
+For example, configure the delay and failure limit in your values file:
+
+.. code-block:: yaml
+
+   dags:
+     gitSync:
+       enabled: true
+       period: 5s
+       maxFailures: 5
 
 Mounting Dags using Git-Sync sidecar with persistence enabled
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
