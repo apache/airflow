@@ -619,6 +619,59 @@ class TestCommsDecoder:
         assert sync_results == {f"sync-{i}": f"sync-{i}" for i in range(20)}
         supervisor.join(timeout=5)
 
+    @pytest.mark.execution_timeout(10)
+    def test_asend_from_two_event_loops_at_once_each_gets_its_own_response(self, socket_pair):
+        """
+        A sync item that runs an event loop of its own (``asyncio.run(aget_connection())`` in
+        ``execute``) sends while the iteration's loop has an ``asend`` in flight. Each call gets its
+        own response, instead of one failing on a lock bound to the other loop.
+        """
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+        # Slow answers, so the second loop's call arrives while the first one's is in flight.
+        threading.Thread(target=self._serve, args=(w, 4, 0.1), daemon=True).start()
+        results: dict[str, list] = {"iteration": [], "item": []}
+        errors: list[BaseException] = []
+
+        def run_loop(name):
+            async def two_calls():
+                return await asyncio.gather(
+                    decoder.asend(GetVariable(key=f"{name} 1")), decoder.asend(GetVariable(key=f"{name} 2"))
+                )
+
+            try:
+                results[name] = [response.key for response in asyncio.run(two_calls())]
+            except BaseException as e:
+                errors.append(e)
+
+        loops = [threading.Thread(target=run_loop, args=(name,)) for name in results]
+        for thread in loops:
+            thread.start()
+        for thread in loops:
+            thread.join(8)
+
+        assert errors == []
+        assert results == {"iteration": ["iteration 1", "iteration 2"], "item": ["item 1", "item 2"]}
+
+    @pytest.mark.execution_timeout(10)
+    def test_asend_from_a_later_event_loop_is_served(self, socket_pair):
+        """
+        Calls that had to wait for each other on one event loop do not tie the channel to it: a
+        later loop in the same process (another ``asyncio.run()``) has its own calls served too.
+        """
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+        threading.Thread(target=self._serve, args=(w, 4, 0.05), daemon=True).start()
+
+        async def two_calls(name):
+            responses = await asyncio.gather(
+                decoder.asend(GetVariable(key=f"{name} 1")), decoder.asend(GetVariable(key=f"{name} 2"))
+            )
+            return [response.key for response in responses]
+
+        assert asyncio.run(two_calls("first loop")) == ["first loop 1", "first loop 2"]
+        assert asyncio.run(two_calls("second loop")) == ["second loop 1", "second loop 2"]
+
     def test_send_from_the_paused_loop_waits_for_an_asend_in_flight(self, socket_pair):
         """
         The same between two run_until_complete() calls, on the loop's own thread: the asend()

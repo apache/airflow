@@ -52,6 +52,7 @@ import asyncio
 import itertools
 import threading
 import traceback
+import weakref
 from collections.abc import Iterator
 from datetime import datetime
 from functools import cached_property
@@ -240,7 +241,14 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # thread was in the middle of a request. The RLock records its owner when it is taken, so no
     # moment is left where the thread holds the lock but is not yet known as its holder.
     _thread_lock: threading.RLock = attrs.field(factory=threading.RLock, repr=False)
-    _async_lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, repr=False)
+    # One per event loop: an asyncio.Lock binds to the loop that first waits on it, and asend() can
+    # be called from several at once (a sync item running asyncio.run() while the iteration's loop
+    # has calls in flight). Each loop queues its calls on its own lock, so only one thread of its
+    # default executor waits for the channel; _thread_lock orders the loops. A loop that is gone
+    # drops its lock with it.
+    _async_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = attrs.field(
+        factory=weakref.WeakKeyDictionary, repr=False
+    )
     # Whether the thread holding _thread_lock is between writing a request and reading its
     # response. Only that thread can read it as True once it holds the lock itself.
     _exchanging: bool = attrs.field(default=False, repr=False, init=False)
@@ -314,8 +322,9 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         Send a request to the parent without blocking.
 
-        The async lock orders the coroutines; the request itself runs in a worker thread, which
-        takes ``_thread_lock``, writes the request, reads its response and releases the lock.
+        The running loop's own lock orders its coroutines; the request itself runs in a worker
+        thread, which takes ``_thread_lock``, writes the request, reads its response and releases
+        the lock, and that lock orders the loops.
         Cancelling the await cancels the future, not that thread: a request not sent yet is
         dropped, one already sent has its response drained before the thread lets go of the
         channel, so the next request never reads a response that was not its own, nor finds the
@@ -323,8 +332,11 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         frame_bytes = self._make_frame(msg).as_bytes()
 
-        async with self._async_lock:
-            loop = asyncio.get_running_loop()
+        loop = asyncio.get_running_loop()
+        async_lock = self._async_locks.get(loop)
+        if async_lock is None:
+            async_lock = self._async_locks.setdefault(loop, asyncio.Lock())
+        async with async_lock:
             abandoned = threading.Event()
             try:
                 return await loop.run_in_executor(None, self._locked_exchange, msg, frame_bytes, abandoned)
