@@ -108,24 +108,25 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
             return result
 
-        for document in documents:
-            try:
-                dag = DagBuilder(definition.sibling).build(document)
-            except Exception as exc:
-                result.errors.append(
-                    DagImportError(
-                        source_reference=f"{definition!r} (dag_id={document.dag_id!r})",
-                        message=str(exc),
-                        error_type="import",
-                        stacktrace=traceback.format_exc(),
+        with definition.import_context():
+            for document in documents:
+                try:
+                    dag = DagBuilder(definition.sibling).build(document)
+                except Exception as exc:
+                    result.errors.append(
+                        DagImportError(
+                            source_reference=f"{definition!r} (dag_id={document.dag_id!r})",
+                            message=str(exc),
+                            error_type="import",
+                            stacktrace=traceback.format_exc(),
+                        )
                     )
-                )
-                continue
-            dag.bundle_name = bundle.name
-            dag.fileloc = repr(definition)
-            dag.relative_fileloc = definition.get_relative_loc(bundle.path)
-            result.dags.append(dag)
-            log.debug("Built DAG %s from %r", dag.dag_id, definition)
+                    continue
+                dag.bundle_name = bundle.name
+                dag.fileloc = repr(definition)
+                dag.relative_fileloc = definition.get_relative_loc(bundle.path)
+                result.dags.append(dag)
+                log.debug("Built DAG %s from %r", dag.dag_id, definition)
 
         return result
 

@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import inspect
 import textwrap
+import zipfile
 from types import SimpleNamespace
 
 import pytest
 
 from airflow.sdk import BaseOperator, XComArg
 from airflow.sdk.definitions._internal.templater import LiteralValue
+from airflow.sdk.importers import ZipMemberDagDefinition
 from airflow.sdk.importers.base import FilesystemDagDefinition
 from airflow.sdk.importers.yaml_importer.importer import YamlDagImporter
 
@@ -284,6 +286,42 @@ def test_import_file_ref_outside_dag_dir_is_rejected(mock_bundle, bad_path):
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert not result.dags
     assert any("resolves outside" in e.message for e in result.errors)
+
+
+_ZIP_OP_SOURCE = """
+from airflow.sdk import BaseOperator
+
+
+class ZipOp(BaseOperator):
+    template_fields = ("payload",)
+
+    def __init__(self, *, payload=None, **kwargs):
+        super().__init__(**kwargs)
+        self.payload = payload
+
+    def execute(self, context):
+        return self.payload
+"""
+
+
+def test_import_yaml_inside_zip_bundle(tmp_path):
+    # A YAML Dag inside a zip: `uses:` imports a module next to it (import_context puts the archive on
+    # sys.path), and `$f` reads a sibling member from the same archive.
+    zip_path = tmp_path / "bundle.zip"
+    with zipfile.ZipFile(zip_path, "w") as z:
+        z.writestr("_ziptest_ops.py", _ZIP_OP_SOURCE)
+        z.writestr("q.sql", "SELECT 42")
+        z.writestr(
+            "dag.yaml",
+            _doc("- {id: a, uses: _ziptest_ops.ZipOp, with: {payload: {$f: q.sql}}}", dag_id="z"),
+        )
+    definition = ZipMemberDagDefinition(zip_path=zip_path, file_path="dag.yaml")
+    bundle = SimpleNamespace(name="zbundle", path=tmp_path)
+    result = YamlDagImporter().import_definition(definition, bundle=bundle)
+    assert result.success, result.errors
+    a = result.dags[0].get_task("a")
+    assert type(a).__name__ == "ZipOp"  # imported from a module inside the zip (import_context)
+    assert a.payload == "SELECT 42"  # $f read a sibling member in the same archive
 
 
 def test_import_template_file_reads_then_templates(mock_bundle):
