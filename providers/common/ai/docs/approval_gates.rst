@@ -31,14 +31,23 @@ HITL interface.  Optionally allow the reviewer to edit the output before
 approving with ``allow_modifications=True``, and set a deadline with
 ``approval_timeout``.
 
-On ``LLMOperator`` and the operators that keep its typed output, the edited text is
+On ``LLMOperator``, ``LLMFileAnalysisOperator`` and ``LLMSchemaCompareOperator``, the edited text is
 converted back into ``output_type`` when the task resumes.  Write it as JSON for the
 type, such as ``31`` for an ``int``, ``["a", "b"]`` for a ``list[str]`` or an object for
-a Pydantic model.  A ``Literal``, a ``str`` Enum or ``str | None`` also accepts the
-bare text.  If the text does not validate, the task fails with
+a Pydantic model.  Types that pydantic builds from a string, such as a ``Literal``, an
+``Enum`` or ``str | None``, also accept the bare text.  If the text does not validate,
+the task fails with
 :class:`~airflow.providers.common.ai.exceptions.ReviewedOutputValidationError`
-naming the type and the text received, rather than passing a value of the wrong
-type downstream (for types pydantic can build a schema for).  With ``output_type=str`` any edit is accepted as is.
+naming the type and the (truncated) text received, rather than passing a value of the wrong
+type downstream.
+
+With ``output_type=str`` any edit is accepted as is.  An output function, or a type
+pydantic has no schema for, is returned as the text unchanged.  An approval without an
+edit whose output cannot be converted back (for example a custom serializer) also returns
+the text with a warning, instead of failing the task.  Computed fields are left out of the
+text.  A model with a serializer that cannot be reversed, or a required field excluded from
+the dump, shows text that does not validate as shown, so write an edit in the form the model
+accepts.
 
 Human-in-the-loop review needs Airflow 3.1+, whether ``require_approval`` or a
 ``decision_policy`` with ``on_uncertain="review"`` opens it. On an older Airflow version the

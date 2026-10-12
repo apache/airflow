@@ -155,8 +155,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         ``approval_timeout``.
     :param allow_modifications: If ``True``, the reviewer can edit the output
         before approving.  The edit is converted back into ``output_type`` and returned
-        as the task result, and one that does not validate fails the task with
-        ``ReviewedOutputValidationError``.  Default ``False``.
+        as the task result.  For a type pydantic can validate, an edit that does not validate
+        fails the task with ``ReviewedOutputValidationError``.  Default ``False``.
     :param approval_notifiers: Notifiers called once the review is open, so a
         reviewer is told about it.  Only takes effect when a review is
         opened.  A retry re-notifies with the regenerated
@@ -390,11 +390,19 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         event: dict[str, Any],
         decision: dict[str, Any] | None,
     ) -> Any:
-        """Resolve the review and rehydrate the output, leaving the usage budget for the caller to clear."""
+        """
+        Resolve the review and rehydrate the output, leaving the usage budget for the caller to clear.
+
+        :raises ReviewedOutputValidationError: If a reviewer's edit does not validate against ``output_type``.
+        """
         output = self._resume_after_review(context, generated_output, event, decision)
         self._finalize_decision(context, event, decision, action=None)
         return rehydrate_pydantic_output(
-            self.output_type, output, serialize_output=self._serialize_model_output
+            self.output_type,
+            output,
+            serialize_output=self._serialize_model_output,
+            # An unedited approval hands back ``generated_output`` as is, and only an edit may fail the task.
+            is_edited=output != generated_output,
         )
 
     def _run_llm(

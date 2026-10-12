@@ -25,10 +25,10 @@ response back into a validated value or an explicit failure
 
 Deliberately does **not** call
 :func:`~airflow.providers.common.ai.utils.output_type.rehydrate_pydantic_output`:
-that helper raises on a validation failure, which fails the whole task. That is
-right for the HITL round-trip it was built for but wrong here -- a batch item that
-fails validation must be recorded as failed (``status: "invalid_output"``) while
-the rest of the batch carries on.
+that helper raises when a reviewer's edit fails validation, which fails the whole
+task. That is right for the HITL round-trip it was built for but wrong here -- a
+batch item that fails validation must be recorded as failed
+(``status: "invalid_output"``) while the rest of the batch carries on.
 """
 
 from __future__ import annotations

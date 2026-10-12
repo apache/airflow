@@ -29,7 +29,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from jinja2 import TemplateError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
@@ -103,8 +103,23 @@ def context():
     return {"task_instance": ti, "dag": DAG("test_dag")}
 
 
-class _Aliased(BaseModel):
-    user_name: str = Field(alias="userName")
+class _SerializedByAlias(BaseModel):
+    model_config = ConfigDict(serialize_by_alias=True)
+    user_name: str = Field(serialization_alias="userName")
+
+
+class _NoSchema:
+    def __repr__(self):
+        return "no-schema"
+
+
+class _Doubled(BaseModel):
+    a: int
+
+    @computed_field
+    @property
+    def double(self) -> int:
+        return self.a * 2
 
 
 # The legacy trigger path is taken on Airflow versions < 3.3; pin the flag so these tests keep
@@ -152,10 +167,23 @@ class TestDeferForApproval:
             (True, "true"),
             ([1, "a"], '[1,"a"]'),
             ({"k": "v"}, '{"k":"v"}'),
-            (_Aliased(userName="kax"), '{"userName":"kax"}'),
-            ([_Aliased(userName="kax")], '[{"userName":"kax"}]'),
+            (_Doubled(a=1), '{"a":1}'),
+            ([_Doubled(a=1)], '[{"a":1}]'),
+            (_SerializedByAlias(user_name="kax"), '{"user_name":"kax"}'),
+            ([_SerializedByAlias(user_name="kax")], '[{"user_name":"kax"}]'),
+            (_NoSchema(), "no-schema"),
         ],
-        ids=["int", "bool", "list", "dict", "aliased-model", "aliased-model-list"],
+        ids=[
+            "int",
+            "bool",
+            "list",
+            "dict",
+            "model-without-computed-fields",
+            "list-of-models-without-computed-fields",
+            "model-serialized-by-alias",
+            "list-of-models-serialized-by-alias",
+            "no-schema-falls-back-to-str",
+        ],
     )
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)

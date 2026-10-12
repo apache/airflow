@@ -1341,6 +1341,12 @@ class TestLLMOperatorApproval:
         with pytest.raises(ReviewedOutputValidationError, match="'thirty-one'"):
             op.execute_complete({}, generated_output="5", event=event)
 
+    def test_execute_complete_returns_an_unedited_output_that_does_not_validate_back(self):
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=int, require_approval=True)
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
+
+        assert op.execute_complete({}, generated_output="null", event=event) == "null"
+
 
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"

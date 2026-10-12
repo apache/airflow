@@ -706,7 +706,7 @@ class TestLLMSchemaCompareOperatorUsageBudget:
         seed_usage_budget(task_state_store_accessor, requests=1)
         op = self._make_operator(require_approval=True, allow_modifications=True)
 
-        with pytest.raises(ValueError, match="not a valid SchemaCompareResult"):
+        with pytest.raises(ReviewedOutputValidationError, match="output_type SchemaCompareResult"):
             op.execute_complete(
                 usage_budget_context,
                 generated_output="{}",

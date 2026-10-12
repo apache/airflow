@@ -16,11 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
-from typing import Literal
+from typing import Annotated, Literal, NamedTuple
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
@@ -32,6 +33,33 @@ class A(BaseModel):
 
 class Color(str, Enum):
     RED = "red"
+
+
+class ValidationAlias(BaseModel):
+    user_name: str = Field(alias="userName")
+
+
+class Address(BaseModel):
+    city: str
+
+
+class Order(BaseModel):
+    billing: Address
+    shipping: Address
+
+
+class NoSchema:
+    """A plain class pydantic cannot build a schema for."""
+
+
+@dataclass
+class UnresolvedForwardReference:
+    value: Missing  # noqa: F821
+
+
+class Point(NamedTuple):
+    x: int
+    y: str
 
 
 class TestRehydratePydanticOutput:
@@ -62,8 +90,18 @@ class TestRehydratePydanticOutput:
             (Literal["a", "b"], "a", "a"),
             (str | None, "hello", "hello"),
             (Color, "red", Color.RED),
+            (str | None, "hello\n", "hello\n"),
+            (Literal["a", "b"], "b\n", "b"),
+            (Color, " red ", Color.RED),
         ],
-        ids=["literal", "optional-str", "str-enum"],
+        ids=[
+            "literal",
+            "optional-str",
+            "str-enum",
+            "optional-str-keeps-its-newline",
+            "literal-with-newline",
+            "str-enum-with-spaces",
+        ],
     )
     def test_accepts_bare_text_for_string_valued_types(self, output_type, raw, expected):
         result = rehydrate_pydantic_output(output_type, raw, serialize_output=False)
@@ -77,8 +115,42 @@ class TestRehydratePydanticOutput:
             calls.append(text)
             return text
 
-        assert rehydrate_pydantic_output(clean, "A", serialize_output=False) == "A"
+        def route(order: Order) -> str:
+            calls.append(order.billing.city)
+            return order.billing.city
+
+        assert rehydrate_pydantic_output(clean, "Paris", serialize_output=False) == "Paris"
+        assert rehydrate_pydantic_output(route, "Paris", serialize_output=False) == "Paris"
         assert calls == []
+
+    @pytest.mark.parametrize("output_type", [NoSchema, UnresolvedForwardReference])
+    def test_returns_raw_for_type_pydantic_cannot_build_a_schema_for(self, output_type):
+        assert rehydrate_pydantic_output(output_type, "anything", serialize_output=False) == "anything"
+
+    @pytest.mark.parametrize("raw", ['"hi"', "null", "42"])
+    def test_returns_any_text_for_a_str_output_type_unparsed(self, raw):
+        assert rehydrate_pydantic_output(str, raw, serialize_output=False) == raw
+
+    @pytest.mark.parametrize("output_type", [Point, Annotated[Point, "x"]], ids=["bare", "annotated"])
+    def test_validates_a_named_tuple_even_though_its_schema_is_a_call(self, output_type):
+        result = rehydrate_pydantic_output(output_type, '[1, "a"]', serialize_output=False)
+
+        assert result == Point(1, "a")
+        assert type(result) is Point
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [('{"user_name": "kax"}', "kax"), ('{"userName": "kax"}', "kax")],
+        ids=["field-name", "alias"],
+    )
+    def test_accepts_a_field_name_or_an_alias(self, raw, expected):
+        result = rehydrate_pydantic_output(ValidationAlias, raw, serialize_output=False)
+
+        assert result.user_name == expected
+
+    def test_returns_raw_with_a_warning_for_an_unedited_output_that_does_not_validate_back(self, caplog):
+        assert rehydrate_pydantic_output(int, "null", serialize_output=False, is_edited=False) == "null"
+        assert any("Returning the output unchanged" in message for message in caplog.messages)
 
     def test_error_reports_the_text_attempt_for_bare_text_types(self):
         with pytest.raises(ReviewedOutputValidationError, match="Input should be 'a' or 'b'"):
@@ -92,18 +164,19 @@ class TestRehydratePydanticOutput:
         assert "x" * 201 not in str(exc_info.value)
 
     @pytest.mark.parametrize(
-        ("output_type", "raw", "type_name"),
+        ("output_type", "raw", "type_name", "detail"),
         [
-            (int, "thirty-one", "int"),
-            (list[str], "a, b, c", "list[str]"),
-            (A, '{"y": "no-x-field"}', "A"),
+            (int, "thirty-one", "int", "valid integer"),
+            (list[str], "a, b, c", "list[str]", "valid list"),
+            (A, '{"y": "no-x-field"}', "A", "Field required"),
         ],
         ids=["int", "list", "basemodel"],
     )
-    def test_raises_when_type_adapter_rejects(self, output_type, raw, type_name):
+    def test_raises_when_type_adapter_rejects(self, output_type, raw, type_name, detail):
         with pytest.raises(ReviewedOutputValidationError) as exc_info:
             rehydrate_pydantic_output(output_type, raw, serialize_output=False)
 
         message = str(exc_info.value)
         assert f"output_type {type_name}." in message
         assert repr(raw) in message
+        assert detail in message

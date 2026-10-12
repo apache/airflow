@@ -24,8 +24,8 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 
 from jinja2 import TemplateError
-from pydantic import BaseModel, TypeAdapter
 
+from airflow.providers.common.ai.utils.output_type import dump_output_to_json
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
@@ -194,11 +194,8 @@ class LLMApprovalMixin:
         self.validate_approval_prompt()
 
         raw_output = output
-        if isinstance(output, BaseModel):
-            output = output.model_dump_json(by_alias=True)
-        elif not isinstance(output, str):
-            # JSON round-trip by alias: execute_complete validates the string back into output_type.
-            output = TypeAdapter(type(output)).dump_json(output, by_alias=True).decode()
+        # JSON round-trip: execute_complete validates the string back into output_type.
+        output = dump_output_to_json(output)
 
         ti_id = context["task_instance"].id
         timeout_defaults = LLMApprovalMixin.TIMEOUT_DEFAULTS.get(self.on_approval_timeout)
