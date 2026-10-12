@@ -61,7 +61,7 @@ def create_index():
         SearchIndex(
             name=INDEX,
             fields=[
-                SimpleField(name="id", type=SearchFieldDataType.String, key=True),
+                SimpleField(name="id", type=SearchFieldDataType.String, key=True, sortable=True),
                 SearchableField(name="title", type=SearchFieldDataType.String),
                 SimpleField(name="category", type=SearchFieldDataType.String, filterable=True),
             ],
