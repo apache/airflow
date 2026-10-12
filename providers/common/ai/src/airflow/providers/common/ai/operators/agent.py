@@ -59,7 +59,6 @@ from airflow.providers.common.ai.utils.logging import (
     log_run_summary,
     log_run_usage,
 )
-from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import ensure_masked
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
@@ -89,7 +88,10 @@ try:
     # See LLMOperator: Newer ``apache-airflow-task-sdk`` versions register declared ``output_type`` classes
     # from a worker-side DAG walk, so the model instance flows through XCom; older
     # ``apache-airflow-task-sdk`` versions without the walk dump to a dict instead.
-    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+    from airflow.sdk.serde import (
+        SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER,
+        iter_pydantic_models,
+    )
 except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` walker
     _CORE_WALKER = False
 
@@ -520,6 +522,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         self._usage_budget: TaskStateStoreUsageBudget | None = None
         self._run_usage: RunUsage | None = None
         self._run_usage_base: RunUsage = RunUsage()
+
+        # The answer the HITL reviewer is looking at, as the agent returned it.
+        self._output_under_review: Any = None
 
         # Checked ahead of the combination rules below. When Airflow is older than 3.1, its version
         # is the real blocker, and reporting a combination error first would send the
@@ -1111,18 +1116,28 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         output = result.output
 
         if self.enable_hitl_review:
-            result_str = self.run_hitl_review(  # type: ignore[misc]
+            self._output_under_review = output
+            self.run_hitl_review(  # type: ignore[misc]
                 context,
                 output,
                 message_history=result.all_messages(),
             )
-            hitl_output = rehydrate_pydantic_output(
-                self.output_type,
-                result_str,
-                serialize_output=self._serialize_model_output,
-            )
+            # The reviewer can approve, reject, or ask for a new answer, but cannot edit the answer text.
+            # So the approved answer is the last answer the agent returned, and there is no need to parse
+            # it back from that text.
+            output = self._output_under_review
+            if isinstance(output, BaseModel) and (
+                self._serialize_model_output or type(output) not in iter_pydantic_models(self.output_type)
+            ):
+                # A downstream task can load a model from XCom only if the worker registered the model's
+                # class. The worker registers the classes that iter_pydantic_models finds in output_type.
+                # iter_pydantic_models finds no class in a list of output types, an output marker, an output
+                # function, a TypeAliasType or a NewType, so the operator pushes the model as a dict. When
+                # iter_pydantic_models could not be imported, _serialize_model_output is always True, so the
+                # condition above never reaches the iter_pydantic_models call.
+                output = output.model_dump()
             self._clear_usage_budget(context)
-            return hitl_output
+            return output
 
         if self._serialize_model_output and isinstance(output, BaseModel):
             output = output.model_dump()
@@ -1412,6 +1427,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         log_run_summary(self.log, result, usage=regen_usage)
 
         output = result.output
+        self._output_under_review = output
         if isinstance(output, BaseModel):
             output = output.model_dump_json()
         return str(output), result.all_messages()
