@@ -70,6 +70,17 @@ class _DefaultTemplateOperator(BaseOperator):
 OP_DEFAULT_TEMPLATE = f"{__name__}.{_DefaultTemplateOperator.__name__}"
 
 
+class _TemporalOperator(BaseOperator):
+    """An operator with a datetime-typed argument (``cutoff``)."""
+
+    def __init__(self, *, cutoff: datetime.datetime | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.cutoff = cutoff
+
+
+OP_TEMPORAL = f"{__name__}.{_TemporalOperator.__name__}"
+
+
 @pytest.fixture
 def mock_bundle(tmp_path):
     bundle_dir = tmp_path / "bundle"
@@ -175,8 +186,6 @@ def test_import_bodyless_task_becomes_empty_operator(mock_bundle):
 
 
 def test_import_bodyless_task_with_args_errors(mock_bundle):
-    # A body-less task becomes an EmptyOperator, which rejects the extra 'with' arguments
-    # (BaseOperator raises on unknown kwargs) -- so it fails to build rather than silently dropping.
     definition = _def(mock_bundle, "dag.yaml", _doc("- {id: a, with: {x: 1}}"))
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert not result.dags
@@ -198,7 +207,6 @@ def test_import_schedule_cron(mock_bundle):
 
 
 def test_import_schedule_timetable(mock_bundle):
-    # A mapping schedule (uses/with) is built into a timetable via its import path (_build_schedule).
     definition = _def(
         mock_bundle,
         "dag.yaml",
@@ -213,8 +221,6 @@ def test_import_schedule_timetable(mock_bundle):
 
 
 def test_import_keyed_xcom_on_uses_task(mock_bundle):
-    # $x with {task, key} on a uses: task resolves to a keyed XComArg (the _xcom_arg key branch);
-    # keyed XCom is rejected only in run: tasks.
     definition = _def(
         mock_bundle,
         "dag.yaml",
@@ -236,8 +242,6 @@ def test_import_keyed_xcom_on_uses_task(mock_bundle):
     [("2024-01-01", 0), ("'2024-01-01'", 0), ("2024-01-01T03:30:00", 3)],  # YAML date, ISO string, datetime
 )
 def test_import_coerces_temporal_start_date(mock_bundle, value, hour):
-    # A YAML date or ISO string for a temporal arg is promoted to a (localized) datetime so DAG()
-    # accepts it, rather than failing with an unhelpful cast error (format section 2d).
     definition = _def(
         mock_bundle,
         "dag.yaml",
@@ -252,8 +256,6 @@ def test_import_coerces_temporal_start_date(mock_bundle, value, hour):
 
 
 def test_import_does_not_coerce_nontemporal_arg(mock_bundle):
-    # _coerce_temporal introspects the target's argument types and only promotes datetime-typed ones.
-    # A date-looking string on a non-temporal arg (owner: str) keeps its type instead of becoming a datetime.
     definition = _def(
         mock_bundle,
         "dag.yaml",
@@ -264,10 +266,20 @@ def test_import_does_not_coerce_nontemporal_arg(mock_bundle):
     assert result.dags[0].get_task("a").owner == "2024-01-01"
 
 
+def test_import_coerces_temporal_with_arg(mock_bundle):
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP_TEMPORAL}, with: {{cutoff: 2024-01-01}}}}"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    cutoff = result.dags[0].get_task("a").cutoff
+    assert isinstance(cutoff, datetime.datetime)
+    assert (cutoff.year, cutoff.month, cutoff.day) == (2024, 1, 1)
+
+
 def test_import_code_task_builds_stub_operator(mock_bundle):
-    # A code task (run:) builds the stub operator Airflow understands (@task.stub). Its body is a
-    # registered SDK task handler; the run mapping binds as that handler's arguments (op_kwargs),
-    # and $x inside it wires the dependency natively.
     definition = _def(
         mock_bundle,
         "dag.yaml",
@@ -291,8 +303,6 @@ def test_import_code_task_builds_stub_operator(mock_bundle):
 
 
 def test_import_mixed_container_keeps_literal_siblings_literal(mock_bundle):
-    # When a container field renders (it holds a $x), its literal siblings must stay literal rather
-    # than being rendered as Jinja. The importer wraps them in LiteralValue; only $x/$t render.
     definition = _def(
         mock_bundle,
         "dag.yaml",
@@ -317,7 +327,6 @@ def test_import_code_task_rejects_non_identifier_arg(mock_bundle):
 
 
 def test_import_run_rejects_template(mock_bundle):
-    # A $t in run: cannot be carried by the handler binding (it would arrive unrendered); reject it.
     definition = _def(mock_bundle, "dag.yaml", _doc("- {id: a, run: {day: {$t: '{{ ds }}'}}}"))
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert not result.dags
@@ -325,7 +334,6 @@ def test_import_run_rejects_template(mock_bundle):
 
 
 def test_import_run_rejects_keyed_xcom(mock_bundle):
-    # Only a task's return value crosses the handler boundary; a keyed $x is rejected at build time.
     definition = _def(
         mock_bundle,
         "dag.yaml",
@@ -341,9 +349,6 @@ def test_import_run_rejects_keyed_xcom(mock_bundle):
 
 @pytest.mark.parametrize("marker", ["{$x: a}", "{$t: 'v'}", "{$f: q.sql}"])
 def test_import_marker_on_non_template_field_errors(mock_bundle, marker):
-    # A marker only works where the operator class already templates. ``note`` is not in
-    # _RecordingOperator.template_fields, so any $f/$t/$x on it is an error -- the importer never
-    # adds a field to template_fields to make a marker work.
     (mock_bundle.path / "q.sql").write_text("SELECT 1")  # exists, so this is not a missing-file error
     definition = _def(
         mock_bundle,
@@ -359,8 +364,6 @@ def test_import_marker_on_non_template_field_errors(mock_bundle, marker):
 
 
 def test_import_base_operator_arg_in_with_errors(mock_bundle):
-    # `with:` is the operator-specific namespace; a BaseOperator (task-level) arg like `retries`
-    # there is rejected rather than silently accepted.
     definition = _def(
         mock_bundle, "dag.yaml", _doc(f"- {{id: a, uses: {OP}, with: {{payload: x, retries: 2}}}}")
     )
@@ -373,8 +376,6 @@ def test_import_base_operator_arg_in_with_errors(mock_bundle):
     "body", ["- {{id: a, uses: {op}, with: {{payload: x}}, note: 1}}", "- {{id: a, run: {{}}, note: 1}}"]
 )
 def test_import_operator_arg_at_task_level_errors(mock_bundle, body):
-    # Task-level keys must be BaseOperator args; an operator-specific key (`note`) there is rejected
-    # (for both `uses:` and `run:` tasks) instead of being passed through raw.
     definition = _def(mock_bundle, "dag.yaml", _doc(body.format(op=OP)))
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert not result.dags
@@ -382,8 +383,6 @@ def test_import_operator_arg_at_task_level_errors(mock_bundle, body):
 
 
 def test_import_literal_by_default(mock_bundle):
-    # A bare Jinja-looking string on a field the operator class *does* template is NOT rendered:
-    # literal by default, and the instance's template_fields is emptied of it.
     definition = _def(
         mock_bundle, "dag.yaml", _doc(f"- {{id: a, uses: {OP}, with: {{payload: '{{{{ ds }}}}'}}}}")
     )
@@ -407,8 +406,6 @@ def test_import_template_marker_sets_template_fields(mock_bundle):
 
 
 def test_import_keeps_operator_default_template_fields(mock_bundle):
-    # The operator templates ``preset`` by default; the author only sets ``payload`` (unmarked).
-    # Literal-by-default drops the author's unmarked field but keeps the operator's own default.
     definition = _def(
         mock_bundle, "dag.yaml", _doc(f"- {{id: a, uses: {OP_DEFAULT_TEMPLATE}, with: {{payload: hi}}}}")
     )
@@ -433,8 +430,6 @@ def test_import_file_ref_reads_verbatim(mock_bundle):
 
 @pytest.mark.parametrize("bad_path", ["../../etc/passwd", "/etc/passwd"])
 def test_import_file_ref_outside_dag_dir_is_rejected(mock_bundle, bad_path):
-    # $f resolves relative to the Dag file's directory, like a Python Dag's template search path;
-    # a path that escapes it (traversal or absolute) is rejected rather than read.
     definition = _def(
         mock_bundle, "dag.yaml", _doc(f"- {{id: a, uses: {OP}, with: {{payload: {{$f: '{bad_path}'}}}}}}")
     )
@@ -460,8 +455,6 @@ class ZipOp(BaseOperator):
 
 
 def test_import_yaml_inside_zip_bundle(tmp_path):
-    # A YAML Dag inside a zip: `uses:` imports a module next to it (import_context puts the archive on
-    # sys.path), and `$f` reads a sibling member from the same archive.
     zip_path = tmp_path / "bundle.zip"
     with zipfile.ZipFile(zip_path, "w") as z:
         z.writestr("_ziptest_ops.py", _ZIP_OP_SOURCE)
@@ -494,8 +487,6 @@ def test_import_template_file_reads_then_templates(mock_bundle):
 
 
 def test_import_templated_filename_is_reserved(mock_bundle):
-    # $f wrapping $t (a templated filename) needs run-time file resolution; the parser reserves it,
-    # so the whole file fails to parse.
     definition = _def(
         mock_bundle,
         "dag.yaml",
@@ -544,7 +535,6 @@ def test_import_duplicate_dag_id_across_documents_errors(mock_bundle):
 
 
 def test_import_dependency_cycle_errors(mock_bundle):
-    # a <-> b form the cycle; c only depends on it and must not be reported as part of it.
     definition = _def(
         mock_bundle,
         "dag.yaml",
