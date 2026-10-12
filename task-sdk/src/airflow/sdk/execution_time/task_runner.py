@@ -27,7 +27,7 @@ import os
 import sys
 import threading
 import time
-from asyncio import CancelledError
+from asyncio import CancelledError, create_task
 from collections.abc import Callable, Generator, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import dataclass, replace
@@ -2938,8 +2938,10 @@ async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Lo
     ctx.run(ExecutorSafeguard.tracker.set, task)
     # Under the parent's execution_timeout only, as a sync indexed task is: the operator's own limit
     # is the same value, started later, so enforcing it here too would never fire first and would
-    # race the parent's kill when the two coincide.
-    result = await ctx.run(lambda: task.aexecute(context=context))
+    # race the parent's kill when the two coincide. A task of its own, so that the body runs in
+    # ctx: ctx.run() around the call would only create the coroutine there, and the body would run
+    # in the awaiting task's context, without the tracker.
+    result = await create_task(task.aexecute(context=context), context=ctx)
 
     _run_post_execute(task, context, outlet_events, result, log)
     return result

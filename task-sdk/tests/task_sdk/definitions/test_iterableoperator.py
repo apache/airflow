@@ -46,7 +46,7 @@ from airflow.sdk import (
     TaskInstanceState,
     get_current_context,
 )
-from airflow.sdk.bases.operator import event_loop
+from airflow.sdk.bases.operator import ExecutorSafeguard, event_loop
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
@@ -846,6 +846,31 @@ class TestIterableOperator:
         assert "last_offset" not in store
         # the operator's own checkpoints keep their unsuffixed keys in the same store
         assert all(f"_iterable_{index}" in store for index in range(3))
+
+    @pytest.mark.parametrize("is_async", [False, True], ids=["sync", "async"])
+    def test_execute_runs_each_item_with_the_executor_safeguard_tracker_set(self, is_async):
+        """An item's code runs with the safeguard's tracker set to its operator, sync or async alike."""
+
+        class TrackerSyncOperator(BaseOperator):
+            def execute(self, context):
+                return ExecutorSafeguard.tracker.get(None) is self
+
+        class TrackerAsyncOperator(BaseAsyncOperator):
+            async def aexecute(self, context):
+                return ExecutorSafeguard.tracker.get(None) is self
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{}, {}]),
+                task_id="exec_tracker",
+                operator_class=TrackerAsyncOperator if is_async else TrackerSyncOperator,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                results = list(iterable_op.execute(context=context))
+
+        assert results == [True, True]
 
     def test_task_state_store_clear_is_refused_inside_an_iteration(self):
         with DAG("test_dag") as dag:
