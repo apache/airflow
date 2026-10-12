@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
+    from airflow.sdk import DAG
     from airflow.sdk.importers.base import DagDefinition
 
 log = logging.getLogger(__name__)
@@ -98,8 +99,8 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
             return result
 
-        # A parse failure fails the whole file (like a Python module that won't import); a build
-        # failure is per-document so the file's other DAGs still load.
+        # A parse failure fails the whole file (like a Python module that won't
+        # import). All documents' failures are reported together.
         try:
             documents = list(parse_documents(source, source=repr(definition)))
         except YamlDagParseError as exc:
@@ -108,23 +109,37 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
             return result
 
+        dags: list[DAG] = []
+        build_errors: list[Exception] = []
         with definition.import_context():
             for document in documents:
                 try:
-                    dag = DagBuilder(definition=definition, bundle=bundle).build(document)
+                    dags.append(DagBuilder(definition=definition, bundle=bundle).build(document))
                 except Exception as exc:
-                    result.errors.append(
-                        DagImportError(
-                            source_reference=f"{definition!r} (dag_id={document.dag_id!r})",
-                            message=str(exc),
-                            error_type="import",
-                            stacktrace=traceback.format_exc(),
-                        )
-                    )
-                    continue
-                result.dags.append(dag)
-                log.debug("Built DAG %s from %r", dag.dag_id, definition)
+                    exc.add_note(f"dag_id={document.dag_id!r}")
+                    build_errors.append(exc)
 
+        if build_errors:
+            summary = f"{len(build_errors)} of {len(documents)} document(s) failed to build"
+            detail = "\n".join(f"{err.__notes__[-1]}: {err}" for err in build_errors)
+            stacktrace = "\n".join(
+                f"{err.__notes__[-1]}:\n"
+                + "".join(traceback.format_exception(type(err), err, err.__traceback__))
+                for err in build_errors
+            )
+            result.errors.append(
+                DagImportError(
+                    source_reference=repr(definition),
+                    message=f"{summary}:\n{detail}",
+                    error_type="import",
+                    stacktrace=stacktrace,
+                )
+            )
+            return result
+
+        result.dags.extend(dags)
+        for dag in dags:
+            log.debug("Built Dag %s from %r", dag.dag_id, definition)
         return result
 
     def get_source_code(self, definition: DagDefinition, dag_id: str | None = None) -> DagSourceCode:

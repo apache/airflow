@@ -441,8 +441,19 @@ def test_import_unknown_operator_errors(mock_bundle):
     assert result.errors
 
 
+def test_import_one_bad_document_fails_whole_file(mock_bundle):
+    good = _doc(f"- {{id: a, uses: {OP}, with: {{payload: x}}}}", dag_id="good")
+    bad = _doc("- {id: a, uses: does.not.Exist, with: {}}", dag_id="bad")
+    definition = _def(mock_bundle, "dag.yaml", f"{good}\n---\n{bad}")
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert len(result.errors) == 1
+    err = result.errors[0]
+    assert "dag_id=" not in err.source_reference  # keyed by the file, not the document
+    assert "dag_id='bad'" in err.message  # the failing document is named, not mashed
+
+
 def test_import_dependency_cycle_errors(mock_bundle):
-    # The parser allows a cycle (full cycle detection is the builder's job); the build rejects it.
     definition = _def(
         mock_bundle,
         "dag.yaml",
