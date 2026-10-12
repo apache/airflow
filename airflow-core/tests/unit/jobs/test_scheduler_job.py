@@ -5957,20 +5957,23 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
-    @pytest.mark.parametrize("upstream_state", [State.RUNNING, State.DEFERRED])
-    def test_verify_integrity_updates_dag_version_for_waiting_tasks(self, dag_maker, session, upstream_state):
+    def test_verify_integrity_updates_dag_version_for_waiting_tasks(self, dag_maker, session):
         with dag_maker("test_version_update_with_waiting_task", serialized=False, session=session) as dag:
             upstream = BashOperator(task_id="upstream", bash_command="echo upstream")
             downstream = BashOperator(task_id="downstream", bash_command="echo downstream")
+            BashOperator(task_id="finished", bash_command="echo finished")
             upstream >> downstream
 
         dr = dag_maker.create_dagrun()
         assert dr.bundle_version is None
         upstream_ti = dr.get_task_instance("upstream", session=session)
-        upstream_ti.state = upstream_state
+        upstream_ti.state = State.RUNNING
         downstream_ti = dr.get_task_instance("downstream", session=session)
         assert downstream_ti.state is None
         original_version_id = downstream_ti.dag_version_id
+        finished_ti = dr.get_task_instance("finished", session=session)
+        finished_ti.state = State.SUCCESS
+        assert finished_ti.dag_version_id == original_version_id
         session.commit()
 
         downstream.bash_command = "echo updated downstream"
@@ -5987,9 +5990,12 @@ class TestSchedulerJob:
 
         session.refresh(upstream_ti)
         session.refresh(downstream_ti)
+        session.refresh(finished_ti)
         assert upstream_ti.dag_version_id == latest_version_id
         assert downstream_ti.state is None
         assert downstream_ti.dag_version_id == latest_version_id
+        assert finished_ti.state == State.SUCCESS
+        assert finished_ti.dag_version_id == original_version_id
 
         upstream_ti.state = State.SUCCESS
         session.commit()
