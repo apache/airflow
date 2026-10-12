@@ -7882,17 +7882,7 @@
                     "description": "Container Lifecycle Hooks definition for the PgBouncer. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": {
-                        "preStop": {
-                            "exec": {
-                                "command": [
-                                    "/bin/sh",
-                                    "-c",
-                                    "killall -INT pgbouncer && sleep 120"
-                                ]
-                            }
-                        }
-                    },
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {

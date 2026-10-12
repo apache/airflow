@@ -50,17 +50,10 @@ class TestContainerLifecycleHooks:
             ],
         )
 
-        # Default for every service is None except for pgbouncer
-        for doc in docs[:-1]:
+        # No service, including pgbouncer, sets lifecycle hooks by default.
+        # PgBouncer relies on SIGTERM and terminationGracePeriodSeconds to drain.
+        for doc in docs:
             assert jmespath.search("spec.template.spec.containers[0].lifecycle", doc) is None
-
-        pgbouncer_default_value = {
-            "exec": {"command": ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]}
-        }
-        assert pgbouncer_default_value == jmespath.search(
-            "spec.template.spec.containers[0].lifecycle.preStop", docs[-1]
-        )
-        assert jmespath.search("spec.template.spec.containers[0].lifecycle.postStart", docs[-1]) is None
 
     # Test Global container lifecycle hooks for the main services
     @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])
