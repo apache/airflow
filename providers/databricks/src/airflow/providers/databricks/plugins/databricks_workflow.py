@@ -701,17 +701,18 @@ if AIRFLOW_V_3_1_1_PLUS:
         """
         Clear the repaired tasks and their downstream task instances for this run.
 
-        Uses the same helpers as the core clear-task-instances route (``find_relevant_relatives``
-        to expand to downstream, then ``dag.clear``) so the upstream-failed dependents resume once
-        the repaired Databricks sub-runs succeed — without clearing the whole Dag.
+        Expands to downstream with ``dag.partial_subset`` and clears with ``dag.clear``, as the core
+        clear-task-instances route does, so the upstream-failed dependents resume once the repaired
+        Databricks sub-runs succeed — without clearing the whole Dag. ``find_relevant_relatives``,
+        which newer core uses for this, does not exist on Airflow 3.1.
         """
-        from airflow.models.taskinstance import find_relevant_relatives
-
+        if not task_ids:
+            return
         to_clear: set[str] = set(task_ids)
-        downstream = find_relevant_relatives(
-            to_clear, set(), direction="downstream", dag=dag, run_id=run_id, session=session
+        downstream = dag.partial_subset(
+            task_ids=task_ids, include_downstream=True, include_upstream=False, exclude_original=True
         )
-        to_clear.update(t for t in downstream if not isinstance(t, tuple))
+        to_clear.update(downstream.task_dict)
         logger.info("Clearing %s task(s) and downstream after Databricks repair: %s", len(task_ids), to_clear)
         dag.clear(task_ids=list(to_clear), run_id=run_id, session=session)
 
