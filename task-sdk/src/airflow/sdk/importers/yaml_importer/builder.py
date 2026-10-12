@@ -51,9 +51,9 @@ from airflow.sdk.importers.yaml_importer.models import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
     from airflow.sdk import BaseOperator
+    from airflow.sdk.importers.base import _SiblingResource
     from airflow.sdk.importers.yaml_importer.models import DagDocument, Task, Value
 
 
@@ -69,8 +69,8 @@ class DagBuilder:
     and is discarded with the instance.
     """
 
-    def __init__(self, source_dir: Path | None) -> None:
-        self._source_dir = source_dir
+    def __init__(self, sibling: Callable[[str], _SiblingResource]) -> None:
+        self._sibling = sibling
         self._operators: dict[str, BaseOperator] = {}
         self._stub_callables: dict[tuple[str, ...], Callable[..., None]] = {}
 
@@ -179,12 +179,10 @@ class DagBuilder:
         return XComArg(self._operators[target.task], key=target.key)
 
     def _read_file(self, rel_path: str) -> str:
-        """Read a ``$f`` at build time, resolved against ``source_dir``."""
-        if self._source_dir is None:
-            raise YamlDagBuildError(f"cannot read $f {rel_path!r}: the document has no source directory")
+        """Read a ``$f`` at build time, relative to the document."""
         try:
-            return (self._source_dir / rel_path).read_text(encoding="utf-8")
-        except OSError as exc:
+            return self._sibling(rel_path).read_bytes().decode("utf-8")
+        except (OSError, ValueError) as exc:
             raise YamlDagBuildError(f"cannot read $f {rel_path!r}: {exc}") from exc
 
     def _stub_callable(self, param_names: tuple[str, ...]) -> Callable[..., None]:

@@ -108,11 +108,9 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
             return result
 
-        # ``$f`` file references resolve against the document's own directory, when it has one.
-        source_dir = path.parent if (path := getattr(definition, "path", None)) is not None else None
         for document in documents:
             try:
-                dag = DagBuilder(source_dir).build(document)
+                dag = DagBuilder(definition.sibling).build(document)
             except Exception as exc:
                 result.errors.append(
                     DagImportError(

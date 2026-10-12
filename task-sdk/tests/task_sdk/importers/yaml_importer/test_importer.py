@@ -274,6 +274,18 @@ def test_import_file_ref_reads_verbatim(mock_bundle):
     assert tuple(a.template_fields) == ()  # $f is verbatim, not a template
 
 
+@pytest.mark.parametrize("bad_path", ["../../etc/passwd", "/etc/passwd"])
+def test_import_file_ref_outside_dag_dir_is_rejected(mock_bundle, bad_path):
+    # $f resolves relative to the Dag file's directory, like a Python Dag's template search path;
+    # a path that escapes it (traversal or absolute) is rejected rather than read.
+    definition = _def(
+        mock_bundle, "dag.yaml", _doc(f"- {{id: a, uses: {OP}, with: {{payload: {{$f: '{bad_path}'}}}}}}")
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert any("resolves outside" in e.message for e in result.errors)
+
+
 def test_import_template_file_reads_then_templates(mock_bundle):
     (mock_bundle.path / "query.sql").write_text("SELECT {{ ds }}")
     definition = _def(
