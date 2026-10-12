@@ -4913,8 +4913,8 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
-    def test_dagrun_timeout_skips_running_task_with_end_date_and_duration(self, dag_maker):
-        """A task still running when its Dag run times out must be skipped with an end_date and duration."""
+    def test_dagrun_timeout_fails_running_task_with_end_date_and_duration(self, dag_maker):
+        """A task still running when its Dag run times out must be failed with an end_date and duration."""
         session = settings.Session()
         with dag_maker(
             dag_id="test_scheduler_dagrun_timeout_running_task",
@@ -4938,7 +4938,7 @@ class TestSchedulerJob:
         session.flush()
 
         session.refresh(ti)
-        assert ti.state == TaskInstanceState.SKIPPED
+        assert ti.state == TaskInstanceState.FAILED
         assert ti.end_date == now
         assert ti.duration == 600.0
 
