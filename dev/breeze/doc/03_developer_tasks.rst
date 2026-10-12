@@ -205,6 +205,9 @@ You can change the used host port numbers by setting appropriate environment var
 
 If you set these variables, next time when you enter the environment the new ports should be in effect.
 
+To not forward any ports, for example to open a second Breeze shell while another Breeze container already
+holds them, pass ``--no-forward-ports`` or set ``FORWARD_PORTS=false``.
+
 
 Remote Debugging in IDE
 -----------------------

@@ -54,6 +54,7 @@ from airflow_breeze.commands.common_options import (
     option_force_lowest_dependencies,
     option_forward_credentials,
     option_forward_ports,
+    option_forward_ports_by_default,
     option_github_repository,
     option_include_not_ready_providers,
     option_include_removed_providers,
@@ -332,6 +333,7 @@ option_load_default_connections = click.option(
 @option_force_build
 @option_force_lowest_dependencies
 @option_forward_credentials
+@option_forward_ports_by_default
 @option_github_repository
 @option_include_mypy_volume
 @option_install_airflow_with_constraints_default_true
@@ -391,6 +393,7 @@ def shell(
     force_build: bool,
     force_lowest_dependencies: bool,
     forward_credentials: bool,
+    forward_ports: bool,
     github_repository: str,
     include_mypy_volume: bool,
     install_selected_providers: str,
@@ -467,6 +470,7 @@ def shell(
         force_build=force_build,
         force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
+        forward_ports=forward_ports,
         github_repository=github_repository,
         include_mypy_volume=include_mypy_volume,
         include_pycache_volume=True,
