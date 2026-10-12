@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import cache
@@ -100,6 +101,7 @@ def _initialize_api_server_stats() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _initialize_api_server_stats()
+    os.environ["_AIRFLOW_COMPONENT"] = "api_server"
     from airflow.listeners.listener import get_listener_manager
 
     try:
@@ -121,6 +123,8 @@ async def lifespan(app: FastAPI):
                 get_listener_manager().hook.before_stopping(component=app)
             except Exception:
                 log.exception("Error calling listener before_stopping hook")
+            finally:
+                os.environ.pop("_AIRFLOW_COMPONENT", None)
 
 
 @providers_configuration_loaded

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import uuid
 from collections import defaultdict
@@ -3506,3 +3507,76 @@ class TestExecuteRouting:
         mock_process_executor.assert_called_once()
         _, kwargs = mock_process_executor.call_args
         assert "initializer" in kwargs
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
+    def test_api_server_env_var_prevents_process_pool_fail_open(
+        self, mock_process_executor, mock_thread_executor
+    ):
+        """When _AIRFLOW_COMPONENT=api_server, listener uses ThreadPoolExecutor even if on_starting was not called."""
+        listener = OpenLineageListener()
+        # on_starting was never called, self._is_api_server_flag is False
+        assert listener._is_api_server_flag is False
+
+        with mock.patch.dict("os.environ", {"_AIRFLOW_COMPONENT": "api_server"}):
+            assert listener._is_api_server is True
+            _ = listener.executor
+            mock_process_executor.assert_not_called()
+            mock_thread_executor.assert_called_once_with(
+                max_workers=1,
+                thread_name_prefix="openlineage-api-executor",
+            )
+
+    def test_submit_callable_concurrent_runtime_errors_do_not_destroy_new_executor(self):
+        """If another thread already recreated the executor, a secondary RuntimeError does not destroy it."""
+        listener = OpenLineageListener()
+        listener._is_api_server = True
+
+        exec_1 = MagicMock()
+        exec_1.submit.side_effect = RuntimeError("shutdown")
+        exec_2 = MagicMock()
+        listener._thread_executor = exec_1
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor", return_value=exec_2
+        ):
+            fut = listener.submit_callable(str)
+            exec_1.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
+            exec_2.submit.assert_called_once()
+            exec_2.shutdown.assert_not_called()
+            assert fut == exec_2.submit.return_value
+
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="os.fork required")
+    def test_real_fork_resets_executor_and_adapter_cache(self):
+        """A real process fork clears inherited executor references and cached adapter."""
+        import multiprocessing
+
+        listener = OpenLineageListener()
+        listener._is_api_server = True
+        _ = listener.executor
+        assert listener._thread_executor is not None
+
+        from airflow.providers.openlineage.plugins.listener import _get_process_adapter
+
+        adapter_in_parent = _get_process_adapter()
+
+        def child_work(queue):
+            try:
+                listener._check_pid()
+                is_none = listener._thread_executor is None
+                adapter_in_child = _get_process_adapter()
+                diff_adapter = id(adapter_in_child) != id(adapter_in_parent)
+                queue.put((is_none, diff_adapter, None))
+            except Exception as e:
+                queue.put((False, False, str(e)))
+
+        ctx = multiprocessing.get_context("fork")
+        q = ctx.Queue()
+        p = ctx.Process(target=child_work, args=(q,))
+        p.start()
+        p.join(timeout=10)
+        assert p.exitcode == 0
+        is_none, diff_adapter, err = q.get(timeout=5)
+        assert err is None
+        assert is_none is True
+        assert diff_adapter is True

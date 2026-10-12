@@ -169,24 +169,34 @@ class OpenLineageListener:
     def __init__(self):
         self._executor: ProcessPoolExecutor | None = None
         self._thread_executor: ThreadPoolExecutor | None = None
-        self._is_api_server: bool = False
+        self._is_api_server_flag: bool = False
         self._pid: int = os.getpid()
         self._lock = threading.Lock()
         self.log = logging.getLogger(__name__)
         self.extractor_manager = ExtractorManager()
         self.adapter = OpenLineageAdapter()
 
+    @property
+    def _is_api_server(self) -> bool:
+        return self._is_api_server_flag or os.environ.get("_AIRFLOW_COMPONENT") == "api_server"
+
+    @_is_api_server.setter
+    def _is_api_server(self, value: bool) -> None:
+        self._is_api_server_flag = value
+
     def _check_pid(self) -> None:
         """Reset executors if the process was forked (e.g. Gunicorn master to worker)."""
         current_pid = os.getpid()
         if self._pid != current_pid:
             # Fork occurred. The inherited lock might be held by a thread that no longer exists in this child.
-            # Replace it with a fresh lock before acquiring.
-            self._lock = threading.Lock()
-            with self._lock:
+            # Replace it with a fresh lock using double-checked locking to avoid races between child threads.
+            new_lock = threading.Lock()
+            with new_lock:
                 if self._pid != current_pid:
+                    self._lock = new_lock
                     self._executor = None
                     self._thread_executor = None
+                    _get_process_adapter.cache_clear()
                     self._pid = current_pid
 
     if AIRFLOW_V_3_0_PLUS:
@@ -1362,20 +1372,21 @@ class OpenLineageListener:
             self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
 
     def submit_callable(self, callable, *args, **kwargs):
+        current_executor = self.executor
         try:
-            fut = self.executor.submit(callable, *args, **kwargs)
+            fut = current_executor.submit(callable, *args, **kwargs)
         except RuntimeError:
             if self._is_api_server:
                 self.log.warning("ThreadPoolExecutor is unusable; recreating and retrying submission.")
                 with self._lock:
-                    if self._thread_executor is not None:
+                    if self._thread_executor is current_executor:
                         with suppress(Exception):
                             self._thread_executor.shutdown(wait=False, cancel_futures=True)
                         self._thread_executor = None
             else:
                 self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
                 with self._lock:
-                    if self._executor is not None:
+                    if self._executor is current_executor:
                         with suppress(Exception):
                             self._executor.shutdown(wait=False)
                         self._executor = None
