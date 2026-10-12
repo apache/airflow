@@ -323,12 +323,6 @@ def test_schema_required():
         list(parse_documents("dag_id: d\ntasks: []"))
 
 
-def test_unquoted_date_schema_is_coerced_to_url():
-    # An unquoted date loads as datetime.date; accept it and normalise to the canonical schema URL.
-    doc = next(iter(parse_documents("$schema: 2026-10-30\ndag_id: d\ntasks: []")))
-    assert doc.schema_ == HEAD_SCHEMA
-
-
 @pytest.mark.parametrize(
     "schema_value",
     [
@@ -339,9 +333,9 @@ def test_unquoted_date_schema_is_coerced_to_url():
         pytest.param("[a, b]", id="list"),
     ],
 )
-def test_schema_must_be_a_non_empty_string_or_date(schema_value):
+def test_schema_must_be_a_non_empty_string(schema_value):
     # A present-but-falsy or wrong-typed $schema is reported as such, not as "missing".
-    with pytest.raises(YamlDagParseError, match="must be a non-empty string or a date"):
+    with pytest.raises(YamlDagParseError, match="must be a non-empty string"):
         list(parse_documents(f"$schema: {schema_value}\ndag_id: d\ntasks: []"))
 
 
@@ -376,13 +370,32 @@ def test_yaml_merge_keys_supported():
     assert t.run["region"].root == "us"  # explicit key overrides the merged value
 
 
-def test_unknown_schema_version_is_rejected():
-    # Strict exact match (mirroring the supervisor migrator): any version that is not published --
-    # newer, ancient, or unreadable -- is rejected rather than guessed.
-    base = "https://airflow.apache.org/schemas/dag/{}.json"
-    for url in (base.format("2099-01-01"), base.format("2000-01-01"), "nonsense"):
-        with pytest.raises(YamlDagParseError, match="not valid"):
-            list(parse_documents(f"$schema: {url}\ndag_id: d\ntasks: []"))
+@pytest.mark.parametrize(
+    "date",
+    [
+        pytest.param("2099-01-01", id="newer-than-head"),
+        pytest.param("2000-01-01", id="older-than-oldest"),
+    ],
+)
+def test_unknown_schema_version_is_rejected(date):
+    url = f"https://airflow.apache.org/schemas/dag/{date}.json"
+    with pytest.raises(YamlDagParseError, match="not valid"):
+        list(parse_documents(f"$schema: {url}\ndag_id: d\ntasks: []"))
+
+
+@pytest.mark.parametrize(
+    "schema_value",
+    [
+        pytest.param("nonsense", id="junk"),
+        pytest.param("http://airflow.apache.org/schemas/dag/2026-10-30.json", id="wrong-scheme"),
+        pytest.param("https://airflow.apache.org/schemas/dag/2026-10-30", id="missing-json"),
+        pytest.param("'2026-10-30'", id="quoted-date"),
+    ],
+)
+def test_non_canonical_schema_url_is_rejected(schema_value):
+    # A non-canonical $schema names the value written and the expected form, not "version None".
+    with pytest.raises(YamlDagParseError, match="is not a canonical schema URL"):
+        list(parse_documents(f"$schema: {schema_value}\ndag_id: d\ntasks: []"))
 
 
 def test_accepts_a_file_like_stream():

@@ -145,8 +145,12 @@ class DagDocumentMigrator:
         :return: The migrated result. If *body* is already at head, it is
             returned as-is; otherwise a migrated copy is returned.
         """
-        source_version = self.resolve_version(version_from_schema(body["$schema"]))
-        if source_version == self._bundle.versions[0].value:
+        if (schema_version := version_from_schema(raw_schema := body["$schema"])) is None:
+            raise ValueError(
+                f"$schema {raw_schema!r} is not a canonical schema URL "
+                f"(expected {_SCHEMA_URL.format(date='YYYY-MM-DD')!r})"
+            )
+        if (source_version := self.resolve_version(schema_version)) == self._bundle.versions[0].value:
             return body
         info = _RequestInfo(copy.deepcopy(dict(body)))
         for version in self._bundle.reversed_versions:

@@ -87,14 +87,14 @@ def test_exact_version_pin_migrates_from_that_version():
         pytest.param(migrator.schema_from_version("2099-01-01"), id="newer-than-head"),
         pytest.param(migrator.schema_from_version("2020-01-01"), id="older-than-oldest"),
         pytest.param(migrator.schema_from_version("2027-03-01"), id="between-versions"),
-        pytest.param("not-a-version", id="no-version-token"),
+        pytest.param("not-a-version", id="junk"),
+        pytest.param("http://airflow.apache.org/schemas/dag/2026-10-30.json", id="wrong-scheme"),
+        pytest.param("2026-10-30", id="bare-date"),
     ],
 )
-def test_unknown_version_is_rejected(schema_value):
-    # Strict exact match, mirroring the supervisor migrator: newer, older, in-between, and
-    # unreadable versions all raise -- there is no silent fallback to the head ruleset.
+def test_unknown_is_rejected(schema_value):
     m = migrator.DagDocumentMigrator(_SYNTH_BUNDLE)
-    with pytest.raises(ValueError, match="not valid"):
+    with pytest.raises(ValueError, match=r"not valid|is not a canonical schema URL"):
         m.resolve_and_migrate({"$schema": schema_value, "dag_id": "d", "tasks": []})
 
 
