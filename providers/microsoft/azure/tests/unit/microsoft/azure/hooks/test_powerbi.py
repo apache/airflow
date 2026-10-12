@@ -57,6 +57,113 @@ DATASET_ID = "dataset_id"
 
 class TestPowerBIHook:
     @pytest.mark.asyncio
+    @mock.patch.object(KiotaRequestAdapterHook, "run", autospec=True)
+    async def test_enhanced_refresh_execution_request_error(self, mock_run, powerbi_hook):
+        error = AirflowException("Synthetic request failure")
+        mock_run.side_effect = [
+            {"value": [{"requestId": "1234", "refreshType": "ViaEnhancedApi", "status": "Unknown"}]},
+            error,
+        ]
+
+        with pytest.raises(
+            PowerBIDatasetRefreshException, match="Failed to retrieve refresh execution details"
+        ) as exc:
+            await powerbi_hook.get_refresh_details_by_refresh_id(DATASET_ID, GROUP_ID, "1234")
+
+        assert exc.value.__cause__ is error
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("extended_status", "status", "expected_status"),
+        [
+            ("Failed", "Unknown", "Failed"),
+            ("Completed", "Unknown", "Completed"),
+            ("TimedOut", "Unknown", "TimedOut"),
+            ("Cancelled", "Unknown", "Cancelled"),
+            ("Disabled", "Unknown", "Disabled"),
+            ("InProgress", "Failed", "InProgress"),
+            ("NotStarted", "Unknown", "NotStarted"),
+            (None, "Completed", "Completed"),
+            ("", "Failed", "Failed"),
+            ("Unknown", "Failed", "Failed"),
+            ("Unknown", "Unknown", "In Progress"),
+            ("FutureStatus", "Unknown", "In Progress"),
+        ],
+    )
+    @mock.patch.object(KiotaRequestAdapterHook, "run", autospec=True)
+    async def test_enhanced_refresh_execution_status(
+        self, mock_run, powerbi_hook, extended_status, status, expected_status
+    ):
+        mock_run.side_effect = [
+            {
+                "value": [
+                    {"requestId": "other-refresh", "refreshType": "ViaEnhancedApi", "status": "Completed"},
+                    {"requestId": "submitted-refresh", "refreshType": "ViaEnhancedApi", "status": "Unknown"},
+                ]
+            },
+            {"status": status, "extendedStatus": extended_status},
+        ]
+
+        result = await powerbi_hook.get_refresh_details_by_refresh_id(
+            dataset_id=DATASET_ID, group_id=GROUP_ID, refresh_id="submitted-refresh"
+        )
+
+        assert result == {"request_id": "submitted-refresh", "status": expected_status, "error": "None"}
+        assert mock_run.call_count == 2
+        mock_run.assert_called_with(
+            powerbi_hook,
+            url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes/{refresh_id}",
+            path_parameters={
+                "group_id": GROUP_ID,
+                "dataset_id": DATASET_ID,
+                "refresh_id": "submitted-refresh",
+            },
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch.object(KiotaRequestAdapterHook, "run", autospec=True)
+    async def test_enhanced_refresh_execution_errors(self, mock_run, powerbi_hook):
+        mock_run.side_effect = [
+            {"value": [{"requestId": "1234", "refreshType": "ViaEnhancedApi", "status": "Unknown"}]},
+            {
+                "status": "Unknown",
+                "extendedStatus": "Failed",
+                "messages": [{"type": "Error", "message": "Synthetic engine failure"}],
+                "serviceExceptionJson": '{"errorCode":"SyntheticRefreshError"}',
+                "refreshAttempts": [
+                    {"serviceExceptionJson": '{"errorDescription":"Synthetic attempt failure"}'},
+                    {"attemptId": 2},
+                ],
+            },
+        ]
+
+        result = await powerbi_hook.get_refresh_details_by_refresh_id(DATASET_ID, GROUP_ID, "1234")
+
+        assert result["status"] == "Failed"
+        assert result["error"] == "; ".join(
+            [
+                "Synthetic engine failure",
+                '{"errorCode":"SyntheticRefreshError"}',
+                '{"errorDescription":"Synthetic attempt failure"}',
+            ]
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["Unknown", "Completed", "Failed", "Disabled"])
+    @mock.patch.object(KiotaRequestAdapterHook, "run", autospec=True)
+    async def test_standard_refresh_uses_only_history(self, mock_run, powerbi_hook, status):
+        mock_run.return_value = {"value": [{"requestId": "1234", "refreshType": "ViaApi", "status": status}]}
+
+        result = await powerbi_hook.get_refresh_details_by_refresh_id(DATASET_ID, GROUP_ID, "1234")
+
+        assert result == {
+            "request_id": "1234",
+            "status": "In Progress" if status == "Unknown" else status,
+            "error": "None",
+        }
+        mock_run.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_get_refresh_history(self, powerbi_hook):
         response_data = {"value": [{"requestId": "1234", "status": "Completed", "serviceExceptionJson": ""}]}
 

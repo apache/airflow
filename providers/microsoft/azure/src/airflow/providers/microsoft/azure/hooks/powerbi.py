@@ -33,6 +33,7 @@ class PowerBIDatasetRefreshFields(Enum):
     REQUEST_ID = "request_id"
     STATUS = "status"
     ERROR = "error"
+    REFRESH_TYPE = "refresh_type"
 
 
 class PowerBIDatasetRefreshStatus:
@@ -42,9 +43,11 @@ class PowerBIDatasetRefreshStatus:
     FAILED = "Failed"
     COMPLETED = "Completed"
     DISABLED = "Disabled"
+    TIMED_OUT = "TimedOut"
+    CANCELLED = "Cancelled"
 
-    TERMINAL_STATUSES = {FAILED, COMPLETED}
-    FAILURE_STATUSES = {FAILED, DISABLED}
+    FAILURE_STATUSES = {FAILED, DISABLED, TIMED_OUT, CANCELLED}
+    TERMINAL_STATUSES = FAILURE_STATUSES | {COMPLETED}
 
 
 class PowerBIDatasetRefreshException(AirflowException):
@@ -148,9 +151,11 @@ class PowerBIHook(KiotaRequestAdapterHook):
         """
         Convert raw refresh details into a dictionary containing required fields.
 
+        Enhanced refresh history entries retain their type for execution-detail polling.
+
         :param refresh_details: Raw object of refresh details.
         """
-        return {
+        details = {
             PowerBIDatasetRefreshFields.REQUEST_ID.value: str(refresh_details.get("requestId")),
             PowerBIDatasetRefreshFields.STATUS.value: (
                 "In Progress"
@@ -159,6 +164,9 @@ class PowerBIHook(KiotaRequestAdapterHook):
             ),
             PowerBIDatasetRefreshFields.ERROR.value: str(refresh_details.get("serviceExceptionJson")),
         }
+        if refresh_details.get("refreshType") == "ViaEnhancedApi":
+            details[PowerBIDatasetRefreshFields.REFRESH_TYPE.value] = "ViaEnhancedApi"
+        return details
 
     async def get_refresh_details_by_refresh_id(
         self, dataset_id: str, group_id: str, refresh_id: str
@@ -186,6 +194,39 @@ class PowerBIHook(KiotaRequestAdapterHook):
             )
 
         refresh_details = refresh_histories[refresh_ids.index(refresh_id)]
+
+        if refresh_details.get(PowerBIDatasetRefreshFields.REFRESH_TYPE.value) == "ViaEnhancedApi":
+            try:
+                execution_details = await self.run(
+                    url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes/{refresh_id}",
+                    path_parameters={
+                        "group_id": group_id,
+                        "dataset_id": dataset_id,
+                        "refresh_id": refresh_id,
+                    },
+                )
+            except AirflowException as error:
+                raise PowerBIDatasetRefreshException(
+                    "Failed to retrieve refresh execution details"
+                ) from error
+            status = execution_details.get("extendedStatus")
+            if status not in PowerBIDatasetRefreshStatus.TERMINAL_STATUSES | {"NotStarted", "InProgress"}:
+                status = execution_details.get("status")
+            errors = [message["message"] for message in execution_details.get("messages", [])]
+            if execution_details.get("serviceExceptionJson"):
+                errors.append(execution_details["serviceExceptionJson"])
+            errors.extend(
+                attempt["serviceExceptionJson"]
+                for attempt in execution_details.get("refreshAttempts", [])
+                if attempt.get("serviceExceptionJson")
+            )
+            return self.raw_to_refresh_details(
+                {
+                    "requestId": refresh_id,
+                    "status": status,
+                    "serviceExceptionJson": "; ".join(errors) if errors else None,
+                }
+            )
 
         return refresh_details
 
