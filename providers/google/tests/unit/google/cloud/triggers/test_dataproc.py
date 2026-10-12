@@ -22,11 +22,13 @@ from asyncio import CancelledError, Future, sleep
 from types import SimpleNamespace
 from unittest import mock
 
+import grpc
 import pytest
-from google.api_core.exceptions import AlreadyExists, NotFound, PermissionDenied
+from google.api_core.exceptions import AlreadyExists, NotFound, PermissionDenied, ServiceUnavailable
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, Job, JobStatus
 from google.protobuf.any_pb2 import Any
 from google.rpc.status_pb2 import Status
+from grpc.aio import AioRpcError
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.triggers.dataproc import (
@@ -620,6 +622,63 @@ class TestDataprocBatchTrigger:
         mock_get_async_hook.assert_called_once_with()
         assert mock_get_async_hook.return_value.get_batch.await_count == 2
         mock_sleep.assert_awaited_once_with(TEST_POLL_INTERVAL)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger.get_async_hook")
+    async def test_batch_trigger_retries_service_unavailable(
+        self, mock_get_async_hook, mock_sleep, batch_trigger
+    ):
+        succeeded_batch = mock.MagicMock()
+        succeeded_batch.state = Batch.State.SUCCEEDED
+        succeeded_batch.state_message = TEST_BATCH_STATE_MESSAGE
+
+        mock_get_async_hook.return_value.get_batch = mock.AsyncMock(
+            side_effect=[ServiceUnavailable("temporary error"), succeeded_batch]
+        )
+
+        actual_event = await batch_trigger.run().__anext__()
+
+        assert actual_event.payload["batch_state"] == Batch.State.SUCCEEDED.name
+        assert mock_get_async_hook.return_value.get_batch.await_count == 2
+        mock_sleep.assert_awaited_once_with(TEST_POLL_INTERVAL)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger.get_async_hook")
+    async def test_batch_trigger_retries_grpc_unavailable(
+        self, mock_get_async_hook, mock_sleep, batch_trigger
+    ):
+        error = AioRpcError(
+            grpc.StatusCode.UNAVAILABLE, mock.MagicMock(), mock.MagicMock(), "temporary error"
+        )
+        succeeded_batch = mock.MagicMock()
+        succeeded_batch.state = Batch.State.SUCCEEDED
+        succeeded_batch.state_message = TEST_BATCH_STATE_MESSAGE
+
+        mock_get_async_hook.return_value.get_batch = mock.AsyncMock(side_effect=[error, succeeded_batch])
+
+        actual_event = await batch_trigger.run().__anext__()
+
+        assert actual_event.payload["batch_state"] == Batch.State.SUCCEEDED.name
+        assert mock_get_async_hook.return_value.get_batch.await_count == 2
+        mock_sleep.assert_awaited_once_with(TEST_POLL_INTERVAL)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger.get_async_hook")
+    async def test_batch_trigger_does_not_retry_permission_denied(
+        self, mock_get_async_hook, mock_sleep, batch_trigger
+    ):
+        error = AioRpcError(
+            grpc.StatusCode.PERMISSION_DENIED, mock.MagicMock(), mock.MagicMock(), "permission denied"
+        )
+        mock_get_async_hook.return_value.get_batch = mock.AsyncMock(side_effect=error)
+
+        with pytest.raises(AioRpcError):
+            await batch_trigger.run().__anext__()
+
+        mock_sleep.assert_not_awaited()
 
 
 class TestDataprocOperationTrigger:
