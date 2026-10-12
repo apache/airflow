@@ -695,6 +695,7 @@ class AssetManager(LoggingMixin):
                     rollup_fingerprint=fingerprint,
                     asset_id=asset_id,
                     allow_reuse=timetable.batch_asset_events,
+                    refire_policy=getattr(timetable, "refire_policy", None),
                     session=session,
                 )
                 log_record = PartitionedAssetKeyLog(
@@ -717,6 +718,7 @@ class AssetManager(LoggingMixin):
         rollup_fingerprint: dict,
         asset_id: int,
         allow_reuse: bool,
+        refire_policy: str | None = None,
         session: Session,
     ) -> AssetPartitionDagRun:
         """
@@ -754,7 +756,7 @@ class AssetManager(LoggingMixin):
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
             latest_apdr: AssetPartitionDagRun | None = None
-            if allow_reuse:
+            if allow_reuse or refire_policy is not None:
                 latest_apdr = session.scalar(
                     select(AssetPartitionDagRun)
                     .where(
@@ -764,7 +766,7 @@ class AssetManager(LoggingMixin):
                     .order_by(AssetPartitionDagRun.id.desc())
                     .limit(1)
                 )
-            if latest_apdr and latest_apdr.created_dag_run_id is None:
+            if allow_reuse and latest_apdr and latest_apdr.created_dag_run_id is None:
                 existing_partition_date = latest_apdr.partition_date
                 if existing_partition_date is None:
                     # No carried date yet; adopt the incoming one if present (no conflict
@@ -811,6 +813,44 @@ class AssetManager(LoggingMixin):
                 target_dag.dag_id,
                 exc_info=True,
             )
+            # Refire: when the previous run for this partition already fired and the
+            # consumer opted into a refire_policy, carry forward the sibling assets'
+            # logged contributions so a single late/corrected event can re-satisfy the
+            # asset_condition. The scheduler then either re-runs the existing DagRun
+            # (refire_policy="rerun") or creates a new one (refire_policy="newrun").
+            if (
+                refire_policy is not None
+                and latest_apdr is not None
+                and latest_apdr.created_dag_run_id is not None
+            ):
+                prior_logs = session.scalars(
+                    select(PartitionedAssetKeyLog).where(
+                        PartitionedAssetKeyLog.asset_partition_dag_run_id == latest_apdr.id,
+                        PartitionedAssetKeyLog.asset_id != asset_id,
+                    )
+                ).all()
+                for prior in prior_logs:
+                    session.add(
+                        PartitionedAssetKeyLog(
+                            asset_id=prior.asset_id,
+                            asset_event_id=prior.asset_event_id,
+                            asset_partition_dag_run_id=apdr.id,
+                            source_partition_key=prior.source_partition_key,
+                            target_dag_id=prior.target_dag_id,
+                            target_partition_key=prior.target_partition_key,
+                        )
+                    )
+                if prior_logs:
+                    session.flush()
+                    cls.logger().info(
+                        "Refire: seeded %d sibling key-log row(s) from fired APDR %s into new APDR %s "
+                        "for key %s dag_id %s",
+                        len(prior_logs),
+                        latest_apdr.id,
+                        apdr.id,
+                        target_key,
+                        target_dag.dag_id,
+                    )
             return apdr
 
     @classmethod
