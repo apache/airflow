@@ -248,6 +248,10 @@ class IterationState:
         self._kill_threads: list[threading.Thread] = []
         #: The input resolved for this task instance, once ``aresolve`` returned.
         self.resolved: Resolved | None = None
+        #: Whether the operator the task iterates pushes its results, as built for an indexed task:
+        #: an operator may set ``do_xcom_push`` in its own ``__init__``, not only through
+        #: ``partial()``. The same for every indexed task; True until one is built.
+        self.do_xcom_push = True
 
     def __copy__(self) -> IterationState:
         return IterationState()
@@ -972,8 +976,6 @@ class IterableOperator(BaseOperator):
         jinja_env: jinja2.Environment,
     ) -> tuple[bool, list[int]]:
         """Run every index to completion; return whether its tasks pushed results, and the skipped indices."""
-        do_xcom_push = True
-
         self.log.info("Running tasks with %d workers", self.max_workers)
         with (
             Checkpoints(context) as checkpoints,
@@ -1000,8 +1002,6 @@ class IterableOperator(BaseOperator):
                             indices,
                             stop=self._state.stop_requested,
                         ):
-                            if isinstance(task, IndexedTaskInstance):
-                                do_xcom_push = task.do_xcom_push
                             outcomes.record(task, raised)
                     except BaseException:
                         # Whatever ends the loop early (the parent's execution_timeout, a failure that
@@ -1031,7 +1031,7 @@ class IterableOperator(BaseOperator):
                 # in that on_kill no longer has an asend to wait for.
                 self._state.await_kill(self._SHUTDOWN_TIMEOUT)
             skipped = outcomes.conclude()
-        return do_xcom_push, skipped
+        return self._state.do_xcom_push, skipped
 
     def _skip_downstream_of_a_partial_skip(self, context: Context, result: XComIterable | None) -> None:
         """
@@ -1428,6 +1428,7 @@ class IterableOperator(BaseOperator):
         jinja_env: jinja2.Environment,
     ) -> IndexedTaskInstance:
         unmapped_task = self._operator.unmap(mapped_kwargs)
+        self._state.do_xcom_push = unmapped_task.do_xcom_push
         # Make sure deferred operators will always raise a DeferredTask exception when executed
         unmapped_task.start_from_trigger = False
 

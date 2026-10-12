@@ -1529,6 +1529,31 @@ class TestIterableOperator:
                 materialized = list(result)
                 assert materialized == [(1, 10, 100), (2, 20, 200)]
 
+    def test_an_operator_that_turns_off_its_xcom_push_returns_no_result(self):
+        """
+        An operator may set ``do_xcom_push`` in its own ``__init__``, as some providers' do, not only
+        through ``partial()``: the iterated task follows the operator as it is built for its items.
+        """
+
+        class NoXComPush(MockOperator):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.do_xcom_push = False
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}]),
+                task_id="operator_without_xcom_push",
+                operator_class=NoXComPush,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                result = iterable_op.execute(context=context)
+
+        assert iterable_op.do_xcom_push is True
+        assert result is None
+
     def test_execute_with_do_xcom_push_false(self):
         """With do_xcom_push=False no return_value_<index> XCom is pushed for any sub-task."""
         with DAG("test_dag") as dag:
