@@ -124,6 +124,18 @@ class TestSortParam:
         assert all(column.table is rows for _, column, _ in param.get_resolved_columns())
         assert "ORDER BY filtered_runs.run_id ASC, filtered_runs.id ASC" in str(query)
 
+    def test_compound_sort_requires_named_expressions_for_cursor_values(self):
+        param = SortParam(["id"], DagRun, {"position": [DagRun.id + 1]}).set_value(["position"])
+        with pytest.raises(ValueError, match="Compound sort expressions must have labels"):
+            param.get_resolved_columns()
+
+    def test_compound_sort_uses_expression_label_for_cursor_values(self):
+        param = SortParam(["id"], DagRun, {"position": [(DagRun.id + 1).label("position")]}).set_value(
+            ["position"]
+        )
+        assert [name for name, _, _ in param.get_resolved_columns()] == ["position", "id"]
+        assert param.row_value(SimpleNamespace(position=5, id=4), "position") == 5
+
     def test_sort_param_max_number_of_filers(self):
         param = SortParam([], None, None)
         n_filters = param.MAX_SORT_PARAMS + 1

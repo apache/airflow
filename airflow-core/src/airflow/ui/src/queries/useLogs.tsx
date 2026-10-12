@@ -29,6 +29,7 @@ import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type {
   StructuredLogMessage,
   TaskInstanceResponse,
+  TaskInstanceHistoryResponse,
   TaskInstancesLogResponse,
 } from "openapi/requests/types.gen";
 
@@ -92,13 +93,14 @@ export const getLogLineText = ({
 type Props = {
   accept?: "*/*" | "application/json" | "application/x-ndjson";
   dagId: string;
+  historical?: boolean;
   limit?: number;
   logLevelFilters?: Array<string>;
   showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
-  taskInstance?: TaskInstanceResponse;
+  taskInstance?: TaskInstanceHistoryResponse | TaskInstanceResponse;
   tryNumber?: number;
 };
 
@@ -109,12 +111,12 @@ type ParseLogsProps = {
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
-  taskInstance?: TaskInstanceResponse;
+  taskInstance?: TaskInstanceHistoryResponse | TaskInstanceResponse;
   translate: TFunction;
   tryNumber: number;
 };
 
-const parseLogs = ({
+export const parseLogs = ({
   data,
   logLevelFilters,
   showLogLevel,
@@ -129,7 +131,15 @@ const parseLogs = ({
   let parsedLines;
   const sources: Array<string> = [];
 
-  const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance, "logs")}?try_number=${tryNumber}` : "";
+  const logSearch = new URLSearchParams({ try_number: String(tryNumber) });
+
+  if (taskInstance?.region_id !== undefined) {
+    logSearch.set("region_id", taskInstance.region_id);
+    logSearch.set("region_index", String(taskInstance.region_index));
+  }
+  const logLink = taskInstance
+    ? `${getTaskInstanceLink({ dagId: taskInstance.dag_id, dagRunId: taskInstance.dag_run_id, mapIndex: taskInstance.map_index, taskId: taskInstance.task_id }, "logs")}?${logSearch}`
+    : "";
 
   try {
     let lineNumber = 0;
@@ -307,6 +317,7 @@ export const useLogs = (
   {
     accept = "application/x-ndjson",
     dagId,
+    historical = false,
     limit,
     logLevelFilters,
     showLogLevel,
@@ -327,6 +338,8 @@ export const useLogs = (
       dagId,
       dagRunId: taskInstance?.dag_run_id ?? "",
       mapIndex: taskInstance?.map_index ?? -1,
+      regionId: taskInstance?.region_id,
+      regionIndex: taskInstance?.region_index,
       taskId: taskInstance?.task_id ?? "",
       tryNumber,
     },
@@ -334,6 +347,7 @@ export const useLogs = (
     {
       enabled: Boolean(taskInstance),
       refetchInterval: (query) =>
+        !historical &&
         (isStatePending(taskInstance?.state) ||
           dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)) &&
         refetchInterval,

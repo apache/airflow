@@ -184,6 +184,12 @@ class AirflowClient:
         """List a Dag's tasks, with the edges each one carries."""
         return self._make_request(method="GET", endpoint=f"dags/{dag_id}/tasks")
 
+    def get_task_instance_links(self, dag_id: str, run_id: str, task_id: str):
+        """Get the extra links of a task instance, keyed by link name."""
+        return self._make_request(
+            method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/links"
+        )
+
     def get_dag_source(self, dag_id: str):
         """Get the source code stored for a Dag's latest version."""
         return self._make_request(method="GET", endpoint=f"dagSources/{dag_id}")
@@ -252,6 +258,13 @@ class AirflowClient:
             method="GET",
             endpoint=endpoint,
         )
+
+    def get_event_logs(self, dag_id: str, run_id: str, task_id: str | None = None) -> list[dict]:
+        """List the audit log events of a Dag run, or of one of its tasks, oldest first."""
+        params = {"dag_id": dag_id, "run_id": run_id, "order_by": "event_log_id"}
+        if task_id is not None:
+            params["task_id"] = task_id
+        return self._make_request(method="GET", endpoint="eventLogs", params=params)["event_logs"]
 
 
 class TaskSDKClient:

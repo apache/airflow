@@ -43,7 +43,7 @@ import {
   type GanttDataItem,
   GANTT_TIME_AXIS_TICK_COUNT,
   buildGanttTimeAxisTicks,
-  buildMaxTryByTaskId,
+  buildMaxTryByKey,
   getGanttSegmentTo,
   gridSummariesToTaskIdMap,
 } from "./utils";
@@ -68,7 +68,6 @@ const GANTT_AXIS_TICK_HEIGHT_PX = 6;
 type Props = {
   readonly dagId: string;
   readonly flatNodes: Array<GridTask>;
-  readonly ganttDataItems: Array<GanttDataItem>;
   readonly gridSummaries: Array<LightGridTaskInstanceSummary>;
   readonly maxMs: number;
   readonly minMs: number;
@@ -91,6 +90,7 @@ const toTooltipSummary = (
 
   return {
     child_states: null,
+    loop_iteration: segment.loopIteration,
     max_end_date: segment.end_when ?? dayjs(segment.x[1]).toISOString(),
     min_start_date: segment.start_when ?? dayjs(segment.x[0]).toISOString(),
     state: segment.state ?? null,
@@ -109,7 +109,6 @@ const toTooltipSummary = (
 export const GanttTimeline = ({
   dagId,
   flatNodes,
-  ganttDataItems,
   gridSummaries,
   maxMs,
   minMs,
@@ -148,8 +147,7 @@ export const GanttTimeline = ({
   }, []);
 
   const summaryByTaskId = gridSummariesToTaskIdMap(gridSummaries);
-  // Precompute max try per task once (O(n)) so getGanttSegmentTo can do O(1) lookups.
-  const maxTryByTaskId = buildMaxTryByTaskId(ganttDataItems);
+  const maxTryByKey = buildMaxTryByKey(rowSegments.flat());
   const spanMs = Math.max(1, maxMs - minMs);
 
   // Derive tick count from available width so labels never overlap.
@@ -330,7 +328,7 @@ export const GanttTimeline = ({
                     const to = getGanttSegmentTo({
                       dagId,
                       item: segment,
-                      maxTryByTaskId,
+                      maxTryByKey,
                       pathname,
                       runId,
                       searchParams: baseSearchParams,
@@ -341,13 +339,17 @@ export const GanttTimeline = ({
 
                     // Task groups don't have a try number
                     const touchesNext =
-                      tryNumber !== undefined && segments[segIndex + 1]?.tryNumber === tryNumber;
+                      tryNumber !== undefined &&
+                      segments[segIndex + 1]?.taskInstanceId === segment.taskInstanceId &&
+                      segments[segIndex + 1]?.tryNumber === tryNumber;
                     const touchesPrev =
-                      tryNumber !== undefined && segments[segIndex - 1]?.tryNumber === tryNumber;
+                      tryNumber !== undefined &&
+                      segments[segIndex - 1]?.taskInstanceId === segment.taskInstanceId &&
+                      segments[segIndex - 1]?.tryNumber === tryNumber;
 
                     return (
                       <TaskInstanceTooltip
-                        key={`${taskId}-${tryNumber ?? -1}-${state ?? "none"}-${x[0]}`}
+                        key={`${segment.taskInstanceId ?? taskId}-${tryNumber ?? -1}-${state ?? "none"}-${x[0]}`}
                         openDelay={500}
                         positioning={{
                           offset: { crossAxis: 0, mainAxis: 5 },

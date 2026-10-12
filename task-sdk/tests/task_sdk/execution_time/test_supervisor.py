@@ -980,7 +980,10 @@ class TestWatchedSubprocess:
         assert proc.wait() == 0
         spy_agency.assert_spy_not_called(heartbeat_spy)
 
-    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start):
+    @pytest.mark.parametrize("log_to_file", [False, True])
+    def test_run_simple_dag(
+        self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start, tmp_path, log_to_file
+    ):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
@@ -1007,8 +1010,15 @@ class TestWatchedSubprocess:
                 dry_run=True,
                 client=client_with_ti_start,
                 bundle_info=bundle_info,
+                log_path=str(tmp_path / "task.log") if log_to_file else None,
             )
             assert exit_code == 0, captured_logs
+
+        if log_to_file:
+            records = [json.loads(line) for line in (tmp_path / "task.log").read_text().splitlines()]
+            greeting = next(record for record in records if record.get("event") == "Hello World hello!")
+            assert greeting["ti_id"] == str(ti.id)
+            return
 
         # We should have a log from the task!
         assert {
@@ -2431,6 +2441,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, False),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value="test_value"),
         ),
         expected_body={"key": "test_key", "value": "test_value", "type": "XComResult"},
@@ -2443,6 +2454,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", 2, False),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value="test_value"),
         ),
         expected_body={"key": "test_key", "value": "test_value", "type": "XComResult"},
@@ -2453,6 +2465,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, False),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value=None, type="XComResult"),
         ),
         expected_body={"key": "test_key", "value": None, "type": "XComResult"},
@@ -2469,6 +2482,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, True),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value=None, type="XComResult"),
         ),
         expected_body={"key": "test_key", "value": None, "type": "XComResult"},
@@ -2491,7 +2505,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 None,
             ),
-            kwargs={"dag_result": False, "mapped_length": None},
+            kwargs={
+                "dag_result": False,
+                "mapped_length": None,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom",
@@ -2515,7 +2532,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 2,
             ),
-            kwargs={"dag_result": False, "mapped_length": None},
+            kwargs={
+                "dag_result": False,
+                "mapped_length": None,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom_with_map_index",
@@ -2540,7 +2560,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 2,
             ),
-            kwargs={"dag_result": False, "mapped_length": 3},
+            kwargs={
+                "dag_result": False,
+                "mapped_length": 3,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom_with_map_index_and_mapped_length",
@@ -2564,7 +2587,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 None,
             ),
-            kwargs={"dag_result": True, "mapped_length": None},
+            kwargs={
+                "dag_result": True,
+                "mapped_length": None,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom_with_dag_result",
@@ -3444,6 +3470,8 @@ REQUEST_TEST_CASES = [
                 "task_id": "test_task",
                 "dag_id": "test_dag",
                 "run_id": "prev_run",
+                "region_id": None,
+                "region_index": None,
                 "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
                 "start_date": timezone.parse("2024-01-14T12:05:00Z"),
                 "end_date": timezone.parse("2024-01-14T12:10:00Z"),
@@ -3558,6 +3586,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get_sequence_item",
             args=("test_dag", "test_run", "test_task", "test_key", 0),
+            kwargs={"previous_iteration": False},
             response=XComSequenceIndexResult(root="test_value"),
         ),
         test_id="get_xcom_seq_item",
@@ -3574,6 +3603,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get_sequence_item",
             args=("test_dag", "test_run", "test_task", "test_key", 2),
+            kwargs={"previous_iteration": False},
             response=ErrorResponse(error=ErrorType.XCOM_NOT_FOUND),
         ),
         test_id="get_xcom_seq_item_not_found",
@@ -3593,6 +3623,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get_sequence_slice",
             args=("test_dag", "test_run", "test_task", "test_key", None, None, None, False),
+            kwargs={"previous_iteration": False},
             response=XComSequenceSliceResult(root=["foo", "bar"]),
         ),
         test_id="get_xcom_seq_slice",
@@ -3655,6 +3686,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.head",
             args=("test_dag", "test_run", "test_task", "test_key"),
+            kwargs={"previous_iteration": False},
             response=XComCountResponse(len=5),
         ),
         test_id="get_xcom_count",

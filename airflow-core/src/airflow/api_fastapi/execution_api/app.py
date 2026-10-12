@@ -26,6 +26,7 @@ import svcs
 from cadwyn import (
     Cadwyn,
     current_dependency_solver,
+    generate_versioned_models,
 )
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
@@ -194,7 +195,7 @@ class CadwynWithOpenAPICustomization(Cadwyn):
         References:
             - https://fastapi.tiangolo.com/how-to/extending-openapi/#modify-the-openapi-schema
         """
-        extra_schemas = get_extra_schemas()
+        extra_schemas = get_extra_schemas(openapi_schema["info"]["version"])
         for schema_name, schema in extra_schemas.items():
             if schema_name not in openapi_schema["components"]["schemas"]:
                 openapi_schema["components"]["schemas"][schema_name] = schema
@@ -337,9 +338,10 @@ def create_task_execution_api_app(
     return app
 
 
-def get_extra_schemas() -> dict[str, dict]:
+def get_extra_schemas(version: str) -> dict[str, dict]:
     """Get all the extra schemas that are not part of the main FastAPI app."""
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
+    from airflow.api_fastapi.execution_api.versions import bundle
     from airflow.executors.workloads import BundleInfo
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.trigger_rule import TriggerRule
@@ -347,7 +349,11 @@ def get_extra_schemas() -> dict[str, dict]:
     from airflow.utils.state import TaskInstanceState, TerminalTIState
 
     return {
-        "TaskInstance": TaskInstance.model_json_schema(),
+        "TaskInstance": (
+            TaskInstance
+            if version == "unversioned"
+            else generate_versioned_models(bundle)[version][TaskInstance]
+        ).model_json_schema(),
         "BundleInfo": BundleInfo.model_json_schema(),
         # Include the combined state enum too. In the datamodels we separate out SUCCESS from the other states
         # as that has different payload requirements

@@ -466,6 +466,8 @@
     "executorConfig": "Executor Config",
     "hostname": "Hostname",
     "id": "ID",
+    "iteration": "Iteration",
+    "loopIterations": "Iterations run",
     "maxTries": "Max Tries",
     "pid": "PID",
     "pool": "Pool",

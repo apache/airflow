@@ -1553,13 +1553,38 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("ts-sdk/src/sdk/client.ts",),
             {
+                "run-ts-sdk-tests": "true",
                 "run-ts-sdk-docs": "true",
             },
-            id="Build ts-sdk docs when the documented sources change",
+            id="Run ts-sdk unit tests and build docs when the documented sources change",
+        ),
+        pytest.param(
+            ("ts-sdk/pnpm-lock.yaml",),
+            {
+                "run-ts-sdk-tests": "true",
+                "run-ts-sdk-docs": "false",
+            },
+            id="Run ts-sdk unit tests when the lock file changes",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/package.json",),
+            {
+                "run-ts-sdk-tests": "false",
+            },
+            id="Skip ts-sdk unit tests when only the docs toolchain's package.json changes",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/typedoc.config.mjs",),
+            {
+                "run-ts-sdk-tests": "false",
+                "run-ts-sdk-docs": "true",
+            },
+            id="Skip ts-sdk unit tests but build docs when the docs toolchain config changes",
         ),
         pytest.param(
             ("ts-sdk/docs/index.md",),
             {
+                "run-ts-sdk-tests": "false",
                 "run-ts-sdk-docs": "true",
                 "run-ts-sdk-e2e-tests": "false",
             },
@@ -1568,6 +1593,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("ts-sdk/api-docs/dag-authoring-api.ts",),
             {
+                "run-ts-sdk-tests": "false",
                 "run-ts-sdk-docs": "true",
                 "run-ts-sdk-e2e-tests": "false",
                 "prod-image-build": "false",
@@ -1591,9 +1617,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("ts-sdk/README.md",),
             {
+                "run-ts-sdk-tests": "false",
                 "run-ts-sdk-docs": "false",
             },
-            id="Skip ts-sdk docs build for a ts-sdk README-only change",
+            id="Skip ts-sdk unit tests and docs build for a ts-sdk README-only change",
         ),
         pytest.param(
             ("airflow-e2e-tests/java-test-bundle/src/java/org/apache/airflow/e2e/TestBundleBuilder.java",),
@@ -1611,6 +1638,61 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "true",
             },
             id="Run java e2e tests when JavaCoordinator changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/coordinators/_dag_importer.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java and ts e2e tests when the coordinator Dag importer changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/dag_processing/manager.py",),
+            {
+                "run-java-sdk-e2e-tests": "false",
+                "run-ts-sdk-e2e-tests": "false",
+            },
+            id="Skip java and ts e2e tests when the shared Dag processor manager changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/serialization/serialized_objects.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java and ts e2e tests when the Dag serialization checks change",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/dag_processing/lang_sdk_processor.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java and ts e2e tests when the Lang-SDK Dag file processor changes",
+        ),
+        pytest.param(
+            (
+                "airflow-e2e-tests/java-native-bundle/src/java/org/apache/airflow/e2e/NativeBundleBuilder.java",
+            ),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "false",
+                "prod-image-build": "true",
+            },
+            id="Run only java e2e tests when the java native-Dag bundle changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/dag_processing/bundles/base.py",),
+            {
+                "run-java-sdk-e2e-tests": "false",
+                "run-ts-sdk-e2e-tests": "false",
+            },
+            id="Skip java and ts e2e tests for a Dag processing change off the native Dag path",
         ),
         pytest.param(
             ("go-sdk/sdk/variable.go",),
@@ -2027,6 +2109,11 @@ def test_java_sdk_conformance_hook_runs_for_serializer_changes(files: tuple[str,
             id="skipped when only the docs toolchain's lock file changes",
         ),
         pytest.param(
+            ("ts-sdk/docs/typedoc.config.mjs",),
+            True,
+            id="skipped when only the docs toolchain's config changes",
+        ),
+        pytest.param(
             ("ts-sdk/api-docs/dag-authoring-api.ts",),
             True,
             id="skipped when only a TypeDoc category entry point changes",
@@ -2171,6 +2258,8 @@ def test_excluded_providers():
                 {
                     "3.14": [
                         "apache.cassandra",  # Enable when the next release after 3.29.3 is available
+                        "apache.tinkerpop",
+                        "vespa",
                     ],
                 }
             ),

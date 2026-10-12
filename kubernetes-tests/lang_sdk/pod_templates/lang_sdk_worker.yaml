@@ -1,0 +1,84 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# Worker pod template shared by every lang-SDK coordinator queue (golang, java,
+# java-native, typescript). A coordinator's own artifact or Dag bundle is an
+# S3DagBundle, and its coordinator downloads it itself -- there is no init
+# container staging an emptyDir, so the base container needs the localstack AWS
+# connection directly. The base container's own ``image`` below is never used:
+# KubernetesExecutor always takes the worker image from the coordinator's
+# ``extra.worker_container_repository``/``worker_container_tag`` (see
+# ``lang_sdk/config/values.yaml``), never from a pod template.
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: placeholder-name-dont-delete
+  namespace: placeholder-name-dont-delete
+spec:
+  containers:
+    - name: base
+      image: lang-sdk-runtimes:latest
+      env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: LocalExecutor
+        - name: AIRFLOW_HOME
+          value: /opt/airflow
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: /opt/airflow/dags
+        - name: AIRFLOW__CORE__FERNET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: airflow-fernet-key
+              key: fernet-key
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          valueFrom:
+            secretKeyRef:
+              name: airflow-metadata
+              key: connection
+        - name: AIRFLOW_CONN_AWS_LOCALSTACK
+          valueFrom:
+            secretKeyRef:
+              name: lang-sdk-aws-conn
+              key: uri
+      volumeMounts:
+        - name: airflow-logs
+          mountPath: /opt/airflow/logs
+        - name: airflow-config
+          readOnly: true
+          mountPath: /opt/airflow/airflow.cfg
+          subPath: airflow.cfg
+        - name: airflow-config
+          readOnly: true
+          mountPath: /opt/airflow/config/airflow_local_settings.py
+          subPath: airflow_local_settings.py
+      imagePullPolicy: IfNotPresent
+  volumes:
+    - name: airflow-logs
+      emptyDir: {}
+    - name: airflow-config
+      configMap:
+        name: airflow-config
+        defaultMode: 420
+  restartPolicy: Never
+  terminationGracePeriodSeconds: 30
+  serviceAccountName: airflow-worker-kubernetes
+  serviceAccount: airflow-worker-kubernetes
+  securityContext:
+    runAsUser: 50000
+    fsGroup: 50000
+  schedulerName: default-scheduler
