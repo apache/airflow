@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from airflow.providers.apache.hive.macros.hive import closest_ds_partition, max_partition
 from airflow.providers.apache.hive.plugins.hive import HivePlugin
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowPlugin
-from airflow.sdk._shared.module_loading import import_string
 
 
 class TestHivePlugin:
