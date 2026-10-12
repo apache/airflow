@@ -56,6 +56,30 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].image", docs[0]) is not None
         assert jmespath.search("spec.containers[0].name", docs[0]) == "base"
 
+    @pytest.mark.parametrize(
+        ("max_failures", "expected"),
+        [
+            pytest.param(None, "5", id="default"),
+            pytest.param(0, "0", id="no-retries"),
+            pytest.param(-1, "-1", id="unlimited-retries"),
+            pytest.param(70, "70", id="custom-retries"),
+        ],
+    )
+    def test_git_sync_init_max_failures(self, max_failures, expected):
+        git_sync_values = {"enabled": True}
+        if max_failures is not None:
+            git_sync_values["maxFailures"] = max_failures
+
+        docs = render_chart(
+            values={"dags": {"gitSync": git_sync_values}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        env = jmespath.search("spec.initContainers[?name=='git-sync-init'] | [0].env", docs[0])
+        assert {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": expected} in env
+        assert {"name": "GITSYNC_MAX_FAILURES", "value": expected} in env
+
     def test_should_add_an_init_container_if_git_sync_is_true(self):
         docs = render_chart(
             values={
