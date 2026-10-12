@@ -873,8 +873,10 @@ class PydanticAIVertexHook(PydanticAIHook):
     above), so its presence alone cannot tell the two platforms apart; guessing
     would risk silently authenticating against the wrong endpoint. To use the
     Generative Language API, set an explicit ``google:``-prefixed model id (on
-    the hook or the connection's ``model`` extra) -- that spelling already
-    works today.
+    the hook or the connection's ``model`` extra). On this connection type that
+    spelling requires ``api_key`` and must not set Vertex-only fields
+    (``project``, ``location``, ``service_account_info``), because
+    ``GoogleProvider`` accepts none of them.
 
     :param llm_conn_id: Airflow connection ID.
     :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.5-flash"``. A
