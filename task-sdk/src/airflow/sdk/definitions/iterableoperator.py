@@ -1080,7 +1080,14 @@ class IterableOperator(BaseOperator):
         outcomes: IndexedTaskOutcomes,
     ) -> tuple[IndexedTaskInstance, Any | None, BaseException | None]:
         # See _run_tasks: checkpoints are consulted only on a retry that is not a rerun after a clear.
-        indexed_task_state = await task.aget_state() if trust_checkpoints else None
+        try:
+            indexed_task_state = await task.aget_state() if trust_checkpoints else None
+        except (asyncio.CancelledError, AirflowTaskTimeout):
+            raise
+        except BaseException as e:
+            # Without its checkpoint the item cannot tell whether it already succeeded: it fails this
+            # attempt rather than run work a SUCCESS checkpoint may cover, and the retry reads it again.
+            return task, None, e
         if indexed_task_state is not None and (
             indexed_task_state.try_number < since or indexed_task_state.fingerprint != task.input_fingerprint
         ):
@@ -1097,12 +1104,19 @@ class IterableOperator(BaseOperator):
                 task.index,
                 task.task_id,
             )
-            if indexed_task_state.result is not None:
-                await self.axcom_push(task, indexed_task_state.result)
-            for key, value in (indexed_task_state.xcoms or {}).items():
-                await task.axcom_push(key=key, value=value)
-            if indexed_task_state.outlet_events:
-                indexed_task_state.replay_outlet_events(context["outlet_events"])
+            # The checkpoint stays SUCCESS whatever fails here, so the retry replays it again rather
+            # than run the item: the same rule as a publish that fails after a fresh SUCCESS.
+            try:
+                if indexed_task_state.result is not None:
+                    await self.axcom_push(task, indexed_task_state.result)
+                for key, value in (indexed_task_state.xcoms or {}).items():
+                    await task.axcom_push(key=key, value=value)
+                if indexed_task_state.outlet_events:
+                    indexed_task_state.replay_outlet_events(context["outlet_events"])
+            except (asyncio.CancelledError, AirflowTaskTimeout):
+                raise
+            except BaseException as e:
+                return task, None, e
             return task, None, None
         if indexed_task_state is not None and indexed_task_state.status == TaskInstanceState.SKIPPED:
             return (

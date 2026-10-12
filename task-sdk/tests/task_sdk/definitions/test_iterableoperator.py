@@ -1012,6 +1012,86 @@ class TestIterableOperator:
                 assert store["_iterable_1"]["status"] == "success"
                 assert store["_iterable_completed"]["completed"] is True
 
+    def test_a_failed_checkpoint_read_fails_only_its_item_and_keeps_the_checkpoint(self):
+        """
+        A retry that cannot read an item's checkpoint fails that item for this attempt, without
+        running it and without writing over the checkpoint, which may say the work is done; the
+        next item still runs (one at a time here, so it starts only after the failure).
+        """
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}]),
+                task_id="checkpoint_read_fails",
+                task_concurrency=1,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = 2
+                store = context["task_state_store"]
+                store._data["_iterable_0"] = IndexedTaskState(
+                    status=TaskInstanceState.SUCCESS,
+                    result="from_checkpoint",
+                    fingerprint=IterableOperator._compute_fingerprint({"arg1": 1}),
+                ).serialize()
+                original_aget = store.aget
+
+                async def aget_failing_the_first_checkpoint(key, default=None):
+                    if key == "_iterable_0":
+                        raise RuntimeError("state store down")
+                    return await original_aget(key, default)
+
+                store.aget = aget_failing_the_first_checkpoint
+                with pytest.raises(RuntimeError, match="state store down"):
+                    iterable_op.execute(context=context)
+
+        assert store["_iterable_0"]["status"] == "success"
+        assert store["_iterable_0"]["result"] == "from_checkpoint"
+        assert store["_iterable_1"]["status"] == "success"
+
+    def test_a_failed_replay_fails_only_its_item_and_the_next_retry_replays_it(self):
+        """
+        Pushing a SUCCESS checkpoint's result again can fail: the item fails this attempt, its
+        checkpoint stays SUCCESS and the next item still runs, so the following retry replays the
+        result instead of running the item.
+        """
+        original_axcom_push = IterableOperator.axcom_push
+
+        async def axcom_push_failing_the_first_item(self, task, value):
+            if task.index == 0:
+                raise RuntimeError("xcom backend down")
+            return await original_axcom_push(self, task, value)
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}]),
+                task_id="replay_fails",
+                task_concurrency=1,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = 2
+                store = context["task_state_store"]
+                store._data["_iterable_0"] = IndexedTaskState(
+                    status=TaskInstanceState.SUCCESS,
+                    result="from_checkpoint",
+                    fingerprint=IterableOperator._compute_fingerprint({"arg1": 1}),
+                ).serialize()
+
+                with patch.object(IterableOperator, "axcom_push", axcom_push_failing_the_first_item):
+                    with pytest.raises(RuntimeError, match="xcom backend down"):
+                        iterable_op.execute(context=context)
+                status_after_the_failed_replay = store["_iterable_0"]["status"]
+                ran_next_item = store["_iterable_1"]["status"]
+
+                context["ti"].try_number = 3
+                materialized = list(iterable_op.execute(context=context))
+
+        assert status_after_the_failed_replay == "success"
+        assert ran_next_item == "success"
+        assert materialized[0] == "from_checkpoint"
+
     def test_execute_runs_an_index_again_when_its_input_changed(self):
         """
         A retry can run on another input than the attempt that wrote the checkpoints: the upstream
