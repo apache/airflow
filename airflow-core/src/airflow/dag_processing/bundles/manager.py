@@ -645,7 +645,7 @@ class DagBundlesManager(LoggingMixin):
 
     @property
     def provides_complete_bundle_list(self) -> bool:
-        return self._bundle_provider.provides_complete_bundle_list
+        return self._bundle_source.provides_complete_bundle_list
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """

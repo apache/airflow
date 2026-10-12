@@ -173,7 +173,7 @@ class FailingInitializationDagBundleSource(CustomDagBundleSource):
         raise RuntimeError("Source initialization failed")
 
 
-class ReloadingDagBundleProvider(CustomDagBundleProvider):
+class ReloadingDagBundleSource(CustomDagBundleSource):
     def __init__(self):
         self.metadata = [DagBundleMetadata(name="active-bundle")]
         self.error: Exception | None = None
@@ -424,29 +424,29 @@ def test_custom_bundle_source_resolves_active_and_retired_bundles():
         ("core", "LOAD_EXAMPLES"): "False",
         (
             "dag_processor",
-            "dag_bundle_provider",
-        ): "unit.dag_processing.bundles.test_dag_bundle_manager.ReloadingDagBundleProvider",
+            "dag_bundle_source",
+        ): "unit.dag_processing.bundles.test_dag_bundle_manager.ReloadingDagBundleSource",
     }
 )
-def test_custom_bundle_provider_returns_current_metadata():
+def test_custom_bundle_source_returns_current_metadata():
     manager = DagBundlesManager()
-    provider = manager._bundle_provider
-    assert isinstance(provider, ReloadingDagBundleProvider)
+    source = manager._bundle_source
+    assert isinstance(source, ReloadingDagBundleSource)
 
-    assert manager.get_active_bundle_metadata() == tuple(provider.metadata)
+    assert manager.get_active_bundle_metadata() == tuple(source.metadata)
 
-    provider.metadata = [
+    source.metadata = [
         DagBundleMetadata(name="active-bundle"),
         DagBundleMetadata(name="added-bundle"),
     ]
-    assert manager.get_active_bundle_metadata() == tuple(provider.metadata)
+    assert manager.get_active_bundle_metadata() == tuple(source.metadata)
 
-    provider.error = RuntimeError("source unavailable")
+    source.error = RuntimeError("source unavailable")
     with pytest.raises(RuntimeError, match="source unavailable"):
         manager.get_active_bundle_metadata()
-    provider.error = None
+    source.error = None
 
-    provider.metadata = []
+    source.metadata = []
     assert manager.get_active_bundle_metadata() == ()
 
 

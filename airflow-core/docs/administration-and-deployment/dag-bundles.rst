@@ -67,7 +67,7 @@ Dag bundles are configured in :ref:`config:dag_processor__dag_bundle_config_list
 Dynamic bundle configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Set :ref:`config:dag_processor__dag_bundle_provider` to the import path for the class Airflow uses to discover
+Set :ref:`config:dag_processor__dag_bundle_source` to the import path for the class Airflow uses to discover
 and construct Dag bundles. The configured implementation must return metadata for the complete list of currently
 configured bundles.
 The Dag processor requests the list every
@@ -87,7 +87,7 @@ A bundle name must keep the same construction settings. Use a new name when sett
 class, repository, branch, connection, or refresh interval change. The configured implementation must continue
 to resolve the previous name while retained Dag runs can still need it.
 
-The default implementation, ``ConfigDagBundleProvider``, reads ``dag_bundle_config_list``. Its values stay static
+The default implementation, ``ConfigDagBundleSource``, reads ``dag_bundle_config_list``. Its values stay static
 while the Dag processor runs. When filtered Dag processors use partial static configuration, they do not
 deactivate bundles that are absent from their local configuration.
 

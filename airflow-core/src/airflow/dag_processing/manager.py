@@ -100,7 +100,7 @@ if TYPE_CHECKING:
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
-    from airflow.dag_processing.bundles.provider import DagBundleMetadata
+    from airflow.dag_processing.bundles.source import DagBundleMetadata
     from airflow.sdk.api.client import Client
 
 
@@ -573,7 +573,7 @@ class DagFileProcessorManager(LoggingMixin):
         if stuck_legacy_rows:
             # Surface how many legacy rows the startup repair could not route;
             # each one keeps raising "Requested bundle is not configured." until
-            # the configured Dag bundle provider returns a matching bundle.
+            # the configured Dag bundle source returns a matching bundle.
             self.log.info(
                 "Skipped stale check for %d legacy Dag(s) with NULL relative_fileloc.",
                 stuck_legacy_rows,

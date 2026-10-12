@@ -50,7 +50,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstan
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.bundles.provider import DagBundleMetadata
+from airflow.dag_processing.bundles.source import DagBundleMetadata
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
@@ -395,7 +395,7 @@ class TestDagFileProcessorManager:
             deactivate_missing=True,
         )
 
-    def test_reconcile_complete_provider_when_filtered(self):
+    def test_reconcile_complete_source_when_filtered(self):
         manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["owned"])
         owned_bundle = MagicMock(spec=BaseDagBundle)
         owned_bundle.name = "owned"
@@ -419,7 +419,7 @@ class TestDagFileProcessorManager:
             deactivate_missing=True,
         )
 
-    def test_reconcile_keeps_loaded_bundles_after_provider_error(self):
+    def test_reconcile_keeps_loaded_bundles_after_source_error(self):
         manager = DagFileProcessorManager(max_runs=1)
         existing_bundle = MagicMock(spec=BaseDagBundle)
         existing_bundle.name = "existing"
