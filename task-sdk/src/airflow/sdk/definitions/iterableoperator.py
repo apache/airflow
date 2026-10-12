@@ -87,8 +87,6 @@ SKIPPED_WITH_A_SKIPPED_UPSTREAM = frozenset(
 FAIL_WITHOUT_RETRY = (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)
 
 
-# How strongly a retry policy decision speaks for the task when several indexed tasks failed: one the
-# policy says must not be retried fails the task, one it says to retry makes it retry on its terms.
 def keeps_failure_to_its_item(
     step: Callable[..., Awaitable[Outcome]],
 ) -> Callable[..., Awaitable[Outcome | tuple[IndexedTaskInstance, None, BaseException]]]:
@@ -1009,8 +1007,8 @@ class IterableOperator(BaseOperator):
                         # stops the task) is followed by the executor cancelling the coroutines, which
                         # would leave nothing registered for on_kill(); kill what is in flight first,
                         # off the loop thread, so that a sub-operator's synchronous SDK call in on_kill
-                        # waits for the sub-tasks' calls in flight instead of raising. Awaited here,
-                        # unlike on_kill()'s own thread: the loop keeps running meanwhile.
+                        # waits its turn while the loop goes on serving the sub-tasks' calls in flight.
+                        # Awaited here, unlike on_kill()'s own thread: the loop keeps running meanwhile.
                         self._state.request_stop()
                         in_flight = self._state.take_in_flight()
                         try:
@@ -1335,7 +1333,7 @@ class IterableOperator(BaseOperator):
         Run an indexed task's success or skip report where its code ran.
 
         On the loop for an async operator, in a worker thread for a sync one, where a synchronous
-        SDK call made from the callback waits for the comms lock instead of raising.
+        SDK call made from the callback waits its turn for the channel instead of holding up the loop.
         """
         if task.is_async:
             report()

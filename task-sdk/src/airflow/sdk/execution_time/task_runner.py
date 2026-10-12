@@ -1422,11 +1422,11 @@ class IndexedTaskRunner(LoggingMixin):
         even after the coroutine waiting for it was cancelled, and ``IterableOperator.on_kill`` can
         reach it. The operator the parent's execution timeout strikes stays registered as well:
         the timeout lands on the main thread, where the loop runs async operators, and its
-        ``on_kill`` must not run there, where a synchronous SDK call raises, so
-        ``IterableOperator._run_tasks`` kills it off the loop thread with the others once the
-        timeout has unwound. ``TimeoutPosix`` raises on the main thread only, so an
-        ``AirflowTaskTimeout`` on a worker thread was raised by the operator itself (a hook that
-        gave up waiting): that is this indexed task's own failure, noted as
+        ``on_kill`` must not run there, where a synchronous SDK call would hold up the loop, and every
+        sub-task on it, for its round trip, so ``IterableOperator._run_tasks`` kills it off the loop
+        thread with the others once the timeout has unwound. ``TimeoutPosix`` raises on the main
+        thread only, so an ``AirflowTaskTimeout`` on a worker thread was raised by the operator
+        itself (a hook that gave up waiting): that is this indexed task's own failure, noted as
         :attr:`timed_out_on_its_own`, and the operator is unregistered like any other. An async
         operator runs on the main thread, so one that raises ``AirflowTaskTimeout`` itself cannot be
         told apart from the parent's timeout and is taken for it, a limitation the docs name.
