@@ -14,6 +14,32 @@
       "title": "ConstRef",
       "type": "object"
     },
+    "FileRef": {
+      "additionalProperties": false,
+      "description": "A file input (AIP-80's FileTemplate).\n\n``path`` is a static path. The inverse nesting (templated filename) is\ncurrently reserved and rejected since it does not work with current Airflow\ninternals.",
+      "oneOf": [
+        {
+          "required": [
+            "$f"
+          ]
+        },
+        {
+          "required": [
+            "$file"
+          ]
+        }
+      ],
+      "properties": {
+        "$f": {
+          "type": "string"
+        },
+        "$file": {
+          "type": "string"
+        }
+      },
+      "title": "FileRef",
+      "type": "object"
+    },
     "Literal": {
       "description": "A literal value.",
       "not": {
@@ -35,6 +61,9 @@
                 "$ref": "#/$defs/TemplateRef"
               },
               {
+                "$ref": "#/$defs/FileRef"
+              },
+              {
                 "$ref": "#/$defs/ConstRef"
               },
               {
@@ -52,6 +81,9 @@
               },
               {
                 "$ref": "#/$defs/TemplateRef"
+              },
+              {
+                "$ref": "#/$defs/FileRef"
               },
               {
                 "$ref": "#/$defs/ConstRef"
@@ -141,6 +173,9 @@
                 "$ref": "#/$defs/TemplateRef"
               },
               {
+                "$ref": "#/$defs/FileRef"
+              },
+              {
                 "$ref": "#/$defs/ConstRef"
               },
               {
@@ -166,6 +201,9 @@
               },
               {
                 "$ref": "#/$defs/TemplateRef"
+              },
+              {
+                "$ref": "#/$defs/FileRef"
               },
               {
                 "$ref": "#/$defs/ConstRef"
@@ -196,7 +234,7 @@
     },
     "TemplateRef": {
       "additionalProperties": false,
-      "description": "A Jinja template.",
+      "description": "A Jinja template, rendered server-side.\n\n``source`` is a Jinja string, or a :class:`FileRef` to load a template file.",
       "oneOf": [
         {
           "required": [
@@ -211,12 +249,26 @@
       ],
       "properties": {
         "$t": {
-          "title": "$T",
-          "type": "string"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FileRef"
+            }
+          ],
+          "title": "$T"
         },
         "$template": {
-          "title": "$T",
-          "type": "string"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FileRef"
+            }
+          ],
+          "title": "$T"
         }
       },
       "title": "TemplateRef",
