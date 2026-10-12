@@ -139,6 +139,21 @@ if skip_db_tests:
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
     # Set it here to pass the flag to python-xdist spawned processes
     os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
+    # configure_orm() never succeeds against the connection string above, so the hook it installs to
+    # import every model before SQLAlchemy configures mappers is missing. Install the same hook here,
+    # or a string relationship such as Team.dag_bundles cannot resolve when a test first builds an ORM
+    # object. Imported lazily: importing airflow here would initialize its settings before this module
+    # finishes setting the environment, and not every distribution's test environment has SQLAlchemy.
+    if importlib.util.find_spec("sqlalchemy"):
+        from sqlalchemy import event
+        from sqlalchemy.orm import Mapper
+
+        def _import_all_models() -> None:
+            from airflow.models import import_all_models
+
+            import_all_models()
+
+        event.listen(Mapper, "before_configured", _import_all_models, once=True)
 
 if run_db_tests_only:
     # Set it here to pass the flag to python-xdist spawned processes

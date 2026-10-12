@@ -16,15 +16,28 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import logging
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from pydantic_ai import RunContext
-from pydantic_ai.exceptions import ApprovalRequired
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.capabilities import AbstractCapability
+from pydantic_ai.exceptions import (
+    ApprovalRequired,
+    CallDeferred,
+    ModelRetry,
+    SkipToolExecution,
+    SkipToolValidation,
+    ToolFailed,
+)
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.toolsets import FunctionToolset, PrefixedToolset
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.toolsets.logging import LoggingToolset, ToolLoggingCapability
 
 
 @pytest.fixture
@@ -91,8 +104,78 @@ class TestLoggingToolset:
             with pytest.raises(RuntimeError, match="boom"):
                 await logging_toolset.call_tool("bad_tool", {}, ctx, tool)
 
-        assert any("Tool bad_tool failed after" in r.message for r in caplog.records)
-        assert any("::endgroup::" in r.message for r in caplog.records)
+        end_group_index = next(
+            i for i, record in enumerate(caplog.records) if record.message == "::endgroup::"
+        )
+        failure_index = next(
+            i for i, record in enumerate(caplog.records) if "Tool bad_tool failed after" in record.message
+        )
+        assert end_group_index < failure_index
+        assert caplog.records[failure_index].levelno == logging.ERROR
+
+    @pytest.mark.asyncio
+    async def test_closes_group_when_call_is_cancelled(
+        self, logging_toolset, wrapped_toolset, logger, caplog
+    ):
+        wrapped_toolset.call_tool = AsyncMock(side_effect=asyncio.CancelledError())
+
+        with caplog.at_level(logging.INFO, logger="test.logging_toolset"):
+            with pytest.raises(asyncio.CancelledError):
+                await logging_toolset.call_tool("slow_tool", {}, MagicMock(), MagicMock())
+
+        assert caplog.records[-1].message == "::endgroup::"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "signal",
+        [
+            ModelRetry("retry"),
+            ToolFailed("failed"),
+            CallDeferred(),
+            SkipToolExecution("result"),
+        ],
+        ids=lambda signal: type(signal).__name__,
+    )
+    async def test_logs_control_flow_at_info(self, logging_toolset, wrapped_toolset, logger, caplog, signal):
+        wrapped_toolset.call_tool = AsyncMock(side_effect=signal)
+
+        with caplog.at_level(logging.INFO, logger="test.logging_toolset"):
+            with pytest.raises(type(signal)):
+                await logging_toolset.call_tool("retrying_tool", {}, MagicMock(), MagicMock())
+
+        assert any(
+            record.message.startswith(f"Tool retrying_tool requested {type(signal).__name__} after")
+            and record.levelno == logging.INFO
+            for record in caplog.records
+        )
+        assert not any(record.levelno >= logging.ERROR for record in caplog.records)
+        assert caplog.records[-1].message == "::endgroup::"
+
+    @pytest.mark.asyncio
+    async def test_logs_control_flow_reason(self, logging_toolset, wrapped_toolset, logger, caplog):
+        wrapped_toolset.call_tool = AsyncMock(side_effect=ModelRetry("column X not found"))
+
+        with caplog.at_level(logging.INFO, logger="test.logging_toolset"):
+            with pytest.raises(ModelRetry, match="column X not found"):
+                await logging_toolset.call_tool("retrying_tool", {}, MagicMock(), MagicMock())
+
+        assert any("column X not found" in record.message for record in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_skip_tool_validation_is_logged_as_error(
+        self, logging_toolset, wrapped_toolset, logger, caplog
+    ):
+        signal = SkipToolValidation({"value": 1})
+        wrapped_toolset.call_tool = AsyncMock(side_effect=signal)
+
+        with caplog.at_level(logging.INFO, logger="test.logging_toolset"):
+            with pytest.raises(SkipToolValidation):
+                await logging_toolset.call_tool("invalid_tool", {"value": 1}, MagicMock(), MagicMock())
+
+        assert any(
+            record.message.startswith("Tool invalid_tool failed after") and record.levelno == logging.ERROR
+            for record in caplog.records
+        )
 
     @pytest.mark.asyncio
     async def test_a_call_waiting_for_approval_is_not_logged_as_a_failure(
@@ -127,3 +210,45 @@ class TestLoggingToolset:
             await logging_toolset.call_tool("list_tables", {}, ctx, tool)
 
         assert not any("Tool args:" in r.message for r in caplog.records)
+
+
+class TestToolLoggingCapability:
+    def test_wraps_assembled_toolset(self, logger):
+        toolset = FunctionToolset()
+
+        wrapped = ToolLoggingCapability(logger=logger).get_wrapper_toolset(toolset)
+
+        assert isinstance(wrapped, LoggingToolset)
+        assert wrapped.wrapped is toolset
+        assert wrapped.logger is logger
+
+    def test_ordering_keeps_logging_inside_other_capability_wrappers(self, logger, caplog):
+        class PrefixingCapability(AbstractCapability[Any]):
+            def get_wrapper_toolset(self, toolset):
+                return PrefixedToolset(toolset, prefix="outer")
+
+        def my_tool() -> str:
+            return "tool-result"
+
+        def model_fn(messages, info):
+            if any(isinstance(part, ToolReturnPart) for message in messages for part in message.parts):
+                return ModelResponse(parts=[TextPart(content="done")])
+            return ModelResponse(
+                parts=[ToolCallPart(tool_name="outer_my_tool", args={}, tool_call_id="call-1")]
+            )
+
+        agent = Agent(
+            FunctionModel(model_fn),
+            tools=[my_tool],
+            capabilities=[PrefixingCapability(), ToolLoggingCapability(logger=logger)],
+        )
+
+        with caplog.at_level(logging.INFO, logger="test.logging_toolset"):
+            result = agent.run_sync("run the tool")
+
+        assert result.output == "done"
+        assert any(record.message == "::group::Tool call: my_tool" for record in caplog.records)
+        assert not any(record.message == "::group::Tool call: outer_my_tool" for record in caplog.records)
+
+    def test_is_not_serializable(self):
+        assert ToolLoggingCapability.get_serialization_name() is None
