@@ -235,6 +235,17 @@ def _find_derived_vendor_labels() -> set[str]:
     } | NON_MODULE_SERVICES
 
 
+def _provider_classes_in_module(mod) -> list[type]:
+    """The ``*Provider`` classes defined in ``mod`` itself; fails if there are none."""
+    provider_classes = [
+        obj
+        for obj in vars(mod).values()
+        if isinstance(obj, type) and obj.__module__ == mod.__name__ and obj.__name__.endswith("Provider")
+    ]
+    assert provider_classes, f"no Provider class found in {mod.__name__}"
+    return provider_classes
+
+
 def _find_pydanticai_external_services() -> list[str]:
     connection_types = get_provider_info()["connection-types"]
     (pydanticai,) = (c for c in connection_types if c["connection-type"] == "pydanticai")
@@ -311,14 +322,7 @@ class TestPydanticAIExternalServicesDrift:
                     f"import: {exc}. Install the missing dependency rather than skipping this "
                     f"test."
                 )
-            provider_classes = [
-                obj
-                for obj in vars(mod).values()
-                if isinstance(obj, type)
-                and obj.__module__ == mod.__name__
-                and obj.__name__.endswith("Provider")
-            ]
-            assert provider_classes, f"no Provider class found in pydantic_ai.providers.{module}"
+            provider_classes = _provider_classes_in_module(mod)
             assert all(hasattr(cls, "__deprecated__") for cls in provider_classes), (
                 f"pydantic_ai.providers.{module} is no longer marked @deprecated -- re-evaluate "
                 f"whether '{module}' should be re-added to LABELS and provider.yaml"
@@ -335,14 +339,7 @@ class TestPydanticAIExternalServicesDrift:
         """
         for module in HOOK_INCOMPATIBLE_AUTH_MODULES:
             mod = importlib.import_module(f"pydantic_ai.providers.{module}")
-            provider_classes = [
-                obj
-                for obj in vars(mod).values()
-                if isinstance(obj, type)
-                and obj.__module__ == mod.__name__
-                and obj.__name__.endswith("Provider")
-            ]
-            assert provider_classes, f"no Provider class found in pydantic_ai.providers.{module}"
+            provider_classes = _provider_classes_in_module(mod)
             for cls in provider_classes:
                 params = inspect.signature(cls.__init__).parameters
                 assert "api_key" not in params, (
