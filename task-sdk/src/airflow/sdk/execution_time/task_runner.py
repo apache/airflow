@@ -2175,6 +2175,8 @@ def _send_error_email_notification(
     email_backend = conf.get("email", "email_backend", fallback=_DEFAULT_EMAIL_BACKEND)
     notifier_description = "SmtpNotifier"
 
+    using_smtp_notifier = False
+
     if email_backend and email_backend != _DEFAULT_EMAIL_BACKEND:
         notifier_class: _ErrorEmailNotifier = _LegacyEmailBackendNotifier
         notifier_description = f"configured email_backend {email_backend!r}"
@@ -2189,6 +2191,7 @@ def _send_error_email_notification(
             )
             return
         notifier_class = SmtpNotifier
+        using_smtp_notifier = True
 
     subject_template_file = conf.get("email", "subject_template", fallback=None)
 
@@ -2236,7 +2239,11 @@ def _send_error_email_notification(
             to=to_emails,
             subject=subject,
             html_content=html_content,
-            from_email=conf.get("email", "from_email", fallback="airflow@airflow"),
+            # SmtpNotifier resolves the sender itself, preferring the SMTP connection's from_email
+            # extra over the [email] from_email config; passing a value here would hide the extra.
+            from_email=None
+            if using_smtp_notifier
+            else conf.get("email", "from_email", fallback="airflow@airflow"),
         )
         notifier(email_context)
     except Exception:
