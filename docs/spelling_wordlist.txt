@@ -1837,6 +1837,7 @@ triggerer
 triggerers
 trino
 trojan
+TrustedRouter
 truthy
 tsql
 tsv
