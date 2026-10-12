@@ -4353,12 +4353,19 @@ def test_clear_task_instances_clears_retry_policy_columns(dag_maker, session):
     ti.retry_reason = "auth error, do not retry"
     ti.retry_delay_override = 300.0
     session.flush()
+    old_id = ti.id
 
     clear_task_instances([ti], session)
     session.flush()
 
     assert ti.retry_reason is None
     assert ti.retry_delay_override is None
+    # The cleared try keeps its own values, so the reset cannot move above the archive.
+    history = session.scalar(
+        select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
+    )
+    assert history.retry_reason == "auth error, do not retry"
+    assert history.retry_delay_override == 300.0
 
 
 @pytest.mark.db_test

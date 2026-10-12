@@ -692,7 +692,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     dag_version = relationship("DagVersion", back_populates="task_instances")
 
     # Retry policy overrides: set by the task worker when a RetryPolicy is configured.
-    # Cleared on task start (ti_run).  Read by next_retry_datetime().
+    # Cleared on clear, on scheduling or deferring the next attempt, and on task start (ti_run).
+    # Read by next_retry_datetime().
     retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
     retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
@@ -1885,6 +1886,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # Keep an eye on the logic in `check_and_change_state_before_execution()`
             # depending on self.next_method semantics
             self.state = TaskInstanceState.DEFERRED
+            # A start_from_trigger retry skips schedule_tis' UPDATE, so clear here too.
+            self.retry_reason = None
+            self.retry_delay_override = None
             self.trigger_id = trigger_row.id
             self.next_method = start_trigger_args.next_method
             self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})
