@@ -280,7 +280,18 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
             return self._exchange(msg, frame_bytes)
 
     def _exchange(self, msg: SendMsgType, frame_bytes: bytes | bytearray) -> ReceiveMsgType | None:
-        """Write one request and read its response; the caller holds ``_thread_lock``."""
+        """
+        Write one request and read its response; the caller holds ``_thread_lock``.
+
+        Responses are read in order: :meth:`_get_response` takes the next frame and does not check
+        its id. An exception that unwinds this between the write and the read therefore leaves the
+        response on the socket, and the next request reads it as its own. That happens when a
+        signal handler interrupts the request on the main thread and raises into it: the
+        ``DeadlockImminentError`` of a handler that calls :meth:`send` itself, or the
+        ``AirflowTaskTimeout`` of the ``execution_timeout`` alarm, which any task can hit. Making
+        the channel safe after that needs a read that resumes a partly read frame, or a channel
+        marked unusable, and is left to a change of its own.
+        """
         self._exchanging = True
         try:
             self.socket.sendall(frame_bytes)
