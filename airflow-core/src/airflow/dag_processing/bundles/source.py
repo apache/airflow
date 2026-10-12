@@ -40,7 +40,7 @@ class DagBundleMetadata:
     team_name: str | None = None
 
 
-class DagBundleProvider(ABC):
+class DagBundleSource(ABC):
     """
     Provide configured Dag bundle metadata and construct Dag bundles.
 
@@ -110,7 +110,7 @@ def _load_bundle_config_snapshot() -> tuple[_ExternalBundleConfig, ...]:
     return tuple(_parse_bundle_config(config_list))
 
 
-class ConfigDagBundleProvider(DagBundleProvider):
+class ConfigDagBundleSource(DagBundleSource):
     """Provide Dag bundles configured by ``dag_bundle_config_list``."""
 
     def __init__(self) -> None:

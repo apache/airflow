@@ -125,9 +125,9 @@ def _clear_dag_bundle_config_cache() -> None:
     """Drop the per-process Dag bundle configuration cache so the new config is read."""
     import sys
 
-    provider = sys.modules.get("airflow.dag_processing.bundles.provider")
+    source = sys.modules.get("airflow.dag_processing.bundles.source")
     # compat for airflow versions without the snapshot cache
-    cache = getattr(provider, "_load_bundle_config_snapshot", None)
+    cache = getattr(source, "_load_bundle_config_snapshot", None)
     if cache is not None:
         cache.cache_clear()
 

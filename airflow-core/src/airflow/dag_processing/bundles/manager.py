@@ -31,9 +31,9 @@ from sqlalchemy import and_, delete, exists, or_, select, update
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
 from airflow.dag_processing.bundles.local import LocalDagBundle
-from airflow.dag_processing.bundles.provider import (
+from airflow.dag_processing.bundles.source import (
     DagBundleMetadata,
-    DagBundleProvider,
+    DagBundleSource,
 )
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
@@ -177,7 +177,7 @@ class DagBundlesManager(LoggingMixin):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._bundle_provider = self._load_bundle_provider()
+        self._bundle_source = self._load_bundle_source()
 
     @cached_property
     def _example_dag_bundle_paths(self) -> dict[str, str]:
@@ -186,30 +186,30 @@ class DagBundlesManager(LoggingMixin):
         return _discover_example_dag_bundle_paths()
 
     @staticmethod
-    def _load_bundle_provider() -> DagBundleProvider:
-        provider_class = conf.getimport("dag_processor", "dag_bundle_provider")
-        if not isinstance(provider_class, type) or not issubclass(provider_class, DagBundleProvider):
+    def _load_bundle_source() -> DagBundleSource:
+        source_class = conf.getimport("dag_processor", "dag_bundle_source")
+        if not isinstance(source_class, type) or not issubclass(source_class, DagBundleSource):
             raise AirflowConfigException(
-                "The class configured in section `dag_processor` key `dag_bundle_provider` "
-                "must extend DagBundleProvider."
+                "The class configured in section `dag_processor` key `dag_bundle_source` "
+                "must extend DagBundleSource."
             )
         try:
-            return provider_class()
+            return source_class()
         except AirflowConfigException:
             raise
         except Exception as e:
             raise AirflowConfigException(
-                "Could not initialize the Dag bundle provider configured in section "
-                "`dag_processor` key `dag_bundle_provider`."
+                "Could not initialize the Dag bundle source configured in section "
+                "`dag_processor` key `dag_bundle_source`."
             ) from e
 
-    def _get_provider_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
-        """Get validated metadata returned by the configured Dag bundle provider."""
+    def _get_source_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
+        """Get validated metadata returned by the configured Dag bundle source."""
         bundle_metadata: dict[str, DagBundleMetadata] = {}
-        for metadata in self._bundle_provider.get_configured_bundle_metadata():
+        for metadata in self._bundle_source.get_configured_bundle_metadata():
             if not isinstance(metadata, DagBundleMetadata):
                 raise AirflowConfigException(
-                    "Dag bundle providers must return DagBundleMetadata objects from "
+                    "Dag bundle sources must return DagBundleMetadata objects from "
                     "get_configured_bundle_metadata()."
                 )
             if metadata.name == _example_dag_bundle_name:
@@ -219,7 +219,7 @@ class DagBundlesManager(LoggingMixin):
                 )
             if metadata.name in bundle_metadata:
                 raise AirflowConfigException(
-                    f"Dag bundle provider returned duplicate bundle name '{metadata.name}'."
+                    f"Dag bundle source returned duplicate bundle name '{metadata.name}'."
                 )
             if metadata.team_name and not conf.getboolean("core", "multi_team"):
                 raise AirflowConfigException(
@@ -232,11 +232,10 @@ class DagBundlesManager(LoggingMixin):
 
     def get_active_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
         """Get metadata for all active Dag bundles, including example bundles."""
-        bundle_metadata = {metadata.name: metadata for metadata in self._get_provider_bundle_metadata()}
+        bundle_metadata = {metadata.name: metadata for metadata in self._get_source_bundle_metadata()}
         if not bundle_metadata:
             return ()
 
-        # Airflow owns example Dag bundles; configured providers do not need to include them.
         for name in self._example_dag_bundle_paths:
             if name in bundle_metadata:
                 raise AirflowConfigException(f"Bundle name '{name}' is reserved for example Dags.")
@@ -245,8 +244,8 @@ class DagBundlesManager(LoggingMixin):
         return tuple(bundle_metadata.values())
 
     def get_configured_bundle_team_names(self) -> dict[str, str | None]:
-        """Get the team owning each bundle declared by the configured provider."""
-        return {metadata.name: metadata.team_name for metadata in self._get_provider_bundle_metadata()}
+        """Get the team owning each bundle declared by the configured source."""
+        return {metadata.name: metadata.team_name for metadata in self._get_source_bundle_metadata()}
 
     @provide_session
     def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:
@@ -304,18 +303,22 @@ class DagBundlesManager(LoggingMixin):
                         f"Team '{metadata.team_name}' configured for Dag bundle '{name}' does not exist."
                     )
 
+            bundle = stored.pop(name, None)
+            update_template = True
             try:
                 new_template, new_params = _extract_and_sign_template(name)
             except Exception as e:
                 self.log.exception("Error creating bundle '%s': %s", name, e)
-                continue
+                if bundle is None:
+                    continue
+                update_template = False
 
-            if bundle := stored.pop(name, None):
+            if bundle is not None:
                 bundle.active = True
-                if new_template != bundle.signed_url_template:
+                if update_template and new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
                     self.log.debug("Updated URL template for bundle %s", name)
-                if new_params != bundle.template_params:
+                if update_template and new_params != bundle.template_params:
                     bundle.template_params = new_params
                     self.log.debug("Updated template parameters for bundle %s", name)
             else:
@@ -521,7 +524,7 @@ class DagBundlesManager(LoggingMixin):
             self.log.warning(
                 "Skipped %d legacy Dag(s) whose fileloc is not under any configured bundle; "
                 "triggering them will keep raising \"Requested bundle '{name}' is not configured.\" "
-                "until the configured Dag bundle provider returns a bundle whose path contains the "
+                "until the configured Dag bundle source returns a bundle whose path contains the "
                 "fileloc. The next parse will then restore them automatically, "
                 "or run `airflow dags reserialize` to force the parse path to rewrite "
                 "bundle_name and relative_fileloc immediately.",
@@ -597,7 +600,7 @@ class DagBundlesManager(LoggingMixin):
         """
         if path := self._example_dag_bundle_paths.get(name):
             return LocalDagBundle(name=name, path=path, version=version, version_data=version_data)
-        return self._bundle_provider.get_bundle(name=name, version=version, version_data=version_data)
+        return self._bundle_source.get_bundle(name=name, version=version, version_data=version_data)
 
     @classmethod
     def is_bundle_configured(cls, name: str) -> bool:
