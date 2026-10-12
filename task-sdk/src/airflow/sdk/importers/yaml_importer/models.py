@@ -147,10 +147,21 @@ class XComRef(_MarkerRef):
 
 class TemplateRef(_MarkerRef):
     """
-    A Jinja template, rendered server-side.
+    A Jinja template, rendered when the task runs.
 
-    ``source`` is a Jinja string, or a :class:`FileRef` to load a template file.
+    The template is a Jinja string, or a file reference (``$f``) to load a
+    template file.
     """
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "description": (
+                "A Jinja template, rendered when the task runs. This can be an "
+                "inline string, or a file reference ($f) to load a template file."
+            ),
+        },
+    )
 
     _marker_keys = TEMPLATE_KEYS
 
@@ -159,12 +170,16 @@ class TemplateRef(_MarkerRef):
 
 class FileRef(_MarkerRef):
     """
-    A file input (AIP-80's FileTemplate).
+    A file input (AIP-80 FileTemplate).
 
-    ``path`` is a static path. The inverse nesting (templated filename) is
-    currently reserved and rejected since it does not work with current Airflow
-    internals.
+    The path is a static string. A templated filename (a ``$f`` wrapping a
+    ``$t``) is reserved for a future release and rejected for now.
     """
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"description": "A file input."},
+    )
 
     _marker_keys = FILE_KEYS
 

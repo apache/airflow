@@ -16,7 +16,7 @@
     },
     "FileRef": {
       "additionalProperties": false,
-      "description": "A file input (AIP-80's FileTemplate).\n\n``path`` is a static path. The inverse nesting (templated filename) is\ncurrently reserved and rejected since it does not work with current Airflow\ninternals.",
+      "description": "A file input.",
       "oneOf": [
         {
           "required": [
@@ -234,7 +234,7 @@
     },
     "TemplateRef": {
       "additionalProperties": false,
-      "description": "A Jinja template, rendered server-side.\n\n``source`` is a Jinja string, or a :class:`FileRef` to load a template file.",
+      "description": "A Jinja template, rendered when the task runs. This can be an inline string, or a file reference ($f) to load a template file.",
       "oneOf": [
         {
           "required": [
