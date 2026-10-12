@@ -24,6 +24,7 @@ from types import SimpleNamespace
 import pytest
 
 from airflow.sdk import BaseOperator, XComArg
+from airflow.sdk.definitions._internal.templater import LiteralValue
 from airflow.sdk.importers.base import FilesystemDagDefinition
 from airflow.sdk.importers.yaml_importer.importer import YamlDagImporter
 
@@ -182,11 +183,32 @@ def test_import_code_task_builds_stub_operator(mock_bundle):
     assert getattr(b, "is_stub", False) is True  # the real stub operator Airflow serializes
     assert b.queue == "handlers"  # task-level attribute passed through
     assert isinstance(b.op_kwargs["value"], XComArg)  # $x -> XComArg, bound as a handler argument
-    assert b.op_kwargs["label"] == "done"  # literal preserved
+    # op_kwargs is a template field, so the literal is protected to stay literal when rendered.
+    assert isinstance(b.op_kwargs["label"], LiteralValue)
+    assert b.op_kwargs["label"].value == "done"
     assert b.upstream_task_ids == {"a"}  # $x wired the dependency
     # The stub is fed a callable whose ordered parameters are the run argument names, so core
     # serialization can build the handler arg-binding spec (AIP-108) from a real signature.
     assert list(inspect.signature(b.python_callable).parameters) == ["value", "label"]
+
+
+def test_import_mixed_container_keeps_literal_siblings_literal(mock_bundle):
+    # When a container field renders (it holds a $x), its literal siblings must stay literal rather
+    # than being rendered as Jinja. The importer wraps them in LiteralValue; only $x/$t render.
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"""
+            - {{id: up, uses: {OP}, with: {{payload: x}}}}
+            - {{id: t, uses: {OP}, with: {{payload: {{a: {{$x: up}}, b: '{{{{ not a template }}}}'}}}}}}
+        """),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    payload = result.dags[0].get_task("t").payload
+    assert isinstance(payload["a"], XComArg)  # $x still resolves
+    assert isinstance(payload["b"], LiteralValue)  # literal sibling protected from rendering
+    assert payload["b"].value == "{{ not a template }}"
 
 
 def test_import_code_task_rejects_non_identifier_arg(mock_bundle):

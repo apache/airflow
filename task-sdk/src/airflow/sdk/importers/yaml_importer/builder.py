@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from airflow.sdk import DAG, XComArg
 from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk.definitions._internal.templater import LiteralValue
 from airflow.sdk.importers.yaml_importer.models import (
     ConstRef,
     FileRef,
@@ -102,7 +103,7 @@ class DagBuilder:
         for name, value in args.items():
             if not name.isidentifier() or keyword.iskeyword(name):
                 raise YamlDagBuildError(f"task {task.id_!r}: run argument {name!r} is not a valid identifier")
-            run_kwargs[name] = self._lower(value)[0]
+            run_kwargs[name] = self._lower(value, protect=True)
         decorator = task_decorators.stub(task_id=task.id_, **(task.model_extra or {}))
         return decorator(self._stub_callable(tuple(run_kwargs)))(**run_kwargs).operator
 
@@ -123,7 +124,8 @@ class DagBuilder:
         render_fields: list[str] = []
         off_template: list[str] = []
         for name, value in task.with_.items():
-            kwargs[name], needs_render, has_marker = self._lower(value)
+            needs_render, has_marker = _field_markers(value)
+            kwargs[name] = self._lower(value, protect=needs_render)
             if has_marker and name not in template_fields:
                 off_template.append(name)
             if needs_render:
@@ -135,47 +137,37 @@ class DagBuilder:
 
         return _apply_template_lowering(op_cls(task_id=task.id_, **kwargs), tuple(render_fields))
 
-    def _lower(self, value: Any) -> tuple[Any, bool, bool]:
+    def _lower(self, value: Any, *, protect: bool) -> Any:
         """
-        Lower a resolved value-grammar node.
+        Lower a resolved value-grammar node into an operator argument.
 
-        The return value is ``(operator argument, needs_render, has_marker)``.
-
-        * ``needs_render`` is True if the node carries ``$t`` or ``$x``, and we
-          must validate it's in the operator's ``template_fields``.
-          reference anywhere, i.e.
-        * ``has_marker`` is True when it carries any value-grammar markers, and
-          we should only be allowed if the field can be templated.
+        :param protect: This should be set when the enclosing field renders to
+            avoid double-rendering. :class:`LiteralValue` is used to wrap
+            rendered values so they stay literal.
         """
         if isinstance(value, XComRef):
-            return self._xcom_arg(value), True, True
+            return self._xcom_arg(value)  # resolves at render time; never wrapped
         if isinstance(value, TemplateRef):
             # $t over a string renders that string; $t over $f is a template file (read, then render).
             if isinstance(value.source, FileRef):
                 # A constructed FileRef has a str path (its validator rejects a templated filename).
-                return self._read_file(cast("str", value.source.path)), True, True
-            return value.source, True, True
+                return self._read_file(cast("str", value.source.path))
+            return value.source
         if isinstance(value, FileRef):
-            return self._read_file(cast("str", value.path)), False, True  # verbatim; not a template
+            return self._protect(self._read_file(cast("str", value.path)), protect)
         if isinstance(value, ConstRef):
-            return value.value, False, False
+            return self._protect(value.value, protect)
         if isinstance(value, Literal):
-            return self._lower(value.root)
+            return self._lower(value.root, protect=protect)
         if isinstance(value, dict):
-            items = {k: self._lower(v) for k, v in value.items()}
-            return (
-                {k: lv for k, (lv, _, _) in items.items()},
-                any(render for _, render, _ in items.values()),
-                any(marker for _, _, marker in items.values()),
-            )
+            return {k: self._lower(v, protect=protect) for k, v in value.items()}
         if isinstance(value, list):
-            elements = [self._lower(v) for v in value]
-            return (
-                [lv for lv, _, _ in elements],
-                any(render for _, render, _ in elements),
-                any(marker for _, _, marker in elements),
-            )
-        return value, False, False
+            return [self._lower(v, protect=protect) for v in value]
+        return self._protect(value, protect)
+
+    @staticmethod
+    def _protect(value: Any, protect: bool) -> Any:
+        return LiteralValue(value) if protect else value
 
     def _xcom_arg(self, value: XComRef) -> XComArg:
         """Resolve an :class:`XComRef` against the already-built operators."""
@@ -236,6 +228,33 @@ def _build_schedule(schedule: Any) -> Any:
     if isinstance(schedule, TimetableSchedule):
         return import_string(schedule.uses)(**schedule.with_)
     return schedule
+
+
+def _field_markers(value: Any) -> tuple[bool, bool]:
+    """
+    Scan a value-grammar node for ``(needs_render, has_marker)``.
+
+    ``needs_render`` is True when it carries a ``$t`` or ``$x`` anywhere (the field must render);
+    ``has_marker`` is True when it carries any of ``$x``/``$t``/``$f`` (only allowed on a templated
+    field). ``$const`` is a force-literal escape, not a marker.
+    """
+    if isinstance(value, XComRef):
+        return True, True
+    if isinstance(value, TemplateRef):
+        return True, True
+    if isinstance(value, FileRef):
+        return False, True
+    if isinstance(value, ConstRef):
+        return False, False
+    if isinstance(value, Literal):
+        return _field_markers(value.root)
+    if isinstance(value, dict):
+        flags = [_field_markers(v) for v in value.values()]
+        return any(r for r, _ in flags), any(m for _, m in flags)
+    if isinstance(value, list):
+        flags = [_field_markers(v) for v in value]
+        return any(r for r, _ in flags), any(m for _, m in flags)
+    return False, False
 
 
 def _topological_order(tasks: list[Task]) -> list[str]:
