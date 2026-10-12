@@ -66,6 +66,8 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
 
+XCOM_EXTERNAL_RUN_ID = "external_run_id"
+
 
 class ExternalDagLink(BaseOperatorLink):
     """
@@ -75,10 +77,6 @@ class ExternalDagLink(BaseOperatorLink):
     """
 
     name = "External DAG"
-
-    @property
-    def xcom_key(self) -> str:
-        return "_external_run_id"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         if TYPE_CHECKING:
@@ -101,7 +99,7 @@ class ExternalDagLink(BaseOperatorLink):
             if template_fields := RenderedTaskInstanceFields.get_templated_fields(core_ti_key):
                 external_dag_id: str = template_fields.get("external_dag_id", operator.external_dag_id)  # type: ignore[no-redef]
 
-        external_run_id = XCom.get_value(key=self.xcom_key, ti_key=ti_key) or ti_key.run_id
+        external_run_id = XCom.get_value(key=XCOM_EXTERNAL_RUN_ID, ti_key=ti_key) or ti_key.run_id
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.helpers import build_airflow_dagrun_url
@@ -364,7 +362,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                 external_run_id = f"scheduled__{logical_date.isoformat()}"
 
                 ti = context.get("ti")
-                ti.xcom_push(key=ExternalDagLink().xcom_key, value=external_run_id)
+                ti.xcom_push(key=XCOM_EXTERNAL_RUN_ID, value=external_run_id)
         except Exception:
             self.log.exception("Failed to push external run_id to XCom.")
 
