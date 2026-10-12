@@ -3266,7 +3266,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 default=None,
             )
             for task_instance in unfinished_task_instances:
-                task_instance.set_state(TaskInstanceState.SKIPPED, session=session)
+                if task_instance.state in (
+                    TaskInstanceState.RUNNING,
+                    TaskInstanceState.DEFERRED,
+                    TaskInstanceState.UP_FOR_RESCHEDULE,
+                    TaskInstanceState.AWAITING_INPUT,
+                ):
+                    # The timeout interrupted a running task instance; mark it FAILED so a
+                    # mapped task with unfinished inner tasks reflects the failure instead
+                    # of appearing successful.
+                    task_instance.set_state(TaskInstanceState.FAILED, session=session)
+                elif not dag.task_dict[task_instance.task_id].is_teardown:
+                    # Task instances that never started stay SKIPPED. Teardowns are left
+                    # alone so they can still run.
+                    task_instance.set_state(TaskInstanceState.SKIPPED, session=session)
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 

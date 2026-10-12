@@ -7652,7 +7652,7 @@ class TestSchedulerJob:
         run1 = session.merge(run1)
         session.refresh(run1)
         assert run1.state == State.FAILED
-        assert run1_ti.state == State.SKIPPED
+        assert run1_ti.state == State.FAILED
         session.flush()
         # Run relevant part of scheduling again to assert run2 has been scheduled
         self.job_runner._start_queued_dagruns(session)
@@ -7664,6 +7664,58 @@ class TestSchedulerJob:
         session.expunge_all()
         run2_ti = run2.get_task_instance(task1.task_id, session=session)
         assert run2_ti.state == State.SCHEDULED
+
+    def test_dag_timed_out_mapped_task_states(self, dag_maker, session):
+        """Test that dagrun timeout marks running mapped TIs FAILED, pending ones SKIPPED."""
+        with dag_maker(
+            dag_id="test_dag_timed_out_mapped",
+            schedule="@once",
+            dagrun_timeout=datetime.timedelta(seconds=1),
+        ) as dag:
+            BashOperator.partial(task_id="mapped", bash_command="sleep 60").expand(
+                env=[{"n": str(n)} for n in range(3)]
+            )
+            BashOperator(task_id="teardown", bash_command="true").as_teardown()
+
+        data_interval = infer_automated_data_interval(dag.timetable, DEFAULT_LOGICAL_DATE)
+        run = dag.create_dagrun(
+            run_id="test_mapped_timeout",
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            start_date=timezone.utcnow() - timedelta(seconds=2),
+            session=session,
+            data_interval=data_interval,
+            run_after=DEFAULT_LOGICAL_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+
+        mapped_tis = run.get_task_instances(session=session)
+        mapped_tis = [ti for ti in mapped_tis if ti.task_id == "mapped"]
+        assert len(mapped_tis) == 3
+        # One running, two pending at timeout.
+        mapped_tis[0].state = State.RUNNING
+        mapped_tis[1].state = None
+        mapped_tis[2].state = State.SCHEDULED
+        teardown_ti = run.get_task_instance("teardown", session=session)
+        teardown_ti.state = None
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        self.job_runner._schedule_dag_run(run, session)
+        session.flush()
+
+        for ti in mapped_tis:
+            session.refresh(ti)
+        # Running TI was interrupted by the timeout: FAILED, not SKIPPED.
+        assert mapped_tis[0].state == State.FAILED
+        # Pending TIs never started: still SKIPPED.
+        assert mapped_tis[1].state == State.SKIPPED
+        assert mapped_tis[2].state == State.SKIPPED
+        # Teardown is left alone so it can still run.
+        session.refresh(teardown_ti)
+        assert teardown_ti.state is None
 
     def test_do_schedule_max_active_runs_task_removed(self, session, dag_maker):
         """Test that tasks in removed state don't count as actively running."""
