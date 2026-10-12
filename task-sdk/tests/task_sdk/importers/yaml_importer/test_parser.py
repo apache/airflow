@@ -553,3 +553,24 @@ def test_valid_shapes_round_trip(body):
     validator = jsonschema.Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
     for document in (d for d in yaml.safe_load_all(text) if d):
         assert list(validator.iter_errors(document)) == []  # the published schema agrees
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param("{$x: up, extra: 1}", id="marker-plus-extra"),
+        pytest.param("{$xcomm: up}", id="unknown-marker-typo"),
+        pytest.param("{$tempalte: x}", id="unknown-template-typo"),  # codespell:ignore tempalte
+        pytest.param("{cfg: {$weird: 1}}", id="dollar-key-nested"),
+        pytest.param("{$x: up, $xcom: up}", id="two-marker-keys"),
+        pytest.param("{$x: {task: up, nope: 1}}", id="xcom-target-extra-key"),
+    ],
+)
+def test_invalid_shapes_rejected_by_both(value):
+    # Hand-written schema guards (Literal '$'-key 'not', XComTarget and markers
+    # additionalProperties: false) must reject the same shapes as the parser.
+    text = f"$schema: {HEAD_SCHEMA}\ndag_id: d\ntasks:\n  - {{id: t, run: {{a: {value}}}}}"
+    with pytest.raises(YamlDagParseError):
+        list(parse_documents(text))  # the parser rejects it
+    validator = jsonschema.Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
+    assert list(validator.iter_errors(yaml.safe_load(text)))  # the published schema agrees
