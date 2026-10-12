@@ -20,7 +20,7 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { ConnectionNotFoundError } from "../../src/sdk/client.js";
 import { NEVER_EXPIRE } from "../../src/sdk/client-types.js";
-import { createCoordinatorClient } from "../../src/coordinator/client.js";
+import { createCoordinatorClient, type CoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
 import type { TaskClient } from "../../src/sdk/client.js";
 import type { TaskContext } from "../../src/sdk/task.js";
@@ -173,6 +173,7 @@ describe("writes do not read a supervisor 404 as absence", () => {
       (c: TaskClient) => c.taskStateStore.delete("k"),
     ],
     ["taskStateStore.clear", "ClearTaskStateStore", (c: TaskClient) => c.taskStateStore.clear()],
+    ["deleteXCom", "DeleteXCom", (c: CoordinatorClient) => c.deleteXCom("k")],
   ])("%s rejects", async (_name, op, call) => {
     const c = client([
       { body: null, error: { error: "API_SERVER_ERROR", detail: { status_code: 404 } } },

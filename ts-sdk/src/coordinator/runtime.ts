@@ -366,6 +366,8 @@ async function handleTask(
 
   const ctx = buildContext(details, signal);
   const client = createCoordinatorClient(comm, ctx, ti.id, clientLogs);
+  const deleteFailure = await deleteListedXComs(details, client, logs);
+  if (deleteFailure) return deleteFailure;
   if (task.kind === "handler") {
     return runHandler(details, task.fn, ctx, client, logs);
   }
@@ -450,6 +452,44 @@ async function runHandler(
     });
     return buildFailureResponse(details, message);
   }
+}
+
+/**
+ * Delete the XComs that `ti_context.xcom_keys_to_clear` lists.
+ *
+ * When a try starts, Airflow lists the XComs that the try already has and
+ * leaves deleting them to the runtime. The Python task runner deletes the
+ * listed XComs before it renders templates and fails the try if a delete
+ * fails. This runtime finds the task, calls this function, and then
+ * dispatches the task to a task handler or to an operator such as
+ * triggerDagRun. This call happens at the same point where the Python task
+ * runner deletes the listed XComs. The list is empty when a task resumes after
+ * a deferral or after waiting for human input. As a result, this function does
+ * not delete the XComs that the task wrote before pausing.
+ *
+ * Returns the response that fails the try when a delete fails, and null when
+ * every listed XCom is deleted.
+ */
+async function deleteListedXComs(
+  details: StartupDetails,
+  client: CoordinatorClient,
+  logs: LogChannel,
+): Promise<RuntimeRetryTask | RuntimeTaskState | null> {
+  for (const key of details.ti_context?.xcom_keys_to_clear ?? []) {
+    logs.debug("Clearing XCom with key", { key });
+    try {
+      await client.deleteXCom(key);
+    } catch (err) {
+      const message = (err as Error).message ?? String(err);
+      logs.error("Cannot clear XCom before running the task", {
+        task_id: details.ti.task_id,
+        key,
+        error: message,
+      });
+      return buildFailureResponse(details, message);
+    }
+  }
+  return null;
 }
 
 async function sendSupervisorResponse(
