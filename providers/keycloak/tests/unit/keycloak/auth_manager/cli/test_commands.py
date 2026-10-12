@@ -28,12 +28,19 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
     SUPER_ADMIN_ROLE_NAME,
     TEAM_ROLE_NAMES,
     TEAM_SCOPED_RESOURCE_NAMES,
+    _attach_default_role_permissions,
+    _attach_policy_to_resource_permission,
+    _attach_policy_to_scope_permission,
     _create_permissions,
     _ensure_resource_server_decision_strategy,
     _get_default_permission_configs,
+    _get_exported_permission_names,
     _get_extended_resource_methods,
     _get_permissions_to_create,
     _get_resource_methods,
+    _get_scopes_to_create,
+    _preview_permission_update,
+    _preview_resources,
     _update_admin_permission_resources,
     _update_read_only_permission_resources,
     _validate_permission_creation_plan,
@@ -159,7 +166,8 @@ def test_default_permissions_reject_missing_resources_or_scopes(teams, missing_r
 
 
 def test_default_permission_preview_without_existing_resources(capsys):
-    client = Mock(spec=[])
+    client = Mock(spec=["get_client_authz_permissions"])
+    client.get_client_authz_permissions.return_value = []
 
     _create_permissions(
         client,
@@ -172,7 +180,9 @@ def test_default_permission_preview_without_existing_resources(capsys):
 
     assert "PoolRead (type: scope-based, scopes: GET, LIST, resources: Pool)" in output
     assert "PoolWrite (type: scope-based, scopes: POST, PUT, DELETE, resources: Pool)" in output
-    assert client.mock_calls == []
+    assert client.mock_calls == [
+        call.get_client_authz_permissions("test-id"),
+    ]
 
 
 def test_default_permissions_exclude_generic_menu_resource():
@@ -242,6 +252,220 @@ def test_ensure_resource_server_decision_strategy(
 @pytest.mark.parametrize("teams", [[], ["team-a"]])
 def test_permission_creation_plan_accepts_fresh_setup(teams):
     _validate_permission_creation_plan(teams)
+
+
+@pytest.mark.parametrize("include_global_admin", [True, False])
+def test_team_permission_preview_without_existing_objects(include_global_admin, capsys):
+    client = Mock(spec=["get_client_authz_permissions"])
+    client.get_client_authz_permissions.return_value = []
+
+    _create_permissions(
+        client,
+        "test-id",
+        teams=["team-a"],
+        include_global_admin=include_global_admin,
+        _dry_run=True,
+    )
+
+    output = capsys.readouterr().out
+
+    assert "ReadOnly-team-a (type: scope-based, scopes: GET, LIST," in output
+    assert "User-team-a (type: resource-based, resources: Dag:team-a)" in output
+    assert ("  - Admin (type: scope-based," in output) is include_global_admin
+    assert client.mock_calls == [
+        call.get_client_authz_permissions("test-id"),
+    ]
+
+
+@pytest.mark.parametrize("teams", [[], ["team-a"]])
+def test_resource_preview_uses_planned_scopes_without_keycloak_objects(teams, capsys):
+    client = Mock(spec=[])
+    planned_scopes = [{"name": name} for name in ["GET", "POST", "PUT", "DELETE", "MENU", "LIST"]]
+
+    _preview_resources(
+        client,
+        "test-id",
+        teams=teams,
+        planned_scopes=planned_scopes,
+    )
+
+    output = capsys.readouterr().out
+
+    assert "Pool (scopes: GET, POST, PUT, DELETE, LIST)" in output
+    assert "Pools (scopes: MENU)" in output
+    if teams:
+        assert "Pool:team-a (scopes: GET, POST, PUT, DELETE, LIST)" in output
+    assert client.mock_calls == []
+
+
+@pytest.mark.parametrize("all_exist", [False, True])
+def test_permission_preview_separates_existing_permissions(all_exist, capsys):
+    client = Mock(spec=["get_client_authz_permissions"])
+
+    if all_exist:
+        existing_names = {permission["name"] for permission in _get_default_permission_configs()}
+    else:
+        existing_names = {"PoolRead"}
+
+    client.get_client_authz_permissions.return_value = [{"name": name} for name in sorted(existing_names)]
+
+    _create_permissions(
+        client,
+        "test-id",
+        teams=[],
+        _dry_run=True,
+    )
+
+    output = capsys.readouterr().out
+    creation_output, existing_output = output.split(
+        "Existing permissions (creation skipped):",
+        1,
+    )
+
+    assert "PoolRead (type:" not in creation_output
+    assert "\n  - PoolRead\n" in existing_output
+
+    if all_exist:
+        assert "  None." in creation_output
+        assert "PoolWrite (type:" not in creation_output
+    else:
+        assert "PoolWrite (type:" in creation_output
+
+    assert client.mock_calls == [
+        call.get_client_authz_permissions("test-id"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("changes", "config_changes", "expected_output"),
+    [
+        ({}, {}, ""),
+        ({}, {"applyPolicies": '["Allow-Viewer", "CustomPolicy"]'}, ""),
+        ({}, {"scopes": '["LIST", "GET"]'}, ""),
+        ({}, {"applyPolicies": "[]"}, "Would attach policy 'Allow-Viewer' to permission 'PoolRead'.\n"),
+        (
+            {"decisionStrategy": "UNANIMOUS"},
+            {},
+            "Would configure permission 'PoolRead': decisionStrategy=AFFIRMATIVE.\n",
+        ),
+        ({"logic": "NEGATIVE"}, {}, "Would configure permission 'PoolRead': logic=POSITIVE.\n"),
+        ({"type": "resource"}, {}, "Would configure permission 'PoolRead': type=scope.\n"),
+        ({}, {"scopes": '["GET"]'}, "Would configure permission 'PoolRead': scopes=['GET', 'LIST'].\n"),
+        ({}, {"resources": "[]"}, "Would configure permission 'PoolRead': resources=['Pool'].\n"),
+        (
+            {},
+            {"resources": '["Pool", "Dag"]'},
+            "Would configure permission 'PoolRead': resources=['Pool'].\n",
+        ),
+        (
+            {"decisionStrategy": "UNANIMOUS"},
+            {"applyPolicies": "[]"},
+            "Would configure permission 'PoolRead': decisionStrategy=AFFIRMATIVE.\n"
+            "Would attach policy 'Allow-Viewer' to permission 'PoolRead'.\n",
+        ),
+    ],
+)
+def test_permission_update_preview_reports_only_changes(changes, config_changes, expected_output, capsys):
+    permission = {
+        "name": "PoolRead",
+        "type": "scope",
+        "logic": "POSITIVE",
+        "decisionStrategy": "AFFIRMATIVE",
+        "config": {
+            "applyPolicies": '["Allow-Viewer"]',
+            "scopes": '["GET", "LIST"]',
+            "resources": '["Pool"]',
+            **config_changes,
+        },
+        **changes,
+    }
+
+    _preview_permission_update(
+        {"policies": [permission]},
+        permission_name="PoolRead",
+        permission_type="scope",
+        policy_names=["Allow-Viewer"],
+        scope_names=["GET", "LIST"],
+        resource_names=["Pool"],
+        decision_strategy="AFFIRMATIVE",
+    )
+
+    assert capsys.readouterr().out == expected_output
+
+
+@pytest.mark.parametrize("value", ['"GET"', '{"GET": true}', '["GET", 123]', None, "invalid-json"])
+def test_exported_permission_names_reject_invalid_values(value):
+    with pytest.raises(ValueError, match="Invalid 'scopes' in exported permission 'PoolRead'"):
+        _get_exported_permission_names({"name": "PoolRead", "config": {"scopes": value}}, "scopes")
+
+
+@pytest.mark.parametrize("permission_type", ["scope", "resource"])
+@pytest.mark.parametrize("exists", [False, True])
+def test_attachment_dry_run_uses_export_without_writes(permission_type, exists, capsys):
+    client = Mock(spec=["get_client_authz_settings"])
+    scope_names = ["GET", "LIST"] if permission_type == "scope" else []
+    permission = {
+        "name": "TestPermission",
+        "type": permission_type,
+        "logic": "POSITIVE",
+        "decisionStrategy": "AFFIRMATIVE",
+        "config": {
+            "applyPolicies": '["Allow-Viewer"]',
+            "resources": '["Pool"]',
+            "scopes": json.dumps(scope_names),
+        },
+    }
+    client.get_client_authz_settings.return_value = {"policies": [permission] if exists else []}
+    kwargs = {
+        "permission_name": "TestPermission",
+        "policy_name": "Allow-Viewer",
+        "resource_names": ["Pool"],
+        "decision_strategy": "AFFIRMATIVE",
+        "_dry_run": True,
+    }
+
+    if permission_type == "scope":
+        _attach_policy_to_scope_permission(client, "test-id", scope_names=scope_names, **kwargs)
+    else:
+        _attach_policy_to_resource_permission(client, "test-id", **kwargs)
+
+    output = capsys.readouterr().out
+    if exists:
+        assert output == ""
+    else:
+        assert f"type={permission_type}" in output
+        assert "Would attach policy 'Allow-Viewer' to permission 'TestPermission'." in output
+    assert client.mock_calls == [call.get_client_authz_settings(client_id="test-id")]
+
+
+@pytest.mark.parametrize("missing_policy", [None, "Allow-Viewer"])
+def test_default_attachment_preview_reads_one_snapshot(missing_policy, capsys):
+    client = Mock(spec=["get_client_authz_settings"])
+    permissions = []
+    for config in _get_default_permission_configs():
+        policies = [f"Allow-{role}" for role in config["role_names"]]
+        if config["name"] == "PoolRead" and missing_policy:
+            policies.remove(missing_policy)
+        permissions.append(
+            {
+                "name": config["name"],
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "AFFIRMATIVE",
+                "config": {
+                    "applyPolicies": json.dumps(policies),
+                    "scopes": json.dumps(config["scope_names"]),
+                    "resources": json.dumps(config["resources"]),
+                },
+            }
+        )
+    client.get_client_authz_settings.return_value = {"policies": permissions}
+
+    _attach_default_role_permissions(client, "test-id", _dry_run=True)
+
+    expected = "Would attach policy 'Allow-Viewer' to permission 'PoolRead'.\n" if missing_policy else ""
+    assert capsys.readouterr().out == expected
+    assert client.mock_calls == [call.get_client_authz_settings(client_id="test-id")]
 
 
 @pytest.mark.db_test
@@ -1449,6 +1673,7 @@ class TestCommands:
     ):
         client = Mock()
         mock_get_client.return_value = client
+        client.get_client_authz_permissions.return_value = []
 
         client.get_client_authz_scopes.return_value = [
             {"id": name.lower(), "name": name} for name in ["GET", "LIST", "POST", "PUT", "DELETE", "MENU"]
@@ -1487,6 +1712,7 @@ class TestCommands:
         mock_ensure_default_role_policies.assert_called_once_with(client, "test-id", _dry_run=True)
         mock_attach_default_role_permissions.assert_called_once_with(client, "test-id", _dry_run=True)
         mock_ensure_strategy.assert_called_once_with(client, "test-id", _dry_run=True)
+        client.get_client_authz_permissions.assert_called_once_with("test-id")
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_default_role_permissions")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._ensure_default_role_policies")
@@ -1498,8 +1724,13 @@ class TestCommands:
         "airflow.providers.keycloak.auth_manager.cli.commands._ensure_resource_server_decision_strategy",
         autospec=True,
     )
+    @patch(
+        "airflow.providers.keycloak.auth_manager.cli.commands._preview_resources",
+        autospec=True,
+    )
     def test_create_all_dry_run(
         self,
+        mock_preview_resources,
         mock_ensure_strategy,
         mock_get_client,
         mock_create_scopes,
@@ -1539,10 +1770,15 @@ class TestCommands:
             create_all_command(self.arg_parser.parse_args(params))
 
         client.get_clients.assert_called_once_with()
-        # In dry-run mode, all helper functions should be called with dry_run=True
         mock_create_scopes.assert_called_once_with(client, "test-id", _dry_run=True)
-        mock_create_resources.assert_called_once_with(client, "test-id", teams=[], _dry_run=True)
         mock_create_permissions.assert_called_once_with(client, "test-id", teams=[], _dry_run=True)
         mock_ensure_default_role_policies.assert_called_once_with(client, "test-id", _dry_run=True)
+        mock_create_resources.assert_not_called()
+        mock_preview_resources.assert_called_once_with(
+            client,
+            "test-id",
+            teams=[],
+            planned_scopes=_get_scopes_to_create(),
+        )
         mock_attach_default_role_permissions.assert_called_once_with(client, "test-id", _dry_run=True)
         mock_ensure_strategy.assert_called_once_with(client, "test-id", _dry_run=True)

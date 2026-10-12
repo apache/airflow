@@ -171,7 +171,16 @@ def create_all_command(args):
     _validate_permission_creation_plan(teams)
 
     _create_scopes(client, client_uuid, _dry_run=args.dry_run)
-    _create_resources(client, client_uuid, teams=teams, _dry_run=args.dry_run)
+
+    if args.dry_run:
+        _preview_resources(
+            client,
+            client_uuid,
+            teams=teams,
+            planned_scopes=_get_scopes_to_create(),
+        )
+    else:
+        _create_resources(client, client_uuid, teams=teams, _dry_run=False)
 
     if not args.dry_run:
         _get_permissions_to_create(client, client_uuid, teams=teams)
@@ -375,6 +384,20 @@ def _get_default_permission_configs() -> list[dict]:
 def _attach_default_role_permissions(
     client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
 ) -> None:
+    if _dry_run:
+        settings = client.get_client_authz_settings(client_id=client_uuid)
+        for permission in _get_default_permission_configs():
+            _preview_permission_update(
+                settings,
+                permission_name=permission["name"],
+                permission_type="scope",
+                policy_names=[_role_policy_name(role) for role in permission["role_names"]],
+                scope_names=permission["scope_names"],
+                resource_names=permission["resources"],
+                decision_strategy="AFFIRMATIVE",
+            )
+        return
+
     for permission in _get_default_permission_configs():
         for role_name in permission["role_names"]:
             _attach_policy_to_scope_permission(
@@ -513,9 +536,24 @@ def _get_resources_to_create(
     return standard_resources, menu_resources
 
 
-def _preview_resources(client: KeycloakAdmin, client_uuid: str, teams: list[str]):
-    """Preview resources that would be created."""
-    standard_resources, menu_resources = _get_resources_to_create(client, client_uuid, teams=teams)
+def _preview_resources(
+    client: KeycloakAdmin,
+    client_uuid: str,
+    teams: list[str],
+    *,
+    planned_scopes: list[dict] | None = None,
+) -> None:
+    """Preview resources using existing scopes or explicitly supplied planned scopes."""
+    if planned_scopes is None:
+        standard_resources, menu_resources = _get_resources_to_create(client, client_uuid, teams=teams)
+    else:
+        standard_names, menu_names = _get_resource_names_to_create(teams)
+        standard_scopes = [
+            scope for scope in planned_scopes if scope["name"] in {"GET", "POST", "PUT", "DELETE", "LIST"}
+        ]
+        menu_scopes = [scope for scope in planned_scopes if scope["name"] == "MENU"]
+        standard_resources = [(name, standard_scopes) for name in standard_names]
+        menu_resources = [(name, menu_scopes) for name in menu_names]
 
     print("Resources to be created:")
     if standard_resources:
@@ -729,32 +767,46 @@ def _get_permissions_to_create(
     return result
 
 
-def _preview_permissions(client: KeycloakAdmin, client_uuid: str, teams: list[str]):
-    """Preview permissions that would be created."""
-    if not teams:
-        print("Permissions to be created:")
-        for permission in _get_default_permission_configs():
+def _preview_permissions(
+    client: KeycloakAdmin,
+    client_uuid: str,
+    teams: list[str],
+    *,
+    include_global_admin: bool = True,
+) -> None:
+    """Preview the permission definitions in the provisioning plan."""
+    permissions = _get_permission_configs(
+        teams,
+        include_global_admin=include_global_admin,
+    )
+    existing_permissions = client.get_client_authz_permissions(client_uuid)
+    existing_names = {permission["name"] for permission in existing_permissions}
+    permissions_to_create = [
+        permission for permission in permissions if permission["name"] not in existing_names
+    ]
+
+    print("Permissions to be created:")
+    if not permissions_to_create:
+        print("  None.")
+
+    for permission in permissions_to_create:
+        resource_names = ", ".join(permission.get("resources", []))
+        if permission["type"] == "scope-based":
             scope_names = ", ".join(permission["scope_names"])
-            resource_names = ", ".join(permission["resources"])
             print(
                 f"  - {permission['name']} "
                 f"(type: scope-based, scopes: {scope_names}, "
                 f"resources: {resource_names})"
             )
-        print()
-        return
-    permissions = _get_permissions_to_create(client, client_uuid, teams=teams)
-
-    print("Permissions to be created:")
-    for perm in permissions:
-        if perm["type"] == "scope-based":
-            scope_names = ", ".join(perm["scope_names"])
-            resource_names = ", ".join(perm.get("resource_names", []))
-            resource_suffix = f", resources: {resource_names}" if resource_names else ""
-            print(f"  - {perm['name']} (type: scope-based, scopes: {scope_names}{resource_suffix})")
-        else:  # resource-based
-            resource_names = ", ".join(perm["resource_names"])
-            print(f"  - {perm['name']} (type: resource-based, resources: {resource_names})")
+        else:
+            print(f"  - {permission['name']} (type: resource-based, resources: {resource_names})")
+    existing_planned_names = [
+        permission["name"] for permission in permissions if permission["name"] in existing_names
+    ]
+    if existing_planned_names:
+        print("Existing permissions (creation skipped):")
+        for name in existing_planned_names:
+            print(f"  - {name}")
     print()
 
 
@@ -1346,6 +1398,51 @@ def _ensure_aggregate_policy(
         raise
 
 
+def _get_exported_permission_names(permission: dict, key: str) -> set[str]:
+    # Keycloak exports references as JSON-encoded names rather than the IDs used by update requests.
+    value = permission.get("config", {}).get(key, "[]")
+    try:
+        names = json.loads(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid '{key}' in exported permission '{permission['name']}'.") from exc
+    if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
+        raise ValueError(f"Invalid '{key}' in exported permission '{permission['name']}'.")
+    return set(names)
+
+
+def _preview_permission_update(
+    settings: dict,
+    *,
+    permission_name: str,
+    permission_type: str,
+    policy_names: list[str],
+    scope_names: list[str],
+    resource_names: list[str],
+    decision_strategy: str,
+) -> None:
+    permission = next(
+        (item for item in settings.get("policies", []) if item.get("name") == permission_name), None
+    )
+    attached_policies = _get_exported_permission_names(permission, "applyPolicies") if permission else set()
+    changes = []
+    for key, expected in (
+        ("type", permission_type),
+        ("logic", "POSITIVE"),
+        ("decisionStrategy", decision_strategy),
+    ):
+        if permission is None or permission.get(key) != expected:
+            changes.append(f"{key}={expected}")
+    for key, expected_names in (("scopes", scope_names), ("resources", resource_names)):
+        if permission is None or _get_exported_permission_names(permission, key) != set(expected_names):
+            changes.append(f"{key}={sorted(expected_names)}")
+
+    if changes:
+        print(f"Would configure permission '{permission_name}': {', '.join(changes)}.")
+    for policy_name in dict.fromkeys(policy_names):
+        if policy_name not in attached_policies:
+            print(f"Would attach policy '{policy_name}' to permission '{permission_name}'.")
+
+
 def _attach_policy_to_scope_permission(
     client: KeycloakAdmin,
     client_uuid: str,
@@ -1358,7 +1455,15 @@ def _attach_policy_to_scope_permission(
     _dry_run: bool = False,
 ) -> None:
     if _dry_run:
-        print(f"Would attach policy '{policy_name}' to permission '{permission_name}'.")
+        _preview_permission_update(
+            client.get_client_authz_settings(client_id=client_uuid),
+            permission_name=permission_name,
+            permission_type="scope",
+            policy_names=[policy_name],
+            scope_names=scope_names,
+            resource_names=resource_names,
+            decision_strategy=decision_strategy,
+        )
         return
 
     permissions = client.get_client_authz_permissions(client_uuid)
@@ -1416,7 +1521,15 @@ def _attach_policy_to_resource_permission(
     _dry_run: bool = False,
 ) -> None:
     if _dry_run:
-        print(f"Would attach policy '{policy_name}' to permission '{permission_name}'.")
+        _preview_permission_update(
+            client.get_client_authz_settings(client_id=client_uuid),
+            permission_name=permission_name,
+            permission_type="resource",
+            policy_names=[policy_name],
+            scope_names=[],
+            resource_names=resource_names,
+            decision_strategy=decision_strategy,
+        )
         return
 
     permissions = client.get_client_authz_permissions(client_uuid)
