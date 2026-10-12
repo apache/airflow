@@ -1,11 +1,10 @@
 psycopg3 statement preparation is now disabled by default
 
-Airflow 3.4 makes psycopg3 the default Postgres driver for the metadata database. psycopg3 prepares a statement server-side once it has been executed ``prepare_threshold`` times (5 by default). A connection pooler running in transaction mode routes consecutive transactions on one client connection to different server connections, so a pooler that does not track prepared statements itself cannot honour that, and tasks begin failing with ``DuplicatePreparedStatement`` once the threshold is crossed.
+Airflow 3.4 makes psycopg3 the default Postgres driver for the metadata database. psycopg3 prepares a statement server-side once it has been executed ``prepare_threshold`` times (5 by default). A pooler running in transaction mode routes consecutive transactions on one client connection to different server connections, so unless it tracks prepared statements itself, queries begin failing with ``InvalidSqlStatementName`` -- or ``DuplicatePreparedStatement`` where several clients generate the same statement name -- once the threshold is crossed.
 
 Airflow now sets ``prepare_threshold = None`` on both the sync and async psycopg3 engines, which disables the behaviour.
-This supersedes the note accompanying the async driver switch, which described psycopg3 as safe behind transaction-mode PgBouncer with no extra configuration -- that holds only on PgBouncer 1.24 or newer, where ``max_prepared_statements`` defaults to 200.
 
-**Who this affected:** PgBouncer gained prepared-statement tracking in 1.24, where ``max_prepared_statements`` defaults to 200. The Airflow Helm chart sets ``pool_mode = transaction`` and ships PgBouncer 1.23.1, so the recommended deployment was an affected one. Other poolers may not support prepared statements at all.
+**Who this affected:** PgBouncer has supported prepared statements since 1.21, but only enables them by default from 1.24, where ``max_prepared_statements`` defaults to 200. The Airflow Helm chart sets ``pool_mode = transaction`` and ships PgBouncer 1.23.1 without setting ``max_prepared_statements``, so the recommended deployment was an affected one. Other poolers may not support prepared statements at all.
 
 **To keep statement preparation**, if your pooler tracks prepared statements or you run without one, point ``sql_alchemy_connect_args`` at a dictionary defined in your ``airflow_local_settings.py``:
 
@@ -18,4 +17,6 @@ This supersedes the note accompanying the async driver switch, which described p
 
     PSYCOPG3_CONNECT_ARGS = {"prepare_threshold": 5}
 
-Anything set there takes precedence over the default. The same applies to ``sql_alchemy_connect_args_async`` for the async engine.
+Anything set there takes precedence over the default. The same applies to ``sql_alchemy_connect_args_async`` for the async engine. Operators running PgBouncer 1.21 or newer can instead set ``max_prepared_statements`` on the pooler and keep preparation enabled on both sides.
+
+**Not covered:** the Celery result backend builds its own engine and does not read these options. If ``[celery] result_backend`` is unset, Airflow derives a psycopg3 URL from ``sql_alchemy_conn``, and that engine still prepares statements. Set ``[celery] result_backend_sqlalchemy_engine_options`` to ``{"connect_args": {"prepare_threshold": null}}``, or configure ``result_backend`` explicitly, if you run Celery behind a transaction-mode pooler.

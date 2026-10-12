@@ -23,7 +23,7 @@ import logging
 import os
 import sys
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import cache, partial
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Literal
@@ -380,11 +380,13 @@ def _psycopg3_connect_args(sql_alchemy_conn: str | None) -> dict[str, Any]:
 
     psycopg3 prepares a statement server-side after ``prepare_threshold`` executions
     (5 by default). Transaction pooling can route the next transaction to a different
-    server connection, so a pooler that does not itself track prepared statements --
-    PgBouncer before 1.24, or any PgBouncer with ``max_prepared_statements = 0`` --
-    then fails with ``DuplicatePreparedStatement``. Airflow's own chart pins PgBouncer
-    1.23.1 and sets ``pool_mode = transaction``, so the recommended deployment is an
-    affected one. Overridable via ``[database] sql_alchemy_connect_args``.
+    server connection, so a pooler with ``max_prepared_statements = 0`` fails with
+    ``InvalidSqlStatementName`` once a statement outlives the backend that prepared it,
+    or ``DuplicatePreparedStatement`` when a second client reuses the same generated
+    name. PgBouncer supports prepared statements from 1.21 but only enables them by
+    default from 1.24; Airflow's own chart pins 1.23.1 and sets
+    ``pool_mode = transaction``, so the recommended deployment is an affected one.
+    Overridable via ``[database] sql_alchemy_connect_args``.
     """
     if not sql_alchemy_conn or not sql_alchemy_conn.startswith(
         ("postgresql+psycopg://", "postgresql+psycopg_async://")
@@ -402,7 +404,13 @@ def _get_connect_args(mode: Literal["sync", "async"]) -> Any:
     if not conf.has_option("database", key):
         return defaults
     configured = conf.getimport("database", key)
-    if not isinstance(configured, dict):
+    if not isinstance(configured, Mapping):
+        if defaults:
+            log.warning(
+                "[database] %s is not a mapping, so the psycopg3 default "
+                "prepare_threshold=None could not be applied.",
+                key,
+            )
         return configured
     # Anything the operator sets wins, including putting prepare_threshold back.
     return {**defaults, **configured}
