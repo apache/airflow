@@ -3263,7 +3263,143 @@ class TestExecuteRouting:
         def _failing_emit():
             raise RuntimeError("boom")
 
-        listener._thread_execute(_failing_emit, "on_running")
-
         listener.log.warning.assert_called_once()
         assert "on_running" in listener.log.warning.call_args.args
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
+    def test_api_server_manual_dag_run_state_uses_thread_pool(
+        self, mock_process_executor, mock_thread_executor
+    ):
+        """API server manual dag run state changes must use ThreadPoolExecutor, never ProcessPoolExecutor."""
+        from fastapi import FastAPI
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        mock_dag_run = MagicMock()
+        mock_dag_run.dag_id = "test_dag"
+        mock_dag_run.run_id = "test_run"
+        mock_dag_run.logical_date = None
+        mock_dag_run.run_after = None
+        mock_dag_run.data_interval_start = None
+        mock_dag_run.data_interval_end = None
+        mock_dag_run.clear_number = 0
+        mock_dag_run.dag = None
+        mock_dag_run.get_state.return_value = "success"
+
+        listener.on_dag_run_success(
+            dag_run=mock_dag_run,
+            msg="Dag Run's state was manually set to `success`.",
+        )
+
+        mock_process_executor.assert_not_called()
+        mock_thread_executor.assert_called_once()
+        mock_thread_executor.return_value.submit.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
+    def test_api_server_manual_task_instance_state_uses_thread_pool(
+        self, mock_process_executor, mock_thread_executor
+    ):
+        """Manual task instance transitions in API server must use ThreadPoolExecutor, never ProcessPoolExecutor."""
+        from fastapi import FastAPI
+
+        from airflow.models.taskinstance import TaskInstance
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        mock_ti = MagicMock(spec=TaskInstance)
+        mock_ti.dag_id = "test_dag"
+        mock_ti.task_id = "test_task"
+        mock_ti.try_number = 1
+        mock_ti.operator = "BashOperator"
+        mock_ti.task = None
+        mock_dag_run = MagicMock()
+        mock_dag_run.dag_id = "test_dag"
+        mock_dag_run.run_id = "test_run"
+        mock_dag_run.logical_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        mock_dag_run.run_after = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        mock_dag_run.data_interval_start = None
+        mock_dag_run.data_interval_end = None
+        mock_dag_run.clear_number = 0
+        mock_ti.dag_run = mock_dag_run
+
+        with (
+            mock.patch(
+                "airflow.providers.openlineage.plugins.listener.object_session", return_value=MagicMock()
+            ),
+            mock.patch(
+                "airflow.providers.openlineage.plugins.listener.get_orm_task_instance_positions",
+                return_value={mock_ti.id: MagicMock(in_loop=False, map_index=-1)},
+            ),
+        ):
+            listener.on_task_instance_success(previous_state=None, task_instance=mock_ti)
+
+        mock_process_executor.assert_not_called()
+        mock_thread_executor.assert_called_once()
+        mock_thread_executor.return_value.submit.assert_called_once()
+
+    def test_before_stopping_shuts_down_thread_pool_in_api_server(self):
+        """In API server, before_stopping shuts down ThreadPoolExecutor with wait=False and cancel_futures=True."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        from fastapi import FastAPI
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        mock_thread_executor = MagicMock(spec=ThreadPoolExecutor)
+        listener._thread_executor = mock_thread_executor
+
+        listener.before_stopping(component=app)
+
+        mock_thread_executor.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
+        assert listener._thread_executor is None
+
+    def test_pid_change_resets_executor(self):
+        """When process PID changes after fork, inherited executor references are reset."""
+        listener = OpenLineageListener()
+        listener._pid = 12345
+        mock_thread_executor = MagicMock()
+        mock_process_executor = MagicMock()
+        listener._thread_executor = mock_thread_executor
+        listener._executor = mock_process_executor
+
+        with mock.patch("os.getpid", return_value=99999):
+            listener._check_pid()
+            assert listener._pid == 99999
+            assert listener._thread_executor is None
+            assert listener._executor is None
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
+    def test_scheduler_retains_process_pool(self, mock_process_executor, mock_thread_executor):
+        """Scheduler events must continue using ProcessPoolExecutor with initializer."""
+        listener = OpenLineageListener()
+        # on_starting with scheduler Job
+        mock_job = MagicMock()
+        mock_job.__class__.__name__ = "SchedulerJobRunner"
+        listener.on_starting(component=mock_job)
+
+        mock_dag_run = MagicMock()
+        mock_dag_run.dag_id = "test_dag"
+        mock_dag_run.run_id = "test_run"
+        mock_dag_run.logical_date = None
+        mock_dag_run.run_after = None
+        mock_dag_run.start_date = None
+        mock_dag_run.data_interval_start = None
+        mock_dag_run.data_interval_end = None
+        mock_dag_run.clear_number = 0
+        mock_dag_run.dag = None
+
+        listener.on_dag_run_running(dag_run=mock_dag_run, msg="running")
+
+        mock_thread_executor.assert_not_called()
+        mock_process_executor.assert_called_once()
+        _, kwargs = mock_process_executor.call_args
+        assert "initializer" in kwargs

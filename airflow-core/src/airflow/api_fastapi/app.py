@@ -100,6 +100,9 @@ def _initialize_api_server_stats() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _initialize_api_server_stats()
+    from airflow.listeners.listener import get_listener_manager
+
+    get_listener_manager().hook.on_starting(component=app)
     async with AsyncExitStack() as stack:
         stack.push_async_callback(settings.dispose_async_engine)
         for route in app.routes:
@@ -108,7 +111,13 @@ async def lifespan(app: FastAPI):
                     route.app.router.lifespan_context(route.app),
                 )
         app.state.lifespan_called = True
-        yield
+        try:
+            yield
+        finally:
+            try:
+                get_listener_manager().hook.before_stopping(component=app)
+            except Exception:
+                log.exception("Error calling listener before_stopping hook")
 
 
 @providers_configuration_loaded

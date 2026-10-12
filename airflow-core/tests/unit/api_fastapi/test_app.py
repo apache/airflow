@@ -388,3 +388,13 @@ class TestInitializeApiServerStats:
         with mock.patch.object(app_module, "_initialize_api_server_stats") as mock_init:
             with client():
                 mock_init.assert_called_once()
+
+    def test_listeners_notified_during_lifespan(self, client):
+        """Listener on_starting and before_stopping hooks must be called during API server lifespan."""
+        with mock.patch("airflow.listeners.listener.get_listener_manager") as mock_get_lm:
+            mock_lm = mock.MagicMock()
+            mock_get_lm.return_value = mock_lm
+            with client() as c:
+                mock_lm.hook.on_starting.assert_called_once_with(component=c.app)
+                mock_lm.hook.before_stopping.assert_not_called()
+            mock_lm.hook.before_stopping.assert_called_once_with(component=c.app)

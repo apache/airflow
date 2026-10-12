@@ -20,7 +20,7 @@ import logging
 import os
 import sys
 import threading
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING
@@ -166,10 +166,24 @@ class OpenLineageListener:
     """OpenLineage listener sends events on task instance and dag run starts, completes and failures."""
 
     def __init__(self):
-        self._executor = None
+        self._executor: ProcessPoolExecutor | None = None
+        self._thread_executor: ThreadPoolExecutor | None = None
+        self._is_api_server: bool = False
+        self._pid: int = os.getpid()
+        self._lock = threading.Lock()
         self.log = logging.getLogger(__name__)
         self.extractor_manager = ExtractorManager()
         self.adapter = OpenLineageAdapter()
+
+    def _check_pid(self) -> None:
+        """Reset executors if the process was forked (e.g. Gunicorn master to worker)."""
+        current_pid = os.getpid()
+        if self._pid != current_pid:
+            with self._lock:
+                if self._pid != current_pid:
+                    self._executor = None
+                    self._thread_executor = None
+                    self._pid = current_pid
 
     if AIRFLOW_V_3_0_PLUS:
 
@@ -863,15 +877,14 @@ class OpenLineageListener:
         error: None | str | BaseException = None,
     ) -> None:
         """
-        Emit an OL event from the scheduler when a TI transitions externally.
+        Emit an OL event when a TI transitions externally or via manual UI/API state change.
 
-        This path is only reached on the scheduler (``process_executor_events ->
-        handle_failure``, or manual UI/API state changes). Emission is routed through
-        the same ``ProcessPoolExecutor`` the DAG-run listeners use rather than through
-        ``_fork_execute``: the pool's ``_executor_initializer`` rebuilds the ORM once
-        per worker, so the child never shares a pooled Postgres SSL connection with
-        the scheduler, and bursts of external-state-change events no longer produce a
-        fork-per-event.
+        This path is reached on the scheduler (``process_executor_events ->
+        handle_failure``) and on the API server for manual UI/API state changes.
+        In the API server, emission is routed through an in-process ``ThreadPoolExecutor``
+        to avoid forking multithreaded web server processes. On the scheduler, emission
+        is routed through ``ProcessPoolExecutor`` whose ``_executor_initializer`` rebuilds
+        the ORM once per worker so the child never shares a pooled Postgres SSL connection.
         """
         self.log.debug("`_on_task_instance_manual_state_change` was called with state: `%s`.", ti_state)
         end_date = timezone.utcnow()
@@ -1117,21 +1130,46 @@ class OpenLineageListener:
                     os._exit(0)
 
     @property
-    def executor(self) -> ProcessPoolExecutor:
+    def executor(self) -> Executor:
+        self._check_pid()
+        if self._is_api_server:
+            if not self._thread_executor:
+                with self._lock:
+                    if not self._thread_executor:
+                        self._thread_executor = ThreadPoolExecutor(
+                            max_workers=conf.dag_state_change_process_pool_size(),
+                            thread_name_prefix="openlineage-api-executor",
+                        )
+            return self._thread_executor
+
         if not self._executor:
-            self._executor = ProcessPoolExecutor(
-                max_workers=conf.dag_state_change_process_pool_size(),
-                initializer=_executor_initializer,
-            )
+            with self._lock:
+                if not self._executor:
+                    self._executor = ProcessPoolExecutor(
+                        max_workers=conf.dag_state_change_process_pool_size(),
+                        initializer=_executor_initializer,
+                    )
         return self._executor
 
     @hookimpl
     def on_starting(self, component) -> None:
         self.log.debug("on_starting: %s", component.__class__.__name__)
+        if component.__class__.__name__ == "FastAPI" or getattr(component, "__module__", "").startswith(
+            "fastapi"
+        ):
+            self._is_api_server = True
 
     @hookimpl
     def before_stopping(self, component) -> None:
         self.log.debug("before_stopping: %s", component.__class__.__name__)
+        self._check_pid()
+        if self._thread_executor is not None:
+            thread_executor, self._thread_executor = self._thread_executor, None
+            try:
+                thread_executor.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                self.log.warning("OpenLineage thread executor did not shut down cleanly.", exc_info=True)
+
         if self._executor is None:
             # Do not build a pool just to tear it down -- on the task runner this hook fires at the
             # end of every task, where no pool was ever needed.
@@ -1314,14 +1352,16 @@ class OpenLineageListener:
         try:
             fut = self.executor.submit(callable, *args, **kwargs)
         except RuntimeError:
-            # BrokenProcessPool subclasses RuntimeError, so this also covers a pool that was already
-            # shut down ("cannot schedule new futures after shutdown"). The retry is deliberately
-            # unguarded: every caller wraps this in `except BaseException`, and a second consecutive
-            # failure deserves to surface in their warning rather than be swallowed here.
-            self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
-            if self._executor is not None:
-                self._executor.shutdown(wait=False)
-            self._executor = None
+            if self._is_api_server:
+                self.log.warning("ThreadPoolExecutor is unusable; recreating and retrying submission.")
+                if self._thread_executor is not None:
+                    self._thread_executor.shutdown(wait=False, cancel_futures=True)
+                self._thread_executor = None
+            else:
+                self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
+                if self._executor is not None:
+                    self._executor.shutdown(wait=False)
+                self._executor = None
             fut = self.executor.submit(callable, *args, **kwargs)
         fut.add_done_callback(self.log_submit_error)
         return fut
