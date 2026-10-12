@@ -30,11 +30,43 @@ from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureEx
 from airflow.providers.databricks.hooks.genie import (
     DatabricksGenieError,
     DatabricksGenieHook,
+    _summarize_query_result,
     _truncate_result,
 )
 
 
 class TestDatabricksGenieHook:
+    def test_query_result_marks_omitted_chunks_and_columns_as_truncated(self):
+        partial_rows = _summarize_query_result(
+            {
+                "statement_response": {
+                    "manifest": {
+                        "schema": {"columns": [{"name": "count"}]},
+                        "total_row_count": 10,
+                        "total_chunk_count": 2,
+                        "truncated": False,
+                    },
+                    "result": {"data_array": [[str(index)] for index in range(5)]},
+                }
+            }
+        )
+        assert len(partial_rows["rows"]) == 5
+        assert partial_rows["total_row_count"] == 10
+        assert partial_rows["truncated"] is True
+
+        capped_columns = _summarize_query_result(
+            {
+                "manifest": {
+                    "schema": {"columns": [{"name": f"column_{index}"} for index in range(101)]},
+                    "total_row_count": 1,
+                    "truncated": False,
+                },
+                "result": {"data_array": [["value"]]},
+            }
+        )
+        assert len(capped_columns["columns"]) == 100
+        assert capped_columns["truncated"] is True
+
     def test_direct_hook_works_without_common_ai(self):
         original_import = builtins.__import__
 
