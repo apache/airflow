@@ -424,11 +424,20 @@ def _summarize_query_result(response: dict[str, Any]) -> dict[str, Any]:
         column.get("name") for column in manifest.get("schema", {}).get("columns", []) if column.get("name")
     ]
     rows = result.get("data_array") or []
+    returned_rows = rows[:_MAX_RESULT_ROWS]
+    total_row_count = manifest.get("total_row_count", len(rows))
+    total_chunk_count = manifest.get("total_chunk_count", 1)
     return {
         "columns": columns[:100],
-        "rows": rows[:_MAX_RESULT_ROWS],
-        "total_row_count": manifest.get("total_row_count", len(rows)),
-        "truncated": len(rows) > _MAX_RESULT_ROWS or bool(manifest.get("truncated")),
+        "rows": returned_rows,
+        "total_row_count": total_row_count,
+        "truncated": (
+            bool(manifest.get("truncated"))
+            or len(rows) > len(returned_rows)
+            or len(columns) > 100
+            or (isinstance(total_row_count, int) and total_row_count > len(returned_rows))
+            or (isinstance(total_chunk_count, int) and total_chunk_count > 1)
+        ),
     }
 
 
