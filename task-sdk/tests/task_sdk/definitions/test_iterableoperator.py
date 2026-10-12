@@ -2029,6 +2029,104 @@ class TestIterableOperator:
         assert fired == ["a"]
         assert pushed == ["a"]
 
+    def test_a_failed_skip_checkpoint_fails_only_its_item(self):
+        """
+        A SKIPPED checkpoint write that fails is that item's outcome, as a failed SUCCESS write is:
+        the next item still runs (one at a time here, so it starts only after the failure) and the
+        task fails with the write's error, which the retry gets past by running the item again.
+        """
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput(
+                    [{"raise_exception": AirflowSkipException("not this one")}, {"arg1": 1}]
+                ),
+                task_id="skip_checkpoint_fails",
+                task_concurrency=1,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+                original_aset = store.aset
+
+                async def aset_failing_the_skip(key, value, **kwargs):
+                    if value.get("status") == "skipped":
+                        raise RuntimeError("state store down")
+                    await original_aset(key, value, **kwargs)
+
+                store.aset = aset_failing_the_skip
+                with pytest.raises(RuntimeError, match="state store down"):
+                    iterable_op.execute(context=context)
+
+        assert "_iterable_0" not in store
+        assert store["_iterable_1"]["status"] == "success"
+
+    def test_a_skip_callback_that_raises_keeps_the_checkpoint(self):
+        """
+        The skip callback runs after the SKIPPED checkpoint is written, as the success callback runs
+        after SUCCESS: a ``BaseException`` it raises is the item's outcome, which fails the task at
+        once as any non-``Exception`` does, and the checkpoint stays for the retry to replay.
+        """
+        fired: list[str] = []
+
+        class SkipCallbackRaisesOperator(BaseOperator):
+            def __init__(self, arg1=None, **kwargs):
+                kwargs["on_skipped_callback"] = self._callback
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+
+            def _callback(self, context):
+                fired.append(self.arg1)
+                raise DeadlockImminentError("send() from inside a request")
+
+            def execute(self, context):
+                raise AirflowSkipException("not this one")
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": "a"}]),
+                task_id="skip_callback_raises",
+                operator_class=SkipCallbackRaisesOperator,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+                with pytest.raises(AirflowFailException, match="raised a non-Exception BaseException"):
+                    iterable_op.execute(context=context)
+
+        assert fired == ["a"]
+        assert store["_iterable_0"]["status"] == "skipped"
+
+    def test_a_failed_up_for_retry_checkpoint_keeps_the_items_own_failure(self):
+        """
+        An item that failed stays failed when its UP_FOR_RETRY checkpoint cannot be written: the
+        task fails with the item's own error, not the write's, and the next item still runs.
+        """
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"raise_exception": ValueError("item failed")}, {"arg1": 1}]),
+                task_id="retry_checkpoint_fails",
+                task_concurrency=1,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+                original_aset = store.aset
+
+                async def aset_failing_the_retry(key, value, **kwargs):
+                    if value.get("status") == "up_for_retry":
+                        raise RuntimeError("state store down")
+                    await original_aset(key, value, **kwargs)
+
+                store.aset = aset_failing_the_retry
+                with pytest.raises(ValueError, match="item failed"):
+                    iterable_op.execute(context=context)
+
+        assert "_iterable_0" not in store
+        assert store["_iterable_1"]["status"] == "success"
+
     def test_extra_xcoms_are_checkpointed_once_and_pushed_again_when_a_retry_skips_the_item(self):
         """
         The runner deletes every XCom before a retry. An item skipped because it already succeeded
