@@ -1587,6 +1587,13 @@ repos:
         pass_filenames: false
         files: ^task-sdk/src/airflow/sdk/importers/yaml_importer/(models|parser|versions/.*)\.py$
         require_serial: true
+      - id: check-yaml-importer-schema-versions
+        name: Check YAML DAG importer schema changes have corresponding version updates
+        entry: ./scripts/ci/prek/check_yaml_importer_schema_versions.py
+        language: python
+        pass_filenames: true
+        files: ^task-sdk/src/airflow/sdk/importers/yaml_importer/(models\.py|schema\.json|versions/.*\.py)$
+        require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
