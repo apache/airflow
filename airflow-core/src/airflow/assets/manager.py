@@ -22,7 +22,7 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import exc, insert, or_, select
+from sqlalchemy import exc, func, insert, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -45,7 +45,7 @@ from airflow.models.asset import (
 )
 from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
-from airflow.utils.helpers import is_container, prune_dict
+from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -65,6 +65,10 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 _APDR_GET_OR_CREATE_ATTEMPTS = 2
+
+# Keys per ``IN (...)`` when looking up APDRs, kept under SQLite's historical limit of 999
+# bound parameters per statement.
+_APDR_LOOKUP_CHUNK_SIZE = 500
 
 
 class AssetManager(LoggingMixin):
@@ -531,6 +535,7 @@ class AssetManager(LoggingMixin):
             return
 
         global_cap = conf.getint("scheduler", "partition_mapper_max_downstream_keys")
+        asset_model: AssetModel | None = None
         for target_dag in partition_dags:
             if TYPE_CHECKING:
                 assert partition_key is not None
@@ -545,8 +550,11 @@ class AssetManager(LoggingMixin):
 
             fingerprint = compute_rollup_fingerprint(timetable)
 
-            if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
-                raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
+            # The asset is the same for every target Dag; load it once, on first use.
+            if asset_model is None:
+                asset_model = session.scalar(select(AssetModel).where(AssetModel.id == asset_id))
+                if asset_model is None:
+                    raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
 
             mapper = timetable.get_partition_mapper(name=asset_model.name, uri=asset_model.uri)
             try:
@@ -638,15 +646,15 @@ class AssetManager(LoggingMixin):
                 )
                 target_partition_date = None
 
-            for target_key in target_keys:
-                apdr = cls._get_or_create_apdr(
-                    target_key=target_key,
-                    target_partition_date=target_partition_date,
-                    target_dag=target_dag,
-                    rollup_fingerprint=fingerprint,
-                    allow_reuse=timetable.batch_asset_events,
-                    session=session,
-                )
+            apdrs = cls._get_or_create_apdrs(
+                target_keys=target_keys,
+                target_partition_date=target_partition_date,
+                target_dag=target_dag,
+                rollup_fingerprint=fingerprint,
+                allow_reuse=timetable.batch_asset_events,
+                session=session,
+            )
+            for target_key, apdr in zip(target_keys, apdrs, strict=True):
                 log_record = PartitionedAssetKeyLog(
                     asset_id=asset_id,
                     asset_event_id=event.id,
@@ -656,6 +664,84 @@ class AssetManager(LoggingMixin):
                     target_partition_key=target_key,
                 )
                 session.add(log_record)
+
+    @classmethod
+    def _get_or_create_apdrs(
+        cls,
+        *,
+        target_keys: list[str],
+        target_partition_date: datetime | None,
+        target_dag: DagModel,
+        rollup_fingerprint: dict,
+        allow_reuse: bool,
+        session: Session,
+    ) -> list[AssetPartitionDagRun]:
+        """
+        Get or create the APDR of every key in ``target_keys``, in key order.
+
+        The pending APDRs are read in one query per ``_APDR_LOOKUP_CHUNK_SIZE`` keys instead of
+        one per key; see ``_get_or_create_apdr`` for the reuse and race semantics. A repeated
+        key resolves to the same APDR when ``allow_reuse`` is set.
+        """
+        pending_by_key = (
+            cls._get_latest_pending_apdrs_by_key(
+                target_keys=target_keys, target_dag_id=target_dag.dag_id, session=session
+            )
+            if allow_reuse
+            else {}
+        )
+        apdrs: list[AssetPartitionDagRun] = []
+        for target_key in target_keys:
+            if pending_apdr := pending_by_key.get(target_key):
+                cls._reconcile_partition_date(
+                    apdr=pending_apdr,
+                    target_partition_date=target_partition_date,
+                    target_dag_id=target_dag.dag_id,
+                    target_key=target_key,
+                    session=session,
+                )
+                cls.logger().debug(
+                    "Existing APDR found for key %s dag_id %s",
+                    target_key,
+                    target_dag.dag_id,
+                    exc_info=True,
+                )
+                apdrs.append(pending_apdr)
+                continue
+            apdr = cls._create_apdr(
+                target_key=target_key,
+                target_partition_date=target_partition_date,
+                target_dag=target_dag,
+                rollup_fingerprint=rollup_fingerprint,
+                allow_reuse=allow_reuse,
+                session=session,
+            )
+            if allow_reuse:
+                pending_by_key[target_key] = apdr
+            apdrs.append(apdr)
+        return apdrs
+
+    @staticmethod
+    def _get_latest_pending_apdrs_by_key(
+        *, target_keys: list[str], target_dag_id: str, session: Session
+    ) -> dict[str, AssetPartitionDagRun]:
+        """Batch form of ``_get_latest_pending_apdr``: the newest pending APDR of each key that has one."""
+        latest: dict[str, AssetPartitionDagRun] = {}
+        for keys in chunks(sorted(set(target_keys)), _APDR_LOOKUP_CHUNK_SIZE):
+            newest_ids = (
+                select(func.max(AssetPartitionDagRun.id))
+                .where(
+                    AssetPartitionDagRun.target_dag_id == target_dag_id,
+                    AssetPartitionDagRun.partition_key.in_(keys),
+                    AssetPartitionDagRun.created_dag_run_id.is_(None),
+                )
+                .group_by(AssetPartitionDagRun.partition_key)
+            )
+            for apdr in session.scalars(
+                select(AssetPartitionDagRun).where(AssetPartitionDagRun.id.in_(newest_ids))
+            ):
+                latest[apdr.partition_key] = apdr
+        return latest
 
     @classmethod
     def _get_or_create_apdr(
@@ -708,6 +794,27 @@ class AssetManager(LoggingMixin):
             )
             return pending_apdr
 
+        return cls._create_apdr(
+            target_key=target_key,
+            target_partition_date=target_partition_date,
+            target_dag=target_dag,
+            rollup_fingerprint=rollup_fingerprint,
+            allow_reuse=allow_reuse,
+            session=session,
+        )
+
+    @classmethod
+    def _create_apdr(
+        cls,
+        *,
+        target_key: str,
+        target_partition_date: datetime | None,
+        target_dag: DagModel,
+        rollup_fingerprint: dict,
+        allow_reuse: bool,
+        session: Session,
+    ) -> AssetPartitionDagRun:
+        """Insert an APDR, or with ``allow_reuse`` return the one a concurrent process inserted first."""
         build_apdr = partial(
             AssetPartitionDagRun,
             target_dag_id=target_dag.dag_id,
