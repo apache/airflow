@@ -213,6 +213,13 @@ if TYPE_CHECKING:
 import time_machine
 
 
+@pytest.fixture(autouse=True)
+def _clear_structlog_contextvars():
+    # startup() binds TI identifiers for the life of the worker process; we need to clear them else other tests will be impacted.
+    yield
+    structlog.contextvars.clear_contextvars()
+
+
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
     """Creates an inline dag and returns it based on dag_id and task."""
     dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
