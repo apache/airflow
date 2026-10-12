@@ -37,6 +37,11 @@ from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigExcep
 
 from tests_common.test_utils.config import conf_vars
 
+# Imported by name through [database] sql_alchemy_connect_args, the way an operator
+# would point the option at a dict in their airflow_local_settings.
+CONNECT_ARGS_RESTORING_PREPARATION = {"prepare_threshold": 5}
+CONNECT_ARGS_WITHOUT_PREPARE_THRESHOLD = {"application_name": "airflow"}
+
 SETTINGS_FILE_CUSTOM_ENGINE = """
 from sqlalchemy import create_engine, event
 
@@ -268,6 +273,39 @@ class TestMetadataEngineHooks:
         assert call_kwargs[0][0] == "sqlite://"
         assert "engine_args" in call_kwargs[1]
         assert "connect_args" in call_kwargs[1]
+
+    @patch("airflow.settings.create_metadata_engine")
+    @patch("airflow.settings._configure_async_session")
+    def test_configure_orm_forwards_the_psycopg3_default(self, mock_async_session, mock_create_engine):
+        """The psycopg3 default is only worth anything if configure_orm forwards it."""
+        from airflow import settings
+
+        mock_create_engine.return_value = MagicMock()
+
+        with (
+            patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "false"}),
+            patch("airflow.settings.SQL_ALCHEMY_CONN", "postgresql+psycopg://user:pass@host/db"),
+            patch("airflow.settings.Session"),
+            patch("airflow.settings.engine"),
+            patch("airflow.settings.setup_event_handlers"),
+            patch("airflow.settings.mask_secret", create=True),
+            patch("airflow._shared.secrets_masker.mask_secret"),
+        ):
+            settings.configure_orm()
+
+        assert mock_create_engine.call_args[1]["connect_args"] == {"prepare_threshold": None}
+
+    @patch("airflow.settings.create_async_metadata_engine")
+    def test_configure_async_session_forwards_the_psycopg3_default(self, mock_create_async_engine):
+        """The docs promise the default on both engines, so assert the async one separately."""
+        from airflow import settings
+
+        mock_create_async_engine.return_value = MagicMock()
+
+        with patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", "postgresql+psycopg_async://user:pass@host/db"):
+            settings._configure_async_session()
+
+        assert mock_create_async_engine.call_args[1]["connect_args"] == {"prepare_threshold": None}
 
     @patch("airflow.settings.create_async_metadata_engine")
     def test_configure_async_session_delegates_to_create_async_metadata_engine(
@@ -521,8 +559,6 @@ def test_get_async_conn_uri_from_sync(sync_uri, use_psycopg3, expected_async_uri
 def test_explicit_sql_alchemy_conn_async_is_not_rewritten():
     from airflow import settings
 
-    from tests_common.test_utils.config import conf_vars
-
     explicit_async_uri = "postgresql+asyncpg://user:pass@host/db"
     try:
         with conf_vars({("database", "sql_alchemy_conn_async"): explicit_async_uri}):
@@ -722,7 +758,9 @@ def test_async_pool_is_closed_before_process_shutdown(driver):
         ("postgresql+asyncpg://user:pass@host/db", {}),
         ("sqlite:////root/airflow.db", {}),
         ("mysql+aiomysql://user:pass@host/db", {}),
-        # SQL_ALCHEMY_CONN_ASYNC is Optional and unset until configure_orm runs.
+        # make_url raises rather than returning a driver; create_engine reports it better.
+        ("not a url at all", {}),
+        # SQL_ALCHEMY_CONN_ASYNC is Optional and unset until configure_vars runs.
         (None, {}),
     ],
 )
@@ -746,8 +784,14 @@ def test_get_connect_args_defaults_off_auto_prepare_for_psycopg3(mode):
 @pytest.mark.parametrize(
     ("configured", "expected"),
     [
-        ({"prepare_threshold": 5}, {"prepare_threshold": 5}),
-        ({"application_name": "airflow"}, {"prepare_threshold": None, "application_name": "airflow"}),
+        (
+            "unit.core.test_settings.CONNECT_ARGS_RESTORING_PREPARATION",
+            {"prepare_threshold": 5},
+        ),
+        (
+            "unit.core.test_settings.CONNECT_ARGS_WITHOUT_PREPARE_THRESHOLD",
+            {"prepare_threshold": None, "application_name": "airflow"},
+        ),
     ],
     ids=["operator_restores_auto_prepare", "operator_args_merge_over_default"],
 )
@@ -755,23 +799,8 @@ def test_get_connect_args_lets_operator_override_the_psycopg3_default(mode, opti
     # conf_vars re-runs configure_vars(), which rebinds SQL_ALCHEMY_CONN -- so it has to
     # enter before the patches that set the URL this test depends on.
     with (
-        conf_vars({("database", option): "unit.core.test_settings.CONFIGURED_CONNECT_ARGS"}),
+        conf_vars({("database", option): configured}),
         patch.object(settings, "SQL_ALCHEMY_CONN", "postgresql+psycopg://user:pass@host/db"),
         patch.object(settings, "SQL_ALCHEMY_CONN_ASYNC", "postgresql+psycopg_async://user:pass@host/db"),
-        patch.object(settings.conf, "getimport", return_value=configured),
     ):
         assert settings._get_connect_args(mode) == expected
-
-
-def test_psycopg3_default_reaches_the_created_engine():
-    """The default is only useful if it survives all the way into create_engine."""
-    with (
-        patch.object(settings, "SQL_ALCHEMY_CONN", "postgresql+psycopg://user:pass@host/db"),
-        patch.object(settings, "create_engine", autospec=True) as mock_create_engine,
-    ):
-        settings.create_metadata_engine(
-            settings.SQL_ALCHEMY_CONN,
-            engine_args={},
-            connect_args=settings._get_connect_args("sync"),
-        )
-    assert mock_create_engine.call_args.kwargs["connect_args"] == {"prepare_threshold": None}

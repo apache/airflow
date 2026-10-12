@@ -32,6 +32,7 @@ import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession as SAAsyncSession,
@@ -374,25 +375,40 @@ def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
     return True
 
 
+_PSYCOPG3_DRIVERS = frozenset({"psycopg", "psycopg_async"})
+
+
 def _psycopg3_connect_args(sql_alchemy_conn: str | None) -> dict[str, Any]:
     """
     Disable psycopg3's automatic server-side statement preparation.
 
     psycopg3 prepares a statement server-side after ``prepare_threshold`` executions
     (5 by default). Transaction pooling can route the next transaction to a different
-    server connection, so a pooler with ``max_prepared_statements = 0`` fails with
-    ``InvalidSqlStatementName`` once a statement outlives the backend that prepared it,
-    or ``DuplicatePreparedStatement`` when a second client reuses the same generated
-    name. PgBouncer supports prepared statements from 1.21 but only enables them by
-    default from 1.24; Airflow's own chart pins 1.23.1 and sets
-    ``pool_mode = transaction``, so the recommended deployment is an affected one.
+    server connection, so a pooler that does not itself track prepared statements fails
+    with ``InvalidSqlStatementName`` once a statement outlives the backend that prepared
+    it, or ``DuplicatePreparedStatement`` when a second client reuses the same generated
+    name. Preparation is only safe behind PgBouncer from 1.22 onwards, with
+    ``max_prepared_statements`` raised above 0 (its default until 1.24) and libpq 17 or
+    newer on the client; Airflow's chart sets ``pool_mode = transaction`` and ships 1.23.1
+    without that setting, so the recommended deployment is an affected one.
+
     This disables preparation outright, not just the automatic threshold, so bulk
     ``executemany`` writes re-parse per row rather than reusing one prepared statement.
     Overridable via ``[database] sql_alchemy_connect_args``.
+
+    The driver is resolved through SQLAlchemy rather than matched against the URL prefix
+    so that it always agrees with the dialect that gets loaded: ``sql_alchemy_conn_async``
+    is taken verbatim from config without scheme normalization, and a bare
+    ``postgresql://`` resolves to psycopg on SQLAlchemy 2.1.
     """
-    if not sql_alchemy_conn or not sql_alchemy_conn.startswith(
-        ("postgresql+psycopg://", "postgresql+psycopg_async://")
-    ):
+    if not sql_alchemy_conn:
+        return {}
+    try:
+        driver = make_url(sql_alchemy_conn).get_driver_name()
+    except (ArgumentError, NoSuchModuleError):
+        # Leave it to create_engine, which reports a bad URL with far more context.
+        return {}
+    if driver not in _PSYCOPG3_DRIVERS:
         return {}
     return {"prepare_threshold": None}
 
