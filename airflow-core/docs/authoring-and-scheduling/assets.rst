@@ -818,6 +818,41 @@ so the run is held indefinitely) and the fall-back day has twenty-five (the repe
 hour is dropped). Use a UTC-based upstream mapper for any rollup that crosses a DST
 boundary; see the ``DayWindow`` class docstring for the full discussion.
 
+Window step
+"""""""""""
+
+.. versionadded:: 3.4.0
+
+:class:`~airflow.sdk.HourWindow`, :class:`~airflow.sdk.DayWindow` and
+:class:`~airflow.sdk.WeekWindow` accept a ``step`` that replaces their built-in unit
+(one minute, one hour and one day). Use it when the producer emits keys at a different
+interval, for example a streaming job that commits every five minutes:
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from airflow.sdk import Asset, HourWindow, PartitionedAssetTimetable, RollupMapper, StartOfHourMapper
+
+    orders_5min = Asset(name="orders_5min")
+
+    schedule = PartitionedAssetTimetable(
+        assets=orders_5min,
+        default_partition_mapper=RollupMapper(
+            # Producer keys look like 2026-10-06T10:05:00.
+            upstream_mapper=StartOfHourMapper(),
+            # Twelve members per hour: 10:00:00, 10:05:00, ..., 10:55:00.
+            window=HourWindow(step=timedelta(minutes=5)),
+        ),
+    )
+
+The step must be a whole number of seconds that divides the period evenly, so
+``HourWindow(step=timedelta(minutes=7))`` raises ``ValueError`` at Dag parse.
+:class:`~airflow.sdk.MonthWindow`, :class:`~airflow.sdk.QuarterWindow` and
+:class:`~airflow.sdk.YearWindow` do not accept a step because their periods vary in
+length. Each producer key must fall on the step grid: an event keyed ``10:03:00`` is
+recorded but never matches an expected member.
+
 Wait policies
 ~~~~~~~~~~~~~
 
