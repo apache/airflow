@@ -2896,6 +2896,55 @@ class TestIterableOperator:
         assert not run_thread.is_alive()
         assert isinstance(outcome[0], AirflowTaskTerminated)
 
+    @pytest.mark.execution_timeout(20)
+    def test_the_kill_after_a_failure_that_stops_the_task_is_bounded(self):
+        """
+        An item whose outcome stops the task at once (here it defers) kills the items still running,
+        with no ``execution_timeout`` to cap it: one whose ``on_kill`` never returns holds the run
+        for the shutdown timeout, as on the SIGTERM path, not forever.
+        """
+        executing = threading.Event()
+        killed = threading.Event()
+        released = threading.Event()
+
+        class StuckKillAfterFailure(BaseOperator):
+            def __init__(self, arg1=None, **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+
+            def execute(self, context):
+                if self.arg1 == "defer":
+                    assert executing.wait(5)
+                    raise TaskDeferred(trigger=None, method_name="execute_complete")  # type: ignore[arg-type]
+                executing.set()
+                killed.wait(5)
+                raise RuntimeError("killed")
+
+            def on_kill(self):
+                killed.set()
+                released.wait(30)
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": "defer"}, {"arg1": "running"}]),
+                task_id="stuck_kill_after_failure",
+                task_concurrency=2,
+                operator_class=StuckKillAfterFailure,
+            )
+
+            with (
+                mock_context(task=iterable_op) as context,
+                patch.object(IterableOperator, "_SHUTDOWN_TIMEOUT", 0.2),
+            ):
+                try:
+                    with pytest.raises(AirflowFailException, match="attempted to defer"):
+                        iterable_op.execute(context=context)
+                finally:
+                    released.set()
+
+        assert killed.is_set()
+
     def test_run_task_tracks_active_sub_operator_during_execution(self, monkeypatch: pytest.MonkeyPatch):
         """``_run_task`` must register the sub-task's unmapped operator in the iteration state
         only for the duration of its execution, so ``on_kill()`` propagates only to sub-tasks that

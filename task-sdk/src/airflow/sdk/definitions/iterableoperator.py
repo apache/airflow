@@ -1012,10 +1012,16 @@ class IterableOperator(BaseOperator):
                         # Awaited here, unlike on_kill()'s own thread: the loop keeps running meanwhile.
                         self._state.request_stop()
                         in_flight = self._state.take_in_flight()
+                        # On a thread of its own, as on_kill()'s is, and waited for as long as the
+                        # SIGTERM path waits: an on_kill that never returns (a cancel call with no
+                        # network timeout) holds the run for _SHUTDOWN_TIMEOUT, not forever.
+                        self._state.start_kill(partial(self._kill, in_flight))
                         try:
-                            loop.run_until_complete(asyncio.to_thread(self._kill, in_flight))
+                            loop.run_until_complete(
+                                asyncio.to_thread(self._state.await_kill, self._SHUTDOWN_TIMEOUT)
+                            )
                         except RuntimeError:
-                            self._kill(in_flight)
+                            self._state.await_kill(self._SHUTDOWN_TIMEOUT)
                         raise
             finally:
                 # The kill on_kill() started runs on its own thread and may still be cleaning a
