@@ -1546,6 +1546,10 @@ class IndexedTaskRunner(LoggingMixin):
         else:
             self.task_instance.state = TaskInstanceState.FAILED
         if self._context is not None:
+            # The indexed context was cloned before the runner set the task's own "exception", so it
+            # is set here: each callback gets its indexed task's error, as each mapped task
+            # instance's does under .expand().
+            self._context["exception"] = self.failure
             _run_task_state_change_callbacks(
                 self.task_instance.task,
                 "on_retry_callback" if task_will_retry else "on_failure_callback",

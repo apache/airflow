@@ -3981,6 +3981,38 @@ class TestCallbacksFollowTheTasksFate:
                     return exc, list(CALLBACKS)
         return None, list(CALLBACKS)
 
+    @pytest.mark.parametrize(
+        ("try_number", "callback"), [(1, "on_retry_callback"), (3, "on_failure_callback")]
+    )
+    def test_a_failed_items_callback_gets_its_own_exception(self, try_number, callback):
+        """Each item's failure or retry callback finds that item's error under ``exception``."""
+        seen: list = []
+
+        class RecordsException(BaseOperator):
+            def __init__(self, error=None, **kwargs):
+                kwargs[callback] = lambda context: seen.append(context.get("exception"))
+                super().__init__(**kwargs)
+                self.error = error
+
+            def execute(self, context):
+                raise self.error
+
+        first, second = ValueError("first"), KeyError("second")
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"error": first}, {"error": second}])
+            mapped_op = RecordsException.partial(
+                task_id="records_exception", dag=dag, retries=2, task_concurrency=1
+            )._expand(expand_input, strict=True, register_with_dag=False)
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = try_number
+                context["ti"].max_tries = 2
+                with pytest.raises(BaseExceptionGroup):
+                    iterable_op.execute(context=context)
+
+        assert seen == [first, second]
+
     def test_a_siblings_fail_exception_turns_every_failure_into_a_final_one(self):
         """
         A failed item's retry callback waits until no sibling rules the retry out.
