@@ -99,11 +99,11 @@ class DagBuilder:
         """
         Build a stub from a "run:" task.
 
-        The task body is a registered SDK task handler resolved at run time; the
-        run mapping binds as that handler's arguments, where XCom and template
-        references resolve natively. The stub is fed a callable whose parameters
-        are the run argument names, so serialization can build and later
-        validate (AIP-108) the handler's argument spec.
+        The task body is a registered SDK task handler resolved at run time; each run argument binds
+        as a handler argument -- a literal value, or an upstream task's return value (``$x``). The
+        binding carries no rendering, so templates (``$t``) and keyed XCom (``$x`` with a ``key``)
+        are rejected. The stub is fed a callable whose parameters are the run argument names, so
+        serialization can build and later validate (AIP-108) the handler's argument spec.
         """
         from airflow.sdk import task as task_decorators  # Lazy to avoid provider registration.
 
@@ -111,7 +111,10 @@ class DagBuilder:
         for name, value in args.items():
             if not name.isidentifier() or keyword.iskeyword(name):
                 raise YamlDagBuildError(f"task {task.id_!r}: run argument {name!r} is not a valid identifier")
-            run_kwargs[name] = self._lower(value, protect=True)
+            _reject_unbindable_run_marker(task.id_, value)
+            # Not protected: run arguments bind as literal/XCom, they are never rendered, and a
+            # LiteralValue wrapper is not JSON-serializable for the handler arg binding.
+            run_kwargs[name] = self._lower(value, protect=False)
         decorator = task_decorators.stub(task_id=task.id_, **(task.model_extra or {}))
         return decorator(self._stub_callable(tuple(run_kwargs)))(**run_kwargs).operator
 
@@ -153,7 +156,7 @@ class DagBuilder:
         if extras := task.model_extra:  # Merge in task-level arguments (raw, never templated).
             kwargs.update(extras)
 
-        return _apply_template_lowering(op_cls(task_id=task.id_, **kwargs), tuple(render_fields))
+        return _restrict_template_fields(op_cls(task_id=task.id_, **kwargs), task.with_, render_fields)
 
     def _lower(self, value: Any, *, protect: bool) -> Any:
         """
@@ -227,16 +230,54 @@ class DagBuilder:
         return stub
 
 
-def _apply_template_lowering(op: BaseOperator, templated_fields: tuple[str, ...]) -> BaseOperator:
+def _restrict_template_fields(
+    op: BaseOperator, with_: dict[str, Any], render_fields: list[str]
+) -> BaseOperator:
     """
-    Make *op* render exactly *templated_fields*.
+    Make *op* render literal-by-default, per instance.
 
-    This allows us to implement AIP-80 file-reading semantics without changing
-    core; fortunately Airflow reads them per-instance so a simple patch works.
+    Only fields the author set in ``with:`` without a marker are dropped from
+    ``template_fields``; fields the operator templates by default or marked as
+    templates (e.g. uses ``$t``) are kept, so an operator's own defaults (e.g.
+    ``ExternalTaskMarker.logical_date``) still render.
+
+    ``template_ext`` is emptied: a file is read only when asked for explicitly
+    (``$f``), never by a rendered value's suffix.
     """
-    op.template_fields = templated_fields
+    op.template_fields = tuple(f for f in op.template_fields if f not in with_ or f in render_fields)
     op.template_ext = ()
     return op
+
+
+def _reject_unbindable_run_marker(task_id: str, value: Any) -> None:
+    """
+    Reject value-grammar a task handler's argument binding cannot carry.
+
+    The binding carries only literals and an upstream task's return value, so a template (``$t``)
+    or a keyed XCom (``$x`` with a ``key``) anywhere in a run argument is an error. A plain
+    ``$x`` (return value), ``$f``, ``$const`` and literals are fine.
+    """
+    if isinstance(value, TemplateRef):
+        raise YamlDagBuildError(
+            f"task {task_id!r}: a template ($t) reference is not supported in a run: task; the task "
+            "handler binding carries literal values and XCom return values, not rendered templates"
+        )
+    if isinstance(value, XComRef):
+        target = value.target
+        if not isinstance(target, str) and target.key is not None:
+            raise YamlDagBuildError(
+                f"task {task_id!r}: a keyed XCom ($x with 'key') is not supported in a run: task; "
+                "only a task's return value crosses the handler boundary"
+            )
+        return
+    if isinstance(value, Literal):
+        _reject_unbindable_run_marker(task_id, value.root)
+    elif isinstance(value, dict):
+        for item in value.values():
+            _reject_unbindable_run_marker(task_id, item)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_unbindable_run_marker(task_id, item)
 
 
 def _build_schedule(schedule: Any) -> Any:

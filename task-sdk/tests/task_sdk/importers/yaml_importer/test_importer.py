@@ -50,6 +50,23 @@ class _RecordingOperator(BaseOperator):
 OP = f"{__name__}.{_RecordingOperator.__name__}"
 
 
+class _DefaultTemplateOperator(BaseOperator):
+    """Templates ``preset`` by default (set in __init__, not by the author) plus author-set ``payload``."""
+
+    template_fields = ("payload", "preset")
+
+    def __init__(self, *, payload=None, preset="{{ ds }}", **kwargs):
+        super().__init__(**kwargs)
+        self.payload = payload
+        self.preset = preset
+
+    def execute(self, context):
+        return self.payload
+
+
+OP_DEFAULT_TEMPLATE = f"{__name__}.{_DefaultTemplateOperator.__name__}"
+
+
 @pytest.fixture
 def mock_bundle(tmp_path):
     bundle_dir = tmp_path / "bundle"
@@ -285,6 +302,19 @@ def test_import_template_marker_sets_template_fields(mock_bundle):
     a = result.dags[0].get_task("a")
     assert a.payload == "{{ ds }}"
     assert set(a.template_fields) == {"payload"}  # $t opts the field into rendering
+
+
+def test_import_keeps_operator_default_template_fields(mock_bundle):
+    # The operator templates ``preset`` by default; the author only sets ``payload`` (unmarked).
+    # Literal-by-default drops the author's unmarked field but keeps the operator's own default.
+    definition = _def(
+        mock_bundle, "dag.yaml", _doc(f"- {{id: a, uses: {OP_DEFAULT_TEMPLATE}, with: {{payload: hi}}}}")
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    a = result.dags[0].get_task("a")
+    assert set(a.template_fields) == {"preset"}  # operator default kept; author's unmarked payload dropped
+    assert a.payload == "hi"  # author-set unmarked field no longer renders
 
 
 def test_import_file_ref_reads_verbatim(mock_bundle):
