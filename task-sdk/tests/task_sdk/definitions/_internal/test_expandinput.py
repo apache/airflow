@@ -30,6 +30,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     ListOfDictsExpandInput,
     MappedArgument,
     Resolved,
+    SharedReadsSource,
     Source,
     compute_index_for_each_field,
 )
@@ -125,7 +126,10 @@ class TestExpandInput:
 
     @pytest.mark.asyncio
     async def test_dict_of_lists_expand_input_aresolve_reads_each_index_on_demand(self):
-        """Sources are pulled once up front, but items are read only as the consumer asks for them."""
+        """
+        Sources are pulled once up front, but items are read only as the consumer asks for them,
+        and an element the cross product combines more than once is read once.
+        """
         source = AsyncOnlyValues([0, 1, 2])
         expand_input = DictOfListsExpandInput({"a": source, "b": [10, 20]})
         length, aget = await expand_input.aresolve({})
@@ -134,9 +138,47 @@ class TestExpandInput:
         assert source.reads == []
         assert await aget(0) == {"a": 0, "b": 10}
         assert await aget(1) == {"a": 0, "b": 20}
-        assert source.reads == [0, 0]
+        assert source.reads == [0]
         assert await aget(2) == {"a": 1, "b": 10}
-        assert source.reads == [0, 0, 1]
+        assert source.reads == [0, 1]
+
+    @pytest.mark.asyncio
+    async def test_a_cross_product_reads_an_outer_element_once_for_its_run(self):
+        """
+        ``iterate(a=<20 lazy>, b=<5 lazy>)``, read in position order: each element of ``a`` is read
+        once for the 5 positions in a row that use it, ``b`` once per position, so 120 reads for
+        the 100 combinations instead of 200.
+        """
+        a, b = AsyncOnlyValues(list(range(20))), AsyncOnlyValues(list(range(5)))
+        length, aget = await DictOfListsExpandInput({"a": a, "b": b}).aresolve({})
+
+        combinations = [await aget(index) for index in range(length)]
+
+        assert len(combinations) == 100
+        assert a.reads == list(range(20))
+        assert len(b.reads) == 100
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("names", [["a"], ["a", "b"]], ids=["single source", "last of two"])
+    async def test_the_last_source_is_read_as_it_is(self, names, monkeypatch):
+        """
+        The last source, or a single one, uses each element for one position only: sharing its
+        reads would hold a value for nothing, so it is not wrapped.
+        """
+        wrapped: list = []
+        original_init = SharedReadsSource.__init__
+
+        def recording_init(self, value):
+            wrapped.append(value)
+            original_init(self, value)
+
+        monkeypatch.setattr(SharedReadsSource, "__init__", recording_init)
+        values = {name: AsyncOnlyValues([1, 2]) for name in names}
+        length, aget = await DictOfListsExpandInput(values).aresolve({})
+
+        assert [await aget(index) for index in range(length)]
+        assert all(value is not values[names[-1]] for value in wrapped)
+        assert len(wrapped) == len(names) - 1
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -299,6 +341,77 @@ class TestSource:
         assert len(threads) == 2
         assert all(thread is not threading.current_thread() for thread in threads)
         assert asyncio.get_running_loop().is_running()
+
+
+class TestSharedReadsSource:
+    """A lazy source of a cross product, which shares the reads of the positions asked for recently."""
+
+    @pytest.mark.asyncio
+    async def test_concurrent_reads_of_a_position_share_one_read(self):
+        values = AsyncOnlyValues([7])
+        source = (await Source.from_argument(values, {})).shared()
+
+        assert await asyncio.gather(*(source.aget(0) for _ in range(5))) == [7] * 5
+        assert values.reads == [0]
+
+    @pytest.mark.asyncio
+    async def test_a_failed_read_is_read_again(self):
+        """A failure is not kept: the next indexed task asking for that element reads it itself."""
+
+        class FailsOnce(AsyncOnlyValues):
+            async def aget(self, index):
+                self.reads.append(index)
+                if len(self.reads) == 1:
+                    raise RuntimeError("supervisor busy")
+                return self.values[index]
+
+        values = FailsOnce([7])
+        source = (await Source.from_argument(values, {})).shared()
+
+        with pytest.raises(RuntimeError, match="supervisor busy"):
+            await source.aget(0)
+        assert await source.aget(0) == 7
+        assert values.reads == [0, 0]
+
+    @pytest.mark.asyncio
+    async def test_cancelling_one_reader_leaves_the_read_to_the_others(self):
+        released = asyncio.Event()
+
+        class Slow(AsyncOnlyValues):
+            async def aget(self, index):
+                self.reads.append(index)
+                await released.wait()
+                return self.values[index]
+
+        values = Slow([7])
+        source = (await Source.from_argument(values, {})).shared()
+        first = asyncio.ensure_future(source.aget(0))
+        second = asyncio.ensure_future(source.aget(0))
+        await asyncio.sleep(0)
+        first.cancel()
+        released.set()
+
+        assert await second == 7
+        assert first.cancelled()
+        assert values.reads == [0]
+
+    @pytest.mark.asyncio
+    async def test_a_source_holds_only_the_element_in_use(self):
+        """A lazy source is never kept whole: only its last read is, and it goes when the source moves on."""
+        values = AsyncOnlyValues(list(range(20)))
+        source = (await Source.from_argument(values, {})).shared()
+
+        assert [await source.aget(index) for index in range(20)] == list(range(20))
+        assert len(source._reads) == SharedReadsSource.MAX_READS == 1
+        assert await source.aget(19) == 19
+        assert await source.aget(0) == 0
+        assert values.reads == [*range(20), 0]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("value", [[1, 2], (1, 2), range(1, 3)])
+    async def test_an_in_memory_source_is_its_own_shared_source(self, value):
+        source = await Source.from_argument(value, {})
+        assert source.shared() is source
 
 
 class TestIndexForEachField:

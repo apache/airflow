@@ -20,7 +20,9 @@ from __future__ import annotations
 import asyncio
 import math
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence, Sized
+from functools import partial
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, Union
 
 import attrs
@@ -114,6 +116,60 @@ class Source:
         if hasattr(value, "aget"):
             return await value.aget(index)
         return await asyncio.to_thread(value.__getitem__, index)
+
+    def shared(self) -> Source:
+        """
+        Return the source to read when several indexed tasks ask for the same position.
+
+        An in-memory container is read in place at no cost, so it is its own; a lazy value, whose
+        every read is a supervisor round trip or a ``.map()`` call, shares its recent reads
+        through a :class:`SharedReadsSource`.
+        """
+        if isinstance(self.value, (list, tuple, range)):
+            return self
+        return SharedReadsSource(self.value)
+
+
+class SharedReadsSource(Source):
+    """
+    A lazy source of a cross product, which shares the read of the element its indexed tasks use now.
+
+    ``iterate()`` over several sources combines them as a cross product, the last one varying
+    fastest, and indexed tasks are started in position order: every source but the last is asked
+    for the same element over a run of consecutive positions, ``iterate(a=<1000 items>, b=<50
+    items>)`` for each element of ``a`` 50 times in a row. Keeping the last read of each source
+    reads such an element once for its whole run, so only the last source is read per position,
+    as without sharing. A bigger cache would spare the last source's reads too, but values can be
+    arbitrarily large: this one holds no more than one value per source, the one the indexed
+    tasks running now already use, and lets it go when the source moves on.
+
+    A read is started once and shared, with ``asyncio.shield`` so that an indexed task being
+    cancelled does not cancel a read others wait for; a read that fails is forgotten, so the next
+    indexed task reads it again. A ``.map()`` callable then runs once per shared read, in the
+    context of the first indexed task that asks for it.
+    """
+
+    #: How many reads a source keeps: the element its indexed tasks use now.
+    MAX_READS: ClassVar[int] = 1
+
+    def __init__(self, value: Sequence[Any]) -> None:
+        super().__init__(value)
+        self._reads: OrderedDict[int, asyncio.Future[Any]] = OrderedDict()
+
+    async def aget(self, index: int) -> Any:
+        read = self._reads.get(index)
+        if read is None:
+            read = self._reads[index] = asyncio.ensure_future(super().aget(index))
+            read.add_done_callback(partial(self._forget_failed_read, index))
+            if len(self._reads) > self.MAX_READS:
+                self._reads.popitem(last=False)
+        else:
+            self._reads.move_to_end(index)
+        return await asyncio.shield(read)
+
+    def _forget_failed_read(self, index: int, read: asyncio.Future[Any]) -> None:
+        if (read.cancelled() or read.exception() is not None) and self._reads.get(index) is read:
+            del self._reads[index]
 
 
 def compute_index_for_each_field(map_index: int, lengths: Mapping[str, int]) -> dict[str, int]:
@@ -318,6 +374,11 @@ class DictOfListsExpandInput(ExpandInput):
 
     async def aresolve(self, context: Mapping[str, Any]) -> Resolved:
         sources = {key: await Source.from_argument(value, context) for key, value in self.value.items()}
+        # The cross product asks for an element of a source again over the positions in a row that
+        # use it: every one of the sources after it. The last source, varying fastest, uses each
+        # element for one position only, as a single source does, so it is read as it is.
+        *outer, _last = sources
+        sources = {key: source.shared() if key in outer else source for key, source in sources.items()}
         lengths = {key: await source.alen() for key, source in sources.items()}
 
         async def aget(index: int) -> Mapping[str, Any]:

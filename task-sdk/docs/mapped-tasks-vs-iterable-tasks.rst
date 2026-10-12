@@ -274,6 +274,17 @@ concurrent approach is dramatically faster — see the
 
 .. note::
 
+    The order of the arguments decides how often an upstream is read. ``iterate(a=..., b=...)``
+    combines them as a cross product, the last one varying fastest, and runs the iterations in
+    that order: each element of ``a`` is read once for the run of iterations that use it, while
+    ``b`` is read for every iteration. Reading an upstream's XCom is a round trip to the
+    supervisor per element, so put the longest upstream first and literal lists last:
+    ``iterate(url=upstream.output, retries=[1, 2, 3])`` reads each URL once, where
+    ``iterate(retries=[1, 2, 3], url=upstream.output)`` reads each of them three times. No more
+    than the element in use is kept per argument, so a large upstream is never held whole.
+
+.. note::
+
     Pools count the task instance, not its iterations. The scheduler reserves ``pool_slots`` once,
     while up to ``task_concurrency`` iterations run inside it; without ``task_concurrency`` that
     is ``os.cpu_count()``, which counts every CPU of the node even in a container with a CPU
