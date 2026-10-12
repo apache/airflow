@@ -2193,6 +2193,15 @@ class TestPytestSnowflakeHook:
 
         assert "workload_identity_provider" in widgets
 
+    def test_connection_form_exposes_workload_identity_impersonation_path(self):
+        pytest.importorskip("flask_appbuilder")
+        pytest.importorskip("flask_babel")
+
+        assert "workload_identity_impersonation_path" in SnowflakeHook.get_connection_form_widgets()
+        assert (
+            "workload_identity_impersonation_path" in SnowflakeHook.get_ui_field_behaviour()["placeholders"]
+        )
+
     @pytest.mark.parametrize(
         ("field", "value"),
         [("token", "an-oidc-jwt"), ("token_file_path", "/var/run/secrets/oidc/token")],
