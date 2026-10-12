@@ -3360,18 +3360,21 @@ class TestAKillSticks:
                 context["ti"].try_number = 2
                 store = context["task_state_store"]
                 read = store.aget
+                write = store.aset
+                item_0_done = asyncio.Event()
                 killed = asyncio.Event()
 
-                async def item_0_done():
-                    while "_iterable_0" not in store:
-                        await asyncio.sleep(0.01)
+                async def aset_and_signal(key, value, **kwargs):
+                    await write(key, value, **kwargs)
+                    if key == "_iterable_0":
+                        item_0_done.set()
 
                 async def aget_and_kill(key, default=None):
                     # Items reach this read in the order their worker threads built them, so the
                     # test sets the order: item 0 runs to its checkpoint, item 1's read is where
                     # the kill lands, and item 2's read comes after it.
                     if key == "_iterable_1":
-                        await asyncio.wait_for(item_0_done(), timeout=5)
+                        await asyncio.wait_for(item_0_done.wait(), timeout=5)
                         iterable_op.on_kill()
                         killed.set()
                     elif key == "_iterable_2":
@@ -3379,6 +3382,7 @@ class TestAKillSticks:
                     return await read(key, default)
 
                 store.aget = aget_and_kill
+                store.aset = aset_and_signal
                 with pytest.raises(
                     AirflowTaskTerminated, match="1 of 3 items ran, 2 pulled but never started"
                 ):
