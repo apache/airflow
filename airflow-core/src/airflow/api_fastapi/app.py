@@ -102,7 +102,10 @@ async def lifespan(app: FastAPI):
     _initialize_api_server_stats()
     from airflow.listeners.listener import get_listener_manager
 
-    get_listener_manager().hook.on_starting(component=app)
+    try:
+        get_listener_manager().hook.on_starting(component=app)
+    except Exception:
+        log.exception("Error calling listener on_starting hook")
     async with AsyncExitStack() as stack:
         stack.push_async_callback(settings.dispose_async_engine)
         for route in app.routes:

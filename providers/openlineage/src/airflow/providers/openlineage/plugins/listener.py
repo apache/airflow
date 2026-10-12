@@ -21,6 +21,7 @@ import os
 import sys
 import threading
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
+from contextlib import suppress
 from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING
@@ -179,6 +180,9 @@ class OpenLineageListener:
         """Reset executors if the process was forked (e.g. Gunicorn master to worker)."""
         current_pid = os.getpid()
         if self._pid != current_pid:
+            # Fork occurred. The inherited lock might be held by a thread that no longer exists in this child.
+            # Replace it with a fresh lock before acquiring.
+            self._lock = threading.Lock()
             with self._lock:
                 if self._pid != current_pid:
                     self._executor = None
@@ -1136,8 +1140,15 @@ class OpenLineageListener:
             if not self._thread_executor:
                 with self._lock:
                     if not self._thread_executor:
+                        # The API server uses ThreadPoolExecutor with max_workers=1 to serialize
+                        # access to the module-level cached OpenLineageAdapter (_get_process_adapter)
+                        # across manual DAG run and task instance state change emissions.
+                        # Multiple threads must not access the adapter concurrently because
+                        # OpenLineageAdapter.get_or_create_openlineage_client is not thread-safe.
+                        # Scheduler uses ProcessPoolExecutor where each child process has its
+                        # own memory space and isolated adapter.
                         self._thread_executor = ThreadPoolExecutor(
-                            max_workers=conf.dag_state_change_process_pool_size(),
+                            max_workers=1,
                             thread_name_prefix="openlineage-api-executor",
                         )
             return self._thread_executor
@@ -1163,14 +1174,17 @@ class OpenLineageListener:
     def before_stopping(self, component) -> None:
         self.log.debug("before_stopping: %s", component.__class__.__name__)
         self._check_pid()
-        if self._thread_executor is not None:
+        with self._lock:
             thread_executor, self._thread_executor = self._thread_executor, None
+            process_executor, self._executor = self._executor, None
+
+        if thread_executor is not None:
             try:
                 thread_executor.shutdown(wait=False, cancel_futures=True)
             except Exception:
                 self.log.warning("OpenLineage thread executor did not shut down cleanly.", exc_info=True)
 
-        if self._executor is None:
+        if process_executor is None:
             # Do not build a pool just to tear it down -- on the task runner this hook fires at the
             # end of every task, where no pool was ever needed.
             return
@@ -1178,10 +1192,9 @@ class OpenLineageListener:
         # Detach before shutting down so a later event rebuilds a fresh pool. Left attached, every
         # subsequent submission would raise "cannot schedule new futures after shutdown" and drop
         # its event for the remaining lifetime of the process.
-        executor, self._executor = self._executor, None
         try:
             with timeout(30):
-                executor.shutdown(wait=True)
+                process_executor.shutdown(wait=True)
         except BaseException:
             # `timeout` is SIGALRM-based: it raises AirflowTaskTimeout when shutdown overruns, and
             # ValueError when called off the main thread. Neither may escape a listener hook --
@@ -1189,7 +1202,7 @@ class OpenLineageListener:
             # BaseException so that user code cannot swallow it. Every hook call site guards with
             # `except Exception`, so letting it through would reach the caller.
             self.log.warning("OpenLineage executor did not shut down cleanly.", exc_info=True)
-            executor.shutdown(wait=False)
+            process_executor.shutdown(wait=False)
 
     @hookimpl
     def on_dag_run_running(self, dag_run: DagRun, msg: str) -> None:
@@ -1354,14 +1367,18 @@ class OpenLineageListener:
         except RuntimeError:
             if self._is_api_server:
                 self.log.warning("ThreadPoolExecutor is unusable; recreating and retrying submission.")
-                if self._thread_executor is not None:
-                    self._thread_executor.shutdown(wait=False, cancel_futures=True)
-                self._thread_executor = None
+                with self._lock:
+                    if self._thread_executor is not None:
+                        with suppress(Exception):
+                            self._thread_executor.shutdown(wait=False, cancel_futures=True)
+                        self._thread_executor = None
             else:
                 self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
-                if self._executor is not None:
-                    self._executor.shutdown(wait=False)
-                self._executor = None
+                with self._lock:
+                    if self._executor is not None:
+                        with suppress(Exception):
+                            self._executor.shutdown(wait=False)
+                        self._executor = None
             fut = self.executor.submit(callable, *args, **kwargs)
         fut.add_done_callback(self.log_submit_error)
         return fut

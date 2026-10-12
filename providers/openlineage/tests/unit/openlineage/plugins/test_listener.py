@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import uuid
 from collections import defaultdict
 from collections.abc import Callable
@@ -3263,6 +3264,8 @@ class TestExecuteRouting:
         def _failing_emit():
             raise RuntimeError("boom")
 
+        listener._thread_execute(_failing_emit, "on_running")
+
         listener.log.warning.assert_called_once()
         assert "on_running" in listener.log.warning.call_args.args
 
@@ -3343,6 +3346,98 @@ class TestExecuteRouting:
         mock_thread_executor.assert_called_once()
         mock_thread_executor.return_value.submit.assert_called_once()
 
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
+    def test_api_server_thread_pool_max_workers_is_one_regardless_of_config(self, mock_thread_executor):
+        """API server ThreadPoolExecutor must have max_workers=1 even when dag_state_change_process_pool_size is 4."""
+        from fastapi import FastAPI
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        with conf_vars({("openlineage", "dag_state_change_process_pool_size"): "4"}):
+            _ = listener.executor
+        mock_thread_executor.assert_called_once_with(
+            max_workers=1,
+            thread_name_prefix="openlineage-api-executor",
+        )
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
+    def test_scheduler_process_pool_uses_configured_size(self, mock_process_executor):
+        """Scheduler ProcessPoolExecutor respects dag_state_change_process_pool_size=4 and sets initializer."""
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        listener = OpenLineageListener()
+        mock_job = MagicMock()
+        mock_job.__class__.__name__ = "SchedulerJobRunner"
+        listener.on_starting(component=mock_job)
+
+        with conf_vars({("openlineage", "dag_state_change_process_pool_size"): "4"}):
+            _ = listener.executor
+        mock_process_executor.assert_called_once_with(
+            max_workers=4,
+            initializer=_executor_initializer,
+        )
+
+    def test_api_server_concurrent_submissions_serialize_adapter_access(self):
+        """Concurrent submissions serialize access to cached adapter and initialize client exactly once."""
+        from fastapi import FastAPI
+
+        listener = OpenLineageListener()
+        app = FastAPI()
+        listener.on_starting(component=app)
+
+        executed_threads: set[int] = set()
+        init_counts = {"client": 0}
+
+        def mock_client_init(*args, **kwargs):
+            init_counts["client"] += 1
+            return MagicMock()
+
+        def test_worker_task(task_id: int):
+            executed_threads.add(threading.get_ident())
+            from airflow.providers.openlineage.plugins.listener import _get_process_adapter
+
+            adapter = _get_process_adapter()
+            _ = adapter.get_or_create_openlineage_client()
+            return task_id
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.adapter.OpenLineageClient",
+            side_effect=mock_client_init,
+        ):
+            from airflow.providers.openlineage.plugins.listener import _get_process_adapter
+
+            _get_process_adapter.cache_clear()
+            try:
+                futures = []
+                calling_threads = []
+
+                def submitter():
+                    for i in range(2):
+                        fut = listener.submit_callable(test_worker_task, i)
+                        futures.append(fut)
+
+                for _ in range(5):
+                    t = threading.Thread(target=submitter)
+                    calling_threads.append(t)
+                    t.start()
+
+                for t in calling_threads:
+                    t.join()
+
+                results = [fut.result(timeout=5) for fut in futures]
+                assert len(results) == 10
+                # All 10 tasks ran on the exact same dedicated API worker thread
+                assert len(executed_threads) == 1
+                # The single worker thread is not any of the calling threads
+                assert executed_threads.isdisjoint({t.ident for t in calling_threads})
+                # Client initialized exactly once under API executor ownership
+                assert init_counts["client"] == 1
+            finally:
+                _get_process_adapter.cache_clear()
+                listener.before_stopping(component=app)
+
     def test_before_stopping_shuts_down_thread_pool_in_api_server(self):
         """In API server, before_stopping shuts down ThreadPoolExecutor with wait=False and cancel_futures=True."""
         from concurrent.futures import ThreadPoolExecutor
@@ -3361,8 +3456,8 @@ class TestExecuteRouting:
         mock_thread_executor.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
         assert listener._thread_executor is None
 
-    def test_pid_change_resets_executor(self):
-        """When process PID changes after fork, inherited executor references are reset."""
+    def test_fork_safety_recreates_lock_and_resets_executors(self):
+        """When PID changes (simulating fork), inherited locked mutex does not deadlock and executors reset."""
         listener = OpenLineageListener()
         listener._pid = 12345
         mock_thread_executor = MagicMock()
@@ -3370,11 +3465,19 @@ class TestExecuteRouting:
         listener._thread_executor = mock_thread_executor
         listener._executor = mock_process_executor
 
+        # Simulate parent holding the lock when fork occurred (lock is left acquired)
+        listener._lock.acquire()
+        assert listener._lock.locked()
+
+        # In child process with a new PID
         with mock.patch("os.getpid", return_value=99999):
+            # If _check_pid does not recreate _lock, acquiring it will deadlock
             listener._check_pid()
             assert listener._pid == 99999
             assert listener._thread_executor is None
             assert listener._executor is None
+            # Lock should now be unlocked and fresh
+            assert not listener._lock.locked()
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.ThreadPoolExecutor")
     @mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor")
