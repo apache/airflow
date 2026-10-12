@@ -452,21 +452,24 @@ describe("DataTable", () => {
     expect(screen.getByLabelText(columnsMenuLabel)).toBeInTheDocument();
   });
 
-  it("hides a column when unchecked in the columns menu", async () => {
+  it("hides a column when unchecked in the columns menu and shows it again when rechecked", async () => {
     render(<DataTable columns={wideColumns} data={data} modelName="task" total={2} />, {
       wrapper: ChakraWrapper,
     });
 
-    const trigger = screen.getByLabelText(columnsMenuLabel);
+    const table = screen.getByTestId("table-list");
 
-    fireEvent.pointerDown(trigger);
-    fireEvent.click(trigger);
+    fireEvent.click(screen.getByLabelText(columnsMenuLabel));
 
-    const menuItem = await waitFor(() => screen.getByRole("menuitem", { name: "Second" }));
+    const menuItem = await screen.findByRole("menuitem", { name: "Second" });
 
     fireEvent.click(menuItem);
+    await waitFor(() => expect(within(table).queryByRole("columnheader", { name: "Second" })).toBeNull());
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(wideColumns.length - 1);
 
-    await waitFor(() => expect(within(screen.getByTestId("table-list")).queryByText("Second")).toBeNull());
+    fireEvent.click(menuItem);
+    expect(await within(table).findByRole("columnheader", { name: "Second" })).toBeInTheDocument();
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(wideColumns.length);
   });
 
   // Each slot needs its own entry in the header row condition, or its content vanishes whenever

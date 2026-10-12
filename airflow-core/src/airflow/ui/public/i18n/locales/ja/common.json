@@ -292,7 +292,7 @@
     "bulkDelete": {
       "error": "{{resourceName}} の一括削除が失敗しました",
       "success": {
-        "description": "{{count}} {{resourceName}} が削除済。 キー: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} が削除済。 キー: {{keys}}",
         "title": "{{resourceName}} 一括削除リクエストが送信済"
       }
     },
@@ -313,7 +313,7 @@
     "import": {
       "error": "{{resourceName}} のインポートに失敗しました",
       "success": {
-        "description": "{{count}} {{resourceName}} のインポートが成功しました",
+        "description": "{{count, number}} {{resourceName}} のインポートが成功しました",
         "title": "{{resourceName}} インポートリクエスト送信済み"
       }
     },

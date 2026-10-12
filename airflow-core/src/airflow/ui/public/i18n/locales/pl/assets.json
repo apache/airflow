@@ -55,6 +55,7 @@
   "events": "Zdarzenia",
   "filters": {
     "groupPlaceholder": "Szukaj grupy",
+    "hasEvents": "Ma zdarzenia",
     "lastEventDateRange": "Data ostatniego zdarzenia"
   },
   "group": "Grupa",

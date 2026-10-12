@@ -242,9 +242,10 @@ describe("matchesAppliesTo — combining paths", () => {
     expect(matchesAppliesTo({ ...view, destination: "task_instance" }, taskInstanceContext)).toBe(true);
   });
 
-  // A task instance page resolves the task record too, and that record always carries the Dag's
-  // current definition -- which may differ from what this instance actually ran.
-  it("reads the page's own operator when the task has since been changed", () => {
+  // A task instance page resolves the task record too. `usePluginAppliesToContext` fetches it at
+  // the version the instance ran, so the two agree; this pins the matcher's half of that, that
+  // each unqualified path reads its own record.
+  it("reads the page's own operator when the records disagree", () => {
     const staleContext: AppliesToContext = {
       dag,
       dagRun: makeDagRun("failed"),

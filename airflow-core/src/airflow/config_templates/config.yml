@@ -557,8 +557,9 @@ core:
     execution_api_server_url:
       description: |
         The url of the execution api server. Default is ``{BASE_URL}/execution/``
-        where ``{BASE_URL}`` is the base url of the API Server. If ``{BASE_URL}`` is not set,
-        it will use ``http://localhost:8080`` as the default base url.
+        where ``{BASE_URL}`` is the base url of the API Server. If ``{BASE_URL}`` is not set
+        or is a relative path such as ``/airflow``, it is prefixed with ``http://localhost:{PORT}``,
+        where ``{PORT}`` is ``[api] port``.
       version_added: 3.0.0
       type: string
       example: ~
@@ -2687,6 +2688,19 @@ sentry:
 scheduler:
   description: ~
   options:
+    batch_asset_events:
+      description: |
+        Default for the ``batch_asset_events`` argument of asset-triggered timetables.
+        When false, each asset event creates a separate Dag run. Set this to true
+        to restore batching of queued events into one run. An explicit timetable
+        argument overrides this setting. Asset AND conditions and ``RollupMapper`` partition
+        mappers always default to batching, and passing ``batch_asset_events=False`` for them
+        is rejected. The setting is read when a Dag's timetable is constructed;
+        reparse Dags after changing it.
+      version_added: 3.4.0
+      type: boolean
+      example: ~
+      default: "False"
     job_heartbeat_sec:
       description: |
         Task instances listen for external kill signal (when you clear tasks
@@ -2885,6 +2899,8 @@ scheduler:
     max_dagruns_to_create_per_loop:
       description: |
         Max number of DAGs to create DagRuns for per scheduler loop.
+        Also limits non-partitioned asset-triggered Dag run creation across all selected
+        Dags, including those with event batching enabled.
       example: ~
       version_added: 2.0.0
       type: integer
@@ -3317,6 +3333,10 @@ dag_processor:
     refresh_interval:
       description: |
         How often (in seconds) to refresh, or look for new files, in a DAG bundle.
+
+        When this option and ``dag_bundle_config_list`` are left at their defaults, ``airflow standalone``
+        refreshes the Dags folder every ``bundle_refresh_check_interval`` seconds instead, so new Dag
+        files show up within seconds.
       version_added: ~
       type: integer
       example: ~

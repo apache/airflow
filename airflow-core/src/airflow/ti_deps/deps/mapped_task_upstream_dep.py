@@ -27,6 +27,8 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from sqlalchemy.orm import Session
 
     from airflow.models.taskinstance import TaskInstance
@@ -69,18 +71,29 @@ class MappedTaskUpstreamDep(BaseTIDep):
         # only interested in it if it hasn't been expanded yet, i.e., we filter by map_index=-1. This is
         # because if it has been expanded, it did not fail and was not skipped outright which is all we need
         # to know for the purposes of this check.
-        mapped_dependency_tis = (
-            session.scalars(
-                select(TaskInstance).where(
-                    TaskInstance.task_id.in_(operator.task_id for operator in mapped_dependencies),
-                    TaskInstance.dag_id == ti.dag_id,
-                    TaskInstance.run_id == ti.run_id,
-                    TaskInstance.map_index == -1,
-                )
-            ).all()
-            if mapped_dependencies
-            else []
-        )
+        dependency_ids = {operator.task_id for operator in mapped_dependencies}
+        mapped_dependency_tis: Sequence[TaskInstance]
+        if dep_context.has_regions(ti, session=session):
+            resolver = dep_context.coordinate_resolver(ti, session=session)
+            mapped_dependency_tis = [
+                upstream
+                for task_id in dependency_ids
+                for upstream in dep_context.upstream_tis(ti, task_id, session=session)
+                if resolver.public_map_index(upstream) < 0
+            ]
+        else:
+            mapped_dependency_tis = (
+                session.scalars(
+                    select(TaskInstance).where(
+                        TaskInstance.task_id.in_(dependency_ids),
+                        TaskInstance.dag_id == ti.dag_id,
+                        TaskInstance.run_id == ti.run_id,
+                        TaskInstance.region_index == -1,
+                    )
+                ).all()
+                if dependency_ids
+                else []
+            )
         if not mapped_dependency_tis:
             yield self._passing_status(reason="There are no (unexpanded) mapped dependencies!")
             return

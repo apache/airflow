@@ -123,7 +123,7 @@ var dagShape = authoringShape{
 		// them there.
 		"queue": {
 			"type":        "string",
-			"description": "Queue is the queue that each task of the Dag runs on, unless the TaskSpec of the task sets a Queue. The queue_to_coordinator option in the [sdk] section of the Airflow configuration maps the queue to the coordinator that runs Go code. A task from TriggerDagRun runs on a Python worker, so it does not take this queue.",
+			"description": "Queue is the queue that each task of the Dag runs on, unless the TaskSpec of the task sets a Queue. The queue_to_coordinator option in the [sdk] section of the Airflow configuration maps the queue to the coordinator that runs Go code. A task from TriggerDagRun takes the queue too, because the Go runtime runs it.",
 		},
 	},
 }
@@ -168,6 +168,7 @@ var taskShape = authoringShape{
 		"is_setup":               "setup/teardown needs trigger-rule handling the SDK does not model yet",
 		"is_teardown":            "setup/teardown needs trigger-rule handling the SDK does not model yet",
 		"on_failure_fail_dagrun": "only meaningful on a teardown task",
+		"returns_dag_result":     "the SDK does not send dag_result on the return-value XCom push",
 		"allow_nested_operators": "Python-only: it warns when an operator executes inside another",
 		"doc":                    "a legacy rendering of the task's docs; only doc_md is exposed",
 		"doc_json":               "a legacy rendering of the task's docs; only doc_md is exposed",
@@ -216,6 +217,7 @@ var taskGroupShape = authoringShape{
 		"_group_id":            "a positional parameter of DagRef.TaskGroup and TaskGroupRef.TaskGroup",
 		"children":             "the tasks and groups added through the group",
 		"is_mapped":            "derived from whether the group is mapped, which the SDK does not model yet",
+		"loop":                 "the gate and terminal ids are derived by the Python loop builder, which the SDK does not model",
 		"upstream_group_ids":   "the edges Before and After declare",
 		"downstream_group_ids": "the edges Before and After declare",
 		"upstream_task_ids":    "the edges Before and After declare",

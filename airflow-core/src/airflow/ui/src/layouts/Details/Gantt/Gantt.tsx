@@ -163,7 +163,6 @@ export const Gantt = ({
       <GanttTimeline
         dagId={dagId}
         flatNodes={flatNodes}
-        ganttDataItems={ganttDataItems}
         gridSummaries={gridSummaries}
         maxMs={maxMs}
         minMs={minMs}

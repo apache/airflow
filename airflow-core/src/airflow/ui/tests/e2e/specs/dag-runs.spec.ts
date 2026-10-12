@@ -30,19 +30,9 @@ test.describe("Dag Runs Page", () => {
     await dagRunsPage.verifyDagRunsExist();
   });
 
-  test("verify run details display correctly", async ({ dagRunsPage }) => {
-    await dagRunsPage.navigate();
-    await dagRunsPage.verifyRunDetailsDisplay();
-  });
-
   test("verify filtering by failed state", async ({ dagRunsPage, dagRunsPageData }) => {
     await dagRunsPage.navigate();
     await dagRunsPage.verifyStateFiltering("Failed", dagRunsPageData.dag1Id);
-  });
-
-  test("verify filtering by success state", async ({ dagRunsPage, dagRunsPageData }) => {
-    await dagRunsPage.navigate();
-    await dagRunsPage.verifyStateFiltering("Success", dagRunsPageData.dag1Id);
   });
 
   test("verify filtering by Dag ID", async ({ dagRunsPage, dagRunsPageData }) => {

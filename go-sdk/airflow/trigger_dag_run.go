@@ -27,6 +27,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 // TriggerDagRunSpec holds the options of a task that triggers a Dag run. [TriggerDagRun] takes a
@@ -36,21 +38,24 @@ import (
 // leaves its parameter at the Python default. PokeInterval and Deferrable are pointers so that a
 // pointer to 0 or false can set that value instead of leaving the default.
 //
-// DagID, RunID, LogicalDate and the values in Conf are templated. They can hold Jinja such as
-// "{{ ds }}", which Airflow renders when the task runs.
+// The task does not render templates. Note and the values in Conf are sent as they are, so a
+// string such as "{{ ds }}" reaches the new Dag run unchanged. DagID and RunID must not contain
+// "{{", since Airflow rejects such a dag_id or run_id. The task does not offer
+// openlineage_inject_parent_info, so it adds nothing to Conf.
 type TriggerDagRunSpec struct {
 	// DagID is the dag_id of the Dag to trigger. It is required.
 	DagID string
-	// RunID is the run_id of the new Dag run. When RunID is empty, Airflow generates one.
+	// RunID is the run_id of the new Dag run. When RunID is empty, the task names the run after
+	// the time it can start, such as "manual__2026-09-30T00:00:00+00:00", and adds an underscore
+	// and eight random characters when the run has no logical date.
 	RunID string
 	// Conf is the conf of the new Dag run. Each value must marshal to JSON, and each integer in
 	// Conf must fit in 64 bits.
 	Conf map[string]any
-	// LogicalDate is the logical date of the new Dag run, as an ISO 8601 string such as
-	// "2026-09-30T00:00:00+00:00" or a template such as "{{ ds }}". When LogicalDate is empty and
-	// RunAfter is the zero Time, the logical date is the time the task runs. When LogicalDate is
-	// empty and RunAfter is set, the new Dag run has no logical date.
-	LogicalDate string
+	// LogicalDate is the logical date of the new Dag run. When LogicalDate is the zero Time and
+	// RunAfter is also the zero Time, the logical date is the time the task runs. When LogicalDate
+	// is the zero Time and RunAfter is set, the new Dag run has no logical date.
+	LogicalDate time.Time
 	// RunAfter is the earliest time at which the new Dag run can start. When RunAfter is the zero
 	// Time, the new Dag run can start as soon as the task triggers it.
 	RunAfter time.Time
@@ -77,9 +82,11 @@ type TriggerDagRunSpec struct {
 	FailWhenDagIsPaused bool
 	// Note is the note of the new Dag run.
 	Note string
-	// Deferrable makes a task that waits defer instead of holding a worker slot. When Deferrable
-	// is nil, the task follows the default_deferrable option in the operators section of the
-	// Airflow configuration.
+	// Deferrable makes a task that waits defer instead of holding a worker slot. The wait then
+	// runs in the Airflow triggerer, which needs the standard provider installed, and the task
+	// resumes in the Go runtime when the new Dag run finishes. Deferrable has no effect on a task
+	// that does not wait. When Deferrable is nil, the task follows the default_deferrable option
+	// in the operators section of the Airflow configuration.
 	Deferrable *bool
 }
 
@@ -97,10 +104,12 @@ type TriggerDagRunTask struct {
 //		airflow.TaskSpec{TaskID: "trigger_downstream"},
 //	)
 //
-// The task runs no Go code. Once [BundleRef.Serve] serves the Dags from [Dag], Airflow will run
-// the task as TriggerDagRunOperator on a Python worker. So the task does not take the Queue of the
-// [DagSpec], which routes the tasks that run Go code. A [TaskSpec] can set a Queue for the task,
-// to pick the Python workers that run it.
+// The task runs no Go code. Once [BundleRef.Serve] serves the Dags from [Dag], the Go runtime runs
+// the task as TriggerDagRunOperator does, so a Dag from [Dag] needs no Python worker for it. The
+// task takes the Queue of the [DagSpec], unless its [TaskSpec] sets one. The runtime reads the
+// settings it needs from its environment: [api] base_url for the link to the new Dag run, and
+// [operators] default_deferrable for a spec that leaves Deferrable nil. Set Deferrable to defer the
+// wait, which hands it to the Python triggerer as the DagStateTrigger of the standard provider.
 //
 // Because the task has no Go function to take a task_id from, DagRef.Task needs a [TaskSpec]
 // that sets TaskID. For the same reason, the task takes no [Inputs], and it returns no result
@@ -116,6 +125,16 @@ func TriggerDagRun(spec TriggerDagRunSpec) TriggerDagRunTask {
 func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 	if spec.DagID == "" {
 		return TriggerDagRunSpec{}, errors.New("airflow.TriggerDagRunSpec has no DagID")
+	}
+	for _, field := range []struct{ name, value string }{
+		{"DagID", spec.DagID}, {"RunID", spec.RunID},
+	} {
+		if strings.Contains(field.value, "{{") {
+			return TriggerDagRunSpec{}, fmt.Errorf(
+				"airflow.TriggerDagRunSpec.%s is %q; the task does not render templates",
+				field.name, field.value,
+			)
+		}
 	}
 	if poke := spec.PokeInterval; poke != nil && (*poke < 0 || *poke%time.Second != 0) {
 		return TriggerDagRunSpec{}, fmt.Errorf(
@@ -141,6 +160,9 @@ func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 	if err := checkTime("airflow.TriggerDagRunSpec.RunAfter", spec.RunAfter); err != nil {
 		return TriggerDagRunSpec{}, err
 	}
+	if err := checkTime("airflow.TriggerDagRunSpec.LogicalDate", spec.LogicalDate); err != nil {
+		return TriggerDagRunSpec{}, err
+	}
 	conf, err := copyConf(spec.Conf)
 	if err != nil {
 		return TriggerDagRunSpec{}, fmt.Errorf("airflow.TriggerDagRunSpec.Conf: %w", err)
@@ -151,6 +173,36 @@ func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 	// inner map, so Conf is the copy that copyConf made.
 	copied.Conf = conf
 	return copied, nil
+}
+
+// triggerSpec returns the options of spec for the runtime, which cannot import this package. The
+// checked spec is a deep copy, but the runtime gets one of its own, so that nothing the runtime
+// does can change the task.
+func triggerSpec(spec TriggerDagRunSpec) bundle.TriggerSpec {
+	copied := copySpec(spec)
+	out := bundle.TriggerSpec{
+		DagID:                 copied.DagID,
+		RunID:                 copied.RunID,
+		Note:                  copied.Note,
+		LogicalDate:           copied.LogicalDate,
+		RunAfter:              copied.RunAfter,
+		ResetDagRun:           copied.ResetDagRun,
+		WaitForCompletion:     copied.WaitForCompletion,
+		SkipWhenAlreadyExists: copied.SkipWhenAlreadyExists,
+		FailWhenDagIsPaused:   copied.FailWhenDagIsPaused,
+		PokeInterval:          copied.PokeInterval,
+		Deferrable:            copied.Deferrable,
+	}
+	if copied.Conf != nil {
+		out.Conf = copyJSON(copied.Conf).(map[string]any)
+	}
+	if len(copied.AllowedStates) > 0 {
+		out.AllowedStates = dagRunStateNames(copied.AllowedStates)
+	}
+	if copied.FailedStates != nil {
+		out.FailedStates = dagRunStateNames(copied.FailedStates)
+	}
+	return out
 }
 
 // copyConf copies conf by way of JSON, so it also rejects a conf that JSON cannot hold.

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-hive``
 
-Release: ``9.7.0``
+Release: ``9.7.1``
 
 
 `Apache Hive <https://hive.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.hive`` provider. All classes for this pr
 are in ``airflow.providers.apache.hive`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.7.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.7.1/>`_.
 
 Installation
 ------------
@@ -99,10 +99,10 @@ Extra                Dependencies
 ``mysql``            ``apache-airflow-providers-mysql``
 ``presto``           ``apache-airflow-providers-presto``
 ``samba``            ``apache-airflow-providers-samba``
-``sqlalchemy``       ``sqlalchemy>=1.4.54``
+``sqlalchemy``       ``sqlalchemy>=1.4.54,!=2.1.0``
 ``vertica``          ``apache-airflow-providers-vertica``
 ``GSSAPI``           ``winkerberos>=0.7.0; sys_platform == "win32"``, ``kerberos>=1.3.0; sys_platform != "win32"``
 ===================  =============================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.7.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.7.1/changelog.html>`_.

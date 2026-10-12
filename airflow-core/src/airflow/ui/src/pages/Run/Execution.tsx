@@ -1,0 +1,325 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { useEffect, useState } from "react";
+
+import { Box, Button, Heading, HStack, Link, Stack, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+
+import { useDagRunServiceGetDagRun, useDagRunServiceGetExecution } from "openapi/queries";
+import type { ExecutionRegionResponse, ExecutionTaskResponse } from "openapi/requests/types.gen";
+
+import { Checkbox, Pagination, ProgressBar } from "src/system-components";
+
+import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
+import { ErrorAlert } from "src/components/ErrorAlert";
+import { StateBadge } from "src/components/StateBadge";
+
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { isStatePending, useAutoRefresh } from "src/utils";
+import { getTaskInstanceLink } from "src/utils/links";
+
+const PAGE_SIZE = 100;
+
+type Group = {
+  index?: number;
+  nodeId?: string;
+  tasks: Array<ExecutionTaskResponse>;
+};
+
+type SelectedExecution = { in_loop: boolean } & ExecutionTaskResponse;
+
+const getExecutionCoordinates = (task: ExecutionTaskResponse) =>
+  JSON.stringify([task.dag_run_id, task.task_id, task.map_index, task.region_id, task.region_index]);
+
+const locateExecution = (task: ExecutionTaskResponse, byRegion: Map<string, ExecutionRegionResponse>) => {
+  const region = task.region_id === undefined ? undefined : byRegion.get(task.region_id);
+  const mapped = region?.node_id === task.task_id;
+  const parentId = region?.parent_region_id;
+  const parent = parentId === undefined || parentId === null ? undefined : byRegion.get(parentId);
+  const nodeId = mapped ? parent?.node_id : region?.node_id;
+  const index =
+    nodeId === undefined ? undefined : mapped ? (region.parent_region_index ?? undefined) : task.region_index;
+
+  return { index, nodeId };
+};
+
+const groupExecutions = (tasks: Array<ExecutionTaskResponse>, regions: Array<ExecutionRegionResponse>) => {
+  const byRegion = new Map(regions.map((region) => [region.id, region]));
+  const groups = new Map<string, Group>();
+
+  for (const task of tasks) {
+    const { index, nodeId } = locateExecution(task, byRegion);
+    const key = JSON.stringify([nodeId, index]);
+    const group = groups.get(key) ?? { index, nodeId, tasks: [] };
+
+    group.tasks.push(task);
+    groups.set(key, group);
+  }
+
+  return [...groups.entries()].sort(
+    ([, first], [, second]) =>
+      (first.nodeId ?? "").localeCompare(second.nodeId ?? "") || (first.index ?? -1) - (second.index ?? -1),
+  );
+};
+
+const toSelectedExecution = (
+  task: ExecutionTaskResponse,
+  byRegion: Map<string, ExecutionRegionResponse>,
+): SelectedExecution => ({ ...task, in_loop: locateExecution(task, byRegion).nodeId !== undefined });
+
+const getTaskName = (task: ExecutionTaskResponse) =>
+  `${task.task_display_name}${task.map_index >= 0 ? ` [${task.map_index}]` : ""}`;
+
+const TaskRow = ({
+  onSelect,
+  selected,
+  selectLabel,
+  task,
+}: {
+  readonly onSelect: () => void;
+  readonly selected: boolean;
+  readonly selectLabel: string;
+  readonly task: ExecutionTaskResponse;
+}) => {
+  const { t: translate } = useTranslation();
+
+  return (
+    <HStack justify="space-between" py={1}>
+      <Checkbox aria-label={selectLabel} checked={selected} onCheckedChange={onSelect} />
+      <Link asChild>
+        <RouterLink to={getTaskInstanceLink(task, "logs")}>{getTaskName(task)}</RouterLink>
+      </Link>
+      <StateBadge state={task.state}>{translate(`common:states.${task.state ?? "none"}`)}</StateBadge>
+    </HStack>
+  );
+};
+
+const ExecutionView = () => {
+  const { dagId = "", runId = "" } = useParams();
+  const { t: translate } = useTranslation("dag");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const parsedOffset = Number(searchParams.get(SearchParamsKeys.EXECUTION_OFFSET) ?? 0);
+  const offset = Number.isInteger(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
+  const refresh = useAutoRefresh({ dagId });
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId }, undefined, {
+    refetchInterval: (query) => isStatePending(query.state.data?.state) && refresh,
+  });
+  const { data, error, isLoading } = useDagRunServiceGetExecution(
+    { dagId, dagRunId: runId, limit: PAGE_SIZE, offset },
+    undefined,
+    {
+      refetchInterval: (query) =>
+        (isStatePending(dagRun?.state) ||
+          Boolean(query.state.data?.task_instances.some((task) => isStatePending(task.state)))) &&
+        refresh,
+    },
+  );
+  const totalEntries = data?.total_entries ?? 0;
+
+  useEffect(() => {
+    if (data !== undefined && offset > 0 && offset >= totalEntries) {
+      setSearchParams(
+        (previous) => {
+          const updated = new URLSearchParams(previous);
+          const lastOffset = Math.max(0, Math.ceil(totalEntries / PAGE_SIZE) - 1) * PAGE_SIZE;
+
+          if (lastOffset === 0) {
+            updated.delete(SearchParamsKeys.EXECUTION_OFFSET);
+          } else {
+            updated.set(SearchParamsKeys.EXECUTION_OFFSET, String(lastOffset));
+          }
+
+          return updated;
+        },
+        { replace: true },
+      );
+    }
+  }, [data, offset, setSearchParams, totalEntries]);
+  const [expanded, setExpanded] = useState(new Set<string>());
+  const [selected, setSelected] = useState(new Map<string, SelectedExecution>());
+  const [clearing, setClearing] = useState(false);
+
+  useEffect(() => {
+    if (data === undefined) {
+      return;
+    }
+    const byRegion = new Map(data.regions.map((region) => [region.id, region]));
+    const current = new Map(
+      data.task_instances.map((task) => [getExecutionCoordinates(task), toSelectedExecution(task, byRegion)]),
+    );
+
+    setSelected((previous) => {
+      let replaced = false;
+      const next = new Map<string, SelectedExecution>();
+
+      for (const [id, task] of previous) {
+        const replacement = current.get(getExecutionCoordinates(task));
+
+        if (replacement !== undefined && replacement.id !== id) {
+          replaced = true;
+          next.set(replacement.id, replacement);
+        } else {
+          next.set(id, task);
+        }
+      }
+
+      return replaced ? next : previous;
+    });
+  }, [data]);
+  const regionsById = new Map((data?.regions ?? []).map((region) => [region.id, region]));
+  const row = (group: Group, task: ExecutionTaskResponse) => (
+    <TaskRow
+      key={task.id}
+      onSelect={() =>
+        setSelected((previous) => {
+          const updated = new Map(previous);
+
+          if (updated.has(task.id)) {
+            updated.delete(task.id);
+          } else {
+            updated.set(task.id, toSelectedExecution(task, regionsById));
+          }
+
+          return updated;
+        })
+      }
+      selected={selected.has(task.id)}
+      selectLabel={translate("execution.select", {
+        task:
+          group.nodeId === undefined
+            ? getTaskName(task)
+            : `${getTaskName(task)} (${translate("execution.iteration", { index: group.index, node: group.nodeId })})`,
+      })}
+      task={task}
+    />
+  );
+  const groups = groupExecutions(data?.task_instances ?? [], data?.regions ?? []);
+  const page = (next: number) =>
+    setSearchParams((previous) => {
+      const updated = new URLSearchParams(previous);
+
+      updated.set(SearchParamsKeys.EXECUTION_OFFSET, String((next - 1) * PAGE_SIZE));
+
+      return updated;
+    });
+
+  return (
+    <Stack gap={4} p={4}>
+      <Heading size="lg">{translate("execution.title")}</Heading>
+      <Button alignSelf="start" disabled={selected.size === 0} onClick={() => setClearing(true)}>
+        {translate("execution.clearSelected")}
+      </Button>
+      {clearing ? (
+        <ClearTaskInstanceDialog
+          onCleared={() => setSelected(new Map())}
+          onClose={() => setClearing(false)}
+          open
+          taskInstances={[...selected.values()]}
+        />
+      ) : undefined}
+      <ErrorAlert error={error} />
+      {isLoading ? <ProgressBar size="xs" /> : undefined}
+      {data !== undefined && totalEntries === 0 ? <Text>{translate("execution.empty")}</Text> : undefined}
+      {totalEntries > 0 ? (
+        <Text>
+          {translate("execution.page", {
+            end: Math.min(offset + (data?.task_instances.length ?? 0), totalEntries),
+            start: (data?.task_instances.length ?? 0) > 0 ? offset + 1 : 0,
+            total: totalEntries,
+          })}
+        </Text>
+      ) : undefined}
+      {groups.map(([key, group]) => {
+        const tasksById = new Map<string, Array<ExecutionTaskResponse>>();
+
+        for (const task of group.tasks) {
+          const tasks = tasksById.get(task.task_id) ?? [];
+
+          tasks.push(task);
+          tasksById.set(task.task_id, tasks);
+        }
+
+        return (
+          <Box borderRadius="md" borderWidth="1px" key={key} p={3}>
+            <Heading size="md">
+              {group.nodeId === undefined
+                ? translate("execution.runTasks")
+                : translate("execution.iteration", { index: group.index, node: group.nodeId })}
+            </Heading>
+            {[...tasksById].map(([taskId, tasks]) => {
+              const mapped = tasks.every((task) => task.map_index >= 0);
+              const expansionKey = `${key}:${taskId}`;
+
+              return mapped ? (
+                <Box key={taskId}>
+                  <Button
+                    aria-expanded={expanded.has(expansionKey)}
+                    onClick={() =>
+                      setExpanded((previous) => {
+                        const updated = new Set(previous);
+
+                        if (updated.has(expansionKey)) {
+                          updated.delete(expansionKey);
+                        } else {
+                          updated.add(expansionKey);
+                        }
+
+                        return updated;
+                      })
+                    }
+                    variant="ghost"
+                  >
+                    {translate("execution.mapped", {
+                      count: tasks.length,
+                      task: tasks[0]?.task_display_name,
+                    })}
+                  </Button>
+                  {expanded.has(expansionKey) ? tasks.map((task) => row(group, task)) : undefined}
+                </Box>
+              ) : (
+                tasks.map((task) => row(group, task))
+              );
+            })}
+          </Box>
+        );
+      })}
+      {totalEntries > PAGE_SIZE ? (
+        <Pagination.Root
+          count={totalEntries}
+          onPageChange={(event) => page(event.page)}
+          page={Math.floor(offset / PAGE_SIZE) + 1}
+          pageSize={PAGE_SIZE}
+        >
+          <HStack justify="center">
+            <Pagination.PrevTrigger />
+            <Pagination.Items />
+            <Pagination.NextTrigger />
+          </HStack>
+        </Pagination.Root>
+      ) : undefined}
+    </Stack>
+  );
+};
+
+export const Execution = () => {
+  const { dagId, runId } = useParams();
+
+  return <ExecutionView key={JSON.stringify([dagId, runId])} />;
+};

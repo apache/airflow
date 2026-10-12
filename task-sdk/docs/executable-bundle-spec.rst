@@ -42,28 +42,36 @@ A bundle file therefore has three regions, in order from offset 0:
 
 1. The native executable (ELF / Mach-O / PE), including any code-signing
    structures the platform appends.
-2. The primary DAG source file, embedded verbatim (UTF-8). MAY have length 0.
+2. The embedded source files, each verbatim (UTF-8), back to back. MAY have length 0.
+   The metadata indexes them. See :ref:`the source region <bundle-source-region>`.
 3. The build-time manifest (``airflow-metadata.yaml`` content, UTF-8).
 
 The file ends with a fixed 64-byte trailer that locates regions (2) and (3),
 carries an integrity hash of the binary region, and identifies the file as a
 bundle. See :ref:`bundle-trailer-layout`.
 
-Filenames follow OS conventions for executables: no extension on Linux/macOS,
-``.exe`` on Windows. The scanner identifies bundles by the trailer's magic,
-not by the filename.
+A bundle file has no file extension, and the Dag processor does not treat a
+file with an extension as a bundle. The scanner identifies bundles by the
+trailer's magic.
 
 The complete bundle file regions are:
 
 .. code-block:: text
 
     [0,            source_start)    native binary (must be non-empty)
-    [source_start, metadata_start)  embedded source (may be zero length)
+    [source_start, metadata_start)  embedded source files (may be zero length)
     [metadata_start, file_size-64)  build-time manifest
     [file_size-64, file_size)       64-byte trailer
 
 where ``metadata_start = file_size - 64 - metadata_len`` and
 ``source_start = metadata_start - source_len``.
+
+.. _bundle-source-region:
+
+The source region holds the source files of the Dags the bundle defines, one entry per file. Files
+are concatenated with no separator, and the ``sources`` list in the manifest gives each file's
+``path``, ``offset`` and ``length`` within the region and its ``sha256``. A file's ``offset`` is
+relative to ``source_start``, so the first file has offset ``0``.
 
 Reference Implementation
 ------------------------
@@ -84,7 +92,7 @@ for SDK users. Go SDK's ``airflow-go-pack`` is a good example.
 
     BINARY = pathlib.Path(...)  # Path to the compiled executable.
     OUTPUT = pathlib.Path(...)  # Where to put the processed executable.
-    SOURCE = b"..."  # Source code to embed.
+    SOURCES = [b"..."]  # Source files to embed, in the order the manifest lists them.
     METADATA = b"..."  # UTF-8-encoded YAML metadata.
 
     # SHA-256 covers the binary region only: bytes [0, source_start).
@@ -92,7 +100,7 @@ for SDK users. Go SDK's ``airflow-go-pack`` is a good example.
 
     trailer = struct.pack(
         "<III 32s 12s 8s",
-        len(SOURCE),  # source_len
+        sum(map(len, SOURCES)),  # source_len
         len(METADATA),  # metadata_len
         1,  # footer_ver
         binary_sha256,
@@ -103,7 +111,7 @@ for SDK users. Go SDK's ``airflow-go-pack`` is a good example.
 
     shutil.copy(BINARY, OUTPUT)
     with OUTPUT.open("ab") as fh:
-        fh.write(SOURCE)  # Embedded source region.
+        fh.writelines(SOURCES)  # Embedded source region.
         fh.write(METADATA)  # Metadata region.
         fh.write(trailer)
     OUTPUT.chmod(0o755)
@@ -156,9 +164,17 @@ Reader algorithm:
    re-hash on every exec; a cache miss (file replaced, mtime bumped)
    triggers re-verification.
 7. Read ``metadata_len`` bytes from ``metadata_start`` for the manifest.
-8. Read ``source_len`` bytes from ``source_start`` for the source view.
-   If ``source_len == 0``, no source is embedded; the UI displays
-   "(source not available)".
+8. Read the source files through the manifest's ``sources`` list. For each entry, check that
+   ``offset`` and ``length`` are non-negative integers and that ``offset + length <= source_len``.
+   To read a file, read ``length`` bytes from ``source_start + offset`` and compare their SHA-256 to
+   ``sha256``. A duplicate ``path`` or a digest mismatch is an error. Without a ``sources`` key, no
+   source is embedded, and the UI shows a notice in place of the source.
+
+   A Dag's source file is the ``dag_source_paths`` entry for its ``dag_id``. A Dag with no entry,
+   such as one built dynamically, shows ``entrypoint_path``. A Dag owned by another language, such as
+   the Python Dag that a bundle's task handlers run for, shows its own source and not an embedded
+   file. ``entrypoint_path`` and every ``dag_source_paths`` value MUST be one of the ``sources``
+   paths.
 
 Source comes *before* metadata so a future ``footer_ver`` MAY introduce
 additional trailing blobs (e.g. signed checksums, compressed deps) by
@@ -182,7 +198,19 @@ and editors.
       language: go
       version: "0.1.0"
       supervisor_schema_version: "2026-06-16"
-    source: example.go
+    entrypoint_path: example/bundle/main.go
+    dag_source_paths:
+      example_dag: example/bundle/main.go
+      another_dag: example/bundle/dags/another.go
+    sources:
+      - path: example/bundle/main.go
+        offset: 0
+        length: 1532
+        sha256: 0f3a...e91c
+      - path: example/bundle/dags/another.go
+        offset: 1532
+        length: 811
+        sha256: 7b21...04d8
     dags:
       example_dag:
         tasks:
@@ -214,12 +242,24 @@ Top-level keys:
       task-execution time, and an unknown version causes that bundle to be
       skipped.
 
-``source`` (string, required)
-    Original filename of the primary DAG source file (e.g. ``example.go``).
-    The file's bytes live in the source region of the bundle, not at this
-    path; this field is a display name the Airflow UI uses to label the
-    source-view panel and pick a syntax-highlighting mode from the
-    extension.
+``entrypoint_path`` (string, optional)
+    Path of the entrypoint source file, such as the Go ``main`` package file. It MUST be one of
+    the ``sources`` paths. The Airflow UI shows it for a Dag that ``dag_source_paths`` does not map.
+
+``dag_source_paths`` (mapping, optional)
+    Mapping of ``dag_id`` to the path of the file that defines the Dag. Every value MUST be one of
+    the ``sources`` paths.
+
+``sources`` (list, optional)
+    The embedded source files, in the order they appear in the source region. A bundle without it
+    embeds no source. Each entry has:
+
+    - ``path`` (string, required): the file's path as the author knows it, such as
+      ``example/bundle/main.go``. Paths MUST be unique. The Airflow UI picks a syntax-highlighting
+      mode from the extension.
+    - ``offset`` (integer, required): the file's start, in bytes from ``source_start``.
+    - ``length`` (integer, required): the file's length in bytes.
+    - ``sha256`` (string, required): the lower-case hexadecimal SHA-256 of the file's bytes.
 
 ``dags`` (mapping, required)
     Mapping of ``dag_id`` to a *DAG entry*. Every ``dag_id`` the bundle
@@ -243,16 +283,16 @@ Go bundle::
 
     example
     ├── ELF/Mach-O/PE executable
-    ├── source region:   contents of example.go
-    ├── metadata region: airflow-metadata.yaml (source: example.go)
+    ├── source region:   example/bundle/main.go, example/bundle/dags/another.go
+    ├── metadata region: airflow-metadata.yaml (entrypoint_path, dag_source_paths, sources)
     └── trailer (64 B):  lengths + binary_sha256 + AFBNDL01 magic
 
 Rust bundle::
 
     pipeline
     ├── ELF/Mach-O/PE executable
-    ├── source region:   contents of main.rs
-    ├── metadata region: airflow-metadata.yaml (source: main.rs)
+    ├── source region:   src/main.rs
+    ├── metadata region: airflow-metadata.yaml (entrypoint_path: src/main.rs)
     └── trailer (64 B):  lengths + binary_sha256 + AFBNDL01 magic
 
 The bundle is one file. ``./example`` runs the binary; the appended data
@@ -272,7 +312,7 @@ that perform additional post-build steps MUST observe the following order:
   binary region; nothing has been written past its OS-defined end yet, so
   the digest matches what the reader will recompute over
   ``[0, source_start)`` after the append.
-- **Append** ``<source><metadata><trailer>`` in a single write so a
+- **Append** ``<sources><metadata><trailer>`` in a single write so a
   partially written file fails the magic or hash check rather than
   appearing as a half-valid bundle.
 

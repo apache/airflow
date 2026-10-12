@@ -11,11 +11,11 @@
     "showMore": "Toon meer",
     "title": "Deadlines"
   },
-  "deferredSlotsNotCounted": "Uitgestelde taken niet meegeteld als sloten: {{count}}",
+  "deferredSlotsNotCounted": "Uitgestelde taken niet meegeteld als sloten: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "Uitgestelde taken die in de balk worden weergegeven, worden meegeteld in de poolsloten. Uitgestelde taken die onder de balk worden weergegeven, zijn afkomstig van pools die uitgestelde taken niet in de sloten meetellen.",
   "favorite": {
-    "favoriteDags_one": "Eerste {{count}} favoriete Dags",
-    "favoriteDags_other": "Eerste {{count}} favoriete Dags",
+    "favoriteDags_one": "Eerste {{count, number}} favoriete Dags",
+    "favoriteDags_other": "Eerste {{count, number}} favoriete Dags",
     "noDagRuns": "Er is nog geen Dag Run voor deze Dag.",
     "noFavoriteDags": "Geen favorieten. Klik op het sterpictogram naast een Dag in de lijst om deze aan je favorieten toe te voegen."
   },
