@@ -852,10 +852,9 @@ Mark Dag Run as failed                 DAGS.can_edit, Dag Runs.can_edit         
 Mark Dag Run as success                DAGS.can_edit, Dag Runs.can_edit                                        User
 Mark Task as failed                    Dags.can_edit, Task Instances.can_edit                                  User
 Mark Task as success                   Dags.can_edit, Task Instances.can_edit                                  User
-Get Dag as tree                        Dags.can_read, Task Instances.can_read,                                 Viewer
-                                       Task Logs.can_read
-Get Dag as graph                       Dags.can_read, Task Instances.can_read,                                 Viewer
-                                       Task Logs.can_read
+Get Dag as grid                        Dags.can_read, Dag Runs.can_read, Task Instances.can_read               Viewer
+Get Dag as graph                       Dags.can_read, Dag Runs.can_read, Task Instances.can_read,              Viewer
+                                       Dag Dependencies.can_read
 Get Dag as duration graph              Dags.can_read, Task Instances.can_read                                  Viewer
 Show all tries                         Dags.can_read, Task Instances.can_read                                  Viewer
 Show landing times                     Dags.can_read, Task Instances.can_read                                  Viewer
@@ -907,6 +906,11 @@ Update Users                           Users.can_edit                           
 Delete Users                           Users.can_delete                                                        Admin
 Reset user Passwords                   Passwords.can_edit, Passwords.can_read                                  Admin
 ====================================== ======================================================================= ============
+
+The Grid and Graph views check Dag Runs.can_read and Task Instances.can_read on the resources
+themselves. A Dag-specific ``DAG Run:example_dag_id.can_read`` permission does not replace
+Dag Runs.can_read for these views. Granting these permissions does not expose other Dags, because
+the Dag-level check (``DAGs.can_read`` or ``DAG:example_dag_id.can_read``) still applies.
 
 These Dag-level controls can be set directly through the UI / CLI, or encoded in the dags themselves through the access_control arg.
 
