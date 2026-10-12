@@ -22,7 +22,7 @@ This discovers ``.yaml`` and ``.yml`` Dag files in a bundle, and builds the Dag
 objects they describe. It is not turned on by default; enable with::
 
     [dag_processor]
-    dag_importer_configs = [{"classpath": "airflow.sdk.importers.yaml_importer.importer.YamlDagImporter"}]
+    dag_importer_configs = [{"classpath": "airflow.sdk.importers.yaml_importer.YamlDagImporter"}]
 """
 
 from __future__ import annotations
