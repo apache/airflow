@@ -21,12 +21,15 @@ import { lazy, useState, Suspense } from "react";
 import { Box, HStack, Skeleton, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
+import { FiBarChart } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import {
   useAssetServiceGetAssetEvents,
   useDagRunServiceGetDagRuns,
+  useDagServiceGetLatestRunInfo,
+  useDagServiceGetRecentTaskInstanceStateCountsUi,
   usePluginServiceGetPlugins,
   useTaskInstanceServiceGetTaskInstances,
 } from "openapi/queries";
@@ -35,6 +38,8 @@ import { ReactPlugin } from "src/pages/ReactPlugin";
 
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
+import { LatestRunCard, LatestRunCardSkeleton } from "src/components/LatestRunCard";
+import { RunTaskStateBadges } from "src/components/RunTaskStateBadges";
 import { SlowestTaskInstancesChart } from "src/components/SlowestTaskInstancesChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
@@ -60,7 +65,7 @@ export const Overview = () => {
   const [endDate, setEndDate] = useState(now.toISOString());
   const [assetSortBy, setAssetSortBy] = useState("-timestamp");
 
-  const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
+  const { data: failedTasks } = useTaskInstanceServiceGetTaskInstances({
     dagId: dagId ?? "",
     dagRunId: "~",
     orderBy: ["-run_after"],
@@ -88,15 +93,31 @@ export const Overview = () => {
 
   const [limit] = useLocalStorage<number>(dagRunsLimitKey(dagId ?? ""), 10);
 
-  const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
+  const { data: failedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
     limit,
     runAfterGte: startDate,
     runAfterLte: endDate,
     state: ["failed"],
   });
+  const failedRunCount = failedRuns?.total_entries ?? 0;
   const { data: gridRuns, isLoading: isLoadingRuns } = useGridRuns({ limit });
   const refetchInterval = useAutoRefresh({ dagId });
+  // Shares its cache with the Dag page header, which owns the polling for this query.
+  const { data: latestRun, isLoading: isLoadingLatestRun } = useDagServiceGetLatestRunInfo(
+    { dagId: dagId ?? "" },
+    undefined,
+    { enabled: Boolean(dagId) },
+  );
+  const { data: taskStateCounts, isLoading: isLoadingTaskStateCounts } =
+    useDagServiceGetRecentTaskInstanceStateCountsUi(
+      { dagRunIds: latestRun ? [latestRun.id] : [] },
+      undefined,
+      {
+        enabled: Boolean(latestRun),
+        refetchInterval: () => (latestRun && isStatePending(latestRun.state) ? refetchInterval : false),
+      },
+    );
   const isAutoRefreshing =
     Boolean(refetchInterval) && (gridRuns ?? []).some((run) => isStatePending(run.state));
   const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
@@ -121,37 +142,56 @@ export const Overview = () => {
           startDate={startDate}
         />
       </Box>
-      <HStack flexWrap="wrap" order={2}>
-        <TrendCountButton
-          colorPalette={failedTaskCount === 0 ? "green" : "failed"}
-          count={failedTaskCount}
-          endDate={endDate}
-          events={(failedTasks?.task_instances ?? []).map((ti) => ({
-            timestamp: ti.start_date ?? ti.logical_date,
-          }))}
-          isLoading={isLoading}
-          label={translate("overview.buttons.failedTask", { count: failedTaskCount })}
-          route={{
-            pathname: "tasks",
-            search: `${SearchParamsKeys.STATE}=failed`,
-          }}
-          startDate={startDate}
-        />
-        <TrendCountButton
-          colorPalette={(failedRuns?.total_entries ?? 0) === 0 ? "green" : "failed"}
-          count={failedRuns?.total_entries ?? 0}
-          endDate={endDate}
-          events={(failedRuns?.dag_runs ?? []).map((dr) => ({
-            timestamp: dr.run_after,
-          }))}
-          isLoading={isLoadingFailedRuns}
-          label={translate("overview.buttons.failedRun", { count: failedRuns?.total_entries ?? 0 })}
-          route={{
-            pathname: "runs",
-            search: `${SearchParamsKeys.STATE}=failed`,
-          }}
-          startDate={startDate}
-        />
+      <HStack alignItems="flex-start" flexWrap="wrap" order={2}>
+        {isLoadingLatestRun ? (
+          <LatestRunCardSkeleton />
+        ) : latestRun === null || latestRun === undefined ? undefined : (
+          <LatestRunCard
+            icon={<FiBarChart />}
+            label={translate("overview.latestRun.dagRun")}
+            state={latestRun.state}
+            taskStates={
+              <RunTaskStateBadges
+                isLoading={isLoadingTaskStateCounts}
+                stateCounts={taskStateCounts?.dags[0]?.state_counts}
+              />
+            }
+            title={latestRun.run_id}
+            to={`/dags/${latestRun.dag_id}/runs/${latestRun.run_id}`}
+          />
+        )}
+        {failedTaskCount > 0 ? (
+          <TrendCountButton
+            colorPalette="failed"
+            count={failedTaskCount}
+            endDate={endDate}
+            events={(failedTasks?.task_instances ?? []).map((ti) => ({
+              timestamp: ti.start_date ?? ti.logical_date,
+            }))}
+            label={translate("overview.buttons.failedTask", { count: failedTaskCount })}
+            route={{
+              pathname: "tasks",
+              search: `${SearchParamsKeys.STATE}=failed`,
+            }}
+            startDate={startDate}
+          />
+        ) : undefined}
+        {failedRunCount > 0 ? (
+          <TrendCountButton
+            colorPalette="failed"
+            count={failedRunCount}
+            endDate={endDate}
+            events={(failedRuns?.dag_runs ?? []).map((dr) => ({
+              timestamp: dr.run_after,
+            }))}
+            label={translate("overview.buttons.failedRun", { count: failedRunCount })}
+            route={{
+              pathname: "runs",
+              search: `${SearchParamsKeys.STATE}=failed`,
+            }}
+            startDate={startDate}
+          />
+        ) : undefined}
       </HStack>
       <HStack alignItems="flex-start" flexWrap="wrap" order={3}>
         <Box

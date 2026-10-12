@@ -183,6 +183,11 @@
       "showLogs": "Show Logs",
       "title": "Recent Failed Task Logs",
       "viewFullLogs": "View full logs"
+    },
+    "latestRun": {
+      "dagRun": "Latest Run",
+      "taskInstance": "Latest Task Instance",
+      "taskState": "{{state}}: {{formattedCount}}"
     }
   },
   "panel": {

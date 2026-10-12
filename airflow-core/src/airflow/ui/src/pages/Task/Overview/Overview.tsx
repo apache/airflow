@@ -21,6 +21,7 @@ import { useState } from "react";
 import { Box, HStack, Skeleton, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
+import { MdOutlineTask } from "react-icons/md";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { usePluginServiceGetPlugins, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
@@ -28,6 +29,7 @@ import { usePluginServiceGetPlugins, useTaskInstanceServiceGetTaskInstances } fr
 import { ReactPlugin } from "src/pages/ReactPlugin";
 
 import { DurationChart } from "src/components/DurationChart";
+import { LatestRunCard, LatestRunCardSkeleton } from "src/components/LatestRunCard";
 import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
@@ -36,6 +38,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useScopedPluginViews } from "src/hooks/useScopedPluginViews";
 import { useLoopGroupNode } from "src/queries/useIsLoopGroup";
 import { isStatePending, useAutoRefresh } from "src/utils";
+import { getTaskInstanceLink } from "src/utils/links";
 
 import { LoopHistoryChart } from "./LoopHistoryChart";
 
@@ -54,17 +57,16 @@ export const Overview = () => {
 
   const refetchInterval = useAutoRefresh({});
 
-  const { data: failedTaskInstancesData, isLoading: isFailedTaskInstancesLoading } =
-    useTaskInstanceServiceGetTaskInstances({
-      dagId,
-      dagRunId: "~",
-      limit: 14,
-      runAfterGte: startDate,
-      runAfterLte: endDate,
-      state: ["failed"],
-      taskGroupId: groupId ?? undefined,
-      taskId: Boolean(groupId) ? undefined : taskId,
-    });
+  const { data: failedTaskInstancesData } = useTaskInstanceServiceGetTaskInstances({
+    dagId,
+    dagRunId: "~",
+    limit: 14,
+    runAfterGte: startDate,
+    runAfterLte: endDate,
+    state: ["failed"],
+    taskGroupId: groupId ?? undefined,
+    taskId: Boolean(groupId) ? undefined : taskId,
+  });
 
   const failedTaskCount = failedTaskInstancesData?.total_entries ?? 0;
 
@@ -85,6 +87,7 @@ export const Overview = () => {
   );
   const groupNode = useLoopGroupNode(groupId ?? "");
   const loopNode = groupNode?.is_loop === true ? groupNode : undefined;
+  const latestTaskInstance = tiData?.task_instances[0];
 
   const { data: pluginData } = usePluginServiceGetPlugins();
   const reactApps = pluginData?.plugins.flatMap((plugin) => plugin.react_apps) ?? [];
@@ -104,24 +107,36 @@ export const Overview = () => {
           startDate={startDate}
         />
       </Box>
-      <HStack flexWrap="wrap" order={3}>
-        <TrendCountButton
-          colorPalette={failedTaskCount === 0 ? "green" : "red"}
-          count={failedTaskCount}
-          endDate={endDate}
-          events={(failedTaskInstancesData?.task_instances ?? []).map((ti) => ({
-            timestamp: ti.start_date ?? ti.logical_date,
-          }))}
-          isLoading={isFailedTaskInstancesLoading}
-          label={translate("overview.buttons.failedTaskInstance", {
-            count: failedTaskCount,
-          })}
-          route={{
-            pathname: "task_instances",
-            search: `${SearchParamsKeys.TASK_STATE}=failed`,
-          }}
-          startDate={startDate}
-        />
+      <HStack alignItems="flex-start" flexWrap="wrap" order={3}>
+        {isLoadingTaskInstances ? (
+          <LatestRunCardSkeleton />
+        ) : latestTaskInstance === undefined ? undefined : (
+          <LatestRunCard
+            icon={<MdOutlineTask />}
+            label={translate("overview.latestRun.taskInstance")}
+            state={latestTaskInstance.state}
+            title={latestTaskInstance.dag_run_id}
+            to={getTaskInstanceLink(latestTaskInstance)}
+          />
+        )}
+        {failedTaskCount > 0 ? (
+          <TrendCountButton
+            colorPalette="failed"
+            count={failedTaskCount}
+            endDate={endDate}
+            events={(failedTaskInstancesData?.task_instances ?? []).map((ti) => ({
+              timestamp: ti.start_date ?? ti.logical_date,
+            }))}
+            label={translate("overview.buttons.failedTaskInstance", {
+              count: failedTaskCount,
+            })}
+            route={{
+              pathname: "task_instances",
+              search: `${SearchParamsKeys.TASK_STATE}=failed`,
+            }}
+            startDate={startDate}
+          />
+        ) : undefined}
       </HStack>
       <HStack alignItems="flex-start" flexWrap="wrap" gap={5} my={5} order={4}>
         {loopNode === undefined ? undefined : <LoopHistoryChart groupId={loopNode.id} />}
