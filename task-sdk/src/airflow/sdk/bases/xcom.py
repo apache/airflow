@@ -656,7 +656,7 @@ class XComIterable(Sequence):
 
         Use it, or ``async for``, from code running on an event loop that has other SDK calls in
         flight (an iterated task consuming this iterable as its input): a synchronous read there
-        would block the loop thread on the supervisor channel and deadlock with them.
+        would block the loop, and every call in flight on it, for its round trip to the supervisor.
         """
         from airflow.sdk.execution_time.xcom import XCom
 

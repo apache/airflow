@@ -193,8 +193,8 @@ class XComArg(ResolveMixin, DependencyMixin):
 
         The default runs :meth:`resolve` in a worker thread, so any subclass that implements
         ``resolve`` works on the iterated path unchanged: a blocking supervisor call made from that
-        thread waits for the in-flight ``asend`` calls of other sub-tasks instead of deadlocking
-        with them, which the same call on the loop thread would do (see
+        thread waits its turn while the loop keeps serving the other sub-tasks, where the same call
+        on the loop thread would hold them all up for its round trip (see
         ``AsyncAwareExecutor.imap_unordered``). The built-in subclasses override this to pull
         through ``ti.axcom_pull`` directly and skip the thread hand-off.
         """
