@@ -321,6 +321,10 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         converter=attrs.converters.default_if_none(factory=dict),  # type: ignore[misc]
     )
     default_partition_mapper: PartitionMapper = DEFAULT_PARTITION_MAPPER
+    # Opt-in refire on late/corrected partition events: "rerun" (clear + re-run the
+    # existing DagRun, attempts increment) or "newrun" (a new DagRun per refire).
+    # None = fire once (default, no behavior change).
+    refire_policy: str | None = None
     batch_asset_events: bool = attrs.field(
         default=attrs.Factory(_get_default_batch_asset_events, takes_self=True)
     )
@@ -450,6 +454,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
                 for asset, partition_mapper in self.partition_mapper_config.items()
             ],
             "default_partition_mapper": encode_partition_mapper(self.default_partition_mapper),
+            "refire_policy": self.refire_policy,
         }
 
     @classmethod
@@ -468,5 +473,6 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
                 decode_asset_like(ser_asest): decode_partition_mapper(ser_partition_mapper)
                 for ser_asest, ser_partition_mapper in partition_mapper_mappping_data
             },
+            refire_policy=data.get("refire_policy"),
         )
         return timetable
