@@ -106,11 +106,15 @@ The default XCom backend, BaseXCom, stores XComs in the Airflow database, which 
 Custom XCom Backends
 --------------------
 
-The XCom system has interchangeable backends, and you can set which backend is being used via the ``xcom_backend`` configuration option.
+The XCom system has interchangeable backends, and you can set which backend is being used via the ``xcom_backend`` configuration option. A backend is a subclass of :class:`~airflow.sdk.bases.xcom.BaseXCom`.
 
-If you want to implement your own backend, you should subclass :class:`~airflow.sdk.bases.xcom.BaseXCom`, and override the ``serialize_value`` and ``deserialize_value`` methods.
-
-You can override the ``purge`` method in the ``BaseXCom`` class to have control over purging the XCom data from the custom backend. This will be called as part of ``delete``.
+A backend that keeps values outside the metadata database overrides ``store_value``, which receives an
+:class:`~airflow.sdk.bases.xcom.XComCoordinate`, stores the value and returns what the XCom row holds, and
+``load_value``, which turns that row value back into the value. ``XComCoordinate.build_path`` builds a storage
+location that is unique per task instance, or per write when the writer cannot know the task instance. Override
+``purge`` to remove the stored data when an XCom is deleted. A backend that only overrides ``serialize_value`` and
+``deserialize_value`` keeps working, but cannot be used with Dags that use task loops: every iteration of a task
+in a loop is a separate task instance, and only ``store_value`` can tell them apart.
 
 Verifying Custom XCom Backend usage in Containers
 -------------------------------------------------

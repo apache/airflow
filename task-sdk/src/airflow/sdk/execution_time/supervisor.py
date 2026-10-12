@@ -2596,8 +2596,14 @@ class InProcessTestSupervisor(ActivitySubprocess):
             **kwargs,
         )
 
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, finalize, run
+        from airflow.sdk.execution_time.task_runner import (
+            RuntimeTaskInstance,
+            check_xcom_backend_supports_loops,
+            finalize,
+            run,
+        )
 
+        check_xcom_backend_supports_loops(task.dag)
         supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
         with set_supervisor_comms(supervisor.comms):
             supervisor.ti = what  # type: ignore[assignment]

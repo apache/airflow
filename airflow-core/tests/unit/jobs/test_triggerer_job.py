@@ -67,7 +67,6 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
-    _current_trigger_ti_id,
     _make_trigger_span,
     messages,
 )
@@ -86,6 +85,7 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDe
 from airflow.sdk import DAG, Asset, BaseHook, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
+from airflow.sdk.bases.xcom import _current_trigger_ti
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import supervisor
@@ -3503,15 +3503,15 @@ async def test_asend_frame_carries_the_current_trigger_ti_id(decoder_pair):
 
     thread = threading.Thread(target=serve, daemon=True)
     thread.start()
-    ti_id = uuid.uuid4()
-    token = _current_trigger_ti_id.set(ti_id)
+    ti = _make_ti_dto()
+    token = _current_trigger_ti.set(ti)
     try:
         await decoder.asend(messages.TriggerStateChanges(events=None, finished=[1], failures=None))
     finally:
-        _current_trigger_ti_id.reset(token)
+        _current_trigger_ti.reset(token)
     thread.join(timeout=5)
 
-    assert [frame.ti_id for frame in frames] == [ti_id]
+    assert [frame.ti_id for frame in frames] == [ti.id]
 
 
 def test_trigger_state_messages_round_trip_with_seqs():
@@ -3723,16 +3723,17 @@ def test_run_trigger_appends_none_seq_for_non_shared_trigger():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("has_task_instance", [True, False])
-async def test_run_trigger_sets_current_trigger_ti_id_only_for_task_instance_triggers(has_task_instance):
-    ti = _make_ti_dto()
-    seen: list[uuid.UUID | None] = []
+async def test_run_trigger_sets_current_trigger_ti_only_for_task_instance_triggers(has_task_instance):
+    ti = _make_ti_dto(map_index=3)
+    ti.region_id, ti.region_index = uuid.uuid4(), 2
+    seen: list[TaskInstanceDTO | None] = []
 
     class _RecordingTrigger(BaseTrigger):
         def serialize(self):
             return (f"{type(self).__module__}.{type(self).__qualname__}", {})
 
         async def run(self):
-            seen.append(_current_trigger_ti_id.get())
+            seen.append(_current_trigger_ti.get())
             yield TriggerEvent(True)
 
     trigger_runner = TriggerRunner()
@@ -3745,13 +3746,13 @@ async def test_run_trigger_sets_current_trigger_ti_id_only_for_task_instance_tri
 
     await asyncio.create_task(trigger_runner.run_trigger(5, trigger))
 
-    assert seen == [ti.id if has_task_instance else None]
+    assert seen == [ti if has_task_instance else None]
 
 
 @pytest.mark.asyncio
-async def test_shared_stream_group_tasks_do_not_inherit_the_subscribing_trigger_ti_id():
-    ti = _make_ti_dto()
-    seen: dict[str, uuid.UUID | None] = {}
+async def test_shared_stream_group_tasks_do_not_inherit_the_subscribing_trigger_ti():
+    ti = _make_ti_dto(map_index=3)
+    seen: dict[str, TaskInstanceDTO | None] = {}
 
     class _SharedTrigger(BaseEventTrigger):
         def serialize(self):
@@ -3762,12 +3763,12 @@ async def test_shared_stream_group_tasks_do_not_inherit_the_subscribing_trigger_
 
         @classmethod
         async def open_shared_stream(cls, kwargs):
-            seen["group"] = _current_trigger_ti_id.get()
+            seen["group"] = _current_trigger_ti.get()
             yield {}
             await asyncio.Event().wait()
 
         async def filter_shared_stream(self, shared_stream):
-            seen["trigger"] = _current_trigger_ti_id.get()
+            seen["trigger"] = _current_trigger_ti.get()
             async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
@@ -3790,7 +3791,7 @@ async def test_shared_stream_group_tasks_do_not_inherit_the_subscribing_trigger_
     with contextlib.suppress(asyncio.CancelledError):
         await run_task
 
-    assert seen == {"group": None, "trigger": ti.id}
+    assert seen == {"group": None, "trigger": ti}
 
 
 @pytest.mark.asyncio
