@@ -1593,8 +1593,8 @@ class TestPytestSnowflakeHook:
         called_data = mock_requests_post.call_args.kwargs["data"]
 
         assert called_data["grant_type"] == "password"
-        assert called_data["oauth_username"] == "user1"
-        assert called_data["oauth_password"] == "password1"
+        assert called_data["username"] == "user1"
+        assert called_data["password"] == "password1"
 
     @mock.patch("requests.post")
     def test_get_oauth_token_without_scope(self, mock_requests_post):
