@@ -1586,7 +1586,7 @@ class TestPytestSnowflakeHook:
             {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
         ):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            token = hook.get_oauth_token(grant_type="client_credentials")
+            token = hook.get_oauth_token(grant_type="password")
 
         assert token == "dummy_token"
 
