@@ -2986,7 +2986,7 @@ def create_runtime_ti(mocked_parse):
 
 
 @pytest.fixture
-def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCallable:
+def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> Generator[RunTaskCallable, None, None]:
     """
     Fixture to run a task without defining a dag file.
 
@@ -3018,35 +3018,61 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 
     timezone = _import_timezone()
 
+    # kgb leaves a classmethod it unspied bound to the class it spied, which breaks subclasses in later tests.
+    # A task's own pushes go through _push/_apush on newer Task SDK versions and through set/aset on older ones.
+    push_methods = [name for name in ("set", "_push", "_apush") if hasattr(XCom, name)]
+    spied_methods = [*push_methods, "get_one"]
+    classmethods = {
+        name: next((owner, vars(owner)[name]) for owner in XCom.__mro__ if name in vars(owner))
+        for name in spied_methods
+    }
+
     # Set up spies once at fixture level
-    if hasattr(XCom.set, "spy"):
-        spy_agency.unspy(XCom.set)
-    if hasattr(XCom.get_one, "spy"):
-        spy_agency.unspy(XCom.get_one)
-    spy_agency.spy_on(XCom.set, call_original=True)
+    for name in spied_methods:
+        if hasattr(getattr(XCom, name), "spy"):
+            spy_agency.unspy(getattr(XCom, name))
+    for name in push_methods:
+        spy_agency.spy_on(getattr(XCom, name), call_original=True)
     spy_agency.spy_on(
         XCom.get_one, call_fake=lambda cls, *args, **kwargs: _get_one_from_set_calls(*args, **kwargs)
     )
 
+    def _recorded_pushes() -> list[tuple[str, Any, dict[str, Any]]]:
+        """List the pushed ``(key, value, coordinates and options)`` of every spied push method in call order."""
+        pushes = []
+        for name in push_methods:
+            for call in getattr(XCom, name).calls:
+                if name == "set":
+                    if len(call.args) >= 2:
+                        pushes.append((call.args[0], call.args[1], dict(call.kwargs)))
+                else:
+                    ti, key, value = call.args[:3]
+                    coordinates = {
+                        "task_id": ti.task_id,
+                        "dag_id": ti.dag_id,
+                        "run_id": ti.run_id,
+                        "map_index": ti.map_index,
+                    }
+                    pushes.append((key, value, {**coordinates, **call.kwargs}))
+        return pushes
+
     def _get_one_from_set_calls(*args, **kwargs) -> Any | None:
-        """Get the most recent value from XCom.set calls that matches the criteria."""
+        """Get the most recent pushed value that matches the criteria."""
         key = kwargs.get("key")
         task_id = kwargs.get("task_id")
         dag_id = kwargs.get("dag_id")
         run_id = kwargs.get("run_id")
         map_index = kwargs.get("map_index") or -1
 
-        for call in reversed(XCom.set.calls):
+        for call_key, value, call_kwargs in reversed(_recorded_pushes()):
             if (
-                call.kwargs.get("task_id") == task_id
-                and call.kwargs.get("dag_id") == dag_id
-                and call.kwargs.get("run_id") == run_id
-                and call.kwargs.get("map_index") == map_index
+                call_kwargs.get("task_id") == task_id
+                and call_kwargs.get("dag_id") == dag_id
+                and call_kwargs.get("run_id") == run_id
+                and call_kwargs.get("map_index") == map_index
+                and call_key == key
             ):
-                if call.args and len(call.args) >= 2:
-                    call_key, value = call.args
-                    if call_key == key:
-                        return value
+                return value
         return None
 
     class XComHelper:
@@ -3091,23 +3117,30 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             run_id = run_id or self._ti.run_id
             map_index = map_index if map_index is not None else self._ti.map_index
 
-            spy_agency.assert_spy_called_with(
-                XCom.set,
-                key,
-                value,
-                task_id=task_id,
-                dag_id=dag_id,
-                run_id=run_id,
-                map_index=map_index,
+            expected = {
+                "task_id": task_id,
+                "dag_id": dag_id,
+                "run_id": run_id,
+                "map_index": map_index,
                 **kwargs,
+            }
+            pushes = _recorded_pushes()
+            for call_key, call_value, call_kwargs in pushes:
+                if (
+                    call_key == key
+                    and call_value == value
+                    and all(call_kwargs.get(name) == wanted for name, wanted in expected.items())
+                ):
+                    return
+            raise AssertionError(
+                f"No XCom push matches key={key!r} value={value!r} {expected}; recorded pushes: {pushes}"
             )
 
         def clear(self):
             """Clear all XCom calls."""
-            if hasattr(XCom.set, "spy"):
-                spy_agency.unspy(XCom.set)
-            if hasattr(XCom.get_one, "spy"):
-                spy_agency.unspy(XCom.get_one)
+            for name in spied_methods:
+                if hasattr(getattr(XCom, name), "spy"):
+                    spy_agency.unspy(getattr(XCom, name))
 
     class RunTaskWithXCom(RunTaskCallable):
         def __init__(self, create_runtime_ti):
@@ -3200,7 +3233,11 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 
             return state, msg, error
 
-    return RunTaskWithXCom(create_runtime_ti)
+    yield RunTaskWithXCom(create_runtime_ti)
+
+    spy_agency.unspy_all()
+    for name, (owner, original) in classmethods.items():
+        setattr(owner, name, original)
 
 
 @pytest.fixture
