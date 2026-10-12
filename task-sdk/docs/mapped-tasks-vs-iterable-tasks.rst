@@ -255,6 +255,17 @@ concurrent approach is dramatically faster — see the
 
 .. warning::
 
+    An async task that raises ``AirflowTaskTimeout`` itself is taken for the task's own
+    ``execution_timeout`` running out. Async iterations run on the main thread, where the signal of
+    that timeout lands, so the two cannot be told apart: the iteration stops, the iterations still
+    running are killed, and the task ends as on its own timeout, retried when it has retries left.
+    A sync task is not concerned: an ``AirflowTaskTimeout`` raised in an iteration's worker thread
+    is that iteration's own failure, and the others go on. For a time limit of the operator's own,
+    such as one converted from ``asyncio.timeout``, raise another exception, for example
+    ``TimeoutError``.
+
+.. warning::
+
     Inputs are shared between iterations. All iterations run in one process, so a value handed
     to several of them is the same object in each: every value passed through ``partial()``, and
     with ``iterate(a=..., b=...)`` every element of ``a`` and of ``b``, which the cross product

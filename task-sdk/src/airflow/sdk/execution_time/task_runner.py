@@ -1427,7 +1427,9 @@ class IndexedTaskRunner(LoggingMixin):
         timeout has unwound. ``TimeoutPosix`` raises on the main thread only, so an
         ``AirflowTaskTimeout`` on a worker thread was raised by the operator itself (a hook that
         gave up waiting): that is this indexed task's own failure, noted as
-        :attr:`timed_out_on_its_own`, and the operator is unregistered like any other.
+        :attr:`timed_out_on_its_own`, and the operator is unregistered like any other. An async
+        operator runs on the main thread, so one that raises ``AirflowTaskTimeout`` itself cannot be
+        told apart from the parent's timeout and is taken for it, a limitation the docs name.
         """
         if self._register is not None:
             self._register.register(self.operator)
