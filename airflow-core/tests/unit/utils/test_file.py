@@ -212,6 +212,30 @@ class TestListPyFilesPath:
             f"Detected files mismatched expected files:\ndetected_files: {pformat(detected_files)}\nexpected_files: {pformat(expected_files)}"
         )
 
+    @pytest.mark.parametrize(
+        ("file_name", "expected_detected"),
+        [
+            pytest.param("dags.zip", True, id="zip"),
+            pytest.param("DAGS.ZIP", True, id="zip-uppercase"),
+            pytest.param("library.jar", False, id="jar"),
+            pytest.param("package-1.0-py3-none-any.whl", False, id="wheel"),
+            pytest.param("package-1.0-py3.12.egg", False, id="egg"),
+            pytest.param("report.docx", False, id="docx"),
+            pytest.param("dags.zip.bak", False, id="zip-backup"),
+            pytest.param("archive", False, id="no-suffix"),
+        ],
+    )
+    def test_list_py_file_paths_only_detects_zip_suffix_as_archive(
+        self, tmp_path, file_name, expected_detected
+    ):
+        archive = tmp_path / file_name
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("my_dag.py", "from airflow.sdk import DAG\n")
+
+        detected_files = list_py_file_paths(tmp_path)
+
+        assert detected_files == ([str(archive)] if expected_detected else [])
+
 
 @pytest.mark.parametrize(
     ("edge_filename", "expected_modification"),
