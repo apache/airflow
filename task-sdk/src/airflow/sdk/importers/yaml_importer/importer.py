@@ -16,7 +16,7 @@
 # under the License.
 
 """
-AIP-85 YAML/JSON Dag importer.
+AIP-85 YAML Dag importer.
 
 This discovers ``.yaml`` and ``.yml`` Dag files in a bundle, and builds the Dag
 objects they describe. It is not turned on by default; enable with::
@@ -42,7 +42,7 @@ from airflow.sdk.importers.base import (
     get_file_suffix,
 )
 from airflow.sdk.importers.yaml_importer.builder import DagBuilder, YamlDagBuildError
-from airflow.sdk.importers.yaml_importer.migrator import _SCHEMA_URL
+from airflow.sdk.importers.yaml_importer.migrator import DAG_SCHEMA_PREFIX
 from airflow.sdk.importers.yaml_importer.parser import YamlDagParseError, parse_documents
 
 if TYPE_CHECKING:
@@ -57,12 +57,12 @@ log = logging.getLogger(__name__)
 
 # The sniff matches the canonical Dag ``$schema`` URL, not a bare ``$schema``, so a JSON-Schema
 # file (or any other YAML declaring a $schema) in the bundle is not queued and then stuck as a
-# parse error. Derived from the migrator's URL template to stay in sync.
-_DAG_SCHEMA_PREFIX = _SCHEMA_URL.partition("{date}")[0].encode()
+# parse error. Reuses the migrator's public prefix to stay in sync.
+_DAG_SCHEMA_PREFIX = DAG_SCHEMA_PREFIX.encode()
 
 
 class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
-    """Importer for YAML/JSON DAG sources. Opt-in via ``dag_importer_configs`` (not a default)."""
+    """Importer for YAML DAG sources. Opt-in via ``dag_importer_configs`` (not a default)."""
 
     supported_extensions = [".yaml", ".yml"]
 
@@ -132,9 +132,7 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
             summary = f"{len(build_errors)} of {len(documents)} document(s) failed to build"
             detail = "\n".join(f"{err.__notes__[-1]}: {err}" for err in build_errors)
             stacktrace = "\n".join(
-                f"{err.__notes__[-1]}:\n"
-                + "".join(traceback.format_exception(type(err), err, err.__traceback__))
-                for err in build_errors
+                "".join(traceback.format_exception(type(err), err, err.__traceback__)) for err in build_errors
             )
             result.errors.append(
                 DagImportError(

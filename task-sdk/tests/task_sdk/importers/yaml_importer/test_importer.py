@@ -27,6 +27,7 @@ import pytest
 
 from airflow.sdk import BaseOperator, XComArg
 from airflow.sdk.definitions._internal.templater import LiteralValue
+from airflow.sdk.definitions.timetables.simple import OnceTimetable
 from airflow.sdk.importers import ZipMemberDagDefinition
 from airflow.sdk.importers.base import FilesystemDagDefinition
 from airflow.sdk.importers.yaml_importer.importer import YamlDagImporter
@@ -194,6 +195,40 @@ def test_import_schedule_cron(mock_bundle):
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert result.success, result.errors
     assert result.dags[0].schedule == "0 3 * * *"
+
+
+def test_import_schedule_timetable(mock_bundle):
+    # A mapping schedule (uses/with) is built into a timetable via its import path (_build_schedule).
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(
+            f"- {{id: a, uses: {OP}, with: {{payload: x}}}}",
+            extra="schedule: {uses: airflow.sdk.definitions.timetables.simple.OnceTimetable}\n",
+        ),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert isinstance(result.dags[0].timetable, OnceTimetable)
+
+
+def test_import_keyed_xcom_on_uses_task(mock_bundle):
+    # $x with {task, key} on a uses: task resolves to a keyed XComArg (the _xcom_arg key branch);
+    # keyed XCom is rejected only in run: tasks.
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"""
+            - {{id: a, uses: {OP}, with: {{payload: x}}}}
+            - {{id: b, uses: {OP}, with: {{payload: {{$x: {{task: a, key: out}}}}}}}}
+        """),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    b = result.dags[0].get_task("b")
+    assert isinstance(b.payload, XComArg)
+    assert b.payload.key == "out"
+    assert b.upstream_task_ids == {"a"}
 
 
 @pytest.mark.parametrize(

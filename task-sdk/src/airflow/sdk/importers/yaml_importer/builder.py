@@ -67,6 +67,7 @@ class YamlDagBuildError(ValueError):
 
 
 _BASE_TASK_ARGS = frozenset(BaseOperator.__init__._BaseOperatorMeta__param_names)  # type: ignore[attr-defined]
+_UNSUPPORTED_TASK_ARGS = frozenset({"task_id", "dag", "task_group", "default_args"})
 
 
 @attrs.define(kw_only=True)
@@ -87,11 +88,9 @@ class DagBuilder:
         tasks = {t.id_: t for t in doc.tasks}
         extras = _coerce_temporal(doc.model_extra or {}, DAG)
         with DAG(dag_id=doc.dag_id, schedule=_build_schedule(doc.schedule), **extras) as dag:
-            # A task depended by another task must be built first.
             for task_id in _topological_order(doc.tasks):
                 self._operators[task_id] = self._build_operator(tasks[task_id])
 
-            # Wire dependency edges explicitly.
             for task in doc.tasks:
                 for upstream in sorted(task.get_dependency_ids()):
                     self._operators[upstream] >> self._operators[task.id_]
@@ -123,6 +122,13 @@ class DagBuilder:
 
     def _build_operator(self, task: Task) -> BaseOperator:
         """Instantiate *task* as an operator."""
+        if reserved := sorted(
+            k for k in (*task.with_, *(task.model_extra or {})) if k in _UNSUPPORTED_TASK_ARGS
+        ):
+            raise YamlDagBuildError(
+                f"task {task.id_!r}: {reserved} cannot be set on a task; the task id comes from 'id', and "
+                "dag/task_group/default_args are managed by the importer"
+            )
         if misplaced := sorted(k for k in task.with_ if k in _BASE_TASK_ARGS):
             raise YamlDagBuildError(
                 f"task {task.id_!r}: {misplaced} are task-level arguments; set them at task level, not under 'with'"
@@ -142,7 +148,6 @@ class DagBuilder:
         else:
             op_cls = import_string(task.uses)
 
-        # Validate template fields.
         template_fields = set(getattr(op_cls, "template_fields", ()))
         kwargs: dict[str, Any] = {}
         render_fields: list[str] = []
@@ -155,7 +160,9 @@ class DagBuilder:
             if needs_render:
                 render_fields.append(name)
         if off_template:
-            raise YamlDagBuildError(f"task {task.id_!r}: value grammar only allowed on template_fields")
+            raise YamlDagBuildError(
+                f"task {task.id_!r}: value grammar markers are only allowed on templated fields, not {off_template}"
+            )
         if task.model_extra:  # Merge in task-level arguments (raw, never templated).
             kwargs.update(_coerce_temporal(task.model_extra, BaseOperator))
 

@@ -81,7 +81,7 @@ class DagDefinition(ABC):
         The base cannot locate siblings; a definition type that can
         hold them overrides this.
         """
-        raise ValueError(f"{type(self).__name__} cannot resolve sibling resources")
+        raise NotImplementedError(f"{type(self).__name__} cannot resolve sibling resources")
 
     @abstractmethod
     def as_file(self) -> contextlib.AbstractContextManager[Path]:
