@@ -54,6 +54,7 @@ from airflow.sdk.exceptions import (
 from airflow.sdk.execution_time.context import context_update_for_unmapped
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor
 from airflow.sdk.execution_time.task_runner import (
+    CheckpointDeserializationError,
     IndexedTaskInstance,
     IndexedTaskRunner,
     IndexedTaskState,
@@ -1206,9 +1207,22 @@ class IterableOperator(BaseOperator):
         are pushed again, as the runner deleted the XComs before this attempt. A SKIPPED one is
         skipped again. A read or a replay that fails is the indexed task's outcome and leaves the
         checkpoint as it is: the indexed task cannot tell whether it already succeeded, so it does
-        not run, and the next retry reads or replays the checkpoint again.
+        not run, and the next retry reads or replays the checkpoint again. A checkpoint serde
+        refuses to restore is the exception: it would be refused on every retry, so the indexed
+        task runs again as if there were none, with a warning.
         """
-        indexed_task_state = await task.aget_state()
+        try:
+            indexed_task_state = await task.aget_state()
+        except CheckpointDeserializationError as e:
+            # Refused on this attempt, it is refused on every one: kept as the outcome, the indexed
+            # task could never finish again, so it runs as if there were no checkpoint.
+            self.log.warning(
+                "Running task instance %s for %s again: its checkpoint cannot be restored: %s",
+                task.index,
+                task.task_id,
+                e,
+            )
+            return None
         if indexed_task_state is None:
             return None
         if indexed_task_state.try_number < since or indexed_task_state.fingerprint != task.input_fingerprint:

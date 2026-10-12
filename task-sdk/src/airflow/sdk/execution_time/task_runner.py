@@ -977,6 +977,10 @@ class RuntimeTaskInstance(TaskInstance):
         return self.log_url
 
 
+class CheckpointDeserializationError(Exception):
+    """An indexed task's checkpoint holds a value serde refuses to restore, such as a class off the allow-list."""
+
+
 @dataclass
 class IndexedTaskState:
     status: TaskInstanceState
@@ -1089,17 +1093,31 @@ class IndexedTaskState:
 
     @classmethod
     def deserialize(cls, raw: Any) -> IndexedTaskState | None:
+        """
+        Restore a checkpoint, or None when there is none.
+
+        A result or XCom value serde refuses to restore, a class off the allow-list
+        (``ImportError``) or one it has no deserializer for (``TypeError``), raises
+        :class:`CheckpointDeserializationError`: refused once, it is refused on every retry.
+        """
         if not isinstance(raw, Mapping):
             return None
+        try:
+            result = serde_deserialize(raw.get("result"))
+            xcoms = (
+                {key: serde_deserialize(value) for key, value in raw["xcoms"].items()}
+                if raw.get("xcoms")
+                else None
+            )
+        except (ImportError, TypeError) as e:
+            raise CheckpointDeserializationError(str(e)) from e
         return cls(
             status=TaskInstanceState(raw["status"]),
-            result=serde_deserialize(raw.get("result")),
+            result=result,
             outlet_events=raw.get("outlet_events"),
             fingerprint=raw.get("fingerprint"),
             try_number=raw.get("try_number", 0),
-            xcoms={key: serde_deserialize(value) for key, value in raw["xcoms"].items()}
-            if raw.get("xcoms")
-            else None,
+            xcoms=xcoms,
         )
 
 

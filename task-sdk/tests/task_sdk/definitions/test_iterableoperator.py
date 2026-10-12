@@ -1050,6 +1050,34 @@ class TestIterableOperator:
         assert store["_iterable_0"]["result"] == "from_checkpoint"
         assert store["_iterable_1"]["status"] == "success"
 
+    def test_a_checkpoint_serde_refuses_is_run_again_instead_of_failing_every_retry(self):
+        """
+        A checkpoint holding a class off the allow-list is refused on every attempt: the item runs
+        again as if there were none, rather than failing each retry until the checkpoint expires.
+        """
+        from airflow.sdk._shared.serialization import CLASSNAME, DATA, VERSION
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{"arg1": 1}]), task_id="checkpoint_refused"
+            )
+
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = 2
+                store = context["task_state_store"]
+                store._data["_iterable_0"] = {
+                    **IndexedTaskState(
+                        status=TaskInstanceState.SUCCESS,
+                        fingerprint=IterableOperator._compute_fingerprint({"arg1": 1}),
+                    ).serialize(),
+                    "result": {CLASSNAME: "not_allowed.Thing", VERSION: 0, DATA: {}},
+                }
+
+                materialized = list(iterable_op.execute(context=context))
+
+        assert materialized == [(1, None, None)]
+        assert store["_iterable_0"]["status"] == "success"
+
     def test_a_failed_replay_fails_only_its_item_and_the_next_retry_replays_it(self):
         """
         Pushing a SUCCESS checkpoint's result again can fail: the item fails this attempt, its
