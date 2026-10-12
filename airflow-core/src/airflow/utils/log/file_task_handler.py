@@ -647,33 +647,22 @@ class FileTaskHandler(logging.Handler):
             TaskInstanceState.DEFERRED,
         )
 
-        if end_of_log:
-            # No continuation token will be issued, so the total line count is not
-            # needed: stream straight through instead of paying the accumulator's
-            # eager full drain to memory/disk. Memory stays bounded by the merge
-            # heap in _interleave_logs either way.
-            if metadata and "log_pos" in metadata:
-                out_stream = islice(out_stream, metadata["log_pos"], None)
-            else:
-                # first time reading log, add messages before interleaved log stream
-                out_stream = chain(header, out_stream)
-            return out_stream, {"end_of_log": end_of_log}
+        out_metadata: LogMetadata = {"end_of_log": end_of_log}
+        if not end_of_log:
+            # Only an unfinished read needs log_pos for the continuation token, and counting
+            # lines drains the stream eagerly, so finished reads stream straight through.
+            with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
+                out_metadata["log_pos"] = stream_accumulator.total_lines
+                out_stream = stream_accumulator.stream
 
-        with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
-            log_pos = stream_accumulator.total_lines
-            out_stream = stream_accumulator.stream
+        # skip log stream until the last position
+        if metadata and "log_pos" in metadata:
+            out_stream = islice(out_stream, metadata["log_pos"], None)
+        else:
+            # first time reading log, add messages before interleaved log stream
+            out_stream = chain(header, out_stream)
 
-            # skip log stream until the last position
-            if metadata and "log_pos" in metadata:
-                out_stream = islice(out_stream, metadata["log_pos"], None)
-            else:
-                # first time reading log, add messages before interleaved log stream
-                out_stream = chain(header, out_stream)
-
-            return out_stream, {
-                "end_of_log": end_of_log,
-                "log_pos": log_pos,
-            }
+        return out_stream, out_metadata
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
