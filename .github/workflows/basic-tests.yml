@@ -154,7 +154,7 @@ jobs:
           failed=()
           for dist in ${SHARED_DISTRIBUTIONS}; do
             echo "::group::Shared ${dist} tests"
-            (cd "shared/${dist}" && uv run --group dev pytest --color=yes -n auto) || failed+=("${dist}")
+            (cd "shared/${dist}" && uv run --exact --group dev pytest --color=yes -n auto) || failed+=("${dist}")
             echo "::endgroup::"
           done
           if (( ${#failed[@]} )); then
