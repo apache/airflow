@@ -453,6 +453,15 @@ def test_import_one_bad_document_fails_whole_file(mock_bundle):
     assert "dag_id='bad'" in err.message  # the failing document is named, not mashed
 
 
+def test_import_duplicate_dag_id_across_documents_errors(mock_bundle):
+    one = _doc(f"- {{id: a, uses: {OP}, with: {{payload: x}}}}", dag_id="dup")
+    two = _doc(f"- {{id: b, uses: {OP}, with: {{payload: y}}}}", dag_id="dup")
+    definition = _def(mock_bundle, "dag.yaml", f"{one}\n---\n{two}")
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert not result.dags
+    assert any("duplicate dag_id 'dup'" in e.message for e in result.errors)
+
+
 def test_import_dependency_cycle_errors(mock_bundle):
     definition = _def(
         mock_bundle,

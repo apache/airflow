@@ -41,7 +41,7 @@ from airflow.sdk.importers.base import (
     find_file_dag_definitions,
     get_file_suffix,
 )
-from airflow.sdk.importers.yaml_importer.builder import DagBuilder
+from airflow.sdk.importers.yaml_importer.builder import DagBuilder, YamlDagBuildError
 from airflow.sdk.importers.yaml_importer.parser import YamlDagParseError, parse_documents
 
 if TYPE_CHECKING:
@@ -109,15 +109,19 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
             return result
 
-        dags: list[DAG] = []
+        dags: dict[str, DAG] = {}
         build_errors: list[Exception] = []
         with definition.import_context():
             for document in documents:
                 try:
-                    dags.append(DagBuilder(definition=definition, bundle=bundle).build(document))
+                    dag = DagBuilder(definition=definition, bundle=bundle).build(document)
+                    if dag.dag_id in dags:
+                        raise YamlDagBuildError(f"duplicate dag_id {dag.dag_id!r} across documents")
                 except Exception as exc:
                     exc.add_note(f"dag_id={document.dag_id!r}")
                     build_errors.append(exc)
+                else:
+                    dags[dag.dag_id] = dag
 
         if build_errors:
             summary = f"{len(build_errors)} of {len(documents)} document(s) failed to build"
@@ -137,8 +141,8 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
             return result
 
-        result.dags.extend(dags)
-        for dag in dags:
+        result.dags.extend(dags.values())
+        for dag in dags.values():
             log.debug("Built Dag %s from %r", dag.dag_id, definition)
         return result
 
