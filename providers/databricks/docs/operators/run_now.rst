@@ -172,15 +172,9 @@ Durable execution requires Airflow 3.3 or newer, since it relies on the task sta
 operator always triggers a fresh run on retry, exactly as before this feature existed.
 
 
-DatabricksRunNowDeferrableOperator
-==================================
-
-Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksRunNowOperator` operator.
-
-It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
 
 Explicit assets
----------------
+^^^^^^^^^^^^^^^
 
 ``DatabricksRunNowOperator`` does not infer Databricks table assets produced by
 a job. Declare known outputs explicitly using ``outlets``::
@@ -214,3 +208,11 @@ completion. A declared outlet does not prove that a new Delta commit was written
 If downstream tasks need the table to be ready, use ``wait_for_termination=True``
 or a Delta table sensor. Remote failure or cancellation does not produce a
 successful outlet event.
+
+
+DatabricksRunNowDeferrableOperator
+==================================
+
+Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksRunNowOperator` operator.
+
+It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
