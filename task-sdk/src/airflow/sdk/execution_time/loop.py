@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 import attrs
 
 from airflow.sdk.bases.decorator import determine_kwargs
+from airflow.sdk.bases.xcom import XComIterable
 from airflow.sdk.definitions._internal.loop import LOOP_DECISION_KEY
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import AirflowFailException
@@ -66,13 +67,17 @@ class LoopContextAccessor:
             return LazyXComSequence(
                 xcom_arg=PlainXComArg(task), ti=self._ti, previous_iteration=previous_iteration
             )
-        return XCom.get_one(
+        result = XCom.get_one(
             key=XCom.XCOM_RETURN_KEY,
             dag_id=self._ti.dag_id,
             run_id=self._ti.run_id,
             task_id=task.task_id,
             _previous_iteration=previous_iteration,
         )
+        if previous_iteration and isinstance(result, XComIterable):
+            # An iterated terminal pushes a pointer to its items: read them in the same iteration.
+            result.previous_iteration = True
+        return result
 
 
 def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:

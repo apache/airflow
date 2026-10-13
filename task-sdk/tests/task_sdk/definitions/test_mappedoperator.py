@@ -842,3 +842,20 @@ def test_mapped_operator_in_task_group_no_duplicate_prefix():
 
     # The unmapped operator should have the same task_id, not a duplicate prefix
     assert unmapped.task_id == "tg1.mapped_task", f"Expected 'tg1.mapped_task' but got '{unmapped.task_id}'"
+
+
+def test_deserialization_allowed_values_are_read_from_the_partial_kwargs():
+    """Not expanded yet, the operator class's __init__ has not set the declared fields."""
+
+    class DeclaringOperator(BaseOperator):
+        deserialization_allowed_class_fields = ("output_type",)
+
+        def __init__(self, *, output_type=None, value=None, **kwargs):
+            super().__init__(**kwargs)
+            self.output_type = output_type
+            self.value = value
+
+    with DAG("declaring_dag"):
+        mapped = DeclaringOperator.partial(task_id="mapped", output_type=int).expand(value=[1, 2])
+
+    assert mapped.deserialization_allowed_values() == [int]

@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.bases.xcom import BaseXCom, XComIterable
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     GetXCom,
@@ -29,6 +30,7 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
     XComSequenceSliceResult,
 )
+from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.types import TaskInstanceKey
 
 
@@ -288,3 +290,176 @@ class TestBaseXCom:
                 include_prior_dates=False,
             )
         )
+
+
+class TestXComIterable:
+    def make_iterable(self, length: int = 0, map_index: int | None = None) -> XComIterable:
+        return XComIterable(task_id="task", dag_id="dag", run_id="run", map_index=map_index, length=length)
+
+    def test_has_no_append(self):
+        """The consumer-facing Sequence is read-only: nothing on it mutates the underlying XComs."""
+        iterable = self.make_iterable(length=1)
+        assert not hasattr(iterable, "append")
+        assert not hasattr(iterable, "aappend")
+
+    def test_serialize_returns_expected_dict(self):
+        iterable = self.make_iterable(length=3, map_index=1)
+        assert iterable.serialize() == {
+            "task_id": "task",
+            "dag_id": "dag",
+            "run_id": "run",
+            "map_index": 1,
+            "length": 3,
+            "skipped": [],
+        }
+
+    def test_deserialize_restores_fields(self):
+        data = {"task_id": "task", "dag_id": "dag", "run_id": "run", "map_index": 2, "length": 5}
+        iterable = XComIterable.deserialize(data, version=1)
+        assert iterable.task_id == "task"
+        assert iterable.dag_id == "dag"
+        assert iterable.run_id == "run"
+        assert iterable.map_index == 2
+        assert iterable.length == 5
+        assert iterable.skipped == []
+        assert len(iterable) == 5
+
+    def test_skipped_indices_round_trip(self):
+        iterable = XComIterable(task_id="task", dag_id="dag", run_id="run", length=4, skipped=[3, 1])
+        restored = XComIterable.deserialize(iterable.serialize(), version=1)
+        assert restored.skipped == [1, 3]
+        assert len(restored) == 2
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock, return_value="value-1")
+    async def test_aget_calls_xcom_aget_one_with_indexed_key(self, mock_aget_one):
+        iterable = self.make_iterable(length=2, map_index=3)
+        assert await iterable.aget(1) == "value-1"
+        mock_aget_one.assert_awaited_once_with(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_1",
+            dag_id="dag",
+            task_id="task",
+            run_id="run",
+            map_index=3,
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("index", [-3, 2])
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock)
+    async def test_aget_out_of_range_raises_index_error_without_fetching(self, mock_aget_one, index):
+        iterable = self.make_iterable(length=2)
+        with pytest.raises(IndexError):
+            await iterable.aget(index)
+        mock_aget_one.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock, return_value="last")
+    async def test_aget_negative_index_counts_from_the_end(self, mock_aget_one):
+        iterable = self.make_iterable(length=3)
+        assert await iterable.aget(-1) == "last"
+        assert mock_aget_one.await_args.kwargs["key"] == f"{BaseXCom.XCOM_RETURN_KEY}_2"
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "get_one")
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock)
+    async def test_async_iteration_reads_every_item_in_order_through_aget_one(
+        self, mock_aget_one, mock_get_one
+    ):
+        """``async for`` never touches the synchronous ``get_one``, so it is safe on the task's event loop."""
+        mock_aget_one.side_effect = self._pages_by_key(["a", "b", "c"])
+        iterable = self.make_iterable(length=3)
+        assert [item async for item in iterable] == ["a", "b", "c"]
+        assert [call.kwargs["key"] for call in mock_aget_one.await_args_list] == [
+            f"{BaseXCom.XCOM_RETURN_KEY}_{index}" for index in range(3)
+        ]
+        mock_get_one.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock)
+    async def test_async_iteration_on_empty_iterable_yields_nothing(self, mock_aget_one):
+        iterable = self.make_iterable(length=0)
+        assert [item async for item in iterable] == []
+        mock_aget_one.assert_not_awaited()
+
+    @staticmethod
+    def _pages_by_key(pages: list) -> object:
+        """
+        Build a get_one side_effect that maps each page's index-suffixed key to its page.
+
+        Unlike a plain list side_effect (consumed once and then exhausted), this can be called any
+        number of times for the same key, mirroring how a real XCom backend is queried by key and
+        does not get "used up".
+        """
+
+        def _get_one(*args, **kwargs):
+            index = int(kwargs["key"].rsplit("_", 1)[-1])
+            page = pages[index]
+            return page() if callable(page) else page
+
+        return _get_one
+
+    @patch.object(XCom, "get_one")
+    def test_negative_indices_count_from_the_end(self, mock_get_one):
+        """The Sequence contract holds: ``[-1]`` is the last element."""
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c"]])
+        iterable = self.make_iterable(length=2)
+
+        assert iterable[-1] == ["c"]
+        assert iterable[-2] == ["a", "b"]
+
+    @patch.object(XCom, "get_one")
+    def test_negative_indices_out_of_range_raise(self, mock_get_one):
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c"]])
+        iterable = self.make_iterable(length=2)
+
+        with pytest.raises(IndexError):
+            iterable[-3]
+
+    @staticmethod
+    def _values_by_index(values: dict[int, str]) -> object:
+        """A get_one/aget_one side_effect that returns the value pushed under each index-suffixed key."""
+
+        def _get_one(*args, **kwargs):
+            return values[int(kwargs["key"].rsplit("_", 1)[-1])]
+
+        return _get_one
+
+    def make_skipping_iterable(self) -> XComIterable:
+        """Five input items, of which indices 0, 2 and 3 were skipped: only 1 and 4 hold a value."""
+        return XComIterable(task_id="task", dag_id="dag", run_id="run", length=5, skipped=[0, 2, 3])
+
+    @patch.object(XCom, "get_one")
+    def test_skipped_indices_are_left_out(self, mock_get_one):
+        mock_get_one.side_effect = self._values_by_index({1: "one", 4: "four"})
+        iterable = self.make_skipping_iterable()
+
+        assert len(iterable) == 2
+        assert list(iterable) == ["one", "four"]
+        assert iterable[0] == "one"
+        assert iterable[1] == "four"
+        assert iterable[-1] == "four"
+        assert iterable[-2] == "one"
+        assert iterable[::-1] == ["four", "one"]
+        with pytest.raises(IndexError):
+            iterable[2]
+        with pytest.raises(IndexError):
+            iterable[-3]
+        assert sorted({call.kwargs["key"] for call in mock_get_one.call_args_list}) == [
+            f"{BaseXCom.XCOM_RETURN_KEY}_1",
+            f"{BaseXCom.XCOM_RETURN_KEY}_4",
+        ]
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock)
+    async def test_skipped_indices_are_left_out_when_read_asynchronously(self, mock_aget_one):
+        mock_aget_one.side_effect = self._values_by_index({1: "one", 4: "four"})
+        iterable = self.make_skipping_iterable()
+
+        assert await iterable.alen() == 2
+        assert [item async for item in iterable] == ["one", "four"]
+        assert await iterable.aget(-1) == "four"
+
+    def test_every_index_skipped_is_empty(self):
+        iterable = XComIterable(task_id="task", dag_id="dag", run_id="run", length=2, skipped=[0, 1])
+        assert len(iterable) == 0
+        assert list(iterable) == []

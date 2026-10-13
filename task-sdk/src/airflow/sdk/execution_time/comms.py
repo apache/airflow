@@ -53,7 +53,6 @@ import itertools
 import threading
 import traceback
 from collections.abc import Iterator
-from contextlib import suppress
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
@@ -122,13 +121,13 @@ ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
 
 class DeadlockImminentError(BaseException):
     """
-    Raised when ``send()`` is called from the event loop thread while an ``asend()`` is in flight.
+    Raised when ``send()`` is called on a thread that is itself in the middle of a request.
 
-    An in-flight ``asend()`` holds (or is waiting to take) the channel's thread lock and can only
-    release it once its event loop runs again. That loop runs on the calling thread, so a blocking
-    ``send()`` there can never be satisfied: the loop cannot run while the thread is blocked. This
-    holds whether the loop is currently running (a sync SDK call from inside a coroutine) or paused
-    between two ``run_until_complete`` calls (a sync SDK call from the code that drives the loop).
+    That thread holds the supervisor channel, and its request can only finish once the new call
+    returns, so waiting would freeze it: typically a signal handler, such as the one that runs an
+    operator's ``on_kill``, making a synchronous SDK call while the code it interrupted was making
+    one. Any other caller waits for the channel instead: the request in flight finishes on its own
+    thread, ``asend()``'s included, which needs no event loop to do so.
 
     Inherits from :class:`BaseException` so it escapes ``contextlib.suppress(Exception)``
     and always surfaces to the caller.
@@ -141,14 +140,11 @@ class DeadlockImminentError(BaseException):
 
     def __str__(self) -> str:
         return (
-            f"comms.send() called from the event loop thread for message '{self.msg_type}' "
-            "— deadlock is imminent (asend() is concurrently in-flight and can only complete once "
-            "the event loop runs again on this thread). "
-            "Likely cause: BaseHook.get_hook() or BaseHook.get_connection() was called "
-            "from inside an async task, or a synchronous SDK call was made from the thread driving "
-            "the event loop while it was paused between two run_until_complete() calls. "
-            "Use the async equivalents instead: "
-            "await BaseHook.aget_hook() or await BaseHook.aget_connection()."
+            f"comms.send() called for message '{self.msg_type}' on a thread that is already in the "
+            "middle of a request to the supervisor — deadlock is imminent (that request can only "
+            "finish once this call returns). Likely cause: a synchronous SDK call from a signal "
+            "handler, such as an operator's on_kill(), interrupting another SDK call on the same "
+            "thread."
             f"\nOffending call stack:\n{self.stack}"
         )
 
@@ -241,53 +237,35 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     _thread_lock: threading.Lock = attrs.field(factory=threading.Lock, repr=False)
     _async_lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, repr=False)
-    _loop_thread_id: int | None = attrs.field(default=None, repr=False, init=False)
+    # The thread exchanging a request while it holds _thread_lock, so send() can tell a call that
+    # would wait for its own thread from one that waits for another.
+    _channel_owner: int | None = attrs.field(default=None, repr=False, init=False)
 
     def _make_frame(self, msg: SendMsgType) -> _RequestFrame:
         carrier: dict[str, str] = {}
         _trace_propagator.inject(carrier)
         return _RequestFrame(id=next(self.id_counter), body=msg.model_dump(), context_carrier=carrier or None)
 
-    @property
-    def _is_on_loop_thread(self) -> bool:
-        if threading.get_ident() == self._loop_thread_id:
-            with suppress(RuntimeError):
-                return bool(asyncio.get_running_loop())
-        return False
-
-    @property
-    def _asend_in_flight_on_this_thread(self) -> bool:
-        """
-        Whether an ``asend()`` coroutine of a loop that runs on the current thread is in flight.
-
-        ``asend()`` holds ``_async_lock`` for its whole duration, from before it takes
-        ``_thread_lock`` (in an executor thread) until after it releases it, so the async lock
-        being held is the reliable signal that the thread lock is, or is about to be, held by a
-        coroutine. Such a coroutine only makes progress when its loop runs, and that loop runs on
-        this thread. This is thread-scoped on purpose: a loop running on *another* thread keeps
-        going while this one blocks, so ``send()`` from there can safely wait for the lock.
-        """
-        return threading.get_ident() == self._loop_thread_id and self._async_lock.locked()
-
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
-        """Send a request to the parent and block until the response is received."""
+        """
+        Send a request to the parent and block until the response is received.
+
+        Called on an event loop's thread while an ``asend()`` is in flight, this waits for that
+        request's round trip: ``asend()`` runs on a worker thread that needs no loop to finish, so
+        the wait ends, but it stalls every coroutine on the loop meanwhile. Async code should
+        prefer ``asend()`` and the async SDK calls built on it. Only a call on a thread that is
+        itself in the middle of a request raises :class:`DeadlockImminentError`, as waiting there
+        would never end.
+        """
+        if self._channel_owner == threading.get_ident():
+            raise DeadlockImminentError(msg)
         frame_bytes = self._make_frame(msg).as_bytes()
+        with self._thread_lock:
+            return self._exchange(msg, frame_bytes)
 
-        # An asend() in flight on this thread's loop can only release _thread_lock once that loop
-        # runs again, and the loop cannot run while this thread blocks in send(). Raise instead of
-        # blocking. This covers the loop being paused between two run_until_complete() calls, where
-        # the running-loop check below does not apply: asyncio.get_running_loop() raises, so send()
-        # would otherwise fall through to a blocking acquire and freeze the process with every
-        # thread idle (seen with a sync XCom read pulling the next iterated sub-task's input while a
-        # sub-task's asend() was parked mid-I/O).
-        if self._asend_in_flight_on_this_thread:
-            raise DeadlockImminentError(msg)
-
-        # When called from the event loop thread while the loop is running, use non-blocking
-        # acquire to detect an imminent deadlock: an asend() coroutine currently holds
-        # _thread_lock and is waiting for the event loop to complete its I/O.
-        if not self._thread_lock.acquire(blocking=not self._is_on_loop_thread):
-            raise DeadlockImminentError(msg)
+    def _exchange(self, msg: SendMsgType, frame_bytes: bytes | bytearray) -> ReceiveMsgType | None:
+        """Write one request and read its response; the caller holds ``_thread_lock``."""
+        self._channel_owner = threading.get_ident()
         try:
             self.socket.sendall(frame_bytes)
             if isinstance(msg, ResendLoggingFD):
@@ -306,42 +284,45 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
             return self._get_response()
         finally:
-            self._thread_lock.release()
+            self._channel_owner = None
+
+    def _locked_exchange(
+        self, msg: SendMsgType, frame_bytes: bytes | bytearray, abandoned: threading.Event
+    ) -> ReceiveMsgType | None:
+        """
+        Take ``_thread_lock``, exchange one request and its response, and release it.
+
+        A request whose caller gave up while this thread waited for the lock is not sent: nothing
+        reached the parent yet, and its side effects (an XCom push, a checkpoint) belong to a
+        coroutine that was cancelled. Once sent, its response is always read, so the next request
+        never reads it as its own.
+        """
+        with self._thread_lock:
+            if abandoned.is_set():
+                return None
+            return self._exchange(msg, frame_bytes)
 
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """
         Send a request to the parent without blocking.
 
-        Uses async lock for coroutine safety and thread lock for socket safety.
+        The async lock orders the coroutines; the request itself runs in a worker thread, which
+        takes ``_thread_lock``, writes the request, reads its response and releases the lock.
+        Cancelling the await cancels the future, not that thread: a request not sent yet is
+        dropped, one already sent has its response drained before the thread lets go of the
+        channel, so the next request never reads a response that was not its own, nor finds the
+        lock taken with nobody left to release it.
         """
-        self._loop_thread_id = threading.get_ident()
-
         frame_bytes = self._make_frame(msg).as_bytes()
 
         async with self._async_lock:
-            # Acquire the threading lock without blocking the event loop
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self._thread_lock.acquire)
+            abandoned = threading.Event()
             try:
-                # Async write to socket
-                await loop.sock_sendall(self.socket, frame_bytes)
-
-                if isinstance(msg, ResendLoggingFD):
-                    if recv_fds is None:
-                        return None
-                    # Blocking read in a thread
-                    frame, fds = await asyncio.to_thread(self._read_frame, maxfds=1)
-                    resp = self._from_frame(frame)
-                    if TYPE_CHECKING:
-                        assert isinstance(resp, SentFDs)
-                    resp.fds = fds
-                    return resp  # type: ignore[return-value]
-
-                # Normal blocking read in a thread
-                frame = await asyncio.to_thread(self._read_frame)
-                return self._from_frame(frame)
-            finally:
-                self._thread_lock.release()
+                return await loop.run_in_executor(None, self._locked_exchange, msg, frame_bytes, abandoned)
+            except BaseException:
+                abandoned.set()
+                raise
 
     @overload
     def _read_frame(self, maxfds: None = None) -> _ResponseFrame: ...

@@ -17,7 +17,11 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextvars
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -96,6 +100,7 @@ from airflow.sdk.execution_time.context import (
     AssetStateStoreAccessor,
     AssetStateStoreAccessors,
     ConnectionAccessor,
+    IndexedTaskStateStoreAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessor,
@@ -115,6 +120,7 @@ from airflow.sdk.execution_time.context import (
     _wrap_external_ref,
     context_to_airflow_vars,
     set_current_context,
+    set_indexed_context,
 )
 from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
 from airflow.sdk.state import BaseStoreBackend
@@ -569,6 +575,100 @@ class TestCurrentContext:
             # End of with statement
             ctx_list[i].__exit__(None, None, None)
 
+    @pytest.mark.parametrize("start", ["thread_pool", "thread"])
+    def test_thread_started_by_the_task_sees_its_context(self, start):
+        """A thread the task starts has empty ContextVars, and must still find the task's context."""
+        task_context = {"Hello": "World"}
+
+        def read():
+            return get_current_context()
+
+        with set_current_context(task_context):
+            if start == "thread_pool":
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    seen = pool.submit(read).result()
+            else:
+                results = []
+                thread = threading.Thread(target=lambda: results.append(read()))
+                thread.start()
+                thread.join()
+                (seen,) = results
+
+        assert seen is task_context
+
+    def test_indexed_context_covers_the_task_context_within_its_block(self):
+        task_context = {"ContextId": "task"}
+        indexed_context = {"ContextId": "iteration"}
+
+        with set_current_context(task_context):
+            with set_indexed_context(indexed_context):
+                assert get_current_context() is indexed_context
+            assert get_current_context() is task_context
+
+    def test_indexed_context_is_not_seen_by_other_threads(self):
+        """A thread started inside an iteration sees the task's context, not the iteration's."""
+        task_context = {"ContextId": "task"}
+
+        with set_current_context(task_context):
+            with set_indexed_context({"ContextId": "iteration"}):
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    seen = pool.submit(get_current_context).result()
+
+        assert seen is task_context
+
+    @pytest.mark.asyncio
+    async def test_helpers_that_carry_the_iterations_context_over(self):
+        """
+        What the docs point iterations at for helper threads: ``asyncio.to_thread`` and
+        ``copy_context().run`` see the iteration's context, ``run_in_executor`` the task's.
+        """
+        task_context = {"ContextId": "task"}
+        indexed_context = {"ContextId": "iteration"}
+
+        with set_current_context(task_context):
+            with set_indexed_context(indexed_context):
+                in_to_thread = await asyncio.to_thread(get_current_context)
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    copied = contextvars.copy_context()
+                    in_copied_context = pool.submit(copied.run, get_current_context).result()
+                    in_executor = await asyncio.get_running_loop().run_in_executor(pool, get_current_context)
+
+        assert in_to_thread is indexed_context
+        assert in_copied_context is indexed_context
+        assert in_executor is task_context
+
+    @pytest.mark.asyncio
+    async def test_concurrent_iterations_each_see_their_own_context(self):
+        """
+        Iterations interleaving on one event loop never see each other's context.
+
+        Each one reads its context while the other is inside its own block, and neither leaves
+        before both have read, so a stack shared by the thread (as a thread-local would be) hands
+        one of them the other's context.
+        """
+        entered: list[int] = []
+        seen: dict[int, object] = {}
+        both_entered = asyncio.Event()
+        both_read = asyncio.Event()
+
+        async def iteration(index):
+            with set_indexed_context({"ContextId": index}):
+                entered.append(index)
+                if len(entered) == 2:
+                    both_entered.set()
+                await both_entered.wait()
+                # Let the other iteration resume inside its block before reading.
+                await asyncio.sleep(0)
+                seen[index] = get_current_context()["ContextId"]
+                if len(seen) == 2:
+                    both_read.set()
+                await both_read.wait()
+
+        with set_current_context({"ContextId": "task"}):
+            await asyncio.gather(iteration(0), iteration(1))
+            assert seen == {0: 0, 1: 1}
+            assert get_current_context()["ContextId"] == "task"
+
 
 class TestOutletEventAccessor:
     @pytest.mark.parametrize(
@@ -956,6 +1056,32 @@ class TestOutletEventAccessors:
         outlet_event_accessors = OutletEventAccessors()
         outlet_event_accessors.for_asset_alias(name="name")
         assert mocked__getitem__.call_args[0][0] == TEST_ASSET_ALIAS
+
+    def test_concurrent_access_same_asset_preserves_accessor(self):
+        """Concurrent __getitem__ for the same asset must not overwrite an existing accessor."""
+        import threading
+
+        accessors = OutletEventAccessors()
+        asset = Asset("concurrent-test")
+        results: list[OutletEventAccessor] = []
+
+        barrier = threading.Barrier(2)
+
+        def access():
+            barrier.wait()
+            results.append(accessors[asset])
+
+        threads = [threading.Thread(target=access) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(results) == 2
+        # Both threads must have received the identical accessor object so
+        # that neither thread's accumulated events can be silently discarded.
+        assert results[0] is results[1]
+        assert len(accessors) == 1
 
 
 class TestInletEventAccessor:
@@ -2960,3 +3086,87 @@ class TestMacrosAccessorTeamScoping:
 
         assert accessor.team_a_macros.team_a_macro() == "team-a"
         assert accessor.global_macros.shared_macro() == "shared"
+
+
+class TestIndexedTaskStateStoreAccessor:
+    """The parent's store seen from one iteration: every key carries the index, clearing is refused."""
+
+    @pytest.fixture
+    def store(self):
+        return mock.create_autospec(TaskStateStoreAccessor, instance=True)
+
+    def test_get_and_set_suffix_the_key(self, store):
+        indexed = IndexedTaskStateStoreAccessor(store, index=2)
+        store.get.return_value = 42
+
+        indexed.set("last_offset", 42, retention=timedelta(hours=1))
+        assert indexed.get("last_offset", default=0) == 42
+
+        store.set.assert_called_once_with("last_offset_2", 42, retention=timedelta(hours=1))
+        store.get.assert_called_once_with("last_offset_2", 0)
+
+    def test_delete_suffixes_the_key(self, store):
+        IndexedTaskStateStoreAccessor(store, index=0).delete("last_offset")
+        store.delete.assert_called_once_with("last_offset_0")
+
+    @pytest.mark.asyncio
+    async def test_async_reads_and_writes_suffix_the_key(self, store):
+        indexed = IndexedTaskStateStoreAccessor(store, index=7)
+        store.aget.return_value = "x"
+
+        await indexed.aset("cursor", "x")
+        assert await indexed.aget("cursor") == "x"
+        await indexed.adelete("cursor")
+
+        store.aset.assert_awaited_once_with("cursor_7", "x", retention=None)
+        store.aget.assert_awaited_once_with("cursor_7", None)
+        store.adelete.assert_awaited_once_with("cursor_7")
+
+    @pytest.mark.asyncio
+    async def test_clear_is_refused(self, store):
+        indexed = IndexedTaskStateStoreAccessor(store, index=1)
+
+        with pytest.raises(RuntimeError, match="not available inside an iterated task"):
+            indexed.clear()
+        with pytest.raises(RuntimeError, match="not available inside an iterated task"):
+            await indexed.aclear()
+        store.clear.assert_not_called()
+        store.aclear.assert_not_called()
+
+    def test_the_runners_backend_clear_is_refused_as_well(self, store):
+        """The view has no scope of its own to clear; the inherited path is refused, not broken."""
+        with pytest.raises(RuntimeError, match="not available inside an iterated task"):
+            IndexedTaskStateStoreAccessor(store, index=1)._clear_backend_only()
+
+    def test_the_view_never_equals_the_parents_accessor(self):
+        """Python tries the subclass's ``__eq__`` first, so the parent's never reads the view's ``_ti_id``."""
+        parent = TaskStateStoreAccessor(UUID(int=1), TaskScope(dag_id="d", run_id="r", task_id="t"))
+        indexed = IndexedTaskStateStoreAccessor(parent, index=1)
+
+        assert parent != indexed
+        assert indexed != parent
+        assert indexed == IndexedTaskStateStoreAccessor(parent, index=1)
+
+    @pytest.mark.parametrize("key", ["_iterable", "_iterable_completed", "_iterable_3"])
+    @pytest.mark.asyncio
+    async def test_keys_of_the_operators_checkpoints_are_refused(self, store, key):
+        """``_iterable`` written from iteration 0 would land on ``_iterable_0``, that index's checkpoint."""
+        indexed = IndexedTaskStateStoreAccessor(store, index=0)
+
+        for call in (
+            lambda: indexed.get(key),
+            lambda: indexed.set(key, 1),
+            lambda: indexed.delete(key),
+        ):
+            with pytest.raises(ValueError, match="reserved for the checkpoints"):
+                call()
+        for acall in (lambda: indexed.aget(key), lambda: indexed.aset(key, 1), lambda: indexed.adelete(key)):
+            with pytest.raises(ValueError, match="reserved for the checkpoints"):
+                await acall()
+        assert store.mock_calls == []
+
+    def test_identity_is_the_store_and_the_index(self, store):
+        assert IndexedTaskStateStoreAccessor(store, index=1) == IndexedTaskStateStoreAccessor(store, index=1)
+        assert IndexedTaskStateStoreAccessor(store, index=1) != IndexedTaskStateStoreAccessor(store, index=2)
+        assert IndexedTaskStateStoreAccessor(store, index=1) != store
+        assert "index=1" in repr(IndexedTaskStateStoreAccessor(store, index=1))
