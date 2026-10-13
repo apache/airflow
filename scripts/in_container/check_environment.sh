@@ -119,7 +119,11 @@ function startairflow_if_requested() {
             AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS} airflow db init
         fi
 
-        if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
+        local auth_manager="${AIRFLOW__CORE__AUTH_MANAGER:-}"
+        if [[ -z "${auth_manager}" ]]; then
+            auth_manager=$(airflow config get-value core auth_manager || true)
+        fi
+        if [[ "${auth_manager}" == *FabAuthManager* ]]; then
             airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain || true
 
             # Create all roles for testing if CREATE_ALL_ROLES is set

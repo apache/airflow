@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 from botocore.exceptions import ClientError
@@ -36,7 +37,15 @@ from airflow.version import version as airflow_version_str
 
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
+
+if hasattr(BaseExecutor, "get_task_key"):
+    from airflow.executors.workloads.types import TaskInstanceUuid
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -140,20 +149,35 @@ class TestAwsLambdaExecutor:
 
         workload = mock.Mock(spec=ExecuteTask)
         workload.ti = mock.Mock(spec=TaskInstance)
+        workload.ti.id = uuid4()
         workload.ti.key = airflow_key
         workload.ti.executor_config = executor_config
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_TASK
+            workload.key = airflow_key
+            task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        else:
+            task_queue = mock_executor.queued_tasks
+
+        executor_key = (
+            TaskInstanceUuid(workload.ti.id) if mock_executor.supports_task_instance_uuid else workload.ti.key
+        )
+        if mock_executor.supports_task_instance_uuid:
+            ser_airflow_key = str(workload.ti.id)
         mock_executor.queue_workload(workload, mock.Mock())
 
-        assert mock_executor.queued_tasks[workload.ti.key] == workload
+        assert task_queue[executor_key] == workload
         assert len(mock_executor.pending_workloads) == 0
         assert len(mock_executor.running) == 0
         mock_executor._process_workloads([workload])
-        assert len(mock_executor.queued_tasks) == 0
+        assert len(task_queue) == 0
         assert len(mock_executor.running) == 1
-        assert workload.ti.key in mock_executor.running
+        assert executor_key in mock_executor.running
         assert len(mock_executor.pending_workloads) == 1
         assert mock_executor.pending_workloads[0].command == [
             "python",
@@ -171,9 +195,9 @@ class TestAwsLambdaExecutor:
 
         # Workload is stored in active worker.
         assert len(mock_executor.running_workloads) == 1
-        assert mock_executor.running_workloads[ser_airflow_key] == workload.ti.key
+        assert mock_executor.running_workloads[ser_airflow_key] == executor_key
         change_state_mock.assert_called_once_with(
-            workload.ti.key, TaskInstanceState.RUNNING, ser_airflow_key, remove_running=False
+            executor_key, TaskInstanceState.RUNNING, ser_airflow_key, remove_running=False
         )
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
@@ -189,6 +213,10 @@ class TestAwsLambdaExecutor:
         workload.callback = mock.Mock()
         workload.callback.key = callback_id
         workload.callback.data = {}
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_CALLBACK
 
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
@@ -235,9 +263,14 @@ class TestAwsLambdaExecutor:
         callback_id = mock_airflow_key()
 
         workload = mock.Mock(spec=ExecuteCallback)
+        workload.key = callback_id
         workload.callback = mock.Mock()
         workload.callback.key = callback_id
         workload.callback.data = {"queue": "fast-queue"}
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_CALLBACK
 
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
@@ -1010,8 +1043,11 @@ class TestAwsLambdaExecutor:
             2
         ].external_executor_id = None  # One orphaned task has no external_executor_id, not adopted.
 
+        orphaned_tasks[0].key = airflow_key_1
+        orphaned_tasks[1].key = airflow_key_2
         for task in orphaned_tasks:
             task.try_number = 1
+            task.id = uuid4()
 
         not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
 
@@ -1019,9 +1055,17 @@ class TestAwsLambdaExecutor:
         assert len(orphaned_tasks) - 1 == len(mock_executor.running_workloads)
         assert ser_airflow_key_1 in mock_executor.running_workloads
 
-        assert mock_executor.running_workloads[ser_airflow_key_1] == airflow_key_1
+        assert mock_executor.running_workloads[ser_airflow_key_1] == (
+            TaskInstanceUuid(orphaned_tasks[0].id)
+            if mock_executor.supports_task_instance_uuid
+            else airflow_key_1
+        )
         assert ser_airflow_key_2 in mock_executor.running_workloads
-        assert mock_executor.running_workloads[ser_airflow_key_2] == airflow_key_2
+        assert mock_executor.running_workloads[ser_airflow_key_2] == (
+            TaskInstanceUuid(orphaned_tasks[1].id)
+            if mock_executor.supports_task_instance_uuid
+            else airflow_key_2
+        )
 
         # The remaining one task is unable to be adopted.
         assert len(not_adopted_tasks) == 1
@@ -1065,9 +1109,9 @@ class TestAwsLambdaExecutor:
         assert mock_executor.sqs_client.delete_message.call_count == 1
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
-    def test_try_adopt_task_instances_callback(self, mock_executor):
-        """Test adoption of callback workloads using string external_executor_id."""
-
+    def test_legacy_adoption_callback_identifier(self, mock_executor, monkeypatch):
+        """Retain the callback identifier fallback used by older Airflow versions."""
+        monkeypatch.setattr(AwsLambdaExecutor, "supports_task_instance_uuid", False)
         callback_id = "callback_123"
 
         ti = mock.Mock(spec=TaskInstance)
@@ -1239,3 +1283,114 @@ class TestAwsLambdaExecutor:
                 global_executor.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP)
                 == "False"
             )
+
+
+@pytest.mark.skipif(not hasattr(BaseExecutor, "get_task_key"), reason="Requires executor UUID capability")
+class TestTaskIdentity:
+    @pytest.mark.parametrize(("native", "modern_queue"), [(True, True), (False, True), (False, False)])
+    @pytest.mark.parametrize("success", [False, True])
+    def test_task_results_preserve_submitted_identity(
+        self, mock_executor, task_identity_workloads, monkeypatch, native, modern_queue, success
+    ):
+        monkeypatch.setattr(lambda_executor, "AIRFLOW_V_3_4_PLUS", modern_queue)
+        if not native:
+            monkeypatch.setattr(AwsLambdaExecutor, "supports_task_instance_uuid", False)
+            task_identity_workloads[1].ti.try_number = 2
+        keys = [TaskInstanceUuid(w.ti.id) if native else w.ti.key for w in task_identity_workloads]
+        for workload in task_identity_workloads:
+            mock_executor.queue_workload(workload, session=None)
+        mock_executor._process_workloads(task_identity_workloads)
+        assert mock_executor.running == set(keys)
+        mock_executor.attempt_workload_runs()
+        payloads = [
+            json.loads(call.kwargs["Payload"]) for call in mock_executor.lambda_client.invoke.call_args_list
+        ]
+        first_key = str(keys[0]) if native else json.dumps(keys[0]._asdict())
+        assert payloads[0]["task_key"] == first_key
+        assert payloads[0]["task_key"] != payloads[1]["task_key"]
+        mock_executor.get_event_buffer()
+        mock_executor.sqs_client.receive_message.return_value = {
+            "Messages": [
+                {
+                    "ReceiptHandle": "receipt",
+                    "Body": json.dumps(
+                        {
+                            "task_key": first_key,
+                            "return_code": 0 if success else 1,
+                        }
+                    ),
+                }
+            ]
+        }
+        mock_executor.process_queue(DEFAULT_QUEUE_URL)
+        assert mock_executor.get_event_buffer() == {
+            keys[0]: (
+                TaskInstanceState.SUCCESS if success else TaskInstanceState.FAILED,
+                None,
+            )
+        }
+        assert mock_executor.running == {keys[1]}
+
+    @pytest.mark.parametrize(
+        "transport", ["uuid", "legacy", "mismatched_uuid", "mismatched_legacy", "invalid"]
+    )
+    def test_adoption_preserves_transport_identity(self, mock_executor, task_identity_workloads, transport):
+        source = task_identity_workloads[0].ti
+        ti = mock.Mock(
+            spec=TaskInstance,
+            id=source.id,
+            key=source.key,
+            state=TaskInstanceState.RUNNING,
+            try_number=source.try_number,
+            queue="default",
+            executor_config={},
+        )
+        original_id = TaskInstanceUuid(ti.id)
+        transport_key = {
+            "uuid": str(ti.id),
+            "legacy": json.dumps(ti.key._asdict()),
+            "mismatched_uuid": str(uuid4()),
+            "mismatched_legacy": json.dumps(ti.key.with_try_number(2)._asdict()),
+            "invalid": "not-a-task-identity",
+        }[transport]
+        ti.external_executor_id = transport_key
+        rejected = mock_executor.try_adopt_task_instances([ti])
+        if transport.startswith("mismatched") or transport == "invalid":
+            assert rejected == [ti]
+            assert not mock_executor.running_workloads
+            return
+        assert rejected == []
+        ti.id = uuid4()
+        assert mock_executor.running_workloads == {transport_key: original_id}
+        mock_executor.sqs_client.receive_message.return_value = {
+            "Messages": [
+                {
+                    "ReceiptHandle": "receipt",
+                    "Body": json.dumps(
+                        {
+                            "task_key": transport_key,
+                            "return_code": 0,
+                        }
+                    ),
+                }
+            ]
+        }
+        mock_executor.process_queue(DEFAULT_QUEUE_URL)
+        assert mock_executor.get_event_buffer() == {original_id: (TaskInstanceState.SUCCESS, None)}
+        assert not mock_executor.running_workloads
+
+    def test_legacy_adoption_preserves_coordinate_key(
+        self, mock_executor, task_identity_workloads, monkeypatch
+    ):
+        monkeypatch.setattr(AwsLambdaExecutor, "supports_task_instance_uuid", False)
+        source = task_identity_workloads[0].ti
+        transport_key = json.dumps(source.key._asdict())
+        ti = mock.Mock(
+            spec=TaskInstance,
+            id=source.id,
+            key=source.key,
+            state=TaskInstanceState.RUNNING,
+            external_executor_id=transport_key,
+        )
+        assert mock_executor.try_adopt_task_instances([ti]) == []
+        assert mock_executor.running_workloads == {transport_key: source.key}

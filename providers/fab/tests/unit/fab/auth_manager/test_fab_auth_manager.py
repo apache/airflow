@@ -28,6 +28,7 @@ import pytest
 from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy.exc import OperationalError, PendingRollbackError
+from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -136,6 +137,23 @@ if AIRFLOW_V_3_1_PLUS:
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+
+
+@mock.patch(
+    "airflow.providers.fab.auth_manager.fab_auth_manager.ApplessAirflowSecurityManager", autospec=True
+)
+def test_sync_dag_perms_without_auth_manager_initialization(mock_security_manager):
+    dag = Mock(spec=["dag_id", "access_control"])
+    dag.dag_id = "test"
+    dag.access_control = {"Viewer": {"can_read"}}
+    session = Mock(spec=Session)
+
+    FabAuthManager.sync_dag_perms(dag, session=session)
+
+    mock_security_manager.assert_called_once_with(session=session)
+    mock_security_manager.return_value.sync_perm_for_dag.assert_called_once_with(
+        dag.dag_id, dag.access_control
+    )
 
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
@@ -884,6 +902,26 @@ class TestFabAuthManager:
                     )
                 ]
                 if hasattr(MenuItem, "DEADLINES")
+                else []
+            ),
+            # Dag bundle visibility rides on Dag access, so the menu entry is mapped onto
+            # RESOURCE_DAG. The mapping is load-bearing rather than cosmetic: unmapped items fall
+            # back to the enum value as a resource name, and "Dag Bundles" is not a FAB resource,
+            # so dropping the mapping would silently hide the entry for every FAB deployment.
+            *(
+                [
+                    (
+                        [MenuItem.DAG_BUNDLES],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
+                        [MenuItem.DAG_BUNDLES],
+                    ),
+                    (
+                        [MenuItem.DAG_BUNDLES],
+                        [(ACTION_CAN_ACCESS_MENU, "Dag Bundles")],
+                        [],
+                    ),
+                ]
+                if hasattr(MenuItem, "DAG_BUNDLES")
                 else []
             ),
             (

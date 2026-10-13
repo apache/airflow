@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -41,7 +42,7 @@ import (
 // packOptions are the flags accepted by the root pack command.
 type packOptions struct {
 	pkg             string   // target package (default ".")
-	source          string   // override the auto-detected DAG source file
+	source          string   // override the auto-detected entrypoint source file
 	executable      string   // pack a pre-built binary instead of building
 	output          string   // override the default <bundleName> output path
 	airflowMetadata string   // path to a pre-captured --airflow-metadata manifest (JSON or YAML)
@@ -62,13 +63,13 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		)
 	}
 
-	// Resolve the DAG source file for both modes up front. --executable requires
+	// Resolve the entrypoint source file for both modes up front. --executable requires
 	// it explicitly; the build path falls back to discovery.
 	sourcePath := opts.source
 	if opts.executable != "" {
 		if sourcePath == "" {
 			return fmt.Errorf(
-				"--executable requires --source: cannot infer the DAG source for a pre-built binary",
+				"--executable requires --source: cannot infer the entrypoint source for a pre-built binary",
 			)
 		}
 	} else if sourcePath == "" {
@@ -80,7 +81,7 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		// when --source was not supplied, so an explicit --source always wins.
 		discovered, err := discoverMainSource(opts.pkg)
 		if err != nil {
-			return fmt.Errorf("locating DAG source file: %w", err)
+			return fmt.Errorf("locating the entrypoint source file: %w", err)
 		}
 		sourcePath = discovered
 	}
@@ -155,7 +156,7 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		return fmt.Errorf("executable %s: %w", execPath, err)
 	}
 
-	if err := rejectOutputAlias(output, execPath, sourcePath, opts.airflowMetadata); err != nil {
+	if err := rejectOutputAlias(output, execPath, []string{sourcePath}, opts.airflowMetadata); err != nil {
 		return err
 	}
 
@@ -163,7 +164,7 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 	if err != nil {
 		return err
 	}
-	if len(meta.Dags) == 0 {
+	if len(meta.Dags) == 0 && len(meta.DagSourceFiles) == 0 {
 		return fmt.Errorf("bundle exposes no dags: nothing to pack")
 	}
 	for dagID, dag := range meta.Dags {
@@ -173,26 +174,44 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 	}
 	warnOnSuspiciousIDs(stderr, meta)
 
-	manifest, err := renderManifest(meta, filepath.Base(sourcePath))
+	mod, err := moduleOf(opts, sourcePath)
+	if err != nil {
+		return err
+	}
+	layout, region, err := layoutSources(stderr, meta, sourcePath, mod)
+	if err != nil {
+		return err
+	}
+	if err := rejectOutputAlias(output, execPath, layout.diskPaths(), opts.airflowMetadata); err != nil {
+		return err
+	}
+	manifest, err := renderManifest(meta, layout)
 	if err != nil {
 		return fmt.Errorf("rendering manifest: %w", err)
-	}
-	sourceBytes, err := os.ReadFile(sourcePath)
-	if err != nil {
-		return fmt.Errorf("reading source file: %w", err)
 	}
 
 	// Assemble the bundle through a temp file and atomically move it into
 	// place: we never mutate the build artefact or the user-supplied
 	// --executable, and a failed pack never leaves a truncated or half-written
 	// file at output.
-	if err := writeBundle(execPath, output, sourceBytes, manifest); err != nil {
+	if err := writeBundle(execPath, output, region, manifest); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(stdout, "Wrote bundle %s (sdk=%s/%s, dags=%d)\n",
-		output, meta.SDK.Language, meta.SDK.Version, len(meta.Dags))
+	fmt.Fprintf(stdout, "Wrote bundle %s (sdk=%s/%s, task_handler_dags=%d, native_dags=%d)\n",
+		output, meta.SDK.Language, meta.SDK.Version, len(meta.Dags), len(meta.DagSourceFiles))
 	return nil
+}
+
+// moduleOf finds the module that owns the entrypoint. The build path asks the go tool, which
+// knows about workspaces and vendoring. --executable has no package to ask about, so it reads
+// the nearest go.mod above the source file.
+func moduleOf(opts *packOptions, sourcePath string) (goModule, error) {
+	dir := filepath.Dir(sourcePath)
+	if opts.executable != "" {
+		return findModule(dir)
+	}
+	return listModule(dir)
 }
 
 // defaultOutputPath derives the default bundle output path from the directory
@@ -463,11 +482,10 @@ func runIntrospect(execPath string, flag string) ([]byte, error) {
 }
 
 // renderManifest serialises the airflow-metadata manifest as deterministic,
-// sorted-key YAML matching airflow-metadata.schema.json. It injects the schema's
-// source field (the filename the manifest is built from), which the producer's
-// Manifest omits because only the packer knows it; every other field is copied
-// from the introspected manifest verbatim.
-func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, error) {
+// sorted-key YAML matching airflow-metadata.schema.json. It adds the source layout
+// (entrypoint_path, dag_source_paths and sources), which only the packer knows; every
+// other field is copied from the introspected manifest verbatim.
+func renderManifest(meta airflowmetadata.Manifest, layout sourceLayout) ([]byte, error) {
 	version := meta.AirflowBundleMetadataVersion
 	if version == "" {
 		version = airflowmetadata.FormatVersion
@@ -487,7 +505,7 @@ func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, e
 			taskItems = append(taskItems, quotedScalar(t))
 		}
 		dagsNode.Content = append(dagsNode.Content,
-			scalar(id),
+			quotedScalar(id),
 			&yaml.Node{
 				Kind: yaml.MappingNode,
 				Content: []*yaml.Node{
@@ -496,6 +514,33 @@ func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, e
 				},
 			},
 		)
+	}
+
+	dagPaths := make([]string, 0, len(layout.dagPaths))
+	for id := range layout.dagPaths {
+		dagPaths = append(dagPaths, id)
+	}
+	sort.Strings(dagPaths)
+	dagPathsNode := &yaml.Node{Kind: yaml.MappingNode}
+	for _, id := range dagPaths {
+		dagPathsNode.Content = append(
+			dagPathsNode.Content,
+			quotedScalar(id),
+			quotedScalar(layout.dagPaths[id]),
+		)
+	}
+
+	sourcesNode := &yaml.Node{Kind: yaml.SequenceNode}
+	for _, f := range layout.files {
+		sourcesNode.Content = append(sourcesNode.Content, &yaml.Node{
+			Kind: yaml.MappingNode,
+			Content: []*yaml.Node{
+				scalar("path"), quotedScalar(f.path),
+				scalar("offset"), intScalar(f.offset),
+				scalar("length"), intScalar(f.length),
+				scalar("sha256"), quotedScalar(f.sha256),
+			},
+		})
 	}
 
 	root := &yaml.Node{Kind: yaml.DocumentNode}
@@ -513,7 +558,9 @@ func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, e
 					quotedScalar(meta.SDK.SupervisorSchemaVersion),
 				},
 			},
-			scalar("source"), quotedScalar(sourceName),
+			scalar("entrypoint_path"), quotedScalar(layout.entrypoint),
+			scalar("dag_source_paths"), dagPathsNode,
+			scalar("sources"), sourcesNode,
 			scalar("dags"), dagsNode,
 		},
 	}
@@ -531,34 +578,40 @@ func renderManifest(meta airflowmetadata.Manifest, sourceName string) ([]byte, e
 	return buf.Bytes(), nil
 }
 
-// scalar emits a plain (unquoted) node. It is used for structural keys
-// (e.g. "sdk", "tasks") and for the Dag ID mapping keys.
+// scalar emits a plain (unquoted) node. It is for structural keys only (e.g. "sdk", "tasks").
+// Dag IDs are data, so they go through quotedScalar.
 func scalar(value string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: value}
 }
 
-// quotedScalar emits a double-quoted node. Data-bearing string *values* — task
-// IDs, the source filename, and the SDK fields — go through this so a value
-// that looks like a number, bool, or date (e.g. a task named "123" or "true")
-// round-trips as a string rather than being retyped by the YAML parser.
+func intScalar(value int) *yaml.Node {
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(value)}
+}
+
+// quotedScalar emits a double-quoted node. Data-bearing strings, such as Dag IDs, task IDs,
+// the source paths, and the SDK fields, go through this so a value that looks like a number,
+// bool, or date (e.g. a Dag named "2024" or "on") round-trips as a string rather than being
+// retyped by the YAML parser.
 func quotedScalar(value string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: value, Style: yaml.DoubleQuotedStyle}
 }
 
 // rejectOutputAlias fails if output resolves to the same file as any pack
-// input: the executable, the source, or a supplied --airflow-metadata file.
+// input: the executable, a source file, or a supplied --airflow-metadata file.
 // Packing copies the executable to output with O_TRUNC and renames it into
 // place, so an aliased output would clobber the input. metadataPath is empty
 // when --airflow-metadata is not used and is skipped in that case.
-func rejectOutputAlias(output, execPath, sourcePath, metadataPath string) error {
-	for _, in := range []struct {
+func rejectOutputAlias(output, execPath string, sourcePaths []string, metadataPath string) error {
+	type input struct {
 		path string
 		kind string
-	}{
-		{execPath, "executable"},
-		{sourcePath, "source"},
-		{metadataPath, "--airflow-metadata file"},
-	} {
+	}
+	inputs := []input{{execPath, "executable"}}
+	for _, p := range sourcePaths {
+		inputs = append(inputs, input{p, "source"})
+	}
+	inputs = append(inputs, input{metadataPath, "--airflow-metadata file"})
+	for _, in := range inputs {
 		if in.path == "" {
 			continue
 		}
@@ -612,7 +665,7 @@ func sameFile(a, b string) (bool, error) {
 }
 
 // writeBundle assembles the bundle at output by copying the executable to a
-// temporary file in output's directory, appending the source+manifest footer
+// temporary file in output's directory, appending the source region and manifest footer
 // to that copy, then atomically renaming it into place. Writing through a
 // temp file keeps a failed pack from leaving a truncated or half-written
 // artefact at output, and guarantees the file being copied is never the same

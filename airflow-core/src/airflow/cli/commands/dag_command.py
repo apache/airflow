@@ -45,7 +45,7 @@ from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import clear_task_instances
+from airflow.models.taskinstance import clear_task_instances_for_runs
 from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo
 
@@ -128,6 +129,7 @@ def dag_delete(args) -> None:
         print("Cancelled")
 
 
+@deprecated_for_airflowctl("airflowctl dags clear")
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -233,7 +235,12 @@ def _bulk_clear_runs(
         tis = session.scalars(ti_query).all()
         if not tis:
             continue
-        clear_task_instances(list(tis), session=session)
+        clear_task_instances_for_runs(
+            tis,
+            session=session,
+            later_loop_iterations=not state_filter,
+            whole_task_keys=() if state_filter else {(ti.dag_id, ti.run_id, ti.task_id) for ti in tis},
+        )
         session.flush()
         cleared += len(tis)
 
@@ -274,7 +281,10 @@ def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Ses
 
     matched_dags = list(session.scalars(query).all())
     if not matched_dags:
-        print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        if args.output in ("table", "plain"):
+            print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        else:
+            AirflowConsole().print_as(data=[], output=args.output)
         return
 
     if not args.yes and args.treat_dag_id_as_regex:
@@ -370,7 +380,7 @@ def _save_dot_to_file(dot: Dot, filename: str) -> None:
     print(f"File {filename} saved")
 
 
-def _get_dagbag_dag_details(dag: DAG) -> dict:
+def _get_dagbag_dag_details(dag: BaggedDAG) -> dict:
     """Return a dagbag dag details dict."""
     from airflow.serialization.encoders import coerce_to_core_timetable
 
@@ -596,7 +606,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             file=sys.stderr,
         )
 
-    def get_dag_detail(dag: DAG) -> dict:
+    def get_dag_detail(dag: BaggedDAG) -> dict:
         if dag_model := DagModel.get_dagmodel(dag.dag_id, session=session):
             dag_detail = DAGResponse.model_validate(dag_model, from_attributes=True).model_dump()
         else:
@@ -605,7 +615,9 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             return dag_detail
         return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
-    def filter_dags_by_bundle(dags: Iterable[DAG], bundle_names: list[str] | None) -> Iterable[DAG]:
+    def filter_dags_by_bundle(
+        dags: Iterable[BaggedDAG], bundle_names: list[str] | None
+    ) -> Iterable[BaggedDAG]:
         """Filter DAGs based on the specified bundle name, if provided."""
         if not bundle_names:
             return dags
@@ -796,6 +808,10 @@ def dag_list_dag_runs(args, dag: DAG | None = None, *, session: Session = NEW_SE
         session=session,
     )
     dag_runs.sort(key=operator.attrgetter("run_after"), reverse=True)
+    # Slice after sorting so `--limit` reliably returns the most recent runs,
+    # independent of insertion order in DagRun.find().
+    if getattr(args, "limit", None):
+        dag_runs = dag_runs[: args.limit]
 
     def _render_dagrun(dr: DagRun) -> dict[str, str]:
         return {
@@ -851,7 +867,7 @@ def dag_test(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) ->
     if show_dagrun or imgcat or filename:
         tis = session.scalars(
             select(TaskInstance).where(
-                TaskInstance.dag_id == args.dag_id,
+                TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.run_id == dr.run_id,
             )
         ).all()

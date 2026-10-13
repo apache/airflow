@@ -52,10 +52,11 @@
             ]
         },
         "excluded-python-versions": {
-            "description": "List of python versions excluded for that provider",
+            "description": "Python X.Y minors or X.Y.Z patches on which the provider is unavailable. A minor is removed from the provider test matrix; a patch keeps the minor's test lane. Generated provider requirements exclude either version with a .* suffix. Root package extras use python_version markers for minors and python_full_version markers for patches.",
             "type": "array",
             "items": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?(?![\\s\\S])"
             }
         },
         "excluded-platforms": {

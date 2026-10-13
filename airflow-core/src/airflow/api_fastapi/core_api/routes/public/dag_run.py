@@ -64,6 +64,7 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
+    _DagIdTagsFilter,
     _DagIdTeamsFilter,
     _PrefixSearchParam,
     _SearchParam,
@@ -72,6 +73,7 @@ from airflow.api_fastapi.common.parameters import (
     float_range_filter_factory,
     prefix_search_param_factory,
     search_param_factory,
+    tags_filter_factory,
     teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -239,7 +241,7 @@ def patch_dag_run(
     if "note" in data:
         updated_dag_run = session.get(DagRun, dag_run.id)
         if updated_dag_run is not None:
-            patch_dag_run_note(dag_run=updated_dag_run, note=data["note"], user=user)
+            patch_dag_run_note(dag_run=updated_dag_run, note=data["note"], user_id=user.get_id())
     if "state" in data and patch_body.state is not None:
         patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
 
@@ -521,6 +523,7 @@ def get_dag_runs(
         FilterParam[str | None], Depends(filter_param_factory(DagRun.bundle_version, str | None))
     ],
     teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(DagRun.dag_id))],
+    tags: Annotated[_DagIdTagsFilter, Depends(tags_filter_factory(DagRun.dag_id))],
     order_by: Annotated[
         SortParam,
         Depends(
@@ -678,6 +681,7 @@ def get_dag_runs(
         partition_key_prefix_pattern,
         consuming_asset_pattern,
         teams,
+        tags,
     ]
 
     if use_cursor:
@@ -813,6 +817,17 @@ def trigger_dag_run(
                     f"DAG with dag_id: '{dag_id}' does not support bundle versioning",
                 )
 
+        if body.drain_dag:
+            if not get_auth_manager().is_authorized_dag(
+                method="PUT",
+                details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
+                user=user,
+            ):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN, f"Draining requires permission to edit Dag: {dag_id}"
+                )
+            DagModel.start_drain(dag_id, session=session)
+
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
@@ -848,7 +863,7 @@ def trigger_dag_run(
     summary="Experimental: Wait for a dag run to complete, and return task results if requested.",
     description="🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.",
     responses={
-        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
         status.HTTP_200_OK: {
             "description": "Successful Response",
             "content": {
@@ -871,6 +886,7 @@ def trigger_dag_run(
 def wait_dag_run_until_finished(
     dag_id: str,
     dag_run_id: str,
+    dag_bag: DagBagDep,
     session: SessionDep,
     user: GetUserDep,
     interval: Annotated[float, Query(gt=0.0, description="Seconds to wait between dag run state checks")],
@@ -902,7 +918,8 @@ def wait_dag_run_until_finished(
                 "User is not authorized to read XCom data for this Dag",
             )
         result_task_ids = []  # Explicitly not returning any XCom results.
-    if not session.scalar(select(1).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)):
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+    if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
@@ -913,6 +930,7 @@ def wait_dag_run_until_finished(
         interval=interval,
         result_task_ids=result_task_ids,
     )
+    waiter.validate_result_selection(dag_run, dag_bag, session=session)
     return StreamingResponse(waiter.wait())
 
 

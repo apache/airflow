@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import json
 import pickle
-import sys
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -198,7 +197,6 @@ class TestClient:
         assert unpickled.response.status_code == 404
         assert unpickled.request.url == "http://error"
 
-    @pytest.mark.skipif(sys.version_info < (3, 11), reason="Exception notes (PEP 678) require Python 3.11")
     def test_server_error_detail_added_as_note(self):
         """Notes survive uncaught propagation, handled sites still log detail directly."""
         responses = [httpx.Response(404, json={"detail": {"message": "Invalid input"}})]
@@ -372,7 +370,11 @@ class TestTaskInstanceOperations:
             assert resp == ti_context
             assert call_count == 3
 
-    def test_task_instance_start_already_running(self):
+    @pytest.mark.parametrize(
+        ("reason", "previous_state"),
+        [("invalid_state", "running"), ("running_elsewhere", "restarting")],
+    )
+    def test_task_instance_start_already_running(self, reason, previous_state):
         """Test that start() raises TaskAlreadyRunningError when TI is already running."""
         ti_id = uuid6.uuid7()
 
@@ -382,9 +384,9 @@ class TestTaskInstanceOperations:
                     409,
                     json={
                         "detail": {
-                            "reason": "invalid_state",
+                            "reason": reason,
                             "message": "TI was not in a state where it could be marked as running",
-                            "previous_state": "running",
+                            "previous_state": previous_state,
                         }
                     },
                 )
@@ -422,7 +424,8 @@ class TestTaskInstanceOperations:
     @pytest.mark.parametrize(
         "state", [state for state in TerminalTIState if state != TerminalTIState.SUCCESS]
     )
-    def test_task_instance_finish(self, state):
+    @pytest.mark.parametrize("retry_reason", [None, "auth error, do not retry"])
+    def test_task_instance_finish(self, state, retry_reason):
         # Simulate a successful response from the server that finishes (moved to terminal state) a task
         ti_id = uuid6.uuid7()
 
@@ -432,6 +435,7 @@ class TestTaskInstanceOperations:
                 assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
                 assert actual_body["state"] == state
                 assert actual_body["rendered_map_index"] == "test"
+                assert actual_body["retry_reason"] == retry_reason
                 return httpx.Response(
                     status_code=204,
                 )
@@ -439,7 +443,11 @@ class TestTaskInstanceOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.task_instances.finish(
-            ti_id, state=state, when="2024-10-31T12:00:00Z", rendered_map_index="test"
+            ti_id,
+            state=state,
+            when="2024-10-31T12:00:00Z",
+            rendered_map_index="test",
+            retry_reason=retry_reason,
         )
 
     def test_task_instance_heartbeat(self):
@@ -457,6 +465,35 @@ class TestTaskInstanceOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.task_instances.heartbeat(ti_id, 100)
+
+    def test_task_instance_heartbeat_is_not_retried(self):
+        """A failing heartbeat surfaces at once so the supervisor's own retry budget governs it."""
+        ti_id = uuid6.uuid7()
+        responses: list[httpx.Response] = [
+            httpx.Response(500, text="Internal Server Error"),
+            httpx.Response(204),
+        ]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(httpx.HTTPStatusError):
+            client.task_instances.heartbeat(ti_id, 100)
+
+        assert len(responses) == 1
+
+    def test_task_instance_update_dagrun_note(self):
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/dag-run-note":
+                assert json.loads(request.read()) == {"note": "Updated from task runtime"}
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        response = client.task_instances.update_dagrun_note(ti_id, "Updated from task runtime")
+
+        assert response == OKResponse(ok=True)
 
     @pytest.mark.parametrize("queues_enabled", [False, True])
     def test_task_instance_defer(self, queues_enabled: bool):
@@ -1180,6 +1217,31 @@ class TestConnectionOperations:
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.CONNECTION_NOT_FOUND
 
+    def test_connection_get_url_encodes_conn_id(self):
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "conn_id": "dev/my_conn",
+                    "conn_type": "http",
+                    "host": None,
+                    "schema": None,
+                    "login": None,
+                    "password": None,
+                    "port": None,
+                    "extra": None,
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id="dev/my_conn")
+
+        assert isinstance(result, ConnectionResponse)
+        assert requests_seen[0].url.raw_path == b"/connections/dev%2Fmy_conn"
+
     @pytest.mark.parametrize("status_code", [401, 403])
     def test_connection_get_authz_returns_permission_denied(self, status_code):
         """401/403 from the API server is reported as PERMISSION_DENIED, not raised."""
@@ -1328,7 +1390,7 @@ class TestAssetEventOperations:
         result = client.asset_events.get(
             name="this_asset",
             partition_key_regexp_pattern=r"^us\|2024-.*",
-            after=datetime(2023, 6, 1, tzinfo=dt_timezone.utc),
+            after=datetime(2023, 6, 1, tzinfo=UTC),
             limit=5,
             ascending=False,
         )
@@ -1942,7 +2004,7 @@ class TestDagsOperations:
             relative_fileloc="dags/example.py",
             owners="owner_1",
             tags=["a_tag", "z_tag"],
-            next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            next_dagrun=datetime(2026, 4, 13, tzinfo=UTC),
         )
 
     def test_get_url_quotes_dag_id_as_single_path_segment(self):
@@ -2065,7 +2127,7 @@ class TestTaskStateOperations:
         assert result.error == ErrorType.TASK_STORE_NOT_FOUND
 
     def test_set_success(self):
-        expires = datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)
+        expires = datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "PUT"
@@ -2096,7 +2158,7 @@ class TestTaskStateOperations:
 
     def test_set_with_expires_at_sends_field(self):
         """expires_at is forwarded as an ISO datetime string in the request body."""
-        expires = datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)
+        expires = datetime(2026, 5, 21, 12, 0, 0, tzinfo=UTC)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             body = json.loads(request.content)

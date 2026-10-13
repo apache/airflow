@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "Actualitzats {{count}} de {{total}} Assets",
+  "assetSchedule": "Actualitzats {{count, number}} de {{total, number}} Assets",
   "dagActions": {
     "delete": {
       "button": "Eliminar Dag",
@@ -10,8 +10,6 @@
   "filters": {
     "allRunTypes": "Tots els tipus d'execució",
     "allStates": "Tots els estats",
-    "anyRunState": "Qualsevol execució",
-    "anyRunStatePlaceholder": "Seleccionar qualsevol estat d'execució…",
     "favorite": {
       "all": "Tots",
       "favorite": "Favorits",
@@ -19,8 +17,6 @@
     },
     "favoriteState": "Estat de favorit",
     "favoriteStatePlaceholder": "Seleccionar l'estat de favorit…",
-    "lastRunState": "Última execució",
-    "lastRunStatePlaceholder": "Seleccionar l'estat de l'última execució…",
     "noTimetableTypesFound": "No s'han trobat tipus de calendari",
     "paused": {
       "active": "Actius",
@@ -31,13 +27,22 @@
     "pausedState": "Estat de pausa",
     "requiresHitlAction": "Requereix una acció HITL",
     "runIdPatternFilter": "Cerca execucions de Dag",
+    "runState": "Estat de l'execució",
+    "runStatePlaceholder": "Seleccionar l'estat de l'execució…",
     "timetableType": "Tipus de calendari"
+  },
+  "folders": {
+    "all": "Tots els Dags",
+    "empty": "No hi ha carpetes",
+    "hide": "Amagar carpetes",
+    "show": "Mostrar carpetes",
+    "title": "Carpetes"
   },
   "ownerLink": "Enllaç del propietari {{owner}}",
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No s'han trobat tasques.",
-      "title": "Tasques afectades: {{count}}"
+      "title": "Tasques afectades: {{count, number}}"
     },
     "clear": {
       "button": "Rellançar {{type}}",
@@ -79,6 +84,7 @@
       "downstream": "Aigües avall",
       "existingTasks": "Rellançar tasques existents",
       "future": "Futur",
+      "keepTaskState": "Conservar l'estat de la tasca i reprendre",
       "onlyFailed": "Rellançar només tasques fallides",
       "past": "Passat",
       "preventRunningTasks": "Evitar rellançar tasques en execució",
@@ -92,6 +98,25 @@
     "label": "Estats de les execucions",
     "loading": "Carregant el recompte d'estats de les execucions",
     "tooltip": "{{state}}: {{formattedCount}} — feu clic per a filtrar les execucions"
+  },
+  "schedulingActions": {
+    "cancelDrain": "Cancel·lar el drenatge",
+    "drain": "Drenar i pausar",
+    "drainPrompt": "Aquest DAG té execucions en curs. El drenatge permet que acabin abans de posar el DAG en pausa; si el poses en pausa ara, la planificació s'atura immediatament sense esperar que acabin.",
+    "pauseNow": "Pausar ara",
+    "pauseSelected": "Pausar / Drenar"
+  },
+  "schedulingBanner": {
+    "message": "Aquest DAG s'està drenant. Es posarà en pausa quan acabin les execucions del DAG que estan en curs."
+  },
+  "schedulingState": {
+    "active": "Actiu",
+    "draining": "Drenant",
+    "drainingBadgeTooltip": "Aquest Dag es pausarà quan les execucions en curs hagin finalitzat.",
+    "drainingTooltip": "Drenatge de {{dagDisplayName}} — es posarà en pausa quan acabin les execucions del DAG que estan en curs. Feu clic per reprendre'l.",
+    "label": "Estat de programació",
+    "paused": "Pausat",
+    "placeholder": "Seleccionar l'estat de programació…"
   },
   "search": {
     "advanced": "Cerca avançada",

@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import base64
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import boto3
 from botocore.signers import RequestSigner
@@ -31,7 +31,7 @@ TOKEN_EXPIRATION_MINUTES = 14
 
 
 def get_expiration_time():
-    token_expiration = datetime.now(timezone.utc) + timedelta(minutes=TOKEN_EXPIRATION_MINUTES)
+    token_expiration = datetime.now(UTC) + timedelta(minutes=TOKEN_EXPIRATION_MINUTES)
 
     return token_expiration.strftime("%Y-%m-%dT%H:%M:%SZ")
 

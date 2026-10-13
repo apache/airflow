@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm import _LLMDecoratedOperator
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
 class TestLLMDecoratedOperator:
@@ -43,7 +45,28 @@ class TestLLMDecoratedOperator:
 
         assert result == "This is a summary."
         assert op.prompt == "Summarize this text"
-        mock_agent.run_sync.assert_called_once_with("Summarize this text", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Summarize this text", usage_limits=None, cancellation_token=ANY
+        )
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_forwards_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
+        """``fallback_conn_ids`` is accepted as a decorator kwarg without a per-decorator code change."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = _LLMDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: "p",
+            llm_conn_id="my_llm",
+            fallback_conn_ids=["conn_a", "conn_b"],
+        )
+        op.execute(context={})
+
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": ["conn_a", "conn_b"]}
+        )
 
     @pytest.mark.parametrize(
         "return_value",
@@ -77,8 +100,9 @@ class TestLLMDecoratedOperator:
         op.execute(context={})
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, cancellation_token=ANY)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="require_approval needs Airflow >= 3.1.0")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_sequence_prompt_with_require_approval_raises_before_run_sync(self, mock_hook_cls):
         """Sequence prompt + require_approval=True fails before the agent runs."""
@@ -115,4 +139,6 @@ class TestLLMDecoratedOperator:
         op.execute(context={"task_instance": MagicMock()})
 
         assert op.prompt == "Summarize quantum computing"
-        mock_agent.run_sync.assert_called_once_with("Summarize quantum computing", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Summarize quantum computing", usage_limits=None, cancellation_token=ANY
+        )

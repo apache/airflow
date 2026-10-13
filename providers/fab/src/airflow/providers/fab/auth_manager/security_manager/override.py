@@ -356,6 +356,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG_ALL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR_ALL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_REPARSE_ALL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TRIGGER),
@@ -1035,7 +1036,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                         self._merge_perm(action_name, dag_resource_name)
 
             if dag.access_control is not None:
-                self.sync_perm_for_dag(dag.dag_id, dag.access_control)
+                try:
+                    self.sync_perm_for_dag(dag.dag_id, dag.access_control)
+                except FabException:
+                    self.log.exception(
+                        "Failed to sync permissions for Dag '%s'; skipping it and continuing with "
+                        "the remaining Dags. Fix its access_control configuration and re-run sync-perm.",
+                        dag.dag_id,
+                    )
 
     def sync_perm_for_dag(
         self,
@@ -1665,7 +1673,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 new_role_ids = {r.id for r in user.roles}
                 new_group_ids = {grp.id for grp in user.groups}
                 if existing_role_ids != new_role_ids or existing_group_ids != new_group_ids:
-                    user.changed_on = datetime.datetime.now(tz=datetime.timezone.utc)
+                    user.changed_on = datetime.datetime.now(tz=datetime.UTC)
             merged_user = self.session.merge(user)
             self.session.commit()
             self._reset_user_permissions_cache(merged_user)

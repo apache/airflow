@@ -20,7 +20,7 @@ from __future__ import annotations
 import time
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, BinaryIO, Literal
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypeVar, overload
 
 from deprecated import deprecated
 from openai import OpenAI
@@ -50,12 +50,15 @@ if TYPE_CHECKING:
         ChatCompletionUserMessageParam,
     )
     from openai.types.conversations import Conversation, ConversationDeletedResource
-    from openai.types.responses import Response
+    from openai.types.responses import ParsedResponse, Response
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+    from pydantic import BaseModel
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.openai.exceptions import (
+    OpenAIAgentSessionError,
+    OpenAIBatchCancelled,
     OpenAIBatchJobException,
     OpenAIBatchTimeout,
     OpenAITriggerEventError,
@@ -69,6 +72,11 @@ _ASSISTANTS_DEPRECATION_REASON = (
     "Use the Responses API (create_response) and Conversations API (create_conversation) instead. "
     "See https://platform.openai.com/docs/guides/migrate-to-responses."
 )
+
+#: Generic type variable for the Pydantic model used as the ``text_format`` in structured-output
+#: Responses API calls. Mirrors the SDK's ``TextFormatT`` so ``parse_response`` returns a
+#: ``ParsedResponse[T]`` — callers get ``output_parsed`` typed as ``T | None``.
+_TextFormatT = TypeVar("_TextFormatT", bound="BaseModel")
 
 
 class BatchStatus(str, Enum):
@@ -94,6 +102,42 @@ class BatchStatus(str, Enum):
 
 #: Statuses the provider's trigger emits in its terminal event.
 TRIGGER_EVENT_STATUSES = frozenset({"success", "error", "cancelled"})
+
+
+class TerminationReason(str, Enum):
+    """Enum for the ``termination_reason`` field of a trigger's terminal event."""
+
+    TIMEOUT = "timeout"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    EXPIRED = "expired"
+    UNEXPECTED_STATUS = "unexpected_status"
+    POLLING_ERROR = "polling_error"
+
+
+# Maps the trigger's ``termination_reason`` field to the exception ``execute_complete``
+# should raise. Keyed on the reason field, never on the message text, so that a
+# rewording of the trigger's message never silently changes which exception a
+# downstream task can catch.
+_TERMINATION_REASON_EXCEPTIONS: dict[str, type[AirflowException]] = {
+    TerminationReason.TIMEOUT: OpenAIBatchTimeout,
+    TerminationReason.CANCELLED: OpenAIBatchCancelled,
+}
+
+
+def build_batch_error(message: str, termination_reason: str | None) -> AirflowException:
+    """
+    Build (but do not raise) the exception matching a trigger event's termination reason.
+
+    ``termination_reason`` is ``None`` when the event was produced by a trigger
+    serialized before this field existed (a rolling upgrade in flight); that case
+    falls back to ``OpenAIBatchJobException``, matching today's behavior.
+    """
+    if termination_reason is None:
+        return OpenAIBatchJobException(message)
+    exception_class = _TERMINATION_REASON_EXCEPTIONS.get(termination_reason, OpenAIBatchJobException)
+    return exception_class(message)
 
 
 def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -271,6 +315,31 @@ class OpenAIHook(BaseHook):
         :param model: ID of the model to use.
         """
         return self.conn.responses.create(model=model, input=input, **kwargs)
+
+    def parse_response(
+        self,
+        input: Any,
+        model: str = "gpt-4o-mini",
+        *,
+        text_format: type[_TextFormatT],
+        **kwargs: Any,
+    ) -> ParsedResponse[_TextFormatT]:
+        """
+        Create a model response and parse it into a Pydantic model via the Responses API.
+
+        Wraps :py:meth:`openai.resources.responses.Responses.parse`. The SDK converts
+        ``text_format`` into a JSON schema, sends it as a structured-output request, and
+        returns a :class:`~openai.types.responses.ParsedResponse` whose ``output_parsed``
+        attribute is an instance of ``text_format``, or ``None`` when the response carries no
+        parsed output (for example a refusal).
+
+        :param input: Text, image, or file input(s) to the model.
+        :param model: ID of the model to use.
+        :param text_format: A Pydantic ``BaseModel`` subclass describing the expected
+            structured output. Keyword-only, as in the SDK. The SDK converts it to a JSON schema
+            and sends the structured-output request.
+        """
+        return self.conn.responses.parse(input=input, model=model, text_format=text_format, **kwargs)
 
     def get_response(self, response_id: str, **kwargs: Any) -> Response:
         """
@@ -494,21 +563,39 @@ class OpenAIHook(BaseHook):
         run = self.conn.beta.threads.runs.update(thread_id=thread_id, run_id=run_id, **kwargs)
         return run
 
+    @overload
+    def create_embeddings(
+        self,
+        text: str | list[int],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[float]: ...
+
+    @overload
+    def create_embeddings(
+        self,
+        text: list[str] | list[list[int]],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[list[float]]: ...
+
     def create_embeddings(
         self,
         text: str | list[str] | list[int] | list[list[int]],
         model: str = "text-embedding-3-small",
         **kwargs: Any,
-    ) -> list[float]:
+    ) -> list[float] | list[list[float]]:
         """
         Generate embeddings for the given text using the given model.
 
         :param text: The text to generate embeddings for.
         :param model: The model to use for generating embeddings.
+        :return: One embedding for a single text or token array; one embedding per item for a batch.
         """
         response = self.conn.embeddings.create(model=model, input=text, **kwargs)
-        embeddings: list[float] = response.data[0].embedding
-        return embeddings
+        if isinstance(text, str) or (text and isinstance(text[0], int)):
+            return response.data[0].embedding
+        return [item.embedding for item in sorted(response.data, key=lambda item: item.index)]
 
     def upload_file(self, file: str, purpose: Literal["fine-tune", "assistants", "batch"]) -> FileObject:
         """
@@ -619,21 +706,29 @@ class OpenAIHook(BaseHook):
     def create_batch(
         self,
         file_id: str,
-        endpoint: Literal["/v1/chat/completions", "/v1/embeddings", "/v1/completions"],
+        endpoint: str,
         metadata: dict[str, str] | None = None,
         completion_window: Literal["24h"] = "24h",
+        **kwargs: Any,
     ) -> Batch:
         """
         Create a batch for a given model and files.
 
         :param file_id: The ID of the file to be used for this batch.
-        :param endpoint: The endpoint to use for this batch. Allowed values include:
-            '/v1/chat/completions', '/v1/embeddings', '/v1/completions'.
+        :param endpoint: The endpoint to use for this batch. Allowed values are determined by the
+            OpenAI Batch API; see https://platform.openai.com/docs/api-reference/batch/create for
+            the current list.
         :param metadata: A set of key-value pairs that can be attached to an object.
         :param completion_window: The time window for the batch to complete. Default is 24 hours.
         """
         batch = self.conn.batches.create(
-            input_file_id=file_id, endpoint=endpoint, metadata=metadata, completion_window=completion_window
+            input_file_id=file_id,
+            # endpoint is intentionally str (not the SDK's Literal) so templated values type-check;
+            # the OpenAI service validates the actual value.
+            endpoint=endpoint,  # type: ignore[arg-type]
+            metadata=metadata,
+            completion_window=completion_window,
+            **kwargs,
         )
         return batch
 
@@ -658,7 +753,12 @@ class OpenAIHook(BaseHook):
         start = time.monotonic()
         while True:
             if start + timeout < time.monotonic():
-                self.cancel_batch(batch_id=batch_id)
+                try:
+                    self.cancel_batch(batch_id=batch_id)
+                except Exception as e:
+                    self.log.warning(
+                        "Failed to request cancellation of batch %s after timeout: %s", batch_id, e
+                    )
                 raise OpenAIBatchTimeout(f"Timeout: OpenAI Batch {batch_id} is not ready after {timeout}s")
             batch = self.get_batch(batch_id=batch_id)
 
@@ -670,10 +770,10 @@ class OpenAIHook(BaseHook):
             if batch.status == BatchStatus.FAILED:
                 raise OpenAIBatchJobException(f"Batch failed - \n{batch_id}")
             if batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
-                raise OpenAIBatchJobException(f"Batch failed - batch was cancelled:\n{batch_id}")
+                raise OpenAIBatchCancelled(f"Batch failed - batch was cancelled:\n{batch_id}")
             if batch.status == BatchStatus.EXPIRED:
                 raise OpenAIBatchJobException(
-                    f"Batch failed - batch couldn't be completed within the hour time window :\n{batch_id}"
+                    f"Batch failed - batch couldn't be completed within its completion window:\n{batch_id}"
                 )
 
             raise OpenAIBatchJobException(
@@ -688,3 +788,69 @@ class OpenAIHook(BaseHook):
         """
         batch = self.conn.batches.cancel(batch_id=batch_id)
         return batch
+
+    #: Consecutive ``poll_agent_session`` failures tolerated before an agent wait gives up.
+    MAX_CONSECUTIVE_POLL_FAILURES = 3
+
+    @cached_property
+    def _managed_agents(self) -> Any:
+        agents = getattr(self.conn.beta, "agents", None)
+        if agents is None:
+            raise OpenAIAgentSessionError(
+                "Managed Agents requires openai>=3.13.0. Upgrade the OpenAI SDK on workers and triggerers."
+            )
+        return agents
+
+    def create_agent(self, **kwargs: Any) -> Any:
+        """Create a reusable Managed Agent using the SDK's agent configuration arguments."""
+        return self._managed_agents.create(**kwargs)
+
+    def create_agent_session(self, *, input: str, environment: dict[str, Any], **kwargs: Any) -> Any:
+        """Create a fresh Managed Agents session and submit its initial turn."""
+        if "stream" in kwargs:
+            raise ValueError("create_agent_session does not support streaming")
+        return self._managed_agents.sessions.create(
+            input=input, environment=environment, stream=False, **kwargs
+        )
+
+    def get_agent_session(self, session_id: str) -> Any:
+        """Retrieve a Managed Agents session, including required actions and usage."""
+        return self._managed_agents.sessions.retrieve(session_id)
+
+    def cancel_agent_session(self, session_id: str) -> None:
+        """Request cancellation of the session's active turn, preserving its history and artifacts."""
+        self._managed_agents.sessions.events.create(
+            session_id, events=[{"type": "agent.session.input.cancel"}]
+        )
+
+    def poll_agent_session(self, session_id: str) -> dict[str, Any] | None:
+        """
+        Check the first turn of a fresh, exclusively owned session.
+
+        Return a terminal result, or ``None`` while waiting. An idle session without
+        a visible turn is not completion: the submitted input may still be queued.
+        This helper must not be used to wait for subsequent turns of a reused session.
+        """
+        session = self.get_agent_session(session_id)
+        turns = self._managed_agents.sessions.turns.list(session_id, order="asc", limit=1)
+        turn = turns.data[0] if turns.data else None
+        result: dict[str, Any] = {"session_id": session_id}
+        if turn is not None:
+            result["turn_id"] = turn.id
+            result["usage"] = turn.usage.model_dump(mode="json") if turn.usage is not None else None
+            if turn.status == "completed":
+                return {**result, "status": "success"}
+            if turn.status in {"failed", "cancelled"}:
+                message = f"Agent turn {turn.id} {turn.status}"
+                if turn.error is not None:
+                    message += f" ({turn.error.code}): {turn.error.message}"
+                return {**result, "status": "error", "message": message}
+        if session.status == "failed":
+            return {**result, "status": "error", "message": f"Agent session failed: {session.error}"}
+        if any(action.type == "function_call" for action in session.required_actions):
+            return {
+                **result,
+                "status": "error",
+                "message": "The agent requested a client-side function tool. Use server-side tools with this operator.",
+            }
+        return None

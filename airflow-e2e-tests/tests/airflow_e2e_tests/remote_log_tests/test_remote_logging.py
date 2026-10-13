@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -37,7 +37,7 @@ class TestRemoteLogging:
         self.airflow_client.un_pause_dag(TestRemoteLogging.dag_id)
 
         resp = self.airflow_client.trigger_dag(
-            TestRemoteLogging.dag_id, json={"logical_date": datetime.now(timezone.utc).isoformat()}
+            TestRemoteLogging.dag_id, json={"logical_date": datetime.now(UTC).isoformat()}
         )
         state = self.airflow_client.wait_for_dag_run(
             dag_id=TestRemoteLogging.dag_id,

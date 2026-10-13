@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from datadog import api
@@ -48,6 +48,8 @@ class DatadogSensor(BaseSensorOperator):
         'pass' and False otherwise.
     :param response_check: Callable[[dict[str, Any]], bool] | None
     """
+
+    template_fields: Sequence[str] = ("datadog_conn_id",)
 
     ui_color = "#66c3dd"
 

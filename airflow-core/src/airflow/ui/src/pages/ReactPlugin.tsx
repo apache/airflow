@@ -35,6 +35,8 @@ import type {
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
 
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
+
 import { ErrorPage } from "./Error";
 
 export type PluginProps = {
@@ -88,6 +90,7 @@ export const loadPlugin = (
 
 export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse }) => {
   const { assetId, dagId, mapIndex, runId, taskId } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
 
   // Context objects are not part of the route, so resolve them from the query cache. Each query
   // is gated on the route params it needs, so it stays disabled where those params are absent
@@ -111,6 +114,7 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
     {
+      ...coordinates,
       dagId: dagId ?? "",
       dagRunId: runId ?? "",
       mapIndex: mapIndex === undefined ? -1 : parseInt(mapIndex, 10),

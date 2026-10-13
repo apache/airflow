@@ -40,14 +40,14 @@ class TelegramOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:TelegramOperator`
 
-    :param telegram_conn_id: Telegram connection ID which its password is Telegram API token
+    :param telegram_conn_id: Telegram connection ID which its password is Telegram API token. (templated)
     :param token: Telegram API Token
     :param chat_id: Telegram chat ID for a chat/channel/group
     :param text: Message to be sent on telegram
     :param telegram_kwargs: Extra args to be passed to telegram client
     """
 
-    template_fields: Sequence[str] = ("text", "chat_id")
+    template_fields: Sequence[str] = ("text", "chat_id", "telegram_conn_id")
     ui_color = "#FFBA40"
 
     def __init__(
@@ -96,14 +96,14 @@ class TelegramFileOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:TelegramOperator`
 
-    :param telegram_conn_id: Telegram connection ID which its password is Telegram API token
+    :param telegram_conn_id: Telegram connection ID which its password is Telegram API token. (templated)
     :param token: Telegram API Token
     :param chat_id: Telegram chat ID for a chat/channel/group
     :param file: The path of the file or media to be sent via Telegram
     :param telegram_kwargs: Extra args to be passed to telegram client
     """
 
-    template_fields: Sequence[str] = ("chat_id",)
+    template_fields: Sequence[str] = ("chat_id", "telegram_conn_id")
     ui_color = "#FFBA40"
 
     def __init__(

@@ -73,6 +73,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         "store_to_xcom_key",
         "impersonation_chain",
         "file_encoding",
+        "gcp_conn_id",
     )
     ui_color = "#f0eee4"
 

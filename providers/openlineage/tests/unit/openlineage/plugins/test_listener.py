@@ -37,10 +37,16 @@ from openlineage.client.transport.console import ConsoleConfig
 from uuid6 import uuid7
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.providers.common.compat.sdk import AirflowTaskTimeout, BaseOperator, timezone
+from airflow.providers.common.compat.sdk import (
+    AirflowTaskTimeout,
+    BaseOperator,
+    BaseSensorOperator,
+    timezone,
+)
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
+from airflow.providers.openlineage.plugins.macros import lineage_run_id
 from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 from airflow.utils import types
@@ -55,6 +61,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 EXPECTED_TRY_NUMBER_1 = 1
@@ -1133,6 +1140,75 @@ class TestOpenLineageListenerAirflow2:
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 tests")
 class TestOpenLineageListenerAirflow3:
+    @pytest.mark.parametrize("state", ["success", "failed", "skipped"])
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+    def test_manual_regional_event_uses_same_execution_uuid(self, mocker, state):
+        from airflow.sdk import DAG, task_group
+        from airflow.sdk.definitions._internal.loop import create_loop
+
+        listener, ti = self._create_listener_and_task_instance(runtime_ti=False)
+        listener._executor = mocker.Mock(spec=ProcessPoolExecutor)
+        listener.adapter.build_dag_run_id.side_effect = OpenLineageAdapter.build_dag_run_id
+        listener.adapter.build_task_instance_run_id.side_effect = (
+            OpenLineageAdapter.build_task_instance_run_id
+        )
+        with DAG("loop_dag") as loop_dag:
+
+            @task_group
+            def body():
+                EmptyOperator(task_id="work")
+
+            create_loop(body, max_iterations=2)
+        ti.task = loop_dag.get_task("body.work")
+        ti.region_id = uuid.uuid4()
+        ti.region_index = 2
+        mocker.patch(
+            "airflow.providers.openlineage.plugins.listener.get_airflow_run_facet",
+            autospec=True,
+            return_value={},
+        )
+        submit = mocker.patch.object(listener, "submit_callable", autospec=True)
+
+        listener._on_task_instance_manual_state_change(ti, ti.dag_run, state)
+
+        assert submit.call_args.kwargs["run_id"] == str(ti.id)
+        listener.adapter.build_task_instance_run_id.assert_not_called()
+
+    @pytest.mark.parametrize("state", ["running", "success", "failed", "skipped"])
+    @pytest.mark.parametrize("map_index", [-1, 2])
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_regional_listener_events_share_macro_execution_identity(self, state, map_index):
+        from airflow.sdk import DAG, task_group
+        from airflow.sdk.definitions._internal.loop import create_loop
+
+        listener, ti = self._create_listener_and_task_instance()
+        with DAG("loop_dag") as loop_dag:
+
+            @task_group
+            def body():
+                EmptyOperator(task_id="work")
+
+            create_loop(body, max_iterations=2)
+        ti.task = loop_dag.get_task("body.work")
+        listener.adapter.build_dag_run_id.side_effect = OpenLineageAdapter.build_dag_run_id
+        listener.adapter.build_task_instance_run_id.side_effect = (
+            OpenLineageAdapter.build_task_instance_run_id
+        )
+        ti.region_id = uuid.uuid4()
+        ti.region_index = 2
+        ti.map_index = map_index
+        kwargs = {"error": ValueError("test")} if state == "failed" else {}
+
+        getattr(listener, f"on_task_instance_{state}")(None, ti, **kwargs)
+
+        method = {"running": "start_task", "failed": "fail_task"}.get(state, "complete_task")
+        assert getattr(listener.adapter, method).call_args.kwargs["run_id"] == str(ti.id)
+        assert lineage_run_id(ti) == str(ti.id)
+        listener.adapter.build_task_instance_run_id.assert_not_called()
+
     @pytest.mark.skip("Rendering fields is not migrated yet in Airflow 3")
     @patch("airflow.models.BaseOperator.render_template")
     def test_listener_does_not_change_task_instance(self, render_mock, mock_supervisor_comms, spy_agency):
@@ -2308,6 +2384,64 @@ class TestOpenLineageListenerAirflow3:
             try_number=1,
             map_index=-1,
         )
+
+    @pytest.mark.parametrize(
+        ("sensor_mode", "task_reschedule_count", "should_emit_start"),
+        [
+            pytest.param("reschedule", 0, True, id="sensor_first_poke_emits_start"),
+            pytest.param("reschedule", 3, False, id="sensor_later_poke_skips_start"),
+            pytest.param("poke", 3, True, id="poke_sensor_ignores_reschedule_rows"),
+            pytest.param(None, 3, True, id="non_sensor_with_reschedule_rows_still_emits"),
+        ],
+    )
+    @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_on_task_instance_running_skips_start_event_only_for_rescheduled_sensors(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+        sensor_mode,
+        task_reschedule_count,
+        should_emit_start,
+    ):
+        """Only a reschedule-mode sensor may have its repeat START suppressed.
+
+        Such a sensor re-runs to poke again without incrementing ``try_number``, so the run id is
+        unchanged and a second START would show consumers the same run entering RUNNING twice. Any
+        operator can accumulate ``TaskReschedule`` rows though, because a missing-Dag startup failure
+        writes them before any listener hook fires, and those attempts have emitted nothing yet.
+        """
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_airflow_mapped_task_facet.return_value = {}
+        mock_get_user_provided_run_facets.return_value = {}
+        mock_get_airflow_run_facet.return_value = {}
+        mock_get_task_parent_run_facet.return_value = {}
+        mock_debug_facet.return_value = {}
+        if sensor_mode is not None:
+            task_instance.task = BaseSensorOperator(  # type: ignore[assignment]
+                task_id="sensor_task", dag=task_instance.task.dag, mode=sensor_mode
+            )
+        task_instance._ti_context_from_server.task_reschedule_count = task_reschedule_count
+
+        listener.on_task_instance_running(None, task_instance)
+
+        if should_emit_start:
+            listener.adapter.start_task.assert_called_once()
+        else:
+            # Stopped at the guard rather than failing somewhere later in the emission path.
+            listener.adapter.build_dag_run_id.assert_not_called()
+            listener.adapter.start_task.assert_not_called()
 
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call

@@ -29,6 +29,8 @@ sys.path.insert(0, str(Path("airflow-core/src").resolve()))
 
 import httpx
 
+# Keep this import compatible with the target branch: the version check runs this
+# generator against both checkouts.
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
 app = InProcessExecutionAPI()

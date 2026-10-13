@@ -26,7 +26,9 @@ __all__ = [
     "AssetAlias",
     "AssetAll",
     "AssetAny",
+    "AssetAndTimeSchedule",
     "AssetOrTimeSchedule",
+    "AssetTriggeredTimetable",
     "AssetWatcher",
     "AsyncCallback",
     "BaseAsyncOperator",
@@ -40,6 +42,7 @@ __all__ = [
     "BaseXCom",
     "BranchMixIn",
     "ChainMapper",
+    "ChainRetryPolicy",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -196,6 +199,7 @@ if TYPE_CHECKING:
         YearWindow,
     )
     from airflow.sdk.definitions.retry_policy import (
+        ChainRetryPolicy,
         ExceptionRetryPolicy,
         RetryAction,
         RetryDecision,
@@ -205,7 +209,9 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
+        AssetAndTimeSchedule,
         AssetOrTimeSchedule,
+        AssetTriggeredTimetable,
         PartitionedAssetTimetable,
         PartitionedAtRuntime,
     )
@@ -235,8 +241,10 @@ __lazy_imports: dict[str, str] = {
     "AssetAccessControl": ".definitions.asset",
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
+    "AssetAndTimeSchedule": ".definitions.timetables.assets",
     "AssetAny": ".definitions.asset",
     "AssetOrTimeSchedule": ".definitions.timetables.assets",
+    "AssetTriggeredTimetable": ".definitions.timetables.assets",
     "AssetWatcher": ".definitions.asset",
     "AsyncCallback": ".definitions.callback",
     "BaseAsyncOperator": ".bases.operator",
@@ -250,6 +258,7 @@ __lazy_imports: dict[str, str] = {
     "BaseXCom": ".bases.xcom",
     "BranchMixIn": ".bases.branch",
     "ChainMapper": ".definitions.partition_mappers.chain",
+    "ChainRetryPolicy": ".definitions.retry_policy",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",

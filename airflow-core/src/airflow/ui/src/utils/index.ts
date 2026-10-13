@@ -19,7 +19,9 @@
 
 export { capitalize } from "./capitalize";
 export { createErrorToaster, getErrorStatus } from "./errorHandling";
+export { formatNumber } from "./formatNumber";
 export { getMetaKey } from "./getMetaKey";
+export { hasDagRunConfig } from "./hasDagRunConfig";
 export { toNullablePartitionKey } from "./partitionKey";
 export { useContainerWidth } from "./useContainerWidth";
 export { useDocumentTitle } from "./useDocumentTitle";

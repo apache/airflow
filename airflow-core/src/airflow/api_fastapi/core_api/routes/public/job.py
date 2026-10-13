@@ -28,6 +28,8 @@ from airflow.api_fastapi.common.db.common import (
 )
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
+    QueryJobIsAliveFilter,
+    QueryJobTeamsFilter,
     QueryLimit,
     QueryOffset,
     RangeFilter,
@@ -101,7 +103,8 @@ def get_jobs(
         FilterParam[str | None],
         Depends(filter_param_factory(Job.executor_class, str | None, filter_name="executor_class")),
     ],
-    is_alive: bool | None = None,
+    teams: QueryJobTeamsFilter,
+    is_alive: QueryJobIsAliveFilter,
 ) -> JobCollectionResponse:
     """Get all jobs."""
     base_select = select(Job).order_by(Job.latest_heartbeat.desc()).options(joinedload(Job.dag_model))
@@ -116,6 +119,8 @@ def get_jobs(
             job_type,
             hostname,
             executor_class,
+            teams,
+            is_alive,
         ],
         order_by=order_by,
         limit=limit,
@@ -124,9 +129,6 @@ def get_jobs(
         return_total_entries=True,
     )
     jobs = session.scalars(jobs_select).all()
-
-    if is_alive is not None:
-        jobs = [job for job in jobs if job.is_alive()]
 
     return JobCollectionResponse(
         jobs=jobs,

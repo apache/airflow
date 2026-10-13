@@ -38,7 +38,7 @@ Task and Asset state store provide two key/value stores to persist data like a j
      - Default lifetime
      - Primary use case
    * - **Task state store**
-     - A single task Instance (``dag_id`` + ``run_id`` + ``task_id`` + ``map_index``)
+     - A single task Instance (``dag_id`` + ``run_id`` + ``task_id`` + ``region_id`` + ``region_index``)
      - Configurable retention; cleared on task success when ``clear_on_success = True``
      - Survive retries, track in-flight jobs, checkpoint progress within a run, resume progress from checkpoint set by a past run
    * - **Asset state store**

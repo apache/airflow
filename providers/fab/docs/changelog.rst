@@ -20,6 +20,77 @@
 Changelog
 ---------
 
+3.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop rebuilding the FAB app on every users and roles API call (#73104)``
+* ``Set 'SameSite' on the fab auth manager session cookie (#73894)``
+
+Misc
+~~~~
+
+* ``Update eslint to 10.12.0 and moment-timezone to 0.6.5 (#74418)``
+* ``Drop support for Python 3.10 (#74157)``
+* ``Bump stylelint to 17.16.0 (#74252)``
+* ``Bump prettier to 3.9.9 (#73857)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Add an API endpoint and UI tab comparing two stored Dag versions (#73322)``
+* ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+* ``UI: Add bulk pause, drain and unpause actions to the Dags list (#73055)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+3.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Reset Password button to Edit User view (#70243)``
+* ``Add REPARSE_ALL permission for reparsing files with no registered Dag (#73274)``
+* ``Gate the Dag Bundles menu entry on the FAB DAGs resource so it appears for FAB deployments (#72909)``
+* ``Add FAB option to log users out after a maximum session lifetime (#72825)``
+* ``Add declarative configuration for FAB custom roles (#72820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep sync-perm going when a Dag has bad access_control (#71798)``
+* ``Fix FAB migration failing on MySQL under the pymysql driver (#73220)``
+* ``Fix airflow roles import crash on a role without permissions (#72796)``
+* ``Fix FabAuthManager.get_url_login() dropping next_url (#73134)``
+* ``Fix FAB FastAPI PATCH users to respect FAB_PASSWORD_HASH_METHOD (#73110)``
+* ``Fix invalid command path in permissions-cleanup help examples (#73028)``
+* ``Close the session after the FAB permissions collection read (#72950)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.11.0 (#73630)``
+* ``Bump the @babel packages to 8.0.6, prettier to 3.9.8, webpack to 5.111.1, moment to 2.31.0 and moment-timezone to 0.6.4 (#73207, #73467, #73566)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the permissions for the Dag bundle detail and bundle files API endpoints (#73009)``
+* ``Render the database ERD as a searchable Mermaid diagram instead of an image (#72006)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Add TypedDict type hints for AirflowPlugin list fields (#69761)``
+
 3.9.0
 .....
 

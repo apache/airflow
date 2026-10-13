@@ -19,13 +19,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_request
-from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 
 if TYPE_CHECKING:
@@ -38,6 +37,11 @@ class LLMFileAnalysisOperator(LLMOperator):
     """
     Analyze files from object storage or local storage using a single LLM call.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The operator resolves ``file_path`` via
     :class:`~airflow.providers.common.compat.sdk.ObjectStoragePath`, normalizes
     supported formats into text context, and optionally attaches images/PDFs as
@@ -47,6 +51,13 @@ class LLMFileAnalysisOperator(LLMOperator):
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field. ``None`` (default) reads the
+        connection's own extra field; an explicit ``[]`` disables a chain
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: Additional instructions appended to the built-in
         file-analysis system prompt.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
@@ -70,9 +81,13 @@ class LLMFileAnalysisOperator(LLMOperator):
         read from storage and ``max_text_chars`` limits the final prompt text
         budget. Default ``10``.
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
-    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
     The task pauses after the file analysis and only returns the result once a
     reviewer approves.
     """
@@ -82,6 +97,9 @@ class LLMFileAnalysisOperator(LLMOperator):
         "file_path",
         "file_conn_id",
     )
+
+    # Runs its own execute() without the confidence gate; a decision_policy is rejected at construction.
+    supports_decision_policy: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -120,6 +138,11 @@ class LLMFileAnalysisOperator(LLMOperator):
     def execute(self, context: Context) -> Any:
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
+        if not isinstance(self.prompt, str):
+            raise TypeError(
+                f"{type(self).__name__} requires a string prompt (got {type(self.prompt).__name__}). "
+                "Supply images or PDFs via file_path with multi_modal=True instead."
+            )
 
         request = build_file_analysis_request(
             file_path=self.file_path,
@@ -150,8 +173,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             instructions=self._build_system_prompt(),
             **self.agent_params,
         )
-        result = agent.run_sync(request.user_content, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        result = self._run_llm(context, agent, request.user_content, usage_limits=usage_limits)
         output = result.output
 
         if self.require_approval:
@@ -164,6 +186,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             # so the dump step has to be repeated here.
             output = output.model_dump()
 
+        self._clear_usage_budget(context)
         return output
 
     def _build_system_prompt(self) -> str:

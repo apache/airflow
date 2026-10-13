@@ -130,7 +130,7 @@ Filter → "Filter"
 **DO:**
 
 - Maintain the "je" (informal) address style.
-- Preserve all i18next placeholders: `{{count}}`, `{{dagId}}`, etc.
+- Preserve all i18next placeholders: `{{count, number}}`, `{{dagId}}`, etc.
 - Use "Wachtrij" for technical queues.
 - Use "Planning" for schedules.
 - Provide both `_one` and `_other` plural forms.

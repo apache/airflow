@@ -65,6 +65,7 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "body_request",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -135,6 +136,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         "bucket_name",
         "object_name",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(

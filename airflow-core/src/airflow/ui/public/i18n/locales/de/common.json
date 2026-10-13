@@ -27,6 +27,7 @@
   "breadcrumb": "Brotkrümel",
   "browse": {
     "auditLog": "Prüf-Log",
+    "dagBundles": "Dag Bündel",
     "deadlines": "Fristen",
     "jobs": "Jobs",
     "requiredActions": "Erforderliche Interaktionen",
@@ -39,7 +40,10 @@
   "createdAssetEvent_other": "Erstellte Ereignisse zu Datensets (Assets)",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag Bündel",
+  "dagBundle_other": "Dag Bündel",
   "dagDetails": {
+    "activeRuns": "Aktive Läufe",
     "catchup": "Nachgeholt",
     "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
     "defaultArgs": "Standard-Parameter",
@@ -140,12 +144,15 @@
   "filter": "Filter",
   "filters": {
     "addFilter": "Filter hinzufügen",
+    "completedAt": "Fertiggestellt um",
     "date": "Datum",
     "durationFrom": "Laufzeit Von",
     "durationTo": "Laufzeit Bis",
     "endTime": "Endzeitpunkt",
     "logicalDateFrom": "Logisches Datum Von",
     "logicalDateTo": "Logisches Datum Bis",
+    "maxActiveRunsFrom": "Maximale aktive Läufe von",
+    "maxActiveRunsTo": "Maximale aktive Läufe bis",
     "removeFilter": "Filter entfernen",
     "runAfterFrom": "Gelaufen-nach von filtern",
     "runAfterTo": "Gelaufen-nach bis filtern",
@@ -161,6 +168,11 @@
   "generateToken": "Zugriffstoken erzeugen",
   "includedIn": "Enthalten in",
   "key": "Schlüssel",
+  "logLevel": {
+    "hide": "Log Stufe ausblenden",
+    "hotkey": "l",
+    "show": "Log Stufe anzeigen"
+  },
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
@@ -187,6 +199,7 @@
     "plugins": "Plug-ins",
     "security": "Sicherheit"
   },
+  "no": "Nein",
   "noItemsFound": "Kein Element vom Typ {{modelName}} gefunden",
   "note": {
     "add": "Eine Notiz hinzufügen",
@@ -207,8 +220,8 @@
     "receivedAssetEvents": "Empfangene Datenset (Asset) Ereignisse"
   },
   "pause": "Pausieren",
-  "pendingDagRun_one": "{{count}} ausstehender Dag Lauf",
-  "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
+  "pendingDagRun_one": "{{count, number}} ausstehender Dag Lauf",
+  "pendingDagRun_other": "{{count, number}} ausstehende Dag Läufe",
   "presetFilters": {
     "deleteTitle": "Gespeicherten Filter löschen",
     "deleteWarning": "Gespeicherte Filter werden nur in diesem Browser gespeichert.",
@@ -259,6 +272,10 @@
   "selected": "Ausgewählt",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "Mit dieser Option werden Aufgabenstatus Einträge beim Zurücksetzen beibehalten, anstatt die Einträge zu löschen.",
+        "label": "Aufgabenstatus beim Zurücksetzen beibehalten"
+      },
       "preventRunningTask": {
         "helper": "Laufende Tasks beim Löschen von Task Instanzen überspringen.",
         "label": "Löschen laufender Tasks verhindern"
@@ -290,6 +307,10 @@
         "helper": "Ausrichtung für Dag- und Datenset-(Asset)-Graphen, für die Sie keine individuelle Ausrichtung festgelegt haben.",
         "label": "Standardausrichtung des Graphen"
       },
+      "taskGroupsExpanded": {
+        "helper": "Taskgruppen automatisch erweitern, wenn keine Gruppe selektioniert wurde. Bestehende Selektionen bleiben bestehen.",
+        "label": "Taskgruppen erweitern als Standard"
+      },
       "title": "Graph"
     },
     "marking": {
@@ -298,6 +319,13 @@
         "label": "Standardauswahl zum Markieren"
       },
       "title": "Markieren"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Suchleisten-Auswahl und geteilte Links haben Priorität.",
+        "label": "Überall treffen (Standard)"
+      },
+      "title": "Suchen"
     },
     "taskInstance": {
       "defaultTab": {
@@ -341,6 +369,7 @@
       "toggleExpand": "Alle Gruppen ein- oder ausklappen",
       "toggleFullscreen": "Vollbild umschalten",
       "toggleGraphGrid": "Zwischen Graph- und Gitteransicht wechseln",
+      "toggleLogLevel": "Loglevel umschalten",
       "toggleSource": "Quelle umschalten",
       "toggleTaskGroup": "$t(taskGroup_one) ein- oder ausklappen",
       "toggleTimestamp": "Zeitstempel umschalten",
@@ -437,6 +466,11 @@
     "queuedWhen": "Wartend seit",
     "renderedMapIndex": "Planungs-Index Anzeige",
     "scheduledWhen": "Geplant ab",
+    "stateReason": "Grund für den Status",
+    "stateReasonSummary": {
+      "failed": "Gestoppt bei Versuch {{tryNumber}} von {{totalTries}}",
+      "upForRetry": "Wiederversuch nach Versuch {{tryNumber}} von {{totalTries}}"
+    },
     "trigger": "Auslöser",
     "triggerer": {
       "assigned": "Zugewiesene Abrufumgebung",
@@ -452,15 +486,20 @@
   "taskInstance_one": "Task Instanz",
   "taskInstance_other": "Task Instanzen",
   "teams": {
-    "more_one": "und {{count}} weitere",
-    "more_other": "und {{count}} weitere",
+    "more_one": "und {{count, number}} weitere",
+    "more_other": "und {{count, number}} weitere",
     "none": "Kein Team",
     "title": "Teams"
   },
   "timeRange": {
+    "anyTime": "Jederzeit",
+    "in": "in",
+    "last7Days": "Letzte 7 Tage",
     "last12Hours": "Letzte 12 Stunden",
     "last24Hours": "Letzte 24 Stunden",
+    "last30Days": "Letzte 30 Tage",
     "lastHour": "Letzte Stunde",
+    "latestRun": "Letzter Lauf",
     "pastWeek": "Letzte Woche"
   },
   "timestamp": {
@@ -479,21 +518,21 @@
     "bulkClear": {
       "error": "Fehler beim Zurücksetzen von {{resourceName}}",
       "success": {
-        "description": "{{count}} von {{resourceName}} wurden erfolgreich zurückgesetzt. Schlüsselwerte: {{keys}}",
+        "description": "{{count, number}} von {{resourceName}} wurden erfolgreich zurückgesetzt. Schlüsselwerte: {{keys}}",
         "title": "Zurücksetzen von {{resourceName}} gestartet"
       }
     },
     "bulkDelete": {
       "error": "Massenlöschung von {{resourceName}} fehlgeschlagen",
       "success": {
-        "description": "{{count}} von {{resourceName}} wurden erfolgreich gelöscht. Schlüsselwerte: {{keys}}",
+        "description": "{{count, number}} von {{resourceName}} wurden erfolgreich gelöscht. Schlüsselwerte: {{keys}}",
         "title": "Massenlöschung von {{resourceName}} gestartet"
       }
     },
     "bulkUpdate": {
       "error": "Fehler beim Aktualisieren von {{resourceName}}",
       "success": {
-        "description": "{{count}} von {{resourceName}} wurden erfolgreich aktualisiert. Schlüsselwerte: {{keys}}",
+        "description": "{{count, number}} von {{resourceName}} wurden erfolgreich aktualisiert. Schlüsselwerte: {{keys}}",
         "title": "Aktualisierung von {{resourceName}} gestartet"
       }
     },
@@ -514,7 +553,7 @@
     "import": {
       "error": "Import von {{resourceName}} fehlgeschlagen",
       "success": {
-        "description": "{{count}} {{resourceName}} wurden erfolgreich importiert.",
+        "description": "{{count, number}} {{resourceName}} wurden erfolgreich importiert.",
         "title": "Import von {{resourceName}} gestartet"
       }
     },
@@ -553,5 +592,6 @@
     "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",
     "unwrap": "Kein Zeilenumbruch",
     "wrap": "Zeilenumbruch"
-  }
+  },
+  "yes": "Ja"
 }
