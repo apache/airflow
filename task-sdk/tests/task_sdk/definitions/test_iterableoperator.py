@@ -43,6 +43,7 @@ from airflow.sdk import (
     get_current_context,
 )
 from airflow.sdk.bases.operator import ExecutorSafeguard, event_loop
+from airflow.sdk.bases.xcom import XComIterable
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
@@ -73,6 +74,7 @@ from airflow.sdk.exceptions import (
 from airflow.sdk.execution_time.comms import DeadlockImminentError
 from airflow.sdk.execution_time.context import InletEventsAccessors, OutletEventAccessors
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor
+from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.task_runner import (
     IndexedTaskInstance,
     IndexedTaskRunner,
@@ -4140,6 +4142,64 @@ class TestFingerprintCoversPartialInputsFromUpstream:
             "op_args[0]": "rendered-0",
             "op_args[2][0]": "rendered-2-0",
         }
+
+    @pytest.mark.parametrize(
+        ("retry_items", "runs_again"),
+        [([1, 3], True), ([1, 2], False)],
+        ids=["same-length-other-items", "same-items"],
+    )
+    def test_an_iterated_upstream_counts_by_its_items(self, retry_items, runs_again):
+        """
+        An iterated upstream hands its values as an ``XComIterable``, whose serialized form holds no item:
+        cleared and run again with other items of the same length, it must still make the checkpoint stale.
+        """
+        # The same upstream task instance in both attempts, so the same handle: only the items differ.
+        first = XComIterable(task_id="upstream", dag_id="test_dag", run_id="run", length=2)
+        retry = XComIterable(task_id="upstream", dag_id="test_dag", run_id="run", length=2)
+        items = {id(first): [1, 2], id(retry): retry_items}
+        original_iter = XComIterable.__iter__
+
+        def upstream_items(self):
+            return iter(items[id(self)]) if id(self) in items else original_iter(self)
+
+        with patch.object(XComIterable, "__iter__", upstream_items):
+            runs, _ = self._run_twice(retry, arg2_first=first)
+
+        assert ((2, 1) in runs) is runs_again
+
+    @pytest.mark.parametrize(
+        "lazy",
+        [
+            pytest.param(XComIterable(task_id="upstream", dag_id="d", run_id="r", length=2), id="iterated"),
+            pytest.param(LazyXComSequence(xcom_arg=Mock(), ti=Mock()), id="mapped"),
+        ],
+    )
+    def test_a_lazy_upstream_value_is_read_once_per_run_and_digested_by_its_items(self, lazy):
+        """Every index of a run gets the digest the first one took; another run reads the upstream again."""
+        reads = []
+        items = [[1, 2]]
+
+        def read_items(self):
+            reads.append(1)
+            return iter(items[0])
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([{"arg1": "a"}]))
+        iterable_op.partial_kwargs = {"arg2": make_xcom_arg(None)}
+        rendered = SimpleNamespace(arg2=lazy)
+
+        with patch.object(type(lazy), "__iter__", read_items):
+            first_run = [
+                iterable_op._collect_partial_inputs_from_upstream(rendered)["arg2"] for _ in range(3)
+            ]
+            iterable_op._state = IterationState()
+            items[0] = [1, 3]
+            second_run = iterable_op._collect_partial_inputs_from_upstream(rendered)["arg2"]
+
+        assert len(reads) == 2
+        assert len(set(first_run)) == 1
+        assert isinstance(first_run[0], str)
+        assert second_run != first_run[0]
 
 
 CALLBACKS: list = []

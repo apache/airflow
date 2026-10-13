@@ -47,6 +47,7 @@ from airflow.sdk.exceptions import (
     TaskDeferred,
 )
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor
+from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.task_runner import (
     CheckpointDeserializationError,
     IndexedTaskInstance,
@@ -68,6 +69,11 @@ if TYPE_CHECKING:
 
 # The outcome an indexed task's step returns, kept as it is by keeps_failure_to_its_indexed_task.
 Outcome = TypeVar("Outcome")
+
+# The values an iterated or mapped upstream hands a partial kwarg: read lazily, one XCom per item, so
+# serde keeps only a handle of the first and fetches the whole of the second. The fingerprint digests
+# their items instead, once per run (see IterableOperator._digest_items).
+LAZY_UPSTREAM_VALUES = (XComIterable, LazyXComSequence)
 
 # The trigger rules under which one skipped upstream task instance skips a task, whatever the other
 # upstream task instances did (see TriggerRuleDep). A skipped iteration has the same effect on a
@@ -242,6 +248,10 @@ class IterationState:
         self._kill_threads: list[threading.Thread] = []
         #: The input resolved for this task instance, once ``aresolve`` returned.
         self.resolved: Resolved | None = None
+        #: The digest of each lazy upstream value a partial kwarg holds, by its path, taken once per
+        #: run by whichever indexed task asks first; see upstream_digest.
+        self._upstream_digests: dict[str, str | None] = {}
+        self._upstream_digests_lock = threading.Lock()
         #: Whether the operator the task iterates pushes its results, as built for an indexed task:
         #: an operator may set ``do_xcom_push`` in its own ``__init__``, not only through
         #: ``partial()``. The same for every indexed task; True until one is built.
@@ -301,6 +311,18 @@ class IterationState:
         deadline = time.monotonic() + timeout
         for thread in list(self._kill_threads):
             thread.join(max(0.0, deadline - time.monotonic()))
+
+    def upstream_digest(self, path: str, digest: Callable[[], str | None]) -> str | None:
+        """
+        Return the digest of the lazy upstream value at ``path``, taken with ``digest`` once per run.
+
+        Indexed tasks are created in worker threads, so the first one to ask reads the upstream while
+        the others wait for its digest instead of reading the upstream again.
+        """
+        with self._upstream_digests_lock:
+            if path not in self._upstream_digests:
+                self._upstream_digests[path] = digest()
+            return self._upstream_digests[path]
 
     def stop_requested(self) -> bool:
         """Whether :meth:`request_stop` was called; passed to the executor as its ``stop``."""
@@ -1406,6 +1428,25 @@ class IterableOperator(BaseOperator):
             self._collect_upstream_values(key, value, getattr(unmapped_task, key, None), inputs)
         return inputs
 
+    @staticmethod
+    def _digest_items(items: Iterable[Any]) -> str | None:
+        """
+        Digest the items of a lazy upstream value, read one at a time.
+
+        Each item is serialized on its own and fed to the hash followed by a newline, which JSON never
+        leaves unescaped inside a value, so no item is held longer than it takes to digest it. Two
+        upstream runs of the same length but other items give other digests. An item serde cannot
+        serialize leaves the value without a digest, as ``_compute_fingerprint`` does for an input.
+        """
+        digest = hashlib.sha256()
+        try:
+            for item in items:
+                digest.update(json.dumps(serialize(item), sort_keys=True).encode())
+                digest.update(b"\n")
+        except (TypeError, ValueError, AttributeError, RecursionError):
+            return None
+        return digest.hexdigest()
+
     @cached_property
     def _partial_kwargs_from_upstream(self) -> dict[str, Any]:
         """The partial kwargs holding an XComArg at any depth: the same for every index, so found once."""
@@ -1415,9 +1456,8 @@ class IterableOperator(BaseOperator):
             if any(XComArg.iter_xcom_references(value))
         }
 
-    @classmethod
     def _collect_upstream_values(
-        cls, path: str, declared: Any, rendered: Any, inputs: dict[str, Any]
+        self, path: str, declared: Any, rendered: Any, inputs: dict[str, Any]
     ) -> None:
         """
         Record under its path the rendered value of every XComArg in ``declared``, at any depth.
@@ -1425,14 +1465,19 @@ class IterableOperator(BaseOperator):
         ``declared`` is a partial kwarg as written in the DAG and ``rendered`` the same value once
         rendered, walked side by side: a mapping by key (``op_kwargs.cfg.x``), a list or tuple by
         position (``op_args[0]``). A part rendered into another shape than it was declared in is
-        recorded as None.
+        recorded as None. A lazy upstream value is recorded as the digest of its items, taken once
+        per run (see :meth:`IterationState.upstream_digest`).
         """
         if isinstance(declared, XComArg):
-            inputs[path] = rendered
+            inputs[path] = (
+                self._state.upstream_digest(path, partial(self._digest_items, rendered))
+                if isinstance(rendered, LAZY_UPSTREAM_VALUES)
+                else rendered
+            )
         elif isinstance(declared, Mapping):
             for name, nested in declared.items():
                 value = rendered.get(name) if isinstance(rendered, Mapping) else None
-                cls._collect_upstream_values(f"{path}.{name}", nested, value, inputs)
+                self._collect_upstream_values(f"{path}.{name}", nested, value, inputs)
         elif isinstance(declared, (list, tuple)):
             for position, nested in enumerate(declared):
                 value = (
@@ -1440,7 +1485,7 @@ class IterableOperator(BaseOperator):
                     if isinstance(rendered, (list, tuple)) and position < len(rendered)
                     else None
                 )
-                cls._collect_upstream_values(f"{path}[{position}]", nested, value, inputs)
+                self._collect_upstream_values(f"{path}[{position}]", nested, value, inputs)
 
     def _create_indexed_task(
         self,
