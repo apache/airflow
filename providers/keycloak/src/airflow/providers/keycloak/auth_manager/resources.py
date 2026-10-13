@@ -35,6 +35,7 @@ class KeycloakResource(Enum):
     CUSTOM = "Custom"
     DAG = "Dag"
     MENU = "Menu"
+    OP_VIEW = "OpView"
     POOL = "Pool"
     TEAM = "Team"
     VARIABLE = "Variable"

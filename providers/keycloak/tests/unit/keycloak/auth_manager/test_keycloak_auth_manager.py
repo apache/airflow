@@ -1033,9 +1033,21 @@ class TestKeycloakAuthManager:
             ("AUDIT_LOGS_ALL", "True", "AdminView#GET"),
             ("IMPORT_ERRORS_ALL", "True", "AdminView#GET"),
             ("REPARSE_ALL", "True", "AdminView#GET"),
-            ("AUDIT_LOGS_ALL", "False", "View#GET"),
+            ("AUDIT_LOGS_ALL", "False", "AdminView#GET"),
+            ("AUDIT_LOGS", "False", "AdminView#GET"),
+            ("IMPORT_ERRORS_ALL", "False", "AdminView#GET"),
+            ("REPARSE_ALL", "False", "AdminView#GET"),
+            ("TRIGGERS", "False", "AdminView#GET"),
+            ("TRIGGERS", "True", "View#GET"),
+            ("IMPORT_ERRORS", "False", "View#GET"),
             ("IMPORT_ERRORS", "True", "View#GET"),
             ("PLUGINS", "True", "View#GET"),
+            ("PROVIDERS", "True", "View#GET"),
+            ("PLUGINS", "False", "OpView#GET"),
+            ("PROVIDERS", "False", "OpView#GET"),
+            ("JOBS", "False", "View#GET"),
+            ("DOCS", "False", "View#GET"),
+            ("CLUSTER_ACTIVITY", "False", "View#GET"),
         ],
     )
     def test_is_authorized_view_resource(
@@ -1057,6 +1069,90 @@ class TestKeycloakAuthManager:
         auth_manager.http_session.post.assert_called_once_with(
             auth_manager._get_token_url("server_url", "realm"),
             data=payload,
+            headers=auth_manager._get_headers(user.access_token),
+            timeout=5,
+        )
+
+    @pytest.mark.parametrize(("multi_team", "resource_name"), [("False", "AdminView"), ("True", "Dag")])
+    @pytest.mark.parametrize("dag_id", [None, "test-dag"])
+    @pytest.mark.parametrize(("status_code", "expected"), [(200, True), (403, False)])
+    def test_is_authorized_dag_audit_log(
+        self, auth_manager, user, multi_team, resource_name, dag_id, status_code, expected
+    ):
+        resp = Mock(spec=["status_code"])
+        resp.status_code = status_code
+        auth_manager.http_session.post = Mock(return_value=resp)
+        details = DagDetails(id=dag_id) if dag_id else None
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            result = auth_manager.is_authorized_dag(
+                method="GET", access_entity=DagAccessEntity.AUDIT_LOG, details=details, user=user
+            )
+
+        attributes = {"dag_entity": "AUDIT_LOG"}
+        if dag_id:
+            attributes[RESOURCE_ID_ATTRIBUTE_NAME] = dag_id
+        scope = "GET" if dag_id else "LIST"
+        assert result is expected
+        auth_manager.http_session.post.assert_called_once_with(
+            auth_manager._get_token_url("server_url", "realm"),
+            data=auth_manager._get_payload("client_id", f"{resource_name}#{scope}", attributes),
+            headers=auth_manager._get_headers(user.access_token),
+            timeout=5,
+        )
+
+    @pytest.mark.parametrize("view_name", ["TRIGGERS", "IMPORT_ERRORS_ALL", "REPARSE_ALL", "AUDIT_LOGS_ALL"])
+    @pytest.mark.parametrize(("status_code", "expected"), [(200, True), (403, False), (400, False)])
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_is_authorized_non_team_admin_view(self, auth_manager, user, view_name, status_code, expected):
+        access_view = getattr(AccessView, view_name, None)
+        if access_view is None:
+            pytest.skip(f"AccessView.{view_name} is not available in this Airflow version")
+        resp = Mock(spec=["status_code", "text"])
+        resp.status_code = status_code
+        resp.text = '{"error": "invalid_resource"}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+
+        assert auth_manager.is_authorized_view(access_view=access_view, user=user) is expected
+        auth_manager.http_session.post.assert_called_once_with(
+            auth_manager._get_token_url("server_url", "realm"),
+            data=auth_manager._get_payload(
+                "client_id", "AdminView#GET", {RESOURCE_ID_ATTRIBUTE_NAME: view_name}
+            ),
+            headers=auth_manager._get_headers(user.access_token),
+            timeout=5,
+        )
+
+    @pytest.mark.parametrize("view_name", ["PLUGINS", "PROVIDERS"])
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_is_authorized_operational_view_missing_resource(self, auth_manager, user, view_name):
+        resp = Mock(spec=["status_code", "text"])
+        resp.status_code = 400
+        resp.text = '{"error": "invalid_resource"}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+
+        assert auth_manager.is_authorized_view(access_view=getattr(AccessView, view_name), user=user) is False
+        payload = auth_manager.http_session.post.call_args.kwargs["data"]
+        assert payload == auth_manager._get_payload(
+            "client_id", "OpView#GET", {RESOURCE_ID_ATTRIBUTE_NAME: view_name}
+        )
+
+    @pytest.mark.parametrize("view_name", ["PLUGINS", "PROVIDERS"])
+    @pytest.mark.parametrize(("status_code", "expected"), [(200, True), (403, False)])
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_is_authorized_operational_view(self, auth_manager, user, view_name, status_code, expected):
+        resp = Mock(spec=["status_code"])
+        resp.status_code = status_code
+        auth_manager.http_session.post = Mock(return_value=resp)
+
+        assert (
+            auth_manager.is_authorized_view(access_view=getattr(AccessView, view_name), user=user) is expected
+        )
+        auth_manager.http_session.post.assert_called_once_with(
+            auth_manager._get_token_url("server_url", "realm"),
+            data=auth_manager._get_payload(
+                "client_id", "OpView#GET", {RESOURCE_ID_ATTRIBUTE_NAME: view_name}
+            ),
             headers=auth_manager._get_headers(user.access_token),
             timeout=5,
         )

@@ -25,6 +25,16 @@
 Changelog
 ---------
 
+.. note::
+    Generated non-team defaults now restrict Connection, Variable, Configuration, Plugins, and
+    Providers reads and menus to ``Op`` and above, and audit access to ``Admin`` and ``SuperAdmin``.
+    Pool reads remain available to ``Viewer``. Plugins and Providers use the new ``OpView``
+    resource; access is denied until it is provisioned. Run ``airflow keycloak-auth-manager
+    create-all`` to provision the new resources and permissions. Existing legacy permissions
+    and extra role-policy attachments are preserved, so this command alone does not guarantee
+    the new restrictions on an existing client. Review those grants separately or provision
+    a new client when adopting these defaults.
+
 0.11.1
 ......
 

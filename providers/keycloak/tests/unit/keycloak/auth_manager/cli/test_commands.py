@@ -90,14 +90,104 @@ EXPECTED_TEAM_ADMIN_MENU_RESOURCES = sorted(
             ["User", "Op", "Admin", "SuperAdmin"],
         ),
         (
+            "ConfigurationRead",
+            ["Configuration"],
+            ["GET", "LIST"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "ConfigurationMenuAccess",
+            ["Config"],
+            ["MENU"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
             "ConfigurationWrite",
             ["Configuration"],
             ["POST", "PUT", "DELETE"],
             ["Admin", "SuperAdmin"],
         ),
         (
+            "ConnectionRead",
+            ["Connection"],
+            ["GET", "LIST"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "ConnectionWrite",
+            ["Connection"],
+            ["POST", "PUT", "DELETE"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "ConnectionMenuAccess",
+            ["Connections"],
+            ["MENU"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "VariableRead",
+            ["Variable"],
+            ["GET", "LIST"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "VariableWrite",
+            ["Variable"],
+            ["POST", "PUT", "DELETE"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "VariableMenuAccess",
+            ["Variables"],
+            ["MENU"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "OpViewRead",
+            ["OpView"],
+            ["GET"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "PluginMenuAccess",
+            ["Plugins"],
+            ["MENU"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "ProviderMenuAccess",
+            ["Providers"],
+            ["MENU"],
+            ["Op", "Admin", "SuperAdmin"],
+        ),
+        (
+            "AdminViewRead",
+            ["AdminView"],
+            ["GET", "LIST"],
+            ["Admin", "SuperAdmin"],
+        ),
+        (
+            "AuditLogMenuAccess",
+            ["Audit Log"],
+            ["MENU"],
+            ["Admin", "SuperAdmin"],
+        ),
+        (
             "DefaultMenuAccess",
-            [item.value for item in MenuItem],
+            [
+                item.value
+                for item in MenuItem
+                if item
+                not in {
+                    MenuItem.CONFIG,
+                    MenuItem.CONNECTIONS,
+                    MenuItem.VARIABLES,
+                    MenuItem.PLUGINS,
+                    MenuItem.PROVIDERS,
+                    MenuItem.AUDIT_LOG,
+                }
+            ],
             ["MENU"],
             ["Viewer", "User", "Op", "Admin", "SuperAdmin"],
         ),
@@ -119,6 +209,132 @@ def test_get_default_permission_configs(permission_name, resources, scopes, role
             "role_names": roles,
         }
     ]
+
+
+@pytest.mark.parametrize(
+    ("role", "can_read_pool", "can_write_pool", "can_access_connection", "can_access_variable"),
+    [
+        ("Viewer", True, False, False, False),
+        ("User", True, False, False, False),
+        ("Op", True, True, True, True),
+        ("Admin", True, True, True, True),
+        ("SuperAdmin", True, True, True, True),
+        ("Other", False, False, False, False),
+    ],
+)
+def test_default_pool_connection_and_variable_grants(
+    role, can_read_pool, can_write_pool, can_access_connection, can_access_variable
+):
+    permission_configs = _get_default_permission_configs()
+    checks = [
+        ("Pool", "GET", can_read_pool),
+        ("Pool", "LIST", can_read_pool),
+        ("Pools", "MENU", can_read_pool),
+        ("Connections", "MENU", can_access_connection),
+        ("Variables", "MENU", can_access_variable),
+    ]
+    checks.extend(("Pool", scope, can_write_pool) for scope in ["POST", "PUT", "DELETE"])
+    checks.extend(
+        ("Connection", scope, can_access_connection) for scope in ["GET", "LIST", "POST", "PUT", "DELETE"]
+    )
+    checks.extend(
+        ("Variable", scope, can_access_variable) for scope in ["GET", "LIST", "POST", "PUT", "DELETE"]
+    )
+
+    for resource, scope, expected in checks:
+        allowed = any(
+            role in permission["role_names"]
+            and resource in permission["resources"]
+            and scope in permission["scope_names"]
+            for permission in permission_configs
+        )
+        assert allowed == expected, (role, resource, scope)
+
+
+@pytest.mark.parametrize(
+    ("role", "can_read", "can_write"),
+    [
+        ("Viewer", False, False),
+        ("User", False, False),
+        ("Op", True, False),
+        ("Admin", True, True),
+        ("SuperAdmin", True, True),
+        ("Other", False, False),
+    ],
+)
+def test_default_configuration_grants(role, can_read, can_write):
+    permission_configs = _get_default_permission_configs()
+    checks = [
+        ("Configuration", "GET", can_read),
+        ("Configuration", "LIST", can_read),
+        ("Config", "MENU", can_read),
+    ]
+    checks.extend(("Configuration", scope, can_write) for scope in ["POST", "PUT", "DELETE"])
+
+    for resource, scope, expected in checks:
+        allowed = any(
+            role in permission["role_names"]
+            and resource in permission["resources"]
+            and scope in permission["scope_names"]
+            for permission in permission_configs
+        )
+        assert allowed == expected, (role, resource, scope)
+
+
+@pytest.mark.parametrize(
+    ("role", "expected"),
+    [
+        ("Viewer", False),
+        ("User", False),
+        ("Op", True),
+        ("Admin", True),
+        ("SuperAdmin", True),
+        ("Other", False),
+    ],
+)
+@pytest.mark.parametrize(
+    ("resource", "scope"), [("OpView", "GET"), ("Plugins", "MENU"), ("Providers", "MENU")]
+)
+def test_default_operational_view_grants(role, expected, resource, scope):
+    allowed = any(
+        role in permission["role_names"]
+        and resource in permission["resources"]
+        and scope in permission["scope_names"]
+        for permission in _get_default_permission_configs()
+    )
+    assert allowed == expected
+
+
+def test_default_operational_views_have_no_write_permission():
+    permissions = [
+        permission for permission in _get_default_permission_configs() if "OpView" in permission["resources"]
+    ]
+    assert len(permissions) == 1
+    assert permissions[0]["scope_names"] == ["GET"]
+
+
+@pytest.mark.parametrize(
+    ("role", "expected"),
+    [
+        ("Viewer", False),
+        ("User", False),
+        ("Op", False),
+        ("Admin", True),
+        ("SuperAdmin", True),
+        ("Other", False),
+    ],
+)
+@pytest.mark.parametrize(
+    ("resource", "scope"), [("AdminView", "GET"), ("AdminView", "LIST"), ("Audit Log", "MENU")]
+)
+def test_default_administrative_view_grants(role, expected, resource, scope):
+    allowed = any(
+        role in permission["role_names"]
+        and resource in permission["resources"]
+        and scope in permission["scope_names"]
+        for permission in _get_default_permission_configs()
+    )
+    assert allowed == expected
 
 
 @pytest.mark.parametrize(
@@ -933,7 +1149,7 @@ class TestCommands:
         expected_calls = []
 
         for resource in KeycloakResource:
-            if resource == KeycloakResource.MENU:
+            if resource in {KeycloakResource.MENU, KeycloakResource.OP_VIEW}:
                 continue
             for suffix, scope_ids in [
                 ("Read", ["get", "list"]),
@@ -957,12 +1173,73 @@ class TestCommands:
             call(
                 client_id="test-id",
                 payload={
+                    "name": "OpViewRead",
+                    "type": "scope",
+                    "logic": "POSITIVE",
+                    "decisionStrategy": "UNANIMOUS",
+                    "scopes": ["get"],
+                    "resources": ["resource-OpView"],
+                },
+            )
+        )
+
+        expected_calls.append(
+            call(
+                client_id="test-id",
+                payload={
                     "name": "DefaultMenuAccess",
                     "type": "scope",
                     "logic": "POSITIVE",
                     "decisionStrategy": "UNANIMOUS",
                     "scopes": ["menu"],
-                    "resources": [f"menu-{item.value}" for item in MenuItem],
+                    "resources": [
+                        f"menu-{item.value}"
+                        for item in MenuItem
+                        if item
+                        not in {
+                            MenuItem.CONFIG,
+                            MenuItem.CONNECTIONS,
+                            MenuItem.VARIABLES,
+                            MenuItem.PLUGINS,
+                            MenuItem.PROVIDERS,
+                            MenuItem.AUDIT_LOG,
+                        }
+                    ],
+                },
+            )
+        )
+
+        for permission_name, menu_name in [
+            ("ConfigurationMenuAccess", "Config"),
+            ("ConnectionMenuAccess", "Connections"),
+            ("VariableMenuAccess", "Variables"),
+            ("PluginMenuAccess", "Plugins"),
+            ("ProviderMenuAccess", "Providers"),
+        ]:
+            expected_calls.append(
+                call(
+                    client_id="test-id",
+                    payload={
+                        "name": permission_name,
+                        "type": "scope",
+                        "logic": "POSITIVE",
+                        "decisionStrategy": "UNANIMOUS",
+                        "scopes": ["menu"],
+                        "resources": [f"menu-{menu_name}"],
+                    },
+                )
+            )
+
+        expected_calls.append(
+            call(
+                client_id="test-id",
+                payload={
+                    "name": "AuditLogMenuAccess",
+                    "type": "scope",
+                    "logic": "POSITIVE",
+                    "decisionStrategy": "UNANIMOUS",
+                    "scopes": ["menu"],
+                    "resources": ["menu-Audit Log"],
                 },
             )
         )
@@ -1249,8 +1526,14 @@ class TestCommands:
         expected_calls = []
 
         for resource, write_roles in write_roles_by_resource.items():
+            if resource == "AdminView":
+                expected_read_roles = ["Admin", "SuperAdmin"]
+            elif resource in {"Configuration", "Connection", "Variable"}:
+                expected_read_roles = ["Op", "Admin", "SuperAdmin"]
+            else:
+                expected_read_roles = read_roles
             for suffix, scopes, roles in [
-                ("Read", ["GET", "LIST"], read_roles),
+                ("Read", ["GET", "LIST"], expected_read_roles),
                 ("Write", ["POST", "PUT", "DELETE"], write_roles),
             ]:
                 for role in roles:
@@ -1267,6 +1550,20 @@ class TestCommands:
                         )
                     )
 
+        for role in ["Op", "Admin", "SuperAdmin"]:
+            expected_calls.append(
+                call(
+                    client,
+                    "test-id",
+                    permission_name="OpViewRead",
+                    policy_name=f"Allow-{role}",
+                    scope_names=["GET"],
+                    resource_names=["OpView"],
+                    decision_strategy="AFFIRMATIVE",
+                    _dry_run=False,
+                )
+            )
+
         for role in read_roles:
             expected_calls.append(
                 call(
@@ -1275,7 +1572,54 @@ class TestCommands:
                     permission_name="DefaultMenuAccess",
                     policy_name=f"Allow-{role}",
                     scope_names=["MENU"],
-                    resource_names=[item.value for item in MenuItem],
+                    resource_names=[
+                        item.value
+                        for item in MenuItem
+                        if item
+                        not in {
+                            MenuItem.CONFIG,
+                            MenuItem.CONNECTIONS,
+                            MenuItem.VARIABLES,
+                            MenuItem.PLUGINS,
+                            MenuItem.PROVIDERS,
+                            MenuItem.AUDIT_LOG,
+                        }
+                    ],
+                    decision_strategy="AFFIRMATIVE",
+                    _dry_run=False,
+                )
+            )
+
+        for permission_name, menu_name in [
+            ("ConfigurationMenuAccess", "Config"),
+            ("ConnectionMenuAccess", "Connections"),
+            ("VariableMenuAccess", "Variables"),
+            ("PluginMenuAccess", "Plugins"),
+            ("ProviderMenuAccess", "Providers"),
+        ]:
+            for role in ["Op", "Admin", "SuperAdmin"]:
+                expected_calls.append(
+                    call(
+                        client,
+                        "test-id",
+                        permission_name=permission_name,
+                        policy_name=f"Allow-{role}",
+                        scope_names=["MENU"],
+                        resource_names=[menu_name],
+                        decision_strategy="AFFIRMATIVE",
+                        _dry_run=False,
+                    )
+                )
+
+        for role in ["Admin", "SuperAdmin"]:
+            expected_calls.append(
+                call(
+                    client,
+                    "test-id",
+                    permission_name="AuditLogMenuAccess",
+                    policy_name=f"Allow-{role}",
+                    scope_names=["MENU"],
+                    resource_names=["Audit Log"],
                     decision_strategy="AFFIRMATIVE",
                     _dry_run=False,
                 )
