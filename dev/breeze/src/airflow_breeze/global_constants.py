@@ -900,6 +900,12 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "remove-providers": "",
         "run-unit-tests": "true",
     },
+    {
+        "python-version": "3.11",
+        "airflow-version": "3.4.0",
+        "remove-providers": "",
+        "run-unit-tests": "true",
+    },
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
