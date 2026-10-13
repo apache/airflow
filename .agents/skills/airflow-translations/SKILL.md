@@ -184,6 +184,10 @@ Never translate or remove variable names inside `{{…}}`. Placeholders may be
 reordered as needed for natural word order, but the exact variable casing must
 be preserved (e.g., `{{dagDisplayName}}`).
 
+Counters use the i18next `number` formatter so they get the locale's digit
+grouping (e.g., `{{count, number}}`, `{{total, number}}`). Keep the `, number`
+suffix exactly as it appears in the English string.
+
 ### Plural Forms
 
 Airflow uses i18next plural suffixes (`_one`, `_other`, and optionally `_zero`,

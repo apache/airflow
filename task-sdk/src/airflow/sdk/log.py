@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from contextlib import suppress
 from functools import cache
 from pathlib import Path
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
     from structlog.typing import EventDict, FilteringBoundLogger, Processor
 
     from airflow.sdk._shared.logging.remote import RemoteLogIO
+    from airflow.sdk.execution_time.comms import CommsDecoder, ToSupervisor, ToTask
     from airflow.sdk.types import Logger, RuntimeTaskInstanceProtocol as RuntimeTI
 
 
@@ -254,6 +256,18 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI | None = None):
     handler.upload(log_relative_path, ti)
 
 
+def _supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor] | None:
+    """
+    Return the supervisor comms channel if this is a task execution context, else None.
+
+    Every process that sets ``SUPERVISOR_COMMS`` has already imported ``task_runner``, so it is read
+    from ``sys.modules`` rather than imported: importing it here would load the whole task runtime
+    into every other process (CLI, scheduler, API server) that masks a config value at startup.
+    """
+    task_runner = sys.modules.get("airflow.sdk.execution_time.task_runner")
+    return getattr(task_runner, "SUPERVISOR_COMMS", None)
+
+
 def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     """
     Mask a secret in both task process and supervisor process.
@@ -264,12 +278,12 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     """
     _secrets_masker().add_mask(secret, name)
 
-    with suppress(Exception):
-        # Try to tell supervisor (only if in task execution context)
-        from airflow.sdk.execution_time import task_runner
-        from airflow.sdk.execution_time.comms import MaskSecret
+    if comms := _supervisor_comms():
+        with suppress(Exception):
+            # Imported here because comms (and the msgspec/pydantic models it pulls in) is only
+            # loaded in task execution, where task_runner has already imported it.
+            from airflow.sdk.execution_time.comms import MaskSecret
 
-        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
             comms.send(MaskSecret(value=secret, name=name))
 
 
@@ -282,12 +296,11 @@ async def amask_secret(secret: JsonValue, name: str | None = None) -> None:
     """
     _secrets_masker().add_mask(secret, name)
 
-    with suppress(Exception):
-        # Try to tell supervisor (only if in task execution context)
-        from airflow.sdk.execution_time import task_runner
-        from airflow.sdk.execution_time.comms import MaskSecret
+    if comms := _supervisor_comms():
+        with suppress(Exception):
+            # Imported here for the same reason as in ``mask_secret``.
+            from airflow.sdk.execution_time.comms import MaskSecret
 
-        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
             await comms.asend(MaskSecret(value=secret, name=name))
 
 

@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "Actualitzats {{count}} de {{total}} Assets",
+  "assetSchedule": "Actualitzats {{count, number}} de {{total, number}} Assets",
   "dagActions": {
     "delete": {
       "button": "Eliminar Dag",
@@ -42,7 +42,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No s'han trobat tasques.",
-      "title": "Tasques afectades: {{count}}"
+      "title": "Tasques afectades: {{count, number}}"
     },
     "clear": {
       "button": "Rellançar {{type}}",

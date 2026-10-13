@@ -28,6 +28,7 @@ import attrs
 
 from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+from airflow.sdk.definitions._internal.loop import is_loop_task_read_from_outside
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
@@ -333,7 +334,7 @@ class PlainXComArg(XComArg):
         ti = context["ti"]
         task_id = self.operator.task_id
 
-        if self.operator.is_mapped:
+        if self.operator.is_mapped or is_loop_task_read_from_outside(self.operator, ti.task):
             return LazyXComSequence(xcom_arg=self, ti=ti)
         tg = self.operator.get_closest_mapped_task_group()
         if tg is None:

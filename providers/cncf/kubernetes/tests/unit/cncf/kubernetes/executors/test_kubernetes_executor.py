@@ -1773,6 +1773,46 @@ class TestKubernetesExecutor:
         assert executor.get_event_buffer() == {key: (TaskInstanceState.SUCCESS, None)}
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    def test_process_workloads_invalid_executor_config_is_not_tracked_as_running(self):
+        """A task failed by execute_async must not stay in ``running``.
+
+        Otherwise ``has_task`` keeps returning True and the scheduler ignores the FAILED event,
+        leaving the task instance stuck in queued until ``task_queued_timeout``.
+        """
+        executor = self.kubernetes_executor
+        workload = ExecuteTask(
+            ti=WorkloadTaskInstance(
+                id=uuid4(),
+                dag_version_id=uuid4(),
+                dag_id="dag",
+                task_id="task",
+                run_id="run_id",
+                try_number=1,
+                map_index=-1,
+                pool_slots=1,
+                priority_weight=1,
+                queue="default",
+                executor_config={"KubernetesExecutor": {"config_file": "/some/path/kubeconfig.yaml"}},
+            ),
+            dag_rel_path="dag.py",
+            bundle_info=BundleInfo(name="bundle"),
+            token="",
+            log_path=None,
+        )
+        key = executor.get_task_key(workload.ti) if executor.supports_task_instance_uuid else workload.ti.key
+        if AIRFLOW_V_3_1_PLUS:
+            executor.queue_workload(workload, session=None)
+        else:
+            executor.queue_command(workload.ti, [workload], workload.ti.priority_weight, workload.ti.queue)
+
+        executor._process_workloads([workload])
+
+        assert key not in executor.running
+        assert executor.get_event_buffer() == {
+            key: (TaskInstanceState.FAILED, "Invalid executor_config passed")
+        }
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
     def test_queue_workload_queues_execute_task(self):
         """queue_workload must queue an ExecuteTask on every supported Airflow 3 version.
 

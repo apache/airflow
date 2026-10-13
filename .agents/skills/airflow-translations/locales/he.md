@@ -101,7 +101,7 @@ These established translations **must be used consistently**:
 
 - Hebrew is an RTL language. UI layout should flip accordingly.
 - When mixing Hebrew and English (e.g., "הרצת Dag"), the LTR English term will naturally appear in the correct reading order within an RTL context.
-- Preserve all i18next placeholders exactly as-is: `{{count}}`, `{{dagName}}`, etc.
+- Preserve all i18next placeholders exactly as-is: `{{count, number}}`, `{{dagName}}`, etc.
 
 ### Plural Forms
 
@@ -187,7 +187,7 @@ triggerer.title           → "פרטי מפעיל"
 
 - Match tone, style, and terminology from existing `he/*.json` files
 - Use professional, neutral Hebrew
-- Preserve all i18next placeholders: `{{count}}`, `{{dagName}}`, `{{hotkey}}`, etc.
+- Preserve all i18next placeholders: `{{count, number}}`, `{{dagName}}`, `{{hotkey}}`, etc.
 - Use construct state (סמיכות) for compound nouns as established
 - Provide all needed plural suffixes (`_one`, `_other`) for each plural key
 - Check existing translations before adding new ones to maintain consistency

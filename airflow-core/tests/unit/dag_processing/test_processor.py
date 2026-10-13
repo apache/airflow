@@ -38,12 +38,12 @@ from sqlalchemy import select
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun as DRDataModel,
     TaskInstance as TIDataModel,
     TIRunContext,
 )
+from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
@@ -791,6 +791,41 @@ def test_parse_file_reports_definitions_source_codes_and_dag_warnings(mock_dag_w
     assert result.dag_source_codes == {"member": DagSourceCode(source_code=source, language="python")}
     assert result.warnings == [
         {"dag_id": "member", "warning_type": "test:deprecated_field", "message": "Deprecated field"}
+    ]
+
+
+TASK_GROUP_CYCLE_DAGS = """
+from airflow.sdk import DAG, BaseOperator, TaskGroup
+
+for dag_id in ("cyclic", "acyclic", "unserializable"):
+    with DAG(dag_id, schedule=None):
+        with TaskGroup("group") as group:
+            a = BaseOperator(task_id="a")
+            b = BaseOperator(task_id="b")
+        a >> BaseOperator(task_id="bridge", task_group=group if dag_id == "acyclic" else None) >> b
+"""
+
+
+def test_parse_file_task_group_cycle_warning(tmp_path):
+    dag_file = tmp_path / "task_group_cycle_dags.py"
+    dag_file.write_text(TASK_GROUP_CYCLE_DAGS)
+    to_dict = DagSerialization.to_dict
+
+    def fail_to_serialize_unserializable(dag):
+        if dag.dag_id == "unserializable":
+            raise ValueError("serialization failed")
+        return to_dict(dag)
+
+    with patch.object(
+        DagSerialization, "to_dict", autospec=True, side_effect=fail_to_serialize_unserializable
+    ):
+        result = _parse_file(
+            DagFileParseRequest(file=str(dag_file), bundle_path=tmp_path, bundle_name="testing"),
+            log=structlog.get_logger(),
+        )
+
+    assert [(warning["dag_id"], warning["warning_type"]) for warning in result.warnings] == [
+        ("cyclic", "task group cycle")
     ]
 
 
