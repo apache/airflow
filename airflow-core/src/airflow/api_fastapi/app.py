@@ -131,7 +131,9 @@ def create_app(apps: str = "all") -> FastAPI:
         "of the value, is case-sensitive and index-friendly (prefer it at scale); there ``%`` and ``_`` "
         "are literal and trailing non-alphanumeric characters are stripped so the range scan stays "
         "index-compatible under locale-aware collations "
-        "(e.g. ``test_`` matches values starting with ``test``, and ``s3://`` matches ``s3``). In both, "
+        "(e.g. ``test_`` matches values starting with ``test``, and ``s3://`` matches ``s3``). The range "
+        "scan needs an ASCII prefix; a prefix holding non-ASCII characters matches the same values but "
+        "without it, because locale-aware collations do not order those characters by code point. In both, "
         "``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches everything. Regular expressions are not "
         "supported by these parameters; regex-capable endpoints expose a separate parameter.",
         lifespan=lifespan,
