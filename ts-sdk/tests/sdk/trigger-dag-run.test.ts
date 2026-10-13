@@ -245,7 +245,9 @@ describe("triggerDagRun", () => {
         declare(triggerDagRun({ dagId: "downstream_etl" }), undefined, {
           taskId: "trigger_downstream",
         }),
-      ).toThrowError(/A triggerDagRun task of Dag "d" was given to dag.if or dag.switch/);
+      ).toThrowError(
+        `A triggerDagRun task of Dag "d" was given to dag.${decider}, which needs a handler`,
+      );
     });
 
     it("a trigger task left uncalled, when the Dag is read", () => {
