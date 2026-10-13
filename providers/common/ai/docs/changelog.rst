@@ -25,6 +25,25 @@
 Changelog
 ---------
 
+.. note::
+  On Airflow >= 3.3, the ``usage_limits`` of the ``LLM*`` operators (``LLMOperator``,
+  ``LLMBranchOperator``, ``LLMSQLQueryOperator``, ``LLMSchemaCompareOperator``,
+  ``LLMFileAnalysisOperator``) counts usage across every attempt of the task instance
+  combined -- the initial run and every retry add to one running total (including the
+  implicit ``request_limit=50`` default), instead of each attempt starting fresh. A pause
+  for approval and a retry after a reviewer rejects the output share the same total. Scale
+  each limit by ``retries + 1``, or set ``usage_limits=None``, to keep the old per-attempt
+  headroom. On Airflow < 3.3, or when ``usage_limits`` is ``None``, each attempt is checked
+  and counted on its own, unchanged. See :ref:`howto/operator:llm`.
+
+.. note::
+  ``OpenSandboxBackend`` now refuses a deny-all or allowlist ``SandboxSpec``, including the
+  default ``SandboxSpec()``, unless the OpenSandbox server's egress sidecar runs in ``dns+nft``
+  mode. In the server's default ``dns`` mode the sidecar filters name resolution only, and a
+  sandbox could still connect to any numeric address. Set ``[egress] mode = "dns+nft"`` in the
+  OpenSandbox server configuration, or pass ``SandboxSpec(block_network=False)`` for a sandbox
+  that may reach the network. See :ref:`the OpenSandbox backend <sandbox-backend-opensandbox>`.
+
 0.11.0
 ......
 

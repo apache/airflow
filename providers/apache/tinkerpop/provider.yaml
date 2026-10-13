@@ -38,6 +38,10 @@ versions:
   - 1.0.2
   - 1.0.1
   - 1.0.0
+
+excluded-python-versions:
+  - "3.14"
+
 integrations:
   - integration-name: Apache TinkerPop
     external-doc-url: https://tinkerpop.apache.org/

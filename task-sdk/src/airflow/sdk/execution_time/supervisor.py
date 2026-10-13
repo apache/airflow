@@ -2213,7 +2213,10 @@ class ActivitySubprocess(WatchedSubprocess):
     def _handle_get_task_breadcrumbs(
         self, msg: GetTaskBreadcrumbs, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
-        api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
+        api_resp = self.client.task_instances.get_task_breakcrumbs(
+            dag_id=msg.dag_id,
+            run_id=msg.run_id,
+        )
         resp = TaskBreadcrumbsResult.from_api_response(api_resp)
         return resp, {}
 
@@ -3111,6 +3114,7 @@ def supervise_task(
         log_file_descriptor: BinaryIO | TextIO | None = None
         if log_path:
             logger, log_file_descriptor = _configure_logging(log_path, client)
+            logger = logger.bind(ti_id=str(ti.id))
 
         backends = ensure_secrets_backend_loaded()
         log.info(
@@ -3148,6 +3152,17 @@ def supervise_task(
                 logger=logger or structlog.get_logger(logger_name="task").bind(),
                 error=e,
             )
+        except httpx.RequestError as e:
+            if logger is not None:
+                logger.info("::endgroup::")
+                logger.error(
+                    "Could not reach the Execution API server. Verify the `[core] "
+                    "execution_api_server_url` (or `[api] base_url`) setting points at a reachable "
+                    "Airflow API server.",
+                    server=server,
+                    error=str(e),
+                )
+            raise
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()

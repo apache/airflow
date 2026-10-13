@@ -59,6 +59,7 @@ from airflow.sdk.exceptions import (
     NodeNotFound,
     ParamValidationError,
     RemovedInAirflow4Warning,
+    TaskGroupCycleDeprecationWarning,
     TaskNotFound,
 )
 
@@ -86,6 +87,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 TAG_MAX_LEN = 100
+
+# The TaskGroup cycle warning becomes a DagWarning.message, a Text column (64 KB on MySQL), so its
+# length must not grow with the size or the number of the cycles.
+_MAX_LISTED_TASK_GROUP_CYCLES = 10
+_MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS = 5
 
 __all__ = [
     "DAG",
@@ -303,6 +309,13 @@ def _default_task_group(instance: DAG) -> TaskGroup:
     from airflow.sdk.definitions.taskgroup import TaskGroup
 
     return TaskGroup.create_root(dag=instance)
+
+
+def _format_cycle_members(node_ids: list[str]) -> str:
+    if len(node_ids) > _MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS:
+        unlisted = len(node_ids) - _MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS
+        return f"{', '.join(node_ids[:_MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS])} and {unlisted} more"
+    return f"{', '.join(node_ids[:-1])} and {node_ids[-1]}"
 
 
 def _is_valid_dag_result(value: Any) -> TypeIs[PlainXComArg]:
@@ -768,8 +781,12 @@ class DAG:
 
         This is called by the Dag bag before bagging the Dag.
         """
+        # Imported here because taskgroup imports this module.
+        from airflow.sdk.definitions._internal.loop import check_expansions_over_loop_tasks
+
         self.timetable.validate()
         self.validate_setup_teardown()
+        check_expansions_over_loop_tasks(self)
 
         # We validate owner links on set, but since it's a dict it could be mutated without calling the
         # setter. Validate again here
@@ -1134,12 +1151,19 @@ class DAG:
     def add_result(self, xcom_arg: X) -> X:
         if not _is_valid_dag_result(xcom_arg):
             raise ValueError("Only plain return value can be used as dag result")
+        # Imported here because taskgroup imports this module.
+        from airflow.sdk.definitions._internal.loop import check_dag_result_outside_loop
+
+        check_dag_result_outside_loop(xcom_arg.operator)
         xcom_arg.operator.returns_dag_result = True
         return xcom_arg
 
     def check_cycle(self) -> None:
         """
         Check to see if there are any cycles in the Dag.
+
+        Also warns with ``TaskGroupCycleDeprecationWarning`` when TaskGroups depend on each
+        other in a cycle, which is deprecated.
 
         :raises AirflowDagCycleException: If cycle is found in the Dag.
         """
@@ -1149,6 +1173,35 @@ class DAG:
             raise AirflowDagCycleException(
                 f"Cycle detected in Dag: {self.dag_id}. Faulty task: {faulty_task_id}"
             )
+
+        self._warn_task_group_cycles()
+
+    def _warn_task_group_cycles(self) -> None:
+        task_group_dict = self.task_group.get_task_group_dict()
+        # With only the root group, the projection is the task graph, which is acyclic here.
+        if len(task_group_dict) == 1:
+            return
+        cycles = [
+            cycle
+            for task_group in task_group_dict.values()
+            for cycle in task_group._find_dependency_cycles(group_dict=task_group_dict)
+        ]
+        if not cycles:
+            return
+        listed = "; ".join(_format_cycle_members(cycle) for cycle in cycles[:_MAX_LISTED_TASK_GROUP_CYCLES])
+        unlisted = len(cycles) - _MAX_LISTED_TASK_GROUP_CYCLES
+        unlisted_note = (
+            f" ({unlisted} more cycle{'s' if unlisted > 1 else ''} not listed)" if unlisted > 0 else ""
+        )
+        # Airflow 3.5 raises AirflowDagCycleException here instead; tracked at
+        # https://github.com/apache/airflow/issues/73678
+        warnings.warn(
+            f"Dag '{self.dag_id}': {listed} depend on each other in a cycle{unlisted_note}. Cyclic TaskGroup "
+            "dependencies are deprecated and will fail Dag parsing in Airflow 3.5. See "
+            '"Cyclic TaskGroup dependencies" in the docs.',
+            TaskGroupCycleDeprecationWarning,
+            stacklevel=3,
+        )
 
     def cli(self):
         """Exposes a CLI specific to this Dag."""
@@ -1480,7 +1533,8 @@ def _run_task(
     from airflow.utils.session import create_session
 
     taskrun_result: TaskRunResult | None
-    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    map_index = ti.region_index if task.get_needs_expansion() else -1
+    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, map_index)
     while True:
         try:
             log.info("[DAG TEST] running task %s", ti)
@@ -1499,7 +1553,9 @@ def _run_task(
                 dag_id=ti.dag_id,
                 run_id=ti.run_id,
                 try_number=ti.try_number,
-                map_index=ti.map_index,
+                map_index=map_index,
+                region_id=ti.region_id,
+                region_index=ti.region_index,
                 dag_version_id=UUID(str(ti.dag_version_id)),
             )
 
@@ -1551,7 +1607,7 @@ def _run_task(
                 break
             raise
 
-    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, map_index)
     return taskrun_result
 
 

@@ -25,17 +25,24 @@ from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI, HTTPException, Path, Request, status
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, event, select, update
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
+from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import LegacyTaskDataOwner
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
+from airflow.models.task_coordinates import TaskCoordinateResolver
+from airflow.models.taskinstance import LegacyTaskDataOwner, TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, XComModelV1, XComModelV2, xcom_entity
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.serde import deserialize, serialize
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -44,6 +51,651 @@ from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.mark.parametrize("suffix", ["", "/item/0", "/item/-1", "/slice"])
+def test_regional_mapped_xcom_reads_resolve_live_producers_before_slicing(client, dag_maker, session, suffix):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+    dr = dag_maker.create_dagrun()
+    first = DynamicRegion.get_or_create(dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped", session=session)
+    session.add(first)
+    session.flush()
+    replacement = DynamicRegion(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped", forked_from_region_id=first.id
+    )
+    session.add(replacement)
+    session.flush()
+    tis = sorted(dr.task_instances, key=lambda ti: ti.region_index)
+    tis[0].region_id = first.id
+    tis[1].region_id = replacement.id
+    superseded = TaskInstance(
+        tis[0].task, tis[0].dag_version_id, run_id=dr.run_id, map_index=1, region_id=first.id
+    )
+    session.add(superseded)
+    session.flush()
+    for ti, value in [(tis[0], "zero"), (superseded, "archived"), (tis[1], "one")]:
+        XComModel.set_for_attempt(
+            task_instance_id=ti.id, key="key", value=value, serialize=False, session=session
+        )
+    superseded.archive(reason="test", session=session)
+    session.commit()
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/mapped/key"
+
+    assert client.head(url).headers["Content-Range"] == "map_indexes 2"
+    response = client.get(url + suffix, params={"map_index": 0} if not suffix else {})
+    assert response.status_code == 200
+    expected = {
+        "": {"key": "key", "value": "zero"},
+        "/item/0": "zero",
+        "/item/-1": "one",
+        "/slice": ["zero", "one"],
+    }
+    assert response.json() == expected[suffix]
+
+
+@pytest.fixture
+def loop_xcoms(dag_maker, session, authenticate_as):
+    @task_group
+    def body():
+        EmptyOperator(task_id="producer") >> EmptyOperator(task_id="consumer")
+
+    with dag_maker(serialized=True) as dag:
+        EmptyOperator(task_id="outside") >> create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    first = DynamicRegion.get_or_create(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session)
+    session.add(first)
+    session.flush()
+    replacement = DynamicRegion(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", forked_from_region_id=first.id
+    )
+    session.add(replacement)
+    session.flush()
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    producer, consumer = tis["body.producer"], tis["body.consumer"]
+    producer.region_id, producer.region_index = first.id, 2
+    consumer.region_id, consumer.region_index = replacement.id, 2
+    previous = TaskInstance(
+        task=dag.get_task(producer.task_id), run_id=dr.run_id, dag_version_id=producer.dag_version_id
+    )
+    previous.region_id, previous.region_index = first.id, 1
+    session.add(previous)
+    session.flush()
+    for ti, value in [(producer, "current"), (previous, "previous"), (tis["outside"], "outside")]:
+        XComModel.set_for_attempt(
+            task_instance_id=ti.id, key="key", value=value, serialize=False, session=session
+        )
+    session.commit()
+    authenticate_as(consumer)
+    return dr, producer, consumer, previous
+
+
+@pytest.mark.parametrize("suffix", ["", "/item/0", "/item/-1", "/slice"])
+def test_previous_iteration_xcom_uses_retained_predecessor(client, loop_xcoms, suffix):
+    dr, producer, _, _ = loop_xcoms
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{producer.task_id}/key"
+    params = {"previous_iteration": True}
+
+    response = client.get(url + suffix, params=params)
+
+    assert response.status_code == 200
+    expected = {"": {"key": "key", "value": "previous"}, "/slice": ["previous"]}
+    assert response.json() == expected.get(suffix, "previous")
+    assert client.head(url, params=params).headers["Content-Range"] == "map_indexes 1"
+
+
+def test_previous_iteration_rejects_prior_dates(client, loop_xcoms):
+    dr, producer, _, _ = loop_xcoms
+
+    response = client.get(
+        f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{producer.task_id}/key",
+        params={"previous_iteration": True, "include_prior_dates": True},
+    )
+
+    assert response.status_code == 400
+
+
+def test_previous_mapped_iteration_reads_retained_slots_before_count_and_slice(
+    client, dag_maker, session, authenticate_as
+):
+    @task_group
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(
+            op_args=[[1], [2]]
+        ) >> EmptyOperator(task_id="consumer")
+
+    with dag_maker(serialized=True) as dag:
+        create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    parent = DynamicRegion.get_or_create(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session)
+    session.add(parent)
+    session.flush()
+    previous = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body.mapped",
+        parent_region_id=parent.id,
+        parent_region_index=0,
+        session=session,
+    )
+    current = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body.mapped",
+        parent_region_id=parent.id,
+        parent_region_index=1,
+        session=session,
+    )
+    session.add_all([previous, current])
+    session.flush()
+    replacement = DynamicRegion(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body.mapped",
+        parent_region_id=parent.id,
+        parent_region_index=0,
+        forked_from_region_id=previous.id,
+    )
+    session.add(replacement)
+    session.flush()
+    consumer = next(ti for ti in dr.task_instances if ti.task_id == "body.consumer")
+    consumer.region_id, consumer.region_index = parent.id, 1
+    for ti in dr.task_instances:
+        if ti.task_id == "body.mapped":
+            ti.region_id = current.id
+    producers = {}
+    for region, index in [(previous, 0), (previous, 1), (replacement, 1)]:
+        ti = TaskInstance(
+            task=dag.get_task("body.mapped"), run_id=dr.run_id, dag_version_id=consumer.dag_version_id
+        )
+        ti.region_id, ti.region_index = region.id, index
+        session.add(ti)
+        producers[region.id, index] = ti
+    session.flush()
+    producers[previous.id, 1].archive(reason="cleared", session=session)
+    for (region, index), value in [
+        ((previous, 0), "retained"),
+        ((previous, 1), "archived"),
+        ((replacement, 1), "replacement"),
+    ]:
+        XComModel.set_for_attempt(
+            task_instance_id=producers[region.id, index].id,
+            key="key",
+            value=value,
+            serialize=False,
+            session=session,
+        )
+    session.commit()
+    authenticate_as(consumer)
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/body.mapped/key"
+    params = {"previous_iteration": True}
+    assert client.head(url, params=params).headers["Content-Range"] == "map_indexes 2"
+    assert client.get(url + "/slice", params=params).json() == ["retained", "replacement"]
+    assert client.get(url + "/item/-1", params=params).json() == "replacement"
+
+
+LOOP_SEQUENCES = {
+    "unmapped": ("body.step", ["step-0", "step-1", "step-2"]),
+    "mapped": ("body.fanout", ["0-0", "0-1", "1-0", "1-1", "2-0", "2-1"]),
+}
+
+
+@pytest.fixture
+def outside_loop_run(dag_maker, session, authenticate_as):
+    @task_group
+    def body():
+        EmptyOperator(task_id="step") >> PythonOperator.partial(task_id="fanout", python_callable=str).expand(
+            op_args=[[1], [2]]
+        )
+
+    with dag_maker(serialized=True) as dag:
+        loop = create_loop(body, max_iterations=3)
+        PythonOperator(
+            task_id="outside",
+            python_callable=list,
+            op_args=[loop["step"].output, loop["fanout"].output],
+        )
+    dr = dag_maker.create_dagrun()
+    root = session.scalar(
+        select(DynamicRegion).where(
+            DynamicRegion.dag_id == dr.dag_id,
+            DynamicRegion.run_id == dr.run_id,
+            DynamicRegion.node_id == "body",
+        )
+    )
+    tis = {(ti.task_id, ti.region_id, ti.region_index): ti for ti in dr.task_instances}
+    steps = {0: tis["body.step", root.id, 0]}
+    fanouts = {(0, ti.region_index): ti for ti in dr.task_instances if ti.task_id == "body.fanout"}
+    for iteration in (1, 2):
+        steps[iteration] = TaskInstance(
+            dag.get_task("body.step"),
+            dr.created_dag_version_id,
+            run_id=dr.run_id,
+            region_id=root.id,
+            region_index=iteration,
+        )
+        nested = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            node_id="body.fanout",
+            parent_region_id=root.id,
+            parent_region_index=iteration,
+            session=session,
+        )
+        session.add_all([steps[iteration], nested])
+        session.flush()
+        for slot in range(2):
+            fanouts[iteration, slot] = TaskInstance(
+                dag.get_task("body.fanout"),
+                dr.created_dag_version_id,
+                run_id=dr.run_id,
+                region_id=nested.id,
+                region_index=slot,
+            )
+            session.add(fanouts[iteration, slot])
+    session.flush()
+    for iteration in (2, 1, 0):
+        XComModel.set_for_attempt(
+            task_instance_id=steps[iteration].id,
+            key="key",
+            value=f"step-{iteration}",
+            serialize=False,
+            session=session,
+        )
+        XComModel.set_for_attempt(
+            task_instance_id=steps[iteration].id,
+            key=XCOM_RETURN_KEY,
+            value=f"returned-{iteration}",
+            serialize=False,
+            session=session,
+        )
+        for slot in (1, 0):
+            XComModel.set_for_attempt(
+                task_instance_id=fanouts[iteration, slot].id,
+                key="key",
+                value=f"{iteration}-{slot}",
+                serialize=False,
+                session=session,
+            )
+    session.commit()
+    outside = next(ti for ti in dr.task_instances if ti.task_id == "outside")
+    authenticate_as(outside)
+    return dr, dag, root, steps, authenticate_as
+
+
+def get_loop_url(dr, task_id):
+    return f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{task_id}/key"
+
+
+@pytest.mark.parametrize("shape", LOOP_SEQUENCES)
+def test_outside_caller_reads_every_iteration_of_a_loop_task(client, outside_loop_run, shape):
+    dr = outside_loop_run[0]
+    task_id, expected = LOOP_SEQUENCES[shape]
+    url = get_loop_url(dr, task_id)
+
+    assert client.head(url).headers["Content-Range"] == f"map_indexes {len(expected)}"
+    assert client.get(f"{url}/slice").json() == expected
+    for offset, value in enumerate(expected):
+        assert client.get(f"{url}/item/{offset}").json() == value
+        assert client.get(f"{url}/item/{offset - len(expected)}").json() == value
+    assert client.get(f"{url}/item/{len(expected)}").status_code == 404
+    assert client.get(url, params={"offset": -1}).json() == {"key": "key", "value": expected[-1]}
+
+
+def test_outside_task_that_uses_loop_outputs_waits_for_the_gate_and_reads_the_loop_task_xcom(
+    client, dag_maker, outside_loop_run
+):
+    dr = outside_loop_run[0]
+    consumer = dag_maker.serialized_dag.get_task("outside")
+
+    assert consumer.upstream_task_ids == {"body.__loop_gate"}
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/body.step/{XCOM_RETURN_KEY}"
+    assert client.head(url).headers["Content-Range"] == "map_indexes 3"
+    assert client.get(f"{url}/slice").json() == ["returned-0", "returned-1", "returned-2"]
+    assert client.get(f"{url}/item/-1").json() == "returned-2"
+
+
+@pytest.mark.parametrize("shape", LOOP_SEQUENCES)
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"start": 1},
+        {"stop": 3},
+        {"stop": -1},
+        {"start": -2},
+        {"start": 1, "stop": -1},
+        {"start": -3, "stop": 2},
+        {"step": -1},
+        {"step": 2},
+    ],
+)
+def test_outside_caller_slices_a_loop_task_depth_first(client, outside_loop_run, shape, params):
+    dr = outside_loop_run[0]
+    task_id, expected = LOOP_SEQUENCES[shape]
+
+    response = client.get(f"{get_loop_url(dr, task_id)}/slice", params=params)
+
+    assert response.json() == expected[slice(params.get("start"), params.get("stop"), params.get("step"))]
+
+
+@pytest.mark.parametrize("shape", LOOP_SEQUENCES)
+def test_outside_caller_reads_a_forked_loop_from_the_region_that_owns_each_pass(
+    client, session, outside_loop_run, shape
+):
+    dr, dag, root, steps, _ = outside_loop_run
+    fork = DynamicRegion(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body",
+        forked_from_region_id=root.id,
+        resumes_from_index=2,
+    )
+    nested = DynamicRegion(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body.fanout",
+        parent_region_id=None,
+        parent_region_index=None,
+    )
+    session.add(fork)
+    session.flush()
+    nested.parent_region_id, nested.parent_region_index = fork.id, 2
+    session.add(nested)
+    session.flush()
+    replacements = [
+        TaskInstance(
+            dag.get_task("body.step"),
+            dr.created_dag_version_id,
+            run_id=dr.run_id,
+            region_id=fork.id,
+            region_index=2,
+        ),
+        *(
+            TaskInstance(
+                dag.get_task("body.fanout"),
+                dr.created_dag_version_id,
+                run_id=dr.run_id,
+                region_id=nested.id,
+                region_index=slot,
+            )
+            for slot in range(2)
+        ),
+    ]
+    session.add_all(replacements)
+    session.flush()
+    for ti, value in zip(replacements, ["step-2-again", "2-0-again", "2-1-again"]):
+        XComModel.set_for_attempt(
+            task_instance_id=ti.id, key="key", value=value, serialize=False, session=session
+        )
+    session.commit()
+    task_id = LOOP_SEQUENCES[shape][0]
+    expected = {
+        "unmapped": ["step-0", "step-1", "step-2-again"],
+        "mapped": ["0-0", "0-1", "1-0", "1-1", "2-0-again", "2-1-again"],
+    }[shape]
+    url = get_loop_url(dr, task_id)
+
+    assert client.head(url).headers["Content-Range"] == f"map_indexes {len(expected)}"
+    assert client.get(f"{url}/slice").json() == expected
+    assert client.get(f"{url}/item/-1").json() == expected[-1]
+
+
+def test_outside_caller_cannot_read_a_single_value_of_a_loop_task(client, outside_loop_run):
+    dr = outside_loop_run[0]
+
+    assert client.get(get_loop_url(dr, "body.step")).status_code == 400
+
+
+def test_outside_caller_cannot_read_the_previous_iteration_of_a_loop_task(client, outside_loop_run):
+    dr = outside_loop_run[0]
+
+    response = client.get(f"{get_loop_url(dr, 'body.step')}/slice", params={"previous_iteration": True})
+
+    assert response.status_code == 400
+
+
+def test_outside_caller_cannot_read_a_loop_with_several_executions(client, session, outside_loop_run):
+    dr, _, root, _, _ = outside_loop_run
+    session.add(
+        DynamicRegion(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            node_id="body",
+            parent_region_id=root.id,
+            parent_region_index=0,
+        )
+    )
+    session.commit()
+
+    response = client.get(f"{get_loop_url(dr, 'body.step')}/slice")
+
+    assert response.status_code == 400
+    assert "several executions" in response.json()["detail"]
+
+
+def test_loop_task_reads_from_inside_the_loop_stay_on_one_pass(client, outside_loop_run):
+    dr, _, _, steps, authenticate_as = outside_loop_run
+    authenticate_as(steps[1])
+    step_url = get_loop_url(dr, "body.step")
+    fanout_url = get_loop_url(dr, "body.fanout")
+
+    assert client.head(step_url).headers["Content-Range"] == "map_indexes 1"
+    assert client.get(f"{step_url}/slice").json() == ["step-1"]
+    assert client.get(f"{step_url}/slice", params={"previous_iteration": True}).json() == ["step-0"]
+    assert client.get(f"{fanout_url}/slice").json() == ["1-0", "1-1"]
+    assert client.get(f"{fanout_url}/item/-1").json() == "1-1"
+
+
+@pytest.mark.parametrize("key", ["_airflow_loop_decision", "_airflow_loop_other"])
+def test_normal_xcom_push_rejects_loop_reserved_prefix(client, create_task_instance, key):
+    ti = create_task_instance()
+    response = client.post(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{key}", json="continue")
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("value", "region_index", "expected_status"),
+    [
+        ("continue", 0, 201),
+        ("stop", 2, 201),
+        ("continue", 2, 400),
+        ("stop", 0, 400),
+        (True, 2, 400),
+        ("invalid", 2, 400),
+        ({"decision": "stop"}, 2, 400),
+    ],
+)
+def test_internal_loop_decision_uses_token_gate_coordinates(
+    client, loop_xcoms, session, authenticate_as, value, region_index, expected_status
+):
+    dr, _, consumer, _ = loop_xcoms
+    gate = session.scalar(
+        select(TaskInstance).where(
+            TaskInstance.dag_id == dr.dag_id, TaskInstance.task_id == "body.__loop_gate"
+        )
+    )
+    gate.region_id, gate.region_index = consumer.region_id, region_index
+    gate.state = "running"
+    session.commit()
+    authenticate_as(gate)
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{gate.task_id}/_airflow_loop_decision"
+
+    response = client.post(url, json=value)
+
+    assert response.status_code == expected_status
+    stored = session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id))
+    if expected_status == 400:
+        assert stored is None
+        return
+    assert (stored.region_id, stored.region_index, stored.value) == (gate.region_id, region_index, value)
+    authenticate_as(consumer)
+    assert client.post(url, json="stop").status_code == 400
+    assert (
+        client.post(
+            f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{consumer.task_id}/_airflow_loop_decision",
+            json="stop",
+        ).status_code
+        == 400
+    )
+
+
+def test_loop_result_item_read_loads_no_producer_rows(dag_maker, session, client, authenticate_as):
+    @task_group
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2], [3]]) >> (
+            EmptyOperator(task_id="consumer")
+        )
+
+    with dag_maker(serialized=True) as dag:
+        create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    consumer = tis["body.consumer", 0]
+    loop_region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session
+    )
+    session.add(loop_region)
+    session.flush()
+    consumer.region_id, consumer.region_index = loop_region.id, 1
+    mapped_task = dag.get_task("body.mapped")
+    for iteration in range(3):
+        region = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            node_id="body.mapped",
+            parent_region_id=loop_region.id,
+            parent_region_index=iteration,
+            session=session,
+        )
+        session.add(region)
+        session.flush()
+        for map_index in range(3):
+            ti = tis.get(("body.mapped", map_index)) if iteration == 0 else None
+            if ti is None:
+                ti = TaskInstance(mapped_task, consumer.dag_version_id, run_id=dr.run_id, map_index=map_index)
+                session.add(ti)
+            ti.region_id = region.id
+            session.flush()
+            XComModel.set_for_attempt(
+                task_instance_id=ti.id,
+                key="return_value",
+                value=f"{iteration}-{map_index}",
+                serialize=False,
+                session=session,
+            )
+    session.commit()
+    authenticate_as(consumer)
+    session.expunge_all()
+    loaded = []
+
+    def record(_, instance):
+        if isinstance(instance, TaskInstance) and instance.task_id == "body.mapped":
+            loaded.append(instance.id)
+
+    event.listen(Session, "loaded_as_persistent", record)
+    try:
+        response = client.get(f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/body.mapped/return_value/item/0")
+    finally:
+        event.remove(Session, "loaded_as_persistent", record)
+
+    assert response.json() == "1-0"
+    assert loaded == []
+
+
+def test_loop_xcom_omission_uses_consumer_pass_and_retained_region(client, loop_xcoms):
+    dr, producer, consumer, _ = loop_xcoms
+    base = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}"
+
+    assert client.get(f"{base}/{producer.task_id}/key").json() == {"key": "key", "value": "current"}
+    assert client.post(f"{base}/{consumer.task_id}/key", json="consumer").status_code == 201
+    assert client.get(f"{base}/{consumer.task_id}/key").json() == {"key": "key", "value": "consumer"}
+
+
+def test_loop_prior_dates_are_unsupported_but_allowed_for_outside_producer(client, loop_xcoms):
+    dr, producer, _, _ = loop_xcoms
+    base = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}"
+
+    response = client.get(f"{base}/{producer.task_id}/key", params={"include_prior_dates": True})
+    assert response.status_code == 400
+    assert "not supported for tasks inside a loop" in response.json()["detail"]
+    assert client.get(f"{base}/outside/key", params={"include_prior_dates": True}).json() == {
+        "key": "key",
+        "value": "outside",
+    }
+
+
+def test_loop_prior_dates_for_unknown_target_run_falls_through_to_plain_read(client, loop_xcoms):
+    dr, producer, _, _ = loop_xcoms
+
+    response = client.get(
+        f"/execution/xcoms/{dr.dag_id}/other_dag_run/{producer.task_id}/key",
+        params={"include_prior_dates": True},
+    )
+
+    assert response.status_code == 404
+
+
+def test_loop_xcom_write_and_delete_for_several_live_passes_conflict(client, loop_xcoms):
+    dr, producer, _, _ = loop_xcoms
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{producer.task_id}/key"
+
+    assert client.post(url, json="value").status_code == 409
+    assert client.delete(url).status_code == 409
+
+
+@pytest.mark.parametrize("current_regional", [False, True])
+@pytest.mark.parametrize("removed_from_pinned_dag", [False, True])
+def test_prior_dates_resolves_mapped_region_separately_for_each_run(
+    client, dag_maker, session, mocker, current_regional, removed_from_pinned_dag
+):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1]])
+    old = dag_maker.create_dagrun(run_id="old", logical_date=timezone.datetime(2026, 1, 1))
+    current = dag_maker.create_dagrun(run_id="current", logical_date=timezone.datetime(2026, 1, 2))
+    if not current_regional:
+        current.task_instances[0].region_id = SENTINEL_REGION_ID
+        session.flush()
+    producer = old.task_instances[0]
+    XComModel.set_for_attempt(
+        task_instance_id=producer.id, key="key", value="old", serialize=False, session=session
+    )
+    session.commit()
+    if removed_from_pinned_dag:
+        mocker.patch.object(
+            TaskCoordinateResolver, "get_task", autospec=True, side_effect=TaskNotFound("removed")
+        )
+
+    response = client.get(
+        f"/execution/xcoms/{current.dag_id}/{current.run_id}/mapped/key",
+        params={"map_index": 0, "include_prior_dates": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"key": "key", "value": "old"}
+
+
+@pytest.mark.parametrize("archived_run", ["old", "current"])
+def test_prior_dates_ignores_values_of_archived_expansion_task_instances(
+    client, dag_maker, session, archived_run
+):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1]])
+    old = dag_maker.create_dagrun(run_id="old", logical_date=timezone.datetime(2026, 1, 1))
+    current = dag_maker.create_dagrun(run_id="current", logical_date=timezone.datetime(2026, 1, 2))
+    dr = old if archived_run == "old" else current
+    archived = dr.task_instances[0]
+    XComModel.set_for_attempt(
+        task_instance_id=archived.id, key="key", value=99, serialize=False, session=session
+    )
+    archived.archive(reason="retry", session=session)
+    session.commit()
+
+    response = client.get(
+        f"/execution/xcoms/{current.dag_id}/{current.run_id}/mapped/key",
+        params={"map_index": 0, "include_prior_dates": True},
+    )
+
+    assert response.status_code == 404
 
 
 @pytest.fixture(autouse=True)
@@ -208,7 +860,7 @@ class TestXComsGetEndpoint:
         with dag_maker(dag_id="dag"):
             MyOperator.partial(task_id="task").expand(x=xcom_values)
         dag_run = dag_maker.create_dagrun(run_id="runid")
-        tis = {ti.map_index: ti for ti in dag_run.task_instances}
+        tis = {ti.region_index: ti for ti in dag_run.task_instances}
 
         for map_index, db_value in enumerate(xcom_values):
             if db_value is None:  # We don't put None to XCom.
@@ -262,7 +914,7 @@ class TestXComsGetEndpoint:
         with dag_maker(dag_id="dag"):
             MyOperator.partial(task_id="task").expand(x=xcom_values)
         dag_run = dag_maker.create_dagrun(run_id="runid")
-        tis = {ti.map_index: ti for ti in dag_run.task_instances}
+        tis = {ti.region_index: ti for ti in dag_run.task_instances}
 
         for map_index, db_value in enumerate(xcom_values):
             if db_value is None:  # We don't put None to XCom.
@@ -728,6 +1380,28 @@ class TestXComsDeleteEndpoint:
             assert XComModelV2.get_for_attempt(ti.id, "xcom_1", session=verify) is None
             assert verify.get(XComModelV1, (ti.dag_run.id, ti.task_id, ti.map_index, "xcom_1")) is None
             assert XComModelV2.get_for_attempt(ti1.id, "xcom_1", session=verify) is not None
+
+    @pytest.mark.parametrize(
+        ("target_task_id", "ti_map_index"),
+        [
+            pytest.param("missing_task", -1, id="task-not-in-run"),
+            pytest.param("op1", 0, id="mapped-task-with-default-map-index"),
+        ],
+    )
+    def test_xcom_delete_without_a_matching_task_instance_is_a_no_op(
+        self, client, create_task_instance, authenticate_as, session, target_task_id, ti_map_index
+    ):
+        ti = create_task_instance(map_index=ti_map_index)
+        ti.xcom_push(key="xcom_1", value='"value1"', session=session)
+        session.commit()
+        authenticate_as(ti)
+
+        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{target_task_id}/xcom_1")
+
+        assert response.status_code == 200
+        assert response.json() == {"message": "XCom with key: xcom_1 successfully deleted."}
+        with create_session(scoped=False) as verify:
+            assert XComModelV2.get_for_attempt(ti.id, "xcom_1", session=verify) is not None
 
 
 class TestXComTeamAccess:

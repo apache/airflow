@@ -39,6 +39,7 @@ from airflow.models import Connection, Log, Pool, Variable
 from airflow.models.dag import DagModel, clear_team_name_cache
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -47,9 +48,11 @@ from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_logs,
     clear_db_pools,
+    clear_db_runs,
     clear_db_teams,
     clear_db_variables,
 )
+from tests_common.test_utils.mock_operators import MockOperator
 
 
 class TestSanitizeForStdlibLog:
@@ -627,3 +630,67 @@ class TestNoActionLoggingRouteRejectsAnUnparsableBody:
         assert not failures, f"an unparsable body ({payload_name}) must not fail these routes:\n" + "\n".join(
             failures
         )
+
+
+@pytest.mark.db_test
+class TestActionLoggingAddressedAttempt:
+    """A request naming one task instance records the attempt it acted on, so that attempt's events list it."""
+
+    def teardown_method(self):
+        clear_db_logs()
+        clear_db_runs()
+
+    @pytest.fixture
+    def task_instances(self, dag_maker, session):
+        with dag_maker("audit_dag", serialized=True):
+            EmptyOperator(task_id="plain")
+            MockOperator.partial(task_id="mapped").expand(arg2=[1, 2])
+        dag_run = dag_maker.create_dagrun(run_id="audit_run")
+        return {(ti.task_id, ti.region_index): ti for ti in dag_run.get_task_instances(session=session)}
+
+    @staticmethod
+    def _log_action(session, path_params, query_string=b""):
+        request = Request(
+            {
+                "type": "http",
+                "method": "PATCH",
+                "headers": [],
+                "query_string": query_string,
+                "path_params": {"dag_id": "audit_dag", "dag_run_id": "audit_run", **path_params},
+            }
+        )
+        asyncio.run(action_logging(event="patch_task_instance")(request=request, session=session, user=None))
+        return session.scalar(select(Log).order_by(Log.id.desc()))
+
+    @pytest.mark.parametrize(
+        ("path_params", "query", "addressed"),
+        [
+            pytest.param({"task_id": "plain"}, "", ("plain", -1), id="unmapped"),
+            pytest.param({"task_id": "mapped", "map_index": "1"}, "", ("mapped", 1), id="map-index"),
+            pytest.param({"task_id": "mapped"}, "region_index=0", ("mapped", 0), id="region"),
+        ],
+    )
+    def test_records_the_attempt_of_the_addressed_task_instance(
+        self, session, task_instances, path_params, query, addressed
+    ):
+        target = task_instances[addressed]
+        if query:
+            query = f"region_id={target.region_id}&{query}"
+
+        logged = self._log_action(session, path_params, query.encode())
+
+        assert logged.task_instance_id == target.id
+        assert logged.map_index == addressed[1]
+
+    @pytest.mark.parametrize(
+        "path_params",
+        [
+            pytest.param({}, id="bulk"),
+            pytest.param({"task_id": "mapped"}, id="ambiguous"),
+            pytest.param({"task_id": "plain", "map_index": "not-a-number"}, id="malformed"),
+        ],
+    )
+    def test_names_no_attempt_unless_exactly_one_task_instance_is_addressed(
+        self, session, task_instances, path_params
+    ):
+        assert self._log_action(session, path_params).task_instance_id is None

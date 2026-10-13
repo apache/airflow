@@ -26,14 +26,17 @@ from unittest.mock import Mock
 
 import attrs
 import pytest
-from sqlalchemy import event
+from sqlalchemy import delete, event
 
 import airflow.settings
 from airflow.models.dag_version import DagVersion
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task, task_group
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.task.trigger_rule import TriggerRule
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
@@ -51,6 +54,194 @@ UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
 REMOVED = TaskInstanceState.REMOVED
 SUCCESS = TaskInstanceState.SUCCESS
 FAILED = TaskInstanceState.FAILED
+
+
+@pytest.mark.parametrize("latest_state", [None, SUCCESS, FAILED, SKIPPED, TaskInstanceState.RESTARTING])
+@pytest.mark.parametrize("rule", [TriggerRule.ALL_SUCCESS, TriggerRule.ONE_SUCCESS, TriggerRule.ALL_DONE])
+def test_outside_dependency_observes_only_latest_live_loop_gate(dag_maker, session, latest_state, rule):
+    @task_group
+    def body():
+        PythonOperator(task_id="terminal", python_callable=list)
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+        loop >> PythonOperator(task_id="outside", python_callable=list, trigger_rule=rule)
+    dr = dag_maker.create_dagrun()
+    previous = next(ti for ti in dr.task_instances if ti.task_id == loop.gate_task_id)
+    previous.state = SUCCESS
+    latest = TaskInstance(
+        task=dag_maker.serialized_dag.get_task(previous.task_id),
+        run_id=dr.run_id,
+        dag_version_id=previous.dag_version_id,
+        region_id=previous.region_id,
+        region_index=1,
+        state=latest_state,
+    )
+    session.add(latest)
+    outside = next(ti for ti in dr.task_instances if ti.task_id == "outside")
+    outside.task = dag_maker.serialized_dag.get_task(outside.task_id)
+    session.flush()
+    context = DepContext()
+
+    actual = TriggerRuleDep().is_met(ti=outside, dep_context=context, session=session)
+
+    expected = latest_state == SUCCESS or (rule == TriggerRule.ALL_DONE and latest_state in {FAILED, SKIPPED})
+    assert actual is expected
+    assert context.upstream_tis(outside, previous.task_id, session=session) == (latest,)
+    with pytest.raises(ValueError, match="loop producer requires"):
+        context.coordinate_resolver(outside, session=session).resolve(
+            dag_id=dr.dag_id, run_id=dr.run_id, task_id=previous.task_id, caller=outside
+        )
+
+
+GATE_RULE_MATRIX = {
+    TriggerRule.ALL_SUCCESS: {SUCCESS},
+    TriggerRule.ONE_SUCCESS: {SUCCESS},
+    TriggerRule.ONE_FAILED: {FAILED, UPSTREAM_FAILED},
+    TriggerRule.NONE_FAILED: {SUCCESS, SKIPPED},
+    TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS: {SUCCESS},
+    TriggerRule.ALL_DONE: {SUCCESS, FAILED, UPSTREAM_FAILED, SKIPPED},
+    TriggerRule.ALWAYS: {SUCCESS, FAILED, UPSTREAM_FAILED, SKIPPED, None},
+}
+
+
+@pytest.mark.parametrize("gate_state", [None, SUCCESS, FAILED, UPSTREAM_FAILED, SKIPPED])
+@pytest.mark.parametrize("rule", list(GATE_RULE_MATRIX))
+def test_task_using_a_loop_task_follows_the_loop_gate_not_the_loop_task(dag_maker, session, rule, gate_state):
+    @task_group
+    def body():
+        EmptyOperator(task_id="first") >> EmptyOperator(task_id="terminal")
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+        loop["first"] >> PythonOperator(task_id="outside", python_callable=list, trigger_rule=rule)
+    dr = dag_maker.create_dagrun()
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    tis["body.first"].state = SUCCESS
+    tis["body.terminal"].state = SUCCESS if gate_state in (SUCCESS, FAILED, SKIPPED) else FAILED
+    tis[loop.gate_task_id].state = gate_state
+    outside = tis["outside"]
+    outside.task = dag_maker.serialized_dag.get_task("outside")
+    session.flush()
+
+    met = TriggerRuleDep().is_met(ti=outside, dep_context=DepContext(), session=session)
+
+    assert outside.task.upstream_task_ids == {loop.gate_task_id}
+    assert met is (gate_state in GATE_RULE_MATRIX[rule])
+
+
+@pytest.mark.parametrize("current_state", [SUCCESS, FAILED])
+def test_trigger_rule_ignores_other_loop_passes(dag_maker, session, current_state):
+    @task_group
+    def body():
+        EmptyOperator(task_id="source") >> EmptyOperator(task_id="consumer")
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+    )
+    session.add(region)
+    session.flush()
+    source, consumer = (
+        next(ti for ti in dr.task_instances if ti.task_id == f"body.{name}")
+        for name in ("source", "consumer")
+    )
+    source.region_id, source.region_index, source.state = region.id, 1, current_state
+    consumer.region_id, consumer.region_index = region.id, 1
+    consumer.task = dag_maker.serialized_dag.get_task(consumer.task_id)
+    previous = TaskInstance(
+        task=dag_maker.serialized_dag.get_task(source.task_id),
+        run_id=dr.run_id,
+        dag_version_id=source.dag_version_id,
+        region_id=region.id,
+        map_index=0,
+    )
+    previous.state = FAILED if current_state == SUCCESS else SUCCESS
+    session.add(previous)
+    session.flush()
+    statuses = list(
+        TriggerRuleDep()._get_dep_statuses(
+            consumer,
+            DepContext(flag_upstream_failed=True),
+            session=session,
+        )
+    )
+
+    assert all(status.passed for status in statuses) is (current_state == SUCCESS)
+    assert consumer.state == (None if current_state == SUCCESS else UPSTREAM_FAILED)
+
+
+@pytest.mark.parametrize("tail_state", [TaskInstanceState.RUNNING, REMOVED])
+def test_trigger_count_cache_separates_expansions_in_different_loop_passes(dag_maker, session, tail_state):
+    @task_group
+    def body():
+        source = PythonOperator.partial(task_id="source", python_callable=list).expand(op_kwargs=[{}, {}])
+        source >> EmptyOperator(task_id="consumer")
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    for ti in dr.task_instances:
+        ti.region_id = SENTINEL_REGION_ID
+    session.flush()
+    session.execute(delete(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
+    context = DepContext(flag_upstream_failed=True)
+    assert not context.has_regions(dr.task_instances[0], session=session)
+    parent = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+    )
+    expansions = [
+        DynamicRegion.get_or_create(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            node_id="body.source",
+            parent_region_id=parent.id,
+            parent_region_index=index,
+            session=session,
+        )
+        for index in (0, 1)
+    ]
+    session.add_all(expansions)
+    session.flush()
+    sources = [ti for ti in dr.task_instances if ti.task_id == "body.source"]
+    for source, expansion in zip(sources, expansions):
+        source.region_id, source.region_index, source.state = expansion.id, 0, SUCCESS
+    source_task = dag_maker.serialized_dag.get_task("body.source")
+    pending = TaskInstance(
+        task=source_task,
+        run_id=dr.run_id,
+        dag_version_id=sources[0].dag_version_id,
+        region_id=expansions[1].id,
+        map_index=1,
+        state=tail_state,
+    )
+    consumer = next(ti for ti in dr.task_instances if ti.task_id == "body.consumer")
+    consumer.region_id, consumer.region_index = parent.id, 0
+    consumer.task = dag_maker.serialized_dag.get_task(consumer.task_id)
+    following = TaskInstance(
+        task=consumer.task,
+        run_id=dr.run_id,
+        dag_version_id=consumer.dag_version_id,
+        region_id=parent.id,
+        map_index=1,
+    )
+    session.add_all([pending, following])
+    session.flush()
+    context.invalidate_upstream_task_id_counts()
+    with _count_upstream_count_queries() as counter:
+        first_statuses = list(
+            TriggerRuleDep()._evaluate_trigger_rule(ti=consumer, dep_context=context, session=session)
+        )
+        next_statuses = list(
+            TriggerRuleDep()._evaluate_trigger_rule(ti=following, dep_context=context, session=session)
+        )
+
+    assert first_statuses == []
+    assert any(not status.passed for status in next_statuses) is (tail_state == TaskInstanceState.RUNNING)
+    assert following.state is None
+    assert counter["n"] == 2
 
 
 @pytest.fixture
@@ -139,14 +330,20 @@ def get_mapped_task_dagrun(session, dag_maker):
         dr = dag_maker.create_dagrun()
 
         def _expand_tasks(task_instance: str, upstream: str) -> BaseOperator | None:
-            ti = dr.get_task_instance(task_instance, session=session)
-            ti.map_index = 0
-            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = next(ti for ti in dr.task_instances if ti.task_id == task_instance)
+            ti.region_index = 0
+            expanded_task = ti.task
+            region_id = ti.region_id
+            dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
             if TYPE_CHECKING:
                 assert dag_version
             for map_index in range(1, 5):
                 ti = TaskInstance(
-                    ti.task, run_id=dr.run_id, map_index=map_index, dag_version_id=dag_version.id
+                    expanded_task,
+                    run_id=dr.run_id,
+                    region_id=region_id,
+                    region_index=map_index,
+                    dag_version_id=dag_version.id,
                 )
                 session.add(ti)
                 ti.dag_run = dr
@@ -154,12 +351,12 @@ def get_mapped_task_dagrun(session, dag_maker):
             tis = dr.get_task_instances(session=session)
             for ti in tis:
                 if ti.task_id == upstream:
-                    if ti.map_index > 2:
+                    if ti.region_index > 2:
                         ti.state = REMOVED
                     else:
                         ti.state = state
                     session.merge(ti)
-            return ti.task
+            return expanded_task
 
         do_task = _expand_tasks("do_something_else", "do_something")
         if add_setup_tasks:
@@ -1430,7 +1627,11 @@ class TestTriggerRuleDep:
         dr, task, _ = get_mapped_task_dagrun()
 
         # ti with removed upstream ti
-        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
+        ti = next(
+            ti
+            for ti in dr.get_task_instances(session=session)
+            if ti.task_id == "do_something_else" and ti.region_index == 3
+        )
         ti.task = task
 
         upstream_states = _UpstreamTIStates(
@@ -1467,7 +1668,11 @@ class TestTriggerRuleDep:
         dr, task, _ = get_mapped_task_dagrun(trigger_rule=TriggerRule.ALL_FAILED, state=FAILED)
 
         # ti with removed upstream ti
-        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
+        ti = next(
+            ti
+            for ti in dr.get_task_instances(session=session)
+            if ti.task_id == "do_something_else" and ti.region_index == 3
+        )
         ti.task = task
 
         upstream_states = _UpstreamTIStates(
@@ -1503,7 +1708,11 @@ class TestTriggerRuleDep:
         dr, task, _ = get_mapped_task_dagrun(trigger_rule=trigger_rule)
 
         # ti with removed upstream ti
-        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
+        ti = next(
+            ti
+            for ti in dr.get_task_instances(session=session)
+            if ti.task_id == "do_something_else" and ti.region_index == 3
+        )
         ti.task = task
 
         upstream_states = _UpstreamTIStates(
@@ -1542,7 +1751,11 @@ class TestTriggerRuleDep:
         )
 
         # ti with removed upstream ti
-        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
+        ti = next(
+            ti
+            for ti in dr.get_task_instances(session=session)
+            if ti.task_id == "do_something_else" and ti.region_index == 3
+        )
         ti.task = task
 
         upstream_states = _UpstreamTIStates(
@@ -2003,7 +2216,11 @@ def test_setup_constraint_mapped_task_upstream_removed_and_success(
     """
     dr, _, setup_task = get_mapped_task_dagrun(add_setup_tasks=True)
 
-    ti = dr.get_task_instance(task_id="setup_3", map_index=map_index, session=session)
+    ti = next(
+        ti
+        for ti in dr.get_task_instances(session=session)
+        if ti.task_id == "setup_3" and ti.region_index == map_index
+    )
     ti.task = setup_task
 
     _test_trigger_rule(
@@ -2205,6 +2422,33 @@ def _expand_mapped_task(dr, dag, task_id, states, session):
 class TestTriggerRuleUpstreamCountMemo:
     """The upstream-count query is memoized per scheduling pass (one DepContext) in the simple case."""
 
+    def test_mapped_siblings_share_resolved_producers(self, dag_maker, session):
+        with dag_maker(serialized=True):
+            source = PythonOperator.partial(task_id="source", python_callable=list).expand(op_kwargs=[{}] * 4)
+            consumer = PythonOperator.partial(task_id="consumer", python_callable=list).expand(
+                op_kwargs=[{}] * 4
+            )
+            source >> consumer
+        dr = dag_maker.create_dagrun()
+        consumers = [ti for ti in dr.task_instances if ti.task_id == "consumer"]
+        expected_ids = {ti.id for ti in dr.task_instances if ti.task_id == "source"}
+        context = DepContext()
+        assert {ti.id for ti in context.upstream_tis(consumers[0], "source", session=session)} == expected_ids
+        statements = []
+
+        def record_statement(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(session.bind, "before_cursor_execute", record_statement)
+        try:
+            for consumer_ti in consumers[1:]:
+                assert {
+                    ti.id for ti in context.upstream_tis(consumer_ti, "source", session=session)
+                } == expected_ids
+        finally:
+            event.remove(session.bind, "before_cursor_execute", record_statement)
+        assert statements == []
+
     def _make_dag(
         self, dag_maker, session, *, n_downstreams, src_states, trigger_rule=TriggerRule.ALL_SUCCESS
     ):
@@ -2239,6 +2483,31 @@ class TestTriggerRuleUpstreamCountMemo:
                 # All three upstreams succeeded -> ALL_SUCCESS is met -> no failing status.
                 assert statuses == []
         assert counter["n"] == 1
+
+    def test_dag_without_a_loop_does_not_resolve_regions(self, dag_maker, session):
+        """Outside a loop each task has one live expansion, so no region lookup is needed per pass."""
+        with dag_maker(dag_id="trmemo_no_regions", session=session) as dag:
+            source = PythonOperator.partial(task_id="source", python_callable=list).expand(op_kwargs=[{}, {}])
+            source >> EmptyOperator(task_id="consumer")
+        dr = dag_maker.create_dagrun()
+        _expand_mapped_task(dr, dag, "source", [SUCCESS, SUCCESS], session)
+        consumer = dr.get_task_instance("consumer", session=session)
+        statements = []
+
+        def record_statement(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(session.bind, "before_cursor_execute", record_statement)
+        try:
+            dep_statuses = list(
+                TriggerRuleDep()._evaluate_trigger_rule(
+                    ti=consumer, dep_context=DepContext(), session=session
+                )
+            )
+        finally:
+            event.remove(session.bind, "before_cursor_execute", record_statement)
+        assert dep_statuses == []
+        assert not [statement for statement in statements if "dynamic_region" in statement]
 
     def test_memoized_count_value_is_correct(self, dag_maker, session):
         """
@@ -2336,7 +2605,7 @@ class TestTriggerRuleUpstreamCountMemo:
         ser = dag_maker.serialized_dag
         d1 = dr.get_task_instance("d1", session=session)
         d2 = dr.get_task_instance("d2", session=session)
-        src0 = dr.get_task_instance("src", map_index=0, session=session)
+        src0 = next(ti for ti in dr.task_instances if ti.task_id == "src" and ti.region_index == 0)
         d1.task = ser.get_task("d1")
         d2.task = ser.get_task("d2")
         src0.task = ser.get_task("src")
