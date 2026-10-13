@@ -72,6 +72,7 @@ dependencies = [
     # the SDK and stopped passing temperature/top_p/top_k as messages.create() kwargs, both
     # of which raise TypeError on 2.31 and earlier. The cost API this provider relies on
     # (RunUsage.cost, UsageLimits.cost_limit) landed earlier, in 2.23.0.
+    # There is no upper bound on purpose; see docs/stability.rst, "Pydantic AI versions".
     "pydantic-ai-slim>=2.33.0",
     # Airflow 3 brings structlog in through the Task SDK; Airflow 2 does not. 24.2.0 is the first
     # release whose render_to_log_kwargs hands ``stacklevel`` to stdlib logging under that name.

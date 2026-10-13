@@ -25,6 +25,26 @@ A stable feature keeps its behaviour across minor releases of this provider, fro
 in a minor release, as Airflow's :ref:`experimental feature policy <apache-airflow:experimental>`
 allows. A breaking change to an experimental feature is announced in the changelog.
 
+Pydantic AI versions
+--------------------
+
+This provider supports ``pydantic-ai-slim`` ``2.33.0`` and later. It sets no upper bound,
+following Airflow's practice of rarely upper-bounding dependencies, so a Pydantic AI release
+newer than any this provider has been tested with can be installed. Newer releases are
+supported on a best-effort basis.
+
+When a Pydantic AI release breaks a stable feature, this provider makes a best-effort fix in
+a patch release, with no deadline. Until then, pin ``pydantic-ai-slim`` below the breaking
+version. A break in an experimental feature is not patched, and can be fixed in the next
+minor release.
+
+The types and parameters this provider hands to Pydantic AI are defined by Pydantic AI, not
+by this provider. That includes the model that ``PydanticAIHook`` returns, ``capabilities``,
+``agent_params`` and ``output_type`` on the operators, and the toolset class the toolsets
+inherit from. The provider keeps accepting and forwarding these parameters; what Pydantic AI
+accepts or returns for them is defined by Pydantic AI, and a change on that side is not a
+change to a stable feature of this provider.
+
 Stable features
 ---------------
 
@@ -136,7 +156,10 @@ Everything this provider ships that is not in the table above is experimental.
        (:doc:`toolsets/skills`) and the ``shields`` extra (used in :doc:`capabilities`)
      - Thin integrations of packages outside this provider whose APIs are still
        changing: ``pydantic-ai-harness``, ``pydantic-ai-skills`` and
-       ``pydantic-ai-shields``.
+       ``pydantic-ai-shields``. A minor release can raise the minimum version of one of
+       these packages, and says so in a changelog note; a patch release does not. You are
+       responsible for the version compatibility of the packages you install through these
+       extras.
    * - :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` and its
        backends (:doc:`sandbox/index`)
      - The sandbox runtime belongs to the backend; ownership and cleanup across worker
