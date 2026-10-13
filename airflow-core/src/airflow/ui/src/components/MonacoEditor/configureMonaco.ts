@@ -69,6 +69,7 @@ const loadMonacoModules = async () => {
   const typescriptGrammar = import("monaco-editor/languages/definitions/typescript/typescript");
   const javaGrammar = import("monaco-editor/languages/definitions/java/java");
   const goGrammar = import("monaco-editor/languages/definitions/go/go");
+  const yamlGrammar = import("monaco-editor/languages/definitions/yaml/yaml");
 
   const [
     monaco,
@@ -77,6 +78,7 @@ const loadMonacoModules = async () => {
     { conf: typescriptConf, language: typescriptLanguage },
     { conf: javaConf, language: javaLanguage },
     { conf: goConf, language: goLanguage },
+    { conf: yamlConf, language: yamlLanguage },
   ] = await Promise.all([
     monacoApi,
     workerUrls,
@@ -84,6 +86,7 @@ const loadMonacoModules = async () => {
     typescriptGrammar,
     javaGrammar,
     goGrammar,
+    yamlGrammar,
     jsonContribution,
   ]);
 
@@ -99,6 +102,8 @@ const loadMonacoModules = async () => {
     pythonLanguage,
     typescriptConf,
     typescriptLanguage,
+    yamlConf,
+    yamlLanguage,
   };
 };
 
@@ -129,6 +134,8 @@ export const configureMonaco = () => {
         pythonLanguage,
         typescriptConf,
         typescriptLanguage,
+        yamlConf,
+        yamlLanguage,
       }) => {
         Reflect.set(globalThis, "MonacoEnvironment", {
           getWorker: (_moduleId: string, label: string) =>
@@ -147,6 +154,7 @@ export const configureMonaco = () => {
           { conf: typescriptConf, id: "typescript", language: typescriptLanguage },
           { conf: javaConf, id: "java", language: javaLanguage },
           { conf: goConf, id: "go", language: goLanguage },
+          { conf: yamlConf, id: "yaml", language: yamlLanguage },
         ] as const;
 
         for (const grammar of grammars) {
