@@ -5443,6 +5443,53 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json()["total_entries"] == group_size
 
+    @pytest.mark.parametrize(
+        ("mapped", "task_id", "expected"),
+        [
+            pytest.param(False, "a", [("a", -1), ("b", -1), ("root", -1)], id="unmapped"),
+            pytest.param(True, ["a", 0], [("a", 0), ("b", -1), ("root", -1)], id="mapped"),
+        ],
+    )
+    @pytest.mark.parametrize("with_loop", [False, True], ids=["without-loop", "with-unrelated-loop"])
+    def test_clear_with_upstream_and_downstream_excludes_unrelated_tasks(
+        self, test_client, dag_maker, session, mapped, task_id, expected, with_loop
+    ):
+        """Upstream + downstream must not include other descendants of the upstream tasks."""
+
+        @task_group
+        def body():
+            BaseOperator(task_id="member")
+
+        dag_id = "clear_upstream_and_downstream"
+        with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1, serialized=True):
+            if with_loop:
+                create_loop(body, max_iterations=2)
+            root = BaseOperator(task_id="root")
+            if mapped:
+                a = MockOperator.partial(task_id="a").expand(arg2=["x", "y", "z"])
+            else:
+                a = BaseOperator(task_id="a")
+            b = BaseOperator(task_id="b")
+            other = BaseOperator(task_id="other")
+            root >> a >> b
+            root >> other
+        dr = dag_maker.create_dagrun(run_id="run1", logical_date=DEFAULT_DATETIME_1)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={
+                "dry_run": True,
+                "only_failed": False,
+                "dag_run_id": dr.run_id,
+                "task_ids": [task_id],
+                "include_upstream": True,
+                "include_downstream": True,
+            },
+        )
+        assert response.status_code == 200
+        response_tis = response.json()["task_instances"]
+        assert sorted((ti["task_id"], ti["map_index"]) for ti in response_tis) == expected
+
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
     def test_history_without_dag_version_serializes_null(self, test_client, session):
@@ -5899,6 +5946,62 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
             )
         )
         assert current_last.state == (State.FAILED if dry_run else None)
+
+    def test_loop_mark_with_upstream_and_downstream_excludes_unrelated_tasks(
+        self, test_client, dag_maker, session
+    ):
+        @task_group
+        def body():
+            prepare = MockOperator(task_id="prepare")
+            combine = MockOperator(task_id="combine")
+            prepare >> MockOperator(task_id="process") >> combine
+            prepare >> MockOperator(task_id="audit") >> combine
+
+        with dag_maker("mark_loop_upstream_and_downstream", serialized=True):
+            start = MockOperator(task_id="start")
+            loop = create_loop(body, max_iterations=3)
+            start >> MockOperator(task_id="report")
+            start >> loop >> MockOperator(task_id="finish")
+        dr = dag_maker.create_dagrun()
+        root = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+        for index in (1, 2):
+            for loop_task in loop.iter_tasks():
+                session.add(
+                    TaskInstance(
+                        task=loop_task,
+                        run_id=dr.run_id,
+                        dag_version_id=dr.created_dag_version_id,
+                        region_id=root.id,
+                        region_index=index,
+                    )
+                )
+        session.flush()
+        for ti in dr.get_task_instances(session=session):
+            ti.set_state(State.SUCCESS, session=session)
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.process/dry_run",
+            json={
+                "new_state": "failed",
+                "region_id": str(root.id),
+                "region_index": 1,
+                "include_upstream": True,
+                "include_downstream": True,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert {
+            (item["task_id"], item.get("region_index")) for item in response.json()["task_instances"]
+        } == {
+            ("start", None),
+            ("body.prepare", 1),
+            ("body.process", 1),
+            ("body.combine", 1),
+            (loop.gate_task_id, 1),
+            ("finish", None),
+        }
 
     def test_loop_mark_without_coordinates_requires_a_region_and_index(self, test_client, loop_instances):
         dr, loop, root, tis = loop_instances

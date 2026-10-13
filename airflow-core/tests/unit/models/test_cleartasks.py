@@ -2164,6 +2164,50 @@ def test_loop_upstream_scope_stays_in_iteration_before_downstream_expansion(loop
     }
 
 
+def test_loop_upstream_and_downstream_scope_excludes_other_descendants_of_upstream_tasks(dag_maker, session):
+    @task_group
+    def body():
+        prepare = EmptyOperator(task_id="prepare")
+        combine = EmptyOperator(task_id="combine")
+        prepare >> EmptyOperator(task_id="process") >> combine
+        prepare >> EmptyOperator(task_id="audit") >> combine
+
+    with dag_maker(serialized=True):
+        start = EmptyOperator(task_id="start")
+        loop = create_loop(body, max_iterations=3)
+        start >> EmptyOperator(task_id="report")
+        start >> loop >> EmptyOperator(task_id="finish")
+    dr = dag_maker.create_dagrun()
+    root = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+    for index in (1, 2):
+        for loop_task in loop.iter_tasks():
+            session.add(
+                TaskInstance(
+                    task=loop_task,
+                    run_id=dr.run_id,
+                    dag_version_id=dr.created_dag_version_id,
+                    region_id=root.id,
+                    region_index=index,
+                )
+            )
+    session.flush()
+    tis = {(ti.task_id, ti.region_index): ti for ti in dr.get_task_instances(session=session)}
+
+    scope = select_loop_clear_scope([tis["body.process", 1]], upstream=True, downstream=True, session=session)
+
+    assert {key for key, ti in tis.items() if ti.id in scope.retry_ids} == {
+        ("start", -1),
+        ("body.prepare", 1),
+        ("body.process", 1),
+        ("body.combine", 1),
+        (loop.gate_task_id, 1),
+        ("finish", -1),
+    }
+    assert {key for key, ti in tis.items() if ti.id in scope.archive_ids} == {
+        (loop_task.task_id, 2) for loop_task in loop.iter_tasks()
+    }
+
+
 def test_outside_seed_upstream_selects_all_current_loop_occurrences(loop_run, session):
     dr, dag, loop, root, tis, iteration = loop_run
     outside = next(ti for ti in tis if ti.task_id == "outside")
@@ -2174,8 +2218,8 @@ def test_outside_seed_upstream_selects_all_current_loop_occurrences(loop_run, se
     assert scope.archive_ids == {ti.id for ti in tis if ti.task_id != "outside" and iteration(ti) > 0}
 
 
-@pytest.mark.parametrize("upstream", [False, True])
-def test_outside_predecessor_selects_all_mapped_loop_occurrences(dag_maker, session, upstream):
+@pytest.fixture
+def mapped_loop_after_predecessor(dag_maker, session):
     @task_group
     def body():
         PythonOperator.partial(task_id="process", python_callable=list).expand(op_kwargs=[{}, {}])
@@ -2208,23 +2252,44 @@ def test_outside_predecessor_selects_all_mapped_loop_occurrences(dag_maker, sess
                 )
             )
     session.flush()
-    tis = dr.get_task_instances(session=session)
-    seed = next(
-        ti
-        for ti in tis
-        if ti.task_id == ("body.process" if upstream else "before")
-        and ti.region_index == (0 if upstream else -1)
-    )
+    return loop, child, dr.get_task_instances(session=session)
+
+
+def test_outside_predecessor_selects_all_mapped_loop_occurrences(mapped_loop_after_predecessor, session):
+    loop, child, tis = mapped_loop_after_predecessor
+    before = next(ti for ti in tis if ti.task_id == "before")
 
     scope = select_loop_clear_scope(
-        [seed],
-        upstream=upstream,
+        [before],
+        upstream=False,
         downstream=True,
         later_loop_iterations=False,
         session=session,
     )
 
     assert scope.retry_ids == {ti.id for ti in tis}
+    assert not scope.archive_ids
+
+
+def test_loop_upstream_and_downstream_scope_excludes_other_map_indexes(
+    mapped_loop_after_predecessor, session
+):
+    loop, child, tis = mapped_loop_after_predecessor
+    seed = next(ti for ti in tis if ti.region_id == child.id and ti.region_index == 0)
+
+    scope = select_loop_clear_scope(
+        [seed],
+        upstream=True,
+        downstream=True,
+        later_loop_iterations=False,
+        session=session,
+    )
+
+    assert scope.retry_ids == {seed.id} | {
+        ti.id
+        for ti in tis
+        if ti.task_id == "before" or (ti.task_id == loop.gate_task_id and ti.region_index == 1)
+    }
     assert not scope.archive_ids
 
 
