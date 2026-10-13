@@ -712,6 +712,14 @@ class IterableOperator(BaseOperator):
         slots per iteration needs support in the scheduler, which does not exist yet.
 
     .. note::
+        **``map_index_template`` is not applied.**
+
+        Under ``.expand()`` the template names each mapped task instance after its item. An
+        iterated task is one task instance with no item of its own, so the wrapped operator's
+        template is left out: rendered against the task's context, a template that reads an item's
+        kwargs (``{{ task.op_kwargs['x'] }}``) or a value an item set in its context would fail.
+
+    .. note::
         **Async sub-tasks should prefer async SDK calls.**
 
         IterableOperator runs multiple async sub-tasks concurrently on the same event loop, each
@@ -812,7 +820,11 @@ class IterableOperator(BaseOperator):
                 "trigger_rule": operator.trigger_rule,
                 "resources": operator.resources,
                 "run_as_user": operator.run_as_user,
-                "map_index_template": operator.map_index_template,
+                # Not forwarded: the template names a mapped task instance after its item, and the
+                # iterated task instance has no item of its own. Rendered for it against the
+                # parent's context, a template that reads an item's kwargs or a value one item set
+                # would fail the task after every item succeeded, and every retry with it.
+                "map_index_template": None,
                 "max_active_tis_per_dag": operator.max_active_tis_per_dag,
                 "max_active_tis_per_dagrun": operator.max_active_tis_per_dagrun,
                 "executor": operator.executor,

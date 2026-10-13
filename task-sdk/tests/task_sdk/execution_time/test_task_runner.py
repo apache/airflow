@@ -1925,6 +1925,38 @@ def test_execution_timeout_caps_iterated_task_with_sync_sub_tasks(create_runtime
     assert time.monotonic() - started < 1.8
 
 
+@pytest.mark.parametrize(
+    "map_index_template",
+    [
+        pytest.param("{{ task.op_kwargs['x'] }}", id="item-kwarg"),
+        pytest.param("{{ item_name }}", id="value-set-by-an-item"),
+    ],
+)
+def test_iterated_task_with_a_map_index_template_succeeds_unnamed(
+    map_index_template, create_runtime_ti, mock_supervisor_comms
+):
+    """The template names mapped task instances after their item; the iterated task has none, so it
+    is not rendered for it, and a template that reads an item's values cannot fail the task."""
+    mock_supervisor_comms.asend = mock.AsyncMock(return_value=None)
+
+    with DAG("dag_iterate_map_index_template") as dag:
+
+        @task_decorator(map_index_template=map_index_template, task_concurrency=1)
+        def work(x):
+            get_current_context()["item_name"] = f"item-{x}"
+            return x
+
+        op = work.iterate(x=[1, 2]).operator
+    assert op.map_index_template is None
+
+    ti = create_runtime_ti(task=op, dag_id=dag.dag_id)
+    state, _, error = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert error is None
+    assert state == TaskInstanceState.SUCCESS
+    assert ti.rendered_map_index is None
+
+
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
     """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator

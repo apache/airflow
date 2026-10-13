@@ -461,6 +461,9 @@ Comparison
    * - Observability
      - Per item in UI
      - Aggregated in a single task
+   * - ``map_index_template``
+     - Names each mapped task instance after its item
+     - Not applied: the one task instance has no item of its own to be named after
    * - Triggerer dependency
      - Deferrable mapped tasks rely on triggerers
      - No triggerers involved
