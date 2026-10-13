@@ -31,6 +31,7 @@ from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.mock_operators import MockOperator
 
 if TYPE_CHECKING:
@@ -84,7 +85,7 @@ def test_set_dag_run_state_to_failed(dag_maker: DagMaker[SerializedDAG]):
 
 
 def test_set_dag_run_state_to_failed_skips_pending_tis_in_bulk(dag_maker: DagMaker[SerializedDAG]):
-    """Pending TIs that never started are skipped by one UPDATE; one that did keeps its start_date."""
+    """Pending TIs are skipped in one flush; the one that had started keeps its start_date."""
     with dag_maker("TEST_DAG_1") as dag:
         EmptyOperator(task_id="never_started")
         EmptyOperator(task_id="never_started_2")
@@ -98,9 +99,12 @@ def test_set_dag_run_state_to_failed_skips_pending_tis_in_bulk(dag_maker: DagMak
             ti.start_date = started_at
     session.flush()
 
-    updated_tis, killed_tis = set_dag_run_state_to_failed(
-        dag=dag, run_id=dr.run_id, commit=True, session=session
-    )
+    # One flush for the three TIs: two SELECTs (running, pending), one SELECT of the dag run, and
+    # one UPDATE per set of changed columns (the never-started TIs also get a start_date).
+    with assert_queries_count(5):
+        updated_tis, killed_tis = set_dag_run_state_to_failed(
+            dag=dag, run_id=dr.run_id, commit=True, session=session
+        )
     session.flush()
 
     assert killed_tis == []
@@ -126,14 +130,16 @@ def test_set_dag_run_state_to_failed_skips_pending_tis_in_bulk(dag_maker: DagMak
 def test_set_dag_run_state_to_failed_mapped_task_only_fails_running_map_indexes(
     dag_maker: DagMaker[SerializedDAG],
 ):
-    """Only the running map indexes fail; the pending siblings of the same mapped task are skipped."""
+    """Only the running map indexes fail; pending siblings are skipped, finished ones keep their state."""
     with dag_maker("TEST_DAG_1") as dag:
-        MockOperator.partial(task_id="mapped").expand(arg2=[1, 2, 3])
+        MockOperator.partial(task_id="mapped").expand(arg2=[1, 2, 3, 4])
     dr = dag_maker.create_dagrun()
     session = dag_maker.session
     for ti in dr.get_task_instances(session=session):
         if ti.map_index == 1:
             ti.set_state(TaskInstanceState.RUNNING, session=session)
+        elif ti.map_index == 3:
+            ti.set_state(TaskInstanceState.SUCCESS, session=session)
     session.flush()
 
     updated_tis, killed_tis = set_dag_run_state_to_failed(
@@ -142,13 +148,14 @@ def test_set_dag_run_state_to_failed_mapped_task_only_fails_running_map_indexes(
     session.flush()
 
     assert [ti.map_index for ti in killed_tis] == [1]
-    assert len(updated_tis) == 3
+    assert {ti.map_index for ti in updated_tis} == {0, 1, 2}
     session.expire_all()
     states = {ti.map_index: ti.state for ti in dr.get_task_instances(session=session)}
     assert states == {
         0: TaskInstanceState.SKIPPED,
         1: TaskInstanceState.FAILED,
         2: TaskInstanceState.SKIPPED,
+        3: TaskInstanceState.SUCCESS,
     }
 
 
