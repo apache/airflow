@@ -86,7 +86,10 @@ class BigQueryToGCSOperator(BaseOperator):
     :param reattach_states: Set of BigQuery job's states in case of which we should reattach
         to the job. Should be other than final states.
     :param deferrable: Run operator in the deferrable mode
-    :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
+    :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called.
+        With ``force_rerun=False``, a retry reuses the same job ID, and a cancelled job cannot be
+        reattached through ``reattach_states``. Set ``force_rerun=True`` for retries to start a new
+        job, or ``cancel_on_kill=False`` to keep reattaching to the running one.
     :return: URIs for the objects created in Google Cloud Storage
     """
 
