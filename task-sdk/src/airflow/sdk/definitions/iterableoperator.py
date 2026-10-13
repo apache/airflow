@@ -617,8 +617,9 @@ class IterableOperator(BaseOperator):
     does not keep large results out of the metadata database.
 
     :param operator: The :class:`MappedOperator` to unmap and execute for
-        each element of ``expand_input``. Each indexed runtime receives a
-        deep copy/unmapped instance of this operator.
+        each element of ``expand_input``. Each indexed task runs a new instance of it,
+        built by ``unmap()`` from that index's kwargs; the partial kwargs are shared
+        between the instances, not copied (see the warning on shared inputs below).
 
     :param expand_input: Provider of the values to iterate
         over. Its ``aresolve(context)`` method gives the indexed task count and the
