@@ -229,6 +229,19 @@ internal class DagDefTest {
   }
 
   @Test
+  @DisplayName("Should reject a blank dag queue")
+  fun shouldRejectBlankDagQueue() {
+    for (queue in listOf("", "  ")) {
+      val error =
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+          DagDef("dag").config("queue", queue)
+        }
+
+      Assertions.assertEquals("Dag config key 'queue' must not be blank", error.message)
+    }
+  }
+
+  @Test
   @DisplayName("Should reject non-integral values for integer dag config keys")
   fun shouldRejectFractionalIntegerValue() {
     val error =
