@@ -65,7 +65,6 @@ class DateTimeSensor(BaseSensorOperator):
 
     def __init__(self, *, target_time: str | datetime.datetime, **kwargs) -> None:
         super().__init__(**kwargs)
-
         self.target_time = target_time
 
     def poke(self, context: Context) -> bool:
@@ -91,7 +90,7 @@ class DateTimeSensorAsync(DateTimeSensor):
 
     :param target_time: datetime after which the job succeeds. (templated)
     :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
-        It's ignored on Airflow < 3.3 when ``target_time`` is a Jinja template
+        Ignored on Airflow < 3.3 when ``target_time`` is a Jinja template.
 
     :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
         during dynamic task mapping. This argument is not used in standard usage.

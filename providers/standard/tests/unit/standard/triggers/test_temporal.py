@@ -55,9 +55,9 @@ def test_input_validation_tz():
         DateTimeTrigger(moment)
 
 
-def test_input_target_time_validation_tz():
+def test_target_time_resolves_to_utc_moment():
     """
-    Tests that the DateTimeTrigger validates input to moment arg
+    Tests that target_time as a naive or aware string or datetime resolves to a UTC moment
     """
 
     target_time = datetime.datetime(2020, 1, 1, 0, 0, 0)
