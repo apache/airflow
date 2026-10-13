@@ -73,7 +73,9 @@ def example_sandbox_toolset_openshell():
                 {"command": "sleep 300 & sleep 300", "timeout_seconds": 3},
                 ("[timed out after 3s]",),
             ),
-            ("run_command", {"command": COUNT_SLEEPERS}, ("sleepers=0",)),
+            # The marker proves the sleepers were counted in the sandbox that timed out,
+            # not in one provisioned after it was destroyed.
+            ("run_command", {"command": f"cat {STATE_PATH}; {COUNT_SLEEPERS}"}, (MARKER, "sleepers=0")),
             ("run_command", {"command": CONNECT}, ("egress=denied",)),
         ]
 
