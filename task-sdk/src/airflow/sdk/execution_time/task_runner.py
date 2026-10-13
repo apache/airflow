@@ -327,6 +327,14 @@ class RuntimeTaskInstance(TaskInstance):
             ),
         )
 
+    def export_context_to_env(self, context: Context) -> None:
+        """Export ``context`` to ``os.environ`` as ``AIRFLOW_CTX_*``, for operators that read it there."""
+        os.environ.update(context_to_airflow_vars(context, in_env_var_format=True))
+
+    def enforces_execution_timeout(self) -> bool:
+        """Whether running this task instance applies its operator's ``execution_timeout``."""
+        return True
+
     @detail_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
@@ -1313,6 +1321,24 @@ class IndexedTaskInstance(RuntimeTaskInstance):
     @property
     def do_xcom_push(self) -> bool:
         return self.task.do_xcom_push
+
+    def export_context_to_env(self, context: Context) -> None:
+        """
+        Leave ``os.environ`` alone.
+
+        The indexed tasks of an iterated task run concurrently in one process, so their updates
+        would race, and the iterated task exported the same values before they started.
+        """
+
+    def enforces_execution_timeout(self) -> bool:
+        """
+        Do not: the iterated task's own ``execution_timeout`` caps every indexed task.
+
+        An indexed task runs in a worker thread, where ``TimeoutPosix`` cannot fire, and the
+        iterated task already told the supervisor about its limit; sending ``SetExecutionTimeout``
+        again per indexed task would move the supervisor's deadline to the last one started.
+        """
+        return False
 
 
 class SubOperatorRegister(Protocol):
@@ -2881,10 +2907,8 @@ def _run_execute_callable(
     so the operator's ``execute`` passes the safeguard check, while the copy keeps
     the change from leaking into the surrounding context.
 
-    ``enforce_timeout`` is False for the indexed tasks of an iterated task: they run in worker
-    threads, where ``TimeoutPosix`` cannot fire, under the parent's own limit, which the
-    parent already told the supervisor about; sending ``SetExecutionTimeout`` again per indexed
-    task would move the supervisor's deadline to the last one started.
+    ``enforce_timeout`` is what the task instance answers to ``enforces_execution_timeout()``:
+    False for the indexed tasks of an iterated task (see ``IndexedTaskInstance``).
     """
     ctx = contextvars.copy_context()
     ctx.run(ExecutorSafeguard.tracker.set, task)
@@ -2932,21 +2956,13 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-    # Export the context to os.environ for operators that read AIRFLOW_CTX_* directly. Indexed
-    # sub-tasks skip this: they run concurrently in one process, so the update would race, and the
-    # parent IterableOperator already exported the same values before they started.
-    if not isinstance(ti, IndexedTaskInstance):
-        os.environ.update(context_to_airflow_vars(context, in_env_var_format=True))
+    ti.export_context_to_env(context)
 
     outlet_events = _run_pre_execute(task, context, log)
 
     log.info("::endgroup::")
 
-    # An indexed sub-task runs in a worker thread under the parent's execution_timeout, which the
-    # parent enforces and reported to the supervisor once (see _run_execute_callable).
-    result = _run_execute_callable(
-        context, execute, task, enforce_timeout=not isinstance(ti, IndexedTaskInstance)
-    )
+    result = _run_execute_callable(context, execute, task, enforce_timeout=ti.enforces_execution_timeout())
 
     _run_post_execute(task, context, outlet_events, result, log)
     return result
