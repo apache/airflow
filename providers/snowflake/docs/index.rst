@@ -158,7 +158,7 @@ Extra                Dependencies
 ===================  ======================================================
 ``common.ai``        ``apache-airflow-providers-common-ai[openai]>=0.10.0``
 ``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0``
-``openlineage``      ``apache-airflow-providers-openlineage>=2.3.0``
+``openlineage``      ``apache-airflow-providers-openlineage>=2.16.0``
 ===================  ======================================================
 
 Downloading official packages
