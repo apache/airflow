@@ -236,6 +236,11 @@ components) or override it for the worker alone with the ``[celery]`` section:
     [celery]
     json_logs = True
 
+A Celery worker runs up to ``worker_concurrency`` tasks at once, so lines from concurrent
+tasks interleave on the worker's stdout. Raw ``print``/stderr lines are forwarded with
+only ``logger="task.stdout"`` and carry no task instance ID, so a log collector cannot
+attribute them to a task.
+
 The lookup order is:
 
 1. ``[celery] json_logs`` — if set, takes precedence.
@@ -275,6 +280,11 @@ LocalExecutor and the Kubernetes, ECS, Batch and Lambda executors, ignore it:
     # Or override for the Celery worker only, leaving other components unchanged:
     [celery]
     task_logs_to_stdout = True
+
+A Celery worker runs up to ``worker_concurrency`` tasks at once, so lines from concurrent
+tasks interleave on the worker's stdout. Raw ``print``/stderr lines are forwarded with
+only ``logger="task.stdout"`` and carry no task instance ID, so a log collector cannot
+attribute them to a task.
 
 The lookup order is:
 
