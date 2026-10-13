@@ -233,6 +233,7 @@ ccache
 cdc
 celltags
 centric
+Cerebras
 cfg
 cgi
 cgitb
@@ -327,6 +328,7 @@ contextmgr
 contrib
 convertToIri
 cooldown
+Copilot
 copyable
 coreutils
 CoreV
@@ -1157,6 +1159,7 @@ NCUs
 nd
 ndjson
 nearText
+Nebius
 neighbours
 neo
 Neo4j
@@ -1929,6 +1932,7 @@ Vectorizers
 vendored
 venv
 venvs
+Vercel
 Vertica
 vertica
 Vespa
@@ -1981,6 +1985,7 @@ WTF
 wtf
 wtforms
 www
+xAI
 XCom
 Xcom
 xcom

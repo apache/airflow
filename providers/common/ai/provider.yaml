@@ -162,15 +162,39 @@ connection-types:
     hook-name: "Pydantic AI"
     connection-type: pydanticai
     external-services:
-      - OpenAI
+      - Alibaba Cloud Model Studio
       - Anthropic
-      - Google
       - AWS Bedrock
-      - Groq
-      - Mistral AI
+      - AWS Bedrock Mantle
+      - Azure OpenAI
+      - Cerebras
+      - Cohere
+      - Crusoe
       - DeepSeek
+      - Fireworks AI
+      - GitHub Copilot
+      - Google Gemini
+      - Google Vertex AI
+      - Groq
+      - Heroku
+      - Hugging Face
+      - LiteLLM
+      - Mistral AI
+      - Moonshot AI
+      - Nebius
       - Ollama
+      - OpenAI
+      - OpenRouter
+      - OVHcloud
+      - Pydantic AI Gateway
+      - SambaNova
+      - Snowflake Cortex
+      - Together AI
+      - TypeSafe
+      - Vercel AI Gateway
       - vLLM
+      - xAI
+      - Z.AI
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -415,6 +439,8 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.mcp.MCPHook
     hook-name: "MCP Server"
     connection-type: mcp
+    external-services:
+      - Any MCP server (user-supplied endpoint)
     ui-field-behaviour:
       hidden-fields:
         - schema

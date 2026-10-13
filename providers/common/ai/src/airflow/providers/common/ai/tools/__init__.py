@@ -154,7 +154,8 @@ def collect_tools(sources: Iterable[ToolProvider | AirflowTool]) -> list[Airflow
     Flatten toolsets and individual tools, as a framework adapter receives them, into tools.
 
     :raises ValueError: when two tools share a name. Frameworks route a call by name, so one
-        of them would silently never run; give one toolset a tool name prefix.
+        of them would silently never run; give the toolsets different ``tool_prefix`` values,
+        where they take one.
     """
     tools: list[AirflowTool] = []
     for source in sources:
@@ -165,8 +166,7 @@ def collect_tools(sources: Iterable[ToolProvider | AirflowTool]) -> list[Airflow
     names = [tool.name for tool in tools]
     if duplicates := sorted({name for name in names if names.count(name) > 1}):
         raise ValueError(
-            f"More than one tool is named {', '.join(duplicates)}. Give the toolsets different tool "
-            "name prefixes where they take one (HookToolset's tool_name_prefix, the tool_prefix of "
-            "SandboxToolset), so the model can call each of them."
+            f"More than one tool is named {', '.join(duplicates)}. "
+            "Give the toolsets different tool_prefix values, where they take one, so the model can call each of them."
         )
     return tools
