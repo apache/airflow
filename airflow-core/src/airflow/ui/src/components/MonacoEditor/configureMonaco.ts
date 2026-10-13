@@ -58,53 +58,21 @@ const loadMonacoModules = async () => {
     ),
   ]);
 
-  // The JSON feature registers its language as a side effect. The Dag-authoring languages
-  // are registered manually below from their grammar modules instead: Python needs its
-  // patched grammar (triple-quoted f-string support) applied before registering, which
-  // importing its register module instead would not allow, and the others are registered
-  // the same way for consistency.
-  // The runtime guard below fails loudly if a grammar export shape changes.
+  // The JSON feature registers its language as a side effect. Every Monarch grammar monaco
+  // ships is registered with a lazy loader, so a grammar chunk is only fetched the first time
+  // an editor uses its language: any language id an importer stores for its Dag source gets
+  // highlighted without the UI knowing the list up front.
   const jsonContribution = import("monaco-editor/languages/features/json/register");
-  const pythonGrammar = import("monaco-editor/languages/definitions/python/python");
-  const typescriptGrammar = import("monaco-editor/languages/definitions/typescript/typescript");
-  const javaGrammar = import("monaco-editor/languages/definitions/java/java");
-  const goGrammar = import("monaco-editor/languages/definitions/go/go");
-  const yamlGrammar = import("monaco-editor/languages/definitions/yaml/yaml");
+  const grammarContributions = import("monaco-editor/languages/definitions/register.all");
 
-  const [
-    monaco,
-    [editorWorkerUrl, jsonWorkerUrl],
-    { conf: pythonConf, language: pythonLanguage },
-    { conf: typescriptConf, language: typescriptLanguage },
-    { conf: javaConf, language: javaLanguage },
-    { conf: goConf, language: goLanguage },
-    { conf: yamlConf, language: yamlLanguage },
-  ] = await Promise.all([
+  const [monaco, [editorWorkerUrl, jsonWorkerUrl]] = await Promise.all([
     monacoApi,
     workerUrls,
-    pythonGrammar,
-    typescriptGrammar,
-    javaGrammar,
-    goGrammar,
-    yamlGrammar,
     jsonContribution,
+    grammarContributions,
   ]);
 
-  return {
-    editorWorkerUrl,
-    goConf,
-    goLanguage,
-    javaConf,
-    javaLanguage,
-    jsonWorkerUrl,
-    monaco,
-    pythonConf,
-    pythonLanguage,
-    typescriptConf,
-    typescriptLanguage,
-    yamlConf,
-    yamlLanguage,
-  };
+  return { editorWorkerUrl, jsonWorkerUrl, monaco };
 };
 
 const createWorkerFromUrl = (workerUrl: string): Worker => {
@@ -121,62 +89,32 @@ export const configureMonaco = () => {
   }
 
   configurationPromise = loadMonacoModules()
-    .then(
-      ({
-        editorWorkerUrl,
-        goConf,
-        goLanguage,
-        javaConf,
-        javaLanguage,
-        jsonWorkerUrl,
-        monaco,
-        pythonConf,
-        pythonLanguage,
-        typescriptConf,
-        typescriptLanguage,
-        yamlConf,
-        yamlLanguage,
-      }) => {
-        Reflect.set(globalThis, "MonacoEnvironment", {
-          getWorker: (_moduleId: string, label: string) =>
-            createWorkerFromUrl(label === "json" ? jsonWorkerUrl : editorWorkerUrl),
-        } satisfies MonacoEnvironment);
+    .then(({ editorWorkerUrl, jsonWorkerUrl, monaco }) => {
+      Reflect.set(globalThis, "MonacoEnvironment", {
+        getWorker: (_moduleId: string, label: string) =>
+          createWorkerFromUrl(label === "json" ? jsonWorkerUrl : editorWorkerUrl),
+      } satisfies MonacoEnvironment);
 
-        // The editor always sets the Dag's own language explicitly, so no extensions/firstLine
-        // auto-detection metadata is needed for any of these. Guard the internal grammar
-        // export shape: if a monaco upgrade drops these, fail loudly here rather than
-        // silently disabling highlighting (`setMonarchTokensProvider(id, undefined)`).
-        // The `conf`/`language` types come from hand-written ambient declarations, so
-        // TypeScript believes they are always defined; this guard checks the real runtime
-        // shape the types cannot vouch for.
-        const grammars = [
-          { conf: pythonConf, id: "python", language: pythonLanguage },
-          { conf: typescriptConf, id: "typescript", language: typescriptLanguage },
-          { conf: javaConf, id: "java", language: javaLanguage },
-          { conf: goConf, id: "go", language: goLanguage },
-          { conf: yamlConf, id: "yaml", language: yamlLanguage },
-        ] as const;
+      // Replaces the lazy Python tokenizer `register.all` set up with the patched grammar
+      // (triple-quoted f-string support), still loaded on first use.
+      monaco.languages.registerTokensProviderFactory("python", {
+        create: async () => {
+          const { language } = await import("monaco-editor/languages/definitions/python/python");
 
-        for (const grammar of grammars) {
+          // The `language` type comes from a hand-written ambient declaration, so TypeScript
+          // believes it is always defined; fail loudly if a monaco upgrade drops the export
+          // rather than silently disabling Python highlighting.
           // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          if (grammar.conf === undefined || grammar.language === undefined) {
-            throw new Error(
-              `monaco ${grammar.id} grammar module changed shape: missing \`conf\`/\`language\` export`,
-            );
+          if (language === undefined) {
+            throw new Error("monaco python grammar module changed shape: missing `language` export");
           }
-          monaco.languages.register({ id: grammar.id });
-          monaco.languages.setLanguageConfiguration(grammar.id, grammar.conf);
-          // Python needs the patched grammar (triple-quoted f-string support); the rest
-          // register as monaco ships them.
-          monaco.languages.setMonarchTokensProvider(
-            grammar.id,
-            grammar.id === "python" ? patchPythonFStrings(grammar.language) : grammar.language,
-          );
-        }
 
-        loader.config({ monaco });
-      },
-    )
+          return patchPythonFStrings(language);
+        },
+      });
+
+      loader.config({ monaco });
+    })
     .catch((error: unknown) => {
       configurationPromise = undefined;
       // eslint-disable-next-line no-console

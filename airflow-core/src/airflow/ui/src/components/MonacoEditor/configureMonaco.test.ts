@@ -18,28 +18,33 @@
  */
 import { describe, expect, it } from "vitest";
 
+import { configureMonaco } from "./configureMonaco";
+
 // A Monaco upgrade that moved a module or dropped an export
 // would slip through CI and only surface as silently-unhighlighted code in production.
 // Importing the modules here fails the build loudly instead: a missing module breaks resolution,
 // a dropped export fails the assertion.
-const grammars = [
-  { id: "go", load: () => import("monaco-editor/languages/definitions/go/go") },
-  { id: "java", load: () => import("monaco-editor/languages/definitions/java/java") },
-  { id: "python", load: () => import("monaco-editor/languages/definitions/python/python") },
-  { id: "typescript", load: () => import("monaco-editor/languages/definitions/typescript/typescript") },
-  { id: "yaml", load: () => import("monaco-editor/languages/definitions/yaml/yaml") },
-] as const;
-
 describe("Monaco Dag-code grammars", () => {
-  it.each(grammars)(
-    "$id exposes the { conf, language } Monarch shape configureMonaco registers",
-    async ({ load }) => {
-      const { conf, language } = await load();
+  // Any language id an importer stores must be highlightable, not only the ones core ships.
+  it.each(["go", "java", "python", "rust", "typescript", "yaml"])(
+    "registers %s for lazy loading",
+    async (languageId) => {
+      await configureMonaco();
+      const { languages } = await import("monaco-editor/editor");
 
-      expect(conf).toBeDefined();
-      expect(language).toBeDefined();
-      expect(language.tokenizer).toBeDefined();
+      expect(languages.getLanguages().map(({ id }) => id)).toContain(languageId);
     },
     30_000,
   );
+
+  it("tokenizes Python with the patched f-string grammar", async () => {
+    await configureMonaco();
+    const { editor } = await import("monaco-editor/editor");
+
+    // Resolves the lazy tokenizer, which `tokenize` alone does not trigger.
+    await editor.colorize("", "python", {});
+    const [, escapedBracesLine] = editor.tokenize('x = f"""\n{{a}}\n"""', "python");
+
+    expect(escapedBracesLine).toEqual([{ language: "python", offset: 0, type: "string.python" }]);
+  }, 30_000);
 });
