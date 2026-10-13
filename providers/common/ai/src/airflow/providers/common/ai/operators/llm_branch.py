@@ -103,7 +103,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         ID fails the task before the model is called. Descriptions support Jinja templating.
     :param allow_multiple_branches: When ``False`` (default) the LLM returns a
         single task ID. When ``True`` the LLM may return one or more task IDs.
-    :param decision_policy: Experimental. A
+    :param decision_policy: A
         :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`:
         the confidence a pick needs for the operator to branch on it without a person
         (``min_confidence``) and what happens under it (``on_uncertain``: ``"review"`` or
