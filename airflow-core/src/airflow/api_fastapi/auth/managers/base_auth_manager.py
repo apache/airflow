@@ -485,6 +485,19 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return user.get_id() in assigned_users
 
+    def resolve_hitl_user(self, identifier: str) -> dict[str, str] | None:
+        """
+        Resolve a human-friendly identifier (for example an email) to a HITL assignee.
+
+        Called when a HITL task starts with ``assigned_users`` given as identifiers. The returned ``id``
+        must equal ``user.get_id()`` for that user, as :meth:`is_authorized_hitl_task` compares against it.
+        By default nothing is resolvable, so such a task fails at start.
+
+        :param identifier: the identifier supplied by the Dag author
+        :return: ``{"id": ..., "name": ...}``, or ``None`` if there is no such user
+        """
+        return None
+
     def batch_is_authorized_connection(
         self,
         requests: Sequence[IsAuthorizedConnectionRequest],

@@ -110,6 +110,10 @@ You can also set the ``assigned_users`` to restrict the users allowed to respond
 It should be a list of user ids and user names (both needed) (e.g., ``[{"id": "1", "name": "user1"}, {"id": "2", "name": "user2"}]``).
 ONLY the users within this list will be allowed to respond.
 
+Instead of an id and a name, an entry can be a string identifier such as an email (e.g., ``["alice@example.com"]``).
+The auth manager resolves it to a user when the task starts (see ``resolve_hitl_user`` in :doc:`/core-concepts/auth-manager/index`).
+If an identifier cannot be resolved, only that task instance fails. The Dag itself still parses and the other tasks are unaffected.
+
 .. exampleinclude:: /../../providers/standard/src/airflow/providers/standard/example_dags/example_hitl_operator.py
    :language: python
    :dedent: 4

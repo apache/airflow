@@ -24,7 +24,9 @@ from fastapi import HTTPException, Security, status
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.hitl import (
     HITLDetailRequest,
@@ -70,6 +72,18 @@ def upsert_hitl_detail(
        This happens when a task instance is cleared after a response has been received.
        This design ensures that each task instance has only one HITLDetail.
     """
+    assignees = [user.model_dump() for user in payload.assigned_users]
+    for identifier in payload.assigned_user_identifiers:
+        resolved = get_auth_manager().resolve_hitl_user(identifier)
+        if resolved is None:
+            raise HTTPException(
+                HTTP_422_UNPROCESSABLE_CONTENT,
+                detail={
+                    "reason": "unknown_assigned_user",
+                    "message": f"Could not resolve assigned user {identifier!r} to a user of the auth manager.",
+                },
+            )
+        assignees.append(resolved)
     request_part = {
         "options": payload.options,
         "subject": payload.subject,
@@ -77,7 +91,7 @@ def upsert_hitl_detail(
         "defaults": payload.defaults,
         "multiple": payload.multiple,
         "params": payload.params,
-        "assignees": [user.model_dump() for user in payload.assigned_users],
+        "assignees": assignees,
         "created_at": timezone.utcnow(),
     }
     # Same lock order as the park transition and the Core API response path (TaskInstance, then

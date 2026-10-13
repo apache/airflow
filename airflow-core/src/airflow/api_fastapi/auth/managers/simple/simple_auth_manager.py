@@ -421,6 +421,14 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         # Delegate to parent class for the actual authorization check
         return super().is_authorized_hitl_task(assigned_users=assigned_users, user=user)
 
+    def resolve_hitl_user(self, identifier: str) -> dict[str, str] | None:
+        """Resolve a configured username (the user's ID here); any name is accepted in all-admins mode."""
+        if conf.getboolean("core", "simple_auth_manager_all_admins") or any(
+            user.username == identifier for user in self.get_users()
+        ):
+            return {"id": identifier, "name": identifier}
+        return None
+
     def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
         """Register the all-admins middleware when ``[core] simple_auth_manager_all_admins`` is set."""
         if not conf.getboolean("core", "simple_auth_manager_all_admins"):

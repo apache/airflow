@@ -45,6 +45,7 @@ def upsert_hitl_detail(
     multiple: bool = False,
     params: dict[str, Any] | None = None,
     assigned_users: list[HITLUser] | None = None,
+    assigned_user_identifiers: list[str] | None = None,
 ) -> None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -62,6 +63,7 @@ def upsert_hitl_detail(
                 if assigned_users
                 else []
             ),
+            assigned_user_identifiers=assigned_user_identifiers,
         )
     )
 

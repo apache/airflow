@@ -3696,6 +3696,7 @@ REQUEST_TEST_CASES = [
                 "options": ["Approve", "Reject"],
                 "params": {},
                 "assigned_users": None,
+                "assigned_user_identifiers": None,
                 "subject": "This is subject",
                 "ti_id": TI_ID,
             },

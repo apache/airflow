@@ -887,3 +887,6 @@ class TestBaseAuthManager:
         user = BaseAuthManagerUserTest(name=user_id)
         result = auth_manager.is_authorized_hitl_task(assigned_users=assigned_users, user=user)
         assert result == expected
+
+    def test_resolve_hitl_user_is_unsupported_by_default(self, auth_manager):
+        assert auth_manager.resolve_hitl_user("alice@example.com") is None

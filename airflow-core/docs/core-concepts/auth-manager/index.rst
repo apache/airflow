@@ -147,6 +147,9 @@ These authorization methods are:
   This is an optional method: the default implementation returns whether the user's ID is in ``assigned_users``, the IDs of the users assigned to the task.
   Airflow only calls this method for tasks that have assigned users. When a task has none, Airflow skips this method and any user allowed to
   update the task's HITL detail (``is_authorized_dag`` with ``access_entity=DagAccessEntity.HITL_DETAIL``) can respond.
+* ``resolve_hitl_user``: Resolve a human-friendly identifier (e.g. an email) given in a HITL task's ``assigned_users`` to ``{"id": ..., "name": ...}``, or return ``None`` if there is no such user.
+  This is an optional method: the default implementation resolves nothing, so a task that assigns users by identifier fails when it starts.
+  The returned ``id`` must equal ``user.get_id()`` for that user, because ``is_authorized_hitl_task`` compares against it.
 
 It should be noted that the ``method`` parameter listed above may only have relevance for a specific subset of the auth manager's authorization methods.
 For example, the ``configuration`` resource is by definition read-only, so only the ``GET`` parameter is relevant in the context of ``is_authorized_configuration``.

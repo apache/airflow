@@ -73,7 +73,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
 
 
-def _run_execute_until_park(op: HITLOperator, context: Any) -> None:
+def _run_execute_until_park(op: HITLOperator, context: Any) -> MagicMock:
     """
     Run ``execute()`` through the HITL pause point.
 
@@ -81,13 +81,14 @@ def _run_execute_until_park(op: HITLOperator, context: Any) -> None:
     AWAITING_INPUT) and the < 3.3 fallback (calls ``self.defer()``, mocked here), so the
     ``hitl_summary`` enriched just before the pause can be asserted afterwards.
     """
-    with patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"):
+    with patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail") as upsert_hitl_detail:
         if AIRFLOW_V_3_3_PLUS:
             with pytest.raises(TaskAwaitingInput):
                 op.execute(context)
         else:
             with patch.object(op, "defer"):
                 op.execute(context)
+    return upsert_hitl_detail
 
 
 @pytest.fixture
@@ -256,6 +257,41 @@ class TestHITLOperator:
                 params=ParamsDict({"input_1": 1}),
                 **extra_kwargs,
             )
+
+    def test_assigned_users_accepts_identifiers(self) -> None:
+        op = HITLOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            options=["1", "2"],
+            assigned_users=["alice@example.com", HITLUser(id="u2", name="Bob")],
+        )
+        assert op.assigned_users == [{"id": "u2", "name": "Bob"}]
+        assert op.assigned_user_identifiers == ["alice@example.com"]
+
+    def test_single_identifier_assigned_user(self) -> None:
+        op = HITLOperator(
+            task_id="hitl_test", subject="This is subject", options=["1", "2"], assigned_users="a@example.com"
+        )
+        assert op.assigned_users == []
+        assert op.assigned_user_identifiers == ["a@example.com"]
+
+    @pytest.mark.parametrize(
+        ("assigned_users", "expected_kwargs"),
+        [
+            (None, {}),
+            (HITLUser(id="u1", name="Alice"), {}),
+            ("alice@example.com", {"assigned_user_identifiers": ["alice@example.com"]}),
+        ],
+    )
+    def test_execute_sends_identifiers_only_when_used(
+        self, assigned_users: Any, expected_kwargs: dict[str, Any]
+    ) -> None:
+        op = HITLOperator(
+            task_id="hitl_test", subject="This is subject", options=["1", "2"], assigned_users=assigned_users
+        )
+        upsert = _run_execute_until_park(op, {"task_instance": MagicMock(id=uuid4())})
+        _, kwargs = upsert.call_args
+        assert {k: v for k, v in kwargs.items() if k == "assigned_user_identifiers"} == expected_kwargs
 
     def test_execute(self, dag_maker: DagMaker, session: Session) -> None:
         notifier = MagicMock()

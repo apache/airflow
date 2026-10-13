@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
+from unittest import mock
 
 import pytest
 import time_machine
@@ -143,6 +144,7 @@ def test_upsert_hitl_detail(
 
     expected_json = {
         "ti_id": str(ti.id),
+        "assigned_user_identifiers": [],
         **request_kwargs,
     }
 
@@ -160,6 +162,58 @@ def test_upsert_hitl_detail(
     assert hitl_detail.assignees == [{"id": "2", "name": "reviewer"}]
     assert hitl_detail.created_at == convert_to_utc(datetime(2025, 7, 4, 0, 0, 0))
     assert hitl_detail.response_received is False
+
+
+def _post_with_identifiers(client: TestClient, ti: TaskInstance, identifiers: list[str]):
+    return client.post(
+        f"/execution/hitlDetails/{ti.id}",
+        json={
+            "ti_id": str(ti.id),
+            "subject": "This is subject",
+            "options": ["Approve", "Reject"],
+            "assigned_users": [{"id": "1", "name": "explicit"}],
+            "assigned_user_identifiers": identifiers,
+        },
+    )
+
+
+@mock.patch("airflow.api_fastapi.execution_api.routes.hitl.get_auth_manager")
+def test_upsert_hitl_detail_resolves_assigned_user_identifiers(
+    mock_get_auth_manager: mock.MagicMock,
+    client: TestClient,
+    create_task_instance: CreateTaskInstance,
+    session: Session,
+) -> None:
+    mock_get_auth_manager.return_value.resolve_hitl_user.return_value = {"id": "cuid1", "name": "Alice"}
+    ti = create_task_instance()
+    session.commit()
+
+    response = _post_with_identifiers(client, ti, ["alice@example.com"])
+
+    assert response.status_code == 201
+    mock_get_auth_manager.return_value.resolve_hitl_user.assert_called_once_with("alice@example.com")
+    session.expire_all()
+    hitl_detail = session.scalars(select(HITLDetail).where(HITLDetail.ti_id == ti.id)).one()
+    assert hitl_detail.assignees == [{"id": "1", "name": "explicit"}, {"id": "cuid1", "name": "Alice"}]
+
+
+@mock.patch("airflow.api_fastapi.execution_api.routes.hitl.get_auth_manager")
+def test_upsert_hitl_detail_unresolvable_identifier_is_rejected(
+    mock_get_auth_manager: mock.MagicMock,
+    client: TestClient,
+    create_task_instance: CreateTaskInstance,
+    session: Session,
+) -> None:
+    mock_get_auth_manager.return_value.resolve_hitl_user.return_value = None
+    ti = create_task_instance()
+    session.commit()
+
+    response = _post_with_identifiers(client, ti, ["nobody@example.com"])
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["reason"] == "unknown_assigned_user"
+    assert "nobody@example.com" in response.json()["detail"]["message"]
+    assert session.scalars(select(HITLDetail).where(HITLDetail.ti_id == ti.id)).one_or_none() is None
 
 
 def test_upsert_hitl_detail_with_empty_option(

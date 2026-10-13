@@ -508,6 +508,23 @@ class TestSimpleAuthManager:
             result = auth_manager.is_authorized_hitl_task(assigned_users=assigned_users, user=user)
             assert result == expected
 
+    @pytest.mark.parametrize(
+        ("all_admins", "identifier", "expected"),
+        [
+            (False, "test1", {"id": "test1", "name": "test1"}),
+            (False, "nobody", None),
+            (True, "nobody", {"id": "nobody", "name": "nobody"}),
+        ],
+    )
+    def test_resolve_hitl_user(self, auth_manager, all_admins, identifier, expected):
+        with conf_vars(
+            {
+                ("core", "simple_auth_manager_all_admins"): str(all_admins),
+                ("core", "simple_auth_manager_users"): "test1:viewer",
+            }
+        ):
+            assert auth_manager.resolve_hitl_user(identifier) == expected
+
     @conf_vars(
         {
             ("core", "multi_team"): "true",

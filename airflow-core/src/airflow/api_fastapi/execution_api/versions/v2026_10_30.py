@@ -27,6 +27,7 @@ from cadwyn import (
     schema,
 )
 
+from airflow.api_fastapi.execution_api.datamodels.hitl import HITLDetailRequest
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     PreviousTIResponse,
     TaskInstance,
@@ -143,3 +144,18 @@ class AddFirstTaskRescheduleStartDateField(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
     )
+
+
+class AddHITLAssignedUserIdentifiers(VersionChange):
+    """Add ``assigned_user_identifiers`` to HITLDetailRequest, resolved to users by the auth manager."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(HITLDetailRequest).field("assigned_user_identifiers").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(HITLDetailRequest)  # type: ignore[arg-type]
+    def remove_assigned_user_identifiers(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``assigned_user_identifiers`` from the response for older clients."""
+        response.body.pop("assigned_user_identifiers", None)

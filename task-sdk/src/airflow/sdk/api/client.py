@@ -1090,6 +1090,7 @@ class HITLOperations:
         multiple: bool = False,
         params: dict[str, dict[str, Any]] | None = None,
         assigned_users: list[HITLUser] | None = None,
+        assigned_user_identifiers: list[str] | None = None,
     ) -> HITLDetailRequest:
         """Add a Human-in-the-loop response that waits for human response for a specific Task Instance."""
         payload = CreateHITLDetailPayload(
@@ -1101,6 +1102,7 @@ class HITLOperations:
             multiple=multiple,
             params=params,
             assigned_users=assigned_users,
+            assigned_user_identifiers=assigned_user_identifiers,
         )
         resp = self.client.post(
             f"/hitlDetails/{ti_id}",

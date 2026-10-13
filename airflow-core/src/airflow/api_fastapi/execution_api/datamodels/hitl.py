@@ -45,6 +45,8 @@ class HITLDetailRequest(BaseModel):
     multiple: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
     assigned_users: list[HITLUser] = Field(default_factory=list)
+    # Human-friendly identifiers (e.g. an email) that the auth manager resolves to users at task start.
+    assigned_user_identifiers: list[str] = Field(default_factory=list)
 
 
 class UpdateHITLDetailPayload(BaseModel):

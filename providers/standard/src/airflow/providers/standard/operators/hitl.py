@@ -67,6 +67,9 @@ class HITLOperator(BaseOperator):
     :param params: dictionary of parameter definitions that are in the format of Dag params such that
         a Form Field can be rendered. Entered data is validated (schema, required fields) like for a Dag run
         and added to XCom of the task result.
+    :param assigned_users: Restricts who may respond. Each entry is either ``{"id": ..., "name": ...}`` or a
+        string identifier (for example an email) that the auth manager resolves to a user when the task
+        starts. If an identifier cannot be resolved, only this task instance fails.
     :param response_timeout: Maximum time to wait for a human response. On Airflow 3.3+ this is
         enforced by the scheduler's ``awaiting_input`` timeout sweep; on older versions it is passed
         to the triggerer. This is separate from ``execution_timeout``, which controls the execution
@@ -85,7 +88,7 @@ class HITLOperator(BaseOperator):
         multiple: bool = False,
         params: ParamsDict | dict[str, Any] | None = None,
         notifiers: Sequence[BaseNotifier] | BaseNotifier | None = None,
-        assigned_users: HITLUser | list[HITLUser] | None = None,
+        assigned_users: HITLUser | str | list[HITLUser | str] | None = None,
         response_timeout: timedelta | None = None,
         **kwargs,
     ) -> None:
@@ -126,7 +129,14 @@ class HITLOperator(BaseOperator):
         self.notifiers: Sequence[BaseNotifier] = (
             [notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or []
         )
-        self.assigned_users = [assigned_users] if isinstance(assigned_users, dict) else assigned_users
+        if isinstance(assigned_users, (dict, str)):
+            assigned_users = [assigned_users]
+        self.assigned_users = (
+            [user for user in assigned_users if isinstance(user, dict)]
+            if assigned_users is not None
+            else None
+        )
+        self.assigned_user_identifiers = [user for user in assigned_users or [] if isinstance(user, str)]
 
         self.validate_options()
         self.validate_params()
@@ -205,6 +215,12 @@ class HITLOperator(BaseOperator):
         ``execute_complete`` once a response (or timeout default) arrives.
         """
         ti_id = context["task_instance"].id
+        # Only sent when used, so runs that don't use identifiers keep working with an older task SDK.
+        identifier_kwargs = (
+            {"assigned_user_identifiers": self.assigned_user_identifiers}
+            if self.assigned_user_identifiers
+            else {}
+        )
         # Write Human-in-the-loop input request to DB
         upsert_hitl_detail(
             ti_id=ti_id,
@@ -215,6 +231,7 @@ class HITLOperator(BaseOperator):
             multiple=self.multiple,
             params=self.serialized_params,
             assigned_users=self.assigned_users,
+            **identifier_kwargs,
         )
 
         if self.response_timeout:

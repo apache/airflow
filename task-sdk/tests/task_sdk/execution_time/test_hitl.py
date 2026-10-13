@@ -57,6 +57,24 @@ def test_upsert_hitl_detail(mock_supervisor_comms) -> None:
     )
 
 
+def test_upsert_hitl_detail_with_assigned_user_identifiers(mock_supervisor_comms) -> None:
+    upsert_hitl_detail(
+        ti_id=TI_ID,
+        options=["Approve", "Reject"],
+        subject="Subject",
+        assigned_user_identifiers=["alice@example.com"],
+    )
+    mock_supervisor_comms.send.assert_called_with(
+        msg=CreateHITLDetailPayload(
+            ti_id=TI_ID,
+            options=["Approve", "Reject"],
+            subject="Subject",
+            assigned_users=[],
+            assigned_user_identifiers=["alice@example.com"],
+        )
+    )
+
+
 def test_update_hitl_detail_response(mock_supervisor_comms) -> None:
     timestamp = timezone.utcnow()
     mock_supervisor_comms.send.return_value = HITLDetailResponse(

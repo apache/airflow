@@ -787,6 +787,21 @@
           "default": null,
           "title": "Assigned Users"
         },
+        "assigned_user_identifiers": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assigned User Identifiers"
+        },
         "type": {
           "const": "CreateHITLDetailPayload",
           "default": "CreateHITLDetailPayload",
@@ -3140,6 +3155,21 @@
           ],
           "default": null,
           "title": "Assigned Users"
+        },
+        "assigned_user_identifiers": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assigned User Identifiers"
         },
         "type": {
           "const": "HITLDetailRequestResult",

@@ -715,6 +715,7 @@ class HITLDetailRequest(BaseModel):
     multiple: Annotated[bool | None, Field(title="Multiple")] = False
     params: Annotated[dict[str, Any] | None, Field(title="Params")] = None
     assigned_users: Annotated[list[HITLUser] | None, Field(title="Assigned Users")] = None
+    assigned_user_identifiers: Annotated[list[str] | None, Field(title="Assigned User Identifiers")] = None
 
 
 class HITLDetailResponse(BaseModel):

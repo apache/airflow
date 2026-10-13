@@ -2249,6 +2249,7 @@ class ActivitySubprocess(WatchedSubprocess):
             params=msg.params,
             multiple=msg.multiple,
             assigned_users=msg.assigned_users,
+            assigned_user_identifiers=msg.assigned_user_identifiers,
         )
         return HITLDetailRequestResult.from_api_response(hitl_detail_request), {"exclude_unset": True}
 
