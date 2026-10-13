@@ -30,7 +30,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanActionData,
     SessionStatus,
 )
-from airflow.providers.common.ai.utils.output_type import dump_output_to_json
+from airflow.providers.common.ai.utils.output_type import dump_output_for_display
 
 log = logging.getLogger(__name__)
 
@@ -284,5 +284,5 @@ class HITLReviewMixin:
 
     @staticmethod
     def _to_string(output: Any) -> str:
-        """Serialize an output for review as JSON, or ``str()`` when pydantic cannot."""
-        return dump_output_to_json(output)
+        """Serialize an output for the reviewer to read as JSON, or ``str()`` when pydantic cannot."""
+        return dump_output_for_display(output)

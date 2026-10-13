@@ -21,10 +21,10 @@ from enum import Enum
 from typing import Annotated, Literal, NamedTuple
 
 import pytest
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
-from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.output_type import dump_output_to_json, rehydrate_pydantic_output
 
 
 class A(BaseModel):
@@ -37,6 +37,25 @@ class Color(str, Enum):
 
 class ValidationAlias(BaseModel):
     user_name: str = Field(alias="userName")
+
+
+class SerializationAlias(BaseModel):
+    user_name: str = Field(serialization_alias="userName")
+
+
+class SerializedByAlias(BaseModel):
+    model_config = ConfigDict(serialize_by_alias=True)
+    user_name: str = Field(serialization_alias="userName")
+
+
+class ComputedForbidExtra(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    a: int
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def double(self) -> int:
+        return self.a * 2
 
 
 class Address(BaseModel):
@@ -54,7 +73,7 @@ class NoSchema:
 
 @dataclass
 class UnresolvedForwardReference:
-    value: Missing  # noqa: F821
+    value: Missing  # type: ignore[name-defined]  # noqa: F821
 
 
 class Point(NamedTuple):
@@ -152,10 +171,6 @@ class TestRehydratePydanticOutput:
         assert rehydrate_pydantic_output(int, "null", serialize_output=False, is_edited=False) == "null"
         assert any("Returning the output unchanged" in message for message in caplog.messages)
 
-    def test_error_reports_the_text_attempt_for_bare_text_types(self):
-        with pytest.raises(ReviewedOutputValidationError, match="Input should be 'a' or 'b'"):
-            rehydrate_pydantic_output(Literal["a", "b"], "c", serialize_output=False)
-
     def test_error_truncates_long_received_text(self):
         with pytest.raises(ReviewedOutputValidationError) as exc_info:
             rehydrate_pydantic_output(int, "x" * 500, serialize_output=False)
@@ -167,7 +182,7 @@ class TestRehydratePydanticOutput:
         ("output_type", "raw", "type_name", "detail"),
         [
             (int, "thirty-one", "int", "valid integer"),
-            (list[str], "a, b, c", "list[str]", "valid list"),
+            (list[str], "a, b, c", "list[str]", "Invalid JSON"),
             (A, '{"y": "no-x-field"}', "A", "Field required"),
         ],
         ids=["int", "list", "basemodel"],
@@ -180,3 +195,42 @@ class TestRehydratePydanticOutput:
         assert f"output_type {type_name}." in message
         assert repr(raw) in message
         assert detail in message
+
+    @pytest.mark.parametrize(
+        ("output_type", "output"),
+        [
+            (ValidationAlias, ValidationAlias(userName="kax")),
+            (SerializationAlias, SerializationAlias(user_name="kax")),
+            (SerializedByAlias, SerializedByAlias(user_name="kax")),
+            (list[ValidationAlias], [ValidationAlias(userName="kax")]),
+            (ComputedForbidExtra, ComputedForbidExtra(a=1)),
+            (list[ComputedForbidExtra], [ComputedForbidExtra(a=1)]),
+        ],
+        ids=[
+            "validation-alias",
+            "serialization-alias",
+            "serialize-by-alias",
+            "list-of-aliased",
+            "computed-field-forbid-extra",
+            "list-of-computed-field-forbid-extra",
+        ],
+    )
+    def test_a_dumped_output_validates_back(self, output_type, output):
+        raw = dump_output_to_json(output)
+
+        assert rehydrate_pydantic_output(output_type, raw, serialize_output=False) == output
+
+    @pytest.mark.parametrize(
+        ("output_type", "raw", "detail"),
+        [
+            (A, '{"x": 1,}', "trailing comma"),
+            (list[str], '["a","b",]', "trailing comma"),
+            (Literal["a", "b"], "c", "Input should be 'a' or 'b'"),
+        ],
+        ids=["model-typo", "list-typo", "bare-text"],
+    )
+    def test_error_reports_the_json_error_for_a_json_typo_and_the_text_error_otherwise(
+        self, output_type, raw, detail
+    ):
+        with pytest.raises(ReviewedOutputValidationError, match=detail):
+            rehydrate_pydantic_output(output_type, raw, serialize_output=False)

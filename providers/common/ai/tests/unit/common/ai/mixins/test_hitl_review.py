@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, Field, computed_field
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -42,7 +42,6 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanActionData,
     SessionStatus,
 )
-from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 from airflow.sdk.execution_time.comms import GetXCom, XComResult
 
@@ -114,24 +113,14 @@ def context(mock_ti):
     return {"task_instance": mock_ti}
 
 
-class _Aliased(BaseModel):
-    user_name: str = Field(alias="userName")
-
-
 class _SerializationAliased(BaseModel):
     user_name: str = Field(serialization_alias="userName")
 
 
-class _SerializedByAlias(BaseModel):
-    model_config = ConfigDict(serialize_by_alias=True)
-    user_name: str = Field(serialization_alias="userName")
-
-
 class _Computed(BaseModel):
-    model_config = ConfigDict(extra="forbid")
     a: int
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def double(self) -> int:
         return self.a * 2
@@ -144,7 +133,7 @@ class _NoSchema:
 
 @dataclass
 class _UnresolvedForwardReference:
-    value: Missing  # noqa: F821
+    value: Missing  # type: ignore[name-defined]  # noqa: F821
 
     def __repr__(self):
         return "unresolved"
@@ -156,7 +145,7 @@ class TestToString:
         [
             (["tag-a", "tag-b"], '["tag-a","tag-b"]'),
             ([_SerializationAliased(user_name="kax")], '[{"user_name":"kax"}]'),
-            ([_SerializedByAlias(user_name="kax")], '[{"user_name":"kax"}]'),
+            (_Computed(a=1), '{"a":1,"double":2}'),
             (_NoSchema(), "no-schema"),
             ([_NoSchema()], "[no-schema]"),
             (_UnresolvedForwardReference(value=1), "unresolved"),
@@ -164,7 +153,7 @@ class TestToString:
         ids=[
             "list",
             "serialization-aliased-list",
-            "serialized-by-alias-list",
+            "computed-field-shown",
             "no-schema-falls-back-to-str",
             "unserializable-falls-back-to-str",
             "unresolved-schema-falls-back-to-str",
@@ -177,30 +166,6 @@ class TestToString:
         HITLReviewMixin._to_string(_NoSchema())
 
         assert any("Cannot serialize a _NoSchema" in message for message in caplog.messages)
-
-    @pytest.mark.parametrize(
-        ("output_type", "output"),
-        [
-            (_Aliased, _Aliased(userName="kax")),
-            (_SerializationAliased, _SerializationAliased(user_name="kax")),
-            (_SerializedByAlias, _SerializedByAlias(user_name="kax")),
-            (list[_Aliased], [_Aliased(userName="kax")]),
-            (_Computed, _Computed(a=1)),
-            (list[_Computed], [_Computed(a=1)]),
-        ],
-        ids=[
-            "validation-alias",
-            "serialization-alias",
-            "serialize-by-alias",
-            "list-of-aliased",
-            "computed-field-forbid-extra",
-            "list-of-computed-field-forbid-extra",
-        ],
-    )
-    def test_an_unedited_review_string_validates_back(self, output_type, output):
-        raw = HITLReviewMixin._to_string(output)
-
-        assert rehydrate_pydantic_output(output_type, raw, serialize_output=False) == output
 
 
 class TestHITLReviewMixin:

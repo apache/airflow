@@ -31,18 +31,28 @@ from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 log = logging.getLogger(__name__)
 
 _MAX_SHOWN_CHARS = 200
+_CONTAINER_MISMATCH_TYPES = frozenset({"model_type", "dict_type", "list_type", "tuple_type", "set_type"})
 
 
 def dump_output_to_json(output: Any) -> str:
-    """Serialize an output for review as JSON that validates back into its type, or ``str()`` if pydantic cannot."""
-    if isinstance(output, str):
-        return output
+    """Serialize an output as JSON that ``rehydrate_pydantic_output`` validates back, or ``str()`` if pydantic cannot."""
     # ``round_trip`` drops computed fields, and ``by_alias=False`` keeps field names even when a model
     # sets ``serialize_by_alias``, so a field name or validation alias reads back.
+    return _dump_json(output, round_trip=True, by_alias=False)
+
+
+def dump_output_for_display(output: Any) -> str:
+    """Serialize an output as JSON for a reviewer to read, or ``str()`` if pydantic cannot."""
+    return _dump_json(output)
+
+
+def _dump_json(output: Any, **dump_options: Any) -> str:
+    if isinstance(output, str):
+        return output
     try:
         if isinstance(output, BaseModel):
-            return output.model_dump_json(round_trip=True, by_alias=False)
-        return TypeAdapter(type(output)).dump_json(output, round_trip=True, by_alias=False).decode()
+            return output.model_dump_json(**dump_options)
+        return TypeAdapter(type(output)).dump_json(output, **dump_options).decode()
     except (PydanticUserError, PydanticSerializationError):
         log.warning("Cannot serialize a %s to JSON, so the reviewer sees its str().", type(output).__name__)
         return str(output)
@@ -104,16 +114,25 @@ def _validate_bare_text(adapter: TypeAdapter[Any], raw: str) -> Any:
 
 
 def _build_failure_message(output_type: Any, raw: str, json_error: Exception, text_error: Exception) -> str:
-    """Describe why ``raw`` does not match ``output_type``, reporting the text error when it is not JSON."""
+    """Describe why ``raw`` does not match ``output_type``, reporting the text error for bare-text types."""
+    type_name = output_type if get_origin(output_type) else getattr(output_type, "__name__", output_type)
+    shown = raw if len(raw) <= _MAX_SHOWN_CHARS else f"{raw[:_MAX_SHOWN_CHARS]}..."
+    reported = text_error if _is_bare_text_failure(json_error, text_error) else json_error
+    return (
+        f"The reviewed output could not be converted to the output_type {type_name}. "
+        f"Received {shown!r}. {reported}"
+    )
+
+
+def _is_bare_text_failure(json_error: Exception, text_error: Exception) -> bool:
+    """Tell a text that was never JSON from a JSON edit with a typo, which the JSON error explains best."""
     is_not_json = isinstance(json_error, ValidationError) and all(
         error["type"] == "json_invalid" for error in json_error.errors()
     )
-    type_name = output_type if get_origin(output_type) else getattr(output_type, "__name__", output_type)
-    shown = raw if len(raw) <= _MAX_SHOWN_CHARS else f"{raw[:_MAX_SHOWN_CHARS]}..."
-    return (
-        f"The reviewed output could not be converted to the output_type {type_name}. "
-        f"Received {shown!r}. {text_error if is_not_json else json_error}"
+    is_container_mismatch = isinstance(text_error, ValidationError) and all(
+        error["loc"] == () and error["type"] in _CONTAINER_MISMATCH_TYPES for error in text_error.errors()
     )
+    return is_not_json and not is_container_mismatch
 
 
 def _is_output_function(schema: Any) -> bool:

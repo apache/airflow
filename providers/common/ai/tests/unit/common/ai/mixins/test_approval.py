@@ -116,7 +116,7 @@ class _NoSchema:
 class _Doubled(BaseModel):
     a: int
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def double(self) -> int:
         return self.a * 2
