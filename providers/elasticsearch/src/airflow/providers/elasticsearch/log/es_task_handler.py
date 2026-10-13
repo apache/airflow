@@ -221,12 +221,13 @@ def _strip_userinfo(url: str) -> str:
 
 
 def _render_log_id(log_id_template: str, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+    stored_index = getattr(ti, "region_index", None)
     return log_id_template.format(
         dag_id=ti.dag_id,
         task_id=ti.task_id,
         run_id=getattr(ti, "run_id", ""),
         try_number=try_number,
-        map_index=getattr(ti, "map_index", ""),
+        map_index=stored_index if stored_index is not None else getattr(ti, "map_index", ""),
     )
 
 

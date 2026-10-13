@@ -334,21 +334,46 @@ def _describe_applies_to_error(applies_to: Any) -> str | None:
     return None
 
 
-def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | ReactAppDict, kind: str) -> None:
+def _is_applies_to_path_known_elsewhere(path: str) -> bool:
     """
-    Warn about scoping a UI plugin cannot honour, and strip it if it is malformed.
+    Whether an unqualified ``path`` names a real field on some record other than this one.
 
-    A malformed block is removed so the view still loads unscoped, matching the default for
-    a view that omits ``applies_to`` entirely. Criteria the destination cannot evaluate are
-    only warned about — they are skipped at match time by design, so that one block can be
-    shared across a plugin's Dag- and task-level destinations.
+    ``class_ref.class_name`` means nothing on a task instance but everything on a task, and an
+    author targeting both pages from one block writes exactly that. Such a path is skipped at
+    match time by design, so it must not be reported as a misspelling.
+
+    Only asked about unqualified paths: one that names its record explicitly has no other
+    reading, so a bad field there is simply wrong.
+    """
+    return any(_describe_applies_to_path_error(path, root) is None for root in _applies_to_root_models())
+
+
+def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | ReactAppDict, kind: str) -> bool:
+    """
+    Check a UI plugin's scoping, returning whether the view should be loaded at all.
+
+    Three failures, wanting three different things:
+
+    * **Malformed** block -- not a dictionary, a non-string path, a value that is not a list of
+      strings. Dropped, and the view loads unscoped, as it would without ``applies_to`` at all.
+      Nothing of the author's intent survives to act on.
+    * **Unevaluable** path -- its root record is one this destination does not have, or it names
+      a field only a sibling record has. Warned about and kept: both are skipped at match time
+      by design, which is what lets one block be shared across a plugin's destinations.
+    * **A path naming a field no record has.** The author asked to narrow by something that
+      cannot exist, so the view can never appear for the reason they intended. Returning
+      ``False`` withholds it rather than letting the browser skip the path and show it
+      everywhere. A view that disappears gets noticed; one on every page looks deliberate.
+
+    The view gets a new dict rather than an edited one, because a plugin may pass the same
+    ``applies_to`` object to several views and it is not this function's to rewrite.
     """
     if "applies_to" not in view:
-        return
+        return True
 
     applies_to = view["applies_to"]
     if applies_to is None:
-        return
+        return True
 
     if error := _describe_applies_to_error(applies_to):
         log.warning(
@@ -359,20 +384,23 @@ def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | React
             error,
         )
         del view["applies_to"]
-        return
+        return True
 
     # A null value means "no values configured", which the matcher already ignores the same way
-    # it ignores an empty list. Leaving it in place would fail `PluginAppliesToResponse`
+    # it ignores an empty list. Carrying it through would fail `PluginAppliesToResponse`
     # serialization and drop the whole plugin -- including its other, valid views -- from the
-    # plugins API. Dropping the path keeps the rest of the block working.
-    for path in [path for path, values in applies_to.items() if values is None]:
-        del applies_to[path]
+    # plugins API.
+    #
+    # The view gets a new dict rather than an edited one, because a plugin may pass the same
+    # `applies_to` object to several views and it is not this function's to rewrite.
+    applies_to = {path: list(values) for path, values in applies_to.items() if values is not None}
+    view["applies_to"] = applies_to
 
     destination = view.get("destination", "nav")
     if destination not in _APPLIES_TO_ROOTS:
         # An unrecognised destination already fails serialization; warning here too would
         # only add noise pointing at the wrong problem.
-        return
+        return True
 
     available = _APPLIES_TO_ROOTS[destination]
     unevaluable = sorted(
@@ -398,16 +426,35 @@ def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | React
         root = _applies_to_path_root(path, destination)
         if not values or root is None or root not in available:
             continue
-        if error := _describe_applies_to_path_error(path, root):
+        error = _describe_applies_to_path_error(path, root)
+        if error is None:
+            continue
+        head, _, rest = path.partition(".")
+        if not (head in _APPLIES_TO_ROOT_NAMES and rest) and _is_applies_to_path_known_elsewhere(path):
+            # A real field, just not on this destination's record. Saying the scope widened
+            # would be untrue: the block's other paths are what scope this destination.
             log.warning(
-                "Plugin '%s' has %s '%s' with an 'applies_to' path that matches no field: %s. "
-                "That path will be ignored, so the %s will appear in more places than intended.",
+                "Plugin '%s' has %s '%s' with an 'applies_to' path '%s' that no %s has. It is "
+                "skipped here; it only scopes the destinations whose record does have it.",
                 plugin_name,
                 kind,
                 view.get("name"),
-                error,
-                kind.split()[-1],
+                path,
+                root,
             )
+            continue
+        log.error(
+            "Plugin '%s' has %s '%s' with an 'applies_to' path that matches no field: %s. "
+            "It could never scope the way it asks to, so the %s will not be loaded.",
+            plugin_name,
+            kind,
+            view.get("name"),
+            error,
+            kind.split()[-1],
+        )
+        return False
+
+    return True
 
 
 @cache
@@ -430,7 +477,9 @@ def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
                 )
                 external_views_to_remove.append(external_view)
                 continue
-            _validate_applies_to(plugin.name, external_view, "an external view")
+            if not _validate_applies_to(plugin.name, external_view, "an external view"):
+                external_views_to_remove.append(external_view)
+                continue
             url_route = external_view.get("url_route")
             if url_route is None:
                 continue
@@ -455,7 +504,9 @@ def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
                 )
                 react_apps_to_remove.append(react_app)
                 continue
-            _validate_applies_to(plugin.name, react_app, "a React App")
+            if not _validate_applies_to(plugin.name, react_app, "a React App"):
+                react_apps_to_remove.append(react_app)
+                continue
             url_route = react_app.get("url_route")
             if url_route is None:
                 continue

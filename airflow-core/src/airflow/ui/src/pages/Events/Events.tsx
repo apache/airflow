@@ -36,6 +36,7 @@ import Time from "src/components/Time";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle } from "src/utils";
 
@@ -185,6 +186,8 @@ const {
 export const Events = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const { dagId, runId, taskId } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
+  const regional = taskId !== undefined && coordinates.regionId !== undefined;
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   // Only the standalone audit-log page owns the tab title; nested tabs inherit their parent page's title.
@@ -256,10 +259,13 @@ export const Events = () => {
       ...dagIdArg,
       ...eventArg,
       limit: pagination.pageSize,
-      mapIndex: mapIndexNumber,
+      // A loop pass shares its public map index with every other pass, so its coordinates select it.
+      mapIndex: regional ? undefined : mapIndexNumber,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       ...ownerArg,
+      regionId: regional ? coordinates.regionId : undefined,
+      regionIndex: regional ? coordinates.regionIndex : undefined,
       runId: runId ?? undefined,
       ...runIdArg,
       taskId: taskId ?? undefined,

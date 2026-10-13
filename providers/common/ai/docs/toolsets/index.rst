@@ -96,14 +96,24 @@ toolset to log its calls, the other converts a toolset for a LangChain agent.
 Importing toolsets
 ------------------
 
-Six toolsets import from the ``airflow.providers.common.ai.toolsets`` package root:
-``HookToolset``, ``SQLToolset``, ``ObjectStorageToolset``, ``MCPToolset``,
-``SandboxToolset`` and ``ManagedAgentToolset``. Import the other three from their own
-submodules::
+Every toolset imports from the ``airflow.providers.common.ai.toolsets`` package root::
 
-    from airflow.providers.common.ai.toolsets.datafusion import DataFusionToolset
-    from airflow.providers.common.ai.toolsets.logging import LoggingToolset
-    from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset
+    from airflow.providers.common.ai.toolsets import (
+        AgentSkillsToolset,
+        DataFusionToolset,
+        HookToolset,
+        LoggingToolset,
+        ManagedAgentToolset,
+        MCPToolset,
+        ObjectStorageToolset,
+        SandboxToolset,
+        SQLToolset,
+    )
+
+``SQLToolset`` and ``DataFusionToolset`` depend on optional extras. If the extra is not
+installed, the first access to the name raises ``AirflowOptionalProviderFeatureException``.
+``MCPToolset`` imports without its extra; the missing dependency raises ``ImportError``
+when the toolset first connects to the MCP server.
 
 Every toolset here implements pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface, so it works in any

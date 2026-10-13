@@ -415,6 +415,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
                 "is_setup",
                 "is_teardown",
                 "on_failure_fail_dagrun",
+                "returns_dag_result",
                 // Edges come from before/after, never from configuration.
                 "downstream_task_ids",
             )
@@ -575,6 +576,74 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |  @Target(AnnotationTarget.FUNCTION)
             |  @MustBeDocumented
             |  annotation class Task(
+            |    /** Task ID. Empty derives it from the annotated function's name. */
+            |    val id: String = "",
+            |${attrLines(taskFields)}
+            |  )
+            |
+            |  /**
+            |   * Marks a task method whose `boolean` picks one of two tasks; the
+            |   * other is skipped.
+            |   *
+            |   * The method is an ordinary task method that returns `boolean`. Its
+            |   * wiring-view method returns a [ConditionRef] rather than a
+            |   * [TaskRef], so each side is named where the Dag is wired:
+            |   *
+            |   * ```java
+            |   * @Builder.If(id = "has_rows")
+            |   * public boolean hasRows(long rows) { return rows > 0; }
+            |   *
+            |   * @Builder.Deps
+            |   * static class Wiring implements EtlDeps {
+            |   *   void depends() { hasRows(extract()).Then(load()).Else(reportEmpty()); }
+            |   * }
+            |   * ```
+            |   *
+            |   * The condition skips only the side not taken, so a task that runs
+            |   * after both sides needs a trigger rule that tolerates one skipped
+            |   * upstream, such as `none_failed_min_one_success`.
+            |   *
+            |   * Configuration attributes are [Task]'s, and apply to the deciding
+            |   * task.
+            |   */
+            |  @Target(AnnotationTarget.FUNCTION)
+            |  @MustBeDocumented
+            |  annotation class If(
+            |    /** Task ID. Empty derives it from the annotated function's name. */
+            |    val id: String = "",
+            |${attrLines(taskFields)}
+            |  )
+            |
+            |  /**
+            |   * Marks a task method that chooses one of several tasks to run;
+            |   * every other one is skipped.
+            |   *
+            |   * The method returns the class the Dag's builder generated for the task it
+            |   * chose, as `Class<? extends Task>`. Its wiring-view method returns a
+            |   * [SwitchRef], so the cases are listed where the Dag is wired:
+            |   *
+            |   * ```java
+            |   * @Builder.Switch(id = "pick_path")
+            |   * public Class<? extends Task> pickPath(long rows) {
+            |   *   return rows > 1000 ? EtlBuilder.HandleLong.class : EtlBuilder.HandleShort.class;
+            |   * }
+            |   *
+            |   * @Builder.Deps
+            |   * static class Wiring implements EtlDeps {
+            |   *   void depends() { pickPath(extract()).Case(handleLong()).Case(handleShort()); }
+            |   * }
+            |   * ```
+            |   *
+            |   * A switch chooses exactly one case, so a task that runs after
+            |   * several of them needs a trigger rule that tolerates a skipped
+            |   * upstream, such as `none_failed_min_one_success`.
+            |   *
+            |   * Configuration attributes are [Task]'s, and apply to the deciding
+            |   * task.
+            |   */
+            |  @Target(AnnotationTarget.FUNCTION)
+            |  @MustBeDocumented
+            |  annotation class Switch(
             |    /** Task ID. Empty derives it from the annotated function's name. */
             |    val id: String = "",
             |${attrLines(taskFields)}

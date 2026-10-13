@@ -446,26 +446,37 @@ class TestPluginsManager:
         ]
 
     @pytest.mark.parametrize(
-        ("path", "error"),
+        ("destination", "path", "error"),
         [
             pytest.param(
+                "dag_run",
                 "dag.tags.nme",
                 "'dag.tags.nme' names no field 'nme' on DagTagResponse (did you mean 'name'?)",
                 id="misspelled-nested-leaf",
             ),
             pytest.param(
+                "dag_run",
                 "stat",
                 "'stat' names no field 'stat' on DAGRunResponse (did you mean 'state'?)",
                 id="misspelled-own-field",
             ),
             pytest.param(
+                "dag_run",
                 "state.length",
                 "'state.length' reads 'length' from DagRunState, which has no fields",
                 id="path-past-a-scalar",
             ),
+            # Naming the record explicitly leaves no second reading, so a bad field there is
+            # simply wrong -- even though `class_ref` is real on the record it names.
+            pytest.param(
+                "task_instance",
+                "task.class_rf",
+                "'task.class_rf' names no field 'class_rf' on TaskResponse (did you mean 'class_ref'?)",
+                id="misspelled-behind-an-explicit-record",
+            ),
         ],
     )
-    def test_warns_about_a_path_matching_no_field(self, path, error, caplog):
+    def test_withholds_a_view_whose_path_matches_no_field(self, destination, path, error, caplog):
         class TestPlugin(AirflowPlugin):
             name = "test_plugin"
 
@@ -474,9 +485,16 @@ class TestPluginsManager:
                     "name": "Scoped",
                     "href": "/scoped",
                     "url_route": "/scoped",
-                    "destination": "dag_run",
+                    "destination": destination,
                     "applies_to": {path: ["x"]},
-                }
+                },
+                {
+                    "name": "Fine",
+                    "href": "/fine",
+                    "url_route": "/fine",
+                    "destination": destination,
+                    "applies_to": {"state": ["failed"]},
+                },
             ]
 
         with (
@@ -487,17 +505,16 @@ class TestPluginsManager:
 
             external_views, _ = plugins_manager._get_ui_plugins()
 
-            # Warned about, not stripped: the path is inert either way, and dropping it would
-            # change the block the UI receives.
-            assert external_views[0]["applies_to"] == {path: ["x"]}
+            # Withheld rather than shown everywhere; its sibling is untouched.
+            assert [view["name"] for view in external_views] == ["Fine"]
 
         assert caplog.record_tuples == [
             (
                 "airflow.plugins_manager",
-                logging.WARNING,
+                logging.ERROR,
                 f"Plugin 'test_plugin' has an external view 'Scoped' with an 'applies_to' path that "
-                f"matches no field: {error}. That path will be ignored, so the view will appear in "
-                f"more places than intended.",
+                f"matches no field: {error}. It could never scope the way it asks to, so the view "
+                f"will not be loaded.",
             ),
         ]
 
@@ -620,6 +637,127 @@ class TestPluginsManager:
             plugins_manager._get_ui_plugins()
 
         assert caplog.record_tuples == []
+
+    def test_documented_operator_recipes_load_without_warnings(self, caplog):
+        """The per-destination recipe in plugins.rst must not trip the path validator."""
+
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Pod logs",
+                    "href": "https://example.com/pods",
+                    "url_route": "pod-logs",
+                    "destination": "task_instance",
+                    "applies_to": {"operator": ["KubernetesPodOperator"]},
+                },
+                {
+                    "name": "Pod logs",
+                    "href": "https://example.com/pods",
+                    "url_route": "pod-logs-task",
+                    "destination": "task",
+                    "applies_to": {"class_ref.class_name": ["KubernetesPodOperator"]},
+                },
+                # The portable single-path form the docs lead with, on both destinations.
+                {
+                    "name": "By display name",
+                    "href": "https://example.com/op",
+                    "url_route": "op",
+                    "destination": "task_instance",
+                    "applies_to": {"operator_name": ["KubernetesPodOperator"]},
+                },
+                {
+                    "name": "By display name",
+                    "href": "https://example.com/op",
+                    "url_route": "op-task",
+                    "destination": "task",
+                    "applies_to": {"operator_name": ["KubernetesPodOperator"]},
+                },
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            plugins_manager._get_ui_plugins()
+
+        assert caplog.record_tuples == []
+
+    def test_reports_a_shared_block_path_as_skipped_not_as_widening(self, caplog):
+        """`class_ref.class_name` is meaningless on a task instance but real on a task.
+
+        An author targeting both pages from one block writes exactly that, so saying the view
+        will appear in more places than intended would be untrue -- `operator` is scoping it.
+        """
+
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Pod logs",
+                    "href": "/pods",
+                    "url_route": "/pods",
+                    "destination": "task_instance",
+                    "applies_to": {
+                        "operator": ["KubernetesPodOperator"],
+                        "class_ref.class_name": ["KubernetesPodOperator"],
+                    },
+                }
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            assert [view["name"] for view in external_views] == ["Pod logs"]
+
+        assert len(caplog.record_tuples) == 1
+        assert "'class_ref.class_name' that no task_instance has" in caplog.record_tuples[0][2]
+        assert "more places than intended" not in caplog.record_tuples[0][2]
+
+    def test_does_not_mutate_the_plugin_author_s_applies_to(self):
+        """A plugin may hand the same dict to several views; validation must not rewrite it."""
+        shared = {"operator_name": ["@task.bash"], "task_id": None}
+
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "On task",
+                    "href": "/a",
+                    "url_route": "/a",
+                    "destination": "task",
+                    "applies_to": shared,
+                },
+                {
+                    "name": "On task instance",
+                    "href": "/b",
+                    "url_route": "/b",
+                    "destination": "task_instance",
+                    "applies_to": shared,
+                },
+            ]
+
+        with mock_plugin_manager(plugins=[TestPlugin()]):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            # The null path is dropped from what each view serializes...
+            for view in external_views:
+                assert view["applies_to"] == {"operator_name": ["@task.bash"]}
+
+        # ...but the author's own object still has it.
+        assert shared == {"operator_name": ["@task.bash"], "task_id": None}
 
     def test_does_not_warn_about_valid_applies_to(self, caplog):
         class TestPlugin(AirflowPlugin):

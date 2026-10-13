@@ -54,6 +54,44 @@ public class AnnotationExample {
     log.log(INFO, "Loaded {0}", transformed);
   }
 
+  @Builder.Task(id = "load_empty")
+  public void loadEmpty() {
+    log.log(INFO, "Nothing to load");
+  }
+
+  // A condition: its boolean picks one of the two loads, and the other is
+  // skipped.
+  @Builder.If(id = "has_rows")
+  public boolean hasRows(long transformed) {
+    return transformed > 0;
+  }
+
+  @Builder.Task(id = "report_long")
+  public void reportLong() {
+    log.log(INFO, "Long report");
+  }
+
+  @Builder.Task(id = "report_short")
+  public void reportShort() {
+    log.log(INFO, "Short report");
+  }
+
+  // A switch: it names the one case that runs by the class generated for it,
+  // and every other case is skipped.
+  @Builder.Switch(id = "pick_report")
+  public Class<? extends Task> pickReport(long transformed) {
+    return transformed > 100
+        ? AnnotationExampleBuilder.ReportLong.class
+        : AnnotationExampleBuilder.ReportShort.class;
+  }
+
+  // A task that starts a run of another Dag. The method runs when this Dag is
+  // built, not when the task runs, so it takes no arguments.
+  @Builder.Task(id = "trigger_downstream")
+  public TriggerDagRun triggerDownstream() {
+    return new TriggerDagRun("java_native_target_example").config("note", "from the annotation example");
+  }
+
   // A task group: everything it declares is prefixed with its id, so this is
   // the task "checks.audit".
   @Builder.TaskGroup(id = "checks")
@@ -70,7 +108,11 @@ public class AnnotationExample {
   static class Wiring implements AnnotationExampleDeps {
     void depends() {
       var extracted = extract();
-      load(transform(extracted, lit(1.5)));
+      var transformed = transform(extracted, lit(1.5));
+      var loaded = load(transformed);
+      hasRows(transformed).Then(loaded).Else(loadEmpty());
+      pickReport(transformed).Case(reportLong()).Case(reportShort());
+      loaded.before(triggerDownstream());
       // Ordering-only edge: the checks group runs after extract, with no data
       // flowing.
       extracted.before(checks());

@@ -26,6 +26,9 @@ name picks the vendor. Switching vendors is a connection
 change, not a Dag change. Find your vendor below, install the extra, create the connection
 type shown, and set the model name with that prefix.
 
+For the exhaustive, generated-and-hand-written list of every service this provider
+reaches (connections and toolsets alike), see :doc:`supported_services`.
+
 .. list-table::
    :header-rows: 1
    :widths: 18 16 18 20 28

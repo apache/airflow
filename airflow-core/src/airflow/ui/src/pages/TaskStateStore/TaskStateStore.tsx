@@ -34,6 +34,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StoreValueCell } from "src/components/StoreValueCell";
 import Time from "src/components/Time";
 
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { AddTaskStateStoreButton } from "./AddTaskStateStoreButton";
@@ -112,9 +113,11 @@ const getColumns = ({
 export const TaskStateStore = () => {
   const { dagId = "", mapIndex: rawMapIndex = "-1", runId = "", taskId = "" } = useParams();
   const mapIndex = parseInt(rawMapIndex, 10);
+  const coordinates = useTaskInstanceCoordinates();
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
+    ...coordinates,
     dagId,
     dagRunId: runId,
     mapIndex,
@@ -127,6 +130,7 @@ export const TaskStateStore = () => {
 
   const { data, error, isFetching, isLoading } = useTaskStateStoreServiceListTaskStateStore(
     {
+      ...coordinates,
       dagId,
       dagRunId: runId,
       limit: pagination.pageSize,

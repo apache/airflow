@@ -33,7 +33,7 @@
       "importErrorGone": "此匯入錯誤已不再記錄，可能已透過重新解析修復。",
       "neverParsed": "從未",
       "showImportError_one": "檢視錯誤",
-      "showImportError_other": "檢視 {{count}} 個錯誤"
+      "showImportError_other": "檢視 {{count, number}} 個錯誤"
     },
     "inactive": "非活躍",
     "neverRefreshed": "從未",

@@ -94,6 +94,8 @@ TypeScript is the reference ([#73723](https://github.com/apache/airflow/pull/737
 packers adopt the same shape — per-Dag source resolution, de-duplication by path, and an
 always-embedded entrypoint fallback — so a bundle reader treats every language the same way and the
 Code tab behaves identically regardless of which SDK produced the artifact.
+A JVM SDK has no module body, so it resolves a Dag by the class that declared it, and a Dag built by a
+factory maps to the factory's class.
 
 Go has no module evaluation, so the Go SDK records the file that calls `airflow.Dag`. A Dag built in
 a factory function maps to the factory's file, not to the file that calls the factory.

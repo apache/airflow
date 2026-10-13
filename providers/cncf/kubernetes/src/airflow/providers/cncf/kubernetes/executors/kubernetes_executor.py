@@ -434,8 +434,9 @@ class KubernetesExecutor(BaseExecutor):
                 del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
             else:
                 del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+            # Add to running before execute_async: it may fail() the task, which must remove the key again.
             self.running.add(key)
+            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
 
     def _should_create_pod_for_job(self, task: KubernetesJob) -> bool:
         """
