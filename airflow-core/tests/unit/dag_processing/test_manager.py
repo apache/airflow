@@ -1198,59 +1198,79 @@ class TestDagFileProcessorManager:
         assert versioned_file in manager._file_stats
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
-    def test_prepare_file_queue_ignores_stale_callback_stats_for_recently_parsed_file(self):
-        """A stale callback stat must not mask a recent parse of the same file."""
+    @pytest.mark.parametrize(
+        "callback_first",
+        [
+            pytest.param(False, id="scan-recorded-first"),
+            pytest.param(True, id="callback-recorded-first"),
+        ],
+    )
+    def test_callback_only_parse_does_not_requeue_recently_parsed_file(self, callback_first):
+        """A callback-only parse records no ``last_finish_time``, which must not requeue the file."""
         freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
         known_file = _get_file_infos(["file_1.py"])[0]
         versioned_file = _get_versioned_file_info("file_1.py")
-        known_files = {"testing": {known_file}}
+        scan_stat = DagFileStat(1, 0, freezed_base_time - timedelta(seconds=5), 1.0, 1, 1)
 
         manager = DagFileProcessorManager(max_runs=3)
-        # A callback pins bundle_version, so its entry is added after the scan entry and
-        # then never refreshed -- resolving by insertion order would pick the stale one.
-        manager._file_stats = {
-            known_file: DagFileStat(1, 0, freezed_base_time - timedelta(seconds=5), 1.0, 1, 1),
-            versioned_file: DagFileStat(1, 0, freezed_base_time - timedelta(hours=2), 1.0, 1, 1),
-        }
+        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = True
+        processor.parsing_result = None
 
         with time_machine.travel(freezed_base_time):
-            manager.prepare_file_queue(known_files=known_files)
+            if not callback_first:
+                manager._file_stats[known_file] = scan_stat
+            manager.handle_parsing_result(versioned_file, processor)
+            if callback_first:
+                manager._file_stats[known_file] = scan_stat
+            manager.prepare_file_queue(known_files={"testing": {known_file}})
 
         assert manager._file_queue == OrderedDict()
 
-    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
-    @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_sort_by_mtime_ignores_stale_callback_stats(self, mock_getmtime):
-        """A stale callback stat must not make an unmodified file look changed."""
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
+    @mock.patch.object(DagFileProcessorProcess, "kill")
+    def test_timed_out_callback_does_not_delay_due_parse(self, mock_kill):
+        """A callback processor that times out must not make a due file look recently parsed."""
         freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
         known_file = _get_file_infos(["file_1.py"])[0]
         versioned_file = _get_versioned_file_info("file_1.py")
 
-        manager = DagFileProcessorManager(max_runs=3)
-        manager._file_stats = {
-            known_file: DagFileStat(1, 0, freezed_base_time - timedelta(seconds=5), 1.0, 1, 1),
-            versioned_file: DagFileStat(1, 0, freezed_base_time - timedelta(hours=2), 1.0, 1, 1),
-        }
+        manager = DagFileProcessorManager(max_runs=3, processor_timeout=5)
+        manager._file_stats[known_file] = DagFileStat(
+            1, 0, freezed_base_time - timedelta(seconds=60), 1.0, 1, 1
+        )
+        processor, _ = self.mock_processor(start_time=time.monotonic() - manager.processor_timeout - 1)
+        manager._processors = {versioned_file: processor}
 
         with time_machine.travel(freezed_base_time):
-            mock_getmtime.side_effect = [(freezed_base_time - timedelta(seconds=10)).timestamp()]
-            _, changed_recently = manager._sort_by_mtime([known_file])
+            manager._kill_timed_out_processors()
+            manager.prepare_file_queue(known_files={"testing": {known_file}})
 
-        assert changed_recently == set()
+        assert known_file in manager._file_queue
 
-    def test_processed_recently_uses_newest_stat(self):
-        """Duplicate stats for one file resolve to the most recent parse."""
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch.object(DagFileProcessorProcess, "kill")
+    @mock.patch("airflow.utils.file.os.path.getmtime")
+    def test_timed_out_callback_does_not_hide_an_edit(self, mock_getmtime, mock_kill):
+        """An edit after the last parse is picked up even if a callback processor times out later."""
         freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
         known_file = _get_file_infos(["file_1.py"])[0]
         versioned_file = _get_versioned_file_info("file_1.py")
 
-        manager = DagFileProcessorManager(max_runs=3)
-        manager._file_stats = {
-            versioned_file: DagFileStat(1, 0, freezed_base_time - timedelta(hours=2), 1.0, 1, 1),
-            known_file: DagFileStat(1, 0, freezed_base_time - timedelta(seconds=5), 1.0, 1, 1),
-        }
+        manager = DagFileProcessorManager(max_runs=3, processor_timeout=5)
+        manager._file_stats[known_file] = DagFileStat(
+            1, 0, freezed_base_time - timedelta(seconds=10), 1.0, 1, 1
+        )
+        processor, _ = self.mock_processor(start_time=time.monotonic() - manager.processor_timeout - 1)
+        manager._processors = {versioned_file: processor}
+        mock_getmtime.return_value = (freezed_base_time - timedelta(seconds=7)).timestamp()
 
-        assert manager.processed_recently(freezed_base_time, known_file) is True
+        with time_machine.travel(freezed_base_time - timedelta(seconds=5)):
+            manager._kill_timed_out_processors()
+        with time_machine.travel(freezed_base_time):
+            manager.prepare_file_queue(known_files={"testing": {known_file}})
+
+        assert known_file in manager._file_queue
 
     def test_file_paths_in_queue_sorted_by_priority(self):
         from airflow.models.dagbag import DagPriorityParsingRequest

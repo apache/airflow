@@ -1573,26 +1573,24 @@ class DagFileProcessorManager(LoggingMixin):
             # Put callback files at the front, then sorted regular files
             self._file_queue = OrderedDict.fromkeys(callback_files + sorted_regular_files)
 
-    def _stats_by_presence_key(self) -> dict[tuple[str, Path], DagFileStat]:
+    def _resolve_stats_by_presence_key(self) -> dict[tuple[str, Path], DagFileStat]:
         """
-        Resolve a single stat per physical file, with the most recent parse winning.
+        Resolve one stat per physical file, preferring the bundle scan's entry.
 
-        One file can hold several ``_file_stats`` entries: a callback pins
-        ``bundle_version`` on its ``DagFileInfo`` while the bundle scan leaves it unset,
-        and both are tracked deliberately. Resolving by insertion order lets a stale
-        callback entry mask a more recent scan parse, so compare parse times instead.
+        A callback pins ``bundle_version``, so its entry is separate from the scan's and does
+        not track parses of the current file: a callback-only result has no ``last_finish_time``,
+        and a timed-out callback processor is stamped although nothing parsed the current version.
+        A file without a scan entry still falls back to its versioned entry, so the queue's
+        run-limit and recent-parse checks apply to it.
         """
         resolved: dict[tuple[str, Path], DagFileStat] = {}
         for file, stat in self._file_stats.items():
-            existing = resolved.get(file.presence_key)
-            if existing is None or (stat.last_finish_time or utc_epoch()) >= (
-                existing.last_finish_time or utc_epoch()
-            ):
+            if file.bundle_version is None or file.presence_key not in resolved:
                 resolved[file.presence_key] = stat
         return resolved
 
     def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
-        file_stats_by_presence_key = self._stats_by_presence_key()
+        file_stats_by_presence_key = self._resolve_stats_by_presence_key()
         files_with_mtime: dict[DagFileInfo, float] = {}
         changed_recently = set()
         for file in files:
@@ -1620,7 +1618,14 @@ class DagFileProcessorManager(LoggingMixin):
         return file_infos, changed_recently
 
     def processed_recently(self, now, file):
-        stat = self._stats_by_presence_key().get(file.presence_key)
+        stat = next(
+            (
+                stat
+                for tracked_file, stat in self._file_stats.items()
+                if tracked_file.presence_key == file.presence_key
+            ),
+            None,
+        )
         last_time = stat.last_finish_time if stat else None
         if not last_time:
             return False
@@ -1647,7 +1652,7 @@ class DagFileProcessorManager(LoggingMixin):
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
         in_progress_keys = {file.presence_key for file in self._processors}
-        file_stats_by_presence_key = self._stats_by_presence_key()
+        file_stats_by_presence_key = self._resolve_stats_by_presence_key()
         now = timezone.utcnow()
 
         # Sort the file paths by the parsing order mode
