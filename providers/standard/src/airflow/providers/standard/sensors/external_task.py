@@ -405,6 +405,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         if count_allowed == len(dttm_filter):
             if external_run_ids:
                 try:
+                    # Link stores one run_id ; If execution_date_fn matches several, use the first.
                     external_run_id = next(iter(external_run_ids.keys()))
                     ti.xcom_push(key=XCOM_EXTERNAL_RUN_ID, value=external_run_id)
                 except Exception:
@@ -493,6 +494,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
                     from airflow.models import DagRun
 
+                    # Link stores one run_id ; If execution_date_fn matches several, use the first.
                     external_run_id = None
                     for logical_date in dttm_filter:
                         dag_run_stmt = select(DagRun).where(
