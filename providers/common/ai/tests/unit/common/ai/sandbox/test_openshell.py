@@ -808,6 +808,17 @@ class TestRunCommand:
         assert not isinstance(error.value, SandboxTerminalError)
         client.delete.assert_not_called()
 
+    @pytest.mark.parametrize("details", ["upstream max stream duration reached", ""])
+    def test_any_other_early_deadline_may_have_left_the_command_running(self, clock, details):
+        backend, client = _backend()
+        client._stub.ExecSandbox.side_effect = _deadline_exceeded(clock, after=10.0, details=details)
+
+        with pytest.raises(SandboxError, match="may or may not have run.*may still be running") as error:
+            backend.run_command("box", "make install", timeout=60, max_output_bytes=100)
+
+        assert not isinstance(error.value, SandboxTerminalError)
+        client.delete.assert_not_called()
+
     def test_a_sandbox_not_ready_after_a_gateway_restart_is_waited_for_and_retried(self):
         backend, client = _backend()
         client._stub.ExecSandbox.side_effect = [

@@ -59,10 +59,12 @@ _CLIENT_BUILD_LOCK = threading.Lock()
 # gateway or supervisor that stops delivering events at all.
 _EXEC_GRACE = 30.0
 # A DEADLINE_EXCEEDED arriving at least this long before the call's own deadline
-# came from the gateway, not the client. In 0.1.2 the gateway only sends one while
-# opening the relay into the sandbox, before the command starts
-# (openshell-server grpc/sandbox.rs await_relay_stream, after 10 s).
+# came from the gateway or a proxy, not the client.
 _EARLY_DEADLINE_MARGIN = 1.0
+# OpenShell 0.1.2's gateway ends an exec with DEADLINE_EXCEEDED and exactly this detail
+# when the relay into the sandbox does not open within 10 s, before the command starts
+# (openshell-server grpc/sandbox.rs await_relay_stream).
+_RELAY_OPEN_TIMED_OUT = "relay open timed out"
 # How long a command or policy read waits for a restarting gateway to come back
 # before the failure is reported. A restart measured at 6-11 s end to end.
 _GATEWAY_RECOVERY = 60.0
@@ -798,9 +800,9 @@ class OpenShellSandboxBackend(SandboxBackend):
 
         Streams the gateway's events directly: the SDK's ``exec_stream`` keeps every
         chunk in memory until the command exits. Raises :class:`_ExecHung` past
-        ``deadline``, :class:`SandboxError` when the gateway could not reach the
-        sandbox to start the command, and :class:`_GatewayDropped` when the gateway
-        goes away after the request left, where the command may or may not have run.
+        ``deadline``, :class:`SandboxError` when the gateway could not open its relay
+        to start the command, and :class:`_GatewayDropped` when the stream ends early
+        after the request left, where the command may or may not have run.
         """
         from openshell._proto import openshell_pb2
 
@@ -832,10 +834,15 @@ class OpenShellSandboxBackend(SandboxBackend):
             if status == "DEADLINE_EXCEEDED":
                 if time.monotonic() - started >= deadline - _EARLY_DEADLINE_MARGIN:
                     raise _ExecHung from e
-                raise SandboxError(
-                    f"The command was not run: the OpenShell gateway could not reach sandbox {sandbox} to "
-                    f"start it ({_describe_error(e)}). Run it again."
-                ) from e
+                details = getattr(e, "details", None)
+                if callable(details) and details() == _RELAY_OPEN_TIMED_OUT:
+                    raise SandboxError(
+                        f"The command was not run: the OpenShell gateway could not reach sandbox {sandbox} "
+                        f"to start it ({_describe_error(e)}). Run it again."
+                    ) from e
+                # Any other early end, a proxy's cap on stream duration for example, can cut
+                # off a command that has started and keeps running.
+                raise _GatewayDropped(_describe_error(e)) from e
             if status == "UNAVAILABLE":
                 raise _GatewayDropped(_describe_error(e)) from e
             with _translate_openshell_errors(
