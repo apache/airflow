@@ -164,9 +164,6 @@ Parameters
   are validated with ``hasattr`` + ``callable`` at instantiation time.
 - ``tool_prefix``: Optional prefix joined to each tool name with an underscore
   (e.g. ``"s3"`` produces ``"s3_list_keys"``). Must be a valid Python identifier.
-  ``tool_name_prefix`` is deprecated and concatenated as given (``"s3_"`` produces
-  ``"s3_list_keys"``); passing both raises ``ValueError`` unless ``tool_name_prefix``
-  equals ``"<tool_prefix>_"``.
 - ``pinned_arguments``: Arguments fixed by the Dag author rather than chosen by the
   model. See above.
 - ``max_retries``: How many times the model may correct a call with invalid arguments,

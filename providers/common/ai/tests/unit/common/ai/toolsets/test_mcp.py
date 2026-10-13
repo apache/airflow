@@ -35,6 +35,12 @@ class TestMCPToolsetInit:
         ts = MCPToolset("my_mcp_server", tool_prefix="weather")
         assert ts._tool_prefix == "weather"
 
+    def test_tool_prefix_defaults_to_empty_string(self):
+        assert MCPToolset("my_mcp_server")._tool_prefix == ""
+
+    def test_none_tool_prefix_is_treated_as_empty_string(self):
+        assert MCPToolset("my_mcp_server", tool_prefix=None)._tool_prefix == ""  # type: ignore[arg-type]
+
 
 class TestMCPToolsetGetServer:
     @patch(_HOOK_PATH, autospec=True)
@@ -46,7 +52,7 @@ class TestMCPToolsetGetServer:
         server = ts._get_server()
 
         mock_hook_cls.assert_called_once_with(
-            mcp_conn_id="mcp_conn", tool_prefix=None, token_provider=None, env_provider=None
+            mcp_conn_id="mcp_conn", tool_prefix="", token_provider=None, env_provider=None
         )
         mock_hook_cls.return_value.get_conn.assert_called_once()
         assert server is mock_server
@@ -73,7 +79,7 @@ class TestMCPToolsetGetServer:
         ts._get_server()
 
         mock_hook_cls.assert_called_once_with(
-            mcp_conn_id="mcp_conn", tool_prefix=None, token_provider=provider, env_provider=None
+            mcp_conn_id="mcp_conn", tool_prefix="", token_provider=provider, env_provider=None
         )
 
     @patch(_HOOK_PATH, autospec=True)
@@ -87,7 +93,7 @@ class TestMCPToolsetGetServer:
         ts._get_server()
 
         mock_hook_cls.assert_called_once_with(
-            mcp_conn_id="mcp_conn", tool_prefix=None, token_provider=None, env_provider=env_provider
+            mcp_conn_id="mcp_conn", tool_prefix="", token_provider=None, env_provider=env_provider
         )
 
     @patch(_HOOK_PATH, autospec=True)

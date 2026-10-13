@@ -65,8 +65,8 @@ class MCPToolset(AirflowToolset):
 
     :param mcp_conn_id: Airflow connection ID for the MCP server. Templated when
         the toolset is passed to ``AgentOperator`` / ``@task.agent``.
-    :param tool_prefix: Optional prefix prepended to tool names
-        (e.g. ``"weather"`` → ``"weather_get_forecast"``).
+    :param tool_prefix: Optional prefix joined to each tool name with an underscore
+        (e.g. ``"weather"`` → ``"weather_get_forecast"``). ``None`` is treated as ``""``.
     :param token_provider: Optional zero-argument callable returning a bearer
         token string, overriding the connection ``password`` for HTTP/SSE auth.
         Called once, the first time this toolset establishes a connection.
@@ -84,12 +84,12 @@ class MCPToolset(AirflowToolset):
         self,
         mcp_conn_id: str,
         *,
-        tool_prefix: str | None = None,
+        tool_prefix: str = "",
         token_provider: Callable[[], str] | None = None,
         env_provider: Callable[[], dict[str, str]] | None = None,
     ) -> None:
         self._mcp_conn_id = mcp_conn_id
-        self._tool_prefix = tool_prefix
+        self._tool_prefix = tool_prefix or ""
         self._token_provider = token_provider
         self._env_provider = env_provider
         self._server: Any = None
