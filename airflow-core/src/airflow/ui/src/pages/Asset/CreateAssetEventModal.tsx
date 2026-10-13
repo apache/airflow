@@ -51,7 +51,9 @@ import { JsonEditor } from "src/components/JsonEditor";
 import TriggerDAGForm from "src/components/TriggerDag/TriggerDAGForm";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 
-import { toNullablePartitionKey } from "src/utils";
+import { isOneOf, toNullablePartitionKey } from "src/utils";
+
+const isAssetEventType = isOneOf(["manual", "materialize"] as const);
 
 type Props = {
   readonly asset: AssetResponse;
@@ -61,7 +63,7 @@ type Props = {
 
 export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
   const { t: translate } = useTranslation(["assets", "components"]);
-  const [eventType, setEventType] = useState("manual");
+  const [eventType, setEventType] = useState<"manual" | "materialize">("manual");
   const [extraError, setExtraError] = useState<string | undefined>();
   const [extra, setExtra] = useState("{}");
   const [partitionKey, setPartitionKey] = useState<string | undefined>(undefined);
@@ -197,8 +199,10 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     >
       <RadioCardRoot
         mb={6}
-        onChange={(event) => {
-          setEventType((event.target as HTMLInputElement).value);
+        onValueChange={(details) => {
+          if (isAssetEventType(details.value)) {
+            setEventType(details.value);
+          }
         }}
         value={eventType}
       >
