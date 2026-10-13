@@ -26,11 +26,9 @@ import time
 from collections.abc import AsyncIterator, Sequence
 from typing import TYPE_CHECKING, Any
 
-import grpc
 from asgiref.sync import sync_to_async
 from google.api_core.exceptions import AlreadyExists, NotFound, ServiceUnavailable
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, Job, JobStatus
-from grpc.aio import AioRpcError
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
@@ -663,20 +661,10 @@ class DataprocBatchTrigger(DataprocBaseTrigger):
                 self.log.warning("Dataproc API is temporarily unavailable. Retrying... (%s)", e)
                 await asyncio.sleep(self.polling_interval_seconds)
                 continue
-            except AioRpcError as e:
-                if e.code() != grpc.StatusCode.UNAVAILABLE:
-                    raise
-                self.log.warning("Dataproc gRPC UNAVAILABLE. Retrying... (%s)", e)
-                await asyncio.sleep(self.polling_interval_seconds)
-                continue
 
             state = batch.state
 
-            if state in (
-                Batch.State.FAILED,
-                Batch.State.SUCCEEDED,
-                Batch.State.CANCELLED,
-            ):
+            if state in (Batch.State.FAILED, Batch.State.SUCCEEDED, Batch.State.CANCELLED):
                 break
 
             self.log.info("Current state is %s", Batch.State(state).name)

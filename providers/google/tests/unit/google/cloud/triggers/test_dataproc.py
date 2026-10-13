@@ -643,43 +643,6 @@ class TestDataprocBatchTrigger:
         assert mock_get_async_hook.return_value.get_batch.await_count == 2
         mock_sleep.assert_awaited_once_with(TEST_POLL_INTERVAL)
 
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.asyncio.sleep", new_callable=mock.AsyncMock)
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger.get_async_hook")
-    async def test_batch_trigger_retries_grpc_unavailable(
-        self, mock_get_async_hook, mock_sleep, batch_trigger
-    ):
-        error = AioRpcError(
-            grpc.StatusCode.UNAVAILABLE, mock.MagicMock(), mock.MagicMock(), "temporary error"
-        )
-        succeeded_batch = mock.MagicMock()
-        succeeded_batch.state = Batch.State.SUCCEEDED
-        succeeded_batch.state_message = TEST_BATCH_STATE_MESSAGE
-
-        mock_get_async_hook.return_value.get_batch = mock.AsyncMock(side_effect=[error, succeeded_batch])
-
-        actual_event = await batch_trigger.run().__anext__()
-
-        assert actual_event.payload["batch_state"] == Batch.State.SUCCEEDED.name
-        assert mock_get_async_hook.return_value.get_batch.await_count == 2
-        mock_sleep.assert_awaited_once_with(TEST_POLL_INTERVAL)
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.asyncio.sleep", new_callable=mock.AsyncMock)
-    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger.get_async_hook")
-    async def test_batch_trigger_does_not_retry_permission_denied(
-        self, mock_get_async_hook, mock_sleep, batch_trigger
-    ):
-        error = AioRpcError(
-            grpc.StatusCode.PERMISSION_DENIED, mock.MagicMock(), mock.MagicMock(), "permission denied"
-        )
-        mock_get_async_hook.return_value.get_batch = mock.AsyncMock(side_effect=error)
-
-        with pytest.raises(AioRpcError):
-            await batch_trigger.run().__anext__()
-
-        mock_sleep.assert_not_awaited()
-
 
 class TestDataprocOperationTrigger:
     def test_async_cluster_trigger_serialization_should_execute_successfully(self, operation_trigger):
