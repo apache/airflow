@@ -584,6 +584,17 @@ class TestGetDagDeadlineAlerts:
         assert response.status_code == 200
         assert response.json() == {"deadline_alerts": [], "total_entries": 0}
 
+    @pytest.mark.parametrize("run_type_filter", [None, ["scheduled"], ["scheduled", "asset_triggered"]])
+    def test_alert_response_includes_run_type_filter(self, test_client, session, run_type_filter):
+        alert = session.scalar(select(DeadlineAlert).where(DeadlineAlert.name == ALERT_NAME))
+        alert.run_type_filter = run_type_filter
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
+
+        assert response.status_code == 200
+        assert response.json()["deadline_alerts"][0]["run_type_filter"] == run_type_filter
+
     def test_should_response_404_for_nonexistent_dag(self, test_client):
         response = test_client.get("/dags/nonexistent_dag/deadlineAlerts")
         assert response.status_code == 404

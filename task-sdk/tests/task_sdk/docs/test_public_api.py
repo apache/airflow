@@ -17,6 +17,10 @@
 from __future__ import annotations
 
 import importlib
+from datetime import timedelta
+
+from airflow.sdk import AsyncCallback, DagRunType, DeadlineAlert, DeadlineReference
+from airflow.sdk.api.datamodels._generated import DagRunType as GeneratedDagRunType
 
 
 def test_airflow_sdk_exports_exist():
@@ -88,3 +92,15 @@ def test_lazy_imports_match_public_api():
     extra = actual - expected - ignore
     assert not missing, f"__lazy_imports missing entries for: {sorted(missing)}"
     assert not extra, f"__lazy_imports has unexpected entries: {sorted(extra)}"
+
+
+def test_public_dag_run_type():
+    assert DagRunType is GeneratedDagRunType
+    assert "DagRunType" in importlib.import_module("airflow.sdk").__all__
+    alert = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback("example.notify"),
+        run_type_filter={DagRunType.SCHEDULED, DagRunType.BACKFILL},
+    )
+    assert alert.run_type_filter == frozenset({"scheduled", "backfill"})

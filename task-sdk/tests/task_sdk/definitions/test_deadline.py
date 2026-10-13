@@ -327,3 +327,41 @@ class TestVariableInterval:
         with pytest.warns(DeprecationWarning, match="VariableInterval.resolve"):
             with pytest.raises(ValueError, match=match):
                 interval.resolve()
+
+
+@pytest.mark.parametrize("run_type_filter", [[], set(), "scheduled", ["unknown"]])
+def test_deadline_rejects_invalid_run_types(run_type_filter):
+    with pytest.raises(ValueError, match="run_type_filter|DagRunType"):
+        DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(hours=1),
+            callback=TEST_DEADLINE_CALLBACK,
+            run_type_filter=run_type_filter,
+        )
+
+
+@pytest.mark.parametrize("run_type_filter", [None, ["scheduled"], ["scheduled", "manual", "scheduled"]])
+def test_deadline_normalizes_run_types(run_type_filter):
+    alert = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=TEST_DEADLINE_CALLBACK,
+        run_type_filter=run_type_filter,
+    )
+    assert alert.run_type_filter == (None if run_type_filter is None else frozenset(run_type_filter))
+
+
+def test_deadline_run_types_participate_in_equality_and_hash():
+    def build_alert(run_type_filter):
+        return DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(hours=1),
+            callback=TEST_DEADLINE_CALLBACK,
+            run_type_filter=run_type_filter,
+        )
+
+    scheduled = build_alert(["scheduled"])
+    manual = build_alert(["manual"])
+    assert scheduled != manual
+    assert len({scheduled, manual, build_alert(["scheduled"])}) == 2
+    assert build_alert(["manual", "scheduled"]) == build_alert(["scheduled", "manual"])

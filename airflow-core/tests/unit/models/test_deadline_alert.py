@@ -316,3 +316,11 @@ class TestDeadlineAlert:
         assert SerializedReferenceModels.is_builtin_reference("AverageRuntimeDeadline") is True
 
         assert SerializedReferenceModels.is_builtin_reference("MyCustomRef") is False
+
+
+@pytest.mark.parametrize("run_type_filter", [None, ["manual"]])
+def test_deadline_definition_includes_run_types(run_type_filter):
+    kwargs = {"reference": {}, "interval": 60, "callback_def": {}}
+    scheduled = DeadlineAlert(**kwargs, run_type_filter=["scheduled"])
+    other = DeadlineAlert(**kwargs, run_type_filter=run_type_filter)
+    assert not scheduled.matches_definition(other)
