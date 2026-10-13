@@ -61,11 +61,6 @@ class BaseManagedAgentToolset(AirflowToolset):
     """
     Base class exposing a vendor-managed agent as a single pydantic-ai tool.
 
-    .. note::
-
-        Experimental: this can change or be removed in a minor release of this provider.
-        See :ref:`howto/stability`.
-
     A managed agent runs its own reasoning loop on the vendor's infrastructure. Airflow
     submits one request and reads one answer, so the Airflow-side agent features --
     toolsets, human-in-the-loop review, durable step replay -- apply to the *calling* agent
@@ -253,11 +248,6 @@ class BaseManagedAgentToolset(AirflowToolset):
 class ManagedAgentToolset(BaseManagedAgentToolset):
     """
     Expose any managed-agent client as one tool.
-
-    .. note::
-
-        Experimental: this can change or be removed in a minor release of this provider.
-        See :ref:`howto/stability`.
 
     This is the toolset to use. It accepts any
     :class:`~airflow.providers.common.ai.managed_agents.base.ManagedAgentClient`. The client is usually a
