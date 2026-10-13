@@ -95,6 +95,27 @@ This will create
 * user permissions (per-team when ``--teams`` is provided)
 * operations permissions (per-team when ``--teams`` is provided)
 
+Non-team operational access
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For non-team installations, the generated defaults allow all default roles to read pools.
+Pool writes require ``Op``, ``Admin``, or ``SuperAdmin``. Connection and Variable reads,
+writes, and menu access require those same roles. Configuration reads and its menu require
+``Op`` or above; its generated write permission is limited to ``Admin`` and ``SuperAdmin``.
+Airflow's configuration exposure setting can independently prevent configuration reads.
+
+Plugins and Providers are checked against ``OpView`` with the ``GET`` scope in non-team mode.
+The CLI grants this resource and the corresponding menus to ``Op``, ``Admin``, and
+``SuperAdmin``. Ordinary views such as Jobs, Docs, and cluster activity retain their ``View`` mapping.
+If ``OpView`` has not been provisioned, Plugins and Providers access is denied.
+Provisioning does not automatically remove legacy permissions or extra policy attachments;
+these may still affect access on an existing client.
+
+Non-team audit access, including Dag-specific audit events, is checked against ``AdminView``.
+Global import-error and reparse views, and the Triggers view, also use this resource.
+The generated ``AdminViewRead`` and ``AuditLogMenuAccess`` permissions require ``Admin`` or
+``SuperAdmin``. Ordinary Dag reads and Dag-scoped import-error views retain their existing grants.
+
 Managing teams with Keycloak
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
