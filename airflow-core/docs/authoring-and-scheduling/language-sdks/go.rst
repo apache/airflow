@@ -467,13 +467,20 @@ Its first parameter is an ``airflow.Context``, which gives it what Airflow provi
      - ``DagID``, ``RunID``, ``TaskID`` (including any task group prefix), ``MapIndex`` (``nil`` for an unmapped
        task) and ``TryNumber``.
    * - ``actx.DagRun()``
-     - ``DagID``, ``RunID``, and the ``*time.Time`` fields ``LogicalDate``, ``DataIntervalStart`` and
-       ``DataIntervalEnd`` (``nil`` when the run has no such value, such as a manual run).
+     - ``DagID``, ``RunID``, ``RunAfter``, ``RunType`` (an ``airflow.DagRunType`` such as
+       ``airflow.DagRunTypeManual``), ``Conf`` (may be ``nil`` or empty when no configuration was supplied), and
+       the ``*time.Time`` fields ``LogicalDate``, ``DataIntervalStart`` and ``DataIntervalEnd`` (``nil`` when the
+       run has no such value, such as a manual run).
 
 ``airflow.Context`` is a ``context.Context``, so pass it to a client call or to ``http.NewRequestWithContext``. Its
 ``Done()`` fires when Airflow stops the task, so long-running work can stop cleanly. Cleanup that must outlive
 that runs under ``context.WithoutCancel(actx)``. A helper that takes a plain ``context.Context`` gets the
 ``airflow.Context`` back with ``airflow.FromContext``.
+
+``Conf`` is a ``map[string]any``. Its integers are ``int64``, except positive values above ``math.MaxInt64``, which
+are ``uint64``; floating-point values are ``float64``. This also applies to values in nested maps and arrays. The
+runtime copies these containers from the startup details. Use a map lookup or ``len`` to check for configuration
+entries; a run without configuration may have a ``nil`` or empty map.
 
 A value the task returns becomes its ``return_value`` XCom. A non-nil ``error``, or a panic, fails the task, and
 retries it if the task has retries.

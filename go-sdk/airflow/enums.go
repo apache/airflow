@@ -24,19 +24,19 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
-// This file declares every enum type whose values a Dag author sets. Each item below gives
-// the Go enum, the Python file that declares the same enum, and the fields that hold its values:
+// This file declares every enum type whose values a Dag author sets or reads. Each item below
+// gives the Go enum, the Python file that declares the same enum, and the fields that hold its
+// values:
 //
 //   - TriggerRule: airflow-core/src/airflow/task/trigger_rule.py, for TaskSpec.TriggerRule
 //   - WeightRule: airflow-core/src/airflow/task/weight_rule.py, for TaskSpec.WeightRule
 //   - DagRunState: airflow-core/src/airflow/utils/state.py, for TriggerDagRunSpec.AllowedStates
 //     and TriggerDagRunSpec.FailedStates
+//   - DagRunType: airflow-core/src/airflow/utils/types.py, for DagRun.RunType
 //
-// Two more Python enums are not declared here yet, because no field that an author can reach
-// holds their values:
+// One more Python enum is not declared here yet, because no field that an author can reach
+// holds its values:
 //
-//   - DagRunType: airflow-core/src/airflow/utils/types.py. DagSpec leaves out
-//     allowed_run_types, and DagRun has no run type field.
 //   - TaskInstanceState: airflow-core/src/airflow/utils/state.py. TaskInstance has no state field.
 //
 // Adding such a field also means declaring its enum here, the way DagRunState is declared.
@@ -108,9 +108,24 @@ const (
 	DagRunStateFailed  DagRunState = "failed"
 )
 
+// DagRunType says how a Dag run was created. DagRun.RunType holds it.
+//
+// DagRunType is an alias of genmodels.DagRunType for the same reason as DagRunState. The alias
+// also lets DagRun hold a DagRunType: package sdk declares DagRun and cannot import this package.
+type DagRunType = genmodels.DagRunType
+
+const (
+	DagRunTypeBackfill             DagRunType = "backfill"
+	DagRunTypeScheduled            DagRunType = "scheduled"
+	DagRunTypeManual               DagRunType = "manual"
+	DagRunTypeOperatorTriggered    DagRunType = "operator_triggered"
+	DagRunTypeAssetTriggered       DagRunType = "asset_triggered"
+	DagRunTypeAssetMaterialization DagRunType = "asset_materialization"
+)
+
 // triggerRules, weightRules and dagRunStates list the valid values of TriggerRule, WeightRule and
 // DagRunState. Tests in this package check these lists and the constants above against the
-// Python enums for TriggerRule and WeightRule, and against genmodels for DagRunState.
+// Python enums for TriggerRule and WeightRule, and against genmodels for DagRunState and DagRunType.
 var (
 	triggerRules = []TriggerRule{
 		TriggerRuleAllSuccess,
