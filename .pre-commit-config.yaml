@@ -526,6 +526,21 @@ repos:
           ^task-sdk/src/airflow/sdk/definitions/partition_mappers/fixed_key\.py$
         pass_filenames: false
         require_serial: true
+      - id: check-kubernetes-task-decorator-arguments
+        name: Check Kubernetes task decorator arguments match their operators
+        entry: ./scripts/ci/prek/check_task_decorator_arguments.py
+        language: python
+        types: [file]
+        files: >
+          (?x)
+          ^providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod\.py$|
+          ^providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/decorators/kubernetes(_cmd)?\.py$|
+          ^task-sdk/src/airflow/sdk/bases/decorator\.py$|
+          ^task-sdk/src/airflow/sdk/definitions/decorators/__init__\.pyi$|
+          ^scripts/ci/prek/check_task_decorator_arguments\.py$|
+          ^scripts/tests/ci/prek/test_check_task_decorator_arguments\.py$|
+          ^\.pre-commit-config\.yaml$
+        pass_filenames: false
       - id: check-window-in-sync
         name: Check Window definitions stay in sync (core/SDK)
         entry: ./scripts/ci/prek/check_window_in_sync.py

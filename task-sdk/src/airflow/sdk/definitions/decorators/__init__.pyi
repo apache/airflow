@@ -27,6 +27,7 @@ from typing import Any, Literal, TypeVar, overload
 from docker.types import Mount
 from kubernetes.client import models as k8s
 
+from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.sdk.bases.decorator import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
 from airflow.sdk.definitions.dag import dag
@@ -518,18 +519,23 @@ class TaskDecoratorCollection:
         cluster_context: str | None = None,
         labels: dict | None = None,
         reattach_on_restart: bool = ...,
+        durable: bool | None = None,
         startup_timeout_seconds: int = ...,
         startup_check_interval_seconds: int = ...,
+        schedule_timeout_seconds: int | None = None,
         get_logs: bool = True,
+        init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         container_logs: Iterable[str] | str | Literal[True] = ...,
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
+        runtime_class_name: str | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
+        automount_service_account_token: bool | None = None,
         hostnetwork: bool = False,
         host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
@@ -558,9 +564,18 @@ class TaskDecoratorCollection:
         poll_interval: float = ...,
         log_pod_spec_on_failure: bool = ...,
         on_finish_action: str = ...,
+        on_kill_action: str = "delete_pod",
+        is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = ...,
         active_deadline_seconds: int | None = None,
+        callbacks: (
+            list[type[KubernetesPodOperatorCallback]] | type[KubernetesPodOperatorCallback] | None
+        ) = None,
         progress_callback: Callable[[str], None] | None = None,
+        logging_interval: int | None = None,
+        trigger_kwargs: dict | None = None,
+        container_name_log_prefix_enabled: bool = True,
+        log_formatter: Callable[[str, str], str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert a callable to a Kubernetes Pod task.
@@ -676,6 +691,7 @@ class TaskDecoratorCollection:
     def kubernetes_cmd(  # type: ignore[misc]
         self,
         *,
+        multiple_outputs: bool | None = None,
         args_only: bool = False,  # Added by _KubernetesCmdDecoratedOperator.
         # 'cmds' filled by _KubernetesCmdDecoratedOperator.
         # 'arguments' filled by _KubernetesCmdDecoratedOperator.
@@ -694,18 +710,23 @@ class TaskDecoratorCollection:
         cluster_context: str | None = None,
         labels: dict | None = None,
         reattach_on_restart: bool = ...,
+        durable: bool | None = None,
         startup_timeout_seconds: int = ...,
         startup_check_interval_seconds: int = ...,
+        schedule_timeout_seconds: int | None = None,
         get_logs: bool = True,
+        init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         container_logs: Iterable[str] | str | Literal[True] = ...,
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
+        runtime_class_name: str | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
+        automount_service_account_token: bool | None = None,
         hostnetwork: bool = False,
         host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
@@ -734,9 +755,18 @@ class TaskDecoratorCollection:
         poll_interval: float = ...,
         log_pod_spec_on_failure: bool = ...,
         on_finish_action: str = ...,
+        on_kill_action: str = "delete_pod",
+        is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = ...,
         active_deadline_seconds: int | None = None,
+        callbacks: (
+            list[type[KubernetesPodOperatorCallback]] | type[KubernetesPodOperatorCallback] | None
+        ) = None,
         progress_callback: Callable[[str], None] | None = None,
+        logging_interval: int | None = None,
+        trigger_kwargs: dict | None = None,
+        container_name_log_prefix_enabled: bool = True,
+        log_formatter: Callable[[str, str], str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to run a command returned by callable in a Kubernetes pod.
