@@ -266,6 +266,10 @@ class SQLToolset(AirflowToolset):
         the full list is replaced by a bounded summary (column count, a type histogram, a
         sample of columns) that points the agent at the ``name_contains`` filter, so a
         several-thousand-column table cannot exhaust the context before a query is written.
+    :param tool_prefix: Optional prefix joined to each tool name with an underscore
+        (e.g. ``"pg"`` produces ``"pg_query"``). Must be a valid Python identifier. Set it
+        when one agent has another toolset with the same tool names, such as a second
+        ``SQLToolset``, since duplicate tool names are rejected.
     :param max_retries: How many times the model may correct a failed call to one of these
         tools before the run fails. ``None`` (the default) uses the agent's tool retry
         budget, its ``retries``, as pydantic-ai's own toolsets do.
@@ -286,9 +290,15 @@ class SQLToolset(AirflowToolset):
         max_rows: int = 50,
         max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
         max_columns: int = DEFAULT_MAX_COLUMNS,
+        tool_prefix: str = "",
         max_retries: int | None = None,
     ) -> None:
         self._max_retries = validate_max_retries(max_retries)
+        if tool_prefix and not tool_prefix.isidentifier():
+            # The prefixed names are rendered as Python function signatures under
+            # code mode, so a name that is not an identifier breaks there.
+            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
+        self._tool_prefix = tool_prefix
         self._allowed_tables: frozenset[str] | None
         if allowed_tables is _UNSET:
             self._allowed_tables = None
@@ -369,7 +379,11 @@ class SQLToolset(AirflowToolset):
 
     @property
     def id(self) -> str:
-        return f"sql-{self._db_conn_id}"
+        suffix = f"-{self._tool_prefix}" if self._tool_prefix else ""
+        return f"sql-{self._db_conn_id}{suffix}"
+
+    def _tool_name(self, base: str) -> str:
+        return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
 
     # ------------------------------------------------------------------
     # Lazy hook resolution
@@ -395,7 +409,7 @@ class SQLToolset(AirflowToolset):
         max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
 
-        for name, description, schema in (
+        for base, description, schema in (
             ("list_tables", "List available table names in the database.", _LIST_TABLES_SCHEMA),
             ("get_schema", _GET_SCHEMA_DESCRIPTION, _GET_SCHEMA_SCHEMA),
             ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
@@ -406,6 +420,7 @@ class SQLToolset(AirflowToolset):
             # blocking calls of the other toolsets that use it.
             # return_schema is "string": every tool returns a JSON-encoded string
             # (json.dumps), so code mode renders `-> str` instead of `-> Any`.
+            name = self._build_tool_name(base)
             tool_def = ToolDefinition(
                 name=name,
                 description=description,
@@ -429,10 +444,11 @@ class SQLToolset(AirflowToolset):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        if name not in ("list_tables", "get_schema", "query", "check_query"):
+        base = name.removeprefix(f"{self._tool_prefix}_") if self._tool_prefix else name
+        if base not in ("list_tables", "get_schema", "query", "check_query"):
             raise ValueError(f"Unknown tool: {name!r}")
         try:
-            return await self.run_blocking(self._run_tool, name, tool_args)
+            return await self.run_blocking(self._run_tool, base, tool_args)
         except Exception as e:
             # Hand the database's own error back to the agent as a retry so it can
             # read the message and fix its SQL within the run. pydantic-ai bounds

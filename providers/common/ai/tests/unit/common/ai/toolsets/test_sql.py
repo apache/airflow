@@ -148,6 +148,34 @@ class TestSQLToolsetGetTools:
             assert tool.tool_def.return_schema == {"type": "string"}
 
 
+class TestSQLToolsetToolPrefix:
+    def test_prefix_is_joined_to_every_tool_name_with_an_underscore(self):
+        ts = SQLToolset("pg_default", tool_prefix="pg")
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        assert set(tools.keys()) == {"pg_list_tables", "pg_get_schema", "pg_query", "pg_check_query"}
+        assert all(name == tool.tool_def.name for name, tool in tools.items())
+
+    def test_prefix_is_part_of_the_toolset_id(self):
+        assert SQLToolset("my_pg", tool_prefix="pg").id == "sql-my_pg-pg"
+
+    @pytest.mark.parametrize("tool_prefix", ["my-db", "1abc", "has space"])
+    def test_prefix_must_be_identifier(self, tool_prefix):
+        with pytest.raises(ValueError, match="tool_prefix must be a valid Python identifier"):
+            SQLToolset("my_pg", tool_prefix=tool_prefix)
+
+    def test_prefixed_tool_dispatches_to_the_unprefixed_implementation(self):
+        ts = SQLToolset("pg_default", tool_prefix="pg")
+        ts._hook = _make_mock_db_hook(table_names=["users"])
+
+        result = asyncio.run(
+            ts.call_tool(
+                "pg_list_tables", {}, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool)
+            )
+        )
+
+        assert json.loads(result) == ["users"]
+
+
 class TestSQLToolsetListTables:
     def test_returns_all_tables(self):
         ts = SQLToolset("pg_default")
