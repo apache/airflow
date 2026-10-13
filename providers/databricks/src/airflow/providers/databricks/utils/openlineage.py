@@ -152,10 +152,10 @@ def emit_openlineage_events_for_databricks_queries(
     query_ids: list[str] | None = None,
     query_source_namespace: str | None = None,
     query_for_extra_metadata: bool = False,
-    default_database: str | None = None,
-    default_schema: str | None = None,
     additional_run_facets: dict | None = None,
     additional_job_facets: dict | None = None,
+    default_database: str | None = None,
+    default_schema: str | None = None,
 ) -> None:
     """
     Emit OpenLineage events for executed Databricks queries.
@@ -180,14 +180,14 @@ def emit_openlineage_events_for_databricks_queries(
         can be `None` only if hook is provided.
         query_for_extra_metadata: Whether to query Databricks for additional metadata about queries.
         Must be `False` if `hook` is not provided.
+        additional_run_facets: Additional run facets to include in OpenLineage events.
+        additional_job_facets: Additional job facets to include in OpenLineage events.
         default_database: Default database used to qualify table references parsed out of each query's
         text that don't already carry their own database qualifier. Callers with a hook typically pass
         `hook.get_openlineage_database_info(connection).database`.
         default_schema: Default schema used to qualify table references parsed out of each query's text
         that don't already carry their own schema qualifier. Callers with a hook typically pass
         `hook.get_openlineage_default_schema()`.
-        additional_run_facets: Additional run facets to include in OpenLineage events.
-        additional_job_facets: Additional job facets to include in OpenLineage events.
     """
     from airflow.providers.common.compat.openlineage.facet import SQLJobFacet
     from airflow.providers.openlineage.api import emit_query_lineage

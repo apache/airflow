@@ -146,12 +146,8 @@ def _get_queries_details_from_snowflake(
     if not query_ids:
         return {}
     query_condition = f"IN {tuple(query_ids)}" if len(query_ids) > 1 else f"= '{query_ids[0]}'"
-    # QUERY_HISTORY() defaults to scanning the last 7 days (`END_TIME_RANGE_START`/`END_TIME_RANGE_END`
-    # default to now / now - 10080 minutes), which is a needlessly expensive account-wide scan when we
-    # already know roughly when these queries ran. Bound it to the task's own execution window instead,
-    # with a small buffer on both sides for clock skew between Airflow and Snowflake.
+    # Bound the default 7-day QUERY_HISTORY() scan to the task's execution window, with a skew buffer.
     range_start = (task_start_time or timezone.utcnow()) - datetime.timedelta(minutes=5)
-    range_end = timezone.utcnow() + datetime.timedelta(minutes=5)
     # https://docs.snowflake.com/en/sql-reference/account-usage#differences-between-account-usage-and-information-schema
     # INFORMATION_SCHEMA.QUERY_HISTORY has no latency, so it's better than ACCOUNT_USAGE.QUERY_HISTORY
     # https://docs.snowflake.com/en/sql-reference/functions/query_history
@@ -163,7 +159,6 @@ def _get_queries_details_from_snowflake(
         "FROM "
         "table(snowflake.information_schema.query_history("
         f"end_time_range_start=>to_timestamp_tz('{range_start.isoformat()}'), "
-        f"end_time_range_end=>to_timestamp_tz('{range_end.isoformat()}'), "
         "result_limit=>10000"
         ")) "
         f"WHERE "
@@ -198,10 +193,10 @@ def emit_openlineage_events_for_snowflake_queries(
     query_ids: list[str] | None = None,
     query_source_namespace: str | None = None,
     query_for_extra_metadata: bool = False,
-    default_database: str | None = None,
-    default_schema: str | None = None,
     additional_run_facets: dict | None = None,
     additional_job_facets: dict | None = None,
+    default_database: str | None = None,
+    default_schema: str | None = None,
 ) -> None:
     """
     Emit OpenLineage events for executed Snowflake queries.
@@ -226,14 +221,14 @@ def emit_openlineage_events_for_snowflake_queries(
         can be `None` only if hook is provided.
         query_for_extra_metadata: Whether to query Snowflake for additional metadata about queries.
         Must be `False` if `hook` is not provided.
+        additional_run_facets: Additional run facets to include in OpenLineage events.
+        additional_job_facets: Additional job facets to include in OpenLineage events.
         default_database: Default database used to qualify table references parsed out of each query's
         text that don't already carry their own database qualifier. Callers with a hook typically pass
         `hook.get_openlineage_database_info(connection).database`.
         default_schema: Default schema used to qualify table references parsed out of each query's text
         that don't already carry their own schema qualifier. Callers with a hook typically pass
         `hook.get_openlineage_default_schema()`.
-        additional_run_facets: Additional run facets to include in OpenLineage events.
-        additional_job_facets: Additional job facets to include in OpenLineage events.
     """
     from airflow.providers.common.compat.openlineage.facet import SQLJobFacet
     from airflow.providers.openlineage.api import emit_query_lineage

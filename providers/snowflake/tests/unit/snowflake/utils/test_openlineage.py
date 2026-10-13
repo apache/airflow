@@ -40,11 +40,8 @@ from airflow.utils.state import TaskInstanceState
 
 FROZEN_NOW = timezone.datetime(2025, 1, 1, 12, 0, 0)
 _EXPECTED_RANGE_START = (FROZEN_NOW - datetime.timedelta(minutes=5)).isoformat()
-_EXPECTED_RANGE_END = (FROZEN_NOW + datetime.timedelta(minutes=5)).isoformat()
 _EXPECTED_TIME_FILTER = (
-    f"end_time_range_start=>to_timestamp_tz('{_EXPECTED_RANGE_START}'), "
-    f"end_time_range_end=>to_timestamp_tz('{_EXPECTED_RANGE_END}'), "
-    "result_limit=>10000"
+    f"end_time_range_start=>to_timestamp_tz('{_EXPECTED_RANGE_START}'), result_limit=>10000"
 )
 
 
