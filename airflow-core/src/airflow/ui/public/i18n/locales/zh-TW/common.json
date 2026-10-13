@@ -168,6 +168,7 @@
   "generateToken": "產生權杖",
   "includedIn": "包含於",
   "key": "鍵",
+  "loading": "載入中...",
   "logLevel": {
     "hide": "隱藏日誌層級",
     "hotkey": "l",
@@ -419,6 +420,7 @@
     "upstream_failed": "上游任務失敗"
   },
   "switchDag": "切換 $t(dag_one)",
+  "switchDagRun": "切換 $t(dagRun_one)",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",
@@ -464,6 +466,8 @@
     "executorConfig": "執行器設定",
     "hostname": "主機名稱",
     "id": "ID",
+    "iteration": "迭代",
+    "loopIterations": "已執行迭代次數",
     "maxTries": "最大嘗試次數",
     "pid": "PID",
     "pool": "資源池",
