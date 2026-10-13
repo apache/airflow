@@ -61,6 +61,7 @@ class DeadlineAlertFields:
     REFERENCE = "reference"
     INTERVAL = "interval"
     CALLBACK = "callback"
+    RUN_TYPE_FILTER = "run_type_filter"
 
 
 class SerializedReferenceModels:
@@ -380,3 +381,4 @@ class SerializedDeadlineAlert:
     interval: timedelta | SerializedVariableInterval
     callback: Any
     name: str | None = None
+    run_type_filter: frozenset[str] | None = None

@@ -51,6 +51,7 @@ class DeadlineAlert(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     reference: Mapped[dict] = mapped_column(JSON, nullable=False)
     interval: Mapped[dict] = mapped_column(JSON, nullable=False)
+    run_type_filter: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     callback_def: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     def __repr__(self):
@@ -93,6 +94,7 @@ class DeadlineAlert(Base):
             self.reference == other.reference
             and self.interval == other.interval
             and self.callback_def == other.callback_def
+            and self.run_type_filter == other.run_type_filter
         )
 
     @property

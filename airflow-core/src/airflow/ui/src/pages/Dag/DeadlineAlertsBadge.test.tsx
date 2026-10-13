@@ -88,4 +88,14 @@ describe("DeadlineAlertsBadge", () => {
       expect(screen.queryByText(absent)).not.toBeInTheDocument();
     },
   );
+  it("shows the configured run type scope", async () => {
+    vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
+      data: { deadline_alerts: [{ ...baseAlert, run_type_filter: ["scheduled"] }], total_entries: 1 },
+    } as ReturnType<typeof useDeadlinesServiceGetDagDeadlineAlerts>);
+
+    render(<DeadlineAlertsBadge dagId="test_dag" />, { wrapper: Wrapper });
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(await screen.findByText("deadlineAlerts.appliesTo")).toBeInTheDocument();
+  });
 });
