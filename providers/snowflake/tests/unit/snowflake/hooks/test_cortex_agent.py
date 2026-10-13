@@ -16,7 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
+import sys
 from importlib import import_module
+from textwrap import dedent
 from unittest import mock
 
 import pytest
@@ -35,6 +38,24 @@ deprecated_import_warning: type[Warning] = getattr(
     deprecation_tools,
     "DeprecatedImportWarning",
     DeprecationWarning,
+)
+
+
+try:
+    from airflow.providers.common.ai.exceptions import ManagedAgentInvocationError
+    from airflow.providers.common.ai.managed_agents import (
+        ManagedAgentCapabilities,
+        ManagedAgentRef,
+        ManagedAgentRequest,
+    )
+except ImportError:
+    HAS_COMMON_AI = False
+else:
+    HAS_COMMON_AI = True
+
+needs_common_ai = pytest.mark.skipif(
+    not HAS_COMMON_AI,
+    reason="requires apache-airflow-providers-common-ai",
 )
 
 MODULE_PATH = "airflow.providers.snowflake.hooks.cortex_agent"
@@ -938,6 +959,458 @@ class TestSnowflakeCortexAgentHook:
 )
 def test_deprecated_import(name, expected):
     old_module = import_module("airflow.providers.snowflake.hooks.snowflake_cortex_agent")
-
     with pytest.warns(deprecated_import_warning, match=name):
         assert getattr(old_module, name) is expected
+
+
+@pytest.fixture
+def managed_agent_request():
+    with (
+        mock.patch(
+            f"{HOOK_PATH}._get_static_conn_params",
+            new_callable=mock.PropertyMock,
+            return_value=STATIC_CONN_PARAMS,
+        ),
+        mock.patch(
+            f"{HOOK_PATH}._get_conn_params",
+            return_value=CONN_PARAMS,
+        ),
+        mock.patch(f"{MODULE_PATH}.requests.request") as mock_request,
+    ):
+        mock_request.return_value = create_response(
+            json_body={"content": [{"type": "text", "text": "Answer"}]},
+        )
+        yield mock_request
+
+
+@needs_common_ai
+class TestSnowflakeCortexAgentManagedAgent:
+    @pytest.mark.parametrize(
+        ("agent", "expected_path"),
+        [
+            pytest.param(
+                "db.schema.agent",
+                "/api/v2/databases/DB/schemas/SCHEMA/agents/AGENT:run",
+                id="unquoted",
+            ),
+            pytest.param(
+                'db."schema.part"."agent""name"',
+                "/api/v2/databases/DB/schemas/schema.part/agents/agent%22name:run",
+                id="quoted-dot-and-escaped-quote",
+            ),
+            pytest.param(
+                '"My/Db"."My Schema"."MyAgent"',
+                "/api/v2/databases/My%2FDb/schemas/My%20Schema/agents/MyAgent:run",
+                id="quoted-case-space-and-slash",
+            ),
+        ],
+    )
+    def test_prompt_and_options_reach_the_api(self, managed_agent_request, agent, expected_path):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        response = hook.agent(agent).invoke(
+            ManagedAgentRequest(
+                prompt="Hello",
+                timeout=1.5,
+                vendor_options={"tool_choice": {"type": "auto"}},
+            )
+        )
+
+        managed_agent_request.assert_called_once_with(
+            method="POST",
+            url=f"https://{ACCOUNT}.snowflakecomputing.com{expected_path}",
+            headers={
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
+                "Content-Type": "application/json",
+            },
+            json={
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [{"type": "text", "text": "Hello"}],
+                    }
+                ],
+                "stream": False,
+                "tool_choice": {"type": "auto"},
+            },
+            params=None,
+            timeout=1.5,
+        )
+        assert response.text == "Answer"
+        assert response.raw == {
+            "content": [{"type": "text", "text": "Answer"}],
+        }
+
+    @pytest.mark.parametrize(
+        ("agent", "expected_name"),
+        [
+            pytest.param(
+                "db.schema.agent",
+                "DB.SCHEMA.AGENT",
+                id="unquoted",
+            ),
+            pytest.param(
+                '"MyDb"."MySchema"."MyAgent"',
+                '"MyDb"."MySchema"."MyAgent"',
+                id="quoted-case",
+            ),
+            pytest.param(
+                'db."schema.part"."agent""name"',
+                'DB."schema.part"."agent""name"',
+                id="quoted-dot-and-escaped-quote",
+            ),
+            pytest.param(
+                'DB."A.B".C',
+                'DB."A.B".C',
+                id="dot-in-schema",
+            ),
+            pytest.param(
+                'DB.A."B.C"',
+                'DB.A."B.C"',
+                id="dot-in-agent",
+            ),
+            pytest.param(
+                'DB.SCHEMA."agent"',
+                'DB.SCHEMA."agent"',
+                id="quoted-lowercase-agent",
+            ),
+        ],
+    )
+    def test_resolve_agent(self, managed_agent_request, agent, expected_name):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        result = hook.resolve_agent(agent)
+
+        assert result == ManagedAgentRef(
+            platform="snowflake.cortex",
+            name=expected_name,
+        )
+        assert hook.resolve_agent(result.name) == result
+        managed_agent_request.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "agent",
+        [
+            pytest.param("", id="empty"),
+            pytest.param("AGENT", id="missing-database-and-schema"),
+            pytest.param("DB.AGENT", id="missing-schema"),
+            pytest.param("DB..AGENT", id="empty-schema"),
+            pytest.param("DB.SCHEMA.AGENT.EXTRA", id="too-many-parts"),
+            pytest.param('DB.SCHEMA."agent', id="unclosed-quote"),
+            pytest.param('DB.SCHEMA.""', id="empty-quoted-name"),
+        ],
+    )
+    def test_resolve_agent_rejects_invalid_names(self, managed_agent_request, agent):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(ValueError, match="fully qualified"):
+            hook.resolve_agent(agent)
+
+        managed_agent_request.assert_not_called()
+
+    def test_get_agent_capabilities(self, managed_agent_request):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        capabilities = hook.get_agent_capabilities("DB.SCHEMA.AGENT")
+
+        assert capabilities == ManagedAgentCapabilities(
+            sessions=False,
+            structured_output=False,
+            usage=False,
+            trace=False,
+        )
+        managed_agent_request.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "string_content",
+        [
+            pytest.param(False, id="text-blocks"),
+            pytest.param(True, id="string-content"),
+        ],
+    )
+    def test_message_history_reaches_the_api(self, managed_agent_request, string_content):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+        history = [
+            ("user", "Hello"),
+            ("assistant", "Hi"),
+            ("user", "How are you?"),
+        ]
+        messages = [
+            {
+                "role": role,
+                "content": text if string_content else [{"type": "text", "text": text}],
+            }
+            for role, text in history
+        ]
+        expected_messages = [
+            {
+                "role": role,
+                "content": [{"type": "text", "text": text}],
+            }
+            for role, text in history
+        ]
+
+        response = hook.agent("DB.SCHEMA.AGENT").invoke(ManagedAgentRequest(messages=messages))
+
+        assert managed_agent_request.call_args.kwargs["json"] == {
+            "messages": expected_messages,
+            "stream": False,
+        }
+        assert response.text == "Answer"
+
+        # Converting string content must not mutate the caller's messages.
+        assert messages == [
+            {
+                "role": role,
+                "content": text if string_content else [{"type": "text", "text": text}],
+            }
+            for role, text in history
+        ]
+
+    @pytest.mark.parametrize(
+        "bound",
+        [
+            pytest.param(False, id="direct"),
+            pytest.param(True, id="bound"),
+        ],
+    )
+    def test_session_id_is_rejected_before_the_call(self, managed_agent_request, bound):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+        request = ManagedAgentRequest(prompt="Hello", session_id="123")
+
+        invoke = (
+            hook.agent("DB.SCHEMA.AGENT").invoke
+            if bound
+            else lambda request: hook.invoke_agent("DB.SCHEMA.AGENT", request)
+        )
+
+        with pytest.raises(ValueError, match="session_id"):
+            invoke(request)
+
+        managed_agent_request.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("options", "expected_error"),
+        [
+            pytest.param(
+                {"database": "OTHER_DB"},
+                "cannot override contract fields",
+                id="database",
+            ),
+            pytest.param(
+                {"schema": "OTHER_SCHEMA"},
+                "cannot override contract fields",
+                id="schema",
+            ),
+            pytest.param(
+                {"agent_name": "OTHER_AGENT"},
+                "cannot override contract fields",
+                id="agent-name",
+            ),
+            pytest.param(
+                {"snowflake_conn_id": "other_conn"},
+                "cannot override contract fields",
+                id="connection",
+            ),
+            pytest.param(
+                {"messages": []},
+                "cannot override contract fields",
+                id="messages",
+            ),
+            pytest.param(
+                {"timeout": 30},
+                "cannot override contract fields",
+                id="timeout",
+            ),
+            pytest.param(
+                {"thread_id": 123},
+                "cannot override contract fields",
+                id="thread-id",
+            ),
+            pytest.param(
+                {"parent_message_id": 456},
+                "cannot override contract fields",
+                id="parent-message-id",
+            ),
+            pytest.param(
+                {"stream": True},
+                "cannot override contract fields",
+                id="stream",
+            ),
+            pytest.param(
+                {"unknown_option": True},
+                "Unsupported Cortex vendor_options",
+                id="unknown-option",
+            ),
+        ],
+    )
+    def test_vendor_options_are_rejected_before_the_call(
+        self, managed_agent_request, options, expected_error
+    ):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(ValueError, match=expected_error):
+            hook.agent("DB.SCHEMA.AGENT").invoke(ManagedAgentRequest(prompt="Hello", vendor_options=options))
+
+        managed_agent_request.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("status_code", "terminal"),
+        [
+            pytest.param(400, True, id="bad-request"),
+            pytest.param(401, True, id="unauthorized"),
+            pytest.param(403, True, id="forbidden"),
+            pytest.param(404, True, id="not-found"),
+            pytest.param(405, True, id="method-not-allowed"),
+            pytest.param(422, True, id="unprocessable"),
+            pytest.param(408, False, id="request-timeout"),
+            pytest.param(409, False, id="conflict"),
+            pytest.param(429, False, id="throttled"),
+            pytest.param(500, False, id="server-error"),
+            pytest.param(503, False, id="unavailable"),
+        ],
+    )
+    def test_http_errors_are_terminal_or_propagate(self, managed_agent_request, status_code, terminal):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+        http_response = create_response(status_code=status_code)
+        managed_agent_request.return_value = http_response
+        original_error = http_response.raise_for_status.side_effect
+
+        # Resolve the optional exception inside the test, not during collection.
+        expected_exception = ManagedAgentInvocationError if terminal else requests.exceptions.HTTPError
+
+        with pytest.raises(expected_exception) as raised:
+            hook.agent("DB.SCHEMA.AGENT").invoke(ManagedAgentRequest(prompt="Hello"))
+
+        if terminal:
+            assert raised.value.__cause__ is original_error
+        else:
+            assert raised.value is original_error
+
+        managed_agent_request.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "error_type",
+        [
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ReadTimeout,
+        ],
+    )
+    def test_transport_errors_propagate(self, managed_agent_request, error_type):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+        error = error_type("Request failed")
+        managed_agent_request.side_effect = error
+
+        with pytest.raises(error_type) as raised:
+            hook.agent("DB.SCHEMA.AGENT").invoke(ManagedAgentRequest(prompt="Hello"))
+
+        assert raised.value is error
+        managed_agent_request.assert_called_once()
+
+    def test_invalid_json_is_terminal(self, managed_agent_request):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+        error = requests.exceptions.JSONDecodeError("Invalid JSON", "{", 1)
+        managed_agent_request.return_value.json.side_effect = error
+
+        with pytest.raises(
+            ManagedAgentInvocationError,
+            match="could not be decoded as JSON",
+        ) as raised:
+            hook.agent("DB.SCHEMA.AGENT").invoke(ManagedAgentRequest(prompt="Hello"))
+
+        assert raised.value.__cause__ is error
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            pytest.param([], id="list"),
+            pytest.param("unexpected", id="string"),
+        ],
+    )
+    def test_invalid_response_shape_is_terminal(self, managed_agent_request, body):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+        managed_agent_request.return_value = create_response(json_body=body)
+
+        with pytest.raises(
+            ManagedAgentInvocationError,
+            match="unexpected response shape",
+        ) as raised:
+            hook.agent("DB.SCHEMA.AGENT").invoke(ManagedAgentRequest(prompt="Hello"))
+
+        assert isinstance(raised.value.__cause__, TypeError)
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            pytest.param({"content": None}, id="null-content"),
+            pytest.param({"content": [1]}, id="invalid-block"),
+            pytest.param(
+                {"content": [{"type": "text", "text": None}]},
+                id="invalid-text",
+            ),
+        ],
+    )
+    def test_invalid_response_content_is_terminal(self, managed_agent_request, body):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+        managed_agent_request.return_value = create_response(json_body=body)
+
+        with pytest.raises(
+            ManagedAgentInvocationError,
+            match="invalid response content",
+        ):
+            hook.agent("DB.SCHEMA.AGENT").invoke(ManagedAgentRequest(prompt="Hello"))
+
+    def test_unrelated_type_error_propagates(self):
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+        request = ManagedAgentRequest(prompt="Hello")
+        error = TypeError("Unrelated implementation error")
+
+        with mock.patch.object(hook, "run_agent", autospec=True, side_effect=error):
+            with pytest.raises(TypeError) as raised:
+                hook.invoke_agent("DB.SCHEMA.AGENT", request)
+
+        assert raised.value is error
+
+
+def test_hook_imports_without_common_ai():
+    script = dedent(
+        """
+        import sys
+        from unittest import mock
+
+        for name in (
+            "airflow.providers.common.ai.exceptions",
+            "airflow.providers.common.ai.managed_agents.base",
+        ):
+            sys.modules[name] = None
+
+        from airflow.providers.snowflake.hooks.cortex_agent import SnowflakeCortexAgentHook
+        from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        for method, args in (
+            ("agent", ("DB.SCHEMA.AGENT",)),
+            ("resolve_agent", ("DB.SCHEMA.AGENT",)),
+            ("get_agent_capabilities", ("DB.SCHEMA.AGENT",)),
+            ("invoke_agent", ("DB.SCHEMA.AGENT", None)),
+        ):
+            try:
+                getattr(hook, method)(*args)
+            except AirflowOptionalProviderFeatureException as exc:
+                assert "snowflake[common.ai]" in str(exc), exc
+            else:
+                raise AssertionError(f"{method} did not raise")
+
+        with mock.patch.object(hook, "_request", return_value={}) as request:
+            assert hook.run_agent(
+                database="DB",
+                schema="SCHEMA",
+                agent_name="AGENT",
+                messages=[],
+            ) == {}
+            request.assert_called_once()
+        """
+    )
+    subprocess.run([sys.executable, "-c", script], check=True)

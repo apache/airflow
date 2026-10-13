@@ -93,7 +93,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "common.ai" = [
-    "apache-airflow-providers-common-ai[openai]>=0.10.0",
+    "apache-airflow-providers-common-ai[openai]>=0.10.0", # use next version
 ]
 "microsoft.azure" = [
     "apache-airflow-providers-microsoft-azure>=12.8.0"

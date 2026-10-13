@@ -17,18 +17,88 @@
 
 from __future__ import annotations
 
+import re
 from enum import Enum
-from typing import Any, Literal, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 from urllib.parse import quote
 
 import requests
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils._rest_auth import SnowflakeRestTokenProvider, get_cortex_base_url
+
+if TYPE_CHECKING:
+    from airflow.providers.common.ai.exceptions import ManagedAgentInvocationError
+    from airflow.providers.common.ai.managed_agents.base import (
+        BaseManagedAgentHook,
+        ManagedAgentCapabilities,
+        ManagedAgentRef,
+        ManagedAgentRequest,
+        ManagedAgentResponse,
+    )
+else:
+    try:
+        from airflow.providers.common.ai.exceptions import ManagedAgentInvocationError
+        from airflow.providers.common.ai.managed_agents.base import (
+            BaseManagedAgentHook,
+            ManagedAgentCapabilities,
+            ManagedAgentRef,
+            ManagedAgentResponse,
+        )
+    except ImportError:
+
+        def _needs_common_ai(*args: Any, **kwargs: Any) -> Any:
+            raise AirflowOptionalProviderFeatureException(
+                "Using a Cortex Agent through the managed-agent contract needs the 'common.ai' "
+                "extra of the snowflake provider: "
+                "pip install 'apache-airflow-providers-snowflake[common.ai]'."
+            )
+
+        class BaseManagedAgentHook:
+            """Stand-in for the optional Common AI contract."""
+
+            agent = _needs_common_ai
+
+        ManagedAgentCapabilities = ManagedAgentRef = ManagedAgentResponse = _needs_common_ai
+        ManagedAgentInvocationError = _needs_common_ai
+
+
+# Quoted identifiers can contain dots and escaped double quotes. Unquoted identifiers
+# follow Snowflake's identifier rules and are normalized to uppercase.
+_IDENTIFIER = r'(?:"(?:[^"\x00]|"")+"|[A-Za-z_][A-Za-z0-9_$]*)'
+_AGENT_NAME = re.compile(rf"({_IDENTIFIER})\.({_IDENTIFIER})\.({_IDENTIFIER})")
+
+_RESERVED_OPTIONS = frozenset(
+    {
+        "database",
+        "schema",
+        "agent_name",
+        "agent",
+        "snowflake_conn_id",
+        "connection",
+        "messages",
+        "prompt",
+        "session_id",
+        "timeout",
+        "thread_id",
+        "parent_message_id",
+        "stream",
+    }
+)
+
+# The named-agent run endpoint supports tool selection; configuration changes belong
+# to update_agent(). Keep the adapter's option surface explicit.
+_SUPPORTED_OPTIONS = frozenset({"tool_choice"})
+_TERMINAL_HTTP_STATUSES = frozenset({400, 401, 403, 404, 405, 422})
 
 JsonDict = dict[str, Any]
 JsonList = list[JsonDict]
 JsonResponse = JsonDict | JsonList
+
+
+class _UnexpectedResponseShape(TypeError):
+    """The decoded response does not have the expected JSON structure."""
 
 
 class CreateMode(str, Enum):
@@ -39,7 +109,7 @@ class CreateMode(str, Enum):
     IF_NOT_EXISTS = "ifNotExists"
 
 
-class SnowflakeCortexAgentHook(SnowflakeHook):
+class SnowflakeCortexAgentHook(SnowflakeHook, BaseManagedAgentHook):
     """
     Hook for interacting with Snowflake Cortex Agents.
 
@@ -57,11 +127,106 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
     The resolved token is cached and renewed the same way as ``SnowflakeSqlApiHook`` -- see
     ``SnowflakeRestTokenProvider``, one instance per hook, so a long-running agent reuses the
     same JWT within its renewal window.
+
+    With the ``common.ai`` extra installed, ``hook.agent("DATABASE.SCHEMA.NAME")``
+    supports the Common AI managed-agent contract, accepting prompts or message
+    history and returning answer text with the raw response. The only supported
+    vendor option is ``tool_choice``. Agent configuration changes remain available
+    through ``update_agent``.
     """
+
+    agent_platform: ClassVar[str] = "snowflake.cortex"
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._rest_token_provider: SnowflakeRestTokenProvider | None = None
+
+    @staticmethod
+    def _parse_agent_name(agent: str) -> tuple[str, str, str]:
+        """Validate and normalize name components, preserving quoted identifier syntax."""
+        match = _AGENT_NAME.fullmatch(agent)
+        if match is None:
+            raise ValueError(f"A Cortex agent must be a fully qualified DATABASE.SCHEMA.NAME, got {agent!r}.")
+
+        database, schema, agent_name = (
+            part if part.startswith('"') else part.upper() for part in match.groups()
+        )
+        return database, schema, agent_name
+
+    def resolve_agent(self, agent: str) -> ManagedAgentRef:
+        """Return the normalized agent reference without making a network call."""
+        # Construct first so the optional-dependency error precedes validation.
+        ref = ManagedAgentRef(platform=self.agent_platform, name=agent)
+        parts = self._parse_agent_name(agent)
+        return ManagedAgentRef(platform=ref.platform, name=".".join(parts))
+
+    def get_agent_capabilities(self, agent: str) -> ManagedAgentCapabilities:
+        """Report the stateless adapter's capabilities without making a network call."""
+        self.resolve_agent(agent)
+        return ManagedAgentCapabilities()
+
+    def invoke_agent(
+        self,
+        agent: str,
+        request: ManagedAgentRequest,
+    ) -> ManagedAgentResponse:
+        """Invoke a named Cortex Agent through the optional Common AI contract."""
+        # Check the optional dependency before accessing the request or validating the name.
+        ManagedAgentRef(platform=self.agent_platform, name=agent)
+
+        database, schema, agent_name = (
+            part[1:-1].replace('""', '"') if part.startswith('"') else part
+            for part in self._parse_agent_name(agent)
+        )
+
+        if request.session_id is not None:
+            raise ValueError("The Cortex managed-agent adapter does not support session_id.")
+
+        if reserved := _RESERVED_OPTIONS.intersection(request.vendor_options):
+            raise ValueError(f"vendor_options cannot override contract fields: {sorted(reserved)}")
+
+        if unsupported := request.vendor_options.keys() - _SUPPORTED_OPTIONS:
+            raise ValueError(f"Unsupported Cortex vendor_options: {sorted(unsupported)}")
+
+        messages = []
+        for message in request.as_messages():
+            normalized_message = dict(message)
+            if isinstance(normalized_message.get("content"), str):
+                normalized_message["content"] = [{"type": "text", "text": normalized_message["content"]}]
+            messages.append(normalized_message)
+
+        try:
+            response = self.run_agent(
+                database=database,
+                schema=schema,
+                agent_name=agent_name,
+                messages=messages,
+                timeout=request.timeout,
+                **request.vendor_options,
+            )
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code in _TERMINAL_HTTP_STATUSES:
+                raise ManagedAgentInvocationError(
+                    f"Cortex agent {agent!r} invocation failed with HTTP {exc.response.status_code}."
+                ) from exc
+            raise
+        except requests.exceptions.JSONDecodeError as exc:
+            raise ManagedAgentInvocationError(
+                f"Cortex agent {agent!r} returned a response that could not be decoded as JSON."
+            ) from exc
+        except _UnexpectedResponseShape as exc:
+            raise ManagedAgentInvocationError(
+                f"Cortex agent {agent!r} returned an unexpected response shape: {exc}"
+            ) from exc
+
+        try:
+            text = self.get_text_response(response)
+        except (AttributeError, TypeError) as exc:
+            raise ManagedAgentInvocationError(
+                f"Cortex agent {agent!r} returned invalid response content."
+            ) from exc
+
+        return ManagedAgentResponse(text=text, raw=response)
 
     def _get_base_url(self) -> str:
         return get_cortex_base_url(self._get_static_conn_params)
@@ -74,7 +239,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         endpoint: str,
         payload: JsonDict | None = None,
         params: JsonDict | None = None,
-        timeout: int | None = None,
+        timeout: float | None = None,
         response_type: Literal["dict"],
         allow_empty: bool = False,
     ) -> JsonDict: ...
@@ -87,7 +252,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         endpoint: str,
         payload: JsonDict | None = None,
         params: JsonDict | None = None,
-        timeout: int | None = None,
+        timeout: float | None = None,
         response_type: Literal["list"],
         allow_empty: Literal[False] = False,
     ) -> JsonList: ...
@@ -99,7 +264,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         endpoint: str,
         payload: JsonDict | None = None,
         params: JsonDict | None = None,
-        timeout: int | None = None,
+        timeout: float | None = None,
         response_type: Literal["dict", "list"],
         allow_empty: bool = False,
     ) -> JsonResponse:
@@ -135,14 +300,16 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
 
         if response_type == "dict":
             if not isinstance(data, dict):
-                raise TypeError(f"Expected dict response, got {type(data).__name__}")
+                raise _UnexpectedResponseShape(f"Expected dict response, got {type(data).__name__}")
             return data
 
         if not isinstance(data, list):
-            raise TypeError(f"Expected list[dict] response, got {type(data).__name__}")
+            raise _UnexpectedResponseShape(f"Expected list[dict] response, got {type(data).__name__}")
 
         if not all(isinstance(item, dict) for item in data):
-            raise TypeError("Expected list[dict] response, got list containing non-dict elements")
+            raise _UnexpectedResponseShape(
+                "Expected list[dict] response, got list containing non-dict elements"
+            )
 
         return data
 
@@ -198,7 +365,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         orchestration: dict[str, Any] | None = None,
         tools: list[dict[str, Any]] | None = None,
         tool_resources: dict[str, Any] | None = None,
-        timeout: int | None = 600,
+        timeout: float | None = 600,
     ) -> JsonDict:
         """
         Execute a Snowflake Cortex Agent and return the response payload.
