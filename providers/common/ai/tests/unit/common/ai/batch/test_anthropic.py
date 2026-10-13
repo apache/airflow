@@ -267,12 +267,6 @@ class TestSubmitRequestShape:
             )
 
 
-_ESCAPED_SIZE_REASON = (
-    "validate_requests sizes the payload with len(json.dumps(...)), which counts escaped "
-    "\\uXXXX characters instead of UTF-8 bytes; remove this marker with the fix."
-)
-
-
 def _inline_payload_bytes(client) -> int:
     """
     Return the UTF-8 bytes the built requests occupy in the inline ``batches.create`` body.
@@ -290,16 +284,8 @@ class TestPayloadSizeEstimate:
         "prompt",
         [
             pytest.param("abc", id="ascii"),
-            pytest.param(
-                "中文字",
-                id="cjk",
-                marks=pytest.mark.xfail(strict=True, reason=_ESCAPED_SIZE_REASON),
-            ),
-            pytest.param(
-                "😀😀😀",
-                id="non-bmp",
-                marks=pytest.mark.xfail(strict=True, reason=_ESCAPED_SIZE_REASON),
-            ),
+            pytest.param("中文字", id="cjk"),
+            pytest.param("😀😀😀", id="non-bmp"),
         ],
     )
     def test_estimate_matches_the_inline_payload_bytes(self, adapter, client, str_spec, prompt):
@@ -318,7 +304,6 @@ class TestPayloadSizeEstimate:
                 requests, model="claude-sonnet-5", idempotency_key=KEY, output_spec=str_spec
             )
 
-    @pytest.mark.xfail(strict=True, reason=_ESCAPED_SIZE_REASON)
     def test_reported_directive_size_is_in_utf8_bytes(self, adapter):
         class NonAsciiSchema(BaseModel):
             field: str = Field(description="中" * 100)

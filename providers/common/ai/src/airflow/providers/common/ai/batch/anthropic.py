@@ -73,6 +73,19 @@ def _batch_status(batch: Any) -> BatchStatus:
     return _STATUS_MAP.get(batch.processing_status, "in_progress")
 
 
+def _utf8_size(payload: Any) -> int:
+    r"""
+    Measure what ``payload`` costs in the inline ``batches.create`` body, in bytes.
+
+    The requests go inline, so httpx is what serializes them: ``ensure_ascii=False``
+    and then UTF-8. Measuring with ``json.dumps`` defaults would instead charge a CJK
+    character the six bytes of its ``\uXXXX`` escape rather than the three it occupies
+    on the wire. ``batch/openai.py`` sizes its own payload with the ASCII-escaped
+    defaults because it builds the uploaded JSONL file that way itself.
+    """
+    return len(json.dumps(payload, ensure_ascii=False).encode())
+
+
 def _build_client(api_key: str | None, base_url: str | None) -> Any:
     try:
         from anthropic import Anthropic
@@ -215,7 +228,7 @@ class AnthropicBatchAdapter(BatchAdapter):
             )
 
         directive = self.build_output_directive(output_spec)
-        directive_bytes = len(json.dumps(directive))
+        directive_bytes = _utf8_size(directive)
         built = self._iter_requests(
             requests,
             model=model,
@@ -227,7 +240,7 @@ class AnthropicBatchAdapter(BatchAdapter):
         )
         total_bytes = 0
         for index, item in enumerate(built):
-            total_bytes += len(json.dumps(item))
+            total_bytes += _utf8_size(item)
             if total_bytes > self.max_payload_bytes:
                 raise LLMBatchLimitExceededError(
                     f"Anthropic batch accepts a payload of at most {self.max_payload_bytes} bytes; "
