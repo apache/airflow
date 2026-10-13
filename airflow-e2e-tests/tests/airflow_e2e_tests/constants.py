@@ -100,6 +100,10 @@ GO_SDK_BUNDLE_NAME = "example_dags"
 # The native-Dag example: Dags declared in Go and parsed from the binary by the Dag processor.
 GO_SDK_NATIVE_BUNDLE_PKG = "./example/native"
 GO_SDK_NATIVE_BUNDLE_NAME = "go_native_dags"
+# The dynamic example: Dags generated from a dags.yaml shipped next to the packed binary.
+GO_SDK_DYNAMIC_BUNDLE_PKG = "./example/dynamic"
+GO_SDK_DYNAMIC_BUNDLE_NAME = "go_dynamic_dags"
+GO_SDK_DYNAMIC_YAML_PATH = GO_SDK_ROOT_PATH / "example" / "dynamic" / "dags.yaml"
 # Where airflow-go-pack writes the packed bundle inside the repo (go-sdk/bin is gitignored).
 GO_SDK_BIN_PATH = GO_SDK_ROOT_PATH / "bin"
 GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"

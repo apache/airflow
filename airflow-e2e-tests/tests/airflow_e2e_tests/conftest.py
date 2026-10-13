@@ -43,6 +43,9 @@ from airflow_e2e_tests.constants import (
     GO_SDK_BIN_PATH,
     GO_SDK_BUNDLE_NAME,
     GO_SDK_DAGS_PATH,
+    GO_SDK_DYNAMIC_BUNDLE_NAME,
+    GO_SDK_DYNAMIC_BUNDLE_PKG,
+    GO_SDK_DYNAMIC_YAML_PATH,
     GO_SDK_EXAMPLE_BUNDLE_PKG,
     GO_SDK_NATIVE_BUNDLE_NAME,
     GO_SDK_NATIVE_BUNDLE_PKG,
@@ -558,13 +561,12 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
-def _run_go_sdk_pack(package, output_path, *, capture_output=False, native=False):
-    """Run ``go tool airflow-go-pack`` natively or inside the pinned Go toolchain container.
+def _run_go(args, *, capture_output=False, native=False):
+    """Run ``go <args>`` in the go-sdk module, on the host or inside the pinned Go toolchain container.
 
-    ``go tool airflow-go-pack`` builds the bundle *package*, reads its
-    --airflow-metadata, and appends the source + airflow-metadata.yaml + the
-    AFBNDL01 trailer, writing a single self-contained executable bundle.
-    CGO_ENABLED=0 yields a fully static binary that runs on the stock worker.
+    A ``Path`` in *args* is a host path; in the container it is mapped to where the repo is mounted.
+    Other strings, such as ``./example/dynamic``, are passed as they are and resolve against go-sdk.
+    CGO_ENABLED=0 yields fully static binaries that run on the stock worker.
 
     In ``native`` mode (used in CI, where the host already has a Go toolchain plus
     restored module/build caches via ``actions/setup-go``) it invokes the host ``go``
@@ -583,62 +585,100 @@ def _run_go_sdk_pack(package, output_path, *, capture_output=False, native=False
       go.yml so the packed binary runs the same way at execution time).
     """
     if native:
-        cwd = GO_SDK_ROOT_PATH
-        env = {**os.environ, "CGO_ENABLED": "0"}
-        argv = [
-            "go",
-            "tool",
-            "airflow-go-pack",
-            "--output",
-            str(output_path),
-            package,
-        ]
-    else:
-        cwd = None
-        env = None
-        # Mount the repo so the whole go-sdk module (go.mod, tool directive,
-        # example sources) is visible to `go tool`.
-        container_go_sdk_dir = f"/repo/{GO_SDK_ROOT_PATH.relative_to(AIRFLOW_ROOT_PATH)}"
-        container_bin_dir = f"/repo/{GO_SDK_BIN_PATH.relative_to(AIRFLOW_ROOT_PATH)}"
-        argv = [
-            "docker",
-            "run",
-            "--rm",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
-            "-e",
-            f"HOME={container_bin_dir}/.home",
-            "-e",
-            "USER=airflow",
-            "-e",
-            "CGO_ENABLED=0",
-            "-v",
-            f"{AIRFLOW_ROOT_PATH}:/repo",
-            "-w",
-            container_go_sdk_dir,
-            GO_BUILDER_IMAGE,
-            "go",
-            "tool",
-            "airflow-go-pack",
-            "--output",
-            f"{container_bin_dir}/{output_path.name}",
-            package,
-        ]
-    return subprocess.run(argv, cwd=cwd, env=env, check=True, capture_output=capture_output, text=True)
+        argv = ["go", *(str(arg) for arg in args)]
+        return subprocess.run(
+            argv,
+            cwd=GO_SDK_ROOT_PATH,
+            env={**os.environ, "CGO_ENABLED": "0"},
+            check=True,
+            capture_output=capture_output,
+            text=True,
+        )
+
+    # Mount the repo so the whole go-sdk module (go.mod, tool directive,
+    # example sources) is visible to `go`.
+    container_bin_dir = _get_container_repo_path(GO_SDK_BIN_PATH)
+    argv = [
+        "docker",
+        "run",
+        "--rm",
+        "--user",
+        f"{os.getuid()}:{os.getgid()}",
+        "-e",
+        f"HOME={container_bin_dir}/.home",
+        "-e",
+        "USER=airflow",
+        "-e",
+        "CGO_ENABLED=0",
+        "-v",
+        f"{AIRFLOW_ROOT_PATH}:/repo",
+        "-w",
+        _get_container_repo_path(GO_SDK_ROOT_PATH),
+        GO_BUILDER_IMAGE,
+        "go",
+        *(_get_container_repo_path(arg) if isinstance(arg, Path) else str(arg) for arg in args),
+    ]
+    return subprocess.run(argv, check=True, capture_output=capture_output, text=True)
 
 
-def _pack_go_sdk_bundle(package, name, *, native=False):
-    """Build a Go SDK bundle, capturing output so a failure prints the build log."""
-    output_path = GO_SDK_BIN_PATH / name
+def _get_container_repo_path(host_path):
+    """Map a host path under the repo to where ``_run_go`` mounts the repo in the container."""
+    return f"/repo/{host_path.relative_to(AIRFLOW_ROOT_PATH)}"
+
+
+def _run_go_logged(description, args, *, native=False):
+    """Run ``go <args>`` with ``_run_go``, printing its output, or the output of a failure."""
     mode_label = "host toolchain" if native else GO_BUILDER_IMAGE
-    console.print(f"[yellow]Building Go SDK bundle {package} ({mode_label})...")
+    console.print(f"[yellow]{description} ({mode_label})...")
     try:
-        completed = _run_go_sdk_pack(package, output_path, capture_output=True, native=native)
+        completed = _run_go(args, capture_output=True, native=native)
     except subprocess.CalledProcessError as e:
-        console.print(f"[red]Go SDK bundle {package} build failed:")
+        console.print(f"[red]{description} failed:")
         console.print(e.stdout, e.stderr, sep="\n", markup=False, soft_wrap=True)
         raise
     console.print(completed.stdout, completed.stderr, sep="\n", markup=False, soft_wrap=True)
+
+
+def _pack_go_sdk_bundle(package, name, *, native=False):
+    """Build a Go SDK *package* into a self-contained bundle with ``go tool airflow-go-pack``."""
+    _run_go_logged(
+        f"Building Go SDK bundle {package}",
+        ["tool", "airflow-go-pack", "--output", GO_SDK_BIN_PATH / name, package],
+        native=native,
+    )
+
+
+def _pack_go_sdk_dynamic_bundle(*, native=False):
+    """Build and pack the dynamic example bundle, which generates its Dags from a dags.yaml.
+
+    The packer reads the Dag IDs by running the binary, and the binary reads dags.yaml next to
+    itself. So build the binary, put dags.yaml beside it, then pack that binary in place with
+    ``--executable``. The packer needs ``--source`` there, as it cannot find the entrypoint of a
+    pre-built binary.
+    """
+    bin_dir = GO_SDK_BIN_PATH / "dynamic"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    raw_binary = bin_dir / f"{GO_SDK_DYNAMIC_BUNDLE_NAME}.raw"
+    _run_go_logged(
+        f"Building Go SDK binary {GO_SDK_DYNAMIC_BUNDLE_PKG}",
+        ["build", "-o", raw_binary, GO_SDK_DYNAMIC_BUNDLE_PKG],
+        native=native,
+    )
+    copyfile(GO_SDK_DYNAMIC_YAML_PATH, bin_dir / "dags.yaml")
+    _run_go_logged(
+        f"Packing Go SDK bundle {GO_SDK_DYNAMIC_BUNDLE_PKG}",
+        [
+            "tool",
+            "airflow-go-pack",
+            "--executable",
+            raw_binary,
+            "--source",
+            f"{GO_SDK_DYNAMIC_BUNDLE_PKG}/main.go",
+            "--output",
+            GO_SDK_BIN_PATH / GO_SDK_DYNAMIC_BUNDLE_NAME,
+        ],
+        native=native,
+    )
 
 
 def _setup_go_sdk_integration(dot_env_file, tmp_dir):
@@ -653,12 +693,16 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     processor runs it to parse its Dags. Its tasks run on the ``golang`` queue
     through the same coordinator.
 
+    The dynamic example goes into the Dags folder as well, with the ``dags.yaml`` it
+    generates its Dags from next to it, so a test can swap the YAML to change the Dags.
+
     The packed bundle is a statically linked native executable (built with
     ``CGO_ENABLED=0``), so the stock Airflow worker image can exec it directly
     without a Go toolchain or any extra runtime installed -- see ``go.yml``.
     """
     _pack_go_sdk_bundle(GO_SDK_EXAMPLE_BUNDLE_PKG, GO_SDK_BUNDLE_NAME, native=LANG_SDK_NATIVE_TOOLCHAIN)
     _pack_go_sdk_bundle(GO_SDK_NATIVE_BUNDLE_PKG, GO_SDK_NATIVE_BUNDLE_NAME, native=LANG_SDK_NATIVE_TOOLCHAIN)
+    _pack_go_sdk_dynamic_bundle(native=LANG_SDK_NATIVE_TOOLCHAIN)
 
     # Copy the compose override into the temp directory.
     copyfile(GO_COMPOSE_PATH, tmp_dir / "go.yml")
@@ -681,6 +725,13 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     packed_native_bundle = native_dags_dir / GO_SDK_NATIVE_BUNDLE_NAME
     copyfile(GO_SDK_BIN_PATH / GO_SDK_NATIVE_BUNDLE_NAME, packed_native_bundle)
     os.chmod(packed_native_bundle, 0o755)
+
+    dynamic_dags_dir = tmp_dir / "dags" / "go-dynamic"
+    dynamic_dags_dir.mkdir()
+    packed_dynamic_bundle = dynamic_dags_dir / GO_SDK_DYNAMIC_BUNDLE_NAME
+    copyfile(GO_SDK_BIN_PATH / GO_SDK_DYNAMIC_BUNDLE_NAME, packed_dynamic_bundle)
+    os.chmod(packed_dynamic_bundle, 0o755)
+    copyfile(GO_SDK_DYNAMIC_YAML_PATH, dynamic_dags_dir / "dags.yaml")
 
     # Copy the Go SDK example stub Dag so Airflow can discover and serialize it.
     copyfile(GO_SDK_DAGS_PATH / "go_examples.py", tmp_dir / "dags" / "go_examples.py")
