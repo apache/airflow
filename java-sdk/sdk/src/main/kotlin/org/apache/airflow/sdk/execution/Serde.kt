@@ -22,6 +22,7 @@ package org.apache.airflow.sdk.execution
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.EdgeLabel
 import org.apache.airflow.sdk.Endpoint
 import org.apache.airflow.sdk.GroupEdges
 import org.apache.airflow.sdk.GroupExpansion
@@ -529,15 +530,17 @@ private fun serializeEdgeInfo(
     info.getOrPut(upstream) { linkedMapOf() }[downstream] = mapOf("label" to label)
   }
 
-  // A task edge that has its own label keeps that label, so the labels each
-  // group edge gives to its task edges go in first.
-  expansion.labels.forEach { (ends, label) -> put(ends.first, ends.second, label) }
+  // Python writes a label when its edge is drawn, so a later label replaces an earlier one on the same edge.
+  // The labels go in in the order they were set to give the same result.
+  val labels = mutableListOf<Triple<String, String, EdgeLabel>>()
+  expansion.labels.forEach { (ends, label) -> labels += Triple(ends.first, ends.second, label) }
   dag.tasks.values.forEach { def ->
-    def.upstreamLabels.forEach { (upstream, label) -> put(upstream.id, def.id, label) }
+    def.upstreamLabels.forEach { (upstream, label) -> labels += Triple(upstream.id, def.id, label) }
   }
   dag.groupEdgeLabels.forEach { (ends, label) ->
-    put(ends.first.toEdgeInfoId(".downstream_join_id"), ends.second.toEdgeInfoId(".upstream_join_id"), label)
+    labels += Triple(ends.first.toEdgeInfoId(".downstream_join_id"), ends.second.toEdgeInfoId(".upstream_join_id"), label)
   }
+  labels.sortedBy { it.third.order }.forEach { (upstream, downstream, label) -> put(upstream, downstream, label.text) }
   return info
 }
 

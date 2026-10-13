@@ -788,8 +788,7 @@ label there.
 
 .. note::
 
-    A label never changes which tasks an edge connects.  When the two ends of a labeled edge are in
-    different task groups, Python's ``Label`` can replace one end with the group that holds that end.
+    A label never changes which tasks an edge connects.  When the two ends of a labeled edge are not in the same task group, for example when one end is in no group, Python's ``Label`` replaces each end that is in a group with that group.
     The edge then connects tasks other than the ones that the Dag code names.
 
 Configuration attributes
