@@ -36,7 +36,16 @@ enum class FieldType {
   STRING_ARRAY,
   TIMEDELTA,
   DATETIME,
+
+  /** A list of Dag run states, as `allowed_states` takes. */
+  DAG_RUN_STATES,
+
+  /** A map with string keys, as `conf` takes. */
+  JSON_OBJECT,
 }
+
+/** A Dag run state, as a `DAG_RUN_STATES` field names one. */
+private val DAG_RUN_STATE_NAMES = listOf("queued", "running", "success", "failed")
 
 /**
  * One configuration key from the Dag serialization schema. Public so that the
@@ -103,5 +112,29 @@ internal fun checkConfigValue(
         value is Array<*> && value.all { it is String } -> value.map { it as String }
         else -> mismatch("an Iterable of String")
       }
+    FieldType.DAG_RUN_STATES -> {
+      val states =
+        when (value) {
+          is Iterable<*> -> value.toList()
+          is Array<*> -> value.toList()
+          else -> mismatch("an Iterable of Dag run states")
+        }
+      states.map { state ->
+        require(state is String && state in DAG_RUN_STATE_NAMES) {
+          "Value for $scope config key '$key' holds $state, which is not a Dag run state; use one " +
+            "of ${DAG_RUN_STATE_NAMES.joinToString()}"
+        }
+        state as String
+      }
+    }
+    FieldType.JSON_OBJECT -> {
+      val map = value as? Map<*, *> ?: mismatch("a Map")
+      map.entries.associate { (mapKey, entry) ->
+        require(mapKey is String) {
+          "Value for $scope config key '$key' must have String keys, got: ${mapKey?.javaClass?.name}"
+        }
+        mapKey to entry
+      }
+    }
   }
 }

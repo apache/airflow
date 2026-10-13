@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} / {{total}} adatkészlet frissítve",
+  "assetSchedule": "{{count, number}} / {{total, number}} adatkészlet frissítve",
   "dagActions": {
     "delete": {
       "button": "Dag törlése",
@@ -26,7 +26,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Nem találhatók feladatok.",
-      "title": "Érintett feladatok: {{count}}"
+      "title": "Érintett feladatok: {{count, number}}"
     },
     "clear": {
       "button": "{{type}} törlése",

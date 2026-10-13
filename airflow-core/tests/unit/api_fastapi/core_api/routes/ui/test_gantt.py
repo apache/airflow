@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from operator import attrgetter
+from unittest.mock import ANY
 
 import pendulum
 import pytest
@@ -25,7 +26,10 @@ from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.models.dagbag import DBDagBag
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -48,6 +52,9 @@ TASK_DISPLAY_NAME_3 = "task3_display_name"
 MAPPED_TASK_ID = "mapped_task"
 
 GANTT_TASK_1 = {
+    "loop_iteration": None,
+    "id": ANY,
+    "map_index": -1,
     "task_id": "task",
     "task_display_name": TASK_DISPLAY_NAME,
     "try_number": 1,
@@ -61,6 +68,9 @@ GANTT_TASK_1 = {
 }
 
 GANTT_TASK_2 = {
+    "loop_iteration": None,
+    "id": ANY,
+    "map_index": -1,
     "task_id": "task2",
     "task_display_name": TASK_DISPLAY_NAME_2,
     "try_number": 1,
@@ -74,6 +84,9 @@ GANTT_TASK_2 = {
 }
 
 GANTT_TASK_3 = {
+    "loop_iteration": None,
+    "id": ANY,
+    "map_index": -1,
     "task_id": "task3",
     "task_display_name": TASK_DISPLAY_NAME_3,
     "try_number": 1,
@@ -330,6 +343,40 @@ class TestGetGanttDataEndpoint:
         assert tis[TASK_ID_2]["queued_dttm"] == "2024-11-30T10:03:00Z"
         assert tis[TASK_ID_3]["scheduled_dttm"] is None
         assert tis[TASK_ID_3]["queued_dttm"] is None
+
+    def test_loop_passes_keep_exact_identity(self, test_client, dag_maker, session):
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        with dag_maker("gantt_loop", serialized=True):
+            create_loop(body, max_iterations=3)
+        dr = dag_maker.create_dagrun()
+        first = next(ti for ti in dr.task_instances if ti.task_id == "body.work")
+        first.try_number = 1
+        first.state = TaskInstanceState.SUCCESS
+        second = TaskInstance(
+            task=dag_maker.serialized_dag.get_task(first.task_id),
+            run_id=dr.run_id,
+            dag_version_id=first.dag_version_id,
+            region_id=first.region_id,
+            region_index=2,
+        )
+        second.try_number = 1
+        session.add(second)
+        session.commit()
+
+        response = test_client.get(f"/gantt/{dr.dag_id}/{dr.run_id}")
+
+        assert response.status_code == 200, response.text
+        rows = [row for row in response.json()["task_instances"] if row["task_id"] == "body.work"]
+        assert {row["id"] for row in rows} == {str(first.id), str(second.id)}
+        assert {row["region_index"] for row in rows} == {0, 2}
+        assert {row["region_id"] for row in rows} == {str(first.region_id)}
+        assert {row["map_index"] for row in rows} == {-1}
+        assert all(
+            row["loop_iteration"] == {"loop_id": "body", "iteration": row["region_index"]} for row in rows
+        )
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/gantt/{DAG_ID}/run_1")

@@ -10,8 +10,8 @@
   },
   "requiredAction_one": "Required Action",
   "requiredAction_other": "Required Actions",
-  "requiredActionCount_one": "Required Action ({{count}})",
-  "requiredActionCount_other": "Required Actions ({{count}})",
+  "requiredActionCount_one": "Required Action ({{count, number}})",
+  "requiredActionCount_other": "Required Actions ({{count, number}})",
   "requiredActionState": "Required Action State",
   "response": {
     "created": "Response created at ",
@@ -29,10 +29,10 @@
       "selectRequiredAction": "Select a required action to see details"
     },
     "list": {
-      "completedRequiredActions": "Completed required actions ({{count}})",
+      "completedRequiredActions": "Completed required actions ({{count, number}})",
       "loadError": "Unable to load required actions",
       "loadingActions": "Loading required actions...",
-      "pendingRequiredActions": "Pending required actions ({{count}})"
+      "pendingRequiredActions": "Pending required actions ({{count, number}})"
     },
     "openReviewDrawer": "Open Review Drawer",
     "pageLimitHint": "Only the first few of actions are shown here. Use \"$t(review.viewAll)\" to see all of them.",

@@ -32,7 +32,7 @@ import {
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import type { JsonValue } from "./client-types.js";
 import { getCurrentModuleSource } from "./module-source.js";
-import { isTriggerDagRunTask, type TriggerDagRunTask } from "./trigger-dag-run.js";
+import { isOperator, isOwnOperator, type Operator } from "./operator.js";
 import { getClient, type TaskFunction } from "./task.js";
 
 /** Internal: whether `value` is an object literal, not an array or a class instance. */
@@ -229,9 +229,16 @@ export interface TaskGroupRef extends Node {
     handler: (args: TArgs) => TReturn | Promise<TReturn>,
     options?: TaskOptions,
   ): TaskFactory<TArgs, TReturn>;
-  /** Declare a `triggerDagRun(...)` task in this group, prefixed the same way. */
-  task(taskId: string, trigger: TriggerDagRunTask, options?: TaskOptions): () => TaskRef<void>;
-  task(trigger: TriggerDagRunTask, options: TaskOptions): () => TaskRef<void>;
+  /** Declare a task an operator runs, such as `triggerDagRun(...)`, prefixed the same way. */
+  task<TArgs extends object | void = void, TResult = unknown>(
+    taskId: string,
+    operator: Operator<TArgs, TResult>,
+    options?: TaskOptions,
+  ): TaskFactory<TArgs, TResult>;
+  task<TArgs extends object | void = void, TResult = unknown>(
+    operator: Operator<TArgs, TResult>,
+    options: TaskOptions,
+  ): TaskFactory<TArgs, TResult>;
   /** Nest a group inside this one. */
   taskGroup(groupId: string, options?: TaskGroupOptions): TaskGroupRef;
   before(...downstream: readonly Node[]): TaskGroupRef;
@@ -458,10 +465,12 @@ export type TaskRecord = {
   readonly spec: TaskSpec;
   /** Whether this task decides which of its downstream tasks to skip. */
   readonly canSkipDownstream?: boolean;
-} & (
-  | { readonly fn: TaskFunction; readonly trigger?: never }
-  | { readonly fn?: never; readonly trigger: TriggerDagRunTask }
-);
+} & TaskBody;
+
+/** What a task runs: the author's handler, or an operator the runtime runs. */
+type TaskBody =
+  | { readonly fn: TaskFunction; readonly operator?: never }
+  | { readonly fn?: never; readonly operator: Operator<never, unknown> };
 
 interface ConditionRecord {
   whenTrue?: TaskRef;
@@ -471,6 +480,18 @@ interface ConditionRecord {
 // Mirrors `SkipMixin.skip` in `task-sdk/src/airflow/sdk/bases/skipmixin.py`.
 const SKIPMIXIN_XCOM_KEY = "skipmixin_key";
 const SKIPMIXIN_SKIPPED = "skipped";
+
+/**
+ * Internal: skip `taskIds` of the running task's Dag run, as `SkipMixin.skip` does. The skipped
+ * IDs are written first, so a downstream task that is cleared later is skipped again.
+ */
+export async function skipTasks(
+  client: CoordinatorClient,
+  taskIds: readonly string[],
+): Promise<void> {
+  await client.setXCom({ key: SKIPMIXIN_XCOM_KEY, value: { [SKIPMIXIN_SKIPPED]: [...taskIds] } });
+  await client.skipDownstreamTasks(taskIds);
+}
 
 /**
  * Internal: what one call to a task factory recorded, by argument name.
@@ -599,15 +620,23 @@ export class Dag {
     options?: TaskOptions,
   ): TaskFactory<TArgs, TReturn>;
   /**
-   * Declare a task that triggers another Dag's run, from `triggerDagRun(spec)`.
-   * It has no handler to take an id from, so the id is required.
+   * Declare a task an operator runs, such as `triggerDagRun(spec)`. Its inputs and result are the
+   * operator's own. It has no handler to take an id from, so the id is required.
    */
-  task(taskId: string, trigger: TriggerDagRunTask, options?: TaskOptions): () => TaskRef<void>;
-  task(trigger: TriggerDagRunTask, options: TaskOptions): () => TaskRef<void>;
+  task<TArgs extends object | void = void, TResult = unknown>(
+    taskId: string,
+    operator: Operator<TArgs, TResult>,
+    options?: TaskOptions,
+  ): TaskFactory<TArgs, TResult>;
+  task<TArgs extends object | void = void, TResult = unknown>(
+    operator: Operator<TArgs, TResult>,
+    options: TaskOptions,
+  ): TaskFactory<TArgs, TResult>;
   task<TArgs extends object | void = void, TReturn = unknown>(
-    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask,
+    taskIdOrHandler:
+      string | ((args: TArgs) => TReturn | Promise<TReturn>) | Operator<never, unknown>,
     handlerOrOptions?:
-      ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask | TaskOptions,
+      ((args: TArgs) => TReturn | Promise<TReturn>) | Operator<never, unknown> | TaskOptions,
     maybeOptions?: TaskOptions,
   ): TaskFactory<TArgs, TReturn> {
     return this.#addTask(undefined, taskIdOrHandler, handlerOrOptions, maybeOptions);
@@ -705,16 +734,11 @@ export class Dag {
     decide: (returned: unknown) => Promise<{ skip: string[]; result: unknown }>,
   ): void {
     const { task, spec, fn } = this.#tasks.get(taskId)!;
-    // A decider is always declared from a handler, never from triggerDagRun.
+    // A decider is always declared from a handler, never from an operator.
     const inner = fn!;
     const wrapped: TaskFunction = async (args) => {
       const { skip, result } = await decide(await inner(args as never));
-      if (skip.length > 0) {
-        const client = getClient() as CoordinatorClient;
-        // Written before the skip so a cleared downstream is re-skipped, as SkipMixin does.
-        await client.setXCom({ key: SKIPMIXIN_XCOM_KEY, value: { [SKIPMIXIN_SKIPPED]: skip } });
-        await client.skipDownstreamTasks(skip);
-      }
+      if (skip.length > 0) await skipTasks(getClient() as CoordinatorClient, skip);
       return result;
     };
     this.#tasks.set(taskId, { task, spec, canSkipDownstream: true, fn: wrapped });
@@ -808,14 +832,20 @@ export class Dag {
 
   #addTask<TArgs extends object | void, TReturn>(
     groupId: string | undefined,
-    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask,
+    taskIdOrHandler:
+      string | ((args: TArgs) => TReturn | Promise<TReturn>) | Operator<never, unknown>,
     handlerOrOptions?:
-      ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask | TaskOptions,
+      ((args: TArgs) => TReturn | Promise<TReturn>) | Operator<never, unknown> | TaskOptions,
     maybeOptions?: TaskOptions,
   ): TaskFactory<TArgs, TReturn> {
     const idGiven = typeof taskIdOrHandler === "string";
     const body = idGiven ? handlerOrOptions : taskIdOrHandler;
-    const trigger = isTriggerDagRunTask(body) ? body : undefined;
+    const operator = isOperator(body) ? body : undefined;
+    if (operator !== undefined && !isOwnOperator(operator)) {
+      throw new Error(
+        `A ${operator.label ?? operator.operatorName} task of Dag "${this.dagId}" ${DUPLICATE_COPY_HINT}`,
+      );
+    }
     const handler = body as (args: TArgs) => TReturn | Promise<TReturn>;
     const given = idGiven ? maybeOptions : (handlerOrOptions as TaskOptions | undefined);
     // Defaulted only when absent: an explicit `null` is a bad spec, not an
@@ -833,10 +863,10 @@ export class Dag {
     }
     const defaulted = idGiven ? undefined : (specTaskId ?? readFunctionName(handler));
     const declared = idGiven ? (taskIdOrHandler as string) : defaulted;
-    if (declared === undefined && trigger !== undefined) {
+    if (declared === undefined && operator?.requiresTaskId) {
       throw new Error(
-        `A triggerDagRun task of Dag "${this.dagId}" has no taskId; name it with ` +
-          'dag.task(triggerDagRun({ dagId: "..." }), { taskId: "trigger_downstream" })',
+        `A ${operator.label ?? operator.operatorName} task of Dag "${this.dagId}" has no taskId; ` +
+          `name it with ${operator.taskIdExample ?? 'dag.task("my_task", operator)'}`,
       );
     }
     if (declared === undefined) {
@@ -865,12 +895,12 @@ export class Dag {
       );
     }
     const taskId = this.#childId(groupId, declared);
-    if (trigger === undefined && typeof handler !== "function") {
+    if (operator === undefined && typeof handler !== "function") {
       throw new Error(`handler for Dag "${this.dagId}" task "${taskId}" must be a function`);
     }
     // TypeScript already says so, but a plain-JavaScript author lands here
     // with the argument list Python would take.
-    if (trigger === undefined && handler.length > 1) {
+    if (operator === undefined && handler.length > 1) {
       throw new Error(
         `Handler for Dag "${this.dagId}" task "${taskId}" declares ${handler.length} parameters; ` +
           "a handler takes one object of named arguments — async ({ rows, region }) => ...",
@@ -885,14 +915,27 @@ export class Dag {
       );
     }
     const spec = this.#taskSpecOf(taskId, options);
+    if (
+      operator?.executionTimeoutAlternative !== undefined &&
+      spec.executionTimeout !== undefined
+    ) {
+      throw new Error(
+        `Task "${taskId}" of Dag "${this.dagId}" is a ${operator.label ?? operator.operatorName} ` +
+          "task, which does not enforce executionTimeout; use " +
+          `${operator.executionTimeoutAlternative} instead`,
+      );
+    }
     this.#reserveNodeId(taskId, "Task");
     const task = this.#createTaskRef(taskId);
     if (groupId !== undefined) this.#groups.get(groupId)!.taskIds.push(taskId);
+    // The runtime dispatches every handler through one instantiation, as it
+    // does a registered TaskHandler.
+    const runs: TaskBody & { readonly canSkipDownstream?: boolean } = operator
+      ? { operator, canSkipDownstream: operator.canSkipDownstream }
+      : { fn: handler as unknown as TaskFunction };
     this.#tasks.set(taskId, {
       task,
-      // The runtime dispatches every handler through one instantiation, as it
-      // does a registered TaskHandler.
-      ...(trigger ? { trigger } : { fn: handler as unknown as TaskFunction }),
+      ...runs,
       spec: freezeSpec(spec, () => `The spec for Dag "${this.dagId}" task "${taskId}"`),
     });
     return ((...inputs: unknown[]) => {
@@ -904,9 +947,10 @@ export class Dag {
             "it takes one object naming its inputs: myTask({ rows, region })",
         );
       }
-      if (trigger !== undefined && inputs[0] !== undefined) {
+      if (operator?.takesNoInputs && inputs[0] !== undefined) {
         throw new Error(
-          `Task "${taskId}" of Dag "${this.dagId}" is a triggerDagRun task, which takes no inputs`,
+          `Task "${taskId}" of Dag "${this.dagId}" is a ` +
+            `${operator.label ?? operator.operatorName} task, which takes no inputs`,
         );
       }
       this.#wire(taskId, inputs[0]);
@@ -1030,9 +1074,10 @@ export class Dag {
       dagId: this.dagId,
       groupId,
       task: <TArgs extends object | void, TReturn>(
-        taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask,
+        taskIdOrHandler:
+          string | ((args: TArgs) => TReturn | Promise<TReturn>) | Operator<never, unknown>,
         handlerOrOptions?:
-          ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask | TaskOptions,
+          ((args: TArgs) => TReturn | Promise<TReturn>) | Operator<never, unknown> | TaskOptions,
         maybeOptions?: TaskOptions,
       ) => this.#addTask<TArgs, TReturn>(groupId, taskIdOrHandler, handlerOrOptions, maybeOptions),
       taskGroup: (childId: string, options?: TaskGroupOptions) =>

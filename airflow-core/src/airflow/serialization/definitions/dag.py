@@ -48,16 +48,11 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.tasklog import LogTemplate
-from airflow.serialization.decoders import decode_deadline_alert
-from airflow.serialization.definitions.deadline import (
-    DeadlineAlertFields,
-    SerializedReferenceModels,
-    SerializedVariableInterval,
-)
+from airflow.serialization.decoders import decode_deadline_alert_model, resolve_deadline_alert_interval
+from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
-from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -68,6 +63,7 @@ if TYPE_CHECKING:
     import datetime
     from collections.abc import Collection, Iterable, Sequence
     from typing import Any, Literal
+    from uuid import UUID
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
     from pydantic import NonNegativeInt
@@ -152,6 +148,8 @@ class SerializedDAG:
     last_loaded: datetime.datetime = attrs.field(init=False)
     fileloc: str = attrs.field(init=False)
     relative_fileloc: str | None = attrs.field(init=False)
+    # Set when the Dag is deserialized from a stored version, so holders can tell which version they have.
+    dag_version_id: UUID | None = attrs.field(init=False, default=None)
     # Determine the relative fileloc based only on the serialize dag.
     _processor_dags_folder: str = attrs.field(init=False)
 
@@ -267,6 +265,15 @@ class SerializedDAG:
     @property
     def owner(self) -> str:
         return ", ".join({t.owner for t in self.tasks})
+
+    @functools.cached_property
+    def has_dynamic_nodes(self) -> bool:
+        from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
+
+        return any(task.get_needs_expansion() for task in self.tasks) or any(
+            isinstance(group, SerializedLoopTaskGroup)
+            for group in self.task_group.get_task_group_dict().values()
+        )
 
     def has_task(self, task_id: str) -> bool:
         return task_id in self.task_dict
@@ -751,21 +758,8 @@ class SerializedDAG:
             if not deadline_alert:
                 continue
 
-            deserialized_deadline_alert = decode_deadline_alert(
-                {
-                    Encoding.TYPE: DAT.DEADLINE_ALERT,
-                    Encoding.VAR: {
-                        DeadlineAlertFields.REFERENCE: deadline_alert.reference,
-                        DeadlineAlertFields.INTERVAL: deadline_alert.interval,
-                        DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
-                    },
-                }
-            )
-
-            interval = deserialized_deadline_alert.interval
-
-            if isinstance(interval, SerializedVariableInterval):
-                interval = interval.resolve(session=session)
+            deserialized_deadline_alert = decode_deadline_alert_model(deadline_alert)
+            interval = resolve_deadline_alert_interval(deserialized_deadline_alert, session=session)
 
             if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                 deadline_time = deserialized_deadline_alert.reference.evaluate_with(
@@ -1008,7 +1002,6 @@ class SerializedDAG:
 
         return altered
 
-    @overload
     def _get_task_instances(
         self,
         *,
@@ -1020,58 +1013,10 @@ class SerializedDAG:
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         exclude_run_ids: frozenset[str] | None,
         session: Session,
-    ) -> Iterable[TaskInstance]: ...  # pragma: no cover
-
-    @overload
-    def _get_task_instances(
-        self,
-        *,
-        task_ids: Collection[str | tuple[str, int]] | None,
-        as_pk_tuple: Literal[True],
-        start_date: datetime.datetime | None,
-        end_date: datetime.datetime | None,
-        run_id: str | None,
-        state: TaskInstanceState | Sequence[TaskInstanceState],
-        exclude_task_ids: Collection[str | tuple[str, int]] | None,
-        exclude_run_ids: frozenset[str] | None,
-        session: Session,
-    ) -> set[TaskInstanceKey]: ...  # pragma: no cover
-
-    def _get_task_instances(
-        self,
-        *,
-        task_ids: Collection[str | tuple[str, int]] | None,
-        as_pk_tuple: Literal[True, None] = None,
-        start_date: datetime.datetime | None,
-        end_date: datetime.datetime | None,
-        run_id: str | None,
-        state: TaskInstanceState | Sequence[TaskInstanceState],
-        exclude_task_ids: Collection[str | tuple[str, int]] | None,
-        exclude_run_ids: frozenset[str] | None,
-        session: Session,
-    ) -> Iterable[TaskInstance] | set[TaskInstanceKey]:
+    ) -> Iterable[TaskInstance]:
         from airflow.models.taskinstance import TaskInstance
 
-        # If we are looking at dependent dags we want to avoid UNION calls
-        # in SQL (it doesn't play nice with fields that have no equality operator,
-        # like JSON types), we instead build our result set separately.
-        #
-        # This will be empty if we are only looking at one dag, in which case
-        # we can return the filtered TI query object directly.
-        result: set[TaskInstanceKey] = set()
-
-        # Do we want full objects, or just the primary columns?
-        if as_pk_tuple:
-            tis_pk = select(
-                TaskInstance.dag_id,
-                TaskInstance.task_id,
-                TaskInstance.run_id,
-                TaskInstance.map_index,
-            )
-            tis_pk = tis_pk.join(TaskInstance.dag_run)
-        else:
-            tis_full = select(TaskInstance)
-            tis_full = tis_full.join(TaskInstance.dag_run)
+        tis_full = select(TaskInstance).join(TaskInstance.dag_run)
 
         # Apply common filters
         def apply_filters(query):
@@ -1092,10 +1037,7 @@ class SerializedDAG:
                 query = query.where(DagRun.logical_date <= end_date)
             return query
 
-        if as_pk_tuple:
-            tis_pk = apply_filters(tis_pk)
-        else:
-            tis_full = apply_filters(tis_full)
+        tis_full = apply_filters(tis_full)
 
         def apply_state_filter(query):
             if state:
@@ -1120,42 +1062,17 @@ class SerializedDAG:
                 query = query.where(TaskInstance.run_id.not_in(exclude_run_ids))
             return query
 
-        if as_pk_tuple:
-            tis_pk = apply_state_filter(tis_pk)
-        else:
-            tis_full = apply_state_filter(tis_full)
+        tis_full = apply_state_filter(tis_full)
 
-        if result or as_pk_tuple:
-            # Only execute the `ti` query if we have also collected some other results
-            if as_pk_tuple:
-                tis_query = session.execute(tis_pk).all()
-                result.update(TaskInstanceKey(**cols._mapping) for cols in tis_query)
-            else:
-                result.update(ti.key for ti in session.scalars(tis_full))
-
-            if exclude_task_ids is not None:
-                result = {
-                    task
-                    for task in result
-                    if task.task_id not in exclude_task_ids
-                    and (task.task_id, task.map_index) not in exclude_task_ids
-                }
-
-        if as_pk_tuple:
-            return result
-        if result:
-            # We've been asked for objects, lets combine it all back in to a result set
-            ti_filters = TaskInstance.filter_for_tis(result)
-            if ti_filters is not None:
-                tis_final = select(TaskInstance).where(ti_filters)
-                return session.scalars(tis_final)
-        elif exclude_task_ids is None:
+        if exclude_task_ids is None:
             pass  # Disable filter if not set.
         elif isinstance(next(iter(exclude_task_ids), None), str):
             tis_full = tis_full.where(TaskInstance.task_id.notin_(exclude_task_ids))
         else:
             tis_full = tis_full.where(
-                tuple_(TaskInstance.task_id, TaskInstance.map_index).not_in(exclude_task_ids)
+                tuple_(TaskInstance.task_id, public_map_index_expression(TaskInstance)).not_in(
+                    exclude_task_ids
+                )
             )
 
         return session.scalars(tis_full)
@@ -1296,13 +1213,19 @@ class SerializedDAG:
         :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
         :param session: The sqlalchemy session to use
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
-            tuples that should not be cleared
+            tuples that should not be cleared. A task excluded here is still archived when it sits in
+            a later pass of a loop whose gate is cleared.
         :param exclude_run_ids: A set of ``run_id`` or (``run_id``)
+
+        A dry run also lists the task instances of later loop passes that clearing a gate archives.
         """
+        from airflow.models.task_coordinates import LOOP_GATE_OPERATOR
         from airflow.models.taskinstance import (
+            TaskInstance,
             _get_new_task_ids,
             _update_dagrun_to_latest_version,
-            clear_task_instances,
+            clear_task_instances_for_runs,
+            select_loop_clear_scope,
         )
 
         if only_new:
@@ -1356,7 +1279,24 @@ class SerializedDAG:
         )
 
         if dry_run:
-            return list(tis_result)
+            dry_run_tis = list(tis_result)
+            if only_failed or only_running:
+                return dry_run_tis
+            listed_ids = {ti.id for ti in dry_run_tis}
+            archive_ids: set[UUID] = set()
+            gate_runs = {(ti.dag_id, ti.run_id) for ti in dry_run_tis if ti.operator == LOOP_GATE_OPERATOR}
+            for gate_run in sorted(gate_runs):
+                archive_ids |= select_loop_clear_scope(
+                    [ti for ti in dry_run_tis if (ti.dag_id, ti.run_id) == gate_run],
+                    downstream=False,
+                    session=session,
+                ).archive_ids
+            if not archive_ids - listed_ids:
+                return dry_run_tis
+            return [
+                *dry_run_tis,
+                *session.scalars(select(TaskInstance).where(TaskInstance.id.in_(archive_ids - listed_ids))),
+            ]
 
         tis = list(tis_result)
 
@@ -1364,11 +1304,23 @@ class SerializedDAG:
         if count == 0:
             return 0
 
-        clear_task_instances(
-            list(tis),
-            session,
+        clear_task_instances_for_runs(
+            tis,
+            session=session,
             dag_run_state=dag_run_state,
             run_on_latest_version=run_on_latest_version,
+            later_loop_iterations=not (only_failed or only_running),
+            whole_task_keys={
+                (ti.dag_id, ti.run_id, ti.task_id)
+                for ti in tis
+                if not only_failed
+                and not only_running
+                and (task_ids is None or ti.task_id in task_ids)
+                and not any(
+                    isinstance(excluded, tuple) and excluded[0] == ti.task_id
+                    for excluded in exclude_task_ids or ()
+                )
+            },
         )
 
         session.flush()

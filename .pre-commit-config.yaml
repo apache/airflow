@@ -461,7 +461,7 @@ repos:
           ^java-sdk/scripts/ci/prek/check_serialization_conformance\.py$|
           ^java-sdk/sdk/schema/dag-schema\.json$|
           ^java-sdk/sdk/build\.gradle\.kts$|
-          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(Bundle|DagDef|Deps|Arg|TaskGroupRef)\.kt$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(Switch|Bundle|Condition|DagDef|Decider|Deps|Arg|TaskGroupRef|TriggerDagRun)\.kt$|
           ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/execution/Serde\.kt$|
           ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/internal/(Refs|Fields)\.kt$|
           ^java-sdk/sdk/src/test/kotlin/org/apache/airflow/sdk/conformance/.*$|
@@ -838,6 +838,8 @@ repos:
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/openapi-gen/|
           ^providers/edge3/src/airflow/providers/edge3/plugins/www/openapi-gen/|
+          ^devel-common/src/sphinx_exts/airflow_spelling\.py$|
+          ^devel-common/tests/unit/sphinx_exts/test_airflow_spelling\.py$|
           .*/dist/.*|
           \.go$|
           /go\.(mod|sum)$
@@ -1648,6 +1650,20 @@ repos:
         language: python
         pass_filenames: true
         files: ^(task-sdk/src/airflow/sdk/execution_time/(comms\.py|schema/.*\.py)|airflow-core/src/airflow/dag_processing/processor\.py)$
+        require_serial: true
+      - id: generate-yaml-importer-schema-snapshot
+        name: Regenerate YAML DAG importer schema snapshot
+        entry: uv run -p 3.12 --frozen --no-progress --project task-sdk -s scripts/ci/prek/generate_yaml_importer_schema.py
+        language: python
+        pass_filenames: false
+        files: ^task-sdk/src/airflow/sdk/importers/yaml_importer/(models|parser|versions/.*)\.py$
+        require_serial: true
+      - id: check-yaml-importer-schema-versions
+        name: Check YAML DAG importer schema changes have corresponding version updates
+        entry: ./scripts/ci/prek/check_yaml_importer_schema_versions.py
+        language: python
+        pass_filenames: true
+        files: ^task-sdk/src/airflow/sdk/importers/yaml_importer/(models\.py|schema\.json|versions/.*\.py)$
         require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client

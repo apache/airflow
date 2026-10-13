@@ -827,19 +827,23 @@ class CommandFactory:
         ):
             params["logical_date"] = datetime.datetime.now(datetime.UTC)
 
-        # Handle ClearTaskInstancesBody: --task-ids arrives as a single string but the API expects
-        # a list of task_id or [task_id, map_index]; accept comma-separated ids or a JSON list
-        if datamodel.__name__ == "ClearTaskInstancesBody" and isinstance(params.get("task_ids"), str):
-            raw_task_ids = params["task_ids"]
-            if raw_task_ids.lstrip().startswith("["):
-                try:
-                    params["task_ids"] = json.loads(raw_task_ids)
-                except json.JSONDecodeError as e:
-                    raise SystemExit(f"Invalid JSON list for --task-ids {raw_task_ids!r}: {e}")
-            else:
-                params["task_ids"] = [
-                    task_id.strip() for task_id in raw_task_ids.split(",") if task_id.strip()
-                ]
+        # Handle ClearTaskInstancesBody: list options arrive as a single string but the API expects
+        # lists (--task-ids items are a task_id or [task_id, map_index]); accept comma-separated
+        # values or a JSON list
+        if datamodel.__name__ == "ClearTaskInstancesBody":
+            for field in ("task_ids", "task_instance_ids", "whole_expansion_ids"):
+                raw_value = params.get(field)
+                if not isinstance(raw_value, str):
+                    continue
+                if raw_value.lstrip().startswith("["):
+                    try:
+                        params[field] = json.loads(raw_value)
+                    except json.JSONDecodeError as e:
+                        raise SystemExit(
+                            f"Invalid JSON list for --{field.replace('_', '-')} {raw_value!r}: {e}"
+                        )
+                else:
+                    params[field] = [item.strip() for item in raw_value.split(",") if item.strip()]
 
         return params
 

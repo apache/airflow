@@ -35,6 +35,9 @@ from airflow.providers.common.ai.utils.hitl_review import (
 
 log = logging.getLogger(__name__)
 
+# ``hitl_timeout`` may be ``None``, so a persistently failing poll would otherwise loop forever.
+_MAX_CONSECUTIVE_XCOM_PULL_FAILURES = 10
+
 if TYPE_CHECKING:
     from airflow.sdk import Context
 
@@ -64,7 +67,9 @@ class HITLReviewMixin:
     4. When a human sets action to ``approved``, returns the output.
     5. When a human sets action to ``rejected``, raises a `HITLRejectException`
 
-    The loop stops after ``hitl_timeout`` or ``max_hitl_iterations``.
+    The loop stops after ``hitl_timeout`` or ``max_hitl_iterations``. It also stops, by
+    re-raising the underlying exception, when polling the human action XCom fails
+    ``_MAX_CONSECUTIVE_XCOM_PULL_FAILURES`` times in a row, even if ``hitl_timeout`` is ``None``.
 
     **Max iterations:** ``iteration`` counts outputs shown to the reviewer
     (1 = initial, 2 = first regeneration, etc.). When the reviewer requests
@@ -107,6 +112,8 @@ class HITLReviewMixin:
         :raises HITLMaxIterationsError: When max iterations reached without approval.
         :raises HITLRejectException: When the reviewer rejects the output.
         :raises HITLTimeoutError: When hitl_timeout elapses with no response.
+        :raises Exception: The last XCom pull exception, when pulling the human action
+            fails ``_MAX_CONSECUTIVE_XCOM_PULL_FAILURES`` times in a row.
         """
         output_str = self._to_string(output)  # type: ignore[attr-defined]
         ti = context["task_instance"]
@@ -150,7 +157,8 @@ class HITLReviewMixin:
         """
         Block until the session reaches a terminal state.
 
-        This loops until the human approves, rejects, or the timeout/max iterations is reached.
+        This loops until the human approves, rejects, the timeout/max iterations is reached,
+        or pulling the human action XCom fails ``_MAX_CONSECUTIVE_XCOM_PULL_FAILURES`` times in a row.
         """
         from airflow.providers.standard.exceptions import (
             HITLRejectException,
@@ -159,6 +167,7 @@ class HITLReviewMixin:
 
         last_seen_iteration = 0
         first_poll = True
+        consecutive_pull_failures = 0
 
         while True:
             if deadline is not None and time.monotonic() > deadline:
@@ -181,8 +190,16 @@ class HITLReviewMixin:
                     key=XCOM_HUMAN_ACTION, task_ids=ti.task_id, map_indexes=ti.map_index
                 )
             except Exception:
+                consecutive_pull_failures += 1
+                if consecutive_pull_failures >= _MAX_CONSECUTIVE_XCOM_PULL_FAILURES:
+                    self.log.error(
+                        "Giving up HITL review after %d consecutive XCom pull failures",
+                        consecutive_pull_failures,
+                    )
+                    raise
                 self.log.warning("Failed to pull XCom", exc_info=True)
                 continue
+            consecutive_pull_failures = 0
 
             if action_raw is None:
                 # Human action may take some time to propagate; it must be performed in the UI,
