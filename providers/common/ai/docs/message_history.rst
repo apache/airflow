@@ -58,3 +58,30 @@ back unbounded.
     operator raises at construction. The post-review (human-approved) transcript
     is not recoverable today, so emitting the pre-review transcript would
     silently drop the reviewed turns.
+
+What this is, and what it is not
+--------------------------------
+
+``message_history`` is a hand-off of one conversation transcript from one run to
+the next. When you pass ``message_history``, the operator reads that transcript,
+and after the run it writes the full updated transcript to XCom under
+``message_history`` as pydantic-ai's JSON message format. Where that transcript
+lives between runs and which session key it is stored under are decisions for
+your Dag. The operator does not trim the transcript.
+
+Use it to resume a multi-turn conversation across task runs. If you need an
+agent to recall facts across unrelated sessions, note that the operator has no
+built-in cross-session memory.
+
+Related pydantic-ai documentation
+---------------------------------
+
+The transcript is a pydantic-ai message list, so pydantic-ai's own
+documentation applies to it. The
+`message history page <https://pydantic.dev/docs/ai/core-concepts/message-history/>`__
+covers accessing messages from a result, storing and loading them as JSON,
+persisting sessions, editing existing messages, and processing the history
+before it reaches the model (for example keeping only recent messages or
+summarizing old ones). That page describes pydantic-ai's own ``Agent`` API, not
+the operator's parameters; this page lists what ``AgentOperator`` itself does
+with ``message_history``.
