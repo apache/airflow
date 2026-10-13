@@ -276,9 +276,8 @@ state when the agent finishes or a try starts over; a task that never succeeds
 leaves it in the bucket.
 
 Strands marks checkpointing experimental (``strands.experimental.checkpoint``). It
-needs ``strands-agents`` 1.51 or later, which the version in
-:ref:`howto/frameworks:strands-install` covers. For Pydantic AI agents, see
-:doc:`../durable_execution`.
+needs ``strands-agents`` 1.56 or later, as in :ref:`howto/frameworks:strands-install`.
+For Pydantic AI agents, see :doc:`../durable_execution`.
 
 Differences from ``AgentOperator``
 ----------------------------------

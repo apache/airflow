@@ -141,9 +141,9 @@ def invoke_durably(
             run_id=ti.run_id,
             map_index=ti.map_index if ti.map_index is not None else -1,
         )
-    prompt_fingerprint = _fingerprint(prompt)
+    prompt_fingerprint = _build_fingerprint(prompt)
 
-    session_manager, agent = _build(agent_factory, session_id, storage)
+    session_manager, agent = _build_agent(agent_factory, session_id, storage)
     saved = agent.state.get(_CHECKPOINT_STATE_KEY)
     request: AgentInput | dict[str, Any]
     if isinstance(saved, dict) and saved.get("prompt") == prompt_fingerprint:
@@ -154,14 +154,14 @@ def invoke_durably(
             position=checkpoint["position"],
             cycle=checkpoint["cycle_index"],
         )
-        request = _resume(checkpoint)
+        request = _build_checkpoint_resume(checkpoint)
     else:
         if saved is not None:
             # The agent was restored from an earlier try with a different prompt, so its
             # conversation cannot be resumed. Start over from an empty one.
             log.warning("The saved Strands agent state is for a different prompt; starting over")
             run_coroutine_sync(session_manager.delete_session())
-            session_manager, agent = _build(agent_factory, session_id, storage)
+            session_manager, agent = _build_agent(agent_factory, session_id, storage)
         request = prompt
 
     # Strands types the prompt as AgentInput, which leaves out its checkpointResume block.
@@ -173,7 +173,7 @@ def invoke_durably(
         agent.state.set(_CHECKPOINT_STATE_KEY, {"checkpoint": checkpoint, "prompt": prompt_fingerprint})
         run_coroutine_sync(session_manager.save_snapshot(agent, is_latest=True))
         log.debug("Saved a Strands checkpoint", session_id=session_id, **checkpoint)
-        result = agent(_resume(checkpoint))  # type: ignore[arg-type]
+        result = agent(_build_checkpoint_resume(checkpoint))  # type: ignore[arg-type]
 
     try:
         run_coroutine_sync(session_manager.delete_session())
@@ -184,7 +184,7 @@ def invoke_durably(
     return result
 
 
-def _build(
+def _build_agent(
     agent_factory: AgentFactory, session_id: str, storage: Storage
 ) -> tuple[SnapshotSessionManager, Agent]:
     # "trigger" with no trigger: Strands saves on its own only to redact or trim the
@@ -200,10 +200,10 @@ def _build(
     return session_manager, agent
 
 
-def _fingerprint(prompt: AgentInput) -> str:
+def _build_fingerprint(prompt: AgentInput) -> str:
     # Bytes, such as an image in a content block, encoded the way Strands saves them.
     return hashlib.sha256(json.dumps(encode_bytes_values(prompt), sort_keys=True).encode()).hexdigest()
 
 
-def _resume(checkpoint: dict[str, Any]) -> dict[str, Any]:
+def _build_checkpoint_resume(checkpoint: dict[str, Any]) -> dict[str, Any]:
     return {"checkpointResume": {"checkpoint": checkpoint}}

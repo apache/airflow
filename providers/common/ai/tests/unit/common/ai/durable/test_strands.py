@@ -157,7 +157,7 @@ class _Task:
             return str(invoke_durably(factory, prompt, **kwargs)).strip()
 
 
-def _texts(agent: Agent) -> list[str]:
+def _get_texts(agent: Agent) -> list[str]:
     """The text blocks of the agent's conversation: the prompts it was given and its answers."""
     return [block["text"] for message in agent.messages for block in message["content"] if "text" in block]
 
@@ -181,7 +181,7 @@ class TestInvokeDurably:
         # Cycle 1's model call and tool ran once; the retry started from cycle 2's model call.
         assert task.tool_calls == {"first": 1, "second": 1, "third": 1}
         assert task.model_turns == [0, 1, 1, 2]
-        assert _texts(task.agents[-1]) == ["go", "done"]
+        assert _get_texts(task.agents[-1]) == ["go", "done"]
 
     def test_a_retry_after_the_last_tool_cycle_only_asks_for_the_answer(self, task):
         with pytest.raises(RuntimeError):
@@ -199,7 +199,7 @@ class TestInvokeDurably:
 
         assert task.run() == "done"
 
-        assert _texts(task.agents[-1]) == ["go", "done"]
+        assert _get_texts(task.agents[-1]) == ["go", "done"]
         assert task.tool_calls == {"first": 1, "second": 1, "third": 1}
 
     @pytest.mark.parametrize(
@@ -217,7 +217,7 @@ class TestInvokeDurably:
         assert task.run() == "done"
 
         assert task.tool_calls == tool_calls
-        assert _texts(task.agents[-1]) == ["go", "done"]
+        assert _get_texts(task.agents[-1]) == ["go", "done"]
 
     def test_a_prompt_with_bytes_resumes(self, task):
         """A document in the prompt is fingerprinted the way Strands saves it."""
@@ -238,7 +238,7 @@ class TestInvokeDurably:
 
         assert task.run() == "done"
 
-        assert _texts(task.agents[-1]) == ["go", "done"]
+        assert _get_texts(task.agents[-1]) == ["go", "done"]
 
     def test_a_retry_with_a_different_prompt_starts_over(self, task):
         with pytest.raises(RuntimeError):
@@ -247,7 +247,7 @@ class TestInvokeDurably:
         assert task.run("go, but differently") == "done"
 
         assert task.tool_calls == {"first": 2, "second": 1, "third": 1}
-        assert _texts(task.agents[-1]) == ["go, but differently", "done"]
+        assert _get_texts(task.agents[-1]) == ["go, but differently", "done"]
 
     @pytest.mark.parametrize("fail_at_turn", [None, 1], ids=["first try", "after a retry"])
     def test_the_saved_state_is_deleted_once_the_agent_finishes(self, task, fail_at_turn):
