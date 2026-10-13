@@ -36,6 +36,16 @@ const AlertRow = ({ alert }: { readonly alert: DeadlineAlertResponse }) => {
     <Box py={2} width="100%">
       <Text color="fg.muted" fontSize="xs">
         {translateCompletionRule(translate, alert, locale)}
+        {alert.run_type_filter === null || alert.run_type_filter === undefined ? undefined : (
+          <Text as="span" color="fg.subtle">
+            {" "}
+            {translate("deadlineAlerts.appliesTo", {
+              runTypes: alert.run_type_filter
+                .map((runType) => translate(`common:runTypes.${runType}`))
+                .join(", "),
+            })}
+          </Text>
+        )}
         {Boolean(alert.name) && (
           <Text as="span" color="fg.subtle" fontSize="xs">
             {" "}
