@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from airflow.providers.common.ai.batch.anthropic import AnthropicBatchAdapter
 from airflow.providers.common.ai.batch.base import RawResultItem
@@ -263,6 +264,73 @@ class TestSubmitRequestShape:
                 model="claude-sonnet-5",
                 idempotency_key=KEY,
                 output_spec=str_spec,
+            )
+
+
+_ESCAPED_SIZE_REASON = (
+    "validate_requests sizes the payload with len(json.dumps(...)), which counts escaped "
+    "\\uXXXX characters instead of UTF-8 bytes; remove this marker with the fix."
+)
+
+
+def _inline_payload_bytes(client) -> int:
+    """
+    Return the UTF-8 bytes the built requests occupy in the inline ``batches.create`` body.
+
+    Anthropic takes the batch inline, so httpx is what encodes it: ``ensure_ascii=False``
+    then UTF-8 (``httpx._content.encode_json``). The per-request sum ignores the constant
+    ``{"requests": [...]}`` framing, which is what ``validate_requests`` also leaves out.
+    """
+    built = client.messages.batches.created[0]["requests"]
+    return sum(len(json.dumps(item, ensure_ascii=False).encode()) for item in built)
+
+
+class TestPayloadSizeEstimate:
+    @pytest.mark.parametrize(
+        "prompt",
+        [
+            pytest.param("abc", id="ascii"),
+            pytest.param(
+                "中文字",
+                id="cjk",
+                marks=pytest.mark.xfail(strict=True, reason=_ESCAPED_SIZE_REASON),
+            ),
+            pytest.param(
+                "😀😀😀",
+                id="non-bmp",
+                marks=pytest.mark.xfail(strict=True, reason=_ESCAPED_SIZE_REASON),
+            ),
+        ],
+    )
+    def test_estimate_matches_the_inline_payload_bytes(self, adapter, client, str_spec, prompt):
+        requests = [{"prompt": prompt}]
+        _submit(adapter, requests, str_spec)
+        on_the_wire = _inline_payload_bytes(client)
+
+        adapter.max_payload_bytes = on_the_wire
+        adapter.validate_requests(
+            requests, model="claude-sonnet-5", idempotency_key=KEY, output_spec=str_spec
+        )
+
+        adapter.max_payload_bytes = on_the_wire - 1
+        with pytest.raises(LLMBatchLimitExceededError):
+            adapter.validate_requests(
+                requests, model="claude-sonnet-5", idempotency_key=KEY, output_spec=str_spec
+            )
+
+    @pytest.mark.xfail(strict=True, reason=_ESCAPED_SIZE_REASON)
+    def test_reported_directive_size_is_in_utf8_bytes(self, adapter):
+        class NonAsciiSchema(BaseModel):
+            field: str = Field(description="中" * 100)
+
+        spec = build_output_spec(NonAsciiSchema)
+        directive = adapter.build_output_directive(spec)
+        expected = len(json.dumps(directive, ensure_ascii=False).encode())
+
+        adapter.max_payload_bytes = 0
+        with pytest.raises(LLMBatchLimitExceededError, match=rf"adds ~{expected} bytes"):
+            adapter.validate_requests(
+                [{"prompt": "a"}], model="claude-sonnet-5", idempotency_key=KEY, output_spec=spec
             )
 
 
