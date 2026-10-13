@@ -27,12 +27,6 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, Mock, call, create_autospec, patch
 
-try:
-    # Python 3.11+
-    BaseExceptionGroup
-except NameError:
-    from exceptiongroup import BaseExceptionGroup
-
 import jinja2
 import pytest
 from task_sdk.definitions.conftest import make_xcom_arg

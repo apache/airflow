@@ -28,12 +28,6 @@ from dataclasses import dataclass
 from functools import partial, wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
-try:
-    # Python 3.11+
-    BaseExceptionGroup
-except NameError:
-    from exceptiongroup import BaseExceptionGroup
-
 from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
