@@ -269,6 +269,9 @@ def create_gunicorn_app(
     :param log_level: Log level (debug, info, warning, error, critical)
     :param proxy_headers: Whether to trust proxy headers
     """
+    # Gunicorn splits the bind address on ":", so IPv6 literals must be bracketed.
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
     options = {
         "bind": f"{host}:{port}",
         "workers": num_workers,
