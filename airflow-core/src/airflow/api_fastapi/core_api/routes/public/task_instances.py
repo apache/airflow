@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Collection, Iterable, Sequence
 from typing import Annotated, Literal, cast
 from uuid import UUID
 
@@ -145,6 +145,7 @@ from airflow.models.taskinstance import (
     TaskInstance as TI,
     apply_loop_clear_scope,
     clear_task_instances,
+    find_relevant_relatives,
     select_loop_clear_scope,
 )
 from airflow.ti_deps.dep_context import DepContext
@@ -1099,19 +1100,20 @@ def post_clear_task_instances(
         # Unmapped tasks are expressed in their task_ids (without map_indexes)
         normal_task_ids = {t for t in task_markers_to_clear if not isinstance(t, tuple)}
 
-        def _collect_relatives(run_id: str, direction: Literal["upstream", "downstream"]) -> None:
-            from airflow.models.taskinstance import find_relevant_relatives
-
-            relevant_relatives = find_relevant_relatives(
-                normal_task_ids,
-                mapped_tasks_tuples,
+        def _find_relatives(
+            run_id: str,
+            normal_tasks: Iterable[str],
+            mapped_tasks: Iterable[tuple[str, int]],
+            direction: Literal["upstream", "downstream"],
+        ) -> Collection[str | tuple[str, int]]:
+            return find_relevant_relatives(
+                normal_tasks,
+                mapped_tasks,
                 dag=dag,
                 run_id=run_id,
                 direction=direction,
                 session=session,
             )
-            normal_task_ids.update(t for t in relevant_relatives if not isinstance(t, tuple))
-            mapped_tasks_tuples.update(t for t in relevant_relatives if isinstance(t, tuple))
 
         # We can't easily calculate upstream/downstream map indexes when not
         # working for a specific dag run. It's possible by looking at the runs
@@ -1128,10 +1130,19 @@ def post_clear_task_instances(
                 )
                 normal_task_ids.update(partial_dag.task_dict)
         else:
+            # Both directions must start from the requested tasks only. Merging upstream results
+            # before the downstream pass would also select every descendant of those upstream tasks.
+            relatives: set[str | tuple[str, int]] = set()
             if upstream:
-                _collect_relatives(dag_run_id, "upstream")
+                relatives.update(
+                    _find_relatives(dag_run_id, normal_task_ids, mapped_tasks_tuples, "upstream")
+                )
             if downstream:
-                _collect_relatives(dag_run_id, "downstream")
+                relatives.update(
+                    _find_relatives(dag_run_id, normal_task_ids, mapped_tasks_tuples, "downstream")
+                )
+            normal_task_ids.update(t for t in relatives if not isinstance(t, tuple))
+            mapped_tasks_tuples.update(t for t in relatives if isinstance(t, tuple))
 
         task_markers_to_clear = [
             *normal_task_ids,
