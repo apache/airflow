@@ -22,13 +22,11 @@ from asyncio import CancelledError, Future, sleep
 from types import SimpleNamespace
 from unittest import mock
 
-import grpc
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound, PermissionDenied, ServiceUnavailable
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, Job, JobStatus
 from google.protobuf.any_pb2 import Any
 from google.rpc.status_pb2 import Status
-from grpc.aio import AioRpcError
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.triggers.dataproc import (
