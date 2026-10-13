@@ -1341,7 +1341,7 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         return False
 
 
-class SubOperatorRegister(Protocol):
+class IndexedOperatorRegister(Protocol):
     """Where an indexed task's operator is noted while its code runs, so that a kill reaches it."""
 
     def register(self, operator: BaseOperator) -> None: ...
@@ -1360,18 +1360,18 @@ class IndexedTaskRunner(LoggingMixin):
     def __init__(
         self,
         task_instance: IndexedTaskInstance,
-        register: SubOperatorRegister | None = None,
+        register: IndexedOperatorRegister | None = None,
         outlet_events: OutletEventAccessors | None = None,
     ):
         """
-        Run an operator or trigger for one sub-task instance.
+        Run the operator of one indexed task.
 
-        :param outlet_events: The accessor the sub-task's asset events are collected in, its own
+        :param outlet_events: The accessor the indexed task's asset events are collected in, its own
             so they can be checkpointed and merged apart from its siblings'. Created here when not
             given; the caller reads it back through :attr:`outlet_events` after the run.
         :param register: Optional register the operator is entered in while its code runs (see
-            :meth:`in_flight`), so that IterableOperator.on_kill() can reach whichever sub-tasks
-            are in flight; the iterated task's ``IterationState``.
+            :meth:`in_flight`), so that IterableOperator.on_kill() can reach whichever indexed
+            tasks are in flight; the iterated task's ``IterationState``.
         """
         super().__init__()
         self.task_instance = task_instance
@@ -1467,7 +1467,7 @@ class IndexedTaskRunner(LoggingMixin):
         reach it. The operator the parent's execution timeout strikes stays registered as well:
         the timeout lands on the main thread, where the loop runs async operators, and its
         ``on_kill`` must not run there, where a synchronous SDK call would hold up the loop, and every
-        sub-task on it, for its round trip, so ``IterableOperator._run_tasks`` kills it off the loop
+        indexed task on it, for its round trip, so ``IterableOperator._run_tasks`` kills it off the loop
         thread with the others once the timeout has unwound. ``TimeoutPosix`` raises on the main
         thread only, so an ``AirflowTaskTimeout`` on a worker thread was raised by the operator
         itself (a hook that gave up waiting): that is this indexed task's own failure, noted as
