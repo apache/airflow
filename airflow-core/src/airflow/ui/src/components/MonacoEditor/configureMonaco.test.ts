@@ -27,6 +27,7 @@ const grammars = [
   { id: "java", load: () => import("monaco-editor/languages/definitions/java/java") },
   { id: "python", load: () => import("monaco-editor/languages/definitions/python/python") },
   { id: "typescript", load: () => import("monaco-editor/languages/definitions/typescript/typescript") },
+  { id: "yaml", load: () => import("monaco-editor/languages/definitions/yaml/yaml") },
 ] as const;
 
 describe("Monaco Dag-code grammars", () => {

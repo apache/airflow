@@ -64,5 +64,5 @@ pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_tools
 ```
 
 The test requests the default deny-all egress policy, so the OpenSandbox server
-must have its egress sidecar configured. It also applies a 15-minute server-side
-sandbox lifetime.
+must run its egress sidecar with `[egress] mode = "dns+nft"`; the backend refuses
+a sidecar in `dns` mode. It also applies a 15-minute server-side sandbox lifetime.
