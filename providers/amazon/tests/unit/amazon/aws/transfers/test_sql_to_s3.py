@@ -101,6 +101,54 @@ class TestSqlToS3Operator:
             replace=True,
         )
 
+    @pytest.mark.parametrize(
+        ("file_format", "df_kwargs", "expected_key", "read_back"),
+        [
+            pytest.param("csv", {}, "key.csv", lambda raw: pl.read_csv(io.BytesIO(raw)), id="csv"),
+            pytest.param(
+                "csv",
+                {"compression": "gzip"},
+                "key.csv.gz",
+                lambda raw: pl.read_csv(gzip.decompress(raw)),
+                id="csv-gzip",
+            ),
+            pytest.param("json", {}, "key.json", lambda raw: pl.read_json(io.BytesIO(raw)), id="json"),
+            pytest.param(
+                "parquet", {}, "key.parquet", lambda raw: pl.read_parquet(io.BytesIO(raw)), id="parquet"
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
+    def test_execute_writes_polars_dataframe(
+        self, mock_s3_hook, file_format, df_kwargs, expected_key, read_back
+    ):
+        test_df = pl.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+        mock_dbapi_hook = mock.Mock()
+        mock_dbapi_hook.return_value.get_df.return_value = test_df
+        uploaded = {}
+
+        def capture_upload(file_obj, key, **_):
+            uploaded[key] = file_obj.read()
+
+        mock_s3_hook.return_value.load_file_obj.side_effect = capture_upload
+
+        op = SqlToS3Operator(
+            query="query",
+            s3_bucket="bucket",
+            s3_key="key",
+            sql_conn_id="mysql_conn_id",
+            task_id="task_id",
+            file_format=file_format,
+            df_type="polars",
+            df_kwargs=df_kwargs,
+            dag=None,
+        )
+        op._get_hook = mock_dbapi_hook
+        op.execute(None)
+
+        assert list(uploaded) == [expected_key]
+        assert read_back(uploaded[expected_key]).equals(test_df)
+
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
     def test_execute_gzip_with_bytesio(self, mock_s3_hook):
         query = "query"
@@ -389,7 +437,10 @@ class TestSqlToS3Operator:
         s3_key = "key.csv"
 
         mock_dbapi_hook = mock.Mock()
-        test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
+        if expected_df_type == "polars":
+            test_df = pl.DataFrame({"a": ["1", "1"], "b": ["2", "2"]})
+        else:
+            test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
         get_df_mock = mock_dbapi_hook.return_value.get_df
         get_df_mock.return_value = test_df
 
@@ -540,7 +591,10 @@ class TestSqlToS3Operator:
         s3_key = "key"
 
         mock_dbapi_hook = mock.Mock()
-        test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
+        if df_type == "polars":
+            test_df = pl.DataFrame({"a": ["1", "1"], "b": ["2", "2"]})
+        else:
+            test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
         get_df_mock = mock_dbapi_hook.return_value.get_df
         get_df_mock.return_value = test_df
 
