@@ -259,13 +259,16 @@ Task log forwarding to stdout
 Task logs are normally only written to the task-log handler (and surfaced in the
 UI). To also forward each task's subprocess stdout/stderr to the Celery worker's
 own stdout — so a container-level log collector (e.g. Kubernetes/Loki) captures
-them too — enable it via the ``[logging]`` section (applies to all executors that
-supervise task subprocesses) or override it for the Celery worker alone with the
-``[celery]`` section:
+them too — enable it via the ``[logging]`` section or override it for the Celery
+worker alone with the ``[celery]`` section. ``[logging] task_logs_to_stdout`` is not a
+global switch: it only applies to components that read it, or that leave
+``subprocess_logs_to_stdout`` unset when calling ``run_workload`` (currently the Celery
+worker and the Edge3 worker's fork path). Executors that always forward task logs to stdout, such as the
+LocalExecutor and the Kubernetes, ECS, Batch and Lambda executors, ignore it:
 
 .. code-block:: ini
 
-    # Global — affects any executor that supervises task subprocesses:
+    # Default for components that don't set the behaviour themselves (Celery, Edge3):
     [logging]
     task_logs_to_stdout = True
 
