@@ -65,7 +65,12 @@ export const LoopFilter = ({ filter, onChange, onRemove }: FilterPluginProps) =>
       ? undefined
       : encodeLoopOption(value.loopId, value.iteration === undefined ? undefined : Number(value.iteration));
 
-  const items = options.map((option) => ({ ...option, label: `${option.loopId} ${option.iteration ?? ""}` }));
+  // ``label`` is what the collection's default itemToString reads, so typeahead has something
+  // to match; everything on screen renders through LoopOptionLabel instead.
+  const items = options.map((option) => ({
+    ...option,
+    label: option.iteration === undefined ? option.loopId : `${option.loopId} ${option.iteration}`,
+  }));
   const collection = createListCollection({ items });
   const current = options.find((option) => option.value === selectedValue);
 
@@ -138,7 +143,11 @@ export const LoopFilter = ({ filter, onChange, onRemove }: FilterPluginProps) =>
             <Select.Trigger dataTestId={`${filter.config.key}-filter`} triggerProps={{ border: "none" }}>
               <HStack gap={2}>
                 <MdLoop />
-                <Select.ValueText placeholder={filter.config.placeholder} />
+                <Select.ValueText placeholder={filter.config.placeholder}>
+                  {(picked: Array<LoopOption>) =>
+                    picked[0] === undefined ? undefined : <LoopOptionLabel compact option={picked[0]} />
+                  }
+                </Select.ValueText>
               </HStack>
             </Select.Trigger>
             <Select.Content>

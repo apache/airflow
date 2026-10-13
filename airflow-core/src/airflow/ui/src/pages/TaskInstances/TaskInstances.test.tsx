@@ -70,6 +70,12 @@ vi.mock("openapi/queries", async (importOriginal) => {
   };
 });
 
+// The loop filter now only applies where the page is inside that loop, so the table has to
+// know which loops the Dag declares.
+vi.mock("src/queries/useIsLoopGroup", () => ({
+  useLoopGroupIds: () => ["batch"],
+}));
+
 vi.mock("./TaskInstancesFilter", () => ({
   TaskInstancesFilter: () => null,
 }));
@@ -250,11 +256,26 @@ describe("TaskInstances", () => {
   });
 
   it("sends the pair once a loop names the pass", () => {
+    // Dotted ids mean a task inside the loop is named for it, which is what puts it in scope.
+    mockParams.taskId = "batch.member";
     mockSearchParams = new URLSearchParams("loop_id=batch&iteration=3");
     vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
     render(<TaskInstances />, { wrapper: Wrapper });
     expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
       expect.objectContaining({ iteration: 3, loopId: "batch" }),
+      undefined,
+      expect.any(Object),
+    );
+  });
+
+  it("ignores a loop carried in from a page outside it", () => {
+    // The filter now survives navigation, so an unrelated task must not inherit the scope.
+    mockParams.taskId = "unrelated_task";
+    mockSearchParams = new URLSearchParams("loop_id=batch&iteration=3");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
+      expect.objectContaining({ iteration: undefined, loopId: undefined }),
       undefined,
       expect.any(Object),
     );

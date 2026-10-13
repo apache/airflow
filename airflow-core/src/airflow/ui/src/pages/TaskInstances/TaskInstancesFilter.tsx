@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useSearchParams, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-import { FilterBar, type FilterValue } from "src/components/FilterBar";
+import { FilterBar } from "src/components/FilterBar";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
@@ -80,25 +80,10 @@ export const TaskInstancesFilter = () => {
     paramKeys.unshift(DAG_ID_PATTERN_PARAM as FilterableSearchParamsKeys);
   }
 
-  const [searchParams] = useSearchParams();
-
-  const { filterConfigs, handleFiltersChange } = useFiltersHandler(paramKeys);
-
-  const initialValues: Record<string, FilterValue> = {};
-
-  filterConfigs.forEach((config) => {
-    const value = searchParams.get(config.key);
-
-    if (value !== null && value !== "") {
-      if (config.type === "number") {
-        const parsedValue = Number(value);
-
-        initialValues[config.key] = isNaN(parsedValue) ? value : parsedValue;
-      } else {
-        initialValues[config.key] = value;
-      }
-    }
-  });
+  // ``useFiltersHandler`` already reads each filter's value, including composite ones whose key
+  // is not a url param of its own -- the loop pill spans ``loop_id`` and ``iteration``, so
+  // reading its key alone would leave it blank whenever a pass is selected elsewhere.
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(paramKeys);
 
   return (
     <FilterBar

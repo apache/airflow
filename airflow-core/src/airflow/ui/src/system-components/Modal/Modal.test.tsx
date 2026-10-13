@@ -102,9 +102,31 @@ describe("Modal", () => {
     expect([...(footer?.querySelectorAll("button") ?? [])].map((button) => button.textContent)).toStrictEqual(
       ["Save", "modal.cancel"],
     );
-    expect(globalThis.getComputedStyle(footer?.firstElementChild as HTMLElement).flexDirection).toBe(
-      "row-reverse",
+    // ``row-reverse`` sits on the group holding the actions, not the footer's own first child:
+    // the footer leads with the options group, which is left-aligned and empty here.
+    const actionsGroup = screen.getByRole("button", { name: "Save" }).parentElement;
+
+    expect(globalThis.getComputedStyle(actionsGroup as HTMLElement).flexDirection).toBe("row-reverse");
+  });
+
+  it("puts footerOptions at the left of the footer, ahead of the actions", () => {
+    render(
+      <Modal
+        footerActions={<Button>Save</Button>}
+        footerOptions={<span>Keep state</span>}
+        open
+        title="Modal Heading"
+      >
+        Lorem Ipsum Content
+      </Modal>,
+      { wrapper: BaseWrapper },
     );
+
+    const footer = screen.getByRole("button", { name: "Save" }).closest(".chakra-dialog__footer");
+    const option = screen.getByText("Keep state");
+
+    // The options group precedes the actions group in the document, so it renders left of it.
+    expect(footer?.firstElementChild?.contains(option)).toBe(true);
   });
 
   it("lets headerProps and bodyProps children override the defaults", () => {

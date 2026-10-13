@@ -22,16 +22,12 @@ import { UseGridServiceGetLoopSummaryKeyFn } from "openapi/queries/common";
 import { GridService } from "openapi/requests/services.gen";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useLoopGroupIds } from "src/queries/useIsLoopGroup";
 
 // Loop ids are dotted task group paths, so "::" cannot occur inside one and can join the two
 // halves of an option value.
 const SEPARATOR = "::";
-
-const elapsedSeconds = (start: string | null | undefined, end: string | null | undefined) =>
-  start === null || start === undefined || end === null || end === undefined
-    ? undefined
-    : (Date.parse(end) - Date.parse(start)) / 1000;
 
 export const encodeLoopOption = (loopId: string, iteration?: number): string =>
   iteration === undefined ? loopId : `${loopId}${SEPARATOR}${iteration}`;
@@ -55,16 +51,43 @@ export const loopsInScope = (declaredLoops: Array<string>, groupId?: string): Ar
     ? declaredLoops
     : declaredLoops.filter((id) => id === groupId || groupId.startsWith(`${id}.`));
 
+/**
+ * The pass a page is showing, given the loop's options and the url that addressed it.
+ *
+ * A table carries the pass as a filter and a task instance as a region coordinate; either names
+ * the same pass. A pass belongs to the loop that counted it, so one carried over from a different
+ * loop is ignored rather than read as a position in this one. With nothing pinned the newest
+ * pass is what the page means, since that is the one being read.
+ */
+export const selectActivePass = (
+  options: Array<LoopOption>,
+  searchParams: URLSearchParams,
+): LoopOption | undefined => {
+  const [, ...passes] = options;
+  const carriedLoop = searchParams.get(SearchParamsKeys.LOOP_ID);
+
+  if (carriedLoop !== null && carriedLoop !== "" && carriedLoop !== passes[0]?.loopId) {
+    return passes[0];
+  }
+
+  const pinned =
+    searchParams.get(SearchParamsKeys.ITERATION) ?? searchParams.get(SearchParamsKeys.REGION_INDEX);
+
+  return pinned === null || pinned === ""
+    ? passes[0]
+    : passes.find((pass) => String(pass.iteration) === pinned);
+};
+
 export type LoopOption = {
   // Set only on the whole-loop entry, which reports the run rather than one pass.
-  // Seconds, when the pass has both ends; the accordion header shows the same figure.
-  duration: number | undefined;
   iteration: number | undefined;
   iterationsRan: number | undefined;
   loopId: string;
+  // The loop's own region. With a pass index it addresses that pass's row exactly, which is
+  // what a task instance page needs to show the pass rather than merely filter by it.
+  loopRegionId: string | undefined;
   maxIterations: number | undefined;
   state: TaskInstanceState | undefined;
-  taskCount: number | undefined;
   value: string;
 };
 
@@ -105,32 +128,35 @@ export const useLoopFilterOptions = ({
         // The whole-loop entry stands on its own, so a loop still filters before any
         // iteration has been reported.
         const all: LoopOption = {
-          duration: undefined,
           iteration: undefined,
           iterationsRan: result.data?.iterations_ran,
           loopId,
+          loopRegionId: result.data?.loop_region_id ?? undefined,
           maxIterations: result.data?.max_iterations,
           state: result.data === undefined ? undefined : LOOP_STATE[result.data.status],
-          taskCount: undefined,
           value: encodeLoopOption(loopId),
         };
 
         return [
           all,
-          ...(result.data?.iterations ?? []).map((iteration) => ({
-            duration: elapsedSeconds(iteration.start_date, iteration.end_date),
+          // The service reports passes oldest-first, but the newest is the one being read, so
+          // it leads the list and sits first after the whole-loop entry.
+          ...[...(result.data?.iterations ?? [])].reverse().map((iteration) => ({
             iteration: iteration.index,
             iterationsRan: undefined,
             loopId,
+            loopRegionId: result.data?.loop_region_id ?? undefined,
             maxIterations: undefined,
             state: iteration.state ?? undefined,
-            taskCount: iteration.task_count,
             value: encodeLoopOption(loopId, iteration.index),
           })),
         ];
       }),
     }),
-    queries: loopGroupIds.map((loopId) => ({
+    // A pass belongs to one run, so with no run in scope there is nothing to offer. Without this
+    // the whole-loop entry is still built from an unresolved query, and callers that key off
+    // ``options.length`` -- the breadcrumb's iteration level among them -- would show it anyway.
+    queries: (enabled ? loopGroupIds : []).map((loopId) => ({
       enabled,
       queryFn: () => GridService.getLoopSummary({ dagId: dagId ?? "", groupId: loopId, runId: runId ?? "" }),
       queryKey: UseGridServiceGetLoopSummaryKeyFn({

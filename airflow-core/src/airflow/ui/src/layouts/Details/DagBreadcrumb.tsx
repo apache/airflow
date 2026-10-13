@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useTranslation } from "react-i18next";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import {
   useDagRunServiceGetDagRun,
@@ -30,11 +30,15 @@ import type { TaskInstanceState } from "openapi/requests/types.gen";
 
 import { BreadcrumbRow, CrumbLink, CrumbStack, CrumbText, type CrumbShape } from "src/components/Breadcrumb";
 
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
+import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
+import { selectActivePass, useLoopFilterOptions, type LoopOption } from "src/queries/useLoopFilterOptions";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { DagRunSwitcherButton } from "./DagRunSwitcherButton";
 import { DagSwitcherButton } from "./DagSwitcherButton";
+import { IterationSwitcherButton } from "./IterationSwitcherButton";
 
 /** Levels that stand for a Dag run — both offer the run search. */
 const RUN_LEVEL_KEYS = new Set(["allRuns", "dagRun"]);
@@ -52,14 +56,18 @@ type Crumb = {
 const BreadcrumbItem = ({
   crumb,
   dagId,
+  isGroupLevel,
   isLast,
   isMapped,
+  loopOptions,
   shape,
 }: {
   readonly crumb: Crumb;
   readonly dagId: string;
+  readonly isGroupLevel: boolean;
   readonly isLast: boolean;
   readonly isMapped: boolean;
+  readonly loopOptions: Array<LoopOption>;
   readonly shape: CrumbShape;
 }) => {
   const content = (
@@ -71,6 +79,14 @@ const BreadcrumbItem = ({
       value={crumb.value}
     />
   );
+
+  if (crumb.key === "iteration") {
+    return (
+      <IterationSwitcherButton includeWholeLoop={isGroupLevel} options={loopOptions} shape={shape}>
+        {content}
+      </IterationSwitcherButton>
+    );
+  }
 
   if (crumb.key === "dag") {
     return (
@@ -102,6 +118,9 @@ const BreadcrumbItem = ({
 export const DagBreadcrumb = () => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const { dagId = "", groupId, mapIndex = "-1", runId, taskId } = useParams();
+  const [searchParams] = useSearchParams();
+  // A task inside a loop is named for it, so either level resolves to the same loop.
+  const { options: loopOptions } = useLoopFilterOptions({ dagId, groupId: groupId ?? taskId, runId });
   const { pathname } = useLocation();
   const coordinates = useTaskInstanceCoordinates();
   const refetchInterval = useAutoRefresh({ dagId });
@@ -124,6 +143,16 @@ export const DagBreadcrumb = () => {
   );
 
   const { data: task } = useTaskServiceGetTask({ dagId, taskId }, undefined, { enabled: Boolean(taskId) });
+
+  // A group has no instance of its own, so its state is the aggregate the grid already computes.
+  const { summariesByRunId } = useGridTiSummariesStream({
+    dagId,
+    runIds: groupId !== undefined && runId !== undefined ? [runId] : [],
+  });
+  const groupSummary =
+    groupId === undefined || runId === undefined
+      ? undefined
+      : summariesByRunId.get(runId)?.task_instances.find((summary) => summary.task_id === groupId);
 
   const { data: mappedTaskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
     { ...coordinates, dagId, dagRunId: runId ?? "", mapIndex: parsedMapIndex, taskId: taskId ?? "" },
@@ -180,7 +209,9 @@ export const DagBreadcrumb = () => {
   if (groupId !== undefined) {
     crumbs.push({
       caption: translate("taskGroup_one"),
+      hasState: true,
       key: "group",
+      state: groupSummary?.state,
       to: `/dags/${dagId}/groups/${groupId}`,
       value: groupId,
     });
@@ -214,6 +245,29 @@ export const DagBreadcrumb = () => {
     });
   }
 
+  // Only a level a loop encloses has a pass to name, so the crumb follows the options rather
+  // than the route: no loop in scope means no options and no crumb.
+  // A pass is a level inside a group or task; the run above them has no single loop to name.
+  if (loopOptions.length > 0 && (groupId !== undefined || taskId !== undefined)) {
+    // A group with no pass pinned is being looked at whole, which is a state only it can be in:
+    // a task instance is always one row, so it falls back to the newest pass instead.
+    const pinnedPass = searchParams.get(SearchParamsKeys.ITERATION);
+    const isWholeLoop = taskId === undefined && (pinnedPass === null || pinnedPass === "");
+    const selected = isWholeLoop ? undefined : selectActivePass(loopOptions, searchParams);
+
+    if (isWholeLoop || selected !== undefined) {
+      crumbs.push({
+        caption: translate("common:filters.iteration"),
+        hasState: true,
+        key: "iteration",
+        // Looking at the loop whole means its own outcome; looking at one pass means that pass's.
+        state: isWholeLoop ? loopOptions[0]?.state : selected?.state,
+        // How far the loop got belongs to the header's stat; the crumb names the pass alone.
+        value: isWholeLoop ? translate("common:filters.allIterations") : String(selected?.iteration),
+      });
+    }
+  }
+
   if (mapIndex !== "-1") {
     crumbs.push({
       caption: translate("mapIndex"),
@@ -230,9 +284,11 @@ export const DagBreadcrumb = () => {
         <BreadcrumbItem
           crumb={crumb}
           dagId={dagId}
+          isGroupLevel={taskId === undefined}
           isLast={index === crumbs.length - 1}
           isMapped={hasExpandedInstances}
           key={crumb.key}
+          loopOptions={loopOptions}
           shape={{ hasNotch: index > 0, hasPoint: index < crumbs.length - 1 }}
         />
       ))}

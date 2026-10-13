@@ -20,7 +20,6 @@ import { HStack, Icon, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdLoop } from "react-icons/md";
 
-import { DurationCell } from "src/components/DurationCell";
 import { StateBadge } from "src/components/StateBadge";
 
 import type { LoopOption } from "src/queries/useLoopFilterOptions";
@@ -46,26 +45,26 @@ export const LoopOptionLabel = ({
   const label = hideLoopName ? bare : named;
 
   return (
-    <HStack gap={2} justifyContent="space-between" width="full">
+    // A list row spreads its name and state to the edges; a collapsed pill or trigger sits
+    // inline and shrinks to what it holds, so it must not claim the full width.
+    <HStack
+      // A list row is a block that spreads its name and state to the edges. A collapsed pill or
+      // trigger sits inside a line of text, so it has to stay inline or it breaks that line.
+      display={compact ? "inline-flex" : "flex"}
+      gap={2}
+      justifyContent={compact ? "flex-start" : "space-between"}
+      width={compact ? "auto" : "full"}
+    >
       <Text whiteSpace="nowrap">{label}</Text>
       <HStack gap={1}>
-        {isWholeLoop ? (
-          option.iterationsRan === undefined ? undefined : (
-            <HStack color={option.state === "failed" ? "fg.error" : "fg.muted"} gap={1}>
-              <Icon aria-hidden as={MdLoop} boxSize={3.5} />
-              <Text fontSize="xs">
-                {option.iterationsRan}/{option.maxIterations}
-              </Text>
-            </HStack>
-          )
-        ) : (
-          <HStack color="fg.muted" fontSize="xs" gap={2}>
-            <Text whiteSpace="nowrap">
-              {translate("common:filters.iterationTaskCount", { count: option.taskCount ?? 0 })}
+        {isWholeLoop && option.iterationsRan !== undefined ? (
+          <HStack color={option.state === "failed" ? "fg.error" : "fg.muted"} gap={1}>
+            <Icon aria-hidden as={MdLoop} boxSize={3.5} />
+            <Text fontSize="xs">
+              {option.iterationsRan}/{option.maxIterations}
             </Text>
-            {option.duration === undefined ? undefined : <DurationCell duration={option.duration} />}
           </HStack>
-        )}
+        ) : undefined}
         {option.state === undefined ? undefined : (
           <StateBadge fontSize="xs" state={option.state}>
             {compact ? undefined : translate(`common:states.${option.state}`)}

@@ -50,6 +50,8 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
+import { useLoopGroupIds } from "src/queries/useIsLoopGroup";
+import { loopsInScope } from "src/queries/useLoopFilterOptions";
 import { formatNumber, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -58,7 +60,6 @@ import BulkDeleteTaskInstancesButton from "./BulkDeleteTaskInstancesButton";
 import BulkMarkTaskInstancesAsButton from "./BulkMarkTaskInstancesAsButton";
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
 import TaskInstanceNoteButton from "./TaskInstanceNoteButton";
-import { LoopIterationStrip } from "./LoopIterationStrip";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
@@ -185,10 +186,21 @@ const taskInstanceColumns = ({
   ...(hasLoopIteration
     ? [
         {
+          accessorKey: "loop_iteration.loop_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => original.loop_iteration?.loop_id,
+          // The endpoint has no sort for the loop a row belongs to, only for the pass within it.
+          enableSorting: false,
+          header: translate("common:filters.loop"),
+          id: "loop",
+        },
+        {
           accessorKey: "loop_iteration",
           cell: ({ row: { original } }: TaskInstanceRow) => original.loop_iteration?.iteration,
-          enableSorting: false,
+          enableSorting: true,
           header: translate("taskInstance.iteration"),
+          // ``orderBy`` is built from the column id, so it has to be the name the endpoint
+          // sorts by rather than the field the cell reads.
+          id: "iteration",
         },
       ]
     : []),
@@ -294,6 +306,7 @@ const taskInstanceColumns = ({
 export const TaskInstances = () => {
   const { i18n, t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
+  const declaredLoops = useLoopGroupIds();
 
   // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
   useDocumentTitle(dagId === undefined ? translate("common:taskInstance_other") : undefined);
@@ -325,6 +338,10 @@ export const TaskInstances = () => {
   const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
   const loopFilter = searchParams.get(SearchParamsKeys.LOOP_ID);
+  // The filter now survives navigation, so a loop carried in from elsewhere is ignored unless
+  // this page is actually inside it.
+  const loopInScope =
+    loopFilter !== null && loopsInScope(declaredLoops, groupId ?? taskId).includes(loopFilter);
   const iterationFilter = searchParams.get(SearchParamsKeys.ITERATION);
   const parsedIteration = iterationFilter === null ? Number.NaN : Number.parseInt(iterationFilter, 10);
   const startDate = searchParams.get(START_DATE_PARAM);
@@ -396,11 +413,11 @@ export const TaskInstances = () => {
       // The loop is named by the author; the server turns that into the regions behind it.
       // A pass number is meaningless without the loop that counts it, and the endpoint rejects
       // the pair outright, so a stale iteration left in the URL is dropped rather than sent.
-      iteration: loopFilter !== null && Number.isInteger(parsedIteration) ? parsedIteration : undefined,
+      iteration: loopInScope && Number.isInteger(parsedIteration) ? parsedIteration : undefined,
       limit: pagination.pageSize,
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
-      loopId: loopFilter ?? undefined,
+      loopId: loopInScope ? loopFilter : undefined,
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
       ...operatorNameArg,
       orderBy,
@@ -455,7 +472,6 @@ export const TaskInstances = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <LoopIterationStrip />
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}

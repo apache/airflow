@@ -94,8 +94,7 @@ const TaskInstanceTooltip = ({
               taskInstance.loop_iteration !== null &&
               taskInstance.loop_iteration !== undefined ? (
                 <Text>
-                  {translate("taskInstance.iteration")}: {taskInstance.loop_iteration.iteration} (
-                  {taskInstance.loop_iteration.loop_id})
+                  {translate("taskInstance.iteration")}: {taskInstance.loop_iteration.iteration}
                 </Text>
               ) : undefined}
               {"loop_iterations_count" in taskInstance &&

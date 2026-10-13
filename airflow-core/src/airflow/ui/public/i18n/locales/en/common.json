@@ -150,8 +150,7 @@
     "durationFrom": "Duration From",
     "durationTo": "Duration To",
     "endTime": "End Time",
-    "iterationTaskCount_one": "{{count, number}} task",
-    "iterationTaskCount_other": "{{count, number}} tasks",
+    "iteration": "Iteration",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
     "loop": "Loop",
@@ -167,6 +166,7 @@
     "selectDateRange": "Select Date Range",
     "selectDateTime": "Select date and time",
     "startTime": "Start Time",
+    "switchIteration": "Switch iteration",
     "time": "Time"
   },
   "fullscreen": {

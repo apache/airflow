@@ -22,11 +22,14 @@ const EXECUTION_PARAMS = [
   SearchParamsKeys.TRY_NUMBER,
   SearchParamsKeys.REGION_ID,
   SearchParamsKeys.REGION_INDEX,
-  SearchParamsKeys.ITERATION,
-  SearchParamsKeys.LOOP_ID,
 ];
 
-/** A copy of `searchParams` without the params that pin one execution, try or loop iteration. */
+/**
+ * A copy of `searchParams` without the params that pin one execution or try.
+ *
+ * The loop filter is deliberately not among them: a pass is where you are in a loop, not a row,
+ * so it survives moving between the loop's tasks. Pages drop a loop that is out of their scope.
+ */
 export const stripExecutionParams = (searchParams: string | URLSearchParams): URLSearchParams => {
   const stripped = new URLSearchParams(searchParams);
 

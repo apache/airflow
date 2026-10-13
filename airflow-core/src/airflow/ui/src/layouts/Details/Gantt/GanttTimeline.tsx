@@ -22,7 +22,7 @@ import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { Badge, Box, Flex, Text } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
@@ -30,6 +30,7 @@ import {
   GANTT_AXIS_HEIGHT_PX,
   GANTT_TOP_PADDING_PX,
   ROW_HEIGHT,
+  SELECTED_TASK_OUTLINE_COLOR,
   TASK_BAR_HEIGHT_PX,
 } from "src/layouts/Details/Grid/constants";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
@@ -37,6 +38,8 @@ import type { GridTask } from "src/layouts/Details/Grid/utils";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { useColorMode } from "src/context/colorMode";
 import { useDurationFormat } from "src/utils";
 
 import {
@@ -121,6 +124,13 @@ export const GanttTimeline = ({
   const { locale } = useDurationFormat();
   const location = useLocation();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
+  const [searchParams] = useSearchParams();
+  const { colorMode = "light" } = useColorMode();
+  // The pass the page is pinned to, named either as a filter or as a region coordinate. Bars
+  // from that pass are outlined the way the grid outlines the instance you are looking at.
+  const pinnedPass =
+    searchParams.get(SearchParamsKeys.ITERATION) ?? searchParams.get(SearchParamsKeys.REGION_INDEX);
+  const pinnedOutline = SELECTED_TASK_OUTLINE_COLOR[colorMode];
   const [bodyWidthPx, setBodyWidthPx] = useState(0);
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
@@ -295,6 +305,14 @@ export const GanttTimeline = ({
                 : allSegments;
             const taskId = node.id;
             const isSelected = selectedTaskId === taskId || selectedGroupId === taskId;
+            // What a pinned pass covers follows what is being looked at: one task instance is a
+            // single row, while a task group is every task it holds, so the whole pass lights up.
+            // Group ids are dotted paths, so a member is named for the group enclosing it.
+            const inPinnedScope =
+              selectedTaskId === undefined
+                ? selectedGroupId !== undefined &&
+                  (taskId === selectedGroupId || taskId.startsWith(`${selectedGroupId}.`))
+                : taskId === selectedTaskId;
             const gridSummary = summaryByTaskId.get(taskId);
 
             return (
@@ -347,6 +365,14 @@ export const GanttTimeline = ({
                       segments[segIndex - 1]?.taskInstanceId === segment.taskInstanceId &&
                       segments[segIndex - 1]?.tryNumber === tryNumber;
 
+                    const isPinnedPass =
+                      inPinnedScope &&
+                      pinnedPass !== null &&
+                      pinnedPass !== "" &&
+                      segment.loopIteration !== null &&
+                      segment.loopIteration !== undefined &&
+                      String(segment.loopIteration.iteration) === pinnedPass;
+
                     return (
                       <TaskInstanceTooltip
                         key={`${segment.taskInstanceId ?? taskId}-${tryNumber ?? -1}-${state ?? "none"}-${x[0]}`}
@@ -382,10 +408,15 @@ export const GanttTimeline = ({
                               borderTopLeftRadius={touchesPrev ? 0 : barRadius}
                               borderTopRightRadius={touchesNext ? 0 : barRadius}
                               colorPalette={state ?? "none"}
+                              data-pinned-pass={isPinnedPass || undefined}
                               display="flex"
                               h="100%"
                               justifyContent="center"
                               minH={0}
+                              outlineColor={isPinnedPass ? pinnedOutline : undefined}
+                              outlineOffset="-2px"
+                              outlineStyle={isPinnedPass ? "solid" : undefined}
+                              outlineWidth={isPinnedPass ? "2px" : undefined}
                               p={0}
                               // Aggregate task-group bars are the envelope of their children's
                               // runtime, not a real running task. Overlay a diagonal stripe so

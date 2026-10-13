@@ -46,6 +46,19 @@ vi.mock("@tanstack/react-virtual", () => ({
   }),
 }));
 
+let mockParams: Record<string, string | undefined> = {};
+let mockSearchParams = new URLSearchParams();
+
+vi.mock("react-router-dom", async (importOriginal) => {
+  const original = await importOriginal();
+
+  return {
+    ...(original as object),
+    useParams: () => mockParams,
+    useSearchParams: () => [mockSearchParams, vi.fn()] as const,
+  };
+});
+
 const TestWrapper = ({ children }: PropsWithChildren) => <Wrapper>{children}</Wrapper>;
 
 // Shared time range: 10:00 → 10:10 UTC on 2024-03-14
@@ -87,6 +100,18 @@ const buildSegment = (taskInstanceId: string, start: number, end: number): Gantt
   y: "task_1",
 });
 
+const passSegment = (taskId: string, iteration: number): GanttDataItem => ({
+  loopIteration: { iteration, loop_id: "refine" },
+  state: "success",
+  taskId,
+  taskInstanceId: `${taskId}-${iteration}`,
+  tryNumber: 1,
+  x: [MIN_MS, MAX_MS],
+  y: taskId,
+});
+
+const PASS_MEMBERS = ["refine.improve", "refine.evaluate"];
+
 describe("GanttTimeline segment bars", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -112,7 +137,8 @@ describe("GanttTimeline segment bars", () => {
 
     fireEvent.pointerMove(screen.getByRole("link"), { pointerType: "mouse" });
 
-    expect(await screen.findByText(`taskInstance.iteration: ${iteration} (loop)`)).toBeInTheDocument();
+    // The loop's name is not repeated here: the group it belongs to is already on screen.
+    expect(await screen.findByText(`taskInstance.iteration: ${iteration}`)).toBeInTheDocument();
   });
 
   it.each([
@@ -446,5 +472,44 @@ describe("GanttTimeline segment bars", () => {
     expect(bars[0]?.querySelector('[style*="repeating-linear-gradient"]')).not.toBeNull();
     // Regular task bar does not.
     expect(bars[1]?.querySelector('[style*="repeating-linear-gradient"]')).toBeNull();
+  });
+
+  it.each([
+    { expected: 2, name: "every task of the group", params: { groupId: "refine" } },
+    { expected: 1, name: "only the row itself", params: { taskId: "refine.improve" } },
+  ])("lights up $name at the pinned pass", ({ expected, params }) => {
+    mockParams = params;
+    mockSearchParams = new URLSearchParams("iteration=2");
+    const nodes = PASS_MEMBERS.map((id) => ({ ...BASE_NODE, id, label: id }));
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        flatNodes={nodes}
+        rowSegments={PASS_MEMBERS.map((id) => [passSegment(id, 2)])}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    expect(document.querySelectorAll("[data-pinned-pass]")).toHaveLength(expected);
+  });
+
+  it("leaves other passes alone", () => {
+    mockParams = { groupId: "refine" };
+    mockSearchParams = new URLSearchParams("iteration=2");
+    const nodes = PASS_MEMBERS.map((id) => ({ ...BASE_NODE, id, label: id }));
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        flatNodes={nodes}
+        rowSegments={PASS_MEMBERS.map((id) => [passSegment(id, 5)])}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    expect(document.querySelectorAll("[data-pinned-pass]")).toHaveLength(0);
   });
 });

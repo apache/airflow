@@ -21,14 +21,18 @@ import { describe, expect, it } from "vitest";
 import { stripExecutionParams } from "./executionParams";
 
 describe("stripExecutionParams", () => {
-  it("drops the params that pin one execution, try or loop iteration and keeps the rest", () => {
-    const source = new URLSearchParams(
-      "try_number=2&region_id=r&region_index=1&iteration=3&loop_id=batch&dag_run_state=failed",
-    );
+  it("drops the params that pin one execution or try and keeps the rest", () => {
+    const source = new URLSearchParams("try_number=2&region_id=r&region_index=1&dag_run_state=failed");
 
     const stripped = stripExecutionParams(source);
 
     expect(stripped.toString()).toBe("dag_run_state=failed");
     expect(source.has("try_number")).toBe(true);
+  });
+
+  it("keeps the loop scope, which follows you between a loop's tasks", () => {
+    const stripped = stripExecutionParams(new URLSearchParams("region_id=r&loop_id=batch&iteration=3"));
+
+    expect(stripped.toString()).toBe("loop_id=batch&iteration=3");
   });
 });
