@@ -368,9 +368,13 @@ reported, and the backend asks the gateway to delete the sandbox and logs a
 failure, for the reaper described below to clean up. Nothing crosses the stream
 until the command ends, so a proxy or load balancer in front of the gateway
 needs an idle timeout longer than the longest command budget plus 30 seconds. A
-gateway restart stops every process in its sandboxes. If the gateway brings the
-sandbox back, its files are kept and a command in flight is reported to the model
-as having an unknown outcome rather than retried; if it does not, the task fails.
+command the gateway could not start, because its relay into the sandbox did not
+open, is reported to the model as not run. A gateway restart stops every process
+in its sandboxes. If the gateway brings the sandbox back, its files are kept and a
+command in flight is reported to the model as having an unknown outcome rather
+than retried; if it does not, the task fails. A dropped connection to a gateway
+that stays up is reported the same way, but does not stop the command: it runs
+until its budget runs out, and the model is told it may still be running.
 
 **Files.** ``write_file`` sends content on stdin in chunks of 768 KiB, since the
 gateway limits one command argument to 32 KiB and one request to 1 MiB; a larger

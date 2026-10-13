@@ -58,6 +58,11 @@ _CLIENT_BUILD_LOCK = threading.Lock()
 # treated as hung. The guest wrapper enforces the budget itself; this covers a
 # gateway or supervisor that stops delivering events at all.
 _EXEC_GRACE = 30.0
+# A DEADLINE_EXCEEDED arriving at least this long before the call's own deadline
+# came from the gateway, not the client. In 0.1.2 the gateway only sends one while
+# opening the relay into the sandbox, before the command starts
+# (openshell-server grpc/sandbox.rs await_relay_stream, after 10 s).
+_EARLY_DEADLINE_MARGIN = 1.0
 # How long a command or policy read waits for a restarting gateway to come back
 # before the failure is reported. A restart measured at 6-11 s end to end.
 _GATEWAY_RECOVERY = 60.0
@@ -675,13 +680,12 @@ class OpenShellSandboxBackend(SandboxBackend):
             if mismatch is not None:
                 raise SandboxTerminalError(
                     f"OpenShell did not apply the requested network policy to sandbox {name} ({mismatch}), "
-                    "so the sandbox was destroyed."
+                    "so the sandbox is not used and is being destroyed."
                 )
         except BaseException:
             # Bound before the call, so a create that fails half way -- after the
             # gateway accepted it, or at the policy check -- still gets deleted.
-            with suppress(Exception):
-                self.destroy(name)
+            self._destroy_or_warn(name, after="a failed create")
             raise
         self._egress[name] = wanted
         return name
@@ -769,12 +773,14 @@ class OpenShellSandboxBackend(SandboxBackend):
         mismatch = effective.mismatch(wanted)
         if mismatch is None:
             return
-        with suppress(SandboxError):
-            self.destroy(name)
+        if self._destroy_or_warn(name, after="its network policy changed"):
+            outcome = "so the sandbox was destroyed"
+        else:
+            outcome = "and destroying the sandbox failed, so it may still be running"
         raise SandboxTerminalError(
             f"The network policy of OpenShell sandbox {name} changed after it was created ({mismatch}), "
-            "so the sandbox was destroyed. A gateway administrator, an approved policy draft or a "
-            "gateway-wide policy can widen a running sandbox; commands already run may have used it."
+            f"{outcome}. A gateway administrator, an approved policy draft or a gateway-wide policy can "
+            "widen a running sandbox; commands already run may have used it."
         )
 
     def _exec(
@@ -792,8 +798,9 @@ class OpenShellSandboxBackend(SandboxBackend):
 
         Streams the gateway's events directly: the SDK's ``exec_stream`` keeps every
         chunk in memory until the command exits. Raises :class:`_ExecHung` past
-        ``deadline`` and :class:`_GatewayDropped` when the gateway goes away after the
-        request left, where the command may or may not have run.
+        ``deadline``, :class:`SandboxError` when the gateway could not reach the
+        sandbox to start the command, and :class:`_GatewayDropped` when the gateway
+        goes away after the request left, where the command may or may not have run.
         """
         from openshell._proto import openshell_pb2
 
@@ -823,7 +830,12 @@ class OpenShellSandboxBackend(SandboxBackend):
         except Exception as e:
             status = _status_name(e)
             if status == "DEADLINE_EXCEEDED":
-                raise _ExecHung from e
+                if time.monotonic() - started >= deadline - _EARLY_DEADLINE_MARGIN:
+                    raise _ExecHung from e
+                raise SandboxError(
+                    f"The command was not run: the OpenShell gateway could not reach sandbox {sandbox} to "
+                    f"start it ({_describe_error(e)}). Run it again."
+                ) from e
             if status == "UNAVAILABLE":
                 raise _GatewayDropped(_describe_error(e)) from e
             with _translate_openshell_errors(
@@ -854,9 +866,10 @@ class OpenShellSandboxBackend(SandboxBackend):
 
         A sandbox that is not ready yet, which is how it looks for a few seconds after a
         gateway restart, has not launched anything, so the command is sent again once it
-        is. A gateway that drops an exec in flight has killed the command with every
-        other process in the sandbox, and whether it had already done its work is not
-        knowable, so that is reported to the model rather than retried or guessed.
+        is. An exec dropped in flight has an unknown outcome, so that is reported to the
+        model rather than retried or guessed: a gateway restart kills the command with
+        every other process in the sandbox, but a dropped connection to a gateway that
+        stays up does not stop it, and it runs on until the wrapper's timer ends it.
         """
         try:
             try:
@@ -869,10 +882,11 @@ class OpenShellSandboxBackend(SandboxBackend):
         except _GatewayDropped as e:
             self._wait_until_ready(sandbox, deadline=time.monotonic() + _GATEWAY_RECOVERY)
             raise SandboxError(
-                f"The OpenShell gateway dropped the command before it reported an exit status ({e}); the "
-                "gateway may have restarted. The command may or may not have run, and a gateway restart "
-                "also stops processes that earlier commands left running. Files are kept. Check what "
-                "state you need and run the command again."
+                f"The OpenShell gateway dropped the command before it reported an exit status ({e}). The "
+                "command may or may not have run. If only the connection dropped, it may still be running "
+                "until its timeout runs out; if the gateway restarted, the restart stopped it along with "
+                "processes that earlier commands left running. Files are kept. Check what state you need "
+                "before running the command again."
             ) from e
 
     def run_command(
@@ -934,16 +948,8 @@ class OpenShellSandboxBackend(SandboxBackend):
         # The wrapper reports within its budget unless the command disabled it or the
         # gateway stopped relaying; either way the command may still be running, and
         # OpenShell does not stop an exec whose caller went away, so only destroying
-        # the sandbox ends it. There is no server-side lifetime to fall back on.
-        try:
-            self.destroy(sandbox)
-        except SandboxError:
-            log.warning(
-                "Timed out running a command in OpenShell sandbox %s and could not destroy it; it has no "
-                "server-side lifetime and will need manual cleanup",
-                sandbox,
-                exc_info=True,
-            )
+        # the sandbox ends it.
+        self._destroy_or_warn(sandbox, after="a command timed out")
         return SandboxExecResult(
             exit_code=-1,
             stdout=stdout.get_text(),
@@ -1048,6 +1054,21 @@ class OpenShellSandboxBackend(SandboxBackend):
             if name:
                 entries.append((name, kind == "d"))
         return entries
+
+    def _destroy_or_warn(self, sandbox: str, *, after: str) -> bool:
+        """Destroy ``sandbox``, logging a failure instead of raising it; return whether it was destroyed."""
+        try:
+            self.destroy(sandbox)
+        except Exception:
+            # OpenShell has no server-side lifetime to fall back on.
+            log.warning(
+                "Could not destroy OpenShell sandbox %s after %s; it will need manual cleanup",
+                sandbox,
+                after,
+                exc_info=True,
+            )
+            return False
+        return True
 
     def destroy(self, sandbox: str) -> None:
         self._egress.pop(sandbox, None)

@@ -35,7 +35,7 @@ import pytest
 pytest.importorskip("openshell")
 
 import grpc
-from openshell import SandboxClient
+from openshell import SandboxClient, SandboxError as SdkError
 from openshell._proto import openshell_pb2, sandbox_pb2
 
 from airflow.providers.common.ai.sandbox.base import (
@@ -52,6 +52,7 @@ from airflow.providers.common.ai.sandbox.openshell import (
     _STAGING_FAILED,
     _SYSTEM_PATH,
     OpenShellSandboxBackend,
+    _BoundedTail,
     _wrapper_line,
 )
 
@@ -193,10 +194,35 @@ def _reply(code: int, stderr: Callable[[str], bytes]):
     return reply
 
 
+class _Clock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def _deadline_exceeded(clock: _Clock, *, after: float | None = None, details: str = ""):
+    """An ExecSandbox side effect failing with DEADLINE_EXCEEDED ``after`` seconds in, by default at its deadline."""
+
+    def reply(request, timeout):
+        clock.now += timeout if after is None else after
+        return _Stream([], _RpcError(grpc.StatusCode.DEADLINE_EXCEEDED, details))
+
+    return reply
+
+
 @pytest.fixture(autouse=True)
 def _no_sleep():
     with mock.patch(f"{_MODULE}.time.sleep", autospec=True):
         yield
+
+
+@pytest.fixture
+def clock():
+    clock = _Clock()
+    with mock.patch(_MONOTONIC_PATH, side_effect=clock):
+        yield clock
 
 
 def test_missing_sdk_error_is_actionable():
@@ -252,8 +278,6 @@ class TestClient:
 
     @mock.patch("openshell.SandboxClient.from_active_cluster", autospec=True)
     def test_a_missing_registration_is_terminal(self, from_active_cluster):
-        from openshell import SandboxError as SdkError
-
         from_active_cluster.side_effect = SdkError("gateway 'prod' not found")
 
         with pytest.raises(SandboxTerminalError, match="gateway 'prod' not found"):
@@ -495,6 +519,20 @@ class TestCreate:
         client.delete.assert_called_once()
         assert backend._egress == {}
 
+    def test_a_sandbox_that_cannot_be_deleted_after_a_failed_create_is_logged(self, caplog):
+        backend, client = _backend()
+        client._stub.GetSandboxConfig.return_value = _config(extra_rule=("www.google.com", 443))
+        client.delete.side_effect = _RpcError(grpc.StatusCode.UNAVAILABLE, "down")
+
+        with pytest.raises(SandboxTerminalError, match="www.google.com:443") as error:
+            backend.create(spec=SandboxSpec())
+
+        name = client.create.call_args.kwargs["name"]
+        assert "was destroyed" not in str(error.value)
+        assert (
+            f"Could not destroy OpenShell sandbox {name} after a failed create; it will need manual cleanup"
+        ) in caplog.messages
+
     @pytest.mark.parametrize("code", [grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED])
     def test_a_policy_read_rides_out_a_restarting_gateway(self, code):
         backend, client = _backend()
@@ -704,9 +742,9 @@ class TestRunCommand:
 
         assert result.applied_timeout == 3.0
 
-    def test_the_whole_second_deadline_is_reported_for_an_abandoned_command_too(self):
+    def test_the_whole_second_deadline_is_reported_for_an_abandoned_command_too(self, clock):
         backend, client = _backend()
-        client._stub.ExecSandbox.return_value = _Stream([], _RpcError(grpc.StatusCode.DEADLINE_EXCEEDED))
+        client._stub.ExecSandbox.side_effect = _deadline_exceeded(clock)
 
         result = backend.run_command("box", "sleep 300", timeout=2.2, max_output_bytes=100)
 
@@ -716,9 +754,18 @@ class TestRunCommand:
         backend, client = _backend()
         chunk = b"y\n" * 32768
         client._stub.ExecSandbox.return_value = _Stream([_stdout(chunk) for _ in range(200)] + [_exit(0)])
+        buffered: list[int] = []
+        real_add = _BoundedTail.add
 
-        result = backend.run_command("box", "yes > /proc/$PPID/fd/1", timeout=5, max_output_bytes=1024)
+        def add(tail, data):
+            real_add(tail, data)
+            buffered.append(len(tail._data))
 
+        with mock.patch.object(_BoundedTail, "add", autospec=True, side_effect=add):
+            result = backend.run_command("box", "yes > /proc/$PPID/fd/1", timeout=5, max_output_bytes=1024)
+
+        assert len(buffered) == 200
+        assert max(buffered) == 1024
         assert len(result.stdout.encode()) <= 1024
         assert result.stdout_truncated
 
@@ -737,14 +784,29 @@ class TestRunCommand:
         assert not isinstance(error.value, SandboxTerminalError)
         client._stub.ExecSandbox.assert_not_called()
 
-    def test_a_hung_exec_destroys_the_sandbox(self):
+    @pytest.mark.parametrize(
+        "after", [None, 3 + _EXEC_GRACE - 0.5], ids=["at-the-deadline", "just-before-the-deadline"]
+    )
+    def test_a_hung_exec_destroys_the_sandbox(self, clock, after):
         backend, client = _backend()
-        client._stub.ExecSandbox.return_value = _Stream([], _RpcError(grpc.StatusCode.DEADLINE_EXCEEDED))
+        client._stub.ExecSandbox.side_effect = _deadline_exceeded(clock, after=after)
 
         result = backend.run_command("box", "sleep 300", timeout=3, max_output_bytes=100)
 
         assert (result.exit_code, result.timed_out, result.sandbox_terminated) == (-1, True, True)
         client.delete.assert_called_once_with("box", workspace="default", allow_missing=True)
+
+    def test_a_deadline_the_gateway_reports_early_is_a_command_that_did_not_run(self, clock):
+        backend, client = _backend()
+        client._stub.ExecSandbox.side_effect = _deadline_exceeded(
+            clock, after=10.0, details="relay open timed out"
+        )
+
+        with pytest.raises(SandboxError, match="was not run.*relay open timed out") as error:
+            backend.run_command("box", "sleep 300", timeout=3, max_output_bytes=100)
+
+        assert not isinstance(error.value, SandboxTerminalError)
+        client.delete.assert_not_called()
 
     def test_a_sandbox_not_ready_after_a_gateway_restart_is_waited_for_and_retried(self):
         backend, client = _backend()
@@ -783,7 +845,7 @@ class TestRunCommand:
         )
         client._stub.GetSandbox.side_effect = [_RpcError(grpc.StatusCode.UNAVAILABLE), _sandbox()]
 
-        with pytest.raises(SandboxError, match="may or may not have run") as error:
+        with pytest.raises(SandboxError, match="may or may not have run.*may still be running") as error:
             backend.run_command("box", "make install", timeout=5, max_output_bytes=100)
 
         assert not isinstance(error.value, SandboxTerminalError)
@@ -828,6 +890,22 @@ class TestRunCommand:
 
         client._stub.ExecSandbox.assert_not_called()
         client.delete.assert_called_once_with(name, workspace="default", allow_missing=True)
+
+    def test_widened_egress_on_a_sandbox_that_cannot_be_destroyed_is_not_reported_as_destroyed(self, caplog):
+        backend, client = _backend()
+        backend.create(spec=SandboxSpec())
+        name = client.create.call_args.kwargs["name"]
+        client._stub.GetSandboxConfig.return_value = _config(extra_rule=("www.google.com", 443))
+        client.delete.side_effect = _RpcError(grpc.StatusCode.UNAVAILABLE, "down")
+
+        with pytest.raises(SandboxTerminalError, match="destroying the sandbox failed") as error:
+            backend.run_command(name, "true", timeout=5, max_output_bytes=100)
+
+        assert "was destroyed" not in str(error.value)
+        assert (
+            f"Could not destroy OpenShell sandbox {name} after its network policy changed; "
+            "it will need manual cleanup"
+        ) in caplog.messages
 
     def test_egress_widened_during_the_command_is_terminal(self):
         backend, client = _backend()
@@ -927,9 +1005,9 @@ class TestFiles:
 
         assert not isinstance(error.value, SandboxTerminalError)
 
-    def test_a_hung_file_operation_is_recoverable_and_keeps_the_sandbox(self):
+    def test_a_hung_file_operation_is_recoverable_and_keeps_the_sandbox(self, clock):
         backend, client = _backend()
-        client._stub.ExecSandbox.return_value = _Stream([], _RpcError(grpc.StatusCode.DEADLINE_EXCEEDED))
+        client._stub.ExecSandbox.side_effect = _deadline_exceeded(clock)
 
         with pytest.raises(SandboxError, match="did not finish") as error:
             backend.read_file("box", "/x", max_bytes=10)
