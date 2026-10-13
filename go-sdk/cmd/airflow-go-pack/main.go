@@ -133,6 +133,8 @@ Examples:
 		"",
 		"path to a pre-captured --airflow-metadata manifest (JSON or YAML); skips "+
 			"introspecting the binary")
+	root.Flags().BoolVar(&opts.strict, "strict", false,
+		"fail packing if no Dags or task handlers are registered at pack time")
 	root.Flags().StringVar(&opts.goos, "goos",
 		"",
 		"target GOOS for the bundle (cross-compile); prefer this over the GOOS env "+

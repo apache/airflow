@@ -48,6 +48,7 @@ type packOptions struct {
 	airflowMetadata string   // path to a pre-captured --airflow-metadata manifest (JSON or YAML)
 	goos            string   // target GOOS for the deployable build (falls back to env GOOS, then host)
 	goarch          string   // target GOARCH for the deployable build (falls back to env GOARCH, then host)
+	strict          bool     // fail instead of warning when no Dags or task handlers are registered
 	buildArgs       []string // forwarded verbatim to `go build` (already includes the leading "--")
 }
 
@@ -165,6 +166,13 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		return err
 	}
 	if len(meta.Dags) == 0 && len(meta.DagSourceFiles) == 0 {
+		if opts.strict {
+			return fmt.Errorf(
+				"no Dags or task handlers were registered at pack time; " +
+					"--strict requires at least one. Drop --strict if the bundle " +
+					"generates its Dags at run time",
+			)
+		}
 		fmt.Fprintln(stderr, "warning: no Dags or task handlers were registered at pack time; "+
 			"this is expected only if the bundle generates its Dags at run time, "+
 			"and those Dags show the entrypoint source in the Code view")
