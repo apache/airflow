@@ -141,7 +141,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        :doc:`connections/pydantic_ai_azure` keep their meaning, so an existing connection
        keeps producing the same model.
    * - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset`
-     - Exposes ``list_tables``, ``get_schema``, ``query`` and ``check_query``. Read-only
+     - Exposes ``list_tables``, ``get_schema``, ``query`` and ``check_query``, each named
+       ``<tool_prefix>_<name>`` when ``tool_prefix`` is set. Read-only
        unless ``allow_writes=True``. When ``allowed_tables`` is set, other tables are
        refused. ``query`` returns at most ``max_rows`` rows, and keeps the rows and column
        names within ``max_result_bytes`` bytes. When ``query`` fails or refuses a

@@ -44,6 +44,12 @@ class TestMCPHookInit:
         hook = MCPHook(mcp_conn_id="my_mcp")
         assert hook.mcp_conn_id == "my_mcp"
 
+    def test_tool_prefix_defaults_to_empty_string(self):
+        assert MCPHook(mcp_conn_id="my_mcp").tool_prefix == ""
+
+    def test_none_tool_prefix_is_treated_as_empty_string(self):
+        assert MCPHook(mcp_conn_id="my_mcp", tool_prefix=None).tool_prefix == ""  # type: ignore[arg-type]
+
     def test_tool_prefix(self):
         hook = MCPHook(mcp_conn_id="my_mcp", tool_prefix="weather")
         assert hook.tool_prefix == "weather"

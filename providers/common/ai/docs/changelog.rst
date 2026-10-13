@@ -180,6 +180,15 @@ Misc
   that may reach the network. See :ref:`the OpenSandbox backend <sandbox-backend-opensandbox>`.
 
 .. note::
+  ``HookToolset`` no longer accepts the deprecated ``tool_name_prefix`` parameter. Pass
+  ``tool_prefix`` instead: ``tool_name_prefix="s3_"`` becomes ``tool_prefix="s3"``, since
+  ``HookToolset`` adds the underscore itself. ``MCPToolset``'s ``tool_prefix`` now defaults to
+  ``""`` like every other toolset's (``None`` is still accepted and treated as ``""``), and
+  so does ``MCPHook``'s.
+  ``SQLToolset`` and ``DataFusionToolset`` gain a ``tool_prefix`` parameter with the same
+  behaviour as ``HookToolset``'s.
+
+.. note::
   On Airflow >= 3.3, ``AgentOperator``'s ``usage_limits`` counts usage across every
   attempt of the task instance combined -- initial run, every retry, and every HITL
   regeneration add to one running total (including the implicit ``request_limit=50``
