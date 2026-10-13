@@ -155,7 +155,7 @@ export const Connections = () => {
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["connection_id"];
-  const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
+  const { data, error, isLoading } = useConnectionServiceGetConnections({
     ...(advancedSearch.enabled
       ? { connectionIdPattern: connectionIdPattern ?? undefined }
       : { connectionIdPrefixPattern: connectionIdPattern ?? undefined }),
@@ -211,7 +211,6 @@ export const Connections = () => {
           />
         }
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="admin:connections.connection"
         noRowsMessage={<NothingFoundInfo />}

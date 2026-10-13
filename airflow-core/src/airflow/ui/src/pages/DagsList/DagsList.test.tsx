@@ -106,8 +106,11 @@ describe("Dag Filters", () => {
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
 
+    let refetchStarted = false;
+
     server.use(
       http.get("/ui/dags", async () => {
+        refetchStarted = true;
         await delay("infinite");
 
         return HttpResponse.json({ dags: [], total_entries: 0 });
@@ -120,7 +123,7 @@ describe("Dag Filters", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("run_state-pill")).toBeInTheDocument();
-      expect(screen.getByRole("progressbar")).toBeVisible();
+      expect(refetchStarted).toBe(true);
     });
 
     expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
