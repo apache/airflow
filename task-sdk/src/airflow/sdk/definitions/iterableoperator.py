@@ -25,7 +25,7 @@ import threading
 import time
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from functools import partial, wraps
+from functools import cached_property, partial, wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
@@ -1292,7 +1292,7 @@ class IterableOperator(BaseOperator):
         (see :meth:`_replay_checkpoint`) instead of running the operator again, and reports nothing
         again.
         """
-        await self._report_indexed_task(executor, task, runner.report_success)
+        await self._report_indexed_task(executor, task, runner.report_success, task.task.on_success_callback)
         # The result is only checkpointed when the indexed task pushes XComs and returned something,
         # so the same condition decides whether there is a return_value_<index> to push at all.
         if indexed_task_state.result is not None:
@@ -1322,7 +1322,7 @@ class IterableOperator(BaseOperator):
                 try_number=task.try_number,
             )
         )
-        await self._report_indexed_task(executor, task, runner.report_skip)
+        await self._report_indexed_task(executor, task, runner.report_skip, task.task.on_skipped_callback)
         return task, None, skipped
 
     async def _record_failure(
@@ -1357,15 +1357,20 @@ class IterableOperator(BaseOperator):
 
     @staticmethod
     async def _report_indexed_task(
-        executor: AsyncAwareExecutor, task: IndexedTaskInstance, report: Callable[[], None]
+        executor: AsyncAwareExecutor,
+        task: IndexedTaskInstance,
+        report: Callable[[], None],
+        callbacks: Sequence[Callable],
     ) -> None:
         """
         Run an indexed task's success or skip report where its code ran.
 
         On the loop for an async operator, in a worker thread for a sync one, where a synchronous
         SDK call made from the callback waits its turn for the channel instead of holding up the loop.
+        Without ``callbacks`` the report only sets the state and ``end_date``, which makes no SDK
+        call, so it runs on the loop and spares the indexed task a thread hand-off.
         """
-        if task.is_async:
+        if task.is_async or not callbacks:
             report()
         else:
             await executor.run_sync(report)
@@ -1399,9 +1404,18 @@ class IterableOperator(BaseOperator):
         attempt and would make every checkpoint look stale.
         """
         inputs: dict[str, Any] = {}
-        for key, value in self.partial_kwargs.items():
+        for key, value in self._partial_kwargs_from_upstream.items():
             self._collect_upstream_values(key, value, getattr(unmapped_task, key, None), inputs)
         return inputs
+
+    @cached_property
+    def _partial_kwargs_from_upstream(self) -> dict[str, Any]:
+        """The partial kwargs holding an XComArg at any depth: the same for every index, so found once."""
+        return {
+            key: value
+            for key, value in self.partial_kwargs.items()
+            if any(XComArg.iter_xcom_references(value))
+        }
 
     @classmethod
     def _collect_upstream_values(
