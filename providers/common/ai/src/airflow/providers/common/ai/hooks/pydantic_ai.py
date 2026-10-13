@@ -193,7 +193,12 @@ class PydanticAIHook(BaseHook):
         # A missing or unregistered type is left to ``conn.get_hook``, whose error explains a
         # URI that parsed with no type, or the '-'/'_' spelling a renamed type needs.
         hook_info = hooks.get(conn.conn_type) if conn.conn_type else None
-        if hook_info is not None and not issubclass(import_string(hook_info.hook_class_name), PydanticAIHook):
+        # ``generic`` and ``email`` are registered with ``hook_class_name=None``; that is not a
+        # Pydantic AI hook either.
+        if hook_info is not None and (
+            hook_info.hook_class_name is None
+            or not issubclass(import_string(hook_info.hook_class_name), PydanticAIHook)
+        ):
             expected_types = sorted(conn_type for conn_type in hooks if conn_type.startswith("pydanticai"))
             raise ValueError(
                 f"Connection {conn_id!r} has type {conn.conn_type!r}, but a Pydantic AI hook needs "
