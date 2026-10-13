@@ -226,7 +226,6 @@ class TestAgentRun:
         """With checkpointing every cycle is its own invocation; the budget must still span the run."""
 
         def lookup(key: str) -> str:
-            """Look a key up."""
             raise ModelRetry("no such key")
 
         agent = Agent(
