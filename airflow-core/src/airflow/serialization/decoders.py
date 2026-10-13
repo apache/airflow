@@ -398,6 +398,11 @@ def decode_deadline_alert(encoded_data: dict) -> SerializedDeadlineAlert:
         interval=interval,
         callback=_decode_deadline_callback(data[DeadlineAlertFields.CALLBACK]),
         name=data.get(DeadlineAlertFields.NAME),
+        run_type_filter=(
+            frozenset(data[DeadlineAlertFields.RUN_TYPE_FILTER])
+            if data.get(DeadlineAlertFields.RUN_TYPE_FILTER) is not None
+            else None
+        ),
     )
 
 

@@ -255,6 +255,7 @@ def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[st
 
     return {
         "name": d.name,
+        "run_type_filter": sorted(d.run_type_filter) if d.run_type_filter is not None else None,
         "reference": encode_deadline_reference(d.reference),
         "interval": serialize(d.interval),
         "callback": (

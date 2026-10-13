@@ -45,6 +45,31 @@ Creating a Deadline Alert requires three mandatory parameters:
 * Interval: How far before or after the reference point to trigger the alert (either a timedelta or a dynamic interval such as VariableInterval)
 * Callback: A Callback object which contains a path to a callable and optional kwargs to pass to it if the deadline is exceeded
 
+Use the optional ``run_type_filter`` parameter with :class:`airflow.sdk.DagRunType` enum members
+to restrict an alert to selected Dag run types.
+For example, the following alert applies to scheduled and asset-triggered runs, excluding backfill
+and manual runs:
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from airflow.sdk import AsyncCallback, DagRunType, DeadlineAlert, DeadlineReference
+
+    DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+        interval=timedelta(hours=2),
+        callback=AsyncCallback(notify_deadline_missed),
+        run_type_filter={DagRunType.SCHEDULED, DagRunType.ASSET_TRIGGERED},
+    )
+
+Omitting ``run_type_filter`` or setting it to ``None`` preserves the default of applying to all run types.
+An empty collection or an unknown run type is rejected. Each alert can select different run types.
+Excluded runs do not create deadline records.
+The Deadlines list continues to show stored deadline records. Changing this setting affects newly
+created runs; it does not remove existing deadline records.
+Filtering out backfill runs does not exclude catchup runs, which use ``DagRunType.SCHEDULED``.
+
 Here is how Deadlines are calculated:
 
 ::

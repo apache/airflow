@@ -52,6 +52,7 @@ __all__ = [
     "CronPartitionTimetable",
     "DAG",
     "DagRunState",
+    "DagRunType",
     "DayWindow",
     "DeadlineAlert",
     "DeadlineReference",
@@ -130,7 +131,7 @@ __version__ = "1.5.0"
 
 if TYPE_CHECKING:
     from airflow.sdk import lineage
-    from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
+    from airflow.sdk.api.datamodels._generated import DagRunState, DagRunType, TaskInstanceState, TriggerRule, WeightRule
     from airflow.sdk.bases.branch import BaseBranchOperator, BranchMixIn
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
@@ -283,6 +284,7 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "CronPartitionTimetable": (".definitions.timetables.trigger", "CronPartitionTimetable"),
     "DAG": (".definitions.dag", "DAG"),
     "DagRunState": (".api.datamodels._generated", "DagRunState"),
+    "DagRunType": (".api.datamodels._generated", "DagRunType"),
     "DayWindow": (".definitions.partition_mappers.window", "DayWindow"),
     "DeadlineAlert": (".definitions.deadline", "DeadlineAlert"),
     "DeadlineReference": (".definitions.deadline", "DeadlineReference"),
