@@ -1122,8 +1122,8 @@ def build_docs(
     name="down",
     help=(
         "Stop Breeze projects with no worktree, in this checkout, or belonging to deleted worktrees. "
-        "Removes containers, networks and volumes, except the build cache volume, without changing "
-        "local files or images. "
+        "Removes containers, networks and volumes, except the build cache volume. "
+        "Local files and images are not changed. "
         "Use --all-worktrees to include other checkouts, or --project-name for one exact project."
     ),
 )
