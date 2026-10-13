@@ -24,7 +24,7 @@ import posixpath
 import zipfile
 from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jinja2
@@ -380,13 +380,11 @@ FILTERS = {
 
 def _find_zip_root(path: str) -> tuple[str, str] | None:
     """Return ``(archive, prefix)`` when *path* is a zip archive or a directory inside one."""
-    candidate = Path(path)
+    candidate = Path(os.path.normpath(path))
     existing = next((p for p in (candidate, *candidate.parents) if os.path.exists(p)), None)
     if existing is None or not os.path.isfile(existing) or not zipfile.is_zipfile(existing):
         return None
     prefix = candidate.relative_to(existing).as_posix()
-    if ".." in PurePosixPath(prefix).parts:
-        return None
     return os.fspath(existing), "" if prefix == "." else prefix
 
 
