@@ -279,14 +279,16 @@ concurrent approach is dramatically faster — see the
 
 .. note::
 
-    The order of the arguments decides how often an upstream is read. ``iterate(a=..., b=...)``
-    combines them as a cross product, the last one varying fastest, and runs the iterations in
-    that order: each element of ``a`` is read once for the run of iterations that use it, while
-    ``b`` is read for every iteration. Reading an upstream's XCom is a round trip to the
-    supervisor per element, so put the longest upstream first and literal lists last:
-    ``iterate(url=upstream.output, retries=[1, 2, 3])`` reads each URL once, where
-    ``iterate(retries=[1, 2, 3], url=upstream.output)`` reads each of them three times. No more
-    than the element in use is kept per argument, so a large upstream is never held whole.
+    When an upstream is mapped or iterated, the order of the arguments decides how often it is
+    read. ``iterate(a=..., b=...)`` combines them as a cross product, the last one varying
+    fastest, and runs the iterations in that order: each element of ``a`` is read once for the
+    run of iterations that use it, while ``b`` is read for every iteration. Each element of such an
+    upstream is its own XCom, read with a round trip to the supervisor, so put the longest one
+    first and literal lists last: ``iterate(url=upstream.output, retries=[1, 2, 3])`` reads each
+    URL once, where ``iterate(retries=[1, 2, 3], url=upstream.output)`` reads each of them three
+    times. No more than the element in use is kept per argument, so such an upstream is never held
+    whole. An unmapped upstream that returns a list is pulled whole in one read and kept in memory
+    for the run, so the order of the arguments changes nothing for it.
 
 .. note::
 
