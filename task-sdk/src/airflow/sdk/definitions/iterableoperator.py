@@ -1430,8 +1430,7 @@ class IterableOperator(BaseOperator):
             self._collect_upstream_values(key, value, getattr(unmapped_task, key, None), inputs)
         return inputs
 
-    @staticmethod
-    def _digest_items(items: Iterable[Any]) -> str | None:
+    def _digest_items(self, items: Iterable[Any]) -> str | None:
         """
         Digest the items of a lazy upstream value, read one at a time.
 
@@ -1444,12 +1443,20 @@ class IterableOperator(BaseOperator):
         for one item must not fail every indexed task, which may never read that item. A checkpoint
         written with a digest then no longer matches, so its indexed task runs again rather than
         replaying a result.
+
+        :meth:`IterationState.stop_requested` is asked before every read, as the executor asks it
+        before every pull: a kill that lands while a large upstream is read ends the read at the
+        next item, and the value gets no digest. No indexed task runs after the kill to use it.
         """
+        if self._state.stop_requested():
+            return None
         digest = hashlib.sha256()
         try:
             for item in items:
                 digest.update(json.dumps(serialize(item), sort_keys=True).encode())
                 digest.update(b"\n")
+                if self._state.stop_requested():
+                    return None
         except Exception:
             return None
         return digest.hexdigest()

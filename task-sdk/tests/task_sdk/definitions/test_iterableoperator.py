@@ -4237,6 +4237,36 @@ class TestFingerprintCoversPartialInputsFromUpstream:
         assert digests[0] != digests[1]
         assert digests[0] == digests[2]
 
+    @pytest.mark.parametrize(
+        ("killed_while_reading", "expected_reads"),
+        [(None, []), (1, [0, 1])],
+        ids=["killed-before-the-digest", "killed-while-reading-an-item"],
+    )
+    def test_a_kill_ends_the_read_of_a_lazy_upstream_before_the_next_item(
+        self, killed_while_reading, expected_reads
+    ):
+        """A kill stops the digest of a large upstream at the next item, and the value gets no digest."""
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([{"arg1": "a"}]))
+        iterable_op.partial_kwargs = {"arg2": make_xcom_arg(None)}
+        upstream = XComIterable(task_id="upstream", dag_id="test_dag", run_id="run", length=100)
+        reads = []
+
+        def read_items(self):
+            for index in range(100):
+                reads.append(index)
+                if index == killed_while_reading:
+                    iterable_op._state.request_stop()
+                yield index
+
+        if killed_while_reading is None:
+            iterable_op._state.request_stop()
+        with patch.object(XComIterable, "__iter__", read_items):
+            recorded = iterable_op._collect_partial_inputs_from_upstream(SimpleNamespace(arg2=upstream))
+
+        assert recorded["arg2"] is None
+        assert reads == expected_reads
+
     def test_a_map_callable_raising_for_one_item_leaves_the_value_without_a_digest(self):
         """The indexed tasks may never read that item, so the failure is not theirs: the value gets no digest."""
 
