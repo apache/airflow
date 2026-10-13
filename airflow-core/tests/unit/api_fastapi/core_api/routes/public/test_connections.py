@@ -1798,6 +1798,14 @@ class TestCreateDefaultConnections(TestConnectionEndpoint):
         assert response.content == b""
         _check_last_log(session, dag_id=None, event="create_default_connections", logical_date=None)
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_respond_204_in_multi_team_mode(self, test_client, session):
+        """The route declares no body model, so the team-scoping dependency's read is the only
+        parse of the body: a correct bodyless request must not be rejected as unparsable."""
+        response = test_client.post("/connections/defaults")
+        assert response.status_code == 204
+        assert response.content == b""
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/connections/defaults")
         assert response.status_code == 401

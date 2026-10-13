@@ -46,7 +46,7 @@ locale_dirs: list[str] = []
 extensions = [
     "sphinx.ext.intersphinx",
     "airflow_intersphinx",
-    "sphinxcontrib.spelling",
+    "airflow_spelling",
 ]
 
 html_theme = "sphinx_airflow_theme"

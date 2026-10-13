@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+.. note::
+  On Airflow >= 3.3, the ``usage_limits`` of the ``LLM*`` operators (``LLMOperator``,
+  ``LLMBranchOperator``, ``LLMSQLQueryOperator``, ``LLMSchemaCompareOperator``,
+  ``LLMFileAnalysisOperator``) counts usage across every attempt of the task instance
+  combined -- the initial run and every retry add to one running total (including the
+  implicit ``request_limit=50`` default), instead of each attempt starting fresh. A pause
+  for approval and a retry after a reviewer rejects the output share the same total. Scale
+  each limit by ``retries + 1``, or set ``usage_limits=None``, to keep the old per-attempt
+  headroom. On Airflow < 3.3, or when ``usage_limits`` is ``None``, each attempt is checked
+  and counted on its own, unchanged. See :ref:`howto/operator:llm`.
+
 0.11.0
 ......
 

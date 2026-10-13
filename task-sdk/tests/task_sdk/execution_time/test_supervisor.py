@@ -274,6 +274,42 @@ class TestSupervisor:
             with expectation:
                 supervise_task(**kw)
 
+    def test_supervise_task_logs_config_hint_on_connection_error(self, mocker, tmp_path):
+        """Test that a connection failure reaching the Execution API is surfaced in the task
+        log, naming the responsible config, and still propagates."""
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+        server = "http://nonexistent-api-server:8080/execution/"
+        coordinator = mocker.Mock(spec=BaseCoordinator)
+        coordinator.execute_task.side_effect = httpx.ConnectError("Name or service not known")
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.get_coordinator_manager", autospec=True
+        ).return_value.for_queue.return_value = coordinator
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}), pytest.raises(httpx.ConnectError):
+            supervise_task(
+                ti=ti,
+                dag_rel_path="c.py",
+                token="",
+                server=server,
+                client=mocker.Mock(spec=sdk_client.Client),
+                bundle_info=BundleInfo(name="my-bundle", version=None),
+                log_path="attempt=1.log",
+            )
+
+        entries = [json.loads(line) for line in (tmp_path / "attempt=1.log").read_text().splitlines()]
+        assert [(e["level"], e["event"]) for e in entries] == [("info", "::endgroup::"), ("error", mock.ANY)]
+        assert "execution_api_server_url" in entries[1]["event"]
+        assert "base_url" in entries[1]["event"]
+        assert entries[1]["server"] == server
+
 
 def _response_error(status: int, detail: dict[str, Any]) -> ServerResponseError:
     error = ServerResponseError.from_response(

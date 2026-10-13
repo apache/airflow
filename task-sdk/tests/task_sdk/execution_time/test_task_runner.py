@@ -213,6 +213,13 @@ if TYPE_CHECKING:
 import time_machine
 
 
+@pytest.fixture(autouse=True)
+def _clear_structlog_contextvars():
+    # startup() binds TI identifiers for the life of the worker process; we need to clear them else other tests will be impacted.
+    yield
+    structlog.contextvars.clear_contextvars()
+
+
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
     """Creates an inline dag and returns it based on dag_id and task."""
     dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
@@ -3594,7 +3601,7 @@ class TestRuntimeTaskInstance:
     def test_get_first_reschedule_date(
         self, create_runtime_ti, mock_supervisor_comms, task_reschedule_count, expected_date
     ):
-        """Test that the first reschedule date is fetched from the Supervisor."""
+        """Test that the first reschedule date falls back to the Supervisor."""
         task = BaseOperator(task_id="hello")
         runtime_ti = create_runtime_ti(task=task, task_reschedule_count=task_reschedule_count)
 
@@ -3604,6 +3611,22 @@ class TestRuntimeTaskInstance:
 
         context = runtime_ti.get_template_context()
         assert runtime_ti.get_first_reschedule_date(context=context) == expected_date
+
+    def test_get_first_reschedule_date_uses_context_from_server(
+        self, create_runtime_ti, make_ti_context, mock_supervisor_comms
+    ):
+        """Test that first reschedule date from server context avoids a Supervisor request."""
+        first_reschedule_date = timezone.datetime(2025, 1, 1)
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, task_reschedule_count=1)
+        runtime_ti._ti_context_from_server = make_ti_context(
+            task_reschedule_count=1,
+            first_task_reschedule_start_date=first_reschedule_date,
+        )
+
+        context = runtime_ti.get_template_context()
+        assert runtime_ti.get_first_reschedule_date(context=context) == first_reschedule_date
+        mock_supervisor_comms.send.assert_not_called()
 
     def test_get_ti_count(self, mock_supervisor_comms):
         """Test that get_ti_count sends the correct request and returns the count."""

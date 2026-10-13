@@ -856,6 +856,9 @@ class TIRunContext(BaseModel):
     dag_run: DagRun
     loop: LoopContext | None = None
     task_reschedule_count: Annotated[int | None, Field(title="Task Reschedule Count")] = 0
+    first_task_reschedule_start_date: Annotated[
+        AwareDatetime | None, Field(title="First Task Reschedule Start Date")
+    ] = None
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
