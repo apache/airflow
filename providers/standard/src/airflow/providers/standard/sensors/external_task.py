@@ -490,7 +490,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
             if count_allowed == len(dttm_filter):
                 try:
-                    from sqllalchemy import select
+                    from sqlalchemy import select
 
                     from airflow.models import DagRun
 
