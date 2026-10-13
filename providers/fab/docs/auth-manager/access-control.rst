@@ -847,7 +847,6 @@ Show Dag Runs menu                     Dag Runs.menu_access                     
 Trigger Dag run                        Dags.can_edit, Dag Runs.can_create                                      User
 Clear Dag                              Dags.can_edit, Task Instances.can_delete                                User
 Clear Dag Run                          Dags.can_edit, Task Instances.can_delete                                User
-Mark Dag as blocked                    DAGS.can_edit, Dag Runs.can_read                                        User
 Mark Dag Run as failed                 DAGS.can_edit, Dag Runs.can_edit                                        User
 Mark Dag Run as success                DAGS.can_edit, Dag Runs.can_edit                                        User
 Mark Task as failed                    Dags.can_edit, Task Instances.can_edit                                  User
@@ -855,11 +854,10 @@ Mark Task as success                   Dags.can_edit, Task Instances.can_edit   
 Get Dag as grid                        Dags.can_read, Dag Runs.can_read, Task Instances.can_read               Viewer
 Get Dag as graph                       Dags.can_read, Dag Runs.can_read, Task Instances.can_read,              Viewer
                                        Dag Dependencies.can_read
-Get Dag as duration graph              Dags.can_read, Task Instances.can_read                                  Viewer
-Show all tries                         Dags.can_read, Task Instances.can_read                                  Viewer
-Show landing times                     Dags.can_read, Task Instances.can_read                                  Viewer
+Get Dag as duration graph              Dags.can_read, Dag Runs.can_read, Task Instances.can_read               Viewer
+Show all tries                         Dags.can_read, Dag Runs.can_read, Task Instances.can_read               Viewer
 Toggle Dag paused status               Dags.can_edit                                                           User
-Show Gantt Chart                       Dags.can_read, Task Instances.can_read                                  Viewer
+Show Gantt Chart                       Dags.can_read, Dag Runs.can_read, Task Instances.can_read               Viewer
 Get external links                     Dags.can_read, Task Instances.can_read                                  Viewer
 Show Task Instances                    Dags.can_read, Task Instances.can_read                                  Viewer
 Show Configurations menu               Configurations.menu_access                                              Op
@@ -882,8 +880,6 @@ Get My Profile                         My Profile.can_read                      
 Update My Profile                      My Profile.can_edit                                                     Viewer
 List Logs                              Audit Logs.can_read                                                     Viewer
 List Jobs                              Jobs.can_read                                                           Viewer
-Show SLA Misses menu                   SLA Misses.menu_access                                                  Viewer
-List SLA Misses                        SLA Misses.can_read                                                     Viewer
 List Plugins                           Plugins.can_read                                                        Viewer
 Show Plugins menu                      Plugins.menu_access                                                     Viewer
 Show Providers menu                    Providers.menu_access                                                   Op
@@ -907,10 +903,11 @@ Delete Users                           Users.can_delete                         
 Reset user Passwords                   Passwords.can_edit, Passwords.can_read                                  Admin
 ====================================== ======================================================================= ============
 
-The Grid and Graph views check Dag Runs.can_read and Task Instances.can_read on the resources
-themselves. A Dag-specific ``DAG Run:example_dag_id.can_read`` permission does not replace
-Dag Runs.can_read for these views. Granting these permissions does not expose other Dags, because
-the Dag-level check (``DAGs.can_read`` or ``DAG:example_dag_id.can_read``) still applies.
+The Grid, Graph and Gantt views, the duration charts and the list of task tries check
+Dag Runs.can_read and Task Instances.can_read on the resources themselves. A Dag-specific
+``DAG Run:example_dag_id.can_read`` permission does not replace Dag Runs.can_read for these
+views. Granting these permissions does not expose other Dags, because the Dag-level check
+(``DAGs.can_read`` or ``DAG:example_dag_id.can_read``) still applies.
 
 These Dag-level controls can be set directly through the UI / CLI, or encoded in the dags themselves through the access_control arg.
 

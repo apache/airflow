@@ -608,6 +608,59 @@ class TestPluginsManager:
 
             assert ExternalViewResponse(**external_views[0]).applies_to.root == {"dag.tags.name": ["ml"]}
 
+    def test_scopes_an_asset_view_on_the_asset_record(self, caplog):
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Asset lineage",
+                    "href": "/lineage",
+                    "url_route": "/lineage",
+                    "destination": "asset",
+                    "applies_to": {"group": ["sales"], "asset.name": ["orders"]},
+                }
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            assert external_views[0]["applies_to"] == {"group": ["sales"], "asset.name": ["orders"]}
+
+        assert caplog.record_tuples == []
+
+    def test_withholds_an_asset_view_whose_path_matches_no_field(self, caplog):
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Asset lineage",
+                    "href": "/lineage",
+                    "url_route": "/lineage",
+                    "destination": "asset",
+                    "applies_to": {"nme": ["orders"]},
+                }
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            assert external_views == []
+
+        assert caplog.record_tuples[0][1] == logging.ERROR
+        assert "names no field 'nme' on AssetResponse" in caplog.record_tuples[0][2]
+
     def test_accepts_a_path_through_a_field_the_models_do_not_describe(self, caplog):
         """A path cannot be checked past a bare ``dict``, so everything below it is accepted."""
 
