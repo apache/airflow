@@ -943,17 +943,23 @@ def test_run_workload_passes_team_name_to_connection_test_supervisor(mock_superv
 
 @mock.patch("airflow.sdk.execution_time.supervisor.supervise_task")
 @pytest.mark.parametrize(
-    ("config_overrides", "expected"),
+    ("config_overrides", "explicit_arg", "expected"),
     [
-        pytest.param({}, False, id="unset-defaults-to-false"),
-        pytest.param({("logging", "task_logs_to_stdout"): "True"}, True, id="logging-conf-true"),
-        pytest.param({("logging", "task_logs_to_stdout"): "False"}, False, id="logging-conf-false"),
+        pytest.param({}, None, False, id="unset-defaults-to-false"),
+        pytest.param({("logging", "task_logs_to_stdout"): "True"}, None, True, id="logging-conf-true"),
+        pytest.param({("logging", "task_logs_to_stdout"): "False"}, None, False, id="logging-conf-false"),
+        pytest.param(
+            {("logging", "task_logs_to_stdout"): "True"}, False, False, id="explicit-false-overrides-conf"
+        ),
+        pytest.param(
+            {("logging", "task_logs_to_stdout"): "False"}, True, True, id="explicit-true-overrides-conf"
+        ),
     ],
 )
-def test_run_workload_defaults_subprocess_logs_to_stdout_from_logging_conf(
-    mock_supervise_task, config_overrides, expected
+def test_run_workload_subprocess_logs_to_stdout(
+    mock_supervise_task, config_overrides, explicit_arg, expected
 ):
-    """When the caller omits subprocess_logs_to_stdout, it falls back to [logging] task_logs_to_stdout."""
+    """An omitted subprocess_logs_to_stdout falls back to [logging] task_logs_to_stdout; an explicit one wins."""
     mock_supervise_task.return_value = 0
     wl = workloads.ExecuteTask(
         ti=workloads.TaskInstance(
@@ -973,44 +979,12 @@ def test_run_workload_defaults_subprocess_logs_to_stdout_from_logging_conf(
         token="test-token",
         log_path="test.log",
     )
+    kwargs = {} if explicit_arg is None else {"subprocess_logs_to_stdout": explicit_arg}
 
     with conf_vars(config_overrides):
-        BaseExecutor.run_workload(wl, server="http://localhost:8080/execution/")
+        BaseExecutor.run_workload(wl, server="http://localhost:8080/execution/", **kwargs)
 
     assert mock_supervise_task.call_args.kwargs["subprocess_logs_to_stdout"] is expected
-
-
-def test_run_workload_explicit_subprocess_logs_to_stdout_overrides_logging_conf():
-    """An explicit subprocess_logs_to_stdout argument is not overridden by [logging] task_logs_to_stdout."""
-    wl = workloads.ExecuteTask(
-        ti=workloads.TaskInstance(
-            id="00000000-0000-0000-0000-000000000001",
-            dag_version_id="00000000-0000-0000-0000-000000000002",
-            task_id="test_task",
-            dag_id="test_dag",
-            run_id="test_run",
-            try_number=1,
-            map_index=-1,
-            pool_slots=1,
-            queue="default",
-            priority_weight=1,
-        ),
-        dag_rel_path="test_dag.py",
-        bundle_info=BundleInfo(name="test-bundle", version=None),
-        token="test-token",
-        log_path="test.log",
-    )
-
-    with (
-        conf_vars({("logging", "task_logs_to_stdout"): "True"}),
-        mock.patch("airflow.sdk.execution_time.supervisor.supervise_task") as mock_supervise_task,
-    ):
-        mock_supervise_task.return_value = 0
-        BaseExecutor.run_workload(
-            wl, server="http://localhost:8080/execution/", subprocess_logs_to_stdout=False
-        )
-
-    assert mock_supervise_task.call_args.kwargs["subprocess_logs_to_stdout"] is False
 
 
 @mock.patch.dict("os.environ", {}, clear=True)
