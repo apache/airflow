@@ -20,11 +20,6 @@
 Vendor-managed agents: ``ManagedAgentToolset``
 ===============================================
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 Cloud vendors now run agents on your behalf: Snowflake Cortex Agents, Amazon
 Bedrock AgentCore runtimes, Azure AI Foundry hosted agents, Vertex AI Agent
 Engine. Their reasoning loops execute on the vendor's infrastructure, so they

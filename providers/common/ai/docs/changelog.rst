@@ -120,6 +120,13 @@ Misc
   ``capabilities`` or ``spec_file`` move to ``AgentOperator`` or ``@task.agent``. See
   :ref:`howto/operator:llm`.
 
+.. note::
+  ``LoggingToolset`` is no longer part of the public API and is no longer exported from
+  ``airflow.providers.common.ai.toolsets``. ``AgentOperator`` still logs tool calls through
+  ``enable_tool_logging``, and ``ToolLoggingCapability`` is the supported way to pass a
+  ``logger``. See :doc:`stability`.
+
+.. note::
   On Airflow >= 3.3, the ``usage_limits`` of the ``LLM*`` operators (``LLMOperator``,
   ``LLMBranchOperator``, ``LLMSQLQueryOperator``, ``LLMSchemaCompareOperator``,
   ``LLMFileAnalysisOperator``) counts usage across every attempt of the task instance
