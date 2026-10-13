@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.core.pipeline.policies import AsyncRetryPolicy, RetryPolicy
@@ -45,6 +46,7 @@ from airflow.providers.microsoft.azure.utils import (
 )
 
 if TYPE_CHECKING:
+    from azure.core.paging import PageIterator
     from azure.identity import DefaultAzureCredential
     from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
     from azure.mgmt.appcontainers.models import Container, InitContainer
@@ -214,24 +216,44 @@ class AzureContainerAppsJobHook(AzureBaseHook):
             raise AzureContainerAppsJobExecutionError("Job submission returned no execution name")
         return execution.name
 
-    def get_execution(self, resource_group: str, job_name: str, execution_name: str) -> JobExecution | None:
+    def get_execution(
+        self, resource_group: str, job_name: str, execution_name: str, *, timeout_seconds: float | None = None
+    ) -> JobExecution | None:
         """Read an exact execution, falling back to history only on a direct lookup 404."""
+        expires_at = None if timeout_seconds is None else time.monotonic() + timeout_seconds
+
+        def get_timeouts() -> dict[str, Any]:
+            if expires_at is None:
+                return {}
+            remaining = expires_at - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"Execution {execution_name!r} lookup timed out")
+            return {"timeout": remaining, "connection_timeout": remaining, "read_timeout": remaining}
+
         with self.get_client() as client:
             try:
                 return client.job_execution(
-                    resource_group_name=resource_group, job_name=job_name, job_execution_name=execution_name
+                    resource_group_name=resource_group,
+                    job_name=job_name,
+                    job_execution_name=execution_name,
+                    **get_timeouts(),
                 )
             except ResourceNotFoundError:
-                return next(
-                    (
-                        execution
-                        for execution in client.jobs_executions.list(
-                            resource_group_name=resource_group, job_name=job_name
-                        )
-                        if execution.name == execution_name
-                    ),
-                    None,
-                )
+                continuation_token: str | None = None
+                while True:
+                    # Recreate the pager so each request gets the remaining budget.
+                    pages = cast(
+                        "PageIterator[JobExecution]",
+                        client.jobs_executions.list(
+                            resource_group_name=resource_group, job_name=job_name, **get_timeouts()
+                        ).by_page(continuation_token=continuation_token),
+                    )
+                    for execution in next(pages):
+                        if execution.name == execution_name:
+                            return execution
+                    continuation_token = pages.continuation_token
+                    if not continuation_token:
+                        return None
 
     def stop_execution(self, resource_group: str, job_name: str, execution_name: str) -> None:
         """Stop only the specified execution, with bounded SDK retries."""

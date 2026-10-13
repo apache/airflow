@@ -16,11 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import json
 from contextlib import asynccontextmanager, contextmanager
+from datetime import UTC, datetime
 from unittest.mock import create_autospec, patch
 
 import pytest
+import time_machine
 from azure.core.exceptions import AzureError, ResourceNotFoundError
+from azure.core.paging import ItemPaged
 from azure.core.polling import AsyncLROPoller, LROPoller
 from azure.mgmt.appcontainers import ContainerAppsAPIClient
 from azure.mgmt.appcontainers.aio import ContainerAppsAPIClient as AsyncContainerAppsAPIClient
@@ -41,6 +46,7 @@ from azure.mgmt.appcontainers.models import (
 )
 from azure.mgmt.appcontainers.operations import JobsExecutionsOperations, JobsOperations
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.exceptions import AzureContainerAppsJobExecutionError
 from airflow.providers.microsoft.azure.hooks.container_apps import (
@@ -49,6 +55,8 @@ from airflow.providers.microsoft.azure.hooks.container_apps import (
     build_execution_template,
     get_execution_result,
 )
+from airflow.providers.microsoft.azure.operators.container_apps import AzureContainerAppsJobOperator
+from airflow.providers.microsoft.azure.triggers.container_apps import AzureContainerAppsJobTrigger
 
 MODULE = "airflow.providers.microsoft.azure.hooks.container_apps"
 
@@ -139,6 +147,32 @@ def test_submit_defaults_once(hook, client):
     client.jobs.begin_start.assert_called_once_with(
         resource_group_name="group", job_name="job", template=None
     )
+
+
+@pytest.mark.parametrize("cpu", ["{{ params.cpu }}", 1, 0.5, None])
+def test_operator_submits_numeric_cpu_after_rendering(hook, client, cpu):
+    client.jobs.get.return_value = Job(
+        location="westeurope",
+        template=JobTemplate(containers=[Container(name="worker", resources=ContainerResources(cpu=0.25))]),
+    )
+    operator = AzureContainerAppsJobOperator(
+        task_id="job",
+        resource_group="group",
+        job_name="job",
+        container_name="worker",
+        cpu=cpu,
+        memory="1Gi",
+        deferrable=True,
+    )
+    operator.hook = hook
+    operator.render_template_fields({"params": {"cpu": "0.5"}})
+    with pytest.raises(TaskDeferred):
+        operator.execute({})
+    submitted = client.jobs.begin_start.call_args.kwargs["template"]
+    payload = json.loads(json.dumps(submitted.as_dict()))
+    actual = payload["containers"][0]["resources"]["cpu"]
+    assert actual == (0.25 if cpu is None else 0.5 if isinstance(cpu, str) else cpu)
+    assert isinstance(actual, (float, int))
 
 
 @pytest.mark.parametrize("error", [AzureError("ambiguous response"), RuntimeError("unexpected")])
@@ -265,11 +299,91 @@ def test_failure_diagnostics(message, reason, diagnostic):
 def test_missing_lookup_uses_exact_history_name(hook, client, found):
     client.job_execution.side_effect = ResourceNotFoundError()
     exact = JobExecution({"name": "execution", "properties": {"status": "Succeeded"}})
-    client.jobs_executions.list.return_value = [JobExecution({"name": "other"})] + ([exact] if found else [])
+    client.jobs_executions.list.return_value = ItemPaged(
+        lambda token: None,
+        lambda response: (None, iter([JobExecution({"name": "other"})] + ([exact] if found else []))),
+    )
     result = hook.get_execution("group", "job", "execution")
     assert result is exact if found else result is None
     if not found:
         assert get_execution_result("execution", result)["status"] == "error"
+
+
+@patch(f"{MODULE}.time", autospec=True)
+def test_lookup_refreshes_budget_for_history_pages(clock, hook, client):
+    clock.monotonic.side_effect = [0, 1, 3, 7]
+    client.job_execution.side_effect = ResourceNotFoundError()
+    exact = JobExecution({"name": "execution"})
+    tokens = []
+
+    def get_page(token):
+        tokens.append(token)
+        return ("next", iter([JobExecution({"name": "other"})])) if token is None else (None, iter([exact]))
+
+    client.jobs_executions.list.side_effect = lambda **kwargs: ItemPaged(get_page, lambda response: response)
+    assert hook.get_execution("group", "job", "execution", timeout_seconds=10) is exact
+    assert tokens == [None, "next"]
+    assert client.job_execution.call_args.kwargs == {
+        "resource_group_name": "group",
+        "job_name": "job",
+        "job_execution_name": "execution",
+        "timeout": 9,
+        "connection_timeout": 9,
+        "read_timeout": 9,
+    }
+    assert [call.kwargs for call in client.jobs_executions.list.call_args_list] == [
+        {
+            "resource_group_name": "group",
+            "job_name": "job",
+            "timeout": budget,
+            "connection_timeout": budget,
+            "read_timeout": budget,
+        }
+        for budget in [7, 3]
+    ]
+
+
+@pytest.mark.parametrize("ticks", [[0, 10], [0, 1, 10], [0, 1, 3, 10]])
+@patch(f"{MODULE}.time", autospec=True)
+def test_lookup_deadline_prevents_further_requests(clock, hook, client, ticks):
+    clock.monotonic.side_effect = ticks
+    client.job_execution.side_effect = ResourceNotFoundError()
+    client.jobs_executions.list.side_effect = lambda **kwargs: ItemPaged(
+        lambda token: ("next", iter([JobExecution({"name": "other"})])), lambda response: response
+    )
+    with pytest.raises(TimeoutError, match="lookup timed out"):
+        hook.get_execution("group", "job", "execution", timeout_seconds=10)
+    assert client.job_execution.call_count == (len(ticks) > 2)
+    assert client.jobs_executions.list.call_count == max(0, len(ticks) - 3)
+
+
+@pytest.mark.parametrize("ticks", [[0, 1, 10], [0, 1, 3, 10]])
+@patch("airflow.providers.microsoft.azure.operators.container_apps.time", autospec=True)
+@patch(f"{MODULE}.time", autospec=True)
+def test_worker_timeout_during_history_stops_submitted_execution(
+    hook_clock, worker_clock, hook, client, ticks
+):
+    hook_clock.monotonic.side_effect = ticks
+    worker_clock.monotonic.side_effect = [0, 0, 10]
+    client.job_execution.side_effect = ResourceNotFoundError()
+    client.jobs_executions.list.side_effect = lambda **kwargs: ItemPaged(
+        lambda token: ("next", iter([JobExecution({"name": "other"})])), lambda response: response
+    )
+    operator = AzureContainerAppsJobOperator(
+        task_id="job",
+        resource_group="group",
+        job_name="job",
+        timeout_seconds=10,
+        cancel_on_termination=False,
+    )
+    operator.hook = hook
+    with pytest.raises(AzureContainerAppsJobExecutionError, match="timed out"):
+        operator.execute({})
+    client.jobs.begin_start.assert_called_once()
+    client.jobs.begin_stop_execution.assert_called_once_with(
+        resource_group_name="group", job_name="job", job_execution_name="execution"
+    )
+    worker_clock.sleep.assert_not_called()
 
 
 def test_direct_lookup_and_exact_stop(hook, client):
@@ -324,6 +438,63 @@ async def test_async_history_fallback(async_hook, async_client, found):
     async_client.jobs_executions.list.return_value = history()
     result = await async_hook.async_get_execution("group", "job", "execution")
     assert result is exact if found else result is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("history", [False, True])
+@time_machine.travel(datetime(2026, 1, 1, tzinfo=UTC), tick=False)
+@patch("airflow.providers.microsoft.azure.triggers.container_apps.time", autospec=True)
+@patch("airflow.providers.microsoft.azure.triggers.container_apps.asyncio.timeout", autospec=True)
+@patch(
+    "airflow.providers.microsoft.azure.triggers.container_apps.AzureContainerAppsJobAsyncHook", autospec=True
+)
+async def test_deferred_deadline_interrupts_complete_lookup(
+    hook_factory, timeout_factory, clock, async_hook, async_client, history
+):
+    clock.monotonic.return_value = 0
+    hook_factory.return_value = async_hook
+    timeout = asyncio.Timeout(None)
+    timeout_factory.return_value = timeout
+    cancelled = asyncio.Event()
+
+    async def block():
+        timeout.reschedule(asyncio.get_running_loop().time())
+        try:
+            await asyncio.Future()
+        finally:
+            cancelled.set()
+
+    if history:
+        async_client.job_execution.side_effect = ResourceNotFoundError()
+
+        async def pages():
+            yield JobExecution({"name": "other"})
+            await block()
+
+        async_client.jobs_executions.list.return_value = pages()
+    else:
+
+        async def lookup(**kwargs):
+            await block()
+
+        async_client.job_execution.side_effect = lookup
+
+    trigger = AzureContainerAppsJobTrigger(
+        resource_group="group",
+        job_name="job",
+        execution_name="execution",
+        deadline="2026-01-01T00:01:00+00:00",
+        cancel_on_termination=False,
+    )
+    events = [event async for event in trigger.run()]
+    assert cancelled.is_set()
+    assert len(events) == 1
+    assert events[0].payload["status"] == "error"
+    assert "timed out" in events[0].payload["message"]
+    timeout_factory.assert_called_once_with(60)
+    async_client.jobs.begin_stop_execution.assert_awaited_once_with(
+        resource_group_name="group", job_name="job", job_execution_name="execution"
+    )
 
 
 @pytest.mark.asyncio

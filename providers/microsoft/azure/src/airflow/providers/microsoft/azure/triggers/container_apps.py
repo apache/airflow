@@ -97,28 +97,39 @@ class AzureContainerAppsJobTrigger(BaseTrigger):
         while True:
             remaining = None if expires_at is None else expires_at - time.monotonic()
             if remaining is not None and remaining <= 0:
-                await self._stop_execution()
-                self._terminal_observed = True
-                yield TriggerEvent(
-                    {
-                        "status": "error",
-                        "execution_name": self.execution_name,
-                        "message": f"Execution {self.execution_name!r} timed out",
-                    }
-                )
-                return
-            execution = await hook.async_get_execution(
-                self.resource_group, self.job_name, self.execution_name
-            )
+                break
+            lookup_timeout = asyncio.timeout(remaining)
+            try:
+                async with lookup_timeout:
+                    execution = await hook.async_get_execution(
+                        self.resource_group, self.job_name, self.execution_name
+                    )
+            except TimeoutError:
+                if not lookup_timeout.expired():
+                    raise
+                break
+            if expires_at is not None:
+                remaining = expires_at - time.monotonic()
+                if remaining <= 0:
+                    break
             result = get_execution_result(self.execution_name, execution)
             if result is not None:
                 self._terminal_observed = True
                 yield TriggerEvent(result)
                 return
             delay = self.poll_interval_seconds
-            if expires_at is not None:
-                delay = min(delay, max(0, expires_at - time.monotonic()))
+            if remaining is not None:
+                delay = min(delay, remaining)
             await asyncio.sleep(delay)
+        await self._stop_execution()
+        self._terminal_observed = True
+        yield TriggerEvent(
+            {
+                "status": "error",
+                "execution_name": self.execution_name,
+                "message": f"Execution {self.execution_name!r} timed out",
+            }
+        )
 
     async def _stop_execution(self) -> None:
         try:

@@ -22,7 +22,7 @@ from datetime import UTC, datetime, timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from azure.core.exceptions import AzureError
+from azure.core.exceptions import AzureError, ServiceRequestTimeoutError, ServiceResponseTimeoutError
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.microsoft.azure.exceptions import AzureContainerAppsJobExecutionError
@@ -88,7 +88,7 @@ class AzureContainerAppsJobOperator(BaseOperator):
         command: Sequence[str] | None = None,
         args: Sequence[str] | None = None,
         env_vars: Mapping[str, str] | None = None,
-        cpu: float | None = None,
+        cpu: float | str | None = None,
         memory: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval_seconds: float = 60,
@@ -136,7 +136,7 @@ class AzureContainerAppsJobOperator(BaseOperator):
             command=self.command,
             args=self.args,
             env_vars=self.env_vars,
-            cpu=self.cpu,
+            cpu=float(self.cpu) if self.cpu is not None else None,
             memory=self.memory,
         )
         self._execution_name = execution_name
@@ -165,18 +165,30 @@ class AzureContainerAppsJobOperator(BaseOperator):
                 else self.timeout_seconds - (time.monotonic() - started_at)
             )
             if remaining is not None and remaining <= 0:
-                self._stop_execution()
-                self._terminal_observed = True
-                raise AzureContainerAppsJobExecutionError(f"Execution {execution_name!r} timed out")
-            execution = self.hook.get_execution(self.resource_group, self.job_name, execution_name)
+                break
+            try:
+                execution = self.hook.get_execution(
+                    self.resource_group, self.job_name, execution_name, timeout_seconds=remaining
+                )
+            except (TimeoutError, ServiceRequestTimeoutError, ServiceResponseTimeoutError):
+                if self.timeout_seconds is None or time.monotonic() - started_at < self.timeout_seconds:
+                    raise
+                break
+            if self.timeout_seconds is not None:
+                remaining = self.timeout_seconds - (time.monotonic() - started_at)
+                if remaining <= 0:
+                    break
             result = get_execution_result(execution_name, execution)
             if result is not None:
                 self._terminal_observed = True
                 return self.execute_complete(context, result)
             delay = self.poll_interval_seconds
-            if self.timeout_seconds is not None:
-                delay = min(delay, max(0, self.timeout_seconds - (time.monotonic() - started_at)))
+            if remaining is not None:
+                delay = min(delay, remaining)
             time.sleep(delay)
+        self._stop_execution()
+        self._terminal_observed = True
+        raise AzureContainerAppsJobExecutionError(f"Execution {execution_name!r} timed out")
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         """Return the execution name for XCom, or raise the reported execution failure."""

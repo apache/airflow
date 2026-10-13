@@ -93,7 +93,9 @@ async def test_terminal_failure(hook, trigger, execution, message):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("error", [AzureError("read failed"), RuntimeError("bug")])
+@pytest.mark.parametrize(
+    "error", [AzureError("read failed"), RuntimeError("bug"), TimeoutError("SDK timeout")]
+)
 async def test_read_errors_propagate(hook, trigger, error):
     hook.async_get_execution.side_effect = error
     with pytest.raises(type(error), match=str(error)):
@@ -123,15 +125,35 @@ async def test_expired_deadline_on_redistributed_trigger(hook, error):
 
 @pytest.mark.asyncio
 @time_machine.travel(datetime(2026, 1, 1, tzinfo=UTC), tick=False)
-@patch(f"{MODULE}.time.monotonic", autospec=True, side_effect=[0, 0, 58, 60])
+@patch(f"{MODULE}.time", autospec=True)
 @patch(f"{MODULE}.asyncio.sleep", autospec=True)
 async def test_monotonic_timeout_caps_poll_delay(sleep, monotonic, hook, trigger):
+    monotonic.monotonic.side_effect = [0, 0, 58, 60]
     trigger.deadline = "2026-01-01T00:01:00+00:00"
     hook.async_get_execution.return_value = JobExecution(status="Running")
     events = [event async for event in trigger.run()]
     sleep.assert_awaited_once_with(2)
     assert "timed out" in events[0].payload["message"]
     hook.async_stop_execution.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("finished_at", [59, 60, 61])
+@time_machine.travel(datetime(2026, 1, 1, tzinfo=UTC), tick=False)
+@patch(f"{MODULE}.time", autospec=True)
+async def test_terminal_lookup_must_finish_before_deadline(clock, hook, trigger, finished_at):
+    clock.monotonic.side_effect = [0, 0, finished_at]
+    trigger.deadline = "2026-01-01T00:01:00+00:00"
+    trigger.cancel_on_termination = False
+    hook.async_get_execution.return_value = JobExecution(status="Succeeded")
+    events = [event async for event in trigger.run()]
+    assert len(events) == 1
+    if finished_at < 60:
+        assert events[0].payload == {"status": "success", "execution_name": "execution"}
+        hook.async_stop_execution.assert_not_called()
+    else:
+        assert "timed out" in events[0].payload["message"]
+        hook.async_stop_execution.assert_awaited_once_with("group", "job", "execution")
 
 
 @pytest.mark.asyncio
@@ -151,7 +173,10 @@ async def test_cleanup_does_not_cancel_external_work(hook, trigger):
 
 
 @pytest.mark.asyncio
-async def test_cancelled_poll_does_not_cancel_external_work(hook, trigger):
+@pytest.mark.parametrize("deadline", [None, "2026-01-01T00:01:00+00:00"])
+@time_machine.travel(datetime(2026, 1, 1, tzinfo=UTC), tick=False)
+async def test_cancelled_poll_does_not_cancel_external_work(hook, trigger, deadline):
+    trigger.deadline = deadline
     hook.async_get_execution.side_effect = asyncio.CancelledError()
     with pytest.raises(asyncio.CancelledError):
         await anext(trigger.run())

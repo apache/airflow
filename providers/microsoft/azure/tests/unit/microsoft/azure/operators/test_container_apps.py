@@ -21,7 +21,7 @@ from unittest.mock import create_autospec, patch
 
 import pytest
 import time_machine
-from azure.core.exceptions import AzureError
+from azure.core.exceptions import AzureError, ServiceRequestTimeoutError, ServiceResponseTimeoutError
 from azure.mgmt.appcontainers.models import JobExecution
 
 from airflow.exceptions import TaskDeferred
@@ -49,7 +49,7 @@ def test_worker_polls_once_per_interval_and_returns_execution(sleep, operator):
     ]
     assert operator.execute({}) == "execution"
     operator.hook.start_job.assert_called_once()
-    operator.hook.get_execution.assert_called_with("group", "job", "execution")
+    operator.hook.get_execution.assert_called_with("group", "job", "execution", timeout_seconds=None)
     sleep.assert_called_once_with(60)
     operator.on_kill()
     operator.hook.stop_execution.assert_not_called()
@@ -105,6 +105,40 @@ def test_worker_timeout_cancels_even_when_termination_cancellation_disabled(
     operator.hook.stop_execution.assert_called_once_with("group", "job", "execution")
 
 
+@pytest.mark.parametrize("finished_at", [3, 4, 5])
+@patch(f"{MODULE}.time", autospec=True)
+def test_worker_checks_deadline_after_terminal_lookup(clock, operator, finished_at):
+    clock.monotonic.side_effect = [0, 1, finished_at]
+    operator.timeout_seconds = 4
+    operator.cancel_on_termination = False
+    operator.hook.get_execution.return_value = JobExecution(status="Succeeded")
+    if finished_at < 4:
+        assert operator.execute({}) == "execution"
+        operator.hook.stop_execution.assert_not_called()
+    else:
+        with pytest.raises(AzureContainerAppsJobExecutionError, match="timed out"):
+            operator.execute({})
+        operator.hook.stop_execution.assert_called_once_with("group", "job", "execution")
+    operator.hook.get_execution.assert_called_once_with("group", "job", "execution", timeout_seconds=3)
+    clock.sleep.assert_not_called()
+
+
+@pytest.mark.parametrize("finished_at", [2, 4])
+@pytest.mark.parametrize(
+    "error_type", [TimeoutError, ServiceRequestTimeoutError, ServiceResponseTimeoutError]
+)
+@patch(f"{MODULE}.time", autospec=True)
+def test_worker_lookup_timeout_only_translated_after_deadline(clock, operator, finished_at, error_type):
+    clock.monotonic.side_effect = [0, 1, finished_at]
+    operator.timeout_seconds = 4
+    operator.cancel_on_termination = False
+    operator.hook.get_execution.side_effect = error_type("lookup timeout")
+    expected = error_type if finished_at < 4 else AzureContainerAppsJobExecutionError
+    with pytest.raises(expected, match="timeout|timed out"):
+        operator.execute({})
+    assert operator.hook.stop_execution.call_count == (finished_at >= 4)
+
+
 @pytest.mark.parametrize("enabled", [False, True])
 @pytest.mark.parametrize("stop_error", [None, AzureError("stop failed")])
 def test_worker_termination(operator, enabled, stop_error):
@@ -124,7 +158,9 @@ def test_unexpected_cancellation_error_propagates(operator):
         operator.on_kill()
 
 
-def test_lookup_error_propagates(operator):
+@pytest.mark.parametrize("timeout", [None, 4])
+def test_lookup_error_propagates(operator, timeout):
+    operator.timeout_seconds = timeout
     operator.hook.get_execution.side_effect = AzureError("read failed")
     with pytest.raises(AzureError, match="read failed"):
         operator.execute({})
@@ -147,6 +183,14 @@ def test_invalid_configuration(kwargs, message):
 def test_empty_rendered_target(operator, field):
     setattr(operator, field, "")
     with pytest.raises(ValueError, match=field):
+        operator.execute({})
+    operator.hook.start_job.assert_not_called()
+
+
+def test_invalid_rendered_cpu_does_not_submit(operator):
+    operator.cpu = "{{ params.cpu }}"
+    operator.render_template_fields({"params": {"cpu": "invalid"}})
+    with pytest.raises(ValueError, match="could not convert string to float"):
         operator.execute({})
     operator.hook.start_job.assert_not_called()
 
