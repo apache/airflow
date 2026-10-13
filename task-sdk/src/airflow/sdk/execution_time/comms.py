@@ -60,7 +60,7 @@ from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 from socket import socket
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Generic, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Final, Generic, Literal, TypeVar, overload
 from uuid import UUID
 
 import attrs
@@ -121,6 +121,8 @@ if TYPE_CHECKING:
 SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
 ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
 
+MP_HUGEINT: Final[int] = 0
+
 
 class DeadlockImminentError(BaseException):
     """
@@ -179,7 +181,9 @@ def _new_encoder() -> msgspec.msgpack.Encoder:
 
 def _encode_large_ints(value: Any) -> Any:
     if isinstance(value, int) and not -(2**63) <= value < 2**64:
-        return msgspec.msgpack.Ext(0, value.to_bytes((value.bit_length() + 8) // 8, "big", signed=True))
+        return msgspec.msgpack.Ext(
+            MP_HUGEINT, value.to_bytes((value.bit_length() + 8) // 8, "big", signed=True)
+        )
     if isinstance(value, dict):
         return {key: _encode_large_ints(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
@@ -194,7 +198,7 @@ def _encode_large_ints(value: Any) -> Any:
 
 
 def _decode_msgpack_ext(code: int, data: memoryview) -> Any:
-    if code == 0:
+    if code == MP_HUGEINT:
         return int.from_bytes(data, "big", signed=True)
     return msgspec.msgpack.Ext(code, data)
 
