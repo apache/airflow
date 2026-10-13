@@ -95,9 +95,10 @@ drift, so a missed bump is caught by `go test`. A snapshot can also grow a field
 struct does not declare — so the `check-go-sdk-generated-drift` prek hook regenerates them and fails
 when the committed files differ.
 
-[`airflow/enums.go`](./airflow/enums.go) declares the `genmodels.DagRunState` constants again, so that
-a Dag author does not import `genmodels`. `TestDagRunStateMatchesGenmodels` fails when regenerating
-the models adds, renames or removes a `DagRunState` constant. The test keeps failing until
+[`airflow/enums.go`](./airflow/enums.go) declares the `genmodels.DagRunState` and
+`genmodels.DagRunType` constants again, so that a Dag author does not import `genmodels`.
+`TestDagRunStateMatchesGenmodels` and `TestDagRunTypeMatchesGenmodels` fail when regenerating
+the models adds, renames or removes a constant from either enum. The tests keep failing until
 `airflow/enums.go` declares the same constants as `genmodels`.
 
 ## Regenerating the Dag, task and task group specs
