@@ -22,6 +22,7 @@ import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -29,6 +30,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, call, create_autospec, pat
 
 import jinja2
 import pytest
+from pydantic import BaseModel
 from task_sdk.definitions.conftest import make_xcom_arg
 
 from airflow.sdk import (
@@ -86,6 +88,22 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     from tests_common.test_utils.compat import Context
+
+
+class CheckpointModel(BaseModel):
+    """A pydantic result whose required field a checkpoint written before it was added lacks."""
+
+    added_since: int
+
+
+@dataclass
+class RefusingConstructor:
+    """A result class whose constructor refuses the data a checkpoint holds."""
+
+    value: int
+
+    def __post_init__(self):
+        raise TypeError("the constructor refuses this value")
 
 
 class MockTaskStateStoreAccessor:
@@ -1045,13 +1063,29 @@ class TestIterableOperator:
         assert store["_iterable_0"]["result"] == "from_checkpoint"
         assert store["_iterable_1"]["status"] == "success"
 
-    def test_a_checkpoint_serde_refuses_is_run_again_instead_of_failing_every_retry(self):
+    @pytest.mark.parametrize(
+        ("classname", "version", "data"),
+        [
+            pytest.param("not_allowed.Thing", 0, {}, id="class-off-the-allow-list"),
+            pytest.param(f"{__name__}.CheckpointModel", 1, {}, id="pydantic-model-gained-a-required-field"),
+            pytest.param(f"{__name__}.RefusingConstructor", 0, {"value": 1}, id="constructor-raises"),
+        ],
+    )
+    def test_a_checkpoint_serde_refuses_is_run_again_instead_of_failing_every_retry(
+        self, monkeypatch, classname, version, data
+    ):
         """
-        A checkpoint holding a class off the allow-list is refused on every attempt: the indexed task runs
-        again as if there were none, rather than failing each retry until the checkpoint expires.
+        A checkpoint serde fails to restore is refused on every attempt: the indexed task runs again as
+        if there were none, rather than failing each retry until the checkpoint expires. Whether the
+        class is off the allow-list, a pydantic model that changed since, or one whose constructor
+        refuses the data.
         """
         from airflow.sdk._shared.serialization import CLASSNAME, DATA, VERSION
 
+        monkeypatch.setattr(
+            "airflow.sdk.serde._extra_allowed",
+            {f"{__name__}.CheckpointModel", f"{__name__}.RefusingConstructor"},
+        )
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
                 dag, ListOfDictsExpandInput([{"arg1": 1}]), task_id="checkpoint_refused"
@@ -1065,7 +1099,7 @@ class TestIterableOperator:
                         status=TaskInstanceState.SUCCESS,
                         fingerprint=IterableOperator._compute_fingerprint({"arg1": 1}),
                     ).serialize(),
-                    "result": {CLASSNAME: "not_allowed.Thing", VERSION: 0, DATA: {}},
+                    "result": {CLASSNAME: classname, VERSION: version, DATA: data},
                 }
 
                 materialized = list(iterable_op.execute(context=context))

@@ -1105,9 +1105,12 @@ class IndexedTaskState:
         """
         Restore a checkpoint, or None when there is none.
 
-        A result or XCom value serde refuses to restore, a class off the allow-list
-        (``ImportError``) or one it has no deserializer for (``TypeError``), raises
-        :class:`CheckpointDeserializationError`: refused once, it is refused on every retry.
+        A result or XCom value serde fails to restore raises :class:`CheckpointDeserializationError`:
+        a class off the allow-list (``ImportError``), one it has no deserializer for or whose
+        constructor refuses the data (``TypeError``), a pydantic model that changed since the
+        checkpoint was written (``ValidationError``, a ``ValueError``), or whatever else a class
+        raises. Refused once, it is refused on every retry. ``raw`` is already read, so nothing
+        transient can fail here, and every failure is taken as a refusal.
         """
         if not isinstance(raw, Mapping):
             return None
@@ -1118,7 +1121,7 @@ class IndexedTaskState:
                 if raw.get("xcoms")
                 else None
             )
-        except (ImportError, TypeError) as e:
+        except Exception as e:
             raise CheckpointDeserializationError(str(e)) from e
         return cls(
             status=TaskInstanceState(raw["status"]),
