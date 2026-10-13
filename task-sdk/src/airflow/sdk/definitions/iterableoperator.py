@@ -47,7 +47,6 @@ from airflow.sdk.exceptions import (
     TaskDeferred,
 )
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor
-from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.task_runner import (
     CheckpointDeserializationError,
     IndexedTaskInstance,
@@ -70,10 +69,13 @@ if TYPE_CHECKING:
 # The outcome an indexed task's step returns, kept as it is by keeps_failure_to_its_indexed_task.
 Outcome = TypeVar("Outcome")
 
-# The values an iterated or mapped upstream hands a partial kwarg: read lazily, one XCom per item, so
-# serde keeps only a handle of the first and fetches the whole of the second. The fingerprint digests
-# their items instead, once per run (see IterableOperator._digest_items).
-LAZY_UPSTREAM_VALUES = (XComIterable, LazyXComSequence)
+# The sequences an XComArg in a partial kwarg renders to that hold their items. Any other sequence is
+# lazy: an iterated upstream's XComIterable or a mapped upstream's LazyXComSequence, read one XCom per
+# item, or the _MapResult, _ZipResult and _ConcatResult that .map(), .zip() and .concat() wrap around an
+# upstream. serde keeps only a handle of some, fetches the whole of others and cannot serialize a .map()
+# callable at all, so the fingerprint digests their items instead, once per run (see
+# IterableOperator._digest_items).
+EAGER_SEQUENCES = (str, bytes, list, tuple)
 
 # The trigger rules under which one skipped upstream task instance skips a task, whatever the other
 # upstream task instances did (see TriggerRuleDep). A skipped iteration has the same effect on a
@@ -1435,15 +1437,20 @@ class IterableOperator(BaseOperator):
 
         Each item is serialized on its own and fed to the hash followed by a newline, which JSON never
         leaves unescaped inside a value, so no item is held longer than it takes to digest it. Two
-        upstream runs of the same length but other items give other digests. An item serde cannot
-        serialize leaves the value without a digest, as ``_compute_fingerprint`` does for an input.
+        upstream runs of the same length but other items give other digests. Reading the items of a
+        ``.map()`` runs its callables on each of them, as the indexed task does when it reads them.
+
+        A value whose items cannot all be read or serialized gets no digest: a callable that raises
+        for one item must not fail every indexed task, which may never read that item. A checkpoint
+        written with a digest then no longer matches, so its indexed task runs again rather than
+        replaying a result.
         """
         digest = hashlib.sha256()
         try:
             for item in items:
                 digest.update(json.dumps(serialize(item), sort_keys=True).encode())
                 digest.update(b"\n")
-        except (TypeError, ValueError, AttributeError, RecursionError):
+        except Exception:
             return None
         return digest.hexdigest()
 
@@ -1465,13 +1472,13 @@ class IterableOperator(BaseOperator):
         ``declared`` is a partial kwarg as written in the DAG and ``rendered`` the same value once
         rendered, walked side by side: a mapping by key (``op_kwargs.cfg.x``), a list or tuple by
         position (``op_args[0]``). A part rendered into another shape than it was declared in is
-        recorded as None. A lazy upstream value is recorded as the digest of its items, taken once
-        per run (see :meth:`IterationState.upstream_digest`).
+        recorded as None. A lazy sequence, any but :data:`EAGER_SEQUENCES`, is recorded as the digest
+        of its items, taken once per run (see :meth:`IterationState.upstream_digest`).
         """
         if isinstance(declared, XComArg):
             inputs[path] = (
                 self._state.upstream_digest(path, partial(self._digest_items, rendered))
-                if isinstance(rendered, LAZY_UPSTREAM_VALUES)
+                if isinstance(rendered, Sequence) and not isinstance(rendered, EAGER_SEQUENCES)
                 else rendered
             )
         elif isinstance(declared, Mapping):

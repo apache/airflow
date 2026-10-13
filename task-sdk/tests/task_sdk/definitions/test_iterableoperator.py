@@ -60,6 +60,7 @@ from airflow.sdk.definitions.iterableoperator import (
     IterationState,
     keeps_failure_to_its_indexed_task,
 )
+from airflow.sdk.definitions.xcom_arg import _ConcatResult, _MapResult, _ZipResult
 from airflow.sdk.exceptions import (
     AirflowFailException,
     AirflowRescheduleException,
@@ -4200,6 +4201,51 @@ class TestFingerprintCoversPartialInputsFromUpstream:
         assert len(set(first_run)) == 1
         assert isinstance(first_run[0], str)
         assert second_run != first_run[0]
+
+    @staticmethod
+    def _recorded_for(rendered_value):
+        """What the fingerprint records for a partial kwarg from upstream that rendered to ``rendered_value``."""
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([{"arg1": "a"}]))
+        iterable_op.partial_kwargs = {"arg2": make_xcom_arg(None)}
+        return iterable_op._collect_partial_inputs_from_upstream(SimpleNamespace(arg2=rendered_value))["arg2"]
+
+    COMPOSITIONS = {
+        "map": lambda upstream: _MapResult(upstream, [lambda item: item * 10]),
+        "zip": lambda upstream: _ZipResult([upstream, ["x", "y"]]),
+        "concat": lambda upstream: _ConcatResult([upstream, ["x"]]),
+    }
+
+    @pytest.mark.parametrize("compose", COMPOSITIONS.values(), ids=COMPOSITIONS.keys())
+    def test_an_upstream_behind_map_zip_or_concat_counts_by_its_items(self, compose):
+        """
+        ``.map()``, ``.zip()`` and ``.concat()`` render to a sequence around the iterated upstream's
+        ``XComIterable``: its items make the digest, not its handle, which stays the same after a clear.
+        """
+        first, cleared, unchanged = (
+            XComIterable(task_id="upstream", dag_id="test_dag", run_id="run", length=2) for _ in range(3)
+        )
+        items = {id(first): [1, 2], id(cleared): [1, 3], id(unchanged): [1, 2]}
+
+        def upstream_item(self, index):
+            return items[id(self)][index]
+
+        with patch.object(XComIterable, "__getitem__", upstream_item):
+            digests = [self._recorded_for(compose(upstream)) for upstream in (first, cleared, unchanged)]
+
+        assert all(isinstance(digest, str) for digest in digests)
+        assert digests[0] != digests[1]
+        assert digests[0] == digests[2]
+
+    def test_a_map_callable_raising_for_one_item_leaves_the_value_without_a_digest(self):
+        """The indexed tasks may never read that item, so the failure is not theirs: the value gets no digest."""
+
+        def refuse_two(item):
+            if item == 2:
+                raise ValueError("cannot map 2")
+            return item
+
+        assert self._recorded_for(_MapResult([1, 2], [refuse_two])) is None
 
 
 CALLBACKS: list = []
