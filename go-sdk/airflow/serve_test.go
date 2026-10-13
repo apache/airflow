@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net"
 	"testing"
 	"time"
@@ -257,6 +258,89 @@ func serveForSupervisor(t *testing.T, b *BundleRef) (*execution.CoordinatorComm,
 
 // A fake supervisor sends StartupDetails over the comm socket, as the Python
 // ExecutableCoordinator does after it starts the bundle with --comm and --logs.
+func TestServeInjectsDagRunMetadata(t *testing.T) {
+	runAfter := time.Date(2026, 10, 13, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name     string
+		sendConf bool
+		conf     map[string]any
+		want     map[string]any
+	}{
+		{name: "absent"},
+		{name: "null", sendConf: true},
+		{name: "empty", sendConf: true, conf: map[string]any{}, want: map[string]any{}},
+		{
+			name:     "nested numbers",
+			sendConf: true,
+			conf: map[string]any{
+				"days":       7,
+				"batch_size": 500,
+				"big":        70000,
+				"precise":    int64(9007199254740993),
+				"max":        uint64(math.MaxInt64),
+				"above_max":  uint64(math.MaxInt64) + 1,
+				"nested":     map[string]any{"attempts": -129, "enabled": true, "ratio": 1.25},
+				"list":       []any{-1, -32769, int64(-2147483649), "us", nil},
+			},
+			want: map[string]any{
+				"days":       int64(7),
+				"batch_size": int64(500),
+				"big":        int64(70000),
+				"precise":    int64(9007199254740993),
+				"max":        int64(math.MaxInt64),
+				"above_max":  uint64(math.MaxInt64) + 1,
+				"nested": map[string]any{
+					"attempts": int64(-129),
+					"enabled":  true,
+					"ratio":    1.25,
+				},
+				"list": []any{int64(-1), int64(-32769), int64(-2147483649), "us", nil},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got DagRun
+			b := Bundle()
+			b.Register(TaskHandler("py_etl", "transform", func(actx Context) error {
+				got = actx.DagRun()
+				return nil
+			}))
+			supervisor, done := serveForSupervisor(t, b)
+			dagRun := map[string]any{"run_after": runAfter, "run_type": "manual"}
+			if tc.sendConf {
+				dagRun["conf"] = tc.conf
+			}
+			require.NoError(t, supervisor.SendRequest(0, map[string]any{
+				"type": "StartupDetails",
+				"ti": map[string]any{
+					"id":         "550e8400-e29b-41d4-a716-446655440000",
+					"dag_id":     "py_etl",
+					"task_id":    "transform",
+					"run_id":     "run1",
+					"try_number": 1,
+				},
+				"ti_context":  map[string]any{"dag_run": dagRun},
+				"bundle_info": map[string]any{"name": "test", "version": "1.0"},
+			}))
+			frame, err := supervisor.ReadMessage()
+			require.NoError(t, err)
+			var terminal map[string]any
+			require.NoError(t, msgpack.Unmarshal(frame.Body, &terminal))
+			require.Equal(t, "SucceedTask", terminal["type"])
+			select {
+			case err := <-done:
+				require.NoError(t, err)
+			case <-time.After(2 * time.Second):
+				t.Fatal("Serve did not return after the task finished")
+			}
+			assert.Equal(t, DagRunTypeManual, got.RunType)
+			assert.True(t, got.RunAfter.Equal(runAfter))
+			assert.Equal(t, tc.want, got.Conf)
+		})
+	}
+}
+
 func TestServeRunsTaskForSupervisor(t *testing.T) {
 	ran := false
 	b := Bundle()

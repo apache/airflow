@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"runtime/debug"
 	"time"
 
@@ -74,6 +75,10 @@ func RunTask(
 	// live task context.
 	ti := taskInstanceOf(details)
 	dagRun := details.TIContext.DagRun
+	var conf map[string]any
+	if dagRun.Conf != nil {
+		conf = normalizeDagRunConf(*dagRun.Conf)
+	}
 	runtimeContext := sdk.NewTIRunContext(
 		context.Background(),
 		ti,
@@ -83,6 +88,9 @@ func RunTask(
 			LogicalDate:       ifaceTimePtr(dagRun.LogicalDate),
 			DataIntervalStart: ifaceTimePtr(dagRun.DataIntervalStart),
 			DataIntervalEnd:   ifaceTimePtr(dagRun.DataIntervalEnd),
+			RunAfter:          dagRun.RunAfter,
+			RunType:           dagRun.RunType,
+			Conf:              conf,
 		},
 	)
 
@@ -123,6 +131,58 @@ func RunTask(
 	}
 
 	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
+}
+
+func normalizeDagRunConf(conf map[string]any) map[string]any {
+	if conf == nil {
+		return nil
+	}
+	normalized := make(map[string]any, len(conf))
+	for key, value := range conf {
+		normalized[key] = normalizeDagRunConfValue(value)
+	}
+	return normalized
+}
+
+func normalizeDagRunConfValue(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		return normalizeDagRunConf(v)
+	case []any:
+		if v == nil {
+			return v
+		}
+		normalized := make([]any, len(v))
+		for i, item := range v {
+			normalized[i] = normalizeDagRunConfValue(item)
+		}
+		return normalized
+	case int:
+		return int64(v)
+	case int8:
+		return int64(v)
+	case int16:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case uint:
+		return normalizeDagRunConfValue(uint64(v))
+	case uint8:
+		return int64(v)
+	case uint16:
+		return int64(v)
+	case uint32:
+		return int64(v)
+	case uint64:
+		if v <= math.MaxInt64 {
+			return int64(v)
+		}
+		return v
+	case float32:
+		return float64(v)
+	default:
+		return value
+	}
 }
 
 func taskInstanceOf(details *genmodels.StartupDetails) sdk.TaskInstance {
