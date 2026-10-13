@@ -1,1 +1,0 @@
-Fix branch operators not skipping mapped or cleared downstream tasks when a custom XCom backend is configured.
