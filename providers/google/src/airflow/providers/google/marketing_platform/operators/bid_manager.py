@@ -133,6 +133,7 @@ class GoogleBidManagerGetQueryOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "query_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -184,7 +185,10 @@ class GoogleBidManagerListQueriesOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ("impersonation_chain",)
+    template_fields: Sequence[str] = (
+        "impersonation_chain",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -364,6 +368,7 @@ class GoogleBidManagerGetReportOperator(BaseOperator):
         "query_id",
         "report_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -425,6 +430,7 @@ class GoogleBidManagerListReportsOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "query_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
