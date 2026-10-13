@@ -44,8 +44,8 @@
   "deadlineAlerts": {
     "completionRule": "Muss innerhalb von {{interval}} nach {{reference}} abgeschlossen sein",
     "completionRuleDynamic": "Muss innerhalb eines variablen, ab {{reference}} gemessenen Intervalls abgeschlossen werden",
-    "count_one": "{{count}} Frist",
-    "count_other": "{{count}} Fristen",
+    "count_one": "{{count, number}} Frist",
+    "count_other": "{{count, number}} Fristen",
     "referenceType": {
       "AverageRuntimeDeadline": "durchschnittlicher Laufzeit",
       "DagRunLogicalDateDeadline": "logischem Datum des Dag-Laufs",
@@ -60,13 +60,13 @@
     "label": "Frist",
     "met": "Erfüllt",
     "missed": "Verpasst",
-    "missedCount_one": "{{count}} verpasste Frist",
-    "missedCount_other": "{{count}} verpasste Fristen",
-    "mixedCount": "{{missedCount}} verpasst, {{upcomingCount}} bevorstehend",
+    "missedCount_one": "{{count, number}} verpasste Frist",
+    "missedCount_other": "{{count, number}} verpasste Fristen",
+    "mixedCount": "{{missedCount, number}} verpasst, {{upcomingCount, number}} bevorstehend",
     "stillRunning": "Noch laufend",
     "upcoming": "Bevorstehend",
-    "upcomingCount_one": "{{count}} bevorstehende Frist",
-    "upcomingCount_other": "{{count}} bevorstehende Fristen"
+    "upcomingCount_one": "{{count, number}} bevorstehende Frist",
+    "upcomingCount_other": "{{count, number}} bevorstehende Fristen"
   },
   "extraLinks": "Extra Links",
   "grid": {
@@ -96,7 +96,7 @@
     "info": "INFO",
     "noTryNumber": "Keine Versuchsnummer",
     "search": {
-      "matchCount": "{{current}} von {{total}}",
+      "matchCount": "{{current, number}} von {{total, number}}",
       "noMatches": "Keine Treffer",
       "placeholder": "Protokolle durchsuchen..."
     },
@@ -215,16 +215,16 @@
     "code": "Programmcode",
     "details": "Details",
     "logs": "Protokolle",
-    "mappedTaskInstances_one": "Task Instanz [{{count}}]",
-    "mappedTaskInstances_other": "Task Instanzen [{{count}}]",
+    "mappedTaskInstances_one": "Task Instanz [{{count, number}}]",
+    "mappedTaskInstances_other": "Task Instanzen [{{count, number}}]",
     "overview": "Übersicht",
     "renderedTemplates": "Ausgefüllte Vorlagen",
     "requiredActions": "Interaktionen",
     "runs": "Läufe",
-    "storage": "Speicher",
     "taskInstances": "Task Instanzen",
     "taskStateStore": "Task Status Zwischenspeicher",
     "tasks": "Tasks",
+    "versions": "Versionen",
     "xcom": "Task Kommunikation (XComs)"
   },
   "taskGroups": {
@@ -252,5 +252,67 @@
       "never": "Nie"
     },
     "title": "Task Status Zwischenspeicher"
+  },
+  "versions": {
+    "aboutThisComparison": "Über diesen Vergleich",
+    "base": "Vergleichen von",
+    "categories": {
+      "asset": "Datensatz (Asset)",
+      "authorization": "Autorisierung",
+      "callback": "Callback",
+      "deadline": "Termin",
+      "dependency": "Abhängigkeit",
+      "metadata": "Metadaten",
+      "param": "Parameter",
+      "provenance": "Ursprung",
+      "schedule": "Zeitplan",
+      "task": "Aufgabe",
+      "unknown": "Unbekannt"
+    },
+    "codeAccess": "Werte erfordern Zugriff auf Dag-Quellcode",
+    "columns": {
+      "after": "Nach",
+      "before": "Vor",
+      "category": "Kategorie",
+      "impact": "Auswirkung",
+      "occurrences": "Auftritte",
+      "operation": "Einsatz",
+      "path": "Pfad"
+    },
+    "heading": "Version {{base}} → Version {{target}}",
+    "impacts": {
+      "authorization": "Autorisierung",
+      "execution": "Ausführung",
+      "metadata": "Metadaten",
+      "provenance": "Ursprung",
+      "unknown": "Unbekannt"
+    },
+    "maxChanges": "Maximale Änderungen",
+    "maxChangesDefault": "Standard",
+    "noChanges": "Es gibt keinen Unterschied zwischen diesen Versionen.",
+    "observedState": "Beachteter Status",
+    "observedStateBoundary": "Vergleicht aktuell gespeichterte Dagversionen. Quellcodevergleich ist nicht verfügbar für alte Versionen; Code-Tab nutzen um Quellcode zu vergleichen.",
+    "operations": {
+      "added": "Hinzugefügt",
+      "changed": "Geändert",
+      "removed": "Entfernt"
+    },
+    "record_one": "Datensatz",
+    "record_other": "Datensätze",
+    "selectPrompt": "Zwei Versionen auswählen um Änderungen zwischen diesen zu sehen.",
+    "summary_one": "{{count, number}} Änderung · Serialisiertes Schema {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count, number}} Änderungen · Serialisiertes Schema {{baseSchema}} → {{targetSchema}}",
+    "target": "Vergleichen mit",
+    "truncated": {
+      "description": "Einige Änderungen werden nicht gezeigt um unter dem Limit zu bleiben, die angezeigte Anzahl ist ein Minimum an Änderungen.",
+      "title": "Einige Änderungen wurden nicht angezeigt"
+    },
+    "unavailable": {
+      "description": "Diese Versionen können nicht verglichen werden. Grund:",
+      "title": "Vergleich nicht verfügbar",
+      "withoutReason": "Diese Versionen können nicht verglichen werden."
+    },
+    "valuesHidden": "Werte verstecken",
+    "valuesShown": "Werte anzeigen"
   }
 }

@@ -54,8 +54,13 @@ egress there is a host-level ``sbx policy``, so the backend honors the default b
 refusing to provision unless the Deployment Manager has declared
 ``host_network_policy="deny-all"``, which means a bare ``SandboxSpec()`` is refused
 under the default ``host_network_policy="unknown"`` rather than silently getting
-an open sandbox. ``allow_egress_to`` names hosts the sandbox may reach, and both
-backends refuse it until you have said something that makes it enforceable:
+an open sandbox. On OpenSandbox the default and ``allow_egress_to`` become a policy
+for the server's egress sidecar, and the backend destroys the sandbox and fails the task unless that
+sidecar runs in ``dns+nft`` mode, the one that drops connections to unlisted
+addresses rather than only name resolution (see
+:ref:`the OpenSandbox backend <sandbox-backend-opensandbox>`). ``allow_egress_to``
+names hosts the sandbox may reach, and ``sbx`` and Modal refuse it until you have
+said something that makes it enforceable:
 ``sbx`` applies it as a per-sandbox rule on top of that ``deny-all`` host policy,
 since a local rule can narrow egress and never widen it, and Modal matches
 hostnames in the TLS handshake, which is weaker than it sounds and has to be
@@ -137,8 +142,9 @@ Credentials
 ``SandboxSpec.env`` is the only way in. Airflow never populates it: no connection,
 variable or worker environment variable reaches a sandbox unless you name it
 there, and the credential that *provisions* the sandbox never enters it either.
-Modal's token stays on the worker and is used by the client, so code running
-inside cannot call Modal as you or create further sandboxes.
+Modal's token, whether it comes from the ``modal`` connection or the worker
+environment, stays in the task and is used by the client, so code running inside
+cannot call Modal as you or create further sandboxes.
 
 Before you put a real secret in ``env``, four things are true of it.
 
@@ -266,7 +272,8 @@ A sandbox another task owns
 
 The toolset's own sandbox is provisioned from a spec fixed in the Dag file, on the
 model's first tool call, and destroyed when the run ends. Two things cannot be
-done inside that shape: a credential cannot come from a connection, and a second
+done inside that shape: a credential for the code inside the sandbox
+(``SandboxSpec.env``) cannot come from a connection, and a second
 run against the same agent, which is what :ref:`HITL review <howto:hitl_review>`
 does when a reviewer asks for changes, cannot find the first run's files. A file
 the agent built can leave through ``exports`` (:ref:`sandbox-results`), but only

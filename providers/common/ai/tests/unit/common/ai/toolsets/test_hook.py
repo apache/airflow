@@ -17,17 +17,19 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import re
 import threading
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic_ai import Agent
+from pydantic_ai import Agent, DeferredToolRequests
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_core import ValidationError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.toolsets.hook import (
     HookToolset,
     _build_json_schema_from_signature,
@@ -166,11 +168,51 @@ class TestHookToolsetGetTools:
         # prefix has a default, so it's not required
         assert "prefix" not in tool_def.parameters_json_schema.get("required", [])
 
-    def test_tool_name_prefix(self):
+    def test_tool_prefix(self):
         hook = _FakeHook()
-        ts = HookToolset(hook, allowed_methods=["list_keys"], tool_name_prefix="s3_")
+        ts = HookToolset(hook, allowed_methods=["list_keys"], tool_prefix="s3")
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
         assert "s3_list_keys" in tools
+
+    @pytest.mark.parametrize("tool_prefix", ["my-hook", "1abc", "has space"])
+    def test_tool_prefix_must_be_identifier(self, tool_prefix):
+        with pytest.raises(ValueError, match="tool_prefix must be a valid Python identifier"):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_prefix=tool_prefix)
+
+    @pytest.mark.parametrize(
+        ("tool_name_prefix", "expected"),
+        [("s3_", "s3_list_keys"), ("s3", "s3list_keys")],
+    )
+    def test_tool_name_prefix_is_a_deprecated_alias_concatenated_as_given(self, tool_name_prefix, expected):
+        hook = _FakeHook()
+        with pytest.warns(AirflowProviderDeprecationWarning, match="tool_name_prefix"):
+            ts = HookToolset(hook, allowed_methods=["list_keys"], tool_name_prefix=tool_name_prefix)
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        assert expected in tools
+
+    def test_tool_name_prefix_warning_suggests_migrated_value(self):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"Use `tool_prefix='s3'` instead; HookToolset adds the '_' itself",
+        ):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_name_prefix="s3_")
+
+    def test_tool_prefix_and_tool_name_prefix_that_agree_still_warn(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="tool_name_prefix"):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_prefix="s3", tool_name_prefix="s3_")
+
+    @pytest.mark.parametrize(
+        ("tool_prefix", "tool_name_prefix"),
+        [("a", "b_"), ("s3", "s3")],
+    )
+    def test_conflicting_prefixes_raise(self, tool_prefix, tool_name_prefix):
+        with pytest.raises(ValueError, match="tool_prefix.*tool_name_prefix"):
+            HookToolset(
+                _FakeHook(),
+                allowed_methods=["list_keys"],
+                tool_prefix=tool_prefix,
+                tool_name_prefix=tool_name_prefix,
+            )
 
     def test_description_from_docstring(self):
         hook = _FakeHook()
@@ -254,9 +296,17 @@ class TestHookToolsetCallTool:
         )
         assert "data/file1.txt" in result
 
-    def test_dispatches_with_prefix(self):
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_warning"),
+        [
+            ({"tool_prefix": "storage"}, None),
+            ({"tool_name_prefix": "storage_"}, AirflowProviderDeprecationWarning),
+        ],
+    )
+    def test_dispatches_with_prefix(self, kwargs, expected_warning):
         hook = _FakeHook()
-        ts = HookToolset(hook, allowed_methods=["read_file"], tool_name_prefix="storage_")
+        with pytest.warns(expected_warning) if expected_warning else contextlib.nullcontext():
+            ts = HookToolset(hook, allowed_methods=["read_file"], **kwargs)
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
 
         result = asyncio.run(
@@ -443,6 +493,42 @@ class TestSerializeForLlm:
         assert "object" in result
 
 
+class _RecordingKwargsHook:
+    """Records its calls; ``list_keys`` takes **kwargs, so validation alone would let extra names in."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str | None, dict[str, object]]] = []
+
+    def list_keys(self, bucket: str, prefix: str | None = None, **kwargs: object) -> list[str]:
+        """List object keys in a bucket."""
+        self.calls.append((bucket, prefix, kwargs))
+        return [f"{bucket}/{prefix}"]
+
+    def copy(self, bucket: str, key: str, tags: dict[str, str] | None = None) -> str:
+        """Copy an object, adding a tag as a side effect."""
+        self.calls.append((bucket, key, {"tags": dict(tags or {})}))
+        if tags is not None:
+            tags["copied"] = "yes"
+        return key
+
+
+class _RecordingHook:
+    """Records the arguments its method receives."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str | None]] = []
+
+    def list_keys(self, bucket: str, prefix: str | None = None) -> list[str]:
+        """
+        List object keys in a bucket.
+
+        :param bucket: Name of the bucket.
+        :param prefix: Key prefix to filter by.
+        """
+        self.calls.append((bucket, prefix))
+        return [f"{bucket}/{prefix}"]
+
+
 class TestHookToolsetPinnedArguments:
     @staticmethod
     def _tools(ts: HookToolset) -> dict:
@@ -493,9 +579,16 @@ class TestHookToolsetPinnedArguments:
 
         assert set(self._tools(ts)) == {"copy", "list_keys"}
 
-    def test_the_model_cannot_override_it_in_a_real_run(self):
-        """A method taking **kwargs would accept the model's value, so the toolset refuses it."""
-        hook = _RecordingKwargsHook()
+    @pytest.mark.parametrize(
+        ("hook_cls", "expected_call"),
+        [
+            pytest.param(_RecordingHook, ("reports", "x"), id="named_parameters"),
+            pytest.param(_RecordingKwargsHook, ("reports", "x", {}), id="also_kwargs"),
+        ],
+    )
+    def test_the_model_cannot_override_it_in_a_real_run(self, hook_cls, expected_call):
+        """The model is told the argument is fixed, whether or not the method also takes **kwargs."""
+        hook = hook_cls()
         ts = HookToolset(hook, allowed_methods=["list_keys"], pinned_arguments={"bucket": "reports"})
         attempts = iter([{"bucket": "payroll", "prefix": "x"}, {"prefix": "x"}])
 
@@ -509,7 +602,27 @@ class TestHookToolsetPinnedArguments:
         answer = Agent(FunctionModel(model), toolsets=[ts]).run_sync("list").output
 
         assert "bucket is fixed for this tool" in answer
-        assert hook.calls == [("reports", "x", {})]
+        assert hook.calls == [expected_call]
+
+    def test_an_approval_gate_is_never_asked_about_a_pinned_argument(self):
+        """The refusal happens during validation, before an approval gate sees the call."""
+        ts = HookToolset(
+            _RecordingHook(), allowed_methods=["list_keys"], pinned_arguments={"bucket": "reports"}
+        )
+        attempts = iter([{"bucket": "payroll", "prefix": "x"}, {"prefix": "x"}])
+
+        def model(messages, info):
+            return ModelResponse(parts=[ToolCallPart("list_keys", next(attempts), tool_call_id="c")])
+
+        agent = Agent(
+            FunctionModel(model),
+            toolsets=[ts.approval_required()],
+            output_type=[str, DeferredToolRequests],
+        )
+        output = agent.run_sync("list").output
+
+        assert isinstance(output, DeferredToolRequests)
+        assert [call.args for call in output.approvals] == [{"prefix": "x"}]
 
     def test_a_method_that_modifies_its_argument_cannot_change_the_pin(self):
         hook = _RecordingKwargsHook()
@@ -523,39 +636,3 @@ class TestHookToolsetPinnedArguments:
             asyncio.run(ts.call_tool("copy", {"key": "k"}, ctx=ctx, tool=tools["copy"]))
 
         assert [call[2]["tags"] for call in hook.calls] == [{"a": "1"}, {"a": "1"}]
-
-
-class _RecordingKwargsHook:
-    """Records its calls; ``list_keys`` takes **kwargs, so validation alone would let extra names in."""
-
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, str | None, dict[str, object]]] = []
-
-    def list_keys(self, bucket: str, prefix: str | None = None, **kwargs: object) -> list[str]:
-        """List object keys in a bucket."""
-        self.calls.append((bucket, prefix, kwargs))
-        return [f"{bucket}/{prefix}"]
-
-    def copy(self, bucket: str, key: str, tags: dict[str, str] | None = None) -> str:
-        """Copy an object, adding a tag as a side effect."""
-        self.calls.append((bucket, key, {"tags": dict(tags or {})}))
-        if tags is not None:
-            tags["copied"] = "yes"
-        return key
-
-
-class _RecordingHook:
-    """Records the arguments its method receives."""
-
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, str | None]] = []
-
-    def list_keys(self, bucket: str, prefix: str | None = None) -> list[str]:
-        """
-        List object keys in a bucket.
-
-        :param bucket: Name of the bucket.
-        :param prefix: Key prefix to filter by.
-        """
-        self.calls.append((bucket, prefix))
-        return [f"{bucket}/{prefix}"]

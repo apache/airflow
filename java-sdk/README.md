@@ -91,6 +91,10 @@ Now `cd example` into the example project, and
   ../gradlew bundle
   ```
 
+  The bundle JAR also carries the source file of each Dag declared in Java
+  (and of the entrypoint) under `META-INF/airflow/`, so Airflow can show a
+  Dag's source.
+
 * Put the [DAG with stub tasks](./example/src/resources/dags) to somewhere Airflow can find.
 
 * Ensure the `java` command is available in the same environments the Airflow
@@ -616,8 +620,8 @@ prek hook regenerate it.
 | state: `success` | MUST | ✓ | 3.3 |  |
 | state: `failed` | MUST | ✓ | 3.3 |  |
 | state: `up_for_retry` | MUST | ✓ | 3.3 | RetryTask |
-| state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
-| state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
+| state: `skipped` | SHOULD | ✓ | 3.4 | a TriggerDagRun task that skips an existing run |
+| state: `deferred` | MAY | ✓ | 3.4 | a TriggerDagRun task that waits with deferrable |
 | state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
 | state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
 | state: `removed` | MAY | ✓ | 3.3 |  |
@@ -630,22 +634,22 @@ prek hook regenerate it.
 | capability: `variable-read-write` | MUST | ✓ | 3.3 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.3 | Airflow metadata embedded in the jar artifact |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
-| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `task-state-store` | MAY | ✓ | 3.3 | Client.getTaskStateStore() get/set/delete/clear |
 | capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
 | **Native-Dag authoring** |  |  |  |  |
-| capability: `native-dag-authoring` | SHOULD | ✗ | – | native Dag authoring not implemented yet |
-| capability: `task-args` | MUST † | n/a | – |  |
-| capability: `dag-params` | MUST † | n/a | – |  |
-| capability: `taskflow-dependencies` | MUST † | n/a | – |  |
-| capability: `branching` | SHOULD † | n/a | – |  |
-| capability: `dag-test` | SHOULD † | n/a | – |  |
-| capability: `task-group` | MAY † | n/a | – |  |
-| capability: `dynamic-task-mapping` | MAY † | n/a | – |  |
-| capability: `asset-inlets-outlets` | MAY † | n/a | – |  |
-| capability: `asset-scheduling` | MAY † | n/a | – |  |
-| capability: `object-store` | MAY † | n/a | – |  |
+| capability: `native-dag-authoring` | SHOULD | ✓ | 3.4 |  |
+| capability: `task-args` | MUST † | ✓ | 3.4 |  |
+| capability: `dag-params` | MUST † | ✗ | – |  |
+| capability: `taskflow-dependencies` | MUST † | ✓ | 3.4 |  |
+| capability: `branching` | SHOULD † | ✓ | 3.4 | DagDef.If and DagDef.Switch, or @Airflow.If and @Airflow.Switch |
+| capability: `dag-test` | SHOULD † | ✗ | – |  |
+| capability: `task-group` | MAY † | ✓ | 3.4 |  |
+| capability: `dynamic-task-mapping` | MAY † | ✗ | – |  |
+| capability: `asset-inlets-outlets` | MAY † | ✗ | – |  |
+| capability: `asset-scheduling` | MAY † | ✗ | – |  |
+| capability: `object-store` | MAY † | ✗ | – |  |
 
 *Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `native-dag-authoring` is supported.*
 
@@ -742,13 +746,13 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
   not the implementation language.
 - Keep `sdk/src/main/kotlin/` (the public API surface) free of internal
   implementation details; those belong in the `execution/` sub-package.
-- The annotation processor (`BuilderProcessor.kt`) uses `kapt`. The `Builder`
-  class holding the `@Builder.Dag` / `@Builder.Task` annotations is generated
+- The annotation processor (`AirflowProcessor.kt`) uses `kapt`. The `Airflow`
+  class holding the `@Airflow.Dag` / `@Airflow.Task` annotations is generated
   from the Dag serialization schema by `:sdk:generateDagDsl` (vendored at
-  `sdk/schema/dag-schema.json`). The `Arg`/`TaskRef` and `Deps`/`Flow` graph
-  types are hand-written next to the rest of the public surface in
-  `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
-  behaviour, handle it in `BuilderProcessor.kt` and add a golden-output test in
+  `sdk/schema/dag-schema.json`), `@Airflow.Deps` included. The `Arg`/`TaskRef`
+  and `Deps`/`Flow` graph types are hand-written next to the rest of the public
+  surface in `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
+  behaviour, handle it in `AirflowProcessor.kt` and add a golden-output test in
   `processor/src/test/kotlin/`.
 - The Python coordinator subclasses `SubprocessCoordinator`. Do not reach into
   the JVM process from Python beyond what `_build_execute_task_command`
@@ -775,12 +779,12 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
 1. Hand-written annotations live in `sdk/src/main/kotlin/org/apache/airflow/sdk/`
    next to the runtime types (one package, so user code needs a single
    `import org.apache.airflow.sdk.*`); the configuration attributes of
-   `@Builder.Dag` / `@Builder.Task` come from the Dag serialization schema via
+   `@Airflow.Dag` / `@Airflow.Task` come from the Dag serialization schema via
    `:sdk:generateDagDsl` (adjust its allowlist/exclusion rules in
    `sdk/build.gradle.kts` when the exposed field set should change).
-2. Handle it in `BuilderProcessor.kt` — generate the appropriate code in the
+2. Handle it in `AirflowProcessor.kt` — generate the appropriate code in the
    `*Builder` class.
-3. Add a test in `BuilderTest.kt` with expected generated output.
+3. Add a test in `AirflowProcessorTest.kt` with expected generated output.
 4. Update the annotation table in `java.rst`.
 
 **Fixing a framing or protocol bug**: focus on `execution/Comm.kt` and

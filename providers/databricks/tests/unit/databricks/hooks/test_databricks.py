@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import itertools
 import json
 import ssl
@@ -1526,6 +1527,18 @@ class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken
         self.hook = DatabricksHook()
 
 
+_get_connection = DatabricksHook.get_connection
+
+
+def _get_connection_off_the_event_loop(conn_id):
+    """Fail like Airflow 3.0 does when the sync lookup runs on an event loop thread."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return _get_connection(conn_id)
+    raise RuntimeError("You cannot use AsyncToSync in the same thread as an async event loop")
+
+
 @pytest.mark.db_test
 class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     """
@@ -1567,6 +1580,20 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
 
         assert run_page_url == {"bar": "baz"}
         mock_get.assert_called_once()
+        assert mock_get.call_args.args == (f"http://{HOST}:7908/api/2.1/foo/bar",)
+
+    @pytest.mark.asyncio
+    # Not autospec: an autospecced inherited classmethod gets the hook as ``conn_id`` when called on
+    # an instance. Before Airflow 3.1 there is no ``aget_connection``, and ``get_async_connection``
+    # runs ``get_connection`` in a worker thread instead.
+    @mock.patch.object(DatabricksHook, "get_connection", side_effect=_get_connection_off_the_event_loop)
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_async_do_api_call_fetches_connection_asynchronously(self, mock_get, mock_get_connection):
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"bar": "baz"})
+        async with self.hook:
+            run_page_url = await self.hook._a_do_api_call(("GET", "2.1/foo/bar"))
+
+        assert run_page_url == {"bar": "baz"}
         assert mock_get.call_args.args == (f"http://{HOST}:7908/api/2.1/foo/bar",)
 
     @pytest.mark.asyncio

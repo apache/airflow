@@ -25,7 +25,7 @@
     "connection_other": "Verbindungen",
     "delete": {
       "deleteConnection_one": "1 Verbindung löschen",
-      "deleteConnection_other": "{{count}} Verbindungen löschen",
+      "deleteConnection_other": "{{count, number}} Verbindungen löschen",
       "firstConfirmMessage_one": "Die folgende Verbindung wird gelöscht:",
       "firstConfirmMessage_other": "Die folgenden Verbindungen werden gelöscht:",
       "title": "Verbindung löschen"
@@ -35,7 +35,6 @@
       "connectionIdRequired": "Verbindungs-ID ist erforderlich",
       "connectionIdRequirement": "Die Verbindungs-ID kann nicht nur aus Leerzeichen bestehen",
       "connectionTypeRequired": "Die Auswahl eines Verbindungstyps ist erforderlich",
-      "extraFields": "Weitere Felder",
       "extraFieldsJson": "JSON Ansicht der weiteren Felder",
       "helperText": "Fehlt ein Verbindungstyp? Stellen Sie sicher, dass die notwendigen Provider-Pakete installiert sind.",
       "helperTextForRedactedFields": "Unkenntlich gemachte Felder ('***') bleiben unverändert, wenn sie nicht bearbeitet werden.",
@@ -153,7 +152,7 @@
     },
     "delete": {
       "deleteVariable_one": "1 Variable löschen",
-      "deleteVariable_other": "{{count}} Variablen löschen",
+      "deleteVariable_other": "{{count, number}} Variablen löschen",
       "firstConfirmMessage_one": "Die folgende Variable wird gelöscht:",
       "firstConfirmMessage_other": "Die folgenden Variablen werden gelöscht:",
       "title": "Variable löschen",

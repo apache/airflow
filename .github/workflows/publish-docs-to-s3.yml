@@ -352,7 +352,7 @@ jobs:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
         id: restore-docs-inventory-cache
-      - name: "Building docs with --docs-only flag using ${{ inputs.ref }} reference breeze"
+      - name: "Building docs using ${{ inputs.ref }} reference breeze"
         id: build-sphinx-docs
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
@@ -375,7 +375,12 @@ jobs:
               > generated/_build/docs/sphinx-build-skipped.txt
             echo "sphinx-build-skipped=true" >> "${GITHUB_OUTPUT}"
           else
-            breeze build-docs ${SPHINX_INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
+            # Refs whose breeze still has --docs-only check spelling in a second full build; skip it.
+            DOCS_ONLY=""
+            if grep -q '"--docs-only"' dev/breeze/src/airflow_breeze/commands/developer_commands.py; then
+              DOCS_ONLY="--docs-only"
+            fi
+            breeze build-docs ${SPHINX_INCLUDE_DOCS} ${DOCS_ONLY} ${FAIL_ON_INVENTORIES}
           fi
       - name: "Save docs inventory cache"
         uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0

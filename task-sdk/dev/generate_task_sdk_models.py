@@ -20,6 +20,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from tomllib import load as load_tomllib
 
 import httpx
 from datamodel_code_generator import (
@@ -47,11 +48,6 @@ task_sdk_root = Path(__file__).parents[1]
 
 
 def load_config():
-    try:
-        from tomllib import load as load_tomllib
-    except ImportError:
-        from tomli import load as load_tomllib
-
     pyproject = AIRFLOW_TASK_SDK_ROOT_PATH / "pyproject.toml"
     # Simulate what `datamodel-code-generator` does on the CLI
     with pyproject.open("rb") as fh:

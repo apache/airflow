@@ -1314,7 +1314,7 @@ class TestUUIDTaskIdentity(_WorkloadFactory):
             seconds=conf.getint("scheduler", "task_instance_heartbeat_timeout") + 1
         )
         session.flush()
-        ti.handle_failure("worker lost", session=session)
+        ti = ti.handle_failure("worker lost", session=session)
         session.refresh(ti)
         assert ti.id != workload.ti.id
         assert ti.state == TaskInstanceState.UP_FOR_RETRY

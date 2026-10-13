@@ -42,8 +42,7 @@ fully model-driven, with the SDK's ``ExceptionRetryPolicy`` as the bottom rung:
        (``ClassifierRetryPolicy``)
      - The model names one of your ``categories``; the table says whether that
        category is retried, after how long, and how sure the model has to be.
-       A classifier model such as TypeSafe's Jev answers in a few hundred
-       milliseconds and reports its confidence; a text model can sit here too,
+       A decision model answers with its confidence; a text model can sit here too,
        without a bar.
      - Category descriptions and the confidence bar. No reasoning, no prose.
    * - **LLM**
@@ -114,10 +113,11 @@ How it works
 
 When a task fails, either policy:
 
-1. Sends the exception message to the configured LLM. By default, the message
-   is first masked through Airflow's secrets masker (see ``redactor`` below)
-   and truncated to ``max_exception_length`` characters before it is added
-   to the prompt.
+1. Sends the exception's class name and message to the configured LLM, or the
+   formatted traceback with ``include_traceback=True`` (see
+   `Sending the traceback`_). By default, the text is first masked through
+   Airflow's secrets masker (see ``redactor`` below) and truncated to
+   ``max_exception_length`` characters before it is added to the prompt.
 2. With ``LLMRetryPolicy``, the model returns an
    :class:`~airflow.providers.common.ai.policies.retry.ErrorClassification`: a
    category, whether to retry, a suggested delay, and its reasoning. With
@@ -174,7 +174,7 @@ failures belong there (the ``description`` the model reads), whether it is
 retried, after what ``delay``, and how sure the model has to be
 (``min_confidence``, covered below). Everything the model is told about a
 category, and everything the policy does with it, sits in that one entry, so
-the two cannot drift apart. This is also the policy a classifier model needs:
+the two cannot drift apart. This is also the policy a decision model needs:
 such a model refuses the free-text fields of ``ErrorClassification``, so an
 ``LLMRetryPolicy`` pointed at one fails every classification and falls back,
 with a log line saying to use ``ClassifierRetryPolicy``.
@@ -287,7 +287,7 @@ constructed, at Dag parse time, rather than on the first task failure.
 Confidence
 ----------
 
-A classifier model reports how sure it is of its answer. ``min_confidence`` is
+A decision model reports how sure it is of its answer. ``min_confidence`` is
 the bar that answer needs for the policy to act on it; under the bar the policy
 discards the answer and takes the same path it takes when the model call fails:
 ``fallback_rules`` if one matches, otherwise the task's own retry behaviour. It
@@ -296,7 +296,7 @@ does not substitute a delay of its own.
 Each category can carry its own bar. The stakes differ: a wrong ``transient``
 costs one more attempt, while a wrong ``permanent`` costs the task every retry it
 had left, so the category that ends the task deserves the higher bar.
-``jev_default`` is the classifier-model connection from :doc:`classifier_models`.
+``decision_default`` is the decision-model connection from :doc:`decision_models`.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_retry_policy.py
     :language: python
@@ -311,7 +311,7 @@ logs the confidence.
 confidence, and so does a response whose metadata was dropped along the way.
 With no bar configured that changes nothing. With a bar configured, every such
 answer is discarded and the fallback path decides, so swapping the connection
-from a classifier model to a text model does not silently switch off a control
+from a decision model to a text model does not silently switch off a control
 you set on purpose. To run a text model, remove the bar.
 
 The confidence is a statistic on the shape of the probability distribution the
@@ -323,7 +323,7 @@ answers start. A bar reduces wrong actions and does not eliminate them: a wrong
 pick can arrive with high confidence. Pin the model version
 (``typesafe:jev-1.13.0``, not ``jev-latest``): a bar tuned against one release
 is not guaranteed to mean the same thing after the next. See
-:doc:`classifier_models` for what these models answer well and badly.
+:doc:`decision_models` for what these models answer well and badly.
 
 Escalating to an LLM
 --------------------
@@ -398,8 +398,9 @@ What the model can and cannot do
 
 Under either policy the model is given no tools and there is no way to attach
 any, so it cannot run code, call an API, read a connection, or reach your data.
-Beyond your ``instructions``, it sees only the exception's class name, the
-exception message (after redaction and truncation), how many attempts are left,
+Beyond your ``instructions``, it sees only the exception's class name and
+message (or, with ``include_traceback=True``, the formatted traceback; either
+after redaction and truncation), how many attempts are left,
 and, under ``ClassifierRetryPolicy``, the category names and descriptions. The prompt says
 ``attempt {try_number} of {max_tries}``, so the model knows the limit and not
 just where it is right now; an instruction like "after two attempts treat an
@@ -507,7 +508,7 @@ When writing custom instructions:
   come back: a model that insists on one is re-prompted once by pydantic-ai and
   then gives up, which lands the task on ``fallback_rules`` or on its own retry
   behaviour, having billed two calls.
-- A classifier model sends ``instructions`` as the question it scores the
+- A decision model sends ``instructions`` as the question it scores the
   exception text against, not as rules it follows step by step, so a long rubric
   buys less there than a better description on each category does.
 
@@ -568,8 +569,9 @@ Both policies share every parameter below except ``categories``,
        apply.
    * - ``redactor``
      - None (uses ``redact_registered_secrets``)
-     - Callable ``(str) -> str`` applied to the exception's string
-       representation before it is added to the classification prompt. The
+     - Callable ``(str) -> str`` applied to the exception text (its string
+       representation, or the whole traceback with ``include_traceback=True``)
+       before it is added to the classification prompt. The
        default only masks values already registered via ``mask_secret()``
        (e.g. connection passwords Airflow captured while resolving the
        failing task's connections) -- it is not general-purpose PII
@@ -578,15 +580,87 @@ Both policies share every parameter below except ``categories``,
        the default masker entirely rather than stacking on top of it.
    * - ``redact_exception``
      - True
-     - Whether to redact the exception's string representation before it is
+     - Whether to redact the exception text before it is
        added to the classification prompt. Set to ``False`` to disable
        redaction entirely. Raises ``ValueError`` at construction time if
        combined with an explicit ``redactor``.
    * - ``max_exception_length``
      - 4096
      - Maximum number of characters of the (already redacted) exception
-       message included in the prompt. Longer messages are truncated with a
-       trailing ``"... (truncated)"`` marker. Must be a positive integer.
+       text included in the prompt. A longer message keeps its head, with a
+       trailing ``"... (truncated)"`` marker; a longer traceback keeps its
+       tail, with a leading ``"(truncated) ..."`` marker. Must be a positive
+       integer.
+   * - ``include_traceback``
+     - False
+     - Send the formatted traceback, with chained exceptions and
+       module-qualified class names, instead of ``ExceptionType: message``.
+       See `Sending the traceback`_.
+
+Sending the traceback
+---------------------
+
+By default the model sees ``ExceptionType: message``, and some failures name the
+wrong cause there. A response cut off mid-body and then parsed fails as:
+
+.. code-block:: text
+
+    JSONDecodeError: Expecting ',' delimiter: line 1 column 51 (char 50)
+
+That reads as bad input data, a ``data`` failure that is not retried. The real
+cause is in the exception chain, which the message does not carry. With
+``include_traceback=True`` the policy sends the formatted traceback instead:
+
+.. code-block:: python
+
+    import json
+    from http.client import IncompleteRead
+    from urllib.request import urlopen
+
+    from airflow.providers.common.ai.policies.retry import LLMRetryPolicy
+    from airflow.sdk import task
+
+
+    @task(retries=3, retry_policy=LLMRetryPolicy(llm_conn_id="pydanticai_default", include_traceback=True))
+    def fetch_orders():
+        with urlopen("https://api.example.com/orders") as response:
+            try:
+                body = response.read()
+            except IncompleteRead as err:
+                return json.loads(err.partial)  # salvage whatever arrived
+        return json.loads(body)
+
+The model then receives both exceptions, with module-qualified class names and
+the linking line between them (stack frames shortened to ``...`` here):
+
+.. code-block:: text
+
+    Traceback (most recent call last):
+      ...
+    http.client.IncompleteRead: IncompleteRead(50 bytes read, 4096 more expected)
+
+    During handling of the above exception, another exception occurred:
+
+    Traceback (most recent call last):
+      ...
+    json.decoder.JSONDecodeError: Expecting ',' delimiter: line 1 column 51 (char 50)
+
+The ``IncompleteRead`` underneath says the connection dropped mid-body, a
+``network`` failure worth retrying.
+
+The text is what :func:`traceback.format_exception` produces: each frame's file
+path and source line, and the message of every chained exception
+(``raise ... from ...`` and an exception raised while handling another). Local
+variable values are not included. ``redactor`` runs over the whole text before
+it is truncated, so a secret in a chained exception's message is masked like
+one in the final message.
+
+A traceback is often many times longer than the message, and every failure pays
+for it, up to ``max_exception_length`` characters per classification. When it is
+longer than that, the policy keeps the tail behind a leading ``(truncated) ...``
+marker, because the innermost frames and the final exception line say the most.
+A chained cause is printed first, so a deep stack can push it out of the
+window; raise ``max_exception_length`` if the causes you need are being cut.
 
 Custom redactors
 ----------------
@@ -616,7 +690,7 @@ yourself if you still want known-secret masking too:
     llm_policy = LLMRetryPolicy(
         llm_conn_id="pydanticai_default",
         redactor=redact_emails_and_secrets,
-        max_exception_length=2048,  # keep long tracebacks from inflating token cost
+        max_exception_length=2048,  # keep long exception messages from inflating token cost
     )
 
 To disable redaction entirely (for example, if you are certain your

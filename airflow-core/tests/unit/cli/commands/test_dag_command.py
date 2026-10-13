@@ -42,7 +42,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, clear_task_instances_for_runs
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, PartitionedAssetTimetable, task
@@ -2127,16 +2127,16 @@ class TestCliDagsClear:
     def test_clears_each_matching_run_once_across_chunks(self, parser, chunk_size, expected_calls):
         """Every matching run is cleared exactly once, however run_ids split into chunks.
 
-        clear_task_instances is called once per chunk (not once per run), every matching
+        clear_task_instances_for_runs is called once per chunk (not once per run), every matching
         run is re-queued, and each run's clear_number advances by exactly 1 — proving a
         run's TIs are never split across chunks.
         """
         call_count = 0
 
-        def counting_clear(tis, session, **kwargs):
+        def counting_clear(tis, **kwargs):
             nonlocal call_count
             call_count += 1
-            return clear_task_instances(tis, session, **kwargs)
+            return clear_task_instances_for_runs(tis, **kwargs)
 
         args = parser.parse_args(
             [
@@ -2153,7 +2153,7 @@ class TestCliDagsClear:
         with (
             mock.patch.object(dag_command, "_RUN_CHUNK_SIZE", chunk_size),
             mock.patch(
-                "airflow.cli.commands.dag_command.clear_task_instances",
+                "airflow.cli.commands.dag_command.clear_task_instances_for_runs",
                 side_effect=counting_clear,
             ),
         ):
@@ -2172,6 +2172,36 @@ class TestCliDagsClear:
         assert clear_numbers["part_2026_03_10"] == 1
         assert clear_numbers["part_2026_03_14"] == 1
         assert clear_numbers["non_partitioned"] == 0
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    @pytest.mark.parametrize(
+        ("only_failed", "only_running", "expect_whole"),
+        [
+            pytest.param(False, False, True, id="no-state-filter"),
+            pytest.param(True, False, False, id="only-failed"),
+            pytest.param(False, True, False, id="only-running"),
+        ],
+    )
+    @mock.patch("airflow.cli.commands.dag_command.clear_task_instances_for_runs", autospec=True)
+    def test_bulk_clear_scopes_loop_clearing_like_dag_clear(
+        self, mock_clear, session, only_failed, only_running, expect_whole
+    ):
+        run_id = "part_2026_03_08"
+        ti = session.scalar(
+            select(TaskInstance).where(TaskInstance.dag_id == self.DAG_ID, TaskInstance.run_id == run_id)
+        )
+        ti.state = TaskInstanceState.FAILED if only_failed else TaskInstanceState.RUNNING
+        session.flush()
+
+        dag_command._bulk_clear_runs(
+            self.DAG_ID, [run_id], only_failed=only_failed, only_running=only_running, session=session
+        )
+
+        mock_clear.assert_called_once()
+        assert mock_clear.call_args.kwargs["later_loop_iterations"] is expect_whole
+        assert mock_clear.call_args.kwargs["whole_task_keys"] == (
+            {(self.DAG_ID, run_id, ti.task_id)} if expect_whole else ()
+        )
 
     @pytest.mark.usefixtures("seeded_partitioned_runs")
     def test_does_not_clear_runs_of_other_dags(self, parser, dag_maker):

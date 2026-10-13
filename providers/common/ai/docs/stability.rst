@@ -51,7 +51,7 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
    * - ``@task.agent`` and :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - Runs an agent with the model from ``llm_conn_id`` and the given toolsets, and
        returns its output under the same rules as ``@task.llm``. ``durable``,
-       ``code_mode`` and per-tool approval are experimental; see below.
+       code mode and per-tool approval are experimental; see below.
    * - ``message_history`` on ``AgentOperator``
      - Seeds the run with the given conversation, as a list of messages or its JSON form,
        and publishes the finished conversation under the ``message_history`` XCom key so a
@@ -77,8 +77,9 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        statement, the model gets the error and can correct it, up to the tool's retry
        limit, after which the task fails.
    * - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`
-     - Exposes exactly the hook methods in ``allowed_methods``, each named after its method
-       with ``tool_name_prefix`` in front, and raises an error when the toolset is created
+     - Exposes exactly the hook methods in ``allowed_methods``, each named
+       ``<tool_prefix>_<method>`` when ``tool_prefix`` is set, which must be a valid Python
+       identifier, and raises an error when the toolset is created
        if a listed method does not exist on the hook. ``pinned_arguments`` is
        experimental; see below.
    * - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` and
@@ -111,7 +112,7 @@ Everything this provider ships that is not in the table above is experimental.
    * - Feature
      - Why it is experimental
    * - :class:`~airflow.providers.common.ai.policies.retry.ClassifierRetryPolicy`
-       (:doc:`classifier_models`)
+       (:doc:`decision_models`)
      - The confidence threshold, the fallback order and the behaviour when the classifier
        is unavailable are still settling.
    * - :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`, and
@@ -131,7 +132,7 @@ Everything this provider ships that is not in the table above is experimental.
        ``on_tool_approval_timeout`` and ``tool_approval_assigned_users``;
        :doc:`tool_approval`)
      - New, and needs Airflow 3.3. How a paused run resumes may change.
-   * - ``code_mode`` (:doc:`code_mode`), the Agent Skills toolset
+   * - Code mode (:doc:`code_mode`), the Agent Skills toolset
        (:doc:`toolsets/skills`) and the ``shields`` extra (used in :doc:`capabilities`)
      - Thin integrations of packages outside this provider whose APIs are still
        changing: ``pydantic-ai-harness``, ``pydantic-ai-skills`` and

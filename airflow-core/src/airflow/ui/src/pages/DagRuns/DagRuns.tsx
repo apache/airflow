@@ -30,6 +30,7 @@ import { RouterLink, ActionBar } from "src/system-components";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -99,7 +100,12 @@ type ColumnProps = {
   readonly translate: TFunction;
 } & GetColumnsParams;
 
-const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
+const runColumns = ({
+  dagId,
+  multiTeam,
+  open,
+  translate,
+}: ColumnProps): Array<ColumnDef<DataTableFeatures, DAGRunResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,
@@ -141,6 +147,11 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
       </RouterLink>
     ),
     header: translate("dagRun.runAfter"),
+  },
+  {
+    accessorKey: "logical_date",
+    cell: ({ row: { original } }) => <Time datetime={original.logical_date} />,
+    header: translate("logicalDate"),
   },
   {
     accessorKey: "state",
@@ -253,6 +264,7 @@ export const DagRuns = () => {
     columnVisibility: {
       dag_version: false,
       end_date: false,
+      logical_date: false,
       partition_key: false,
     },
   });

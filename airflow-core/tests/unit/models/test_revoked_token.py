@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from airflow.models.revoked_token import RevokedToken
@@ -37,7 +37,7 @@ class TestRevokedTokenModel:
     def test_revoke_inserts_row(self):
         """Test that revoke calls session.merge with a RevokedToken instance."""
         mock_session = MagicMock()
-        exp = datetime.now(tz=timezone.utc) + timedelta(hours=1)
+        exp = datetime.now(tz=UTC) + timedelta(hours=1)
         RevokedToken.revoke("test-jti-123", exp, session=mock_session)
         mock_session.merge.assert_called_once()
         arg = mock_session.merge.call_args[0][0]

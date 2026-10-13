@@ -277,7 +277,12 @@ class EdgeExecutor(BaseExecutor):
         for job in lifeless_jobs:
             key = self._job_key(job)
             if self.supports_task_instance_uuid and isinstance(key, TaskInstanceUuid):
-                ti = session.scalar(select(TaskInstance).where(TaskInstance.id == key.id))
+                ti = session.scalar(
+                    select(TaskInstance).where(
+                        TaskInstance.id == key.id,
+                        TaskInstance.working_set.is_(True),
+                    )
+                )
                 if ti is None:
                     self.running.discard(key)
                     self.last_reported_state.pop(key, None)

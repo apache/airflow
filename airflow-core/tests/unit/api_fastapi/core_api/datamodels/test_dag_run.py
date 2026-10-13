@@ -16,14 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunClearBody, ClearPartitionsBody
 
-_DATE_A = datetime(2024, 1, 1, tzinfo=timezone.utc)
-_DATE_B = datetime(2024, 1, 31, tzinfo=timezone.utc)
+_DATE_A = datetime(2024, 1, 1, tzinfo=UTC)
+_DATE_B = datetime(2024, 1, 31, tzinfo=UTC)
 
 # Non-partition selector kwargs differ per model class.
 _NON_PARTITION_KWARGS: dict[type, dict] = {

@@ -22,7 +22,7 @@ from unittest import mock
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -33,6 +33,8 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.hitl import HITLDetail
+from airflow.models.taskinstance import TaskInstance as TI
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.timezone import utcnow
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -403,6 +405,24 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 pending_actions = dag_json["pending_actions"]
                 pending_actions.sort(key=lambda x: x["subject"])
                 assert pending_actions == expected_pending_actions
+
+    def test_pending_actions_filter_ignores_archived_task_instances_with_stale_pending_state(
+        self, test_client: TestClient, setup_hitl_data, session: Session
+    ):
+        pending_details = session.scalars(select(HITLDetail).where(HITLDetail.responded_at.is_(None))).all()
+        assert len(pending_details) == 3
+        for detail in pending_details:
+            detail.task_instance.working_set = None
+            detail.task_instance.archived_reason = "retry"
+        session.commit()
+
+        with_pending = test_client.get("/dags", params={"has_pending_actions": True})
+        without_pending = test_client.get("/dags", params={"has_pending_actions": False})
+
+        assert with_pending.status_code == 200
+        assert with_pending.json()["total_entries"] == 0
+        assert without_pending.status_code == 200
+        assert without_pending.json()["total_entries"] == 3
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags", params={})
@@ -852,6 +872,198 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
 
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/dags/run_state_counts", params={"dag_ids": [DAG1_ID]})
+        assert response.status_code == 403
+
+
+TI_COUNTS_DAG_ID = "test_dag_recent_ti_counts"
+RECENT_TI_COUNTS_ENDPOINT = "/dags/recent_task_instance_state_counts"
+
+
+class TestGetRecentTaskInstanceStateCounts(TestPublicDagEndpoint):
+    """Tests for ``GET /ui/dags/recent_task_instance_state_counts``."""
+
+    @pytest.fixture(autouse=True)
+    def seed_runs_with_task_instances(self, setup, dag_maker, session) -> None:
+        # A dedicated Dag with an older finished run and a latest running run. The older
+        # run proves which runs are counted: it joins the counts only once it is running.
+        # The latest run's four tasks cover three distinct states plus the null-state
+        # ("no_status") case.
+        with dag_maker(TI_COUNTS_DAG_ID, schedule=None, session=session):
+            for idx in range(4):
+                EmptyOperator(task_id=f"task_{idx}")
+
+        base = utcnow() - pendulum.duration(days=1)
+        older_run = dag_maker.create_dagrun(
+            run_id="older_run", state=DagRunState.SUCCESS, logical_date=base, run_after=base
+        )
+        for ti in older_run.task_instances:
+            ti.state = TaskInstanceState.SUCCESS
+        latest = base + pendulum.duration(hours=1)
+        latest_run = dag_maker.create_dagrun(
+            run_id="latest_run", state=DagRunState.RUNNING, logical_date=latest, run_after=latest
+        )
+        latest_states = [
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.FAILED,
+            TaskInstanceState.RUNNING,
+            None,
+        ]
+        tis = sorted(latest_run.task_instances, key=lambda ti: ti.task_id)
+        for ti, state in zip(tis, latest_states, strict=True):
+            ti.state = state
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+        self.older_run_id = older_run.id
+        self.latest_run_id = latest_run.id
+
+    @staticmethod
+    def _run_id_for(session, dag_id: str) -> int:
+        return session.scalar(
+            select(DagRun.id).where(DagRun.dag_id == dag_id).order_by(DagRun.run_after.desc()).limit(1)
+        )
+
+    @staticmethod
+    def _set_run_state(session, run_id: int, state: DagRunState) -> None:
+        session.get(DagRun, run_id).set_state(state)
+        session.commit()
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_counts_the_running_run(self, test_client):
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]})
+        assert response.status_code == 200
+        # Only the running run's states may appear: the older all-success run must not
+        # leak in (it would push success to 5), and unset states surface as "no_status".
+        assert response.json()["dags"] == [
+            {
+                "dag_id": TI_COUNTS_DAG_ID,
+                "run_ids": ["latest_run"],
+                "state_counts": {"success": 1, "failed": 1, "running": 1, "no_status": 1},
+            }
+        ]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_sums_every_running_run(self, test_client, session):
+        self._set_run_state(session, self.older_run_id, DagRunState.RUNNING)
+
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]})
+        assert response.status_code == 200
+        assert response.json()["dags"] == [
+            {
+                "dag_id": TI_COUNTS_DAG_ID,
+                "run_ids": ["older_run", "latest_run"],
+                "state_counts": {"success": 5, "failed": 1, "running": 1, "no_status": 1},
+            }
+        ]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_running_runs_win_over_the_requested_run(self, test_client):
+        # The requested run only stands in when its Dag has nothing running, so asking for
+        # the finished older run still returns the running latest run's counts.
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.older_run_id]})
+        assert response.status_code == 200
+        assert response.json()["dags"] == [
+            {
+                "dag_id": TI_COUNTS_DAG_ID,
+                "run_ids": ["latest_run"],
+                "state_counts": {"success": 1, "failed": 1, "running": 1, "no_status": 1},
+            }
+        ]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_falls_back_to_the_requested_run_when_none_is_running(self, test_client, session):
+        self._set_run_state(session, self.latest_run_id, DagRunState.FAILED)
+
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]})
+        assert response.status_code == 200
+        assert response.json()["dags"] == [
+            {
+                "dag_id": TI_COUNTS_DAG_ID,
+                "run_ids": ["latest_run"],
+                "state_counts": {"success": 1, "failed": 1, "running": 1, "no_status": 1},
+            }
+        ]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_lists_a_counted_run_without_task_instances(self, test_client, session):
+        session.execute(delete(TI).where(TI.run_id == "latest_run"))
+        session.commit()
+
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]})
+        assert response.status_code == 200
+        assert response.json()["dags"] == [
+            {"dag_id": TI_COUNTS_DAG_ID, "run_ids": ["latest_run"], "state_counts": {}},
+        ]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_omits_unknown_run_ids(self, test_client):
+        response = test_client.get(
+            RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id, 999999]}
+        )
+        assert response.status_code == 200
+        dag_ids = [entry["dag_id"] for entry in response.json()["dags"]]
+        assert dag_ids == [TI_COUNTS_DAG_ID]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_counts_multiple_dags_independently(self, test_client, session):
+        dag1_run_id = self._run_id_for(session, DAG1_ID)
+        response = test_client.get(
+            RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id, dag1_run_id]}
+        )
+        assert response.status_code == 200
+        by_dag = {entry["dag_id"]: entry for entry in response.json()["dags"]}
+        assert set(by_dag) == {TI_COUNTS_DAG_ID, DAG1_ID}
+        # DAG1's only run comes from the parent fixture: a single task instance that was
+        # never scheduled, so it surfaces under "no_status".
+        assert by_dag[DAG1_ID]["state_counts"] == {"no_status": 1}
+        assert by_dag[TI_COUNTS_DAG_ID]["state_counts"] == {
+            "success": 1,
+            "failed": 1,
+            "running": 1,
+            "no_status": 1,
+        }
+
+    def test_deduplicates_run_ids(self, test_client):
+        response = test_client.get(
+            RECENT_TI_COUNTS_ENDPOINT,
+            params={"dag_run_ids": [self.latest_run_id, self.latest_run_id]},
+        )
+        assert response.status_code == 200
+        dag_ids = [entry["dag_id"] for entry in response.json()["dags"]]
+        assert dag_ids == [TI_COUNTS_DAG_ID]
+
+    def test_rejects_too_many_run_ids(self, test_client):
+        # The page never sends more than maximum_page_limit runs; a direct call with a
+        # larger list is rejected so the per-run UNION ALL width stays bounded.
+        too_many = list(range(conf.getint("api", "maximum_page_limit") + 1))
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": too_many})
+        assert response.status_code == 422
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_permission_filter_hides_disallowed_dags(self, test_client, session):
+        dag1_run_id = self._run_id_for(session, DAG1_ID)
+        with mock.patch.object(
+            SimpleAuthManager,
+            "get_authorized_dag_ids",
+            return_value={TI_COUNTS_DAG_ID},
+        ):
+            response = test_client.get(
+                RECENT_TI_COUNTS_ENDPOINT,
+                params={"dag_run_ids": [self.latest_run_id, dag1_run_id]},
+            )
+        assert response.status_code == 200
+        dag_ids = [entry["dag_id"] for entry in response.json()["dags"]]
+        assert dag_ids == [TI_COUNTS_DAG_ID]
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]}
+        )
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]}
+        )
         assert response.status_code == 403
 
 

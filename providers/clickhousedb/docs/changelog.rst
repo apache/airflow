@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Mark the ClickHouse provider as incubating (#69166)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Prepare providers release 2026-08-06 (#71219)``
+   * ``Prepare providers release 2026-08-01 (#70932)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
+   * ``Fix ClickHouse test connection with newer clickhouse-connect (#70114)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 1.0.0
 .....
 

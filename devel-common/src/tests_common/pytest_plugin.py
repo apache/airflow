@@ -27,7 +27,7 @@ import sys
 import warnings
 from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
 from unittest import mock
@@ -139,6 +139,21 @@ if skip_db_tests:
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
     # Set it here to pass the flag to python-xdist spawned processes
     os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
+    # configure_orm() never succeeds against the connection string above, so the hook it installs to
+    # import every model before SQLAlchemy configures mappers is missing. Install the same hook here,
+    # or a string relationship such as Team.dag_bundles cannot resolve when a test first builds an ORM
+    # object. Imported lazily: importing airflow here would initialize its settings before this module
+    # finishes setting the environment, and not every distribution's test environment has SQLAlchemy.
+    if importlib.util.find_spec("sqlalchemy"):
+        from sqlalchemy import event
+        from sqlalchemy.orm import Mapper
+
+        def _import_all_models() -> None:
+            from airflow.models import import_all_models
+
+            import_all_models()
+
+        event.listen(Mapper, "before_configured", _import_all_models, once=True)
 
 if run_db_tests_only:
     # Set it here to pass the flag to python-xdist spawned processes
@@ -971,7 +986,7 @@ def frozen_sleep(monkeypatch):
 
     def fake_sleep(seconds):
         nonlocal traveller
-        utcnow = datetime.now(tz=timezone.utc)
+        utcnow = datetime.now(tz=UTC)
         if traveller is not None:
             traveller.stop()
         traveller = time_machine.travel(utcnow + timedelta(seconds=seconds))
@@ -1106,6 +1121,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         AIRFLOW_V_3_1_PLUS,
         AIRFLOW_V_3_2_PLUS,
         AIRFLOW_V_3_3_PLUS,
+        AIRFLOW_V_3_4_PLUS,
         NOTSET,
     )
 
@@ -1628,7 +1644,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         )
                         self.session.execute(delete(DagRun).where(DagRun.dag_id.in_(dag_ids)))
                         self.session.execute(delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)))
-                    self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
+                    if not AIRFLOW_V_3_4_PLUS:
+                        self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
                     self.session.execute(delete(DagModel).where(DagModel.dag_id.in_(dag_ids)))
                     self.session.execute(delete(AssetEvent).where(AssetEvent.source_dag_id.in_(dag_ids)))
                     if AIRFLOW_V_3_0_PLUS:
@@ -2142,6 +2159,18 @@ def clear_lru_cache():
         yield
     finally:
         _get_grouped_entry_points.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def discard_async_engine_pool():
+    """Pooled async connections stay bound to the loop that opened them, so drop them before a later test's loop can reuse one."""
+    yield
+    if importlib.util.find_spec("airflow") is None:
+        return
+    from airflow import settings
+
+    if (async_engine := getattr(settings, "async_engine", None)) is not None:
+        async_engine.sync_engine.dispose(close=False)
 
 
 @pytest.fixture(autouse=True)

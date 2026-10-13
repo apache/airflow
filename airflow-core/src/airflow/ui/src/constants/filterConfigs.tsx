@@ -544,7 +544,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.TO_RANGE]: {
       endKey: SearchParamsKeys.TO_DATE_LTE,
       icon: <MdDateRange />,
-      label: translate("common:table.from"),
+      label: translate("common:table.to"),
       startKey: SearchParamsKeys.TO_DATE_GTE,
       type: FilterTypes.DATERANGE,
     },

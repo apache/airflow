@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 pytestmark = pytest.mark.db_test
@@ -90,14 +90,10 @@ class TestXComsGetEndpoint:
             if db_value is None:  # We don't put None to XCom.
                 continue
             ti = tis[map_index]
-            x = XComModel(
+            x = XComModelV2(
+                task_instance_id=ti.id,
                 key="xcom_1",
                 value=db_value,
-                dag_run_id=ti.dag_run.id,
-                run_id=ti.run_id,
-                task_id=ti.task_id,
-                dag_id=ti.dag_id,
-                map_index=map_index,
             )
             session.add(x)
         session.commit()

@@ -33,14 +33,14 @@ importers:
         version: 1.14.2
       moment-timezone:
         specifier: '>=0.5.35'
-        version: 0.6.4
+        version: 0.6.5
     devDependencies:
       '@babel/core':
         specifier: ^8.0.6
         version: 8.0.6
       '@babel/eslint-parser':
         specifier: ^8.0.6
-        version: 8.0.6(@babel/core@8.0.6)(eslint@10.11.0)
+        version: 8.0.6(@babel/core@8.0.6)(eslint@10.12.0)
       '@babel/plugin-transform-runtime':
         specifier: ^8.0.6
         version: 8.0.6(@babel/core@8.0.6)
@@ -60,8 +60,8 @@ importers:
         specifier: ^8.0.0
         version: 8.0.0(webpack@5.111.1)
       eslint:
-        specifier: ^10.11.0
-        version: 10.11.0
+        specifier: ^10.12.0
+        version: 10.12.0
       file-loader:
         specifier: ^6.2.0
         version: 6.2.0(webpack@5.111.1)
@@ -1221,8 +1221,8 @@ packages:
     resolution: {integrity: sha512-tD40eHxA35h0PEIZNeIjkHoDR4YjjJp34biM0mDvplBe//mB+IHCqHDGV7pxF+7MklTvighcCPPZC7ynWyjdTA==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
-  eslint@10.11.0:
-    resolution: {integrity: sha512-P7a6UEEqb9G95MYAtqkmsTbVXIYyzIfl6NGOIJk162PaahFxFyeGcrlXYFSiagECg4sEm8IseJdZBKR3rx6MsQ==}
+  eslint@10.12.0:
+    resolution: {integrity: sha512-npHjrHb2o4ehH3mE+YuxABR+0gyb0aVWCIolgJDArwCiHEIsonBm3ZKjel5b0U5+a+MbEvIyRCGCzD3eKKK2NA==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
     hasBin: true
     peerDependencies:
@@ -1673,8 +1673,8 @@ packages:
       moment: ^2.8.0
       webpack: ^1 || ^2 || ^3 || ^4 || ^5
 
-  moment-timezone@0.6.4:
-    resolution: {integrity: sha512-JHUK8Mgheach4uMQmIV/pIfrv0ubPiDCPPqc7Mi604je1UblP6Gbm+FfV+Oh88KP03rZqGCZG3t0wmpfdlDv+w==}
+  moment-timezone@0.6.5:
+    resolution: {integrity: sha512-KKzZAxGv2Qx4cnk6eSlvf4C+DLFW52vmMY5MN7UARY7GONbozkutylQG3DrrtmLCTXdQ5XZrqao9cI16bLFzXA==}
 
   moment@2.31.0:
     resolution: {integrity: sha512-0acOTfMiWOheYS4eoWb80yYMb/JLvVv9SHbs2PehaDzfUG0Bw855SKyk0IKTnPGa5+U2bmi3W68l1+sGLX/pvw==}
@@ -2444,10 +2444,10 @@ snapshots:
       obug: 2.2.1
       verkit: 0.3.2
 
-  '@babel/eslint-parser@8.0.6(@babel/core@8.0.6)(eslint@10.11.0)':
+  '@babel/eslint-parser@8.0.6(@babel/core@8.0.6)(eslint@10.12.0)':
     dependencies:
       '@babel/core': 8.0.6
-      eslint: 10.11.0
+      eslint: 10.12.0
       eslint-scope: 9.1.2
       eslint-visitor-keys: 5.0.1
       verkit: 0.3.2
@@ -3037,9 +3037,9 @@ snapshots:
 
   '@discoveryjs/json-ext@1.1.0': {}
 
-  '@eslint-community/eslint-utils@4.10.1(eslint@10.11.0)':
+  '@eslint-community/eslint-utils@4.10.1(eslint@10.12.0)':
     dependencies:
-      eslint: 10.11.0
+      eslint: 10.12.0
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.2': {}
@@ -3599,9 +3599,9 @@ snapshots:
 
   eslint-visitor-keys@5.0.1: {}
 
-  eslint@10.11.0:
+  eslint@10.12.0:
     dependencies:
-      '@eslint-community/eslint-utils': 4.10.1(eslint@10.11.0)
+      '@eslint-community/eslint-utils': 4.10.1(eslint@10.12.0)
       '@eslint-community/regexpp': 4.12.2
       '@eslint/config-array': 0.23.5
       '@eslint/config-helpers': 0.7.0
@@ -3971,7 +3971,7 @@ snapshots:
       moment: 2.31.0
       webpack: 5.111.1(postcss@8.5.28)(webpack-cli@7.2.3)
 
-  moment-timezone@0.6.4:
+  moment-timezone@0.6.5:
     dependencies:
       moment: 2.31.0
 

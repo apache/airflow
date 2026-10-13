@@ -122,11 +122,8 @@ const filterDags = ({ paused, timetableTypes }: { paused: string | null; timetab
   if (paused === "true") {
     return allDags.filter((dag) => dag.is_paused);
   }
-  if (paused === "false") {
-    return allDags.filter((dag) => !dag.is_paused);
-  }
 
-  return allDags;
+  return paused === "false" ? allDags.filter((dag) => !dag.is_paused) : allDags;
 };
 
 export const handlers: Array<HttpHandler> = [

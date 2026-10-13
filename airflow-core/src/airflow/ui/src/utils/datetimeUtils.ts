@@ -173,11 +173,9 @@ const formatDuration = (
 
   // Below a millisecond the digits are timestamp resolution and clock skew rather than signal. "<"
   // is mathematical notation, not prose, so CLDR has no pattern for it and none is needed.
-  if (seconds > 0 && seconds < 0.001) {
-    return `<${formatParts([{ unit: "millisecond", value: 1 }], locale, style)}`;
-  }
-
-  return formatParts(getDurationParts(seconds), locale, style);
+  return seconds > 0 && seconds < 0.001
+    ? `<${formatParts([{ unit: "millisecond", value: 1 }], locale, style)}`
+    : formatParts(getDurationParts(seconds), locale, style);
 };
 
 /**
@@ -204,16 +202,11 @@ const DURATION_TICK_STEPS_SECONDS = [
   604_800,
 ];
 
-export const getDurationTickStep = (maxSeconds: number, maxTicks = 8): number => {
-  if (!Number.isFinite(maxSeconds) || maxSeconds <= 0) {
-    return 1;
-  }
-
-  return (
-    DURATION_TICK_STEPS_SECONDS.find((candidate) => maxSeconds / candidate <= maxTicks) ??
-    Math.ceil(maxSeconds / maxTicks)
-  );
-};
+export const getDurationTickStep = (maxSeconds: number, maxTicks = 8): number =>
+  !Number.isFinite(maxSeconds) || maxSeconds <= 0
+    ? 1
+    : (DURATION_TICK_STEPS_SECONDS.find((candidate) => maxSeconds / candidate <= maxTicks) ??
+      Math.ceil(maxSeconds / maxTicks));
 
 /** Elapsed seconds between two timestamps, counting an absent `endDate` as still running. */
 export const getElapsedSeconds = (startDate?: string | null, endDate?: string | null): number | undefined => {
@@ -234,13 +227,10 @@ export const formatDate = (
   date: number | string | null | undefined,
   timezone: string,
   format: string = DEFAULT_DATETIME_FORMAT,
-) => {
-  if (date === null || date === undefined || !dayjs(date).isValid()) {
-    return dayjs().tz(timezone).format(format);
-  }
-
-  return dayjs(date).tz(timezone).format(format);
-};
+) =>
+  date === null || date === undefined || !dayjs(date).isValid()
+    ? dayjs().tz(timezone).format(format)
+    : dayjs(date).tz(timezone).format(format);
 
 // Ordered largest first so the first unit the difference reaches wins: "45 minutes ago" rather than
 // "2700 seconds ago". Months and years use the mean Gregorian lengths CLDR assumes for relative

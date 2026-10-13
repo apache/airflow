@@ -473,7 +473,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
 
     def _read_dag_source_codes(self, serialized_dags: list[LazyDeserializedDAG]) -> dict[str, DagSourceCode]:
         """
-        Read the file's source with its Dag importer, for the fileloc of each Dag.
+        Read each Dag's own source with its Dag importer, keyed by dag_id.
 
         A binary artifact cannot be read as text, so a source that cannot be read is a placeholder.
         """
@@ -483,11 +483,25 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         try:
             if (importer := get_claiming_importer(file, self.bundle_name)) is None:
                 raise RuntimeError(f"No coordinator Dag importer claims {file}")
-            source = importer.get_source_code(FilesystemDagDefinition(Path(file)))
         except Exception as e:
             self.process_log.warning("Cannot read the Dag source", fileloc=file, error=str(e))
-            source = DagSourceCode(f"Cannot read the source of {self.dag_file_rel_path}: {e}", "text")
-        return {dag.data["dag"].get("fileloc", file): source for dag in serialized_dags}
+            placeholder = DagSourceCode(f"Cannot read the source of {self.dag_file_rel_path}: {e}", "text")
+            return dict.fromkeys((dag.dag_id for dag in serialized_dags), placeholder)
+
+        sources: dict[str, DagSourceCode] = {}
+        for dag in serialized_dags:
+            try:
+                sources[dag.dag_id] = importer.get_source_code(
+                    FilesystemDagDefinition(Path(file)), dag.dag_id
+                )
+            except Exception as e:
+                self.process_log.warning(
+                    "Cannot read the Dag source", fileloc=file, dag_id=dag.dag_id, error=str(e)
+                )
+                sources[dag.dag_id] = DagSourceCode(
+                    f"Cannot read the source of {self.dag_file_rel_path}: {e}", "text"
+                )
+        return sources
 
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[LangSDKDagFileProcessorProcess]]] = {
         **BaseDagFileProcessorProcess._common_request_handlers,

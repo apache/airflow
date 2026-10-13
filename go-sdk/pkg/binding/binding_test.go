@@ -1148,3 +1148,23 @@ func (s *BindingSuite) TestResolveEmptyInterfaceDataParam() {
 	s.Require().NoError(err)
 	s.Equal(map[string]any{"k": "v"}, got[0].Interface())
 }
+
+func (s *BindingSuite) TestDecodeLiteralDecodesAsResolveDoes() {
+	type row struct {
+		Name string `json:"name"`
+	}
+
+	got, err := DecodeLiteral(map[string]any{"name": "a"}, reflect.TypeFor[row]())
+	s.Require().NoError(err)
+	s.Equal(row{Name: "a"}, got.Interface())
+
+	got, err = DecodeLiteral(nil, reflect.TypeFor[*row]())
+	s.Require().NoError(err)
+	s.True(got.IsNil())
+
+	_, err = DecodeLiteral(nil, reflect.TypeFor[string]())
+	s.EqualError(err, "value is null but the parameter type string is not nilable")
+
+	_, err = DecodeLiteral(map[string]any{"other": 1}, reflect.TypeFor[row]())
+	s.EqualError(err, `json: unknown field "other"`)
+}

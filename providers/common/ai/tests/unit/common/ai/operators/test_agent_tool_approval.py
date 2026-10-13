@@ -551,7 +551,6 @@ class TestWhenApprovalApplies:
         "kwargs",
         [
             pytest.param({"durable": True}, id="durable"),
-            pytest.param({"code_mode": True}, id="code_mode"),
             pytest.param({"enable_hitl_review": True}, id="hitl_review"),
             pytest.param({"toolsets": [SandboxToolset(_NoopBackend())]}, id="sandbox"),
             pytest.param(

@@ -873,7 +873,7 @@ def test_enter_shell_openlineage_rejects_non_postgres_backend(
     mock_run_command.assert_not_called()
 
 
-CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.10:latest"
+CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.11:latest"
 
 
 def _fake_docker_calls(present_images: set[str], failing_pulls: dict[str, int]):

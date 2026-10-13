@@ -152,7 +152,7 @@ class TestSerializers:
         serde must read that form back (used e.g. for trigger kwargs encoded via
         BaseSerialization) and reconstruct a UTC ``datetime`` with the same instant.
         """
-        moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.timezone.utc)
+        moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.UTC)
         legacy = {"__type": "datetime", "__var": moment.timestamp()}
 
         deserialized = deserialize(legacy)

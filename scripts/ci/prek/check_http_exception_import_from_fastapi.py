@@ -39,7 +39,7 @@ the Starlette class). Two common mistakes this hook catches:
 """
 
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]

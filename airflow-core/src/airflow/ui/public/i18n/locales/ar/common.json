@@ -224,10 +224,10 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "أحداث الأصول المستلمة"
   },
-  "pendingDagRun_few": "{{count}} تشغيلات Dag مُعلّقة",
-  "pendingDagRun_many": "{{count}} تشغيل Dag مُعلّق",
+  "pendingDagRun_few": "{{count, number}} تشغيلات Dag مُعلّقة",
+  "pendingDagRun_many": "{{count, number}} تشغيل Dag مُعلّق",
   "pendingDagRun_one": "تشغيل Dag مُعلّق واحد",
-  "pendingDagRun_other": "{{count}} تشغيل Dag مُعلّق",
+  "pendingDagRun_other": "{{count, number}} تشغيل Dag مُعلّق",
   "pendingDagRun_two": "تشغيلا Dag مُعلّقان",
   "pendingDagRun_zero": "لا توجد تشغيلات Dag مُعلّقة",
   "presetFilters": {
@@ -497,21 +497,21 @@
     "bulkClear": {
       "error": "فشل طلب المسح المجمع لـ{{resourceName}}",
       "success": {
-        "description": "تم مسح {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "description": "تم مسح {{count, number}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
         "title": "تم إرسال طلب المسح المجمع لـ{{resourceName}}"
       }
     },
     "bulkDelete": {
       "error": "فشل طلب حذف الرُزمة ل{{resourceName}}",
       "success": {
-        "description": "تم حذف {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "description": "تم حذف {{count, number}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
         "title": "تم إرسال طلب الحذف المجمع ل{{resourceName}}"
       }
     },
     "bulkUpdate": {
       "error": "فشل طلب التحديث المجمع لـ{{resourceName}}",
       "success": {
-        "description": "تم تحديث {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "description": "تم تحديث {{count, number}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
         "title": "تم إرسال طلب التحديث المجمع لـ{{resourceName}}"
       }
     },
@@ -532,7 +532,7 @@
     "import": {
       "error": "فشل طلب استيراد {{resourceName}}",
       "success": {
-        "description": "تم استيراد {{count}} {{resourceName}} بنجاح.",
+        "description": "تم استيراد {{count, number}} {{resourceName}} بنجاح.",
         "title": "تم إرسال طلب الاستيراد {{resourceName}}"
       }
     },

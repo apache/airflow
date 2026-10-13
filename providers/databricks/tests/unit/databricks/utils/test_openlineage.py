@@ -134,23 +134,15 @@ def test_process_data_from_api():
         {
             "query_id": "ABC",
             "status": "FINISHED",
-            "query_start_time_ms": datetime.datetime(
-                2020, 7, 21, 18, 44, 46, 200000, tzinfo=datetime.timezone.utc
-            ),
-            "query_end_time_ms": datetime.datetime(
-                2020, 7, 21, 18, 44, 47, 200000, tzinfo=datetime.timezone.utc
-            ),
+            "query_start_time_ms": datetime.datetime(2020, 7, 21, 18, 44, 46, 200000, tzinfo=datetime.UTC),
+            "query_end_time_ms": datetime.datetime(2020, 7, 21, 18, 44, 47, 200000, tzinfo=datetime.UTC),
             "query_text": "SELECT * FROM table1;",
             "error_message": "Error occurred",
         },
         {
             "query_id": "DEF",
-            "query_start_time_ms": datetime.datetime(
-                2020, 7, 21, 18, 44, 46, 200000, tzinfo=datetime.timezone.utc
-            ),
-            "query_end_time_ms": datetime.datetime(
-                2020, 7, 21, 18, 44, 47, 200000, tzinfo=datetime.timezone.utc
-            ),
+            "query_start_time_ms": datetime.datetime(2020, 7, 21, 18, 44, 46, 200000, tzinfo=datetime.UTC),
+            "query_end_time_ms": datetime.datetime(2020, 7, 21, 18, 44, 47, 200000, tzinfo=datetime.UTC),
         },
     ]
     result = _process_data_from_api(data=data)
@@ -201,8 +193,8 @@ def test_get_queries_details_from_databricks(mock_api_call):
     assert details == {
         "ABC": {
             "status": "FINISHED",
-            "start_time": datetime.datetime(2020, 7, 21, 18, 44, 46, 200000, tzinfo=datetime.timezone.utc),
-            "end_time": datetime.datetime(2020, 7, 21, 18, 44, 47, 200000, tzinfo=datetime.timezone.utc),
+            "start_time": datetime.datetime(2020, 7, 21, 18, 44, 46, 200000, tzinfo=datetime.UTC),
+            "end_time": datetime.datetime(2020, 7, 21, 18, 44, 47, 200000, tzinfo=datetime.UTC),
             "query_text": "SELECT * FROM table1;",
             "error_message": "Error occurred",
         }
@@ -286,15 +278,15 @@ def test_emit_openlineage_events_for_databricks_queries(mock_generate_uuid, mock
     fake_metadata = {
         "query1": {
             "status": "FINISHED",
-            "start_time": datetime.datetime(2020, 7, 21, 18, 44, 46, 200000, tzinfo=datetime.timezone.utc),
-            "end_time": datetime.datetime(2020, 7, 21, 18, 44, 47, 200000, tzinfo=datetime.timezone.utc),
+            "start_time": datetime.datetime(2020, 7, 21, 18, 44, 46, 200000, tzinfo=datetime.UTC),
+            "end_time": datetime.datetime(2020, 7, 21, 18, 44, 47, 200000, tzinfo=datetime.UTC),
             "query_text": "SELECT * FROM table1",
             # No error for query1
         },
         "query2": {
             "status": "CANCELED",
-            "start_time": datetime.datetime(2020, 7, 21, 18, 44, 48, 200000, tzinfo=datetime.timezone.utc),
-            "end_time": datetime.datetime(2020, 7, 21, 18, 44, 49, 200000, tzinfo=datetime.timezone.utc),
+            "start_time": datetime.datetime(2020, 7, 21, 18, 44, 48, 200000, tzinfo=datetime.UTC),
+            "end_time": datetime.datetime(2020, 7, 21, 18, 44, 49, 200000, tzinfo=datetime.UTC),
             "query_text": "SELECT * FROM table2",
             "error_message": "Error occurred",
         },

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import threading
 import time
 import traceback
@@ -160,16 +159,15 @@ class TestMasking:
             _call(_ScriptedToolset(ApprovalRequired(metadata={"reason": registered_secret})))
 
         assert caught.value.metadata == {"reason": "***"}
-        assert "failed" not in caplog.text
+        assert not any("failed" in m for m in caplog.messages)
 
-    @pytest.mark.skipif(sys.version_info < (3, 11), reason="ExceptionGroup is built in from Python 3.11")
     def test_masks_the_exceptions_inside_an_exception_group(self, registered_secret):
         cause = ConnectionError(f"socket closed by {registered_secret}")
         inner = ValueError(f"login failed for {registered_secret}")
         inner.__cause__ = cause
-        group = ExceptionGroup("tool calls failed", [inner])  # noqa: F821
+        group = ExceptionGroup("tool calls failed", [inner])
 
-        with pytest.raises(ExceptionGroup) as caught:  # noqa: F821
+        with pytest.raises(ExceptionGroup) as caught:
             _call(_ScriptedToolset(group))
 
         assert [str(e) for e in caught.value.exceptions] == ["login failed for ***"]
@@ -278,4 +276,4 @@ class TestWithMasking:
         with pytest.raises(ValueError, match="boom"):
             _call(MaskingToolset(wrapped=_ScriptedToolset(ValueError("boom"))))
 
-        assert caplog.text.count("Tool t failed") == 1
+        assert caplog.messages.count("Tool t failed") == 1

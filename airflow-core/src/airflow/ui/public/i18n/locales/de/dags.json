@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} von {{total}} Datensets (Assets) aktualisiert",
+  "assetSchedule": "{{count, number}} von {{total, number}} Datensets (Assets) aktualisiert",
   "dagActions": {
     "delete": {
       "button": "Dag löschen",
@@ -31,11 +31,18 @@
     "runStatePlaceholder": "Lauf status wählen…",
     "timetableType": "Zeitplantyp"
   },
+  "folders": {
+    "all": "Alle Dags",
+    "empty": "Keine Ordner",
+    "hide": "Ordner ausblenden",
+    "show": "Ordner anzeigen",
+    "title": "Ordner"
+  },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Keine Tasks gefunden.",
-      "title": "Betroffene Tasks: {{count}}"
+      "title": "Betroffene Tasks: {{count, number}}"
     },
     "clear": {
       "button": "{{type}} zurücksetzen",

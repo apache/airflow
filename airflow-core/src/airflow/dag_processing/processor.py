@@ -87,7 +87,6 @@ if TYPE_CHECKING:
 
     from structlog.typing import FilteringBoundLogger
 
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.sdk.api.client import Client
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.context import Context
@@ -132,7 +131,7 @@ class DagFileParsingResult(BaseModel):
     parsed_definitions: list[str] = Field(default_factory=list)
     """Bundle-relative locations of the Dag definitions imported from ``fileloc``."""
     dag_source_codes: dict[str, DagSourceCode] = Field(default_factory=dict)
-    """Source code of the parsed Dags, keyed by Dag fileloc."""
+    """Source code of the parsed Dags, keyed by dag_id."""
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
@@ -255,6 +254,8 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
     bag.import_errors.update(serialization_import_errors)
+    # Dag warnings reference the dag table, so only Dags that serialized can carry one.
+    serialized_dag_ids = {dag.dag_id for dag in serialized_dags}
     result = DagFileParsingResult(
         fileloc=msg.file,
         serialized_dags=serialized_dags,
@@ -264,6 +265,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
             *(
                 {"dag_id": w.dag_id, "warning_type": w.warning_type, "message": w.message}
                 for w in bag.dag_warnings
+                if w.dag_id in serialized_dag_ids
             ),
         ],
         parsed_definitions=bag.parsed_definitions,
@@ -566,13 +568,6 @@ def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: Filteri
             task_id=request.ti.task_id,
             run_id=request.ti.run_id,
         )
-
-
-def in_process_api_server() -> InProcessExecutionAPI:
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-
-    api = InProcessExecutionAPI()
-    return api
 
 
 @attrs.define(kw_only=True)

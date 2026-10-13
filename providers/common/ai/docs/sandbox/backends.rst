@@ -34,11 +34,19 @@ provider, **this is the managed one to use in production**, and with
 :ref:`OpenSandbox <sandbox-backend-opensandbox>` one of the two that run on
 Kubernetes: nothing has to be installed on the worker, model-written code never
 executes on the worker host, and Modal reclaims a sandbox at its own lifetime
-whether or not the worker survives. It needs the ``modal`` extra and ambient
-credentials, as under :ref:`Quick start <sandbox-quick-start>`.
+whether or not the worker survives. It needs the ``modal`` extra and Modal
+credentials, from a ``modal`` connection or the worker environment, as under
+:ref:`Quick start <sandbox-quick-start>`.
 
 Constructor parameters:
 
+- ``modal_conn_id``: ``modal`` connection the token and, optionally, the Modal
+  ``environment`` come from. Default ``"modal_default"``; ``None`` uses the worker's
+  credentials without looking for a connection. How a missing or partial connection
+  resolves is on the :ref:`Modal connection page <howto/connection:modal>`. A credential
+  problem fails the task, except in the toolset's own teardown, which logs it so a
+  finished run is not failed. The connection type comes from the Modal provider, which
+  the ``modal`` extra installs and which needs Airflow 3.
 - ``image``: Registry tag for the sandbox image, or a prepared ``modal.Image``
   carrying pre-installed packages. Default ``"python:3.12-slim"``.
 - ``app_name``: Modal app the sandboxes are created under. Default
@@ -214,10 +222,19 @@ network policy; ``allow_egress_to`` becomes explicit allow rules. With
 deployment without the egress sidecar can still run an intentionally open
 sandbox. Deny/allowlist policy requires the sidecar, so the backend reads the
 enforced policy back after creation and destroys the sandbox if it does not
-match the requested spec. ``allow_egress_to_cidrs`` is refused: OpenSandbox only
-enforces CIDR targets in ``dns+nft`` mode, and the Python SDK does not expose
-that enforcement mode on policy read-back, so this backend cannot prove the
-address-layer restriction is active.
+match the requested spec. ``allow_egress_to_cidrs`` is refused; this backend does
+not translate address ranges into OpenSandbox rules.
+
+The read-back also checks the mode the sidecar enforces the policy in, set by
+``[egress] mode`` in the server configuration. Only ``dns+nft`` drops connections at
+the address layer. In ``dns`` mode, the server's default, the sidecar filters name
+resolution and nothing else, so a deny-all sandbox could still connect to any
+numeric address, including a DNS-over-HTTPS resolver that would look up any name for
+it, and a sandbox with an allowlist could connect to addresses outside the list. The
+backend destroys the sandbox and fails the task on any mode but ``dns+nft``, so set
+``mode = "dns+nft"`` on a server that runs sandboxes with a deny-all policy or an
+allowlist, or pass ``SandboxSpec(block_network=False)`` for a sandbox that may reach
+the network.
 
 Every sandbox carries ``created-by: airflow`` metadata and an
 ``airflow-sandbox-*`` name for attribution and cleanup. The server enforces a
@@ -239,6 +256,8 @@ Constructor parameters:
 The runtime remains a deployment choice. The default Docker runtime shares the
 host kernel; choose a stronger runtime such as Kata when your threat model needs
 a VM boundary.
+
+.. _sandbox-backend-sbx:
 
 sbx (Docker Sandboxes, local)
 -----------------------------
@@ -295,10 +314,10 @@ behaves identically everywhere:
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
   into; OpenSandbox enforces it in an egress sidecar, and the backend reads the
-  enforced policy back rather than trusting the create request. ``allow_egress_to_cidrs``
-  is enforced at the address layer on Modal, refused on ``sbx``, and refused by
-  OpenSandbox because its SDK cannot prove that the sidecar is running in the
-  ``dns+nft`` mode required for CIDR enforcement.
+  enforced policy and the sidecar's mode back rather than trusting the create
+  request, refusing a sidecar that filters only name resolution (``dns``) rather
+  than connections (``dns+nft``). ``allow_egress_to_cidrs`` is enforced at the
+  address layer on Modal and refused on ``sbx`` and OpenSandbox.
 - **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files;
   Modal and a server-enforced OpenSandbox timeout preserve the sandbox and files.
   OpenSandbox destroys it only if the command event stream itself stalls past the

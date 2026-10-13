@@ -50,7 +50,7 @@ internal fun resolveInputType(taskClass: Class<*>): Class<out TaskInput> =
  * is being built rather than mid-run. A plain [Task] declares no input and passes.
  *
  * The annotation processor enforces the same rules at compile time for the
- * [TaskInput] a `@Builder.Task` method declares.
+ * [TaskInput] an `@Airflow.Task` method declares.
  *
  * @throws IllegalArgumentException if the declared input type is unresolvable
  *    or cannot be populated.

@@ -23,7 +23,8 @@ committed, so nothing regenerates them when the schema moves:
 
 * ``go-sdk/airflow/spec.gen.go`` — ``airflow.DagSpec``, ``airflow.TaskSpec`` and
   ``airflow.TaskGroupSpec``, the structs a Dag author fills in, from
-  ``go-sdk/schema/dag-schema.json``.
+  ``go-sdk/schema/dag-schema.json``. ``go-sdk/airflow/spec_fields.gen.go`` holds the
+  schema key and default of each of their fields, from the same schema.
 * ``go-sdk/pkg/execution/genmodels/*.gen.go`` — the coordinator-protocol messages,
   from ``go-sdk/schema/supervisor-schema.json``.
 
@@ -73,7 +74,10 @@ class Target(NamedTuple):
 TARGETS = (
     Target(
         package="./airflow/...",
-        committed=(GO_SDK_MODULE / "airflow" / "spec.gen.go",),
+        committed=(
+            GO_SDK_MODULE / "airflow" / "spec.gen.go",
+            GO_SDK_MODULE / "airflow" / "spec_fields.gen.go",
+        ),
         schema="go-sdk/schema/dag-schema.json",
         remedy=(
             "Review it — a property that should not reach an author belongs in the "

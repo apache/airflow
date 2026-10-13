@@ -318,7 +318,7 @@ class KubernetesPodTrigger(BaseTrigger):
             )
         try:
             return await asyncio.wait_for(self._wait_for_pod_start(), timeout=remaining)
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             raise PodLaunchTimeoutException(
                 f"Pod {self.pod_namespace}/{self.pod_name} reached the task's "
                 "execution_timeout deadline while waiting for the pod to start."
@@ -353,7 +353,7 @@ class KubernetesPodTrigger(BaseTrigger):
         Waits until container is no longer in running state. If trigger is configured with a logging period,
         then will emit an event to resume the task for the purpose of fetching more logs.
         """
-        time_begin = datetime.datetime.now(tz=datetime.timezone.utc)
+        time_begin = datetime.datetime.now(tz=datetime.UTC)
         time_get_more_logs = None
         if self.logging_interval is not None:
             time_get_more_logs = time_begin + datetime.timedelta(seconds=self.logging_interval)
@@ -404,7 +404,7 @@ class KubernetesPodTrigger(BaseTrigger):
                     }
                 )
             self.log.debug("Container is not completed and still working.")
-            now = datetime.datetime.now(tz=datetime.timezone.utc)
+            now = datetime.datetime.now(tz=datetime.UTC)
             if time_get_more_logs and now >= time_get_more_logs:
                 if self.get_logs and self.logging_interval:
                     self.last_log_time = await self.pod_manager.fetch_container_logs_before_current_sec(
