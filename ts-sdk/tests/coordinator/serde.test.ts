@@ -492,13 +492,15 @@ describe("serializeDag", () => {
       const transformed = place(dag, "transform", [extracted]);
       const staging = dag.taskGroup("staging");
       place(staging, "stage");
+      const loaded = place(dag, "load");
       extracted.before(label(transformed, "rows"));
       transformed.before(label(staging, "staged"));
-      staging.before(transformed);
+      staging.before(label(loaded, "ready"));
 
       expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
         extract: { transform: { label: "rows" } },
         transform: { "staging.upstream_join_id": { label: "staged" } },
+        "staging.downstream_join_id": { load: { label: "ready" } },
       });
     });
 

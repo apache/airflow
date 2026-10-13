@@ -251,7 +251,15 @@ Wrap a reference in ``label`` to name the edge drawn to it, as Python's ``Label`
 
     checked.before(label(processed, "rows found"), label(notified, "no rows"));
 
-Redrawing an existing edge, including one an input drew, labels it.
+A labelled reference only goes into ``before`` or ``after``; calling either on it throws. Redrawing an
+existing edge, including one an input drew, labels it. That is also how to label the branches of ``dag.if``
+or ``dag.switch`` (see below):
+
+.. code-block:: typescript
+
+    const rowCheck = dag.if(hasRows, { total });
+    rowCheck.then(loaded).else(reportedEmpty);
+    rowCheck.before(label(loaded, "rows found"), label(reportedEmpty, "no rows"));
 
 Task groups
 ~~~~~~~~~~~

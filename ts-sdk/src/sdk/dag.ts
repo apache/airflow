@@ -327,20 +327,39 @@ function resolveNode(node: Node): Node {
 
 /**
  * Label the edge that `before` or `after` draws to `node`, as Python's `Label` does.
+ * The result only goes into `before` or `after`; calling either on it throws.
  *
  * ```ts
  * checked.before(label(processed, "rows found"), label(emptyNotice, "no rows"));
  * ```
  */
 export function label(node: Node, text: string): Node {
+  if (typeof text !== "string") {
+    throw new Error(`label() takes a string to name the edge with, not ${describeValue(text)}`);
+  }
   const target = resolveNode(node);
-  const labelled: Node = Object.freeze({
+  const id = nodeId(target);
+  if (id === undefined) {
+    throw new Error(`label() takes a task or task group reference, not ${describeValue(node)}`);
+  }
+  const misuse = (verb: "before" | "after"): never => {
+    throw new Error(
+      `label(..., ${JSON.stringify(text)}) on "${id}" of Dag "${target.dagId}" names the edge ` +
+        `drawn to it, so pass it to before() or after() rather than calling ${verb}() on it`,
+    );
+  };
+  const labelled: Node = {
     dagId: target.dagId,
-    before: (...downstream: readonly Node[]) => target.before(...downstream),
-    after: (...upstream: readonly Node[]) => target.after(...upstream),
-  });
+    before: () => misuse("before"),
+    after: () => misuse("after"),
+  };
+  brand(labelled, "LabelledNode");
   labelledNodes.set(labelled, { node: target, text });
-  return labelled;
+  return Object.freeze(labelled);
+}
+
+function isLabelledNode(value: unknown): boolean {
+  return hasBrand(value, "LabelledNode");
 }
 
 /**
@@ -715,6 +734,7 @@ export class Dag {
             "a condition names each side once",
         );
       }
+      this.#rejectLabel(target, `The "${side}" branch of "${taskId}"`, taskId);
       const taskRef = resolveNode(target) as TaskRef;
       this.#validateOwnNode(taskRef, `the "${side}" branch of "${taskId}"`);
       if (!isTaskRef(taskRef)) {
@@ -822,6 +842,7 @@ export class Dag {
       dagId: this.dagId,
       taskId,
       case: (taskRef) => {
+        this.#rejectLabel(taskRef, `A case of "${taskId}"`, taskId);
         this.#validateOwnNode(taskRef, `a case of "${taskId}"`);
         if (!isTaskRef(taskRef)) {
           throw new Error(
@@ -1169,21 +1190,39 @@ export class Dag {
     const edgeLabel = text ?? this.#orderEdges.get(key)?.label;
     this.#orderEdges.set(
       key,
-      Object.freeze({ upstream: upstreamId!, downstream: downstreamId!, label: edgeLabel }),
+      Object.freeze({
+        upstream: upstreamId!,
+        downstream: downstreamId!,
+        ...(edgeLabel === undefined ? {} : { label: edgeLabel }),
+      }),
     );
   }
 
-  #validateOwnNode(node: Node, label: string): void {
+  #rejectLabel(node: unknown, context: string, deciderId: string): void {
+    if (isLabelledNode(node)) {
+      throw new Error(
+        `${context} of Dag "${this.dagId}" was given a label(); label a branch edge by ` +
+          `redrawing it from "${deciderId}" with before(label(task, "text"))`,
+      );
+    }
+  }
+
+  #validateOwnNode(node: Node, context: string): void {
     const id = nodeId(node);
+    if (id === undefined && isLabelledNode(node)) {
+      throw new Error(
+        `${context} on Dag "${this.dagId}" was given a label() that ${DUPLICATE_COPY_HINT}`,
+      );
+    }
     if (id === undefined) {
       throw new Error(
-        `${label} on Dag "${this.dagId}" takes tasks and task groups this Dag handed out, ` +
+        `${context} on Dag "${this.dagId}" takes tasks and task groups this Dag handed out, ` +
           "not arbitrary values",
       );
     }
     if (node.dagId !== this.dagId) {
       throw new Error(
-        `${label} cannot reach Dag "${node.dagId}" node "${id}" from Dag ` +
+        `${context} cannot reach Dag "${node.dagId}" node "${id}" from Dag ` +
           `"${this.dagId}"; an edge joins two nodes of one Dag`,
       );
     }
@@ -1193,7 +1232,7 @@ export class Dag {
     // the edge at this Dag's own group of that name.
     if (isTaskRef(node) ? this.#tasks.get(id)?.task !== node : this.#groupRefs.get(id) !== node) {
       throw new Error(
-        `${label} was given a reference to "${id}" that this Dag did not hand out; ` +
+        `${context} was given a reference to "${id}" that this Dag did not hand out; ` +
           `it comes from another Dag object with the same ID, or ${DUPLICATE_COPY_HINT}`,
       );
     }
