@@ -354,40 +354,36 @@ class ExternalTaskSensor(BaseSensorOperator):
             return self._poke_af3(context, dttm_filter)
         return self._poke_af2(context, dttm_filter)
 
-    def _push_external_run_id_to_xcom(
-        self, context: Context, dttm_filter: Sequence[datetime.datetime]
-    ) -> None:
-        try:
-            if dttm_filter:
-                logical_date = dttm_filter[0]
-                external_run_id = f"scheduled__{logical_date.isoformat()}"
-
-                ti = context["ti"]
-                ti.xcom_push(key=XCOM_EXTERNAL_RUN_ID, value=external_run_id)
-        except Exception:
-            self.log.exception("Failed to push external run_id to XCom.")
-
     def _poke_af3(self, context: Context, dttm_filter: Sequence[datetime.datetime]) -> bool:
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
 
         self._has_checked_existence = True
         ti = context["ti"]
+        external_run_ids = {}
 
         def _get_count(states: list[str]) -> int:
+            nonlocal external_run_ids
             if self.external_task_ids:
-                return ti.get_ti_count(
+                run_id_task_state_map = ti.get_task_states(
                     dag_id=self.external_dag_id,
                     task_ids=list(self.external_task_ids),
                     logical_dates=list(dttm_filter),
-                    states=states,
                 )
+                external_run_ids.update(run_id_task_state_map)
+                return _get_count_by_matched_states(run_id_task_state_map, states)
             if self.external_task_group_id:
                 run_id_task_state_map = ti.get_task_states(
                     dag_id=self.external_dag_id,
                     task_group_id=self.external_task_group_id,
                     logical_dates=list(dttm_filter),
                 )
+                external_run_ids.update(run_id_task_state_map)
                 return _get_count_by_matched_states(run_id_task_state_map, states)
+
+            run_id_dr_state_map = ti.get_task_states(
+                dag_id=self.external_dag_id, logical_dates=list(dttm_filter)
+            )
+            external_run_ids.update(run_id_dr_state_map)
             return ti.get_dr_count(
                 dag_id=self.external_dag_id,
                 logical_dates=list(dttm_filter),
@@ -407,7 +403,12 @@ class ExternalTaskSensor(BaseSensorOperator):
         count = _get_count(self.allowed_states)
         count_allowed = self._calculate_count(count, dttm_filter)
         if count_allowed == len(dttm_filter):
-            self._push_external_run_id_to_xcom(context, dttm_filter)
+            if external_run_ids:
+                try:
+                    external_run_id = next(iter(external_run_ids.keys()))
+                    ti.xcom_push(key=XCOM_EXTERNAL_RUN_ID, value=external_run_id)
+                except Exception:
+                    self.log.exception("Failed to push external run_id to XCom.")
             return True
         return False
 
@@ -469,7 +470,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         @provide_session
         def _poke_af2(
             self,
-            context: Context,
             dttm_filter: Sequence[datetime.datetime],
             *,
             session: Session = NEW_SESSION,
@@ -487,7 +487,28 @@ class ExternalTaskSensor(BaseSensorOperator):
 
             count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
             if count_allowed == len(dttm_filter):
-                self._push_external_run_id_to_xcom(context, dttm_filter)
+                try:
+                    from sqllalchemy import select
+
+                    from airflow.models import DagRun, TaskInstance
+
+                    for logical_date in dttm_filter:
+                        dag_run_stmt = select(DagRun).where(
+                            DagRun.dag_id == self.external_dag_id, DagRun.logical_date == logical_date
+                        )
+                        dag_run = session.execute(dag_run_stmt).scalars().first()
+                        if dag_run:
+                            ti_stmt = select(TaskInstance).where(
+                                TaskInstance.dag_id == self.dag_id,
+                                TaskInstance.run_id == self.run_id,
+                                TaskInstance.task_id == self.task_id,
+                            )
+                            ti = session.execute(ti_stmt).scalars().first()
+                            if ti:
+                                ti.xcom_push(key=XCOM_EXTERNAL_RUN_ID, value=dag_run.run_id)
+                            break
+                except Exception:
+                    self.log.exception("Failed to push external run_id to XCom.")
                 return True
             return False
 

@@ -221,7 +221,9 @@ class WorkflowTrigger(BaseTrigger):
             """Get the first matched run_id for AF2."""
             stmt = (
                 select(DagRun)
-                .where(DagRun.dag_id == self.external_dag_id)
+                .where(
+                    DagRun.dag_id == self.external_dag_id,
+                )
                 .order_by(DagRun.logical_date.desc())
             )
             dag_run = session.execute(stmt).scalars().first()
