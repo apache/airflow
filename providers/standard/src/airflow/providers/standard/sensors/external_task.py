@@ -470,6 +470,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         @provide_session
         def _poke_af2(
             self,
+            context: Context,
             dttm_filter: Sequence[datetime.datetime],
             *,
             session: Session = NEW_SESSION,
@@ -490,23 +491,20 @@ class ExternalTaskSensor(BaseSensorOperator):
                 try:
                     from sqllalchemy import select
 
-                    from airflow.models import DagRun, TaskInstance
+                    from airflow.models import DagRun
 
+                    external_run_id = None
                     for logical_date in dttm_filter:
                         dag_run_stmt = select(DagRun).where(
                             DagRun.dag_id == self.external_dag_id, DagRun.logical_date == logical_date
                         )
                         dag_run = session.execute(dag_run_stmt).scalars().first()
                         if dag_run:
-                            ti_stmt = select(TaskInstance).where(
-                                TaskInstance.dag_id == self.dag_id,
-                                TaskInstance.run_id == self.run_id,
-                                TaskInstance.task_id == self.task_id,
-                            )
-                            ti = session.execute(ti_stmt).scalars().first()
-                            if ti:
-                                ti.xcom_push(key=XCOM_EXTERNAL_RUN_ID, value=dag_run.run_id)
+                            external_run_id = dag_run.run_id
                             break
+                    if external_run_id:
+                        ti = context["ti"]
+                        ti.xcom_push(key=XCOM_EXTERNAL_RUN_ID, value=external_run_id)
                 except Exception:
                     self.log.exception("Failed to push external run_id to XCom.")
                 return True
