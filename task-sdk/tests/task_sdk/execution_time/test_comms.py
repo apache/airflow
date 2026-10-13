@@ -622,7 +622,7 @@ class TestCommsDecoder:
     @pytest.mark.execution_timeout(10)
     def test_asend_from_two_event_loops_at_once_each_gets_its_own_response(self, socket_pair):
         """
-        A sync item that runs an event loop of its own (``asyncio.run(aget_connection())`` in
+        A sync indexed task that runs an event loop of its own (``asyncio.run(aget_connection())`` in
         ``execute``) sends while the iteration's loop has an ``asend`` in flight. Each call gets its
         own response, instead of one failing on a lock bound to the other loop.
         """

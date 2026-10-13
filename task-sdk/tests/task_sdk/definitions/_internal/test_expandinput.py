@@ -98,7 +98,7 @@ class TestExpandInput:
         """
         The cross product in the order ``.expand()`` uses (the last argument varies fastest). A dict
         value expands to its (key, value) pairs, mirroring _expand_mapped_field's handling of dict
-        values, so .iterate() and .expand() hand sub-tasks the same per-index value for a dict argument.
+        values, so .iterate() and .expand() hand indexed tasks the same per-index value for a dict argument.
         """
         expand_input = DictOfListsExpandInput(actual)
         resolved = await expand_input.aresolve({})

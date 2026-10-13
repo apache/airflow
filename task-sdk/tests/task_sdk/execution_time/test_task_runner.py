@@ -1895,10 +1895,12 @@ def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
         _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
 
 
-def test_execution_timeout_caps_iterated_task_with_sync_sub_tasks(create_runtime_ti, mock_supervisor_comms):
+def test_execution_timeout_caps_iterated_task_with_sync_indexed_tasks(
+    create_runtime_ti, mock_supervisor_comms
+):
     """The wrapped operator's execution_timeout is kept on the IterableOperator as the wall-clock cap on
     the whole iteration. The runner enforces it on the main thread, so it fires even though the sync
-    sub-tasks run in worker threads where SIGALRM cannot reach them."""
+    indexed tasks run in worker threads where SIGALRM cannot reach them."""
     from airflow.sdk.definitions._internal.expandinput import ListOfDictsExpandInput
     from airflow.sdk.definitions.iterableoperator import IterableOperator
 
@@ -1906,9 +1908,9 @@ def test_execution_timeout_caps_iterated_task_with_sync_sub_tasks(create_runtime
         def execute(self, context):
             time.sleep(1)
 
-    # Two items on a single worker: without the cap the iteration takes two sleeps. With it the
-    # timeout fires during the first item, and the second is never started. Python threads cannot
-    # be interrupted, so the error surfaces once the first item's sleep ends, after one sleep.
+    # Two indexed tasks on a single worker: without the cap the iteration takes two sleeps. With it the
+    # timeout fires during the first indexed task, and the second is never started. Python threads cannot
+    # be interrupted, so the error surfaces once the first indexed task's sleep ends, after one sleep.
     expand_input = ListOfDictsExpandInput([{}, {}])
     with DAG("dag_iterate_execution_timeout") as dag:
         mapped = SleepyOperator.partial(
@@ -2598,7 +2600,7 @@ def test_execute_task_exports_context_vars_to_environ(create_runtime_ti, mock_su
 def test_execute_task_leaves_environ_alone_for_indexed_task_instance(
     create_runtime_ti, mock_supervisor_comms
 ):
-    """Indexed sub-tasks run concurrently in one process, so _execute_task must not touch the shared
+    """Indexed tasks run concurrently in one process, so _execute_task must not touch the shared
     os.environ for them; the parent IterableOperator exported the same values before they started."""
     captured_vars = {}
 
@@ -2729,7 +2731,7 @@ class TestIndexedTaskState:
         assert IndexedTaskState.deserialize(msg.value).result == result
 
     def test_extra_xcoms_survive_the_state_store_message_and_round_trip(self):
-        """Values an item pushed are serialized like its result, since the checkpoint travels as JSON."""
+        """Values an indexed task pushed are serialized like its result, since the checkpoint travels as JSON."""
         xcoms = {
             "when": datetime(2026, 9, 30, 11, 0, tzinfo=UTC),
             "pair": ("a", 1),
@@ -2861,7 +2863,7 @@ class TestIndexedTaskInstance:
         ids=["delegates_with_index_suffix", "default_key", "custom_key"],
     )
     def test_xcom_push_suffix(self, make_indexed_ti, index, key, value, expected_key):
-        """xcom_push appends the sub-task's index suffix to the XCom key."""
+        """xcom_push appends the indexed task's index suffix to the XCom key."""
         ti = make_indexed_ti(index=index)
 
         with mock.patch("airflow.sdk.execution_time.task_runner._xcom_push", autospec=True) as mock_push:
@@ -3213,7 +3215,7 @@ class TestIndexedTaskRunner:
         assert ti.task in state
 
     def test_in_flight_keeps_operators_that_compare_equal_apart(self, make_indexed_ti):
-        """Sub-operators of one iterated task compare equal; each is registered on its own."""
+        """Indexed operators of one iterated task compare equal; each is registered on its own."""
         first, second = make_indexed_ti(index=0), make_indexed_ti(index=1)
         first.task, second.task = BaseOperator(task_id="same"), BaseOperator(task_id="same")
         assert first.task == second.task
@@ -3263,7 +3265,7 @@ class TestIndexedTaskRunner:
         return context
 
     def test_run_delegates_to_execute_task(self, make_indexed_ti):
-        """run() must call _execute_task with the sub-task's view of the given context."""
+        """run() must call _execute_task with the indexed task's view of the given context."""
         ti = make_indexed_ti()
         ti.parent_task_state_store = mock.MagicMock(name="parent_store")
         task = BaseOperator(task_id="test_task")
@@ -3289,7 +3291,7 @@ class TestIndexedTaskRunner:
 
     @pytest.mark.asyncio
     async def test_arun_delegates_to_execute_async_task(self, make_indexed_ti):
-        """arun() must call _execute_async_task with the sub-task's view of the given context."""
+        """arun() must call _execute_async_task with the indexed task's view of the given context."""
         ti = make_indexed_ti(is_async=True)
         ti.parent_task_state_store = mock.MagicMock(name="parent_store")
         task = BaseOperator(task_id="test_task")

@@ -55,7 +55,7 @@ from airflow.sdk.definitions.iterableoperator import (
     IndexedTaskOutcomes,
     IterableOperator,
     IterationState,
-    keeps_failure_to_its_item,
+    keeps_failure_to_its_indexed_task,
 )
 from airflow.sdk.exceptions import (
     AirflowFailException,
@@ -90,8 +90,8 @@ if TYPE_CHECKING:
 
 class MockTaskStateStoreAccessor:
     """Minimal in-memory stand-in for ``TaskStateStoreAccessor``, exposing only the async
-    ``aget``/``aset`` methods used by ``IterableOperator`` to checkpoint per-index sub-task
-    progress (see ``IterableOperator._run_task``), plus the sync ``get``/``set``/``delete`` used for
+    ``aget``/``aset`` methods used by ``IterableOperator`` to checkpoint each indexed task's
+    progress (see ``IterableOperator._run_indexed_task``), plus the sync ``get``/``set``/``delete`` used for
     the completion marker (see ``IterableOperator._run_tasks``)."""
 
     def __init__(self):
@@ -239,7 +239,7 @@ class MockOperatorWithCustomName(MockOperator):
 
 class MockOutletEventOperator(BaseOperator):
     """Operator that records an outlet asset event on execute, used to test that
-    IterableOperator merges/replays per-sub-task outlet events (see ``_run_task``)."""
+    IterableOperator merges/replays each indexed task's outlet events (see ``_run_indexed_task``)."""
 
     template_fields = ()
 
@@ -254,7 +254,7 @@ class MockOutletEventOperator(BaseOperator):
 
 class MockOnKillOperator(BaseOperator):
     """Operator that records whether ``on_kill()`` was called on it, used to test that
-    IterableOperator.on_kill() propagates to currently in-flight sub-tasks (see ``on_kill``)."""
+    IterableOperator.on_kill() propagates to currently in-flight indexed tasks (see ``on_kill``)."""
 
     template_fields = ()
 
@@ -327,7 +327,7 @@ class MockAttemptOperator(BaseAsyncOperator):
     Async operator whose result tells which attempt produced it.
 
     For the values in ``times_out_on`` the parent's execution timeout strikes instead, which ends
-    the whole iteration there and leaves the items after it unreached, as a crash would. Async,
+    the whole iteration there and leaves the indexed tasks after it unreached, as a crash would. Async,
     because that timeout lands on the main thread, where async operators run.
     """
 
@@ -561,7 +561,7 @@ class TestIterableOperator:
 
     def test_forwards_params_weight_rule_and_retry_policy(self):
         """Test that IterableOperator forwards params, weight_rule, and retry_policy from the
-        wrapped operator onto its own DAG node, not just onto the generated sub-tasks."""
+        wrapped operator onto its own DAG node, not just onto the generated indexed tasks."""
         from airflow.sdk import WeightRule
         from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy
 
@@ -581,13 +581,13 @@ class TestIterableOperator:
             assert iterable_op.weight_rule == WeightRule.UPSTREAM
             assert iterable_op.retry_policy is retry_policy
 
-    def test_default_args_callbacks_and_hooks_stay_with_the_items(self):
+    def test_default_args_callbacks_and_hooks_stay_with_the_indexed_tasks(self):
         """
-        Callbacks and execute hooks in ``default_args`` reach the items, not the iterated task.
+        Callbacks and execute hooks in ``default_args`` reach the indexed tasks, not the iterated task.
 
         ``_apply_defaults`` fills every ``BaseOperator.__init__`` parameter the call leaves out
         from ``default_args``; the IterableOperator passes them as ``None``, so a DAG-level
-        ``on_failure_callback`` runs once per failed item, as through ``.partial()``, and not once
+        ``on_failure_callback`` runs once per failed indexed task, as through ``.partial()``, and not once
         more for the task with the parent's context.
         """
         callback = Mock()
@@ -625,11 +625,11 @@ class TestIterableOperator:
     def test_forwards_is_setup_is_teardown_and_on_failure_fail_dagrun(self):
         """Test that IterableOperator forwards is_setup/is_teardown/on_failure_fail_dagrun from
         the wrapped operator's partial_kwargs, mirroring what unmap() reads (via
-        ``_get_unmap_kwargs``) to apply the same flags to each generated sub-task."""
+        ``_get_unmap_kwargs``) to apply the same flags to each generated indexed task."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
             mapped_op = create_mapped_operator(dag, expand_input)
-            # unmap() only ever applies these three flags to sub-tasks by reading them off
+            # unmap() only ever applies these three flags to indexed tasks by reading them off
             # partial_kwargs (see MappedOperator._get_unmap_kwargs), so that's the only place
             # IterableOperator needs to source them from too.
             mapped_op.partial_kwargs["is_teardown"] = True
@@ -843,8 +843,8 @@ class TestIterableOperator:
         assert all(f"_iterable_{index}" in store for index in range(3))
 
     @pytest.mark.parametrize("is_async", [False, True], ids=["sync", "async"])
-    def test_execute_runs_each_item_with_the_executor_safeguard_tracker_set(self, is_async):
-        """An item's code runs with the safeguard's tracker set to its operator, sync or async alike."""
+    def test_execute_runs_each_indexed_task_with_the_executor_safeguard_tracker_set(self, is_async):
+        """An indexed task's code runs with the safeguard's tracker set to its operator, sync or async alike."""
 
         class TrackerSyncOperator(BaseOperator):
             def execute(self, context):
@@ -880,7 +880,7 @@ class TestIterableOperator:
 
     def test_execute_marks_iteration_completed_once_every_index_succeeds(self):
         """
-        Once every sub-task index has succeeded, ``_run_tasks`` writes a single completion marker
+        Once every indexed task has succeeded, ``_run_tasks`` writes a single completion marker
         instead of deleting the per-index checkpoints one by one, and leaves any state written by
         user code inside the iterated task untouched.
         """
@@ -960,7 +960,8 @@ class TestIterableOperator:
                 first_run = list(iterable_op.execute(context=context))
                 assert first_run == ["1@attempt1", "2@attempt1", "3@attempt1"]
 
-                # Cleared (which raises max_tries); the rerun finishes the first item and stops at the second.
+                # Cleared (which raises max_tries); the rerun finishes the first indexed task and stops at the
+                # second.
                 context["ti"].try_number = 2
                 context["ti"].max_tries = 1
                 monkeypatch.setattr(MockAttemptOperator, "times_out_on", {2})
@@ -1007,11 +1008,11 @@ class TestIterableOperator:
                 assert store["_iterable_1"]["status"] == "success"
                 assert store["_iterable_completed"]["completed"] is True
 
-    def test_a_failed_checkpoint_read_fails_only_its_item_and_keeps_the_checkpoint(self):
+    def test_a_failed_checkpoint_read_fails_only_its_indexed_task_and_keeps_the_checkpoint(self):
         """
-        A retry that cannot read an item's checkpoint fails that item for this attempt, without
-        running it and without writing over the checkpoint, which may say the work is done; the
-        next item still runs (one at a time here, so it starts only after the failure).
+        A retry that cannot read an indexed task's checkpoint fails that indexed task for this attempt,
+        without running it and without writing over the checkpoint, which may say the work is done; the next
+        indexed task still runs (one at a time here, so it starts only after the failure).
         """
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
@@ -1046,7 +1047,7 @@ class TestIterableOperator:
 
     def test_a_checkpoint_serde_refuses_is_run_again_instead_of_failing_every_retry(self):
         """
-        A checkpoint holding a class off the allow-list is refused on every attempt: the item runs
+        A checkpoint holding a class off the allow-list is refused on every attempt: the indexed task runs
         again as if there were none, rather than failing each retry until the checkpoint expires.
         """
         from airflow.sdk._shared.serialization import CLASSNAME, DATA, VERSION
@@ -1072,11 +1073,11 @@ class TestIterableOperator:
         assert materialized == [(1, None, None)]
         assert store["_iterable_0"]["status"] == "success"
 
-    def test_a_failed_replay_fails_only_its_item_and_the_next_retry_replays_it(self):
+    def test_a_failed_replay_fails_only_its_indexed_task_and_the_next_retry_replays_it(self):
         """
-        Pushing a SUCCESS checkpoint's result again can fail: the item fails this attempt, its
-        checkpoint stays SUCCESS and the next item still runs, so the following retry replays the
-        result instead of running the item.
+        Pushing a SUCCESS checkpoint's result again can fail: the indexed task fails this attempt, its
+        checkpoint stays SUCCESS and the next indexed task still runs, so the following retry replays the
+        result instead of running the indexed task.
         """
         original_axcom_push = IterableOperator.axcom_push
 
@@ -1158,13 +1159,13 @@ class TestIterableOperator:
 
     def test_execute_does_not_leak_unmapped_operator_into_parent_context(self):
         """
-        Regression test: unmapping a sub-task must not mutate the parent context's own `ti`.
+        Regression test: unmapping an indexed task must not mutate the parent context's own `ti`.
 
         ``context_update_for_unmapped`` sets ``context["ti"].task = task`` in place. Since
         ``context.copy()`` is only a shallow copy, ``context["ti"]`` in the copy is the *same*
-        object as the parent's. If ``_create_task`` rendered the unmapped sub-operator against a
+        object as the parent's. If ``_create_indexed_task`` rendered the unmapped indexed operator against a
         context still carrying the parent's `ti`, the parent's `ti.task` would end up pointing at
-        whichever sub-task was unmapped last, corrupting anything the runner reads off `ti.task`
+        whichever indexed task was unmapped last, corrupting anything the runner reads off `ti.task`
         after `execute()` returns (e.g. `do_xcom_push`/`multiple_outputs` in `_push_xcom_if_needed`).
         """
         with DAG("test_dag") as dag:
@@ -1179,10 +1180,10 @@ class TestIterableOperator:
                 assert context["ti"].task is parent_ti_task
                 assert context["task"] is iterable_op
 
-    def test_an_item_reads_back_the_xcom_it_pushed(self):
+    def test_an_indexed_task_reads_back_the_xcom_it_pushed(self):
         """
-        ``ti.xcom_push("progress", v)`` in an item lands under ``progress_<index>``; the item's own
-        ``ti.xcom_pull(key="progress")`` must read that back, not the parent's unsuffixed key.
+        ``ti.xcom_push("progress", v)`` in an indexed task lands under ``progress_<index>``; the indexed
+        task's own ``ti.xcom_pull(key="progress")`` must read that back, not the parent's unsuffixed key.
         """
         seen: list = []
 
@@ -1213,12 +1214,13 @@ class TestIterableOperator:
 
         assert sorted(seen) == [(1, 10, 10), (2, 20, 20)]
 
-    def test_an_item_sees_its_own_operator_as_the_contexts_task(self):
+    def test_an_indexed_task_sees_its_own_operator_as_the_contexts_task(self):
         """
-        ``context["task"]`` inside an item, and in its callbacks, is the item's unmapped operator.
+        ``context["task"]`` inside an indexed task, and in its callbacks, is the indexed task's unmapped
+        operator.
 
         ``.expand()`` gives each mapped task instance its own operator under ``context["task"]``
-        (``context_update_for_unmapped`` sets it next to ``ti.task``); the item's view of the context
+        (``context_update_for_unmapped`` sets it next to ``ti.task``); the indexed task's view of the context
         must swap that key as well, not only ``ti``, or user code reads the IterableOperator there.
         """
         seen: list[tuple[str, object, object]] = []
@@ -1249,9 +1251,9 @@ class TestIterableOperator:
 
     def test_execute_resolves_and_reads_the_expand_input_on_the_running_loop(self):
         """
-        Regression test for the frozen IterableOperator: sub-task inputs were pulled from the main
+        Regression test for the frozen IterableOperator: indexed task inputs were pulled from the main
         thread between two runs of the event loop, where a blocking supervisor call deadlocked with
-        the ``asend`` of a sub-task parked mid-call. The input must be resolved with ``aresolve``
+        the ``asend`` of an indexed task parked mid-call. The input must be resolved with ``aresolve``
         and every index read while the loop runs; the synchronous ``resolve`` must stay untouched.
         """
         loop_running: list[bool] = []
@@ -1296,7 +1298,7 @@ class TestIterableOperator:
 
         assert materialized == [(1, None, None), (2, None, None)]
 
-    def test_a_map_callable_skipping_one_element_skips_only_that_item(self):
+    def test_a_map_callable_skipping_one_element_skips_only_that_indexed_task(self):
         """
         A ``.map()`` callable that raises ``AirflowSkipException`` filters out its element, as it
         skips only that mapped task instance under ``.expand()``: the other items run and the task
@@ -1317,9 +1319,9 @@ class TestIterableOperator:
 
         assert materialized == [("a", None, None), ("c", None, None)]
 
-    def test_a_map_callable_failing_on_one_element_fails_only_that_item(self):
+    def test_a_map_callable_failing_on_one_element_fails_only_that_indexed_task(self):
         """
-        A ``.map()`` callable that raises for one element fails that item alone: the others run and
+        A ``.map()`` callable that raises for one element fails that indexed task alone: the others run and
         are checkpointed, so a retry replays them and only that element is read again.
         """
 
@@ -1343,8 +1345,8 @@ class TestIterableOperator:
                 assert "_iterable_1" not in store
                 assert store["_iterable_2"]["status"] == "success"
 
-    def test_a_template_failing_for_one_item_fails_only_that_item(self):
-        """Rendering is part of reading an item's input: a template that fails for one item fails it alone."""
+    def test_a_template_failing_for_one_item_fails_only_that_indexed_task(self):
+        """Rendering is part of reading an indexed task's input: a template that fails for one indexed task fails it alone."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
                 [{"arg1": "a"}, {"arg1": "{{ no_such_name }}"}, {"arg1": "c"}]
@@ -1400,7 +1402,7 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 context["task_state_store"].set("offset", "parents")
                 context["task_state_store"].set("offset_1", 7)
-                task = iterable_op._create_task(
+                task = iterable_op._create_indexed_task(
                     context=context,
                     index=1,
                     mapped_kwargs={"offset": template},
@@ -1409,10 +1411,10 @@ class TestIterableOperator:
 
         assert task.task.offset == "7"
 
-    def test_a_template_reads_the_items_own_index(self):
+    def test_a_template_reads_the_indexed_tasks_own_index(self):
         """
-        ``{{ ti.index }}`` in a partial kwarg renders per item, so an operator that finds its remote
-        work by labels (a ``KubernetesPodOperator`` that reattaches) can be told the item apart.
+        ``{{ ti.index }}`` in a partial kwarg renders per indexed task, so an operator that finds its remote
+        work by labels (a ``KubernetesPodOperator`` that reattaches) can tell the indexed tasks apart.
         """
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": "a"}, {"arg1": "b"}])
@@ -1428,7 +1430,7 @@ class TestIterableOperator:
 
     def test_execute_renders_template_fields_off_the_loop_thread(self):
         """
-        Rendering a sub-task's template fields may call the supervisor synchronously: an XComArg in
+        Rendering an indexed task's template fields may call the supervisor synchronously: an XComArg in
         a partial kwarg resolves with ``resolve``, ``{{ var.value.x }}`` with ``Variable.get``. On
         the loop thread that call would hold up every sibling for its round trip, so the rendering
         happens in a worker thread.
@@ -1526,7 +1528,7 @@ class TestIterableOperator:
     def test_an_operator_that_turns_off_its_xcom_push_returns_no_result(self):
         """
         An operator may set ``do_xcom_push`` in its own ``__init__``, as some providers' do, not only
-        through ``partial()``: the iterated task follows the operator as it is built for its items.
+        through ``partial()``: the iterated task follows the operator as it is built for its indexed tasks.
         """
 
         class NoXComPush(MockOperator):
@@ -1549,7 +1551,7 @@ class TestIterableOperator:
         assert result is None
 
     def test_execute_with_do_xcom_push_false(self):
-        """With do_xcom_push=False no return_value_<index> XCom is pushed for any sub-task."""
+        """With do_xcom_push=False no return_value_<index> XCom is pushed for any indexed task."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
             iterable_op = create_iterable_operator(
@@ -1568,7 +1570,7 @@ class TestIterableOperator:
                 axcom_push.assert_not_awaited()
 
     def test_execute_does_not_push_xcom_for_none_results(self):
-        """A sub-task returning None has nothing to push, even when do_xcom_push is True."""
+        """An indexed task returning None has nothing to push, even when do_xcom_push is True."""
 
         class NoneOperator(BaseOperator):
             def __init__(self, arg1=None, **kwargs):
@@ -1596,13 +1598,13 @@ class TestIterableOperator:
 
     def test_execute_with_failed_tasks_raises_regardless_of_retries(self):
         """
-        Test executing IterableOperator where a sub-task fails.
+        Test executing IterableOperator where an indexed task fails.
 
         This test verifies that:
         1. Tasks with fail_on_first_attempt=True raise an exception on first attempt
-        2. IterableOperator no longer retries failed sub-tasks in-process — retries (if any) are
+        2. IterableOperator no longer retries failed indexed tasks in-process — retries (if any) are
            handled by Airflow retrying the whole IterableOperator task instance
-        3. The failing sub-task's own exception is raised, regardless of whether the wrapped operator
+        3. The failing indexed task's own exception is raised, regardless of whether the wrapped operator
            has retries configured (one failure is not wrapped in a group, see _pick_failure_for_runner)
         """
         with DAG("test_dag") as dag:
@@ -1624,8 +1626,8 @@ class TestIterableOperator:
                 with pytest.raises(RuntimeError):
                     iterable_op.execute(context=context)
 
-    def test_execute_all_sub_tasks_skipped_raises_single_skip_exception(self):
-        """When every sub-task raises AirflowSkipException, IterableOperator must re-raise a single
+    def test_execute_all_indexed_tasks_skipped_raises_single_skip_exception(self):
+        """When every indexed task raises AirflowSkipException, IterableOperator must re-raise a single
         AirflowSkipException so the runner marks it SKIPPED instead of a retryable failure."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
@@ -1650,7 +1652,7 @@ class TestIterableOperator:
                     iterable_op.execute(context=context)
 
     def test_execute_skip_next_to_a_failure_raises_only_the_failure(self):
-        """A skipped sub-task is not a failure, so the group holds what failed and nothing else."""
+        """A skipped indexed task is not a failure, so the group holds what failed and nothing else."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
                 [
@@ -1664,12 +1666,12 @@ class TestIterableOperator:
                 with pytest.raises(RuntimeError, match="boom") as raised:
                     iterable_op.execute(context=context)
 
-        # A skipped sub-task is not a failure: the only failure is raised on its own.
+        # A skipped indexed task is not a failure: the only failure is raised on its own.
         assert raised.value.__cause__ is None
 
     def test_execute_skip_next_to_successes_succeeds(self):
         """
-        A sub-task that skips does not fail the task, as a skipped mapped task instance would not:
+        An indexed task that skips does not fail the task, as a skipped mapped task instance would not:
         the others' results are pushed, the skipped index is left out, and the run counts as complete.
         """
         with DAG("test_dag") as dag:
@@ -1819,14 +1821,14 @@ class TestIterableOperator:
                 assert len(result) == 2
 
     @pytest.mark.asyncio
-    async def test_run_task_does_not_rerun_a_sub_task_skipped_on_a_previous_attempt(self):
-        """On a retry a ``SKIPPED`` checkpoint is honoured like a ``SUCCESS`` one: the sub-task stays skipped."""
+    async def test_run_indexed_task_does_not_rerun_an_indexed_task_skipped_on_a_previous_attempt(self):
+        """On a retry a ``SKIPPED`` checkpoint is honoured like a ``SUCCESS`` one: the indexed task stays skipped."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}])
             iterable_op = create_iterable_operator(dag, expand_input, task_id="skipped_before")
 
             with mock_context(task=iterable_op) as context:
-                task = iterable_op._create_task(
+                task = iterable_op._create_indexed_task(
                     context=context,
                     index=0,
                     mapped_kwargs={"raise_exception": RuntimeError("must not run again")},
@@ -1840,7 +1842,7 @@ class TestIterableOperator:
                 )
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
-                    _, result, raised = await iterable_op._run_task(
+                    _, result, raised = await iterable_op._run_indexed_task(
                         executor,
                         context,
                         task,
@@ -1894,12 +1896,12 @@ class TestIterableOperator:
 
         assert FIRED_CALLBACKS == ["retry"]
 
-    def test_a_sync_items_own_timeout_is_its_failure(self):
+    def test_a_sync_indexed_tasks_own_timeout_is_its_failure(self):
         """
         A sync operator may raise ``AirflowTaskTimeout`` itself, as a hook that gave up waiting does.
-        In its worker thread the parent's limit never strikes, so that is the item's own failure, as
+        In its worker thread the parent's limit never strikes, so that is the indexed task's own failure, as
         it is the mapped task instance's under ``.expand()``: the sibling runs, nothing is killed, and
-        the task fails with it as with any failed item.
+        the task fails with it as with any failed indexed task.
         """
         killed: list = []
 
@@ -1929,9 +1931,9 @@ class TestIterableOperator:
 
     def test_an_own_timeout_next_to_another_failure_reports_a_retry(self):
         """
-        An item's own ``AirflowTaskTimeout`` and another item's ``ValueError`` reach the runner as a
-        ``BaseExceptionGroup``, which it retries like any failure while retries are left. Both
-        items' callbacks report that retry, not a failure.
+        An indexed task's own ``AirflowTaskTimeout`` and another indexed task's ``ValueError`` reach the
+        runner as a ``BaseExceptionGroup``, which it retries like any failure while retries are left. Both
+        indexed tasks' callbacks report that retry, not a failure.
         """
         FIRED_CALLBACKS.clear()
 
@@ -1987,7 +1989,7 @@ class TestIterableOperator:
 
     def test_failed_publish_keeps_the_success_checkpoint_and_the_retry_only_republishes(self):
         """
-        When pushing an item's result fails after its SUCCESS checkpoint was written, the checkpoint
+        When pushing an indexed task's result fails after its SUCCESS checkpoint was written, the checkpoint
         stays, and the retry replays the result instead of running the operator again, which would
         repeat whatever it did outside Airflow.
         """
@@ -2025,10 +2027,11 @@ class TestIterableOperator:
 
     def test_the_success_callback_waits_for_the_checkpoint(self):
         """
-        An item's success callback fires once its SUCCESS checkpoint is written, not when execute returns.
+        An indexed task's success callback fires once its SUCCESS checkpoint is written, not when execute
+        returns.
 
-        With the checkpoint write failing, the item announces nothing: the attempt fails, the retry
-        runs the item again and reports it then, once. A plain task whose result cannot be pushed
+        With the checkpoint write failing, the indexed task announces nothing: the attempt fails, the retry
+        runs the indexed task again and reports it then, once. A plain task whose result cannot be pushed
         fires no success callback either.
         """
         CALLBACKS.clear()
@@ -2111,9 +2114,9 @@ class TestIterableOperator:
     def test_a_success_callback_that_raises_keeps_the_checkpoint(self):
         """
         The success callback runs after the checkpoint is written and may raise what nothing catches:
-        a ``BaseException`` such as ``DeadlockImminentError``. The item's
+        a ``BaseException`` such as ``DeadlockImminentError``. The indexed task's
         work is done, so its SUCCESS checkpoint stays and the retry replays the result instead of
-        running the item again; the callback fired once.
+        running the indexed task again; the callback fired once.
         """
         runs: list[str] = []
         fired: list[str] = []
@@ -2157,11 +2160,11 @@ class TestIterableOperator:
         assert fired == ["a"]
         assert pushed == ["a"]
 
-    def test_a_failed_skip_checkpoint_fails_only_its_item(self):
+    def test_a_failed_skip_checkpoint_fails_only_its_indexed_task(self):
         """
-        A SKIPPED checkpoint write that fails is that item's outcome, as a failed SUCCESS write is:
-        the next item still runs (one at a time here, so it starts only after the failure) and the
-        task fails with the write's error, which the retry gets past by running the item again.
+        A SKIPPED checkpoint write that fails is that indexed task's outcome, as a failed SUCCESS write is:
+        the next indexed task still runs (one at a time here, so it starts only after the failure) and the
+        task fails with the write's error, which the retry gets past by running the indexed task again.
         """
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
@@ -2192,7 +2195,7 @@ class TestIterableOperator:
     def test_a_skip_callback_that_raises_keeps_the_checkpoint(self):
         """
         The skip callback runs after the SKIPPED checkpoint is written, as the success callback runs
-        after SUCCESS: a ``BaseException`` it raises is the item's outcome, which fails the task at
+        after SUCCESS: a ``BaseException`` it raises is the indexed task's outcome, which fails the task at
         once as any non-``Exception`` does, and the checkpoint stays for the retry to replay.
         """
         fired: list[str] = []
@@ -2226,10 +2229,10 @@ class TestIterableOperator:
         assert fired == ["a"]
         assert store["_iterable_0"]["status"] == "skipped"
 
-    def test_a_failed_up_for_retry_checkpoint_keeps_the_items_own_failure(self):
+    def test_a_failed_up_for_retry_checkpoint_keeps_the_indexed_tasks_own_failure(self):
         """
-        An item that failed stays failed when its UP_FOR_RETRY checkpoint cannot be written: the
-        task fails with the item's own error, not the write's, and the next item still runs.
+        An indexed task that failed stays failed when its UP_FOR_RETRY checkpoint cannot be written: the
+        task fails with the indexed task's own error, not the write's, and the next indexed task still runs.
         """
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
@@ -2255,9 +2258,9 @@ class TestIterableOperator:
         assert "_iterable_0" not in store
         assert store["_iterable_1"]["status"] == "success"
 
-    def test_extra_xcoms_are_checkpointed_once_and_pushed_again_when_a_retry_skips_the_item(self):
+    def test_extra_xcoms_are_checkpointed_once_and_pushed_again_when_a_retry_skips_the_indexed_task(self):
         """
-        The runner deletes every XCom before a retry. An item skipped because it already succeeded
+        The runner deletes every XCom before a retry. An indexed task skipped because it already succeeded
         gets its other pushed keys back from its checkpoint, written once with its SUCCESS state.
         """
         MockPushingOperator.executed = []
@@ -2277,7 +2280,7 @@ class TestIterableOperator:
                     iterable_op.execute(context=context)
                 checkpoint = store["_iterable_0"]
 
-                # The retry: the failing item succeeds now; the finished one must not run again.
+                # The retry: the failing indexed task succeeds now; the finished one must not run again.
                 pushed = []
 
                 async def recording_aset(cls, key, value, **kwargs):
@@ -2295,7 +2298,7 @@ class TestIterableOperator:
         assert ("foo_0", "foo-of-a") in pushed
         assert ("return_value_0", "a") in pushed
 
-    def test_an_item_pushing_many_keys_writes_one_checkpoint(self):
+    def test_an_indexed_task_pushing_many_keys_writes_one_checkpoint(self):
         """The extra pushes are kept in memory and written with the one SUCCESS checkpoint, not per push."""
 
         class ManyKeysOperator(BaseOperator):
@@ -2326,7 +2329,7 @@ class TestIterableOperator:
         assert writes == ["_iterable_0"]
         assert store["_iterable_0"]["xcoms"] == {f"key{key}": key for key in range(5)}
 
-    def test_an_async_items_extra_xcoms_are_pushed_again_on_retry(self):
+    def test_an_async_indexed_tasks_extra_xcoms_are_pushed_again_on_retry(self):
         """The async path pushes through axcom_push; its keys are recorded and replayed the same way."""
 
         class AsyncPushingOperator(BaseAsyncOperator):
@@ -2377,7 +2380,7 @@ class TestIterableOperator:
         Regression test: an attempt that fails must not write the completion marker.
 
         The marker tells a retry apart from a rerun after a manual clear: when it is present, every
-        checkpoint is ignored and every index runs again. Raising the collected sub-task failures
+        checkpoint is ignored and every index runs again. Raising the collected indexed task failures
         outside the ``Checkpoints`` block would let the block exit cleanly and write the marker on a
         failed attempt, so the retry would re-run the succeeded indices too instead of resuming.
         """
@@ -2395,7 +2398,7 @@ class TestIterableOperator:
                 assert store["_iterable_0"]["status"] == "success"
                 assert store["_iterable_1"]["status"] == "up_for_retry"
 
-                # The retry: the failing item succeeds now; index 0 must be replayed, not re-run.
+                # The retry: the failing indexed task succeeds now; index 0 must be replayed, not re-run.
                 context["ti"].try_number = 2
                 iterable_op.expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
                 with patch.object(
@@ -2414,7 +2417,7 @@ class TestIterableOperator:
                 }
 
     def test_execute_fail_exception_re_raised_directly_without_retry(self):
-        """A sub-task that raises AirflowFailException must be re-raised directly (not wrapped in a
+        """An indexed task that raises AirflowFailException must be re-raised directly (not wrapped in a
         BaseExceptionGroup) so the IterableOperator fails without being retried."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
@@ -2450,8 +2453,8 @@ class TestIterableOperator:
     )
     def test_execute_rejects_trigger_and_downstream_skip_exceptions(self, raised_exception):
         """TriggerDagRunOperator (DagRunTriggerException) and downstream-skip operators like
-        ShortCircuitOperator (DownstreamTasksSkipped) are not supported inside IterableOperator: a
-        sub-task index has no DAG run or downstream tasks of its own for the trigger/skip to apply
+        ShortCircuitOperator (DownstreamTasksSkipped) are not supported inside IterableOperator: an
+        indexed task has no DAG run or downstream tasks of its own for the trigger/skip to apply
         to, so this must fail the whole IterableOperator immediately with a clear error."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"raise_exception": raised_exception}])
@@ -2463,7 +2466,7 @@ class TestIterableOperator:
 
     def test_execute_rejects_reschedule_exception(self):
         """A reschedule-mode sensor (AirflowRescheduleException) is not supported inside
-        IterableOperator: the sub-task's index has no task instance of its own to reschedule, so this
+        IterableOperator: an indexed task has no task instance of its own to reschedule, so this
         must fail the whole IterableOperator immediately with a clear error rather than being silently
         aggregated into a retryable BaseExceptionGroup."""
         with DAG("test_dag") as dag:
@@ -2477,11 +2480,11 @@ class TestIterableOperator:
                     iterable_op.execute(context=context)
 
     @pytest.mark.asyncio
-    async def test_run_task_skips_sub_task_already_checkpointed_as_succeeded(self):
+    async def test_run_indexed_task_skips_indexed_task_already_checkpointed_as_succeeded(self):
         """
-        When the task_state_store already records a sub-task index as succeeded (e.g. because
-        Airflow retried the whole IterableOperator after a previous partial failure), ``_run_task``
-        must skip re-executing that sub-task entirely.
+        When the task_state_store already records an indexed task as succeeded (e.g. because
+        Airflow retried the whole IterableOperator after a previous partial failure), ``_run_indexed_task``
+        must skip re-executing that indexed task entirely.
         """
         from unittest import mock
 
@@ -2491,7 +2494,7 @@ class TestIterableOperator:
 
             with mock_context(task=iterable_op) as context:
                 jinja_env = iterable_op.get_template_env(dag=dag)
-                task = iterable_op._create_task(
+                task = iterable_op._create_indexed_task(
                     context=context, index=0, mapped_kwargs={"arg1": 1, "arg2": 10}, jinja_env=jinja_env
                 )
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
@@ -2503,7 +2506,7 @@ class TestIterableOperator:
                 )
 
                 executor = mock.MagicMock()
-                _, result, raised = await iterable_op._run_task(
+                _, result, raised = await iterable_op._run_indexed_task(
                     executor,
                     context,
                     task,
@@ -2516,11 +2519,11 @@ class TestIterableOperator:
                 executor.run_sync.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_run_task_reruns_and_checkpoints_success_after_up_for_retry_state(self):
+    async def test_run_indexed_task_reruns_and_checkpoints_success_after_up_for_retry_state(self):
         """
-        A sub-task whose checkpoint records ``UP_FOR_RETRY`` (left behind by a previous failed or
+        An indexed task whose checkpoint records ``UP_FOR_RETRY`` (left behind by a previous failed or
         crashed attempt) is re-executed rather than skipped — only a ``SUCCESS`` checkpoint causes
-        ``_run_task`` to skip re-execution — and a new ``SUCCESS`` checkpoint recording its result is
+        ``_run_indexed_task`` to skip re-execution — and a new ``SUCCESS`` checkpoint recording its result is
         stored once it completes.
         """
         from airflow.sdk.execution_time.executor import AsyncAwareExecutor
@@ -2531,7 +2534,7 @@ class TestIterableOperator:
 
             with mock_context(task=iterable_op) as context:
                 jinja_env = iterable_op.get_template_env(dag=dag)
-                task = iterable_op._create_task(
+                task = iterable_op._create_indexed_task(
                     context=context, index=0, mapped_kwargs={"arg1": 1, "arg2": 10}, jinja_env=jinja_env
                 )
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
@@ -2541,7 +2544,7 @@ class TestIterableOperator:
                 )
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
-                    result_task, result, raised = await iterable_op._run_task(
+                    result_task, result, raised = await iterable_op._run_indexed_task(
                         executor,
                         context,
                         task,
@@ -2566,12 +2569,13 @@ class TestIterableOperator:
                 )
 
     @pytest.mark.asyncio
-    async def test_run_task_merges_outlet_events_into_shared_context_on_success(self):
+    async def test_run_indexed_task_merges_outlet_events_into_shared_context_on_success(self):
         """
-        A succeeded item's outlet asset events are merged into the task's ``context["outlet_events"]``.
+        A succeeded indexed task's outlet asset events are merged into the task's
+        ``context["outlet_events"]``.
 
         The task instance reports its outlet events once, from that accessor, when the whole
-        iteration finishes, so an item's events only reach the server through it.
+        iteration finishes, so an indexed task's events only reach the server through it.
         """
         from airflow.sdk.execution_time.executor import AsyncAwareExecutor
 
@@ -2583,12 +2587,12 @@ class TestIterableOperator:
 
             with mock_context(task=iterable_op) as context:
                 jinja_env = iterable_op.get_template_env(dag=dag)
-                task = iterable_op._create_task(
+                task = iterable_op._create_indexed_task(
                     context=context, index=0, mapped_kwargs={}, jinja_env=jinja_env
                 )
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
-                    _, result, raised = await iterable_op._run_task(
+                    _, result, raised = await iterable_op._run_indexed_task(
                         executor,
                         context,
                         task,
@@ -2613,10 +2617,10 @@ class TestIterableOperator:
                 ]
 
     @pytest.mark.asyncio
-    async def test_run_task_replays_outlet_events_when_skipping_already_succeeded_sub_task(self):
-        """A sub-task skipped on retry (because its checkpoint already records SUCCESS) never
+    async def test_run_indexed_task_replays_outlet_events_when_skipping_already_succeeded_indexed_task(self):
+        """An indexed task skipped on retry (because its checkpoint already records SUCCESS) never
         re-executes, so it would otherwise never re-populate the fresh ``outlet_events`` accessor
-        created for the new attempt; ``_run_task`` must replay the events it recorded on its
+        created for the new attempt; ``_run_indexed_task`` must replay the events it recorded on its
         earlier successful attempt instead of silently losing them."""
         from unittest import mock
 
@@ -2628,7 +2632,7 @@ class TestIterableOperator:
 
             with mock_context(task=iterable_op) as context:
                 jinja_env = iterable_op.get_template_env(dag=dag)
-                task = iterable_op._create_task(
+                task = iterable_op._create_indexed_task(
                     context=context, index=0, mapped_kwargs={}, jinja_env=jinja_env
                 )
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
@@ -2650,7 +2654,7 @@ class TestIterableOperator:
                 )
 
                 executor = mock.MagicMock()
-                _, result, raised = await iterable_op._run_task(
+                _, result, raised = await iterable_op._run_indexed_task(
                     executor,
                     context,
                     task,
@@ -2664,26 +2668,26 @@ class TestIterableOperator:
         accessor = context["outlet_events"][Asset(name="a", uri="s3://bucket/a")]
         assert accessor.extra == {"value": "v"}
 
-    def test_on_kill_propagates_to_active_sub_operators(self):
+    def test_on_kill_propagates_to_active_indexed_operators(self):
         """IterableOperator.on_kill() (SIGTERM or execution_timeout) must propagate the kill
-        signal to every sub-task currently in flight, since the default BaseOperator.on_kill()
-        no-op would otherwise leave running sub-tasks completely unaware of the kill."""
+        signal to every indexed task currently in flight, since the default BaseOperator.on_kill()
+        no-op would otherwise leave running indexed tasks completely unaware of the kill."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{}])
             iterable_op = create_iterable_operator(
                 dag, expand_input, task_id="on_kill_test", operator_class=MockOnKillOperator
             )
 
-        active_operator = MockOnKillOperator(task_id="active_sub_task")
+        active_operator = MockOnKillOperator(task_id="active_indexed_task")
         iterable_op._state.register(active_operator)
 
         iterable_op.on_kill()
 
         assert wait_until(lambda: active_operator.killed)
 
-    def test_on_kill_reaches_sub_operators_that_compare_equal_and_kills_each_once(self):
+    def test_on_kill_reaches_indexed_operators_that_compare_equal_and_kills_each_once(self):
         """
-        The sub-operators of one iterated task compare equal (same task_id), so the register is keyed
+        The indexed operators of one iterated task compare equal (same task_id), so the register is keyed
         by identity; and the runner's second on_kill() after a timeout does not kill them again.
         """
         with DAG("test_dag") as dag:
@@ -2706,8 +2710,8 @@ class TestIterableOperator:
         time.sleep(0.05)  # a second kill would arrive here
         assert sorted(kills) == ["first", "second"]
 
-    def test_on_kill_reaches_every_sub_operator_when_one_raises_a_base_exception(self):
-        """A sub-operator's on_kill may raise a BaseException such as DeadlockImminentError; the rest are still killed."""
+    def test_on_kill_reaches_every_indexed_operator_when_one_raises_a_base_exception(self):
+        """An indexed operator's on_kill may raise a BaseException such as DeadlockImminentError; the rest are still killed."""
 
         class RaisingOnKill(MockOnKillOperator):
             def on_kill(self):
@@ -2728,7 +2732,7 @@ class TestIterableOperator:
     def test_on_kill_with_the_loop_paused_kills_off_the_main_thread(self):
         """
         Between two ``run_until_complete`` calls the loop is paused and a parked ``asend`` may hold
-        the comms lock: a sub-operator's sync SDK call in ``on_kill`` on the main thread would wait
+        the comms lock: an indexed operator's sync SDK call in ``on_kill`` on the main thread would wait
         for it forever, since only the paused loop can release it. The kill runs in a thread.
         """
         seen: dict[str, bool] = {}
@@ -2756,7 +2760,7 @@ class TestIterableOperator:
     def test_on_kill_inside_a_running_loop_kills_off_the_loop_thread(self):
         """
         The runner's SIGTERM handler calls on_kill on the main thread, usually while the loop runs
-        there; the sub-operators' on_kill may make a sync SDK call, which must not run on the loop.
+        there; the indexed operators' on_kill may make a sync SDK call, which must not run on the loop.
         """
         seen: dict[str, bool] = {}
         done = threading.Event()
@@ -2795,7 +2799,7 @@ class TestIterableOperator:
             iterable_op = create_iterable_operator(
                 dag, ListOfDictsExpandInput([{}]), task_id="on_kill_locked", operator_class=MockOnKillOperator
             )
-        active_operator = MockOnKillOperator(task_id="active_sub_task")
+        active_operator = MockOnKillOperator(task_id="active_indexed_task")
         iterable_op._state.register(active_operator)
 
         with iterable_op._state._lock:
@@ -2805,9 +2809,9 @@ class TestIterableOperator:
 
         assert wait_until(lambda: active_operator.killed)
 
-    def test_on_kill_is_noop_when_no_sub_operators_are_active(self):
-        """on_kill() must not raise when called with no in-flight sub-tasks (e.g. the
-        IterableOperator is killed before any sub-task has started, or after all finished)."""
+    def test_on_kill_is_noop_when_no_indexed_operators_are_active(self):
+        """on_kill() must not raise when called with no in-flight indexed tasks (e.g. the
+        IterableOperator is killed before any indexed task has started, or after all finished)."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{}])
             iterable_op = create_iterable_operator(
@@ -2820,7 +2824,7 @@ class TestIterableOperator:
         """
         ``on_kill()`` kills in a thread of its own and returns at once; the run waits for that
         thread once the killed indexed tasks came back, so the task does not end, and the process
-        with it, while a sub-operator's ``on_kill`` is still cleaning up.
+        with it, while an indexed operator's ``on_kill`` is still cleaning up.
         """
         executing = threading.Event()
         killed = threading.Event()
@@ -2869,7 +2873,7 @@ class TestIterableOperator:
         assert isinstance(outcome[0], AirflowTaskTerminated)
 
     def test_the_wait_for_the_kill_thread_is_bounded(self):
-        """A sub-operator whose ``on_kill`` never returns holds the run for the shutdown timeout, not forever."""
+        """An indexed operator whose ``on_kill`` never returns holds the run for the shutdown timeout, not forever."""
         executing = threading.Event()
         killed = threading.Event()
         released = threading.Event()
@@ -2918,8 +2922,8 @@ class TestIterableOperator:
     @pytest.mark.execution_timeout(20)
     def test_the_kill_after_a_failure_that_stops_the_task_is_bounded(self):
         """
-        An item whose outcome stops the task at once (here it defers) kills the items still running,
-        with no ``execution_timeout`` to cap it: one whose ``on_kill`` never returns holds the run
+        An indexed task whose outcome stops the task at once (here it defers) kills the indexed tasks still
+        running, with no ``execution_timeout`` to cap it: one whose ``on_kill`` never returns holds the run
         for the shutdown timeout, as on the SIGTERM path, not forever.
         """
         executing = threading.Event()
@@ -2964,9 +2968,11 @@ class TestIterableOperator:
 
         assert killed.is_set()
 
-    def test_run_task_tracks_active_sub_operator_during_execution(self, monkeypatch: pytest.MonkeyPatch):
-        """``_run_task`` must register the sub-task's unmapped operator in the iteration state
-        only for the duration of its execution, so ``on_kill()`` propagates only to sub-tasks that
+    def test_run_indexed_task_tracks_active_indexed_operator_during_execution(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """``_run_indexed_task`` must register the indexed task's unmapped operator in the iteration state
+        only for the duration of its execution, so ``on_kill()`` propagates only to indexed tasks that
         are actually running."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{}])
@@ -2976,7 +2982,7 @@ class TestIterableOperator:
 
             with mock_context(task=iterable_op) as context:
                 jinja_env = iterable_op.get_template_env(dag=dag)
-                task = iterable_op._create_task(
+                task = iterable_op._create_indexed_task(
                     context=context, index=0, mapped_kwargs={}, jinja_env=jinja_env
                 )
 
@@ -2989,7 +2995,7 @@ class TestIterableOperator:
 
                 with event_loop() as loop, AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
                     _, _, raised = loop.run_until_complete(
-                        iterable_op._run_task(
+                        iterable_op._run_indexed_task(
                             executor,
                             context,
                             task,
@@ -3061,12 +3067,12 @@ class TestIterableOperator:
                 with pytest.raises(AirflowFailException):
                     iterable_op.execute(context=context)
 
-    def test_parent_timeout_landing_in_a_sub_task_stays_a_timeout(self):
+    def test_parent_timeout_landing_in_an_indexed_task_stays_a_timeout(self):
         """
         The parent's ``execution_timeout`` is raised by a signal handler on the main thread, so it
-        can surface inside whichever async sub-task is running there. It is not that sub-task's
+        can surface inside whichever async indexed task is running there. It is not that indexed task's
         outcome: it has to reach the runner as ``AirflowTaskTimeout``, which retries the task, and
-        not be turned into a non-retryable ``AirflowFailException`` blamed on the sub-task.
+        not be turned into a non-retryable ``AirflowFailException`` blamed on the indexed task.
         """
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{}])
@@ -3085,14 +3091,14 @@ class TestIterableOperator:
                 assert "_iterable_0" not in context["task_state_store"]
 
     @pytest.mark.asyncio
-    async def test_run_task_lets_a_cancellation_through(self):
-        """A cancelled sub-task stays cancelled: no checkpoint write, no result handed back."""
+    async def test_run_indexed_task_lets_a_cancellation_through(self):
+        """A cancelled indexed task stays cancelled: no checkpoint write, no result handed back."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}])
             iterable_op = create_iterable_operator(dag, expand_input, task_id="cancelled_task")
 
             with mock_context(task=iterable_op) as context:
-                task = iterable_op._create_task(
+                task = iterable_op._create_indexed_task(
                     context=context,
                     index=0,
                     mapped_kwargs={"raise_exception": asyncio.CancelledError()},
@@ -3101,7 +3107,7 @@ class TestIterableOperator:
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
                     with pytest.raises(asyncio.CancelledError):
-                        await iterable_op._run_task(
+                        await iterable_op._run_indexed_task(
                             executor,
                             context,
                             task,
@@ -3113,7 +3119,7 @@ class TestIterableOperator:
 
     def test_deadlock_imminent_error_fails_the_task_without_retry(self):
         """
-        A sub-task that raises DeadlockImminentError (a sync SDK call made on a thread already in
+        An indexed task that raises DeadlockImminentError (a sync SDK call made on a thread already in
         the middle of a request) ends the task at once, with retries left, as any BaseException
         that is no Exception does.
         """
@@ -3139,7 +3145,7 @@ class TestIterableOperator:
                     iterable_op.execute(context=context)
 
     def test_deferred_operator_raises_airflow_fail_exception(self):
-        """A sub-task that raises TaskDeferred must cause IterableOperator to raise AirflowFailException."""
+        """An indexed task that raises TaskDeferred must cause IterableOperator to raise AirflowFailException."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{}, {}])
             mapped_op = MockDeferredOperator.partial(task_id="deferred_task", dag=dag)._expand(
@@ -3155,7 +3161,7 @@ class TestIterableOperator:
 
     def test_reschedule_mode_sensor_fails_the_task_without_retry(self):
         """
-        A sub-task that raises ``AirflowRescheduleException`` fails the whole task without a retry:
+        An indexed task that raises ``AirflowRescheduleException`` fails the whole task without a retry:
         an indexed task has no task instance of its own to reschedule, so ``_fail_fast_for`` turns
         it into an ``AirflowFailException`` that says so.
         """
@@ -3175,12 +3181,12 @@ class TestIterableOperator:
 
 class TestIterableOperatorContextIsolation:
     """
-    Verify that each sub-task run by IterableOperator sees its own indexed
+    Verify that each indexed task run by IterableOperator sees its own indexed
     context via get_current_context(), not the parent's.
     """
 
-    def test_subtask_sees_its_own_context(self):
-        """Each sub-task's get_current_context() must return its own indexed ti, not the parent's."""
+    def test_indexed_task_sees_its_own_context(self):
+        """Each indexed task's get_current_context() must return its own indexed ti, not the parent's."""
         captured: dict[int, object] = {}
 
         class ContextCapturingOperator(BaseOperator):
@@ -3204,10 +3210,10 @@ class TestIterableOperatorContextIsolation:
             iterable_op.execute(context=context)
 
             parent_ti = context["ti"]
-            for idx, sub_ti in captured.items():
-                # Each sub-task must have seen its own IndexedTaskInstance, not the parent TI.
-                assert sub_ti is not parent_ti, f"Sub-task {idx} observed the parent context"
-                assert sub_ti.index == idx, f"Sub-task {idx} observed wrong index {sub_ti.index}"
+            for idx, indexed_ti in captured.items():
+                # Each indexed task must have seen its own IndexedTaskInstance, not the parent TI.
+                assert indexed_ti is not parent_ti, f"Indexed task {idx} observed the parent context"
+                assert indexed_ti.index == idx, f"Indexed task {idx} observed wrong index {indexed_ti.index}"
 
 
 class MockCallbackSyncOperator(BaseOperator):
@@ -3231,11 +3237,11 @@ class MockCallbackSyncOperator(BaseOperator):
 
 class TestItemThreads:
     """
-    Which thread an item's code and callbacks run on.
+    Which thread an indexed task's code and callbacks run on.
 
-    A sync item runs in a worker thread, enter and exit included, so a sync SDK call from its
+    A sync indexed task runs in a worker thread, enter and exit included, so a sync SDK call from its
     ``execute`` or its callbacks waits for the comms lock without holding up the loop; on the loop
-    thread the same call would hold up every sibling for its round trip. An async item runs on the
+    thread the same call would hold up every sibling for its round trip. An async indexed task runs on the
     loop and should make async calls.
     """
 
@@ -3280,20 +3286,20 @@ class TestItemThreads:
         assert len(seen) == 6
         return seen
 
-    def test_a_sync_items_code_and_callbacks_run_in_its_worker_thread(self):
+    def test_a_sync_indexed_tasks_code_and_callbacks_run_in_its_worker_thread(self):
         for where, off_main, on_running_loop in self._run(BaseOperator, is_async=False):
             assert off_main, where
             assert not on_running_loop, where
 
-    def test_an_async_items_code_and_callbacks_run_on_the_loop_thread(self):
+    def test_an_async_indexed_tasks_code_and_callbacks_run_on_the_loop_thread(self):
         for where, off_main, on_running_loop in self._run(BaseAsyncOperator, is_async=True):
             assert not off_main, where
             assert on_running_loop, where
 
-    def test_a_sync_item_cancelled_by_a_sibling_reports_nothing_when_its_thread_finishes(self):
+    def test_a_sync_indexed_task_cancelled_by_a_sibling_reports_nothing_when_its_thread_finishes(self):
         """
-        The coroutine waiting for a sync item is cancelled while its thread goes on; the item gets
-        no checkpoint, so its exit must fire no callback: the next attempt runs it and reports then.
+        The coroutine waiting for a sync indexed task is cancelled while its thread goes on; the indexed task
+        gets no checkpoint, so its exit must fire no callback: the next attempt runs it and reports then.
         """
         FIRED_CALLBACKS.clear()
         with DAG("test_dag") as dag:
@@ -3328,7 +3334,7 @@ class TestIterationState:
         state.unregister(op)  # a second time is harmless
 
     def test_in_flight_is_keyed_by_identity(self):
-        """Sub-operators of one iterated task compare equal; each is registered on its own."""
+        """Indexed operators of one iterated task compare equal; each is registered on its own."""
         state = IterationState()
         first, second = MockOperator(task_id="same"), MockOperator(task_id="same")
         assert first == second
@@ -3469,7 +3475,7 @@ class TestIndexedTaskOutcomes:
     def test_an_outcome_the_iteration_cannot_carry_ends_the_task_at_once(self, raised, match):
         """Every later indexed task would end the same way, so nothing is collected: it is raised."""
         outcomes = self._outcomes()
-        with pytest.raises(AirflowFailException, match=rf"Sub-task it\[3\] {match}") as info:
+        with pytest.raises(AirflowFailException, match=rf"Indexed task it\[3\] {match}") as info:
             outcomes.record(self._task(3), raised)
         assert info.value.__cause__ is raised
         assert outcomes.exceptions == []
@@ -3481,13 +3487,13 @@ class TestIndexedTaskOutcomes:
         outcomes.record(self._task(0), ValueError("a"))
         outcomes.record(self._task(1), None)
         state.request_stop()
-        with pytest.raises(AirflowTaskTerminated, match="2 of 5 items ran") as info:
+        with pytest.raises(AirflowTaskTerminated, match="2 of 5 indexed tasks ran") as info:
             outcomes.conclude()
         assert isinstance(info.value.__cause__, BaseExceptionGroup)
         assert info.value.__cause__.exceptions == (outcomes.exceptions[0],)
 
-    def test_an_item_not_started_after_the_kill_is_counted_apart(self):
-        """It ran no code: not a failure to collect or log, not an item that ran, named in the message."""
+    def test_an_indexed_task_not_started_after_the_kill_is_counted_apart(self):
+        """It ran no code: not a failure to collect or log, not an indexed task that ran, named in the message."""
         state = IterationState()
         state.resolved = self._resolved(3)
         outcomes = self._outcomes(state=state)
@@ -3498,19 +3504,20 @@ class TestIndexedTaskOutcomes:
         assert outcomes.exceptions == []
         state.request_stop()
         with pytest.raises(
-            AirflowTaskTerminated, match=r"1 of 3 items ran, 1 pulled but never started, 1 never pulled\.$"
+            AirflowTaskTerminated,
+            match=r"1 of 3 indexed tasks ran, 1 pulled but never started, 1 never pulled\.$",
         ):
             outcomes.conclude()
 
-    def test_a_kill_after_every_item_was_pulled_claims_no_remainder(self):
-        """Every item pulled and run, the killed one back as a failure: the message ends with the count."""
+    def test_a_kill_after_every_indexed_task_was_pulled_claims_no_remainder(self):
+        """Every indexed task pulled and run, the killed one back as a failure: the message ends with the count."""
         state = IterationState()
         state.resolved = self._resolved(2)
         outcomes = self._outcomes(state=state)
         outcomes.record(self._task(0), ValueError("killed"))
         outcomes.record(self._task(1), None)
         state.request_stop()
-        with pytest.raises(AirflowTaskTerminated, match=r"2 of 2 items ran\.$"):
+        with pytest.raises(AirflowTaskTerminated, match=r"2 of 2 indexed tasks ran\.$"):
             outcomes.conclude()
 
     def test_a_kill_while_resolving_is_not_an_empty_input(self):
@@ -3590,7 +3597,7 @@ KILL_TARGET: list = []
 
 
 class MockKillingOperator(BaseOperator):
-    """Operator whose ``arg1="kill"`` item kills the iterated task from inside, as SIGTERM would."""
+    """Operator whose ``arg1="kill"`` indexed task kills the iterated task from inside, as SIGTERM would."""
 
     template_fields = ("arg1",)
 
@@ -3605,7 +3612,7 @@ class MockKillingOperator(BaseOperator):
 
 
 class MockEchoAsyncOperator(BaseAsyncOperator):
-    """Async operator that returns its ``arg1``, for kills that come from elsewhere than the item."""
+    """Async operator that returns its ``arg1``, for kills that come from elsewhere than the indexed task."""
 
     template_fields = ("arg1",)
 
@@ -3632,21 +3639,21 @@ class TestAKillSticks:
             KILL_TARGET[:] = [iterable_op]
             with mock_context(task=iterable_op) as context:
                 store = context["task_state_store"]
-                with pytest.raises(AirflowTaskTerminated, match="1 of 4 items ran"):
+                with pytest.raises(AirflowTaskTerminated, match="1 of 4 indexed tasks ran"):
                     iterable_op.execute(context=context)
 
         assert "_iterable_completed" not in store
         assert store["_iterable_0"]["status"] == "success"
         assert all(f"_iterable_{index}" not in store for index in (1, 2, 3))
 
-    def test_an_item_pulled_before_the_kill_but_not_started_does_not_run(self):
+    def test_an_indexed_task_pulled_before_the_kill_but_not_started_does_not_run(self):
         """
-        on_kill() reaches what has started; an item whose checkpoint read is in flight has not.
+        on_kill() reaches what has started; an indexed task whose checkpoint read is in flight has not.
 
-        On a retry attempt every item reads its checkpoint before its runner starts. A kill that
+        On a retry attempt every indexed task reads its checkpoint before its runner starts. A kill that
         lands during that read (here from the read itself, as a SIGTERM would land on the main
-        thread) finds the item unregistered: it must not run afterwards, gets no checkpoint and
-        fires no callback, as the items never pulled do not, and the message counts it apart.
+        thread) finds the indexed task unregistered: it must not run afterwards, gets no checkpoint and
+        fires no callback, as the indexed tasks never pulled do not, and the message counts it apart.
         """
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
@@ -3670,9 +3677,9 @@ class TestAKillSticks:
                         item_0_done.set()
 
                 async def aget_and_kill(key, default=None):
-                    # Items reach this read in the order their worker threads built them, so the
-                    # test sets the order: item 0 runs to its checkpoint, item 1's read is where
-                    # the kill lands, and item 2's read comes after it.
+                    # Items reach this read in the order their worker threads built them, so the test sets the
+                    # order: indexed task 0 runs to its checkpoint, indexed task 1's read is where the kill
+                    # lands, and indexed task 2's read comes after it.
                     if key == "_iterable_1":
                         await asyncio.wait_for(item_0_done.wait(), timeout=5)
                         iterable_op.on_kill()
@@ -3684,7 +3691,7 @@ class TestAKillSticks:
                 store.aget = aget_and_kill
                 store.aset = aset_and_signal
                 with pytest.raises(
-                    AirflowTaskTerminated, match="1 of 3 items ran, 2 pulled but never started"
+                    AirflowTaskTerminated, match="1 of 3 indexed tasks ran, 2 pulled but never started"
                 ):
                     iterable_op.execute(context=context)
 
@@ -3723,7 +3730,7 @@ class TestAKillSticks:
         assert len(result) == 2
         assert "_iterable_completed" in context["task_state_store"]
 
-    def test_a_kill_before_any_item_started_is_not_an_empty_input(self):
+    def test_a_kill_before_any_indexed_task_started_is_not_an_empty_input(self):
         """A kill while the input is resolved leaves nothing to run; that is a kill, not a skip."""
         xcom_arg = make_xcom_arg(None)
 
@@ -3742,7 +3749,7 @@ class TestAKillSticks:
             KILL_TARGET[:] = [iterable_op]
             with mock_context(task=iterable_op) as context:
                 store = context["task_state_store"]
-                with pytest.raises(AirflowTaskTerminated, match="0 of 2 items ran"):
+                with pytest.raises(AirflowTaskTerminated, match="0 of 2 indexed tasks ran"):
                     iterable_op.execute(context=context)
 
         assert "_iterable_completed" not in store
@@ -3783,9 +3790,9 @@ class MockSlowAsyncKillableOperator(BaseAsyncOperator):
         KILLED_ON_TIMEOUT.append(("async", self.arg1))
 
 
-class TestExecutionTimeoutKillsInFlightSubTasks:
+class TestExecutionTimeoutKillsInFlightIndexedTasks:
     """
-    The parent's execution_timeout reaches every sub-task in flight, once, through on_kill().
+    The parent's execution_timeout reaches every indexed task in flight, once, through on_kill().
 
     Runs the operator through the runner's own ``_run_execute_callable`` with a real timeout, as the
     task runner does, so the order in which the executor cancels and the runner calls on_kill() is
@@ -3797,7 +3804,7 @@ class TestExecutionTimeoutKillsInFlightSubTasks:
         [(MockSlowSyncOperator, "sync"), (MockSlowAsyncKillableOperator, "async")],
         ids=["sync", "async"],
     )
-    def test_every_sub_task_in_flight_is_killed_once(self, operator_class, kind, mock_supervisor_comms):
+    def test_every_indexed_task_in_flight_is_killed_once(self, operator_class, kind, mock_supervisor_comms):
         from airflow.sdk.execution_time.task_runner import _run_execute_callable
 
         KILLED_ON_TIMEOUT.clear()
@@ -3821,9 +3828,9 @@ class TestExecutionTimeoutKillsInFlightSubTasks:
 
     def test_the_parents_timeout_is_sent_to_the_supervisor_once(self, mock_supervisor_comms):
         """
-        Sync items with an execution_timeout run in worker threads, where TimeoutPosix cannot fire,
-        under the parent's limit. Re-sending SetExecutionTimeout per item would move the
-        supervisor's hard-kill deadline to the last item started, up to one full timeout late.
+        Sync indexed tasks with an execution_timeout run in worker threads, where TimeoutPosix cannot fire,
+        under the parent's limit. Re-sending SetExecutionTimeout per indexed task would move the
+        supervisor's hard-kill deadline to the last indexed task started, up to one full timeout late.
         """
         from airflow.sdk.execution_time.comms import SetExecutionTimeout
         from airflow.sdk.execution_time.task_runner import _run_execute_callable
@@ -3850,14 +3857,14 @@ class TestExecutionTimeoutKillsInFlightSubTasks:
             SetExecutionTimeout(timeout_seconds=30.0)
         ]
 
-    def test_the_struck_async_items_on_kill_runs_off_the_loop_thread(self):
+    def test_the_struck_async_indexed_tasks_on_kill_runs_off_the_loop_thread(self):
         """
-        The parent's timeout can land inside the async item running on the loop thread. Its on_kill
+        The parent's timeout can land inside the async indexed task running on the loop thread. Its on_kill
         may make a sync SDK call (cancelling a remote job through a sync hook), which on that thread,
         interrupted mid-request, raises DeadlockImminentError; killed there, the timeout would turn
-        into a failure without a retry and the job would go on. The struck item stays registered and
+        into a failure without a retry and the job would go on. The struck indexed task stays registered and
         the parent
-        kills it off the loop with the others. The strike is simulated by the item raising the
+        kills it off the loop with the others. The strike is simulated by the indexed task raising the
         timeout itself, as the signal handler would inside its coroutine.
         """
 
@@ -3890,7 +3897,7 @@ class TestExecutionTimeoutKillsInFlightSubTasks:
 
 class TestFailureHandedToTheRunner:
     """
-    The runner classifies the outcome by exception type, so an item's own exception reaches it
+    The runner classifies the outcome by exception type, so an indexed task's own exception reaches it
     whenever one decides: a fail-fast one, the only one, or the one the retry policy decides on.
     """
 
@@ -3926,7 +3933,7 @@ class TestFailureHandedToTheRunner:
             "ValueError",
         ]
 
-    def test_retry_policy_decides_on_the_items_own_exception(self):
+    def test_retry_policy_decides_on_the_indexed_tasks_own_exception(self):
         from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
 
         policy = ExceptionRetryPolicy(rules=[RetryRule(exception=PermissionError, action=RetryAction.FAIL)])
@@ -3942,7 +3949,7 @@ class TestFailureHandedToTheRunner:
 
         assert isinstance(raised, PermissionError)
         assert isinstance(raised.__cause__, BaseExceptionGroup)
-        # What the runner evaluates next: the rule matches the item's exception, never the group.
+        # What the runner evaluates next: the rule matches the indexed task's exception, never the group.
         assert policy.evaluate(exception=raised, try_number=1, max_tries=2).action == RetryAction.FAIL
         assert (
             policy.evaluate(exception=raised.__cause__, try_number=1, max_tries=2).action
@@ -3967,7 +3974,8 @@ class TestFingerprintCoversPartialInputsFromUpstream:
         partial_value_on_retry, arg2_first="from-upstream", arg2_is_upstream=True, shape=lambda value: value
     ):
         """
-        Attempt 1: item 2 fails. Attempt 2 (retry or clear): item 2 succeeds. Returns runs and results.
+        Attempt 1: indexed task 2 fails. Attempt 2 (retry or clear): indexed task 2 succeeds. Returns runs and
+        results.
 
         ``shape`` places the upstream value in the partial kwarg: as it is, or deep in a list or mapping.
         """
@@ -4020,7 +4028,7 @@ class TestFingerprintCoversPartialInputsFromUpstream:
     }
 
     @pytest.mark.parametrize(("shape", "read"), SHAPES.values(), ids=SHAPES.keys())
-    def test_a_changed_upstream_value_runs_the_item_again(self, shape, read):
+    def test_a_changed_upstream_value_runs_the_indexed_task_again(self, shape, read):
         runs, results = self._run_twice("changed-upstream", shape=shape)
 
         assert (2, 1) in runs
@@ -4073,7 +4081,7 @@ CALLBACKS: list = []
 
 
 class MockCallbackOperator(BaseOperator):
-    """Operator that records which callback each of its items gets."""
+    """Operator that records which callback each of its indexed tasks gets."""
 
     template_fields = ("arg1",)
     arg1: Any
@@ -4094,8 +4102,8 @@ class MockCallbackOperator(BaseOperator):
 
 class TestCallbacksFollowTheTasksFate:
     """
-    A failed item's failure or retry callback waits until every item has run, and then says what
-    happens to the task: retried, or failed for good. Success callbacks fire right away.
+    A failed indexed task's failure or retry callback waits until every indexed task has run, and then says
+    what happens to the task: retried, or failed for good. Success callbacks fire right away.
     """
 
     @staticmethod
@@ -4120,8 +4128,8 @@ class TestCallbacksFollowTheTasksFate:
     @pytest.mark.parametrize(
         ("try_number", "callback"), [(1, "on_retry_callback"), (3, "on_failure_callback")]
     )
-    def test_a_failed_items_callback_gets_its_own_exception(self, try_number, callback):
-        """Each item's failure or retry callback finds that item's error under ``exception``."""
+    def test_a_failed_indexed_tasks_callback_gets_its_own_exception(self, try_number, callback):
+        """Each indexed task's failure or retry callback finds that indexed task's error under ``exception``."""
         seen: list = []
 
         class RecordsException(BaseOperator):
@@ -4151,10 +4159,11 @@ class TestCallbacksFollowTheTasksFate:
 
     def test_a_siblings_fail_exception_turns_every_failure_into_a_final_one(self):
         """
-        A failed item's retry callback waits until no sibling rules the retry out.
+        A failed indexed task's retry callback waits until no sibling rules the retry out.
 
-        A ``ValueError`` item next to an ``AirflowFailException`` item is reported as a failure:
-        the task fails without a retry, so announcing a retry for the first item would be wrong.
+        A ``ValueError`` indexed task next to an ``AirflowFailException`` indexed task is reported as a
+        failure: the task fails without a retry, so announcing a retry for the first indexed task would be
+        wrong.
         """
         raised, fired = self._run(
             [
@@ -4190,9 +4199,9 @@ class TestCallbacksFollowTheTasksFate:
 
         assert fired == [("failure", "a"), ("failure", "b")]
 
-    def test_the_retry_policy_is_evaluated_once_per_failed_item(self):
+    def test_the_retry_policy_is_evaluated_once_per_failed_indexed_task(self):
         """
-        Choosing the exception for the runner costs one evaluation per failed item, and no more.
+        Choosing the exception for the runner costs one evaluation per failed indexed task, and no more.
 
         The callbacks reuse the decision taken for the exception handed over instead of evaluating
         the policy again: a policy that calls a model (common.ai's ``LLMRetryPolicy``) pays per call
@@ -4223,8 +4232,8 @@ class TestCallbacksFollowTheTasksFate:
         """
         Failures whose decisions are all the default are handed over as a group, decided once.
 
-        Choosing costs one evaluation per failed item; the group then carries the default, so the
-        callbacks follow it without evaluating the policy once more, on an exception no item raised.
+        Choosing costs one evaluation per failed indexed task; the group then carries the default, so the
+        callbacks follow it without evaluating the policy once more, on an exception no indexed task raised.
         """
         from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryDecision
 
@@ -4252,7 +4261,7 @@ class TestCallbacksFollowTheTasksFate:
         """
         A policy that answers differently per call cannot make the callbacks disagree with the task.
 
-        The second item's exception wins with FAIL and is handed to the runner; evaluating the policy
+        The second indexed task's exception wins with FAIL and is handed to the runner; evaluating the policy
         once more for the callbacks would get RETRY and announce a retry the runner does not take.
         """
         from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryDecision
@@ -4289,8 +4298,8 @@ class TestCallbacksFollowTheTasksFate:
 
         assert fired == [("failure", "value_error"), ("failure", "denied")]
 
-    def test_an_item_the_operator_rejects_fails_the_task_for_every_item(self):
-        """A downstream skip from an item is rejected with AirflowFailException, so nothing is retried."""
+    def test_an_item_the_operator_rejects_fails_the_task_for_every_indexed_task(self):
+        """A downstream skip from an indexed task is rejected with AirflowFailException, so nothing is retried."""
         raised, fired = self._run(
             [
                 {"arg1": "value_error", "raise_exception": ValueError("x")},
@@ -4301,7 +4310,7 @@ class TestCallbacksFollowTheTasksFate:
         assert isinstance(raised, AirflowFailException)
         assert fired == [("failure", "value_error"), ("failure", "skipper")]
 
-    def test_a_failed_items_callback_waits_for_the_items_after_it(self):
+    def test_a_failed_indexed_tasks_callback_waits_for_the_indexed_tasks_after_it(self):
         _, fired = self._run([{"arg1": "first", "raise_exception": ValueError("x")}, {"arg1": "second"}])
 
         assert fired == [("success", "second"), ("retry", "first")]
@@ -4331,7 +4340,7 @@ class TestIterableOperatorCopy:
             down(f.iterate(x=up()))
         return dag
 
-    def test_deepcopy_gets_its_own_state_with_no_sub_tasks_in_flight(self):
+    def test_deepcopy_gets_its_own_state_with_no_indexed_tasks_in_flight(self):
         import copy
 
         iterable_op = self._dag().task_dict["f"]
@@ -4415,9 +4424,9 @@ class TestCheckpoints:
     def test_failed_attempt_leaves_no_marker(self):
         context, store = self._context(try_number=1)
 
-        with pytest.raises(RuntimeError, match="sub-task failures"):
+        with pytest.raises(RuntimeError, match="indexed task failures"):
             with Checkpoints(context):
-                raise RuntimeError("sub-task failures")
+                raise RuntimeError("indexed task failures")
 
         store.set.assert_not_called()
 
@@ -4456,7 +4465,7 @@ class TestCheckpoints:
     @pytest.mark.parametrize("since", [0, 2])
     def test_retry_after_a_completed_attempt_failed_late_resumes_from_the_checkpoints(self, since):
         """
-        Every item ran and the marker was written, but the task failed afterwards (the worker died,
+        Every indexed task ran and the marker was written, but the task failed afterwards (the worker died,
         ``post_execute`` or the result push failed): the retry keeps ``max_tries``, so it is no clear,
         and it resumes from the checkpoints the completed attempt could trust.
         """
@@ -4475,7 +4484,7 @@ class TestCheckpoints:
 
         with pytest.raises(RuntimeError):
             with Checkpoints(context):
-                raise RuntimeError("sub-task failed")
+                raise RuntimeError("indexed task failed")
 
         store.set.assert_called_once_with("_iterable_completed", {"completed": False, "since": 2})
 
@@ -4491,7 +4500,7 @@ class TestCheckpoints:
 
 
 def test_deserialization_allowed_values_are_those_of_the_iterated_operator():
-    """Every item pushes what the iterated operator declares, so the iterated task reports the same."""
+    """Every indexed task pushes what the iterated operator declares, so the iterated task reports the same."""
 
     class DeclaringOperator(BaseOperator):
         deserialization_allowed_class_fields = ("output_type",)
@@ -4514,7 +4523,7 @@ class TestKeepsFailureToItsItem:
     class Steps:
         """Stands in for IterableOperator: the decorator only needs a method taking the task first."""
 
-        @keeps_failure_to_its_item
+        @keeps_failure_to_its_indexed_task
         async def step(self, task, raised=None, *, result="done"):
             """Raise ``raised`` when given, else return the outcome."""
             if raised is not None:

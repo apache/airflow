@@ -242,7 +242,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # moment is left where the thread holds the lock but is not yet known as its holder.
     _thread_lock: threading.RLock = attrs.field(factory=threading.RLock, repr=False)
     # One per event loop: an asyncio.Lock binds to the loop that first waits on it, and asend() can
-    # be called from several at once (a sync item running asyncio.run() while the iteration's loop
+    # be called from several at once (a sync indexed task running asyncio.run() while the iteration's loop
     # has calls in flight). Each loop queues its calls on its own lock, so only one thread of its
     # default executor waits for the channel; _thread_lock orders the loops. A loop that is gone
     # drops its lock with it.

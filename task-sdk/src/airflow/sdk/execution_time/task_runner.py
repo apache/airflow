@@ -993,23 +993,23 @@ class CheckpointDeserializationError(Exception):
 class IndexedTaskState:
     status: TaskInstanceState
     result: Any | None = None
-    # Outlet asset events the sub-task recorded on a previous successful attempt. Outlet events
+    # Outlet asset events the indexed task recorded on a previous successful attempt. Outlet events
     # only reach the server on the parent's success payload (_handle_current_task_success), so an
-    # attempt that fails never registers what its succeeded sub-tasks emitted. A sub-task skipped
+    # attempt that fails never registers what its succeeded indexed tasks emitted. An indexed task skipped
     # on retry (because it already succeeded) never re-executes, so it never re-emits into the
     # fresh OutletEventAccessors created for the new attempt; persisting a snapshot here lets
-    # IterableOperator._run_task replay it, which is the only way those events survive, and it
+    # IterableOperator._run_indexed_task replay it, which is the only way those events survive, and it
     # cannot double-emit because the failed attempt sent nothing.
     outlet_events: list[dict[str, Any]] | None = None
-    # Digest of the input the sub-task ran with. An index only means the same work while its input
+    # Digest of the input the indexed task ran with. An index only means the same work while its input
     # is the same, so a checkpoint is honoured on a later attempt only when this still matches:
-    # after the upstream was cleared and produced other values, the sub-task runs again.
+    # after the upstream was cleared and produced other values, the indexed task runs again.
     fingerprint: str | None = None
     # The attempt that wrote the checkpoint. After a manual clear only the checkpoints written since
     # are resumed from (see Checkpoints), which this tells apart from those left by the run before.
     try_number: int = 0
-    # The other XComs the sub-task pushed, by their key before the index suffix. The runner deletes
-    # every XCom before an attempt, so a sub-task skipped on retry has them pushed again from here,
+    # The other XComs the indexed task pushed, by their key before the index suffix. The runner deletes
+    # every XCom before an attempt, so an indexed task skipped on retry has them pushed again from here,
     # next to its result, as a mapped task instance that succeeded keeps its own.
     xcoms: dict[str, Any] | None = None
 
@@ -1079,7 +1079,7 @@ class IndexedTaskState:
     def build_key(index: int) -> str:
         # The task state store is already scoped to the parent task instance (dag, run, task and
         # map index), so the key carries no identity, only a namespace that keeps the operator's own
-        # entries apart from anything user code stores from inside a sub-task.
+        # entries apart from anything user code stores from inside an indexed task.
         return f"_iterable_{index}"
 
     def serialize(self) -> dict[str, Any]:
@@ -1145,7 +1145,7 @@ class IndexedTaskInstance(RuntimeTaskInstance):
     index: int
     parent_task_state_store: TaskStateStoreAccessor
     input_fingerprint: str | None = None
-    # The XComs the sub-task pushed other than its return value, by their key before the index
+    # The XComs the indexed task pushed other than its return value, by their key before the index
     # suffix: kept in memory while it runs and written once, with its SUCCESS checkpoint.
     pushed_xcoms: dict[str, Any] = Field(default_factory=dict)
 
@@ -1279,7 +1279,7 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         ``task_state_store``: the keys ``context_update_for_unmapped`` sets for a mapped task
         instance, and the store next to them, so that a template and ``execute`` read the same
         store. The one place these keys are listed: :meth:`IndexedTaskRunner.indexed_context`
-        builds the context the task runs in from it, and ``IterableOperator._create_task`` the
+        builds the context the task runs in from it, and ``IterableOperator._create_indexed_task`` the
         one its templates are rendered against. ``outlet_events`` is swapped when given, for the
         run; before it, nothing is emitted and the parent's accessor stays.
         """
@@ -1554,7 +1554,7 @@ class IndexedTaskRunner(LoggingMixin):
         """
         Report this indexed task as succeeded: its state, ``end_date`` and ``on_success_callback``.
 
-        Called by ``IterableOperator._run_task`` once the SUCCESS checkpoint is written, where the
+        Called by ``IterableOperator._run_indexed_task`` once the SUCCESS checkpoint is written, where the
         indexed task's code ran. The callback then speaks for work a retry will not run again: a
         checkpoint write that fails fires nothing, and the attempt that runs the indexed task again
         reports it then; a result push that fails after the checkpoint is replayed from it, so the
@@ -2969,7 +2969,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
 
 async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
-    """Async counterpart of :func:`_execute_task` for :class:`BaseAsyncOperator` sub-tasks."""
+    """Async counterpart of :func:`_execute_task` for :class:`BaseAsyncOperator` indexed tasks."""
     task = cast("BaseAsyncOperator", ti.task)
     # Async tasks cannot be resuming a deferral, so next_method never applies here.
     outlet_events = _run_pre_execute(task, context, log)

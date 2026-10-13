@@ -119,13 +119,13 @@ def clone_context(context: Context) -> Context:
       typically read-only accessor objects.
     - ``dag_run`` is intentionally **not** copied. It is treated as read-only
       runtime metadata (e.g. ``run_id``, ``logical_date``, ``conf``) that all
-      concurrent sub-tasks legitimately share; copying it would only add
+      concurrent indexed tasks legitimately share; copying it would only add
       overhead without providing meaningful isolation.
-    - ``outlet_events`` is carried over by reference, not copied: where a sub-task's
+    - ``outlet_events`` is carried over by reference, not copied: where an indexed task's
       events go is not decided here. ``IndexedTaskRunner.indexed_context`` replaces it
-      with an accessor of the sub-task's own, so that its events can be checkpointed
+      with an accessor of the indexed task's own, so that its events can be checkpointed
       apart from its siblings', and ``IterableOperator`` merges that accessor into the
-      parent's once the sub-task has succeeded.
+      parent's once the indexed task has succeeded.
 
     Use cases
     - Multithreading: when using thread-based executors (``concurrent.futures``

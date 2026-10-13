@@ -577,7 +577,7 @@ class XComIterable(Sequence):
 
     This is a read-only :class:`collections.abc.Sequence` over the ``return_value_<index>`` XComs an
     iterated task pushed, one per index: the values are written by the producing task's runner as
-    each sub-task finishes (see ``IterableOperator.axcom_push``), and the iterable only ever reads
+    each indexed task finishes (see ``IterableOperator.axcom_push``), and the iterable only ever reads
     them. Nothing on this class mutates the underlying XComs.
 
     Indexing follows the usual sequence rules, negative indices included: ``result[-1]`` is the last

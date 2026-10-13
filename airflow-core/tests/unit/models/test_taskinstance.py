@@ -4176,7 +4176,7 @@ class TestMappedTaskInstanceReceiveValue:
             pytest.param(True, "none_failed", id="iterate-none_failed"),
         ],
     )
-    def test_skipped_item_downstream_matches_expand(
+    def test_skipped_indexed_task_downstream_matches_expand(
         self, dag_maker, session, upstream_is_iterated, trigger_rule
     ):
         """
@@ -4300,10 +4300,10 @@ class TestMappedTaskInstanceReceiveValue:
             pytest.param(False, TaskInstanceState.UP_FOR_RETRY, id="no-policy-retries"),
         ],
     )
-    def test_iterate_retry_policy_decides_on_the_items_exception(
+    def test_iterate_retry_policy_decides_on_the_indexed_tasks_exception(
         self, dag_maker, session, with_policy, expected_state
     ):
-        """A retry policy rule on an item's exception decides the iterated task's outcome, as for any task."""
+        """A retry policy rule on an indexed task's exception decides the iterated task's outcome, as for any task."""
         from airflow.sdk import ExceptionRetryPolicy, RetryRule
         from airflow.sdk.definitions.retry_policy import RetryAction
 
@@ -4353,9 +4353,11 @@ class TestMappedTaskInstanceReceiveValue:
 
         assert ti.state == TaskInstanceState.FAILED
 
-    def test_iterate_retry_keeps_the_extra_xcoms_of_items_that_already_succeeded(self, dag_maker, session):
+    def test_iterate_retry_keeps_the_extra_xcoms_of_indexed_tasks_that_already_succeeded(
+        self, dag_maker, session
+    ):
         """
-        The runner deletes every XCom of the task before a retry. An item skipped on the retry
+        The runner deletes every XCom of the task before a retry. An indexed task skipped on the retry
         because it already succeeded gets its other pushed keys back from its checkpoint.
         """
         from airflow.models.xcom import XComModel
@@ -4363,8 +4365,8 @@ class TestMappedTaskInstanceReceiveValue:
         attempts = []
 
         with dag_maker(dag_id="iterate_extra_xcoms", session=session, serialized=True):
-            # One item at a time: several sync items pushing concurrently under dag_maker's in-process
-            # supervisor race on it, which is a separate problem.
+            # One indexed task at a time: several sync indexed tasks pushing concurrently under dag_maker's
+            # in-process supervisor race on it, which is a separate problem.
             @task(retries=1, retry_delay=datetime.timedelta(0), task_concurrency=1)
             def produce(x, ti=None):
                 ti.xcom_push(key="foo", value=f"foo-of-{x}")
@@ -4401,10 +4403,10 @@ class TestMappedTaskInstanceReceiveValue:
         strict=True,
         reason="dag.test()'s in-process supervisor is not safe to call from several threads until apache/airflow#74074",
     )
-    def test_iterate_concurrent_sync_items_share_the_in_process_supervisor(self, dag_maker, session):
+    def test_iterate_concurrent_sync_indexed_tasks_share_the_in_process_supervisor(self, dag_maker, session):
         """
-        Under the in-process supervisor (dag.test(), dag_maker) sync items make SDK calls from worker
-        threads; they must not race on it: every item's XCom push and read goes through.
+        Under the in-process supervisor (dag.test(), dag_maker) sync indexed tasks make SDK calls from worker
+        threads; they must not race on it: every indexed task's XCom push and read goes through.
         """
         from airflow.models.xcom import XComModel
 
@@ -4442,9 +4444,11 @@ class TestMappedTaskInstanceReceiveValue:
         strict=True,
         reason="dag.test()'s in-process supervisor is not safe to call from several threads until apache/airflow#74074",
     )
-    def test_iterate_concurrent_sync_items_read_variables_while_a_sibling_is_served(self, dag_maker, session):
+    def test_iterate_concurrent_sync_indexed_tasks_read_variables_while_a_sibling_is_served(
+        self, dag_maker, session
+    ):
         """
-        Under the in-process supervisor, an item's Variable lookup must not miss while a sibling's
+        Under the in-process supervisor, an indexed task's Variable lookup must not miss while a sibling's
         request is served: hiding the comms from the whole process sent it to the fallback secrets
         backends, which do not have a Variable stored in the metadata database.
         """

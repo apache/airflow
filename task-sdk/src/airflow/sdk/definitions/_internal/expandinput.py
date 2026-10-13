@@ -52,7 +52,7 @@ class Resolved(NamedTuple):
     instance the item at its ``map_index``: every source is pulled once, and ``aget(index)`` then
     picks the item an index maps to the way ``resolve`` does for ``.expand()`` (the cross product
     of ``iterate(**kwargs)``, the mapping at that position for ``iterate_kwargs``). Reads run on
-    the task's event loop next to the sub-tasks' own SDK calls, so nothing here may block the loop
+    the task's event loop next to the indexed tasks' own SDK calls, so nothing here may block the loop
     thread on the supervisor channel (see ``AsyncAwareExecutor.imap_unordered``).
     """
 
@@ -179,7 +179,7 @@ def compute_index_for_each_field(map_index: int, lengths: Mapping[str, int]) -> 
     The arguments are combined as ``itertools.product`` combines them in the order they were
     given, so the last one varies fastest: position 3 of ``a=[1, 2], b=[10, 20]`` is ``a[1], b[1]``.
     Shared by ``.expand()`` (``_expand_mapped_field`` picks its task instance's ``map_index``) and
-    ``.iterate()`` (``aresolve`` reads every position), so both hand a sub-task the same item.
+    ``.iterate()`` (``aresolve`` reads every position), so both hand an indexed task the same item.
     """
     indices: dict[str, int] = {}
     for key in reversed(list(lengths)):

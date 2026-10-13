@@ -208,7 +208,7 @@ class OperatorPartial:
             warnings.warn(f"Task {task_id} was never mapped!", category=UserWarning, stacklevel=1)
 
     def expand(self, **mapped_kwargs: OperatorExpandArgument) -> MappedOperator:
-        # task_concurrency only has meaning for Iterable Tasks (as the sub-task thread
+        # task_concurrency only has meaning for Iterable Tasks (as the indexed task thread
         # count consumed by IterableOperator via .iterate()/.iterate_kwargs()).
         # A plain .expand() never reaches that code path, so reject it here rather than silently
         # accepting a dead value.
@@ -882,7 +882,7 @@ class MappedOperator(AbstractOperator):
         is_setup = kwargs.pop("is_setup", False)
         is_teardown = kwargs.pop("is_teardown", False)
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-        # task_concurrency is iterable-task metadata (the sub-task worker count), not an operator
+        # task_concurrency is iterable-task metadata (the indexed task worker count), not an operator
         # init argument.
         kwargs.pop("task_concurrency", None)
         kwargs["task_id"] = self.task_id

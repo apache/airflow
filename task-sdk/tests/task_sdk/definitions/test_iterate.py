@@ -47,7 +47,7 @@ class TestIterate:
     ):
         """A Mapping return annotation makes @task infer multiple_outputs=True. The runner must not
         apply that to an iterated task: its return value is the XComIterable aggregate, which is not a
-        dict, and every sub-task result is pushed whole rather than fanned out by key."""
+        dict, and every indexed task result is pushed whole rather than fanned out by key."""
         items = [{"dag_id": "a", "n": 1}, {"dag_id": "b", "n": 2}, {"dag_id": "c", "n": 3}]
 
         with DAG(dag_id="iterate_dict_return") as dag:
@@ -77,7 +77,7 @@ class TestIterate:
 
         mock_supervisor_comms.send.side_effect = mock_comms
 
-        # Sub-task results are pushed through the async send, the aggregate through the sync one.
+        # Indexed task results are pushed through the async send, the aggregate through the sync one.
         mock_supervisor_comms.asend.reset_mock()
         assert run_ti(dag, "enrich", -1) == TaskInstanceState.SUCCESS
         pushed: dict[str, Any] = {

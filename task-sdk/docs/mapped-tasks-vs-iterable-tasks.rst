@@ -126,6 +126,11 @@ separate Task Instances.
 This means that iteration happens inside the task execution itself rather than at the
 scheduler level.
 
+Inside that one Task Instance, the *iterated task*, the operator runs once per item of the
+iterable. Each of those runs is an iteration, or *indexed task*: it has the item's index, its own
+view of the context and its own XComs and checkpoint, but no Task Instance of its own in the
+scheduler.
+
 Key characteristics:
 
 - A single Task Instance processes all items in the iterable.
@@ -339,9 +344,9 @@ IT is designed to address limitations of task mapping in specific scenarios:
   execute on workers, which scale more effectively and support custom XCom
   backends.
 
-  A custom XCom backend is not the whole story for IT, though: each item's result
+  A custom XCom backend is not the whole story for IT, though: each indexed task's result
   is also written to its checkpoint in the task state store, so that a retry can
-  replay it instead of running the item again. Those checkpoints land in the
+  replay it instead of running the indexed task again. Those checkpoints land in the
   ``task_state_store`` table of the metadata database and stay there for the
   store's retention (``[state_store] default_retention_days``, 30 days unless
   configured) unless a ``[workers] state_store_backend`` is configured, in
@@ -386,25 +391,26 @@ For more examples of calling async hooks directly from tasks, see
 Callbacks
 ---------
 
-With IT the callbacks of the wrapped operator run per item, against the item's own context, but
-not all at the same moment:
+With IT the callbacks of the wrapped operator run per indexed task, against the indexed task's own
+context, but not all at the same moment:
 
-* ``on_success_callback`` and ``on_skipped_callback`` run once the item's checkpoint is written, so they
-  speak for work a retry will not run again; a checkpoint write that fails fires nothing, and the
-  attempt that runs the item again reports it then.
-* ``on_failure_callback`` and ``on_retry_callback`` of a failed item wait until every item has run,
-  because whether the task is retried depends on all of them: an ``AirflowFailException`` in one
-  item fails the whole task without a retry. Once the task's fate is known, every failed item gets
-  the callback that matches it, one after another: ``on_retry_callback`` when the task is retried,
-  ``on_failure_callback`` when it is not.
-* A failure that belongs to no item fires no callback: an error while resolving the input, before
-  any item exists, or items cancelled because the task's ``execution_timeout`` ran out (the item
-  the timeout struck is reported like the other failures), or items pulled into a free slot before
-  a kill and never started. The iterated task carries no task-level callbacks of its own.
+* ``on_success_callback`` and ``on_skipped_callback`` run once the indexed task's checkpoint is
+  written, so they speak for work a retry will not run again; a checkpoint write that fails fires
+  nothing, and the attempt that runs the indexed task again reports it then.
+* ``on_failure_callback`` and ``on_retry_callback`` of a failed indexed task wait until every
+  indexed task has run, because whether the task is retried depends on all of them: an
+  ``AirflowFailException`` in one indexed task fails the whole task without a retry. Once the task's
+  fate is known, every failed indexed task gets the callback that matches it, one after another:
+  ``on_retry_callback`` when the task is retried, ``on_failure_callback`` when it is not.
+* A failure that belongs to no indexed task fires no callback: an error while resolving the input,
+  before any indexed task exists, or indexed tasks cancelled because the task's
+  ``execution_timeout`` ran out (the indexed task the timeout struck is reported like the other
+  failures), or indexed tasks pulled into a free slot before a kill and never started. The iterated
+  task carries no task-level callbacks of its own.
 * Listeners (``on_task_instance_running``, ``on_task_instance_success``,
   ``on_task_instance_failed``) fire once, for the iterated task instance, when the runner reports
-  its state; an item is not a task instance and fires none. With ``.expand()`` they fire once per
-  mapped task instance.
+  its state; an indexed task has no task instance of its own and fires none. With ``.expand()`` they fire
+  once per mapped task instance.
 
 Comparison
 ----------
@@ -439,7 +445,7 @@ Comparison
      - ``pool_slots`` reserved once, while up to ``task_concurrency`` iterations run
    * - Retry behavior
      - Per item
-     - Whole task retries, but checkpointed items are skipped
+     - Whole task retries, but checkpointed indexed tasks are skipped
    * - Skipped items
      - A skipped task instance pushes no XCom. Downstream tasks with ``all_success`` are skipped;
        with ``none_failed`` they run over the other items
@@ -452,9 +458,10 @@ Comparison
        downstream ``.expand()`` over it runs over that ``None``
    * - Asset events
      - One event per mapped task instance that emits to an asset
-     - One event per asset for the whole task instance: items emitting to the same asset are
-       merged into it, their ``extra`` with the last item to finish winning, partitions and alias
-       events accumulated. A per-file ``Metadata`` pattern from ``.expand()`` produces one event here
+     - One event per asset for the whole task instance: indexed tasks emitting to the same asset are
+       merged into it, their ``extra`` with the last indexed task to finish winning, partitions and
+       alias events accumulated. A per-file ``Metadata`` pattern from ``.expand()`` produces one
+       event here
    * - Empty input
      - The mapped task is skipped, and so are downstream tasks with ``all_success``
      - The same: the task is skipped and pushes no result
@@ -472,7 +479,7 @@ Comparison
      - Not supported (raises a non-retryable failure)
    * - XCom backend
      - Workers support custom XCom backends
-     - Workers support custom XCom backends (triggerers do not); each item's result is also
+     - Workers support custom XCom backends (triggerers do not); each indexed task's result is also
        checkpointed in the task state store, so large results need a ``state_store_backend`` too
    * - Use case
      - Independent, trackable units of work
@@ -526,17 +533,18 @@ Avoid Iterable Tasks when:
   process, so the GIL keeps CPU-bound Python code from running in parallel.
 - You require detailed visibility per item in the Airflow UI.
 - Work must be distributed across multiple worker nodes.
-- Sub-tasks need to defer (deferrable operators) or reschedule (reschedule-mode sensors) — a
-  sub-task index has no task instance of its own to defer or reschedule against, so either raises
-  a non-retryable failure instead of pausing.
-- The operator finds its remote work by the task instance's identity. Every item runs as the one
-  iterated task instance, with its ``dag_id``, ``task_id``, ``run_id`` and ``map_index``, so those
-  cannot tell the items apart. The ``KubernetesPodOperator`` looks its pod up by them after creating
-  it, on every run and not only when it reattaches: finding a sibling item's pod too, it keeps the
-  newest and deletes the other under the default ``on_finish_action="delete_pod"``, or fails when it
-  reattaches (``durable``, or ``reattach_on_restart`` before it). Under ``.iterate()`` it therefore
-  needs a label that names the item, ``labels={"index": "{{ ti.index }}"}``: its lookup includes the
-  operator's own labels, and every template of an item renders against the item's own ``ti``. An
+- Indexed tasks need to defer (deferrable operators) or reschedule (reschedule-mode sensors) — an
+  indexed task has no task instance of its own in the scheduler to defer or reschedule against, so
+  either raises a non-retryable failure instead of pausing.
+- The operator finds its remote work by the task instance's identity. Every indexed task runs as the
+  one iterated task instance, with its ``dag_id``, ``task_id``, ``run_id`` and ``map_index``, so
+  those cannot tell the indexed tasks apart. The ``KubernetesPodOperator`` looks its pod up by them
+  after creating it, on every run and not only when it reattaches: finding a sibling indexed task's
+  pod too, it keeps the newest and deletes the other under the default
+  ``on_finish_action="delete_pod"``, or fails when it reattaches (``durable``, or
+  ``reattach_on_restart`` before it). Under ``.iterate()`` it therefore needs a label that names the
+  indexed task, ``labels={"index": "{{ ti.index }}"}``: its lookup includes the operator's own
+  labels, and every template of an indexed task renders against the indexed task's own ``ti``. An
   operator that takes no labels and only looks its work up when it reattaches, such as the
   ``EcsRunTaskOperator`` (``reattach=True`` builds its ``startedBy`` from the same fields), needs
   reattachment turned off. Otherwise map the task with ``.expand()``.

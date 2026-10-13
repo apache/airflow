@@ -614,7 +614,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         super()._validate_arg_names(func, kwargs)
 
     def expand(self, **map_kwargs: OperatorExpandArgument) -> XComArg:
-        # task_concurrency only has meaning for Iterable Tasks (as the sub-task thread
+        # task_concurrency only has meaning for Iterable Tasks (as the indexed task thread
         # count consumed by IterableOperator via .iterate()/.iterate_kwargs()).
         # A plain .expand() never reaches that code path, so reject it here rather than silently
         # accepting a dead value.

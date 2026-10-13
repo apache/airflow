@@ -428,7 +428,7 @@ class TestAsyncCallable:
 
 
 class TestTaskDecoratorTaskConcurrency:
-    """task_concurrency only has meaning for Dynamic Task Iteration (as the sub-task thread count
+    """task_concurrency only has meaning for Dynamic Task Iteration (as the indexed task thread count
     consumed by IterableOperator via .iterate()/.iterate_kwargs()). A plain
     .expand()/.expand_kwargs() on a @task-decorated function never reaches that code path, so it
     must be rejected instead of silently accepted as a dead value -- mirroring OperatorPartial."""

@@ -1130,7 +1130,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         super().__init__()
         self.task_group = task_group
-        # task_concurrency only has meaning for Iterable Tasks (as the sub-task thread
+        # task_concurrency only has meaning for Iterable Tasks (as the indexed task thread
         # count, see IterableOperator.max_workers). A directly instantiated operator can never
         # reach that code path, so reject it here rather than silently accepting a dead value.
         # It is deliberately not a parameter of this method: apply_defaults copies every parameter
