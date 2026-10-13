@@ -302,7 +302,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         in the serialized Dag, and cannot be combined with this argument (the
         task fails when it runs).
     :param enable_tool_logging: When ``True`` (default), wraps the agent's
-        assembled function toolset in a ``LoggingToolset`` that logs tool calls
+        assembled function toolset in a ``ToolLoggingCapability`` that logs tool calls
         with timing at INFO level and arguments at DEBUG level. This includes
         tools supplied through ``toolsets=``, ``agent_params["tools"]``, and
         capabilities, but not output tools, provider-native tools that run
