@@ -32,8 +32,8 @@ Modal (hosted)
 sandbox in Modal, provisioned over the API. Of the backends that ship with the
 provider, **this is the managed one to use in production**, and with
 :ref:`OpenSandbox <sandbox-backend-opensandbox>` and
-:ref:`OpenShell <sandbox-backend-openshell>` one of the three that run on
-Kubernetes: nothing has to be installed on the worker, model-written code never
+:ref:`OpenShell <sandbox-backend-openshell>` one of the three a worker on
+Kubernetes can use: nothing has to be installed on the worker, model-written code never
 executes on the worker host, and Modal reclaims a sandbox at its own lifetime
 whether or not the worker survives. It needs the ``modal`` extra and Modal
 credentials, from a ``modal`` connection or the worker environment, as under

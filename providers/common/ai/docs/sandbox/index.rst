@@ -120,9 +120,10 @@ The four tools:
 A :class:`~airflow.providers.common.ai.sandbox.SandboxBackend` provisions the sandbox
 on the model's first tool call and tears it down when the agent run ends. Four
 backends ship: `Modal <https://modal.com/docs/guide/sandbox>`__ (hosted) and
-`OpenSandbox <https://open-sandbox.ai/>`__ and
-`NVIDIA OpenShell <https://github.com/NVIDIA/OpenShell>`__ (self-hosted) for production and
-Kubernetes, and `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__ (``sbx``,
+`OpenSandbox <https://open-sandbox.ai/>`__ (self-hosted) for production and
+Kubernetes, `NVIDIA OpenShell <https://github.com/NVIDIA/OpenShell>`__ (self-hosted,
+verified on its Docker driver only; see :ref:`OpenShell <sandbox-backend-openshell>`),
+and `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__ (``sbx``,
 a microVM on the worker host) for local development. The tool names are the ones
 pydantic-ai's `Shell <https://pydantic.dev/docs/ai/harness/shell/>`__ and
 `FileSystem <https://pydantic.dev/docs/ai/harness/filesystem/>`__ capabilities use.
@@ -456,10 +457,10 @@ task, a script the model writes, runs, and fixes from its own traceback.
 - **The** ``sbx`` **backend is for local development.** It needs the ``sbx`` binary,
   a Docker login and, on Linux, KVM or nested virtualization, so it does not run on
   unprivileged Kubernetes, and a worker killed outright leaves its microVM behind.
-  Production and Kubernetes use Modal, OpenSandbox or OpenShell instead.
-  OpenShell also has no server-side lifetime; its sandboxes are labeled
-  ``created-by=airflow`` so an operator can reap them.
-  :ref:`sbx <sandbox-backend-sbx>`.
+  Production and Kubernetes use Modal or OpenSandbox instead. OpenShell has been
+  verified on its Docker driver only, and has no server-side lifetime either; its
+  sandboxes are labeled ``created-by=airflow`` so an operator can reap them.
+  :ref:`sbx <sandbox-backend-sbx>`, :ref:`OpenShell <sandbox-backend-openshell>`.
 - **A failed teardown is logged, not raised**, so a teardown blip cannot fail a
   finished run; reclaiming the sandbox is then the backend's lifetime or an
   operator's sweep. :ref:`Cost and operations <sandbox-cost>`.
