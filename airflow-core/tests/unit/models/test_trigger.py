@@ -20,7 +20,7 @@ import datetime
 import json
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
@@ -195,6 +195,42 @@ def test_clean_unused(session, dag_maker):
     results = session.scalars(select(Trigger)).all()
     assert len(results) == 4
     assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
+
+
+def test_clean_unused_rolls_back_session_on_transient_db_error():
+    """
+    Regression for https://github.com/apache/airflow/issues/74614.
+
+    A transient DB disconnect raises DBAPIError on the UPDATE inside
+    run_with_db_retries(). Without an explicit session rollback between retry
+    attempts, SQLAlchemy's pending-rollback state causes the next attempt to
+    raise PendingRollbackError, which is not matched by the retry policy, so
+    the triggerer process exits. The fix calls session.rollback() before
+    re-raising inside the retry attempt so Tenacity drives the next retry on
+    a clean session.
+    """
+    import tenacity
+    from sqlalchemy.exc import DBAPIError
+
+    mock_session = MagicMock()
+    mock_session.bind.dialect.name = "postgresql"
+    mock_session.execute.side_effect = [
+        DBAPIError("UPDATE task_instance", {}, Exception("connection reset")),
+        MagicMock(),
+        MagicMock(),
+    ]
+
+    fast_retry = tenacity.Retrying(
+        retry=tenacity.retry_if_exception_type((DBAPIError,)),
+        wait=tenacity.wait_none(),
+        stop=tenacity.stop_after_attempt(3),
+        reraise=True,
+    )
+    with patch("airflow.models.trigger.run_with_db_retries", return_value=fast_retry):
+        Trigger.clean_unused(session=mock_session)
+
+    mock_session.rollback.assert_called_once()
+    assert mock_session.execute.call_count >= 2
 
 
 @patch.object(TriggererCallback, "handle_event")
