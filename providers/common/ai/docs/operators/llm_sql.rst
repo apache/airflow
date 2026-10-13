@@ -59,6 +59,13 @@ the actual column names and types:
 With Object Storage
 -------------------
 
+.. note::
+
+    Experimental: ``datasource_config`` can change or be removed in a minor release of this
+    provider. It runs on the DataFusion engine of ``common.sql``, which pins ``datafusion``
+    below 52 because the DataFusion 52 crate is not supported with ``iceberg-core``.
+    See :ref:`howto/stability`.
+
 Use ``datasource_config`` to generate queries for data stored in object storage
 (e.g., S3, GCS, Azure Blob Storage, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
 The operator uses :class:`~airflow.providers.common.sql.config.DataSourceConfig`

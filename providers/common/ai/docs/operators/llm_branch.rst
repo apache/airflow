@@ -170,11 +170,6 @@ behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
 Reviewing Uncertain Picks
 -------------------------
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 A decision model returns a confidence with every pick, a number from 0 to 1 that summarizes how concentrated its probability
 distribution was: near 1 when one branch stood out, low when two or more
 were close. It is not the probability that the pick is right. It is the

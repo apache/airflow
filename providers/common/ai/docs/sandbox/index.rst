@@ -611,7 +611,7 @@ Isolation is one of several controls an agent needs, and each has a limit:
    * - Audit
      - Can you establish what happened afterwards?
      - A record does not prevent the action.
-     - :doc:`LoggingToolset <../toolsets/logging>` and
+     - :doc:`ToolLoggingCapability <../toolsets/logging>` and
        :doc:`tracing <../observability>`.
 
 A sandbox with no egress can still leak data. A secret printed inside comes back

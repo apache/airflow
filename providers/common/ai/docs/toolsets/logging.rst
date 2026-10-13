@@ -15,19 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
-Tool call logging: ``LoggingToolset``
-=====================================
+Tool call logging
+=================
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
-:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is a
-``WrapperToolset`` that intercepts ``call_tool()`` to log each tool invocation
-in real time. ``AgentOperator`` applies it automatically (see
-``enable_tool_logging``) through
-:class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`.
+:class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability` wraps the
+assembled function toolset so that each tool invocation is logged in real time.
+``AgentOperator`` applies it automatically (see ``enable_tool_logging``).
 Applying the wrapper as a capability means logging covers the assembled
 function toolset, including tools supplied through ``toolsets=``,
 ``agent_params={"tools": [...]}``, and capabilities such as factory-backed
@@ -42,19 +35,10 @@ capability through its own wrapper toolset, such as ToolSearch's
 including inside a combined or wrapper capability, the operator does not add
 another, so the logger on the supplied instance is used.
 
-You can also use ``LoggingToolset`` directly with any pydantic-ai ``Agent``:
-
-.. code-block:: python
-
-    from airflow.providers.common.ai.toolsets.logging import LoggingToolset
-    from airflow.providers.common.ai.toolsets.sql import SQLToolset
-
-    logged_toolset = LoggingToolset(wrapped=SQLToolset(db_conn_id="my_db"))
-
 Each tool call logs its name and timing at INFO, inside a collapsible
 ``::group::`` block in the task log, and its arguments at DEBUG. Control-flow
 signals that let the model retry, report a failed tool result, defer or skip a
 call, or wait for approval are logged at INFO and re-raised. Other exceptions,
 including ``SkipToolValidation`` raised by a tool body, are logged at ERROR
-with a traceback and re-raised. Pass ``logger`` to send the lines to a logger
-other than the toolset module's own.
+with a traceback and re-raised. Pass ``logger`` to ``ToolLoggingCapability`` to send the
+lines to a logger other than the module's own.

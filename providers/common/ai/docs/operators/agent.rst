@@ -376,7 +376,7 @@ Parameters
 - ``capabilities``: List of pydantic-ai capabilities (``Thinking``, ``WebSearch``, guardrails,
   etc.). See :ref:`capabilities`.
 - ``enable_tool_logging``: Wrap the assembled function toolset in
-  :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
+  :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability` so that
   tools supplied through ``toolsets=``, ``agent_params={"tools": [...]}``, and
   capabilities are logged in real time. Output tools, provider-native tools, and
   tools another capability adds through its own wrapper (code mode's ``run_code``,
