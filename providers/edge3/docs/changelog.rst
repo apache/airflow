@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+.. note::
+  Instead of strict queue order, ``EdgeExecutor`` now hands out queued callbacks first, then tasks
+  by ``priority_weight``, as in the other executors. A steady stream of higher-priority tasks can
+  hold back lower-priority tasks on the same queue. With the default
+  ``[core] default_task_weight_rule`` of ``downstream``, a task's weight includes the weights of its
+  downstream tasks. Upstream tasks of large Dags therefore go first even when no ``priority_weight``
+  is set. Setting the rule to ``absolute`` keeps tasks without their own ``priority_weight`` in
+  queue order among themselves. The rule affects every executor.
+
 5.0.0
 .....
 
