@@ -3587,7 +3587,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         count_result: int | None = session.scalar(statement)
         return count_result if count_result is not None else 0
 
-    previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}
+    previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str | None], int]] = {}
 
     @provide_session
     def _emit_ti_metrics(self, *, session: Session = NEW_SESSION) -> None:

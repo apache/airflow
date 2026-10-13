@@ -137,6 +137,8 @@ from tests_common.test_utils.taskinstance import (
 from unit.models import DEFAULT_DATE
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from tests_common.pytest_plugin import DagMaker
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag, pytest.mark.want_activate_assets]
@@ -650,7 +652,7 @@ class TestTaskInstance:
         )
 
         ti.run(session=session)
-        executor_configs = session.scalars(
+        executor_configs: Sequence[dict | None] = session.scalars(
             select(TaskInstance.executor_config).where(TaskInstance.dag_id == ti.dag_id)
         ).all()
         assert executor_configs == [{"foo": "bar"}]

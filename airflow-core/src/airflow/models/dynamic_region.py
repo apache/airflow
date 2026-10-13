@@ -21,7 +21,7 @@ import struct
 from collections.abc import Collection, Iterable, Iterator
 from datetime import datetime
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypeVar
 from uuid import UUID
 
 import attrs
@@ -61,6 +61,10 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.models.taskinstance import TaskInstance
+
+# Bound unparameterised: no ``Select[...]`` spelling accepts every arity on both SQLAlchemy 2.0 and 2.1.
+# TODO: parameterise the bound with the variadic Select once the minimum SQLAlchemy is 2.1.
+_SelectT = TypeVar("_SelectT", bound="Select")
 
 
 def is_regional(region_id: UUID, region_index: int) -> bool:
@@ -559,7 +563,7 @@ def _match_any(column, value: str | Collection[str]) -> ColumnElement[bool]:
 
 
 def _filter_producers(
-    query: Select,
+    query: _SelectT,
     *,
     dag_id: str,
     run_id: str,
@@ -570,7 +574,7 @@ def _filter_producers(
     region_index: int | None,
     top_level_only: bool,
     loop_pass: _LoopPassRegions | None = None,
-) -> Select:
+) -> _SelectT:
     """Push every coordinate predicate into SQL."""
     from airflow.models.taskinstance import TaskInstance
 
@@ -621,7 +625,7 @@ def _validate_producer_request(
 
 
 def _build_candidate_query(
-    query: Select[Any],
+    query: _SelectT,
     *,
     dag_id: str,
     run_id: str,
@@ -632,7 +636,7 @@ def _build_candidate_query(
     region_id: UUID | None,
     region_index: int | None,
     session: Session,
-) -> Select[Any] | None:
+) -> _SelectT | None:
     """Narrow ``query`` to the candidate producers of the caller's scope, or ``None`` if there are none."""
     regions: dict[UUID, DynamicRegion] = {}
     position = None
@@ -717,6 +721,8 @@ def resolve_current_producers(
     return tuple(sorted(candidates, key=lambda ti: ti.region_index if is_mapped else -1))
 
 
+# TODO: annotate the return type as Select[UUID] once the minimum SQLAlchemy is 2.1;
+# 2.0 spells it Select[tuple[UUID]], which 2.1 rejects.
 def select_current_producer_ids(
     *,
     dag_id: str,
@@ -728,7 +734,7 @@ def select_current_producer_ids(
     region_id: UUID | None = None,
     region_index: int | None = None,
     session: Session,
-) -> Select[tuple[UUID]]:
+) -> Select:
     """
     Select the ids of the live producers :func:`resolve_current_producers` would return.
 
@@ -831,9 +837,11 @@ def _build_pass_ownership_filter(
     )
 
 
+# TODO: annotate the return type as Select[UUID] once the minimum SQLAlchemy is 2.1;
+# 2.0 spells it Select[tuple[UUID]], which 2.1 rejects.
 def select_loop_producer_ids(
     *, dag_id: str, run_id: str, loop_node_id: str, task_id: str, is_mapped: bool, session: Session
-) -> Select[tuple[UUID]]:
+) -> Select:
     """
     Select every live execution of ``task_id`` across all passes of the loop ``loop_node_id``.
 
