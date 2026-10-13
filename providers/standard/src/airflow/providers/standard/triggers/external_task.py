@@ -219,12 +219,9 @@ class WorkflowTrigger(BaseTrigger):
         @provide_session
         def _get_matched_run_id_af2(self, *, session: Session = NEW_SESSION) -> str | None:
             """Get the first matched run_id for AF2."""
-            stmt = (
-                select(DagRun)
-                .where(
-                    DagRun.dag_id == self.external_dag_id,
-                )
-                .order_by(DagRun.logical_date.desc())
+            stmt = select(DagRun).where(
+                DagRun.dag_id == self.external_dag_id,
+                DagRun.logical_date.in_(self.execution_dates or []),
             )
             dag_run = session.execute(stmt).scalars().first()
             return dag_run.run_id if dag_run else None
