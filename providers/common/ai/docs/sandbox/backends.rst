@@ -18,6 +18,9 @@
 Sandbox backends
 ================
 
+.. meta::
+    :description: The sandbox backends that ship with the provider (Modal, OpenSandbox and sbx Docker Sandboxes), what each needs and isolates, which to use in production, and how to write your own.
+
 .. note::
 
     Experimental: this can change or be removed in a minor release of this provider.

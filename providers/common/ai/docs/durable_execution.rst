@@ -20,6 +20,9 @@
 Durable execution
 =================
 
+.. meta::
+    :description: Set durable=True on an agent task so that a retry replays the model and tool calls that already finished instead of running and paying for them again.
+
 .. note::
 
     Experimental: this can change or be removed in a minor release of this provider.
