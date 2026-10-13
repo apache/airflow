@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
@@ -854,10 +853,15 @@ class MappedOperator(AbstractOperator):
             )
 
         # If params appears in the mapped kwargs, we need to merge it into the
-        # partial params, overriding existing keys.
-        params = copy.copy(self.params)
-        with contextlib.suppress(KeyError):
+        # partial params, overriding existing keys. Setting a value resolves it into the
+        # existing Param, which a shallow copy shares with this operator, so the params are
+        # copied deeply then: iterate() unmaps every index in one process, and one index's
+        # params would otherwise become the next one's.
+        if "params" in mapped_kwargs:
+            params = copy.deepcopy(self.params)
             params.update(mapped_kwargs["params"])
+        else:
+            params = copy.copy(self.params)
 
         # Ordering is significant; mapped kwargs should override partial ones,
         # and the specially handled params should be respected.

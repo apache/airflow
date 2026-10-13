@@ -32,6 +32,7 @@ from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
 from airflow.sdk.bases.xcom import XComIterable
+from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.exceptions import (
@@ -45,7 +46,6 @@ from airflow.sdk.exceptions import (
     DownstreamTasksSkipped,
     TaskDeferred,
 )
-from airflow.sdk.execution_time.context import context_update_for_unmapped
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor
 from airflow.sdk.execution_time.task_runner import (
     CheckpointDeserializationError,
@@ -964,8 +964,6 @@ class IterableOperator(BaseOperator):
     def _render_unmapped_operator(
         self, context: Context, unmapped_task: BaseOperator, jinja_env: jinja2.Environment
     ) -> None:
-        context_update_for_unmapped(context, unmapped_task)
-
         unmapped_task._do_render_template_fields(
             parent=unmapped_task,
             template_fields=self._operator.template_fields,
@@ -1461,10 +1459,15 @@ class IterableOperator(BaseOperator):
             index=index,
             operator=unmapped_task,
         )
+        if unmapped_task.params != self.params:
+            # Processed as a mapped task instance's are; the parent's processed params, which
+            # clone_context copies into every indexed context, stand for any other index.
+            indexed_ti.own_params = process_params(
+                context["dag"], unmapped_task, context["dag_run"].conf, suppress_exception=False
+            )
 
-        # Rendered against the context the indexed task will execute with (its own ti, task and
-        # store view), not the parent's: context_update_for_unmapped() sets ti.task in place, and a
-        # template must read the same task_state_store as execute() does.
+        # Rendered against the context the indexed task will execute with (its own ti, task, params
+        # and store view), not the parent's: a template must read the same values as execute() does.
         self._render_unmapped_operator(indexed_ti.context_for(context), unmapped_task, jinja_env)
         # Taken once rendered, so the partial kwargs an upstream provides are in it with their value.
         indexed_ti.input_fingerprint = self._compute_fingerprint(

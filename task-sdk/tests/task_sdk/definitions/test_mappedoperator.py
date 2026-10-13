@@ -184,6 +184,22 @@ def test_partial_on_class_invalid_ctor_args() -> None:
         MockOperator.partial(task_id="a", foo="bar", bar=2)
 
 
+def test_unmap_with_mapped_params_leaves_the_partial_params_alone() -> None:
+    """Unmapping with ``params`` of its own must not resolve them into the mapped operator's ``Param`` objects.
+
+    ``.iterate()`` unmaps every index in one process, so one index's params would otherwise become the next one's.
+    """
+    with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE):
+        mapped = MockOperator.partial(task_id="a", params={"p": 1}).expand(arg1=["x", "y"])
+
+    first = mapped.unmap({"arg1": "x", "params": {"p": 2}})
+    second = mapped.unmap({"arg1": "y"})
+
+    assert first.params["p"] == 2
+    assert second.params["p"] == 1
+    assert mapped.params["p"] == 1
+
+
 def test_partial_on_invalid_pool_slots_raises() -> None:
     """Test that when we pass an invalid value to pool_slots in partial(),
 

@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import contextvars
+import copy
 import functools
 import inspect
 import logging
@@ -1148,6 +1149,9 @@ class IndexedTaskInstance(RuntimeTaskInstance):
     # The XComs the indexed task pushed other than its return value, by their key before the index
     # suffix: kept in memory while it runs and written once, with its SUCCESS checkpoint.
     pushed_xcoms: dict[str, Any] = Field(default_factory=dict)
+    # The params processed for this index's operator when they differ from the iterated task's:
+    # the index iterates ``params``, or the operator set its own. None when the parent's apply.
+    own_params: dict[str, Any] | None = None
 
     @classmethod
     def create_indexed_task(
@@ -1275,10 +1279,11 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         Return the parent's context as this indexed task sees it.
 
         A clone of ``context`` with this task instance under ``ti`` and ``task_instance``, its
-        unmapped operator under ``task`` and its indexed view of the store under
-        ``task_state_store``: the keys ``context_update_for_unmapped`` sets for a mapped task
-        instance, and the store next to them, so that a template and ``execute`` read the same
-        store. The one place these keys are listed: :meth:`IndexedTaskRunner.indexed_context`
+        unmapped operator under ``task``, its :attr:`own_params` under ``params`` when it has
+        them, and its indexed view of the store under ``task_state_store``: the keys
+        ``context_update_for_unmapped`` sets for a mapped task instance, and the store next to
+        them, so that a template and ``execute`` read the same values. Without params of its
+        own, the parent's processed params, copied by ``clone_context``, are this task's. The one place these keys are listed: :meth:`IndexedTaskRunner.indexed_context`
         builds the context the task runs in from it, and ``IterableOperator._create_indexed_task`` the
         one its templates are rendered against. ``outlet_events`` is swapped when given, for the
         run; before it, nothing is emitted and the parent's accessor stays.
@@ -1290,6 +1295,8 @@ class IndexedTaskInstance(RuntimeTaskInstance):
             "task": self.task,
             "task_state_store": self.task_state_store,
         }
+        if self.own_params is not None:
+            indexed["params"] = copy.deepcopy(self.own_params)
         if outlet_events is not None:
             indexed["outlet_events"] = outlet_events
         return indexed

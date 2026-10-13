@@ -1249,6 +1249,37 @@ class TestIterableOperator:
             assert task is not iterable_op, where
         assert context["task"] is iterable_op
 
+    def test_an_indexed_task_reads_the_params_of_its_own_operator(self):
+        """
+        ``context["params"]`` in an indexed task holds the params its own operator was built with.
+
+        An index whose operator has the parent's params reads the parent's processed params, copied;
+        one that iterates ``params`` gets them merged over the partial's and processed again, as a
+        mapped task instance does under ``.expand()``.
+        """
+        from airflow.sdk.definitions.param import process_params
+
+        seen: dict[int, dict[str, Any]] = {}
+
+        class MockParamsOperator(BaseOperator):
+            def execute(self, context):
+                seen[context["ti"].index] = context["params"]
+
+        with DAG("test_dag", params={"d": "dag"}) as dag:
+            expand_input = ListOfDictsExpandInput([{"params": {"p": 2}}, {}])
+            mapped_op = MockParamsOperator.partial(task_id="params_task", dag=dag, params={"p": 1})._expand(
+                expand_input, strict=True, register_with_dag=False
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            with mock_context(task=iterable_op) as context:
+                context["params"] = process_params(dag, iterable_op, None, suppress_exception=False)
+                iterable_op.execute(context=context)
+
+        assert seen == {0: {"d": "dag", "p": 2}, 1: {"d": "dag", "p": 1}}
+        assert seen[1] is not context["params"]
+        assert context["params"] == {"d": "dag", "p": 1}
+
     def test_execute_resolves_and_reads_the_expand_input_on_the_running_loop(self):
         """
         Regression test for the frozen IterableOperator: indexed task inputs were pulled from the main
