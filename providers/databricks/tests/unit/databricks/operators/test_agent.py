@@ -154,12 +154,20 @@ def test_submit_without_waiting(operator):
     operator.hook.get_invocation.assert_not_called()
 
 
+@mock.patch("airflow.providers.databricks.operators.agent.time.monotonic", autospec=True, return_value=0)
+@pytest.mark.parametrize("deferrable", [False, True])
 @pytest.mark.parametrize("status", ["completed", "interrupted"])
-def test_immediate_result(operator, status):
+def test_immediate_result(monotonic, operator, status, deferrable):
+    operator.deferrable = deferrable
     result = {"status": "completed", "output": {"status": status, "output": []}}
-    operator.hook.create_invocation.return_value = result
+    operator.hook.create_invocation.return_value = {
+        "id": INVOCATION_ID,
+        "status": "completed",
+        "status_url": f"/api/invocations/{INVOCATION_ID}",
+    }
+    operator.hook.get_invocation.return_value = result
     assert operator.execute({}) == result
-    operator.hook.get_invocation.assert_not_called()
+    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation", timeout_seconds=3600)
 
 
 @mock.patch("airflow.providers.databricks.operators.agent.time.sleep", autospec=True)

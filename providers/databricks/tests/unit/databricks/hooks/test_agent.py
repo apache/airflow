@@ -111,10 +111,31 @@ def test_invoke(request, token, hook, session_id, session_payload, routing_heade
         f"{APP_URL}/api/invocations",
         json=payload,
         headers=headers,
+        auth=mock.ANY,
         timeout=180,
         allow_redirects=False,
     )
     token.assert_called_once_with(hook, "https://workspace.cloud.databricks.com/oidc/v1/token")
+
+
+@mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
+@mock.patch.object(requests.Session, "send", autospec=True)
+def test_oauth_takes_precedence_over_netrc(send, token, hook, tmp_path, monkeypatch):
+    netrc = tmp_path / ".netrc"
+    netrc.write_text("machine agent.databricksapps.com login netrc-user password netrc-password\n")
+    monkeypatch.setenv("NETRC", str(netrc))
+    response = mock.Mock(spec=requests.Response)
+    response.status_code = 202
+    response.json.return_value = {"id": INVOCATION_ID, "status": "queued"}
+    send.return_value = response
+
+    hook.create_invocation(INVOCATION_ID, {"messages": []}, "conversation")
+
+    send.assert_called_once()
+    prepared_request = send.call_args.args[1]
+    assert prepared_request.headers["Authorization"] == "Bearer oauth"
+    assert prepared_request.headers["X-Routing-Key"] == "conversation"
+    assert prepared_request.headers["user-agent"] == "test"
 
 
 @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
@@ -271,7 +292,11 @@ class TestManagedAgent:
             ),
         ],
     )
-    def test_synchronous_request(self, http, token, hook, request_kwargs, vendor_options, expected_input):
+    @mock.patch("airflow.providers.databricks.hooks.agent.time.monotonic", autospec=True, return_value=0)
+    @pytest.mark.parametrize("timeout", [12.5, 900])
+    def test_synchronous_request(
+        self, monotonic, http, token, hook, request_kwargs, vendor_options, expected_input, timeout
+    ):
         response = mock.Mock(spec=requests.Response)
         response.status_code = 200
         raw = {"id": INVOCATION_ID, "status": "completed", "output": "answer", "session_id": "conversation"}
@@ -279,7 +304,7 @@ class TestManagedAgent:
         http.return_value = response
         request = ManagedAgentRequest(
             session_id="conversation",
-            timeout=12.5,
+            timeout=timeout,
             vendor_options={"invocation_id": INVOCATION_ID, **vendor_options},
             **request_kwargs,
         )
@@ -291,7 +316,7 @@ class TestManagedAgent:
             "input": expected_input,
             "session_id": "conversation",
         }
-        assert 0 < kwargs["timeout"] <= 12.5
+        assert kwargs["timeout"] == timeout
         assert kwargs["headers"]["X-Routing-Key"] == "conversation"
         assert result.text == "answer"
         assert result.raw == raw
@@ -680,7 +705,7 @@ def test_managed_agent_requires_common_ai():
 @mock.patch("airflow.providers.databricks.hooks.agent.time", autospec=True)
 @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
 @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
-@pytest.mark.parametrize(("budget", "request_timeout"), [(10, 10), (200, 180)])
+@pytest.mark.parametrize(("budget", "request_timeout"), [(10, 10), (200, 200), (None, 180)])
 def test_poll_request_budget(request, token, clock, hook, budget, request_timeout):
     clock.monotonic.return_value = 0
     response = mock.Mock(spec=requests.Response)
@@ -773,7 +798,8 @@ def test_retry_budget_prevents_next_attempt(request, token, clock, hook):
 @mock.patch("airflow.providers.databricks.hooks.agent.time", autospec=True)
 @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
 @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
-def test_retry_recomputes_request_budget(request, token, clock, hook):
+@pytest.mark.parametrize("budget", [10, 900])
+def test_retry_recomputes_request_budget(request, token, clock, hook, budget):
     clock.monotonic.return_value = 0
     hook.retry_args["sleep"] = mock.Mock(spec=["__call__"])
     response = mock.Mock(spec=requests.Response)
@@ -787,8 +813,8 @@ def test_retry_recomputes_request_budget(request, token, clock, hook):
         return response
 
     request.side_effect = get_response
-    assert hook.get_invocation(INVOCATION_ID, timeout_seconds=10) == {"status": "completed"}
-    assert [call.kwargs["timeout"] for call in request.call_args_list] == [10, 6]
+    assert hook.get_invocation(INVOCATION_ID, timeout_seconds=budget) == {"status": "completed"}
+    assert [call.kwargs["timeout"] for call in request.call_args_list] == [budget, budget - 4]
 
 
 @mock.patch.object(DatabricksAgentHook, "_a_get_sp_token", autospec=True, return_value="oauth")

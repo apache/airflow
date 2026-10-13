@@ -30,7 +30,7 @@ from tenacity import RetryError, stop_before_delay
 
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.databricks.exceptions import DatabricksAgentInvocationTimeout, DatabricksApiError
-from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
+from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook, _TokenAuth
 
 if TYPE_CHECKING:
     from tenacity.stop import stop_base
@@ -323,16 +323,13 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
                     self._get_remaining_timeout(deadline, endpoint)
                     token = self._get_sp_token(self._get_oidc_token_service_url())
                     remaining = self._get_remaining_timeout(deadline, endpoint)
-                    request_timeout = (
-                        min(self.timeout_seconds, remaining)
-                        if remaining is not None
-                        else self.timeout_seconds
-                    )
+                    request_timeout = remaining if remaining is not None else self.timeout_seconds
                     response = requests.request(
                         method,
                         f"{app_url}/{endpoint}",
                         json=payload,
                         headers=self._get_headers(token, session_id),
+                        auth=_TokenAuth(token),
                         timeout=request_timeout,
                         allow_redirects=False,
                         **self._get_requests_kwargs(),

@@ -137,10 +137,10 @@ class DatabricksAgentInvokeOperator(BaseOperator):
         self.log.info("Databricks agent invocation %s was submitted.", invocation_id)
         if not self.wait_for_termination:
             return submitted
-        result = self._get_result(submitted, invocation_id) if submitted.get("status") else None
-        if result is not None:
-            return result
-        if self.deferrable:
+        if submitted.get("status") == "failed":
+            self._get_result(submitted, invocation_id)
+        # Background submissions omit output even when the invocation is already completed.
+        if self.deferrable and submitted.get("status") != "completed":
             self.log.info("Deferring until Databricks agent invocation %s completes.", invocation_id)
             self.defer(
                 trigger=DatabricksAgentInvocationTrigger(
