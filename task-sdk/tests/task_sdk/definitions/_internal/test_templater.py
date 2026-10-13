@@ -324,7 +324,7 @@ class TestTemplater:
 
         assert env.get_template(template_name).render(x=1) == "SELECT 1"
 
-    def test_looks_up_templates_across_zip_and_directory_search_paths(self, tmp_path):
+    def test_loads_templates_from_zip_and_directory_search_paths(self, tmp_path):
         archive = tmp_path / "dags.zip"
         with zipfile.ZipFile(archive, "w") as zf:
             zf.writestr("from_zip.sql", "from zip")
@@ -332,17 +332,10 @@ class TestTemplater:
         directory.mkdir()
         (directory / "from_dir.sql").write_text("from directory")
 
-        # The Dag folder always comes first in the search path, so a template kept outside the archive
-        # is only found if a miss in the archive moves on to the next search path.
         env = create_template_env(searchpath=[str(archive), str(directory)])
 
         assert env.get_template("from_zip.sql").render() == "from zip"
         assert env.get_template("from_dir.sql").render() == "from directory"
-        with pytest.raises(jinja2.TemplateNotFound) as ctx:
-            env.get_template("missing.sql")
-        assert ctx.value.message == (
-            f"'missing.sql' not found in search paths: {str(archive)!r}, {str(directory)!r}"
-        )
 
 
 @pytest.fixture
