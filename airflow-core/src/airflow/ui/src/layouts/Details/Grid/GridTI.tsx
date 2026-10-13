@@ -25,6 +25,7 @@ import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
 import { useColorMode } from "src/context/colorMode";
+import { stripExecutionParams } from "src/utils/executionParams";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 import { NOTE_GRADIENT, SELECTED_TASK_OUTLINE_COLOR } from "./constants";
@@ -36,6 +37,7 @@ type Props = {
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
+  readonly loopMaxIterations?: number | null;
   readonly onClick?: () => void;
   readonly runId: string;
   readonly taskId: string;
@@ -47,6 +49,7 @@ export const GridTI = ({
   instance,
   isGroup,
   isMapped,
+  loopMaxIterations,
   onClick,
   runId,
   taskId,
@@ -69,11 +72,7 @@ export const GridTI = ({
       })
     : `/dags/${dagId}/tasks/${isGroup ? "group/" : ""}${taskId}`;
 
-  // Remove try_number query param when navigating to reset to the
-  // latest try of the task instance and avoid issues with invalid try numbers:
-  // https://github.com/apache/airflow/issues/56977
-  searchParams.delete("try_number");
-  const redirectionSearch = searchParams.toString();
+  const redirectionSearch = stripExecutionParams(searchParams).toString();
 
   const isSelectedRow = selectedTaskId === taskId || selectedGroupId === taskId;
   const isSelectedTaskInstance = selectedRunId === runId && isSelectedRow;
@@ -96,6 +95,7 @@ export const GridTI = ({
       transition="background-color 0.2s"
     >
       <TaskInstanceTooltip
+        loopMaxIterations={loopMaxIterations}
         openDelay={500}
         positioning={{ placement: "bottom" }}
         runId={runId}

@@ -46,6 +46,7 @@ import type {
   GetTaskStateStore,
   SetTaskStateStore,
   ConnectionResult as WireConnectionResult,
+  CreateHITLDetailPayload,
 } from "./protocol.js";
 
 /**
@@ -115,6 +116,12 @@ export interface CoordinatorClient extends TaskClient {
   getDagRunState(dagId: string, runId: string): Promise<string>;
   /** Whether a Dag is paused. */
   isDagPaused(dagId: string): Promise<boolean>;
+
+  /**
+   * Write the Human-in-the-loop request of a task instance. Writing it again replaces the
+   * request and drops any response already given, so a resumed task must never call this.
+   */
+  createHITLDetail(msg: Omit<CreateHITLDetailPayload, "type">): Promise<void>;
 }
 
 const VARIABLE_ABSENT_POLICY: AbsentRowPolicy = {
@@ -423,6 +430,18 @@ export function createCoordinatorClient(
     // ---- Task state store ----
 
     taskStateStore,
+    // ---- Human-in-the-loop ----
+
+    async createHITLDetail(msg: Omit<CreateHITLDetailPayload, "type">): Promise<void> {
+      const request: CreateHITLDetailPayload = { type: "CreateHITLDetailPayload", ...msg };
+      await rpc(
+        "CreateHITLDetailPayload",
+        "HITLDetailRequestResult",
+        request,
+        () => undefined,
+        "throw",
+      );
+    },
 
     // ---- Connections ----
 
