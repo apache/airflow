@@ -127,9 +127,9 @@ interface Deps {
        * When an edge goes to or from a task group, the UI draws it to or from
        * the group's own node and shows the label there. A label never changes
        * which tasks an edge connects. Python's `Label` can change which tasks
-       * an edge connects. When the two ends of an edge are in different task
-       * groups, Python's `Label` replaces one end with the group that holds
-       * that end.
+       * an edge connects.
+       * When the two ends of an edge are not in the same task group, for example when one end is in no group, Python's `Label` replaces
+       * each end that is in a group with that group.
        *
        * @param flow The task, task group, or set of tasks and groups at one end
        *    of each edge that gets the label.
@@ -258,7 +258,7 @@ private fun link(
       val label = upLabel ?: downLabel
       if (up is TaskDef && down is TaskDef) {
         down.dependsOn(up)
-        label?.let { down.upstreamLabels[up] = it }
+        label?.let { down.upstreamLabels[up] = EdgeLabel(it) }
       } else {
         val upDag = up.owningDag
         val downDag = down.owningDag
@@ -268,7 +268,7 @@ private fun link(
         }
         (upDag ?: downDag)?.let { dag ->
           dag.groupEdges += up to down
-          label?.let { dag.groupEdgeLabels[up to down] = it }
+          label?.let { dag.groupEdgeLabels[up to down] = EdgeLabel(it) }
         }
       }
     }

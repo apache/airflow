@@ -25,6 +25,7 @@ import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.checkConfigValue
 import org.apache.airflow.sdk.internal.deriveTaskId
 import org.apache.airflow.sdk.internal.validateTaskInput
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.Throws
 
 /**
@@ -64,7 +65,7 @@ class DagDef(
   internal val groupEdges = linkedSetOf<Pair<Endpoint, Endpoint>>()
 
   /** The labels that [Deps.Flow.label] put on [groupEdges], keyed by the edge. */
-  internal val groupEdgeLabels = mutableMapOf<Pair<Endpoint, Endpoint>, String>()
+  internal val groupEdgeLabels = mutableMapOf<Pair<Endpoint, Endpoint>, EdgeLabel>()
 
   /**
    * Whether a [Bundle] has taken this Dag. A decider checked when the Dag was
@@ -320,7 +321,7 @@ class DagDef(
   internal fun expandGroupEdges(): GroupExpansion {
     val upstreams = mutableMapOf<String, MutableSet<String>>()
     val edges = mutableMapOf<String, MutableGroupEdges>()
-    val labels = mutableMapOf<Pair<String, String>, String>()
+    val labels = mutableMapOf<Pair<String, String>, EdgeLabel>()
     val grouped = groups.values.flatMapTo(mutableSetOf()) { it.taskIds }
 
     fun edgesOf(groupId: String) = edges.getOrPut(groupId) { MutableGroupEdges() }
@@ -374,7 +375,10 @@ class DagDef(
       // node instead.
       val label = groupEdgeLabels[upstream to downstream]
       if (label != null && upstream is TaskDef && upstream.id !in grouped && downstream is TaskGroupRef) {
-        roots.forEach { labels[upstream.id to it.id] = label }
+        roots.forEach { root ->
+          val ends = upstream.id to root.id
+          if (labels[ends].let { it == null || it.order < label.order }) labels[ends] = label
+        }
       }
       if (downstream is TaskGroupRef) {
         edgesOf(downstream.id).upstreamTaskIds += from
@@ -394,6 +398,20 @@ class DagDef(
 }
 
 /**
+ * A label that [Deps.Flow.label] put on an edge.
+ * [order] grows with each label set, so when two labels land on the same edge, the one set later wins, as in Python.
+ */
+internal class EdgeLabel(
+  val text: String,
+) {
+  val order: Long = nextOrder.getAndIncrement()
+
+  private companion object {
+    val nextOrder = AtomicLong()
+  }
+}
+
+/**
  * The task edges a Dag's task-group edges stand for, and the edges each group
  * records for itself, as [DagDef.expandGroupEdges] worked them out.
  *
@@ -404,7 +422,7 @@ class DagDef(
 internal class GroupExpansion(
   private val upstreams: Map<String, Set<String>>,
   private val edges: Map<String, GroupEdges>,
-  val labels: Map<Pair<String, String>, String>,
+  val labels: Map<Pair<String, String>, EdgeLabel>,
 ) {
   /** Every task [def] runs after: the edges it carries, plus the ones a group edge implies. */
   fun upstreamsOf(def: TaskDef): Set<String> = def.upstreams.mapTo(linkedSetOf()) { it.id } + upstreams[def.id].orEmpty()
@@ -481,7 +499,7 @@ class TaskDef(
   internal val upstreams = linkedSetOf<TaskDef>()
 
   /** The labels that [Deps.Flow.label] put on edges from [upstreams], keyed by the upstream task. */
-  internal val upstreamLabels = mutableMapOf<TaskDef, String>()
+  internal val upstreamLabels = mutableMapOf<TaskDef, EdgeLabel>()
   internal var owner: DagDef? = null
 
   /** What this task decides to run, for a condition or a switch; null otherwise. */

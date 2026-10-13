@@ -256,19 +256,29 @@ internal class EdgeLabelTest {
   }
 
   @Test
-  @DisplayName("Should keep the label a task edge has of its own over the one its group edge gives it")
-  fun shouldKeepTaskEdgeLabelOverGroupEdgeLabel() {
+  @DisplayName("Should give a task edge the label set last, whether by the edge itself or by its group edge")
+  fun shouldGiveTaskEdgeTheLabelSetLast() {
     val dag = DagDef("d")
     val extract = dag.noop("extract")
     val transform = dag.taskGroup("transform")
     val clean = transform.noop("clean")
     val validate = transform.noop("validate")
-    extract.before(Flow.label(clean, "rows"), validate)
 
+    extract.before(Flow.label(clean, "rows"), validate)
     extract.before(Flow.label(transform, "to transform"))
 
-    // validate's edge has no label of its own, so it takes the label of the group edge.
-    // Python gives the edge the same label.
+    // Python's later Label writes over the earlier one, so clean's edge takes the group edge's label.
+    assertEquals(
+      labels(
+        Triple("extract", "transform.clean", "to transform"),
+        Triple("extract", "transform.validate", "to transform"),
+        Triple("extract", "transform.upstream_join_id", "to transform"),
+      ),
+      edgeInfo(dag),
+    )
+
+    extract.before(Flow.label(clean, "rows"))
+
     assertEquals(
       labels(
         Triple("extract", "transform.clean", "rows"),
@@ -295,6 +305,18 @@ internal class EdgeLabelTest {
       labels(
         Triple("extract", "outer.inner.i", "b"),
         Triple("extract", "outer.upstream_join_id", "a"),
+        Triple("extract", "outer.inner.upstream_join_id", "b"),
+      ),
+      edgeInfo(dag),
+    )
+
+    // Relabeling the outer group edge is the last write, as it is in Python.
+    extract.before(Flow.label(outer, "c"))
+
+    assertEquals(
+      labels(
+        Triple("extract", "outer.inner.i", "c"),
+        Triple("extract", "outer.upstream_join_id", "c"),
         Triple("extract", "outer.inner.upstream_join_id", "b"),
       ),
       edgeInfo(dag),
