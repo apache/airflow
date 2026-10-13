@@ -320,12 +320,16 @@ class SerializedDAG:
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids]
 
+        # Looking the matched tasks up by id keeps the membership test below constant time instead
+        # of scanning the whole list for every relative task of every matched task.
+        matched_task_ids = {t.task_id for t in matched_tasks}
+
         also_include_ids: set[str] = set()
         for t in matched_tasks:
             if include_downstream:
                 for rel in t.get_flat_relatives(upstream=False, depth=depth):
                     also_include_ids.add(rel.task_id)
-                    if rel not in matched_tasks:  # if it's in there, we're already processing it
+                    if rel.task_id not in matched_task_ids:  # if it's here, we're already processing it
                         # need to include setups and teardowns for tasks that are in multiple
                         # non-collinear setup/teardown paths
                         if not rel.is_setup and not rel.is_teardown:
@@ -394,19 +398,23 @@ class SerializedDAG:
         object.__setattr__(dag, "task_group", filter_task_group(self.task_group, None))
 
         # Removing upstream/downstream references to tasks and TaskGroups that did not make
-        # the cut.
+        # the cut. ``set.intersection_update`` walks its argument, and only falls back to walking
+        # the smaller side when it is given a set, so build the two sets once here -- passing the
+        # dicts makes these loops walk the whole DAG once per task and group.
         groups = dag.task_group.get_task_group_dict()
+        group_ids = set(groups)
+        remaining_task_ids = set(dag.task_dict)
         for g in groups.values():
-            g.upstream_group_ids.intersection_update(groups)
-            g.downstream_group_ids.intersection_update(groups)
-            g.upstream_task_ids.intersection_update(dag.task_dict)
-            g.downstream_task_ids.intersection_update(dag.task_dict)
+            g.upstream_group_ids.intersection_update(group_ids)
+            g.downstream_group_ids.intersection_update(group_ids)
+            g.upstream_task_ids.intersection_update(remaining_task_ids)
+            g.downstream_task_ids.intersection_update(remaining_task_ids)
 
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
             # make the cut
-            t.upstream_task_ids.intersection_update(dag.task_dict)
-            t.downstream_task_ids.intersection_update(dag.task_dict)
+            t.upstream_task_ids.intersection_update(remaining_task_ids)
+            t.downstream_task_ids.intersection_update(remaining_task_ids)
 
         dag.partial = len(dag.tasks) < len(self.tasks)
 
