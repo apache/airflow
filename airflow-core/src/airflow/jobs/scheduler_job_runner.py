@@ -2508,6 +2508,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return set()
 
         sorted_dag_ids: list[str] = []
+        backlogs_per_dag: dict[str, int] = {}
         if (
             len(pending_apdrs) >= self._max_partition_dag_runs_per_loop
             or self._partition_cap_backlog_reported
@@ -2521,7 +2522,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # slice (`pending_apdrs`) — a Dag whose partitions haven't reached the front of
             # the FIFO queue yet would otherwise be missing from the log/audit row until its
             # turn comes up.
-            backlogs_per_dag: dict[str, int] = {
+            backlogs_per_dag = {
                 dag_id: count
                 for dag_id, count in session.execute(
                     select(AssetPartitionDagRun.target_dag_id, func.count())
@@ -2543,7 +2544,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         if backlog_total > self._max_partition_dag_runs_per_loop:
             displayed_dag_ids = sorted_dag_ids[:MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED]
-            remaining_dag_id_count = len(sorted_dag_ids) - len(displayed_dag_ids)
             log_cap_reached = self.log.debug if self._partition_cap_backlog_reported else self.log.warning
             log_cap_reached(
                 (
@@ -2565,29 +2565,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # discard this audit row along with the rest of the tick's work.
                 # Invariant: this must run before *session* makes any writes this tick, or the
                 # new connection's commit can lock-contend with it on SQLite.
-                more_suffix = (
-                    f", and {remaining_dag_id_count} more with fewer pending runs"
-                    if remaining_dag_id_count
-                    else ""
-                )
                 try:
                     with create_session(scoped=False) as audit_session:
-                        audit_session.add(
+                        audit_session.add_all(
                             Log(
                                 event="partition Dag run cap reached",
+                                dag_id=dag_id,
                                 owner="scheduler",
                                 owner_display_name="Scheduler",
                                 extra=(
                                     f"The scheduler fetched the oldest {len(pending_apdrs)} pending "
                                     f"partitioned Dag runs this tick, reaching the internal per-tick cap "
                                     f"of {self._max_partition_dag_runs_per_loop}; these are not "
-                                    f"necessarily satisfied. Only the oldest pending runs up to the cap "
-                                    f"are evaluated per tick, and newer ones wait behind them. A total "
-                                    f"of {backlog_total} partitioned Dag runs are currently pending. "
-                                    f"Affected dag_ids (highest pending count first): "
-                                    f"{', '.join(displayed_dag_ids)}{more_suffix}."
+                                    f"necessarily satisfied. This Dag has {backlogs_per_dag[dag_id]} "
+                                    f"pending partitioned Dag runs. Only the oldest pending runs up to "
+                                    f"the cap are evaluated per tick, and newer ones wait behind them. "
+                                    f"A total of {backlog_total} partitioned Dag runs are currently "
+                                    f"pending across all Dags."
                                 ),
                             )
+                            for dag_id in displayed_dag_ids
                         )
                 except SQLAlchemyError:
                     # Purely observational — must not fail or retry the tick's actual DagRun

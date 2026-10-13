@@ -15086,6 +15086,10 @@ def _count_audit_log(session: Session) -> int:
     return session.scalar(select(func.count()).where(Log.event == "partition Dag run cap reached")) or 0
 
 
+def _get_audit_logs(session: Session) -> list[Log]:
+    return list(session.scalars(select(Log).where(Log.event == "partition Dag run cap reached")))
+
+
 def _get_cap_reached_levels(caplog) -> list[str]:
     return [e["log_level"] for e in caplog if e.get("event") == PARTITION_CAP_REACHED_EVENT]
 
@@ -15208,11 +15212,12 @@ def test_partition_cap_reporting(
             "dag_ids": [dag_id],
         } in caplog
         assert [row.event for row in audit_rows] == ["partition Dag run cap reached"]
+        assert audit_rows[0].dag_id == dag_id
         assert audit_rows[0].owner == "scheduler"
         assert audit_rows[0].owner_display_name == "Scheduler"
         extra = audit_rows[0].extra
         assert extra is not None
-        assert f"Affected dag_ids (highest pending count first): {dag_id}." in extra
+        assert "This Dag has 3 pending partitioned Dag runs" in extra
     else:
         assert PARTITION_CAP_REACHED_EVENT not in caplog
         assert audit_rows == []
@@ -15361,13 +15366,14 @@ def test_partition_cap_reporting_lists_all_affected_dag_ids(dag_maker: DagMaker,
         "dag_ids": expected_dag_ids,
     } in caplog
 
-    audit_row = session.scalar(select(Log).where(Log.event == "partition Dag run cap reached"))
-    assert audit_row is not None
-    assert audit_row.extra is not None
-    note_match = re.search(r"Affected dag_ids \(highest pending count first\): (.+)\.$", audit_row.extra)
-    assert note_match is not None
-    assert note_match.group(1).split(", ") == expected_dag_ids
-    assert "and 1 more" not in audit_row.extra
+    audit_rows = _get_audit_logs(session)
+    assert sorted(row.dag_id or "" for row in audit_rows) == expected_dag_ids
+    for row in audit_rows:
+        assert row.owner == "scheduler"
+        assert row.owner_display_name == "Scheduler"
+        assert row.extra is not None
+        assert "This Dag has 1 pending partitioned Dag runs" in row.extra
+        assert "A total of 7 partitioned Dag runs are currently pending" in row.extra
 
 
 @pytest.mark.need_serialized_dag
@@ -15378,7 +15384,7 @@ def test_partition_cap_reporting_truncates_dag_id_list_beyond_max(
     """
     The log/audit ``dag_ids`` list is capped at ``MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED``,
     ordered by descending per-dag pending count with a dag_id tie-break — not alphabetically
-    truncated — and the audit row's prose notes how many dag_ids were dropped by the cap.
+    truncated — and only the displayed Dags get an audit row.
     """
     _make_n_consumer_dags_each_with_one_pending_apdr(
         name_prefix="trunc-low", n=20, session=session, dag_maker=dag_maker
@@ -15417,13 +15423,13 @@ def test_partition_cap_reporting_truncates_dag_id_list_beyond_max(
         "dag_ids": expected_dag_ids,
     } in caplog
 
-    audit_row = session.scalar(select(Log).where(Log.event == "partition Dag run cap reached"))
-    assert audit_row is not None
-    assert audit_row.extra is not None
-    assert "and 1 more" in audit_row.extra
-    for dag_id in expected_dag_ids:
-        assert dag_id in audit_row.extra
-    assert "cap-consumer-trunc-low-20" not in audit_row.extra
+    audit_rows = _get_audit_logs(session)
+    assert len(audit_rows) == 20
+    assert sorted(row.dag_id or "" for row in audit_rows) == sorted(expected_dag_ids)
+    assert "cap-consumer-trunc-low-20" not in {row.dag_id for row in audit_rows}
+    high_row = next(row for row in audit_rows if row.dag_id == "cap-consumer-trunc-zz-high")
+    assert high_row.extra is not None
+    assert "This Dag has 3 pending partitioned Dag runs" in high_row.extra
 
 
 @pytest.mark.need_serialized_dag
@@ -15434,7 +15440,7 @@ def test_partition_cap_reporting_at_exactly_max_dag_ids_no_truncation(
     """
     Cap-boundary pair to :func:`test_partition_cap_reporting_truncates_dag_id_list_beyond_max`:
     when the backlog's distinct dag_id count equals ``MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED``
-    exactly, no dag_id is dropped and the "and N more" suffix is absent.
+    exactly, no dag_id is dropped and every Dag gets an audit row.
     """
     _make_n_consumer_dags_each_with_one_pending_apdr(
         name_prefix="atmax", n=20, session=session, dag_maker=dag_maker
@@ -15454,12 +15460,8 @@ def test_partition_cap_reporting_at_exactly_max_dag_ids_no_truncation(
         "dag_ids": expected_dag_ids,
     } in caplog
 
-    audit_row = session.scalar(select(Log).where(Log.event == "partition Dag run cap reached"))
-    assert audit_row is not None
-    assert audit_row.extra is not None
-    assert "more" not in audit_row.extra
-    for dag_id in expected_dag_ids:
-        assert dag_id in audit_row.extra
+    audit_rows = _get_audit_logs(session)
+    assert sorted(row.dag_id or "" for row in audit_rows) == expected_dag_ids
 
 
 @pytest.mark.need_serialized_dag
@@ -15500,6 +15502,7 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(
     assert _count_audit_log(session) == 1, (
         "backlog persisted across two ticks; audit row must only be written once"
     )
+    assert [row.dag_id for row in _get_audit_logs(session)] == ["cap-consumer-episode"]
     assert _get_cap_reached_levels(caplog) == ["warning", "debug"]
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 3: 1 pending, drains below cap
@@ -15811,7 +15814,7 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(
 
     failing_session_cm = MagicMock()
     failing_session_cm.__enter__.return_value = MagicMock(spec=Session)
-    failing_session_cm.__enter__.return_value.add.side_effect = audit_write_error
+    failing_session_cm.__enter__.return_value.add_all.side_effect = audit_write_error
     failing_session_cm.__exit__.return_value = False
 
     with mock.patch("airflow.jobs.scheduler_job_runner.create_session", return_value=failing_session_cm):
