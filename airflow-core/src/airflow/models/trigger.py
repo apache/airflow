@@ -649,19 +649,24 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     :param task_instance: The task instance to be submitted.
     :param session: The session to be used for the database callback sink.
     """
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+        TaskInstance as TIDataModel,
+        task_instance_to_runtime,
+    )
     from airflow.callbacks.callback_requests import TaskCallbackRequest
     from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+    from airflow.models.dagbag import DBDagBag
+    from airflow.models.task_coordinates import TaskCoordinateResolver
     from airflow.utils.state import TaskInstanceState
 
     callback_type = event.task_instance_state
     should_retry = False
+    dag_bag = DBDagBag()
 
     if event.task_instance_state == TaskInstanceState.FAILED:
         # Load the serialized task so retry eligibility matches the normal task path.
         try:
-            from airflow.models.dagbag import DBDagBag
-
-            dag = DBDagBag().get_dag_for_run(dag_run=task_instance.dag_run, session=session)
+            dag = dag_bag.get_dag_for_run(dag_run=task_instance.dag_run, session=session)
             if dag is not None:
                 task_instance.task = dag.get_task(task_instance.task_id)
                 should_retry = task_instance.is_eligible_to_retry()
@@ -701,7 +706,11 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
             )
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
-                ti=task_instance,
+                ti=task_instance_to_runtime(
+                    task_instance,
+                    model=TIDataModel,
+                    map_index=TaskCoordinateResolver(dag_bag, session).public_map_index(task_instance),
+                ),
                 task_callback_type=callback_type,
                 bundle_name=bundle_name,
                 bundle_version=bundle_version,

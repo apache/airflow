@@ -75,7 +75,6 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   }, [open, keepTaskStateDefault]);
 
   const { isPending, mutate } = useClearTaskInstances({
-    dagId,
     dagRunId: runId,
     onSuccessConfirm: onCloseDialog,
   });

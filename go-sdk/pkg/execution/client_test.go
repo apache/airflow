@@ -25,12 +25,14 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -1129,6 +1131,140 @@ func TestCoordinatorClientDeleteXCom(t *testing.T) {
 				want["map_index"] = tc.wantMapIndex
 			}
 			assert.Equal(t, want, rawToMap(t, sent.Body))
+		})
+	}
+}
+
+// clientWithReply returns a client whose supervisor answers its one request with body and errBody,
+// and the buffer that holds the request it sends.
+func clientWithReply(
+	t *testing.T,
+	body, errBody map[string]any,
+) (*CoordinatorClient, *bytes.Buffer) {
+	t.Helper()
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, encodeResponseFrame(t, 0, body, errBody)))
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+	return NewCoordinatorClient(comm, testTIID), &requestBuf
+}
+
+// TestCoordinatorClientTriggerDagRun verifies the TriggerDagRun frame, that a Dag run which already
+// exists is reported instead of returned as an error, and that any other supervisor error is
+// returned.
+func TestCoordinatorClientTriggerDagRun(t *testing.T) {
+	logicalDate := time.Date(2026, 9, 30, 1, 2, 3, 0, time.UTC)
+	tests := []struct {
+		name              string
+		errBody           map[string]any
+		wantAlreadyExists bool
+		wantErrCode       string
+	}{
+		{name: "triggered"},
+		{
+			name: "already exists",
+			errBody: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "DAGRUN_ALREADY_EXISTS",
+				"detail": map[string]any{"message": "exists"},
+			},
+			wantAlreadyExists: true,
+		},
+		{
+			name: "other error",
+			errBody: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 500},
+			},
+			wantErrCode: "API_SERVER_ERROR",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client, requestBuf := clientWithReply(t, nil, tc.errBody)
+
+			alreadyExists, err := client.triggerDagRun(
+				context.Background(),
+				genmodels.TriggerDagRun{
+					DagID:       "downstream",
+					RunID:       "run_1",
+					LogicalDate: logicalDate,
+					Conf:        &genmodels.Conf{"k": "v"},
+				},
+			)
+			assert.Equal(t, tc.wantAlreadyExists, alreadyExists)
+			if tc.wantErrCode != "" {
+				var apiErr *APIError
+				require.ErrorAs(t, err, &apiErr)
+				assert.Equal(t, tc.wantErrCode, apiErr.Err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			sent, err := readFrame(requestBuf)
+			require.NoError(t, err)
+			got := rawToMap(t, sent.Body)
+			assert.Equal(t, "TriggerDagRun", got["type"])
+			assert.Equal(t, "downstream", got["dag_id"])
+			assert.Equal(t, "run_1", got["run_id"])
+			assert.Equal(t, map[string]any{"k": "v"}, got["conf"])
+			assert.NotContains(t, got, "run_after", "an unset run_after must stay off the wire")
+		})
+	}
+}
+
+func TestCoordinatorClientGetDagRunState(t *testing.T) {
+	client, requestBuf := clientWithReply(
+		t, map[string]any{"type": "DagRunStateResult", "state": "running"}, nil,
+	)
+
+	state, err := client.getDagRunState(context.Background(), "downstream", "run_1")
+	require.NoError(t, err)
+	assert.Equal(t, "running", state)
+
+	sent, err := readFrame(requestBuf)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"type":   "GetDagRunState",
+		"dag_id": "downstream",
+		"run_id": "run_1",
+	}, rawToMap(t, sent.Body))
+}
+
+func TestCoordinatorClientGetDagRunStateError(t *testing.T) {
+	client, _ := clientWithReply(t, nil, map[string]any{
+		"type":   "ErrorResponse",
+		"error":  "DAGRUN_NOT_FOUND",
+		"detail": map[string]any{"status_code": 404},
+	})
+
+	_, err := client.getDagRunState(context.Background(), "downstream", "run_1")
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, "DAGRUN_NOT_FOUND", apiErr.Err)
+}
+
+func TestCoordinatorClientIsDagPaused(t *testing.T) {
+	for _, paused := range []bool{true, false} {
+		t.Run(strconv.FormatBool(paused), func(t *testing.T) {
+			client, requestBuf := clientWithReply(t, map[string]any{
+				"type":      "DagResult",
+				"dag_id":    "downstream",
+				"is_paused": paused,
+			}, nil)
+
+			got, err := client.isDagPaused(context.Background(), "downstream")
+			require.NoError(t, err)
+			assert.Equal(t, paused, got)
+
+			sent, err := readFrame(requestBuf)
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{
+				"type":   "GetDag",
+				"dag_id": "downstream",
+			}, rawToMap(t, sent.Body))
 		})
 	}
 }

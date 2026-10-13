@@ -703,9 +703,27 @@ metrics:
     legacy_name: "-"
     name_variables: ["status"]
 
+  - name: "http_requests_total"
+    description: "Number of completed REST API requests, tagged by method, route, and status_family.
+    Breaking the total down by those tags needs a backend that carries them (``otel_on``,
+    ``statsd_influxdb_enabled`` or ``statsd_datadog_enabled``); classic StatsD drops the tags and
+    reports only the overall request count."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   # ==========
   # Timers
   # ==========
+  - name: "http_request_duration_milliseconds"
+    description: "Milliseconds taken to complete a REST API request, tagged by method, route,
+    and status_family. Breaking the timings down by those tags needs a backend that carries them
+    (``otel_on``, ``statsd_influxdb_enabled`` or ``statsd_datadog_enabled``); classic StatsD drops
+    the tags and reports only the overall request duration."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "dagrun.dependency-check"
     description: "Milliseconds taken to check Dag dependencies"
     type: "timer"

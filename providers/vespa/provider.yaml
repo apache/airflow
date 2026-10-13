@@ -36,6 +36,9 @@ versions:
   - 0.1.1
   - 0.1.0
 
+excluded-python-versions:
+  - "3.14"
+
 integrations:
   - integration-name: Vespa
     external-doc-url: https://docs.vespa.ai

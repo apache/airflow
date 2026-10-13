@@ -6,6 +6,7 @@
     "title": "태스크 스케줄링을 막는 종속성"
   },
   "calendar": {
+    "backfill": "백필",
     "daily": "일간",
     "hourly": "시간별",
     "legend": {
@@ -43,8 +44,8 @@
   "deadlineAlerts": {
     "completionRule": "{{reference}} 기준 {{interval}} 이내에 완료되어야 합니다",
     "completionRuleDynamic": "{{reference}}를 기준으로 측정된 가변 시간 간격 내에 완료되어야 합니다",
-    "count_one": "데드라인 {{count}}건",
-    "count_other": "데드라인 {{count}}건",
+    "count_one": "데드라인 {{count, number}}건",
+    "count_other": "데드라인 {{count, number}}건",
     "referenceType": {
       "AverageRuntimeDeadline": "평균 실행 시간",
       "DagRunLogicalDateDeadline": "논리적 날짜",
@@ -59,13 +60,24 @@
     "label": "데드라인",
     "met": "충족",
     "missed": "초과",
-    "missedCount_one": "데드라인 초과 {{count}}건",
-    "missedCount_other": "데드라인 초과 {{count}}건",
-    "mixedCount": "데드라인 초과 {{missedCount}}건, 예정 {{upcomingCount}}건",
+    "missedCount_one": "데드라인 초과 {{count, number}}건",
+    "missedCount_other": "데드라인 초과 {{count, number}}건",
+    "mixedCount": "데드라인 초과 {{missedCount, number}}건, 예정 {{upcomingCount, number}}건",
     "stillRunning": "실행 중",
     "upcoming": "예정",
-    "upcomingCount_one": "예정된 데드라인 {{count}}건",
-    "upcomingCount_other": "예정된 데드라인 {{count}}건"
+    "upcomingCount_one": "예정된 데드라인 {{count, number}}건",
+    "upcomingCount_other": "예정된 데드라인 {{count, number}}건"
+  },
+  "execution": {
+    "clearSelected": "선택한 실행 항목 지우기",
+    "empty": "이 실행에 실행 항목이 없습니다.",
+    "iteration": "{{node}} · 반복 {{index}}",
+    "mapped_one": "{{task}} (이 페이지의 매핑된 태스크 {{count, number}}개)",
+    "mapped_other": "{{task}} (이 페이지의 매핑된 태스크 {{count, number}}개)",
+    "page": "실행 항목 {{total, number}}개 중 {{start, number}}–{{end, number}}개 표시",
+    "runTasks": "태스크 실행",
+    "select": "{{task}} 선택",
+    "title": "실행 항목"
   },
   "extraLinks": "추가 링크",
   "grid": {
@@ -95,13 +107,53 @@
     "info": "정보",
     "noTryNumber": "시도 횟수 없음",
     "search": {
-      "matchCount": "{{total}}개 중 {{current}}개",
+      "matchCount": "{{total, number}}개 중 {{current, number}}개",
       "noMatches": "일치하는 결과 없음",
       "placeholder": "로그 검색"
     },
     "settings": "로그 설정",
+    "tryNotStarted": "이 시도는 아직 시작되지 않았습니다.",
+    "viewFailedTry": "실패한 {{tryNumber}}번째 시도의 로그 보기",
     "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})",
+    "viewPreviousTry": "이전 {{tryNumber}}번째 시도의 로그 보기",
+    "waitingToRetry": "{{tryNumber}}번째 시도는 재시도 대기 중입니다.",
     "warning": "경고"
+  },
+  "loop": {
+    "filter": {
+      "all": "모든 반복",
+      "invocation": "호출",
+      "label": "반복"
+    },
+    "history": {
+      "capLabel": "제한: {{max}}",
+      "iterationsAxis": "반복 횟수",
+      "stats": {
+        "capHits": "제한 도달",
+        "medianIterations": "반복 횟수 중앙값"
+      },
+      "title": "실행별 반복 횟수"
+    },
+    "iteration": "반복 {{index}}",
+    "iterations": "반복",
+    "outcome": "결과",
+    "reason": {
+      "cap_reached": "반복 제한({{max}})에 도달함",
+      "failed": "{{index}}번째 반복에서 실패함",
+      "iteration_failed": "{{taskId}}에서 {{index}}번째 반복이 실패함",
+      "ran_to_cap": "허용된 {{max}}회 반복을 모두 실행함",
+      "removed": "제거됨",
+      "running": "실행 중",
+      "skipped": "건너뜀",
+      "stopped_early": "{{index}}번째 반복에서 조기 중단됨"
+    },
+    "rules": {
+      "behaviour": "동작",
+      "boundedFor": "정해진 횟수만큼 반복 실행",
+      "exitCriteria": "종료 조건",
+      "maxIterations": "최대 반복 횟수",
+      "whileUntil": "{{criteria}}까지 반복"
+    }
   },
   "notFound": {
     "back": "뒤로",
@@ -210,8 +262,8 @@
     "code": "코드",
     "details": "세부 정보",
     "logs": "로그",
-    "mappedTaskInstances_one": "태스크 인스턴스 [{{count}}]",
-    "mappedTaskInstances_other": "태스크 인스턴스 [{{count}}]",
+    "mappedTaskInstances_one": "태스크 인스턴스 [{{count, number}}]",
+    "mappedTaskInstances_other": "태스크 인스턴스 [{{count, number}}]",
     "overview": "개요",
     "renderedTemplates": "렌더링된 템플릿",
     "requiredActions": "필수 작업",
@@ -219,6 +271,7 @@
     "taskInstances": "태스크 인스턴스",
     "taskStateStore": "태스크 상태 저장소",
     "tasks": "태스크",
+    "versions": "버전",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -246,5 +299,67 @@
       "never": "만료 없음"
     },
     "title": "태스크 상태 저장소"
+  },
+  "versions": {
+    "aboutThisComparison": "이 비교에 대한 정보",
+    "base": "비교 기준",
+    "categories": {
+      "asset": "에셋",
+      "authorization": "권한",
+      "callback": "콜백",
+      "deadline": "데드라인",
+      "dependency": "종속성",
+      "metadata": "메타데이터",
+      "param": "매개변수",
+      "provenance": "출처",
+      "schedule": "스케줄",
+      "task": "태스크",
+      "unknown": "알 수 없음"
+    },
+    "codeAccess": "값을 보려면 Dag 코드 접근 권한이 필요합니다",
+    "columns": {
+      "after": "변경 후",
+      "before": "변경 전",
+      "category": "분류",
+      "impact": "영향",
+      "occurrences": "발생 횟수",
+      "operation": "변경 유형",
+      "path": "경로"
+    },
+    "heading": "버전 {{base}} → 버전 {{target}}",
+    "impacts": {
+      "authorization": "권한",
+      "execution": "실행",
+      "metadata": "메타데이터",
+      "provenance": "출처",
+      "unknown": "알 수 없음"
+    },
+    "maxChanges": "최대 변경 수",
+    "maxChangesDefault": "기본값",
+    "noChanges": "두 버전에 저장된 상태가 같습니다.",
+    "observedState": "관측된 상태",
+    "observedStateBoundary": "버전 생성 시점의 기록이 아니라 현재 저장된 상태를 비교합니다. 이전 버전은 소스 비교를 지원하지 않으므로, 소스를 비교하려면 코드 탭을 사용하세요.",
+    "operations": {
+      "added": "추가됨",
+      "changed": "변경됨",
+      "removed": "제거됨"
+    },
+    "record_one": "레코드",
+    "record_other": "레코드",
+    "selectPrompt": "두 버전을 선택하면 그 사이에 변경된 내용을 볼 수 있습니다.",
+    "summary_one": "변경 {{count, number}}개 · 직렬화 스키마 {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "변경 {{count, number}}개 · 직렬화 스키마 {{baseSchema}} → {{targetSchema}}",
+    "target": "비교 대상",
+    "truncated": {
+      "description": "한도를 넘지 않도록 일부 경로의 변경이 제외되었으므로, 표시된 변경 수는 실제보다 적을 수 있습니다.",
+      "title": "일부 변경 사항이 반환되지 않았습니다"
+    },
+    "unavailable": {
+      "description": "두 버전을 비교할 수 없습니다. 이유:",
+      "title": "비교할 수 없음",
+      "withoutReason": "두 버전을 비교할 수 없습니다."
+    },
+    "valuesHidden": "값 숨김",
+    "valuesShown": "값 표시"
   }
 }

@@ -31,6 +31,7 @@ from airflow import settings
 from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.common.exceptions import init_error_handlers
 from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
+from airflow.api_fastapi.common.http_metrics import HttpMetricsMiddleware
 from airflow.api_fastapi.core_api.app import (
     init_config,
     init_flask_plugins,
@@ -40,6 +41,7 @@ from airflow.api_fastapi.core_api.app import (
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.observability.metrics import stats_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
@@ -142,8 +144,7 @@ def create_app(apps: str = "all") -> FastAPI:
     dag_bag = create_dag_bag()
 
     if "all" in apps_list or "execution" in apps_list:
-        task_exec_api_app = create_task_execution_api_app()
-        task_exec_api_app.state.dag_bag = dag_bag
+        task_exec_api_app = create_task_execution_api_app(dag_bag=dag_bag)
         app.mount("/execution", task_exec_api_app)
 
     if "all" in apps_list or "core" in apps_list:
@@ -155,6 +156,7 @@ def create_app(apps: str = "all") -> FastAPI:
         init_error_handlers(app)
         init_middlewares(app)
 
+    init_api_metrics(app)
     init_access_logging(app)
 
     init_config(app)
@@ -227,6 +229,13 @@ def get_auth_manager() -> BaseAuthManager:
 def init_access_logging(app: FastAPI) -> None:
     """Install the access log middleware, the only producer of access records."""
     app.add_middleware(HttpAccessLogMiddleware)
+
+
+def init_api_metrics(app: FastAPI) -> None:
+    """Install the API metrics middleware, the only producer of API request metrics."""
+    if not stats_utils.is_metrics_enabled():
+        return
+    app.add_middleware(HttpMetricsMiddleware)
 
 
 def init_plugins(app: FastAPI) -> None:
