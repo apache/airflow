@@ -43,7 +43,9 @@ from airflow.providers.common.ai.hooks.pydantic_ai import (
     _has_recognized_provider_prefix,
     _looks_like_unrecognized_provider_prefix,
 )
-from airflow.providers.common.compat.sdk import AirflowNotFoundException
+from airflow.providers.common.compat.module_loading import qualname
+from airflow.providers.common.compat.sdk import AirflowNotFoundException, BaseHook
+from airflow.providers_manager import HookInfo
 
 # Matches the `google...` provider key pydantic-ai expects before the `:model-name`
 # separator, e.g. "google-cloud" out of "google-cloud:gemini-2.5-flash".
@@ -287,6 +289,21 @@ class _ConnRegistry:
     def __init__(self) -> None:
         self.conns: dict[str, Connection] = {}
         self.hook_classes: dict[str, type[PydanticAIHook]] = {}
+        # Stands in for the providers manager's connection-type registry, seeded with what
+        # this provider really registers; other providers' types are added per test.
+        self.hooks: dict[str, HookInfo] = {}
+        for connection_type in get_provider_info()["connection-types"]:
+            self.register_hook(connection_type["connection-type"], connection_type["hook-class-name"])
+
+    def register_hook(self, conn_type: str, hook_class_name: str) -> None:
+        self.hooks[conn_type] = HookInfo(
+            hook_class_name=hook_class_name,
+            connection_id_attribute_name="llm_conn_id",
+            package_name="apache-airflow-providers-test",
+            hook_name=conn_type,
+            connection_type=conn_type,
+            connection_testable=False,
+        )
 
     def add(
         self,
@@ -333,8 +350,19 @@ def registry():
         # argument -- without it, `conn.get_hook()` calls the mock with zero arguments and
         # `reg.get_hook` would have no way to know which connection dispatched it.
         patch.object(Connection, "get_hook", side_effect=reg.get_hook, autospec=True),
+        patch(
+            "airflow.providers.common.ai.hooks.pydantic_ai._get_registered_hooks",
+            autospec=True,
+            return_value=reg.hooks,
+        ),
     ):
         yield reg
+
+
+class _OtherProviderHook(BaseHook):
+    """Another provider's hook, registered under a type that is easy to confuse with ``pydanticai``."""
+
+    conn_type = "openai"
 
 
 class TestPydanticAIHookGetHook:
@@ -350,6 +378,68 @@ class TestPydanticAIHookGetHook:
         assert hook.llm_conn_id == "llm"
         assert hook.model_id == "openai:gpt-5"
         assert hook.fallback_conn_ids == []
+
+    def test_rejects_a_connection_of_another_type_before_dispatching(self, registry):
+        registry.add("llm", conn_type="openai")
+        registry.register_hook("openai", qualname(_OtherProviderHook))
+        expected_types = ["pydanticai", "pydanticai_azure", "pydanticai_bedrock", "pydanticai_vertex"]
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                f"Connection 'llm' has type 'openai', but a Pydantic AI hook needs one of {expected_types}"
+            ),
+        ):
+            PydanticAIHook.get_hook("llm", hook_params={"model_id": "openai:gpt-5"})
+
+        Connection.get_hook.assert_not_called()
+
+    def test_accepts_a_subclass_from_a_module_not_imported_yet(self, registry, tmp_path, monkeypatch):
+        """Another provider's subclass (e.g. Snowflake's) is only imported when its type is looked up."""
+        module_name = "pydanticai_subclass_not_imported_yet"
+        (tmp_path / f"{module_name}.py").write_text(
+            "from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook\n\n\n"
+            "class PydanticAIElsewhereHook(PydanticAIHook):\n"
+            "    conn_type = 'pydanticai_elsewhere'\n"
+        )
+        monkeypatch.syspath_prepend(tmp_path)
+        registry.add("llm", conn_type="pydanticai_elsewhere")
+        registry.register_hook("pydanticai_elsewhere", f"{module_name}.PydanticAIElsewhereHook")
+        assert module_name not in sys.modules
+
+        try:
+            PydanticAIHook.get_hook("llm", hook_params={"model_id": "openai:gpt-5"})
+        finally:
+            sys.modules.pop(module_name, None)
+
+        Connection.get_hook.assert_called_once_with(
+            registry.conns["llm"], hook_params={"model_id": "openai:gpt-5"}
+        )
+
+    def test_leaves_an_unregistered_connection_type_to_connection_get_hook(self, registry):
+        """``Connection.get_hook`` raises for it with a hint about the '-'/'_' spelling."""
+        registry.add("llm", conn_type="pydanticai-azure")
+
+        PydanticAIHook.get_hook("llm")
+
+        Connection.get_hook.assert_called_once_with(registry.conns["llm"], hook_params=None)
+
+    @pytest.mark.parametrize(
+        ("conn_type", "hook_class"),
+        [
+            ("pydanticai", PydanticAIHook),
+            ("pydanticai_azure", PydanticAIAzureHook),
+            ("pydanticai_bedrock", PydanticAIBedrockHook),
+            ("pydanticai_vertex", PydanticAIVertexHook),
+        ],
+    )
+    def test_accepts_every_pydanticai_connection_type(self, registry, conn_type, hook_class):
+        registry.add("llm", conn_type=conn_type, hook_class=hook_class)
+
+        hook = PydanticAIHook.get_hook("llm")
+
+        assert type(hook) is hook_class
+        PydanticAIHook.get_connection.assert_called_once_with("llm")
 
 
 class _InferModelStub:
