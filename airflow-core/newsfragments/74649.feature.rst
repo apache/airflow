@@ -1,0 +1,1 @@
+Allow state-store backends to provide asynchronous reference reads, with native S3 reads for the common.io backend.
