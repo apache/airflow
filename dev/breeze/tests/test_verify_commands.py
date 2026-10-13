@@ -58,6 +58,23 @@ def _no_git_lookups_against_the_checkout():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _pin_branch_to_main():
+    """Assert ``main`` behaviour regardless of the checked-out branch.
+
+    These tests hardcode ``main`` expectations, but ``branch_defaults.AIRFLOW_BRANCH`` is different on a
+    release branch (``vX-Y-test``), which flows into the base ref and the ``default_branch`` passed to
+    selective checks. Pin the constants so the suite passes on any branch.
+    """
+    with (
+        patch("airflow_breeze.commands.verify_commands.AIRFLOW_BRANCH", "main"),
+        patch(
+            "airflow_breeze.commands.verify_commands.DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH", "constraints-main"
+        ),
+    ):
+        yield
+
+
 @patch(
     "airflow_breeze.commands.verify_commands.get_changed_files_against",
     autospec=True,
