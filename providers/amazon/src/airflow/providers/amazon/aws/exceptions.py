@@ -125,3 +125,7 @@ class WaiterTerminalFailure(AirflowException):
 
 class WaiterMaxAttemptsError(AirflowException):
     """Raised when an AWS waiter exhausts its configured attempts."""
+
+
+class WaiterNoCredentialsError(WaiterMaxAttemptsError):
+    """Raised when an AWS waiter exhausts all attempts due to missing credentials."""

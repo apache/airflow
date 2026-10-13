@@ -38,6 +38,7 @@ import { Code } from "src/pages/Dag/Code";
 import { Details as DagDetails } from "src/pages/Dag/Details";
 import { Overview } from "src/pages/Dag/Overview";
 import { Tasks } from "src/pages/Dag/Tasks";
+import { Versions } from "src/pages/Dag/Versions";
 import { DagBundle } from "src/pages/DagBundle";
 import { DagBundles } from "src/pages/DagBundles";
 import { DagRuns } from "src/pages/DagRuns";
@@ -47,7 +48,7 @@ import { Deadlines } from "src/pages/Deadlines";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { ExternalView } from "src/pages/ExternalView";
-import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
+import { GroupTaskInstance, GroupTaskInstances } from "src/pages/GroupTaskInstance";
 import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { Jobs } from "src/pages/Jobs";
 import { LandingPage } from "src/pages/LandingPage";
@@ -59,6 +60,7 @@ import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
 import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
+import { Execution } from "src/pages/Run/Execution";
 import { Security } from "src/pages/Security";
 import { Settings } from "src/pages/Settings";
 import { Task } from "src/pages/Task";
@@ -76,7 +78,6 @@ import { XCom } from "src/pages/XCom";
 
 import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
 
-import { StorageLayout } from "./layouts/StorageLayout";
 import { client } from "./queryClient";
 
 const pluginRoute = {
@@ -88,13 +89,8 @@ export const taskInstanceRoutes = [
   { element: <TaskInstanceDefaultTab />, index: true, path: undefined },
   { element: <Logs />, path: TaskInstanceTab.Logs },
   { element: <Events />, path: TaskInstanceTab.Events },
-  {
-    children: [
-      { element: <XCom />, path: TaskInstanceTab.XCom },
-      { element: <TaskStateStore />, path: TaskInstanceTab.TaskStateStore },
-    ],
-    element: <StorageLayout />,
-  },
+  { element: <XCom />, path: TaskInstanceTab.XCom },
+  { element: <TaskStateStore />, path: TaskInstanceTab.TaskStateStore },
   { element: <Code />, path: TaskInstanceTab.Code },
   { element: <TaskInstanceDetails />, path: TaskInstanceTab.Details },
   { element: <RenderedTemplates />, path: TaskInstanceTab.RenderedTemplates },
@@ -231,6 +227,11 @@ export const routerConfig = [
           { element: <Events />, handle: { entity: TabEntity.Dag, tab: TabName.Events }, path: "events" },
           { element: <Code />, handle: { entity: TabEntity.Dag, tab: TabName.Code }, path: "code" },
           {
+            element: <Versions />,
+            handle: { entity: TabEntity.Dag, tab: TabName.Versions },
+            path: "versions",
+          },
+          {
             element: <DagDetails />,
             handle: { entity: TabEntity.Dag, tab: TabName.Details },
             path: "details",
@@ -243,6 +244,7 @@ export const routerConfig = [
       {
         children: [
           { element: <TaskInstances />, index: true },
+          { element: <Execution />, path: "execution" },
           // The Required Actions tab is now a button + modal; this keeps old /required_actions
           // deep links alive by rendering the task instances, where the route sync opens the modal.
           { element: <TaskInstances />, path: "required_actions" },
@@ -269,7 +271,7 @@ export const routerConfig = [
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
       },
       {
-        children: [{ element: <TaskInstances />, index: true }],
+        children: [{ element: <GroupTaskInstances />, index: true }],
         element: <GroupTaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/group/:groupId",
       },

@@ -57,7 +57,8 @@ extensions = [
     "sphinx.ext.intersphinx",
     "airflow_intersphinx",
     "exampleinclude",
-    "sphinxcontrib.spelling",
+    "sphinxcontrib.mermaid",
+    "airflow_spelling",
 ]
 
 autoapi_dirs = [CONF_DIR.joinpath("..", "src").resolve()]

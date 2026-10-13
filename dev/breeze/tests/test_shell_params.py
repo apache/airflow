@@ -107,20 +107,20 @@ def test_worktree_label_path_is_derived_from_checkout(tmp_path, monkeypatch, lin
         ),
         pytest.param(
             {},
-            {"python": "3.10"},
+            {"python": "3.11"},
             {
-                "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.10",
-                "PYTHON_MAJOR_MINOR_VERSION": "3.10",
+                "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.11",
+                "PYTHON_MAJOR_MINOR_VERSION": "3.11",
             },
-            id="python3.10",
+            id="python3.11",
         ),
         pytest.param(
             {},
             {"airflow_branch": "v3-0-test"},
             {
                 "DEFAULT_BRANCH": "v3-0-test",
-                "AIRFLOW_CI_IMAGE": "ghcr.io/apache/airflow/v3-0-test/ci/python3.10",
-                "PYTHON_MAJOR_MINOR_VERSION": "3.10",
+                "AIRFLOW_CI_IMAGE": "ghcr.io/apache/airflow/v3-0-test/ci/python3.11",
+                "PYTHON_MAJOR_MINOR_VERSION": "3.11",
             },
             id="With release branch",
         ),
@@ -129,8 +129,8 @@ def test_worktree_label_path_is_derived_from_checkout(tmp_path, monkeypatch, lin
             {},
             {
                 "DEFAULT_BRANCH": AIRFLOW_BRANCH,  # DEFAULT_BRANCH is overridden from sources
-                "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.10",
-                "PYTHON_MAJOR_MINOR_VERSION": "3.10",
+                "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.11",
+                "PYTHON_MAJOR_MINOR_VERSION": "3.11",
             },
             id="Branch variable from sources not from original env",
         ),
@@ -266,6 +266,24 @@ def test_worktree_label_path_is_derived_from_checkout(tmp_path, monkeypatch, lin
             {"POSTGRES_DRIVER": "psycopg"},
             id="POSTGRES_DRIVER stays psycopg when installing from a GitHub branch",
         ),
+        pytest.param(
+            {},
+            {"backend": "postgres", "postgres_version": "17"},
+            {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql/data"},
+            id="POSTGRES_DATA_VOLUME_PATH is the data directory up to Postgres 17",
+        ),
+        pytest.param(
+            {},
+            {"backend": "postgres", "postgres_version": "18"},
+            {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql"},
+            id="POSTGRES_DATA_VOLUME_PATH is its parent from Postgres 18",
+        ),
+        pytest.param(
+            {},
+            {"backend": "none", "postgres_version": ""},
+            {"POSTGRES_DATA_VOLUME_PATH": "/var/lib/postgresql/data"},
+            id="POSTGRES_DATA_VOLUME_PATH ignores the empty version of non-postgres backends",
+        ),
     ],
 )
 def test_shell_params_to_env_var_conversion(
@@ -316,6 +334,16 @@ def test_generated_env_files_do_not_change_when_pythonwarnings_is_set(tmp_path, 
 def test_pythonwarnings_is_forwarded_by_the_compose_base_file():
     base_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH.read_text())
     assert "PYTHONWARNINGS" in base_compose_file["services"]["airflow"]["environment"]
+
+
+def test_postgres_data_volume_is_mounted_at_the_image_volume_path():
+    backend_compose_file = yaml.safe_load(
+        (SCRIPTS_CI_DOCKER_COMPOSE_PATH / "backend-postgres.yml").read_text()
+    )
+    assert (
+        "postgres-data-volume:${POSTGRES_DATA_VOLUME_PATH:-/var/lib/postgresql/data}"
+        in backend_compose_file["services"]["postgres"]["volumes"]
+    )
 
 
 @pytest.mark.parametrize(

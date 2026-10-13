@@ -49,8 +49,7 @@ from airflow.providers.common.ai.exceptions import (
 )
 from airflow.providers.common.ai.operators import llm_batch as llm_batch_module
 from airflow.providers.common.ai.operators.llm_batch import LLMBatchOperator
-from airflow.providers.common.compat.sdk import TaskDeferred
-from airflow.sdk import Connection, ObjectStoragePath
+from airflow.providers.common.compat.sdk import Connection, ObjectStoragePath, TaskDeferred
 
 
 class Diagnosis(BaseModel):

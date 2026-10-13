@@ -69,7 +69,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
@@ -155,7 +155,7 @@ def _trigger_and_wait_for_dag(dag_id: str, timeout: int) -> _CompletedRun:
     client = AirflowClient()
     run_id = None
     try:
-        resp = client.trigger_dag(dag_id, json={"logical_date": datetime.now(timezone.utc).isoformat()})
+        resp = client.trigger_dag(dag_id, json={"logical_date": datetime.now(UTC).isoformat()})
         run_id = resp["dag_run_id"]
         state = client.wait_for_dag_run(dag_id=dag_id, run_id=run_id, timeout=timeout)
         ti_resp = client.get_task_instances(dag_id=dag_id, run_id=run_id)

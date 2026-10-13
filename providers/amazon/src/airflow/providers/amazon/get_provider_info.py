@@ -39,6 +39,12 @@ def get_provider_info():
                 "tags": ["aws"],
             },
             {
+                "integration-name": "DuckDB on AWS",
+                "external-doc-url": "https://duckdb.org/docs/stable/extensions/httpfs/s3api",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/duckdb.rst"],
+                "tags": ["aws"],
+            },
+            {
                 "integration-name": "Amazon Bedrock",
                 "external-doc-url": "https://aws.amazon.com/bedrock/",
                 "logo": "/docs/integration-logos/Amazon-Bedrock_light-bg@4x.png",
@@ -727,6 +733,10 @@ def get_provider_info():
                 ],
             },
             {
+                "integration-name": "DuckDB on AWS",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.duckdb"],
+            },
+            {
                 "integration-name": "Amazon Bedrock",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.bedrock"],
             },
@@ -1123,6 +1133,7 @@ def get_provider_info():
             {
                 "source-integration-name": "Exasol",
                 "target-integration-name": "Amazon Simple Storage Service (S3)",
+                "how-to-guide": "/docs/apache-airflow-providers-amazon/transfer/exasol_to_s3.rst",
                 "python-module": "airflow.providers.amazon.aws.transfers.exasol_to_s3",
             },
             {
@@ -1226,6 +1237,19 @@ def get_provider_info():
                         "schema": "https",
                         "host": "hooks.chime.aws/incomingwebhook/",
                         "password": "T00000000?token=XXXXXXXXXXXXXXXXXXXXXXXX",
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook",
+                "hook-name": "DuckDB on AWS",
+                "connection-type": "duckdb_aws",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password", "port", "schema"],
+                    "relabeling": {"host": "Database path"},
+                    "placeholders": {
+                        "host": "/tmp/analytics.duckdb (leave empty for an in-memory database)",
+                        "extra": '{\n  "credential_strategy": "credential_chain",\n  "region_name": "us-east-1",\n  "memory_limit": "2GB",\n  "threads": 4\n}\n',
                     },
                 },
             },
@@ -1573,6 +1597,13 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": None,
+                    },
+                    "allow_idp_initiated_login": {
+                        "description": "Whether to accept SAML assertions that no login started from Airflow asked for, such as\nthe ones produced by clicking the Airflow tile in the AWS Identity Center access portal\n(IdP-initiated SSO).\n\nWhen this is disabled, a SAML response is only accepted if it answers an AuthnRequest that\nthe same browser started. That binding is what stops an assertion obtained elsewhere from\nbeing accepted in another user's browser, which would sign that user in as the assertion's\nsubject. Enable it only where the access portal flow is required and that trade-off is\naccepted.\n",
+                        "version_added": "9.37.0",
+                        "type": "boolean",
+                        "example": "True",
+                        "default": "False",
                     },
                 },
             },

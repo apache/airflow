@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -30,7 +30,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from common_prek_utils import console, get_remote_for_main
+from common_prek_utils import console, get_remote_for_main, git_env_without_repo_overrides
 
 DATAMODELS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/datamodels/"
 VERSIONS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/versions/"
@@ -76,12 +76,21 @@ def generate_schema_from_main() -> dict:
     ref = f"{remote}/{target_branch}"
     worktree_path = Path(tempfile.mkdtemp()) / "airflow-main"
     subprocess.run(["git", "fetch", remote, target_branch], capture_output=True, check=False)
-    subprocess.run(["git", "worktree", "add", str(worktree_path), ref], capture_output=True, check=True)
+    git_env = git_env_without_repo_overrides()
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), ref],
+        capture_output=True,
+        check=True,
+        env=git_env,
+    )
     try:
         return generate_schema(worktree_path)
     finally:
         subprocess.run(
-            ["git", "worktree", "remove", "--force", str(worktree_path)], capture_output=True, check=False
+            ["git", "worktree", "remove", "--force", str(worktree_path)],
+            capture_output=True,
+            check=False,
+            env=git_env,
         )
 
 

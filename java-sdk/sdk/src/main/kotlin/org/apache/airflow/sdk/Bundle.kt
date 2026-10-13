@@ -19,7 +19,10 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.builderName
 import org.apache.airflow.sdk.internal.registrarName
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Method
 
 /**
  * All [DagDef]s that this JVM process can execute.
@@ -63,8 +66,9 @@ class Bundle(
    * @return This bundle, for chaining.
    * @throws IllegalArgumentException if another Dag shares its ID, task
    *    handlers are already registered against it, a task depends on an
-   *    upstream not registered in the same Dag, or the dependencies contain a
-   *    cycle.
+   *    upstream not registered in the same Dag, a task that decides which task
+   *    runs is not declared with `If` or `Switch`, or the dependencies contain
+   *    a cycle.
    * @throws IllegalStateException if [Server.serve] has already been called.
    */
   fun register(dag: DagDef): Bundle {
@@ -80,38 +84,59 @@ class Bundle(
             "that is not registered in the same Dag"
         }
       }
+      val decides = DECIDER_TYPES.any { it.isAssignableFrom(def.definition) }
+      require(decides == (def.decider != null)) {
+        if (decides) {
+          "Task '${def.id}' runs '${def.definition.name}', which decides which task runs, but nothing names " +
+            "what it chooses; declare it with If(...) or Switch(...), in Dag '${dag.id}'"
+        } else {
+          "Task '${def.id}' chooses which task runs, but '${def.definition.name}' decides nothing, in Dag '${dag.id}'"
+        }
+      }
+      def.decider?.let { decider ->
+        decider.describe(def)?.let { throw IllegalArgumentException("$it, in Dag '${dag.id}'") }
+        for (case in decider.cases) {
+          require(dag.tasks[case.id] === case) {
+            "Task '$taskId' in Dag '${dag.id}' can run task '${case.id}' " +
+              "that is not registered in the same Dag"
+          }
+        }
+      }
     }
     checkNoCycle(dag)
     require(dags.putIfAbsent(dag.id, dag) == null) {
       "Dags in bundle have duplicate ID: ${dag.id}"
     }
+    dag.registered = true
     return this
   }
 
   /**
-   * Registers every task handler a class holds, from the ids each
-   * [Builder.TaskHandler] names.
+   * Registers what an annotated class holds, read from the class itself so
+   * there is no second name to keep in sync.
    *
-   * @param handlerClass A class with [Builder.TaskHandler] methods.
+   * A [Builder.Dag] class contributes the Dag its generated builder builds; a
+   * class of [Builder.TaskHandler] methods contributes each handler, bound to
+   * the Dag the Python file owns. A class can carry both.
+   *
+   * @param annotated A class carrying [Builder.Dag] or [Builder.TaskHandler].
    * @return This bundle, for chaining.
-   * @throws IllegalArgumentException if the class has no generated
-   *    registrar, because annotation processing did not run over it.
+   * @throws IllegalArgumentException if the class has no generated code,
+   *    because annotation processing did not run over it, or if the Dag's
+   *    wiring is invalid, such as a task the `@Builder.Deps` class did not
+   *    call.
    */
-  fun register(handlerClass: Class<*>): Bundle {
+  fun register(annotated: Class<*>): Bundle {
     checkOpen()
-    val name = registrarName(handlerClass.name)
-    val registrar =
-      try {
-        Class.forName(name, true, handlerClass.classLoader)
-      } catch (e: ClassNotFoundException) {
-        throw IllegalArgumentException(
-          "No generated registrar $name for ${handlerClass.name}; does it declare " +
-            "@Builder.TaskHandler methods, and is airflow-sdk-processor on the " +
-            "annotationProcessor path?",
-          e,
-        )
-      }
-    registrar.getMethod("registerInto", Bundle::class.java).invoke(null, this)
+    val dag = annotated.getAnnotation(Builder.Dag::class.java)
+    if (dag != null) {
+      val builder = generated(builderName(annotated.packageName, annotated.simpleName, dag.to), annotated, "builder")
+      register(invokeGenerated(builder.getMethod("build")) as DagDef)
+    }
+    if (dag == null || annotated.declaredMethods.any { it.isAnnotationPresent(Builder.TaskHandler::class.java) }) {
+      val registrar = generated(registrarName(annotated.name), annotated, "registrar")
+      invokeGenerated(registrar.getMethod("registerInto", Bundle::class.java), this)
+    }
     return this
   }
 
@@ -150,6 +175,31 @@ class Bundle(
     taskId: String,
   ): TaskDef? = (dags[dagId] ?: taskHandlers[dagId])?.tasks?.get(taskId)
 
+  private fun generated(
+    name: String,
+    from: Class<*>,
+    what: String,
+  ): Class<*> =
+    try {
+      Class.forName(name, true, from.classLoader)
+    } catch (e: ClassNotFoundException) {
+      throw IllegalArgumentException(
+        "No generated $what $name for ${from.name}; does it carry @Builder.Dag or " +
+          "@Builder.TaskHandler, and is airflow-sdk-processor on the annotationProcessor path?",
+        e,
+      )
+    }
+
+  private fun invokeGenerated(
+    method: Method,
+    vararg args: Any?,
+  ): Any? =
+    try {
+      method.invoke(null, *args)
+    } catch (e: InvocationTargetException) {
+      throw e.cause ?: e
+    }
+
   /**
    * Ends registration, so a `register` left below `serve` is reported as the
    * mistake it is rather than racing the runtime. [Server] calls it when it
@@ -162,10 +212,14 @@ class Bundle(
   private fun checkOpen() = check(!served) { "Server.serve has already been called; register everything before serve" }
 }
 
+/** Task types the SDK runs through a decider, so each needs the sides it chooses between. */
+private val DECIDER_TYPES = listOf(ConditionTask::class.java, SwitchTask::class.java)
+
 // Reject cycles produced by before and after at registration time. This is (non-tailrec-eligible)
 // recursive and could blow up with deep dependency chains. I kept the recursive implementation
 // for readability since the scenario is unlikely; feel free to rewrite if it blows up for you.
 private fun checkNoCycle(dag: DagDef) {
+  val expansion = dag.expandGroupEdges()
   val visiting = mutableSetOf<String>()
   val done = mutableSetOf<String>()
 
@@ -174,10 +228,11 @@ private fun checkNoCycle(dag: DagDef) {
     require(visiting.add(def.id)) {
       "Task dependencies in Dag '${dag.id}' contain a cycle involving task '${def.id}'"
     }
-    def.upstreams.forEach(::visit)
+    expansion.upstreamsOf(def).forEach { dag.tasks[it]?.let(::visit) }
     visiting -= def.id
     done += def.id
   }
+
   dag.tasks.values.forEach(::visit)
 }
 

@@ -54,6 +54,10 @@ def _conn(password: str = "", host: str = "", extra: dict | None = None) -> Magi
     return mock_conn
 
 
+def _init_embeddings(model: str, *, provider: str | None = None, **kwargs):
+    return {"model": model, "provider": provider, "kwargs": kwargs}
+
+
 class TestLangChainHookInit:
     def test_default_params(self):
         hook = LangChainHook()
@@ -61,6 +65,7 @@ class TestLangChainHookInit:
         assert hook.embed_conn_id == "langchain_default"
         assert hook.llm_model is None
         assert hook.embed_model is None
+        assert hook.embedding_kwargs == {}
 
     def test_embed_conn_falls_back_to_llm_conn(self):
         hook = LangChainHook(llm_conn_id="my_conn")
@@ -218,6 +223,67 @@ class TestGetEmbeddingModel:
             api_key="sk-test",
             base_url="http://localhost:11434/v1",
         )
+
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_dispatches_with_embedding_kwargs(self, mock_get_conn, mock_init_embeddings, caplog):
+        mock_get_conn.return_value = _conn(password="sk-test")
+
+        hook = LangChainHook(
+            embed_model="openai:Qwen/Qwen3-Embedding-0.6B",
+            embedding_kwargs={"api_key": "from-kwargs", "dimensions": 128, "timeout": 30},
+        )
+        hook.get_embedding_model()
+
+        mock_init_embeddings.assert_called_once_with(
+            "openai:Qwen/Qwen3-Embedding-0.6B",
+            api_key="sk-test",
+            dimensions=128,
+            timeout=30,
+        )
+        assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog.messages
+
+    @pytest.mark.parametrize(
+        ("embed_model", "expect_warning"),
+        [
+            ("openai:text-embedding-3-small", True),
+            ("text-embedding-3-small", False),
+        ],
+    )
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_embedding_kwargs_provider_warning(
+        self, mock_get_conn, mock_init_embeddings, caplog, embed_model, expect_warning
+    ):
+        mock_get_conn.return_value = _conn()
+        mock_init_embeddings.side_effect = _init_embeddings
+        hook = LangChainHook(
+            embed_model=embed_model,
+            embedding_kwargs={"provider": "custom-provider"},
+        )
+
+        result = hook.get_embedding_model()
+
+        assert result["model"] == embed_model
+        assert result["provider"] == "custom-provider"
+        warning = (
+            "embedding_kwargs['provider'] takes precedence over the provider prefix in embed_model; "
+            "pass an unprefixed model name"
+        )
+        assert (warning in caplog.messages) is expect_warning
+
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_model_in_embedding_kwargs_raises(self, mock_get_conn, mock_init_embeddings):
+        mock_get_conn.return_value = _conn()
+        mock_init_embeddings.side_effect = _init_embeddings
+        hook = LangChainHook(
+            embed_model="openai:text-embedding-3-small",
+            embedding_kwargs={"model": "other-model"},
+        )
+
+        with pytest.raises(TypeError, match="multiple values.*model"):
+            hook.get_embedding_model()
 
     @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")

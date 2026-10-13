@@ -34,11 +34,19 @@ provider, **this is the managed one to use in production**, and with
 :ref:`OpenSandbox <sandbox-backend-opensandbox>` one of the two that run on
 Kubernetes: nothing has to be installed on the worker, model-written code never
 executes on the worker host, and Modal reclaims a sandbox at its own lifetime
-whether or not the worker survives. It needs the ``modal`` extra and ambient
-credentials, as under :ref:`Quick start <sandbox-quick-start>`.
+whether or not the worker survives. It needs the ``modal`` extra and Modal
+credentials, from a ``modal`` connection or the worker environment, as under
+:ref:`Quick start <sandbox-quick-start>`.
 
 Constructor parameters:
 
+- ``modal_conn_id``: ``modal`` connection the token and, optionally, the Modal
+  ``environment`` come from. Default ``"modal_default"``; ``None`` uses the worker's
+  credentials without looking for a connection. How a missing or partial connection
+  resolves is on the :ref:`Modal connection page <howto/connection:modal>`. A credential
+  problem fails the task, except in the toolset's own teardown, which logs it so a
+  finished run is not failed. The connection type comes from the Modal provider, which
+  the ``modal`` extra installs and which needs Airflow 3.
 - ``image``: Registry tag for the sandbox image, or a prepared ``modal.Image``
   carrying pre-installed packages. Default ``"python:3.12-slim"``.
 - ``app_name``: Modal app the sandboxes are created under. Default
@@ -240,6 +248,8 @@ The runtime remains a deployment choice. The default Docker runtime shares the
 host kernel; choose a stronger runtime such as Kata when your threat model needs
 a VM boundary.
 
+.. _sandbox-backend-sbx:
+
 sbx (Docker Sandboxes, local)
 -----------------------------
 
@@ -321,9 +331,14 @@ in. Subclass :class:`~airflow.providers.common.ai.sandbox.SandboxBackend` in you
 own package and pass an instance to ``SandboxToolset``.
 
 **Three methods are required**: ``create``, ``run_command`` and ``destroy``. The
-three file operations ship as defaults implemented over ``run_command``, because
-reading, writing and listing a file are all expressible as shell commands.
-Override them only when the vendor has a native file API:
+file operations ship as defaults implemented over ``run_command``, because
+reading, writing, listing and exporting a file are all expressible as shell
+commands. The default ``export_file``, behind ``SandboxToolset(exports=...)``,
+copies a file in 4 MiB slices, one command each, and needs ``stat``, ``tail``,
+``head`` and ``base64`` in the guest. It relies on ``run_command`` returning each
+slice's output intact, or setting ``stdout_truncated`` when it could not. Override
+it when the vendor can stream a download, as the ``sbx`` and OpenSandbox backends do. Override the others
+only when the vendor has a native file API:
 
 .. code-block:: python
 

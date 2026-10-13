@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -132,11 +132,11 @@ def test_push_logs_body_parses_iso_timestamp():
         log_chunk_data="log line",
     )
 
-    assert body.log_chunk_time == datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+    assert body.log_chunk_time == datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def test_worker_registration_return_assumes_version_mismatch():
-    result = WorkerRegistrationReturn(last_update=datetime(2026, 1, 1, tzinfo=dt_timezone.utc))
+    result = WorkerRegistrationReturn(last_update=datetime(2026, 1, 1, tzinfo=UTC))
 
     assert result.versions_match is False
 

@@ -30,7 +30,7 @@ from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
     # On Airflow 3.3+ the review parks the task in the first-class AWAITING_INPUT state instead
-    # of deferring to a trigger. On older cores this name is absent and defer() is used.
+    # of deferring to a trigger. On older Airflow versions this name is absent and defer() is used.
     from airflow.sdk.exceptions import TaskAwaitingInput
 
 log = logging.getLogger(__name__)
@@ -253,7 +253,7 @@ class LLMApprovalMixin:
             continuation["decision"] = decision
 
         if AIRFLOW_V_3_3_PLUS:
-            # New core (3.3+): park the task in AWAITING_INPUT -- no trigger, no triggerer. The
+            # Airflow 3.3+: park the task in AWAITING_INPUT -- no trigger, no triggerer. The
             # task is resumed by the Core API response handler or the scheduler timeout sweep.
             raise TaskAwaitingInput(
                 method_name="execute_complete",
@@ -261,7 +261,7 @@ class LLMApprovalMixin:
                 timeout=self.approval_timeout,
             )
 
-        # Fallback for cores < 3.3: defer the response check to HITLTrigger on the triggerer.
+        # Fallback for Airflow versions < 3.3: defer the response check to HITLTrigger on the triggerer.
         self.defer(
             trigger=HITLTrigger(
                 ti_id=ti_id,

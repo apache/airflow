@@ -25,6 +25,7 @@ import { useConfigServiceGetConfig } from "openapi/queries";
 import type { ConfigOption } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 import { useDocumentTitle } from "src/utils";
@@ -33,7 +34,7 @@ type ConfigColums = {
   section: string;
 } & ConfigOption;
 
-const createColumns = (translate: TFunction): Array<ColumnDef<ConfigColums>> => [
+const createColumns = (translate: TFunction): Array<ColumnDef<DataTableFeatures, ConfigColums>> => [
   {
     accessorKey: "section",
     enableSorting: false,

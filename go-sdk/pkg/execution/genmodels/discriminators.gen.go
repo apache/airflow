@@ -90,6 +90,7 @@ const (
 	TypeSentFDs                     = "SentFDs"
 	TypeSetAssetStateStoreByName    = "SetAssetStateStoreByName"
 	TypeSetAssetStateStoreByURI     = "SetAssetStateStoreByUri"
+	TypeSetExecutionTimeout         = "SetExecutionTimeout"
 	TypeSetRenderedFields           = "SetRenderedFields"
 	TypeSetRenderedMapIndex         = "SetRenderedMapIndex"
 	TypeSetTaskStateStore           = "SetTaskStateStore"
@@ -105,6 +106,7 @@ const (
 	TypeTaskStateStoreResult        = "TaskStateStoreResult"
 	TypeTaskStatesResult            = "TaskStatesResult"
 	TypeTriggerDagRun               = "TriggerDagRun"
+	TypeUpdateDagRunNote            = "UpdateDagRunNote"
 	TypeUpdateHITLDetail            = "UpdateHITLDetail"
 	TypeValidateInletsAndOutlets    = "ValidateInletsAndOutlets"
 	TypeVariableKeysResult          = "VariableKeysResult"
@@ -319,6 +321,9 @@ func EnsureType(m any) any {
 	case SetAssetStateStoreByURI:
 		b.Type = TypeSetAssetStateStoreByURI
 		return b
+	case SetExecutionTimeout:
+		b.Type = TypeSetExecutionTimeout
+		return b
 	case SetRenderedFields:
 		b.Type = TypeSetRenderedFields
 		return b
@@ -363,6 +368,9 @@ func EnsureType(m any) any {
 		return b
 	case TriggerDagRun:
 		b.Type = TypeTriggerDagRun
+		return b
+	case UpdateDagRunNote:
+		b.Type = TypeUpdateDagRunNote
 		return b
 	case UpdateHITLDetail:
 		b.Type = TypeUpdateHITLDetail

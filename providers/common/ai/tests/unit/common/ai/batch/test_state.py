@@ -33,7 +33,7 @@ from airflow.providers.common.ai.batch.state import (
     write_submitted,
 )
 from airflow.providers.common.ai.exceptions import LLMBatchStateReadError
-from airflow.sdk import ObjectStoragePath
+from airflow.providers.common.compat.sdk import ObjectStoragePath
 
 
 @pytest.fixture

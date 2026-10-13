@@ -59,20 +59,26 @@ behavior (connection resolution, ``SQLToolset``'s SQL validation, and
 ``allowed_tables`` filtering) still applies. ``get_tools`` runs eagerly at
 conversion time to enumerate the tools.
 
-When a toolset raises pydantic-ai's ``ModelRetry`` to ask the model to correct
-its input (``SQLToolset`` does this on, for example, an unknown column), the
-bridge returns that message as the tool's output so the model sees it and tries
-again. ``ModelRetry`` is a feed-the-model-and-retry signal rather than a
-failure, so returning it preserves the self-correction the toolset was written
-for and works no matter how the agent is configured to handle tool errors
-(raising would abort the run under ``create_agent``'s default handling).
+What a tool returns passes through Airflow's secret masker before the model sees it.
 
-The bridge does not hold a toolset session open across calls: ``get_tools`` and
-every tool call each run under their own event loop, so for ``MCPToolset`` the
-connection is opened and torn down around each call. It reconnects per call,
-which is fine for stateless tools but unsuitable for ``stdio`` MCP servers (or
-any server that keeps state between calls), since each call starts a fresh
-session.
+When a toolset raises pydantic-ai's ``ModelRetry`` to ask the model to correct its
+input (``SQLToolset`` does this on, for example, an unknown column), or the model's
+arguments fail the toolset's validation, the model receives a LangChain
+``ToolMessage`` with ``status="error"`` carrying the message, and can try again. The
+tool's ``max_retries`` bounds this: once the model has failed that many times in a row,
+the call raises :class:`~airflow.providers.common.ai.tools.ToolCallError` and the run
+ends. A refusal the toolset reports as final, by raising pydantic-ai's ``ToolFailed``,
+also reaches the model as an error result, without counting against that limit. Any other
+exception the toolset raises ends the run the same way.
+
+The bridge does not hold a toolset session open across calls. On LangChain's sync path
+every call runs on its own event loop, and even on the async path each call through
+``MCPToolset`` opens and closes a session of its own. That is fine for stateless tools
+but unsuitable for ``stdio`` MCP servers, or any server that keeps state between calls,
+since each call starts a fresh session.
+
+A ``SandboxToolset`` bridged this way has to be used inside its ``with`` block, which
+provisions the sandbox on the first call and destroys it when the block ends.
 
 .. note::
 

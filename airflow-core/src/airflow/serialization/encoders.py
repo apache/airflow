@@ -34,6 +34,7 @@ from airflow.sdk import (
     Asset,
     AssetAlias,
     AssetAll,
+    AssetAndTimeSchedule,
     AssetAny,
     AssetOrTimeSchedule,
     ChainMapper,
@@ -323,6 +324,7 @@ class _Serializer:
     """Serialization logic."""
 
     BUILTIN_TIMETABLES: dict[type, str] = {
+        AssetAndTimeSchedule: "airflow.timetables.assets.AssetAndTimeSchedule",
         AssetOrTimeSchedule: "airflow.timetables.assets.AssetOrTimeSchedule",
         AssetTriggeredTimetable: "airflow.timetables.simple.AssetTriggeredTimetable",
         ContinuousTimetable: "airflow.timetables.simple.ContinuousTimetable",
@@ -369,7 +371,10 @@ class _Serializer:
 
     @serialize_timetable.register
     def _(self, timetable: AssetTriggeredTimetable) -> dict[str, Any]:
-        return {"asset_condition": encode_asset_like(timetable.asset_condition)}
+        return {
+            "asset_condition": encode_asset_like(timetable.asset_condition),
+            "batch_asset_events": timetable.batch_asset_events,
+        }
 
     @serialize_timetable.register
     def _(self, timetable: EventsTimetable) -> dict[str, Any]:
@@ -426,10 +431,18 @@ class _Serializer:
         }
 
     @serialize_timetable.register
+    def _(self, timetable: AssetAndTimeSchedule) -> dict[str, Any]:
+        return {
+            "asset_condition": encode_asset_like(timetable.asset_condition),
+            "timetable": encode_timetable(timetable.timetable),
+        }
+
+    @serialize_timetable.register
     def _(self, timetable: AssetOrTimeSchedule) -> dict[str, Any]:
         return {
             "asset_condition": encode_asset_like(timetable.asset_condition),
             "timetable": encode_timetable(timetable.timetable),
+            "batch_asset_events": timetable.batch_asset_events,
         }
 
     @serialize_timetable.register
@@ -440,6 +453,7 @@ class _Serializer:
     def _(self, timetable: PartitionedAssetTimetable) -> dict[str, Any]:
         return {
             "asset_condition": encode_asset_like(timetable.asset_condition),
+            "batch_asset_events": timetable.batch_asset_events,
             "default_partition_mapper": encode_partition_mapper(timetable.default_partition_mapper),
             "partition_mapper_config": [
                 (encode_asset_like(asset), encode_partition_mapper(partition_mapper))

@@ -35,13 +35,12 @@ classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Framework :: Apache Airflow",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
 ]
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 
 dependencies = [
     "black>=26.1.0",
@@ -72,7 +71,6 @@ dependencies = [
     "rich-click>=1.9.7",
     "rich>=13.6.0",
     "tabulate>=0.9.0",
-    "tomli>=2.0.1; python_version < '3.11'",
     "twine>=4.0.2",
     "tqdm>=4.67.1",
     "boto3>=1.37.2",
@@ -97,7 +95,7 @@ include = [
 
 [tool.black]
 line-length = 110
-target-version = ['py310', 'py311', 'py312']
+target-version = ['py311', 'py312']
 
 [tool.pytest]
 addopts = [

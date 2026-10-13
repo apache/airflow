@@ -29,6 +29,7 @@ import { RouterLink } from "src/system-components";
 import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters/TaskFilters.tsx";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TruncatedText } from "src/components/TruncatedText";
 
@@ -42,7 +43,7 @@ const createColumns = ({
 }: {
   dagId: string;
   translate: TFunction;
-}): Array<ColumnDef<TaskResponse>> => [
+}): Array<ColumnDef<DataTableFeatures, TaskResponse>> => [
   {
     accessorKey: "task_display_name",
     cell: ({ row: { original } }: TaskRow) => (

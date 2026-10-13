@@ -27,6 +27,7 @@ from fastapi import FastAPI
 from fastapi.routing import Mount
 from starlette.middleware import Middleware
 
+from airflow import settings
 from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.common.exceptions import init_error_handlers
 from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
@@ -100,6 +101,7 @@ def _initialize_api_server_stats() -> None:
 async def lifespan(app: FastAPI):
     _initialize_api_server_stats()
     async with AsyncExitStack() as stack:
+        stack.push_async_callback(settings.dispose_async_engine)
         for route in app.routes:
             if isinstance(route, Mount) and isinstance(route.app, FastAPI):
                 await stack.enter_async_context(
@@ -140,8 +142,7 @@ def create_app(apps: str = "all") -> FastAPI:
     dag_bag = create_dag_bag()
 
     if "all" in apps_list or "execution" in apps_list:
-        task_exec_api_app = create_task_execution_api_app()
-        task_exec_api_app.state.dag_bag = dag_bag
+        task_exec_api_app = create_task_execution_api_app(dag_bag=dag_bag)
         app.mount("/execution", task_exec_api_app)
 
     if "all" in apps_list or "core" in apps_list:

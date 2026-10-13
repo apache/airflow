@@ -1732,16 +1732,15 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert response.status_code == 422
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_get_status_unauthorized_user_does_not_leak_row(
-        self, test_client, unauthorized_test_client, session
-    ):
+    def test_get_status_unauthorized_user_does_not_leak_row(self, test_client, unauthorized_headers, session):
         """A user without rights on the conn_id never sees the row payload via GET-by-token."""
         post_response = test_client.post("/connections/enqueue-test", json=self.TEST_REQUEST_BODY)
         assert post_response.status_code == 202
         token = post_response.json()["token"]
 
-        response = unauthorized_test_client.get(
-            "/connections/enqueue-test", headers={"Airflow-Connection-Test-Token": token}
+        response = test_client.get(
+            "/connections/enqueue-test",
+            headers={**unauthorized_headers, "Airflow-Connection-Test-Token": token},
         )
         assert response.status_code in (401, 403, 404)
         body = (

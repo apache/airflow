@@ -137,8 +137,9 @@ Credentials
 ``SandboxSpec.env`` is the only way in. Airflow never populates it: no connection,
 variable or worker environment variable reaches a sandbox unless you name it
 there, and the credential that *provisions* the sandbox never enters it either.
-Modal's token stays on the worker and is used by the client, so code running
-inside cannot call Modal as you or create further sandboxes.
+Modal's token, whether it comes from the ``modal`` connection or the worker
+environment, stays in the task and is used by the client, so code running inside
+cannot call Modal as you or create further sandboxes.
 
 Before you put a real secret in ``env``, four things are true of it.
 
@@ -203,9 +204,49 @@ capped, 50 KiB per stream for ``run_command`` and ``max_read_bytes`` (5 MiB) per
 ``read_file``. Those caps are a budget rather than a transport limit: a 200 MB file
 reads out of a live sandbox in under ten seconds on the same path, but raising the
 cap costs roughly three times the file size in worker memory to show the model 50
-KiB of it. A file leaves through a task instead: give the agent a sandbox a task
-owns, and read the file out through the backend after the run
-(:ref:`sandbox-attach`).
+KiB of it.
+
+A file leaves through ``exports`` instead. Name the paths the agent will write and
+where each should land, and when the run ends the toolset copies them out before
+it destroys the sandbox. The copy streams through the worker in bounded pieces, so
+a file far over ``max_read_bytes`` is never held in worker memory whole, and none
+of it passes through the model's context or XCom. The destinations are templated
+when the toolset is passed through ``AgentOperator``, so each run writes its own,
+and the ``run_command`` tool tells the model which files will be collected so it
+writes them where they are expected. A local destination's missing directories
+are created; on object storage a key needs none:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sandbox_toolset.py
+    :language: python
+    :start-after: [START howto_sandbox_agent_export]
+    :end-before: [END howto_sandbox_agent_export]
+
+A destination is anything :class:`~airflow.sdk.ObjectStoragePath` can open, with
+credentials from ``export_conn_id``. Only a regular file is exported, up to
+``max_export_bytes`` (1 GiB by default). Two outcomes are kept apart:
+
+* **A promised file that cannot be exported fails the task.** The file is missing,
+  is a directory, is over the limit, changed size while it was copied, took longer
+  than the limit allows at 1 MiB/s, or the storage refused the write. Every file is
+  first copied to a staging key beside its destination, named after it with a
+  ``.partial`` suffix, and the files are moved into place only once all of them
+  have been copied, so a failed export leaves every destination as it was. The
+  staging keys are removed, and one that cannot be is logged and named in the
+  error. The sandbox is still destroyed.
+* **A sandbox that cannot be destroyed afterwards does not.** The file is delivered,
+  the failure is logged with the sandbox's name, and the backend's lifetime or an
+  operator's sweep reclaims it.
+
+A run that fails exports nothing, and a run that never called a tool has no
+sandbox to export from, which fails the task the same way a missing file does.
+None of these touches the destinations, so a file an earlier try exported is
+still there: a consumer that runs whatever the outcome, such as one with
+``trigger_rule=TriggerRule.ALL_DONE``, should check that the task succeeded before
+it trusts a file. A destination that renders to something other than a storage
+URL fails the task before the model runs.
+``exports`` cannot be combined with ``attach_to``: a sandbox another task owns is
+read out by that task (:ref:`sandbox-attach`), which is also the shape to use when
+the files must survive a failed run.
 
 When the deliverable is a file and the Dag already knows the job, do not use an
 agent for it at all. Drive a backend from a ``@task``: the input goes in through
@@ -225,12 +266,14 @@ A sandbox another task owns
 ---------------------------
 
 The toolset's own sandbox is provisioned from a spec fixed in the Dag file, on the
-model's first tool call, and destroyed when the run ends. Three things cannot be
-done inside that shape: a credential cannot come from a connection, a file the
-agent built cannot leave, and a second run against the same agent, which is what
-:ref:`HITL review <howto:hitl_review>` does when a reviewer asks for changes, cannot
-find the first run's files. All three have the same answer. Let a task create the
-sandbox and hand the agent only the handle.
+model's first tool call, and destroyed when the run ends. Two things cannot be
+done inside that shape: a credential for the code inside the sandbox
+(``SandboxSpec.env``) cannot come from a connection, and a second
+run against the same agent, which is what :ref:`HITL review <howto:hitl_review>`
+does when a reviewer asks for changes, cannot find the first run's files. A file
+the agent built can leave through ``exports`` (:ref:`sandbox-results`), but only
+from a run that succeeded. All of these have the same answer. Let a task create
+the sandbox and hand the agent only the handle.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sandbox_toolset.py
     :language: python

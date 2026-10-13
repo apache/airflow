@@ -643,7 +643,7 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
         self.workflow_id = workflow_id
         self.location = location
         self.start_date_filter = start_date_filter or datetime.datetime.now(
-            tz=datetime.timezone.utc
+            tz=datetime.UTC
         ) - datetime.timedelta(minutes=60)
         self.project_id = project_id
         self.retry = retry

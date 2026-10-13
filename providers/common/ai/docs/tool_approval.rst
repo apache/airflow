@@ -127,10 +127,13 @@ Requirements and limits
 
 - Airflow 3.3 or later. On older versions a tool marked for approval fails the
   task, as it did before.
-- Not together with ``durable=True``, ``enable_hitl_review=True``,
-  ``code_mode=True``, or a ``SandboxToolset`` that provisions its own sandbox. Each
+- Not together with ``durable=True``, ``enable_hitl_review=True``, a ``CodeMode``
+  capability, or a ``SandboxToolset`` that
+  provisions its own sandbox. Each
   assumes the run finishes in one go; that sandbox, for one, is destroyed when the
-  run pauses. With any of them, a marked tool fails the task. A ``SandboxToolset``
+  run pauses. With any of them, a marked tool fails the task, except under code mode,
+  where a marked tool called from ``run_code`` does not run and the model may carry on
+  without it (see :doc:`code_mode`). A ``SandboxToolset``
   attached to a sandbox another task owns keeps its files through the pause, so it
   is allowed; the wait spends that sandbox's lifetime
   (:ref:`sandbox-attach`).

@@ -1,5 +1,6 @@
 aarch
 abc
+AbstractCapability
 AbstractFileSystem
 AbstractToolset
 accessor
@@ -232,6 +233,7 @@ ccache
 cdc
 celltags
 centric
+Cerebras
 cfg
 cgi
 cgitb
@@ -287,6 +289,7 @@ Colour
 colour
 colours
 ColumnLineageDatasetFacet
+CombinedCapability
 CommandType
 comparator
 compat
@@ -325,6 +328,7 @@ contextmgr
 contrib
 convertToIri
 cooldown
+Copilot
 copyable
 coreutils
 CoreV
@@ -677,6 +681,7 @@ Filesystem
 filesystem
 filesystems
 filetype
+FilteredToolset
 finalStatus
 fips
 firebase
@@ -839,6 +844,7 @@ ideation
 idempotence
 idempotency
 IdP
+idp
 ie
 iframe
 iframes
@@ -875,7 +881,9 @@ instafail
 installable
 InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceGroupManager
 InstanceSelection
+InstanceTemplate
 instanceTemplates
 InstanceType
 instanceType
@@ -968,6 +976,7 @@ kerberized
 Kerberos
 kerberos
 KerberosClient
+Kev
 keycloak
 Keyfile
 keyfile
@@ -1102,6 +1111,7 @@ midnights
 milli
 millis
 milton
+minification
 minikube
 misconfiguration
 misconfigured
@@ -1149,6 +1159,7 @@ NCUs
 nd
 ndjson
 nearText
+Nebius
 neighbours
 neo
 Neo4j
@@ -1326,6 +1337,7 @@ preflight
 prek
 Preload
 preload
+PreparedToolset
 prepend
 prepended
 prepends
@@ -1489,6 +1501,7 @@ rollup
 rom
 romeoandjuliet
 rootcss
+routable
 rowid
 rpc
 rsa
@@ -1498,6 +1511,7 @@ rtype
 ru
 ruleset
 runAsUser
+RunContext
 runnable
 RunQueryOperator
 RunQuerySensor
@@ -1919,6 +1933,7 @@ Vectorizers
 vendored
 venv
 venvs
+Vercel
 Vertica
 vertica
 Vespa
@@ -1964,12 +1979,14 @@ winrm
 WIT
 workgroup
 workspaces
+WrapperToolset
 writeable
 wsman
 WTF
 wtf
 wtforms
 www
+xAI
 XCom
 Xcom
 xcom

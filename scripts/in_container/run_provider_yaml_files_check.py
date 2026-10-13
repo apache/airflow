@@ -87,6 +87,8 @@ INTERNAL_UNREGISTERED_TOOLSET_CLASSES = {
     # Wraps a toolset with per-step result caching for durable execution; applied
     # automatically by AgentOperator, not part of the public toolsets how-to guide.
     "airflow.providers.common.ai.durable.caching_toolset.CachingToolset",
+    # Masks what a Dag author's toolset returns; applied automatically by AgentOperator.
+    "airflow.providers.common.ai.utils.toolset_base.MaskingToolset",
 }
 
 if __name__ != "__main__":

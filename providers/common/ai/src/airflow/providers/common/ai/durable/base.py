@@ -36,6 +36,16 @@ TOOL_RESULT_SENTINEL = "__durable_cached__"
 DURABLE_KEY_PREFIX = "__commonai_durable__"
 
 
+def build_model_step_key(step: int) -> str:
+    """Build the durable cache key for the model response produced at ``step``."""
+    return f"{DURABLE_KEY_PREFIX}model_step_{step}"
+
+
+def build_tool_step_key(step: int) -> str:
+    """Build the durable cache key for the tool result produced at ``step``."""
+    return f"{DURABLE_KEY_PREFIX}tool_step_{step}"
+
+
 @runtime_checkable
 class DurableStorageProtocol(Protocol):
     """
@@ -46,13 +56,18 @@ class DurableStorageProtocol(Protocol):
     :class:`~airflow.providers.common.ai.durable.task_state_store.TaskStateStoreDurableStorage`
     (AIP-103 task state store, Airflow >= 3.3). ``CachingModel`` and
     ``CachingToolset`` depend on this interface, not a concrete backend.
+
+    Both ``save_*`` methods return whether the entry was written. A backend may
+    skip a write (a tool result that is not JSON-serializable, a store write that
+    fails) without failing the step; the step then re-runs live on retry, and the
+    caller counts it as skipped rather than cached.
     """
 
-    def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> None: ...
+    def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> bool: ...
 
     def load_model_response(self, key: str) -> tuple[ModelResponse | None, str | None]: ...
 
-    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> None: ...
+    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> bool: ...
 
     def load_tool_result(self, key: str) -> tuple[bool, Any, str | None]: ...
 

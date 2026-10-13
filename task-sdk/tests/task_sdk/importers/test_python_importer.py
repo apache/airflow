@@ -35,6 +35,7 @@ import pytest
 
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.importers import (
+    DagImportError,
     FileDagDefinition,
     FilesystemDagDefinition,
     PythonDagImporter,
@@ -207,6 +208,25 @@ class TestPythonDagImporter:
         importer = PythonDagImporter()
         defs = list(importer.list_dag_definitions(mock_bundle))
         assert {d.path.name for d in defs} == {"sample_dag.py"}
+
+    def test_list_dag_definitions_reports_unreadable_file_and_lists_the_rest(self, mock_bundle):
+        (mock_bundle.path / "bad.py").write_text("from airflow.sdk import DAG\n")
+        (mock_bundle.path / "good.py").write_text("from airflow.sdk import DAG\n")
+
+        def _might_contain_dag(self, definition, safe_mode):
+            if definition.path.name == "bad.py":
+                raise PermissionError("Permission denied")
+            return True
+
+        with mock.patch.object(
+            PythonDagImporter, "might_contain_dag", autospec=True, side_effect=_might_contain_dag
+        ):
+            items = list(PythonDagImporter().list_dag_definitions(mock_bundle))
+
+        [error] = [item for item in items if isinstance(item, DagImportError)]
+        assert error.source_reference == "bad.py"
+        assert error.error_type == "read_error"
+        assert [item.path.name for item in items if not isinstance(item, DagImportError)] == ["good.py"]
 
     def test_list_prefers_source_over_pyc_and_skips_pycache(self, mock_bundle):
         (mock_bundle.path / "foo.py").write_text("from airflow.sdk import DAG\n")

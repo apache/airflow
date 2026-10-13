@@ -36,12 +36,17 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxBackend,
     SandboxError,
     SandboxExecResult,
+    SandboxFileTooLargeError,
     SandboxTerminalError,
+    _check_export_deadline,
+    _export_deadline,
     _new_sandbox_name,
     _validate_positive_finite,
 )
 
 if TYPE_CHECKING:
+    from typing import BinaryIO
+
     from airflow.providers.common.ai.sandbox.base import SandboxSpec
 
 # Extra wall-clock beyond the per-command budget to absorb CLI and microVM
@@ -55,6 +60,10 @@ _FILE_OP_TIMEOUT = 120.0
 # Helpers return a status or a directory listing, never bulk file content, so a
 # small cap is enough to bound what a hostile guest can push into worker memory.
 _HELPER_OUTPUT_CAP = 1024 * 1024
+# Seconds an export may go without a byte arriving before it is ended. The whole copy
+# is bounded separately, by ``_export_deadline``; measured, 200 MB streams out of a
+# local microVM in under three seconds.
+_EXPORT_STALL_TIMEOUT = 120.0
 
 log = logging.getLogger(__name__)
 
@@ -108,7 +117,7 @@ class SbxSandboxBackend(SandboxBackend):
     can find and remove them; budget for that sweep before running this at scale.
 
     The template image must provide GNU coreutils ``timeout``, ``base64``, ``stat``,
-    ``find``, ``mkdir`` and ``dirname``, which the command and file tools use. Any Debian or Ubuntu based
+    ``head``, ``find``, ``mkdir`` and ``dirname``, which the command and file tools use. Any Debian or Ubuntu based
     image, including ``python:*-slim``, does.
 
     :param image: Container image for the sandbox (``sbx --template``).
@@ -457,6 +466,85 @@ class SbxSandboxBackend(SandboxBackend):
         )
         if code:
             raise SandboxError(stderr.decode(errors="replace").strip() or f"Could not write {path!r}.")
+
+    def export_file(self, sandbox: str, path: str, dest: BinaryIO, *, max_bytes: int) -> int:
+        """
+        Override: stream the file out of one ``sbx exec`` straight into ``dest``.
+
+        ``sbx exec`` carries the guest's stdout byte for byte, so the default's
+        base64 round trip per slice buys nothing here. The guest reports the size it
+        is about to send on stderr, which is how a file still being written is caught.
+        """
+        quoted = shlex.quote(path)
+        script = (
+            f"{self._export_checks(quoted, max_bytes)} "
+            f"{self._print_export_size(to_stderr=True)} exec head -c {max_bytes + 1} -- {quoted}"
+        )
+        deadline = _export_deadline(max_bytes)
+        written = 0
+        stderr = bytearray()
+        stalled = threading.Event()
+        expired = threading.Event()
+        finished = threading.Event()
+        last_progress = [time.monotonic()]
+        with subprocess.Popen(
+            [self._sbx_path, "exec", sandbox, "sh", "-c", script],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+        ) as proc:
+
+            def kill() -> None:
+                with suppress(OSError):
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                with suppress(OSError):
+                    proc.kill()
+
+            def watch() -> None:
+                # Two clocks: the stall one restarts with every chunk, so a large file that
+                # keeps moving is not cut off; the deadline does not, so a guest that
+                # trickles a byte now and then is ended too.
+                while not finished.wait(min(1.0, _EXPORT_STALL_TIMEOUT / 4)):
+                    now = time.monotonic()
+                    if now - last_progress[0] > _EXPORT_STALL_TIMEOUT or now > deadline:
+                        (stalled if now <= deadline else expired).set()
+                        kill()
+                        return
+
+            def drain_stderr() -> None:
+                with suppress(ValueError, OSError):
+                    for chunk in iter(lambda: proc.stderr.read(4096), b""):  # type: ignore[union-attr]
+                        stderr.extend(chunk[: _HELPER_OUTPUT_CAP - len(stderr)])
+
+            drainer = threading.Thread(target=drain_stderr, daemon=True)
+            watchdog = threading.Thread(target=watch, daemon=True)
+            drainer.start()
+            watchdog.start()
+            try:
+                for chunk in iter(lambda: proc.stdout.read(65536), b""):  # type: ignore[union-attr]
+                    written += len(chunk)
+                    if written > max_bytes:
+                        raise SandboxFileTooLargeError(path, written, max_bytes)
+                    dest.write(chunk)
+                    last_progress[0] = time.monotonic()
+                proc.wait()
+            finally:
+                finished.set()
+                if proc.poll() is None:
+                    kill()
+                    proc.wait()
+                drainer.join(timeout=5.0)
+        if expired.is_set():
+            _check_export_deadline(path, deadline, max_bytes)
+        if stalled.is_set():
+            raise SandboxError(f"Exporting {path!r} stalled: no data arrived for {_EXPORT_STALL_TIMEOUT:g}s.")
+        report = stderr.decode(errors="replace")
+        self._raise_for_export_status(
+            path, SandboxExecResult(exit_code=proc.returncode, stdout="", stderr=report), max_bytes
+        )
+        self._check_export_size(path, expected=self._parse_export_size(report), written=written)
+        return written
 
     def destroy(self, sandbox: str) -> None:
         # Already-gone is fine -- 'sbx rm -f' exits nonzero for a missing sandbox,

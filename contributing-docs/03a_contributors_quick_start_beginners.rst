@@ -55,8 +55,6 @@ For Breeze (local development):
 .. code-block:: bash
 
     uv tool install prek
-    prek install -f
-    prek install -f --hook-type pre-push
 
 * 4GB RAM, 40GB disk space, and at least 2 CPU cores
 
@@ -67,15 +65,24 @@ For Breeze (local development):
 
 Option A – Breeze on Your Laptop
 --------------------------------
-1.  **Clone your fork and install Breeze**
+1.  **Clone your fork**
 
 .. code-block:: bash
 
     git clone https://github.com/<you>/airflow.git
     cd airflow
+
+2.  **Set up Git hooks and install Breeze**
+
+Run these commands from the root of your cloned Airflow repository:
+
+.. code-block:: bash
+
+    prek install -f
+    prek install -f --hook-type pre-push
     ./scripts/tools/setup_breeze
 
-2. Setup your idea workspace to detect project src/ and tests/ folders as source roots.
+3. Setup your idea workspace to detect project src/ and tests/ folders as source roots.
 
 .. code-block:: bash
 
@@ -85,13 +92,13 @@ Option A – Breeze on Your Laptop
     # For VS Code
     uv run dev/ide_setup/setup_vscode.py
 
-3. Create a branch for your change
+4. Create a branch for your change
 
 .. code-block:: bash
 
     git checkout -b <your-branch-name>
 
-4.  **Start the development container** (first run builds the image)
+5.  **Start the development container** (first run builds the image)
 
 .. code-block:: bash
 
@@ -122,19 +129,19 @@ To exit breeze, press ``q`` in the ``mprocs`` interface (or in any of the tmux p
 
 This flag enables configuration to load example Dags when starting Airflow, which is useful for exploring Airflow's capabilities and testing.
 
-5. **Set up virtual environment and install dependencies**  - To run prek locally
+6. **Set up virtual environment and install dependencies**  - To run prek locally
 
 Install airflow dependencies from this `guide <03_contributors_quick_start.rst#setting-up-virtual-env>`__.
 
-6.  **Make a tiny change** – e.g. fix a typo in docs
+7.  **Make a tiny change** – e.g. fix a typo in docs
 
-7.  **Run local checks**
+8.  **Run local checks**
 
 .. code-block:: bash
 
     prek --all-files
 
-8.  **Run tests**
+9.  **Run tests**
 
 Run tests related to your change **before** pushing:
 
@@ -146,14 +153,14 @@ Run tests related to your change **before** pushing:
 Run ``breeze testing --help`` to see all available test groups.
 For more on testing, see the `Testing Guide <09_testing.rst>`_.
 
-9.  **Commit & push**
+10.  **Commit & push**
 
 .. code-block:: bash
 
     git commit -am "fix typo in README"
     git push -u origin <your-branch-name>
 
-10.  **Open the PR** – GitHub shows a "Compare & pull request" button.
+11.  **Open the PR** – GitHub shows a "Compare & pull request" button.
 
 *Syncing your branch*
 

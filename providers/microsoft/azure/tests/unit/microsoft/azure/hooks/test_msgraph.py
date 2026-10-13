@@ -532,6 +532,23 @@ class TestKiotaRequestAdapterHook:
             await hook.assert_allowed_host("https://other.example/v1.0/users")
 
     @pytest.mark.asyncio
+    async def test_get_async_conn_reads_the_extra_with_get_async_extra_dejson(self):
+        """The extra comes from the async compat helper, which masks its secrets off the sync Task SDK path."""
+        with (
+            patch_hook(),
+            patch(
+                "airflow.providers.microsoft.azure.hooks.msgraph.get_async_extra_dejson",
+                new_callable=AsyncMock,
+                side_effect=lambda connection: json.loads(connection.extra),
+            ) as mock_get_async_extra_dejson,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_async_extra")
+            await hook.get_async_conn()
+
+        mock_get_async_extra_dejson.assert_awaited_once()
+        assert mock_get_async_extra_dejson.await_args.args[0].conn_id == "msgraph_async_extra"
+
+    @pytest.mark.asyncio
     async def test_build_request_adapter_masks_secrets(self):
         """Test that sensitive data is masked when building request adapter."""
         with patch_hook(
@@ -624,8 +641,8 @@ class TestKiotaRequestAdapterHook:
             .issuer_name(name)
             .public_key(private_key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
-            .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1))
+            .not_valid_before(datetime.datetime.now(datetime.UTC))
+            .not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1))
             .sign(private_key, hashes.SHA256())
         )
         pem = private_key.private_bytes(

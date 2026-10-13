@@ -596,6 +596,13 @@ services:
         return "psycopg"
 
     @property
+    def postgres_data_volume_path(self) -> str:
+        """The ``VOLUME`` the postgres image declares; it moved from ``data/`` to its parent in 18."""
+        if self.backend == "postgres" and int(self.postgres_version) >= 18:
+            return "/var/lib/postgresql"
+        return "/var/lib/postgresql/data"
+
+    @property
     def env_variables_for_docker_commands(self) -> dict[str, str]:
         """
         Constructs environment variables needed by the docker-compose command, based on Shell parameters
@@ -718,6 +725,7 @@ services:
         _set_var(_env, "NUM_RUNS", self.num_runs)
         _set_var(_env, "ONLY_MIN_VERSION_UPDATE", self.only_min_version_update)
         _set_var(_env, "DISTRIBUTION_FORMAT", self.distribution_format)
+        _set_var(_env, "POSTGRES_DATA_VOLUME_PATH", self.postgres_data_volume_path)
         _set_var(_env, "POSTGRES_DRIVER", self.postgres_driver)
         _set_var(_env, "POSTGRES_HOST_PORT", None, POSTGRES_HOST_PORT)
         _set_var(_env, "POSTGRES_VERSION", self.postgres_version)

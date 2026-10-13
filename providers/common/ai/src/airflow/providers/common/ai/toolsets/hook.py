@@ -22,24 +22,26 @@ import copy
 import inspect
 import re
 import types
+import warnings
 from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hints
 
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
-from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
+from pydantic_ai.toolsets.abstract import ToolsetTool
 
-from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.utils.tool_definition import (
     build_args_validator,
     return_schema_kwargs,
     serialize_for_llm,
 )
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterable, Sequence
 
     from pydantic_ai._run_context import RunContext
 
-    from airflow.providers.common.ai.tools import AirflowTool
     from airflow.providers.common.compat.sdk import BaseHook
 
 # Maps Python types to JSON Schema fragments.
@@ -54,7 +56,7 @@ _TYPE_MAP: dict[type, dict[str, Any]] = {
 }
 
 
-class HookToolset(AbstractToolset[Any]):
+class HookToolset(AirflowToolset):
     """
     Expose selected methods of an Airflow Hook as pydantic-ai tools.
 
@@ -70,8 +72,24 @@ class HookToolset(AbstractToolset[Any]):
         is not modified; each task instance gets a copy.
     :param allowed_methods: Method names to expose as tools. Required —
         auto-discovery is intentionally not supported for safety.
-    :param tool_name_prefix: Optional prefix prepended to each tool name
-        (e.g. ``"s3_"`` → ``"s3_list_keys"``).
+    :param tool_prefix: Optional prefix joined to each tool name with an underscore
+        (e.g. ``"s3"`` → ``"s3_list_keys"``). Must be a valid Python identifier.
+    :param tool_name_prefix: Deprecated. Concatenated to each tool name as given
+        (``"s3_"`` → ``"s3_list_keys"``, ``"s3"`` → ``"s3list_keys"``) and not validated.
+        Passing it with ``tool_prefix`` raises ``ValueError`` unless it equals
+        ``"<tool_prefix>_"``.
+    :param pinned_arguments: Experimental. Arguments the Dag author fixes, such as the bucket a
+        storage hook may use: ``{"bucket_name": "reports"}``. Each is left out of the
+        arguments the model sees, refused if the model supplies it anyway, and passed to
+        every allowed method as it is written here, not rendered as a template. Every allowed
+        method must take each pinned argument as a named parameter: one that does not, such
+        as a method taking ``bucket`` or only ``**kwargs``, raises ``ValueError``, because
+        the model could still choose the value through it. Expose such a method from a
+        second ``HookToolset``.
+    :param max_retries: How many times the model may correct a call with invalid arguments,
+        or one that supplies a pinned argument, before the run fails. An exception from the
+        hook itself fails the run straight away. ``None`` (the default) uses the agent's
+        tool retry budget, its ``retries``, as pydantic-ai's own toolsets do.
     """
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
@@ -83,8 +101,33 @@ class HookToolset(AbstractToolset[Any]):
         hook: BaseHook,
         *,
         allowed_methods: list[str],
-        tool_name_prefix: str = "",
+        tool_prefix: str = "",
+        tool_name_prefix: str | None = None,
+        pinned_arguments: dict[str, Any] | None = None,
+        max_retries: int | None = None,
     ) -> None:
+        if tool_prefix and not tool_prefix.isidentifier():
+            # The prefixed names are rendered as Python function signatures under
+            # code mode, so a name that is not an identifier breaks there.
+            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
+        if tool_name_prefix is not None:
+            if tool_prefix and f"{tool_prefix}_" != tool_name_prefix:
+                raise ValueError(
+                    f"tool_prefix={tool_prefix!r} and tool_name_prefix={tool_name_prefix!r} conflict. "
+                    f"Pass only tool_prefix; tool_name_prefix is its deprecated alias and must equal "
+                    f"{tool_prefix + '_'!r} when both are given."
+                )
+            warnings.warn(
+                f"Parameter `tool_name_prefix` is deprecated. Use "
+                f"`tool_prefix={tool_name_prefix.removesuffix('_')!r}` instead; "
+                f"HookToolset adds the '_' itself.",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            name_prefix = tool_name_prefix
+        else:
+            name_prefix = f"{tool_prefix}_" if tool_prefix else ""
+        self._max_retries = validate_max_retries(max_retries)
         if not allowed_methods:
             raise ValueError("allowed_methods must be a non-empty list.")
 
@@ -97,9 +140,30 @@ class HookToolset(AbstractToolset[Any]):
             if not callable(getattr(hook, method_name)):
                 raise ValueError(f"{hook_cls_name}.{method_name} is not callable.")
 
+        # Every allowed method has to name each pin as a parameter it can be passed by name. A
+        # method that takes the value under another name, inside a dict, or through **kwargs
+        # would let the model choose it after all, so it is refused rather than left unpinned.
+        pinned_arguments = pinned_arguments or {}
+        unpinned: dict[str, list[str]] = {}
+        for method_name in allowed_methods if pinned_arguments else ():
+            parameters = inspect.signature(getattr(hook, method_name)).parameters.values()
+            named = {p.name for p in parameters if p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)}
+            if missing := sorted(set(pinned_arguments) - named):
+                unpinned[method_name] = missing
+        if unpinned:
+            details = "; ".join(
+                f"{method}() does not take {', '.join(args)}" for method, args in unpinned.items()
+            )
+            raise ValueError(
+                f"Every allowed method of {hook_cls_name!r} has to take each pinned argument by name, or "
+                f"the model could still choose it through that method: {details}. Expose such a method "
+                "from a second HookToolset."
+            )
+        self._pinned: dict[str, Any] = dict(pinned_arguments)
+
         self._hook = hook
         self._allowed_methods = allowed_methods
-        self._tool_name_prefix = tool_name_prefix
+        self._name_prefix = name_prefix
         # The attribute holding the hook's connection ID, e.g. ``postgres_conn_id``. Some hooks
         # name one attribute in conn_name_attr but keep the ID in ``conn_id`` (WasbHook,
         # KubernetesHook), so fall back to that.
@@ -129,26 +193,12 @@ class HookToolset(AbstractToolset[Any]):
         name = type(self._hook).__name__
         return f"hook-{name}-{self.conn_id}" if self.conn_id else f"hook-{name}"
 
-    def airflow_tools(self) -> list[AirflowTool]:
-        """
-        Return this toolset's tools as framework-neutral tools.
-
-        Each is an :class:`~airflow.providers.common.ai.tools.AirflowTool`. Use
-        them to give the tools to an agent framework other than pydantic-ai,
-        for example through
-        :func:`~airflow.providers.common.ai.tools.strands.as_strands_tools`. The
-        tools behave as they do in ``AgentOperator``, and every result and error
-        passes through Airflow's secret masker before the model sees it.
-
-        .. warning:: Experimental; see :mod:`airflow.providers.common.ai.tools`.
-        """
-        return airflow_tools_from_toolset(self)
-
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
+        max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
         for method_name in self._allowed_methods:
             method = getattr(self._hook, method_name)
-            tool_name = f"{self._tool_name_prefix}{method_name}" if self._tool_name_prefix else method_name
+            tool_name = f"{self._name_prefix}{method_name}"
 
             json_schema = _build_json_schema_from_signature(method)
             description = _extract_description(method)
@@ -158,10 +208,18 @@ class HookToolset(AbstractToolset[Any]):
             for param_name, param_desc in param_docs.items():
                 if param_name in json_schema.get("properties", {}):
                     json_schema["properties"][param_name]["description"] = param_desc
+            _drop_properties(json_schema, self._pinned)
+            # The validator accepts the pinned names, with any value, so a model that sends one
+            # anyway is told it is fixed rather than given a generic extra-input or type error.
+            args_schema = {
+                **json_schema,
+                "properties": json_schema["properties"] | {name: {} for name in self._pinned},
+            }
 
-            # sequential=True because hook methods perform synchronous I/O
-            # (network calls, DB queries) and should not run concurrently.
-            # return_schema is "string": call_tool serializes every result with
+            # sequential=True keeps pydantic-ai from running these calls concurrently
+            # within a turn; run_blocking's process-wide lock serializes them with the
+            # blocking calls of the other toolsets that use it.
+            # return_schema is "string": execute_tool serializes every result with
             # serialize_for_llm, so the tool always returns a (JSON-encoded)
             # string regardless of the method's own return annotation. This lets
             # code mode render `-> str` instead of `-> Any`.
@@ -175,21 +233,35 @@ class HookToolset(AbstractToolset[Any]):
             tools[tool_name] = ToolsetTool(
                 toolset=self,
                 tool_def=tool_def,
-                max_retries=1,
-                args_validator=build_args_validator(json_schema),
+                max_retries=max_retries,
+                args_validator=build_args_validator(args_schema),
+                # Refused during validation, so an approval gate never asks about such a call.
+                args_validator_func=self._refuse_pinned if self._pinned else None,
             )
         return tools
 
-    async def call_tool(
+    def _refuse_pinned(self, ctx: RunContext[Any], /, **tool_args: Any) -> None:
+        if supplied := sorted(self._pinned.keys() & tool_args.keys()):
+            one = len(supplied) == 1
+            raise ModelRetry(
+                f"{', '.join(supplied)} {'is' if one else 'are'} fixed for this tool: call it again "
+                f"without {'it' if one else 'them'}."
+            )
+
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        method_name = name.removeprefix(self._tool_name_prefix) if self._tool_name_prefix else name
+        method_name = name.removeprefix(self._name_prefix)
         method: Callable[..., Any] = getattr(self._hook, method_name)
-        result = method(**tool_args)
+        # The framework bridges validate arguments without args_validator_func, so check again here.
+        self._refuse_pinned(ctx, **tool_args)
+        # A copy per call, so a method that modifies an argument it is given cannot change the pin.
+        result = await self.run_blocking(method, **tool_args, **copy.deepcopy(self._pinned))
         return serialize_for_llm(result)
 
 
@@ -313,3 +385,12 @@ def _parse_param_docs(docstring: str) -> dict[str, str]:
                 params[m.group(1)] = " ".join(m.group(2).split())
 
     return params
+
+
+def _drop_properties(schema: dict[str, Any], names: Iterable[str]) -> None:
+    for name in names:
+        schema["properties"].pop(name, None)
+        if name in schema.get("required", ()):
+            schema["required"].remove(name)
+    if "required" in schema and not schema["required"]:
+        del schema["required"]

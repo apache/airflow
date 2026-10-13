@@ -424,7 +424,7 @@ def docker_resources():
         elif action == "inspect":
             output = json.dumps(resources[kind])
         else:
-            assert action in ("stop", "rm")
+            assert action in ("stop", "wait", "rm")
             output = ""
         return subprocess.CompletedProcess(cmd, 0, stdout=output, stderr="")
 
@@ -502,7 +502,7 @@ def test_down_selects_checkout_stale_or_explicit_projects(
         stops = [cmd for cmd in commands if cmd[1:3] == ["container", "stop"]]
         assert {arg for cmd in stops for arg in cmd[3:]} == {f"{project}-container" for project in expected}
         first_removal = next(i for i, cmd in enumerate(commands) if cmd[2] == "rm")
-        assert all(cmd[2] in ("ls", "inspect", "stop") for cmd in commands[:first_removal])
+        assert all(cmd[2] in ("ls", "inspect", "stop", "wait") for cmd in commands[:first_removal])
         removal = next(cmd for cmd in commands if cmd[1:3] == ["container", "rm"])
         assert ("--volumes" in removal) is not preserve_volumes
 
@@ -612,14 +612,19 @@ def test_startup_cleanup_continues_after_docker_failures(docker_resources, tmp_p
         return result
 
     run.side_effect = fail
-    assert docker_command_utils.bring_compose_projects_down(stale_only=True) == []
-    assert capsys.readouterr().out.count("Unable to clean up some deleted-worktree resources") == 1
+    stop_failed = failed_action == "stop"
+    assert docker_command_utils.bring_compose_projects_down(stale_only=True) == (
+        ["stale"] if stop_failed else []
+    )
+    assert capsys.readouterr().out.count("Unable to clean up some deleted-worktree resources") == (
+        0 if stop_failed else 1
+    )
     commands = [c.args[0] for c in run.call_args_list]
     if failed_action == "ls":
         assert all(cmd[2] == "ls" for cmd in commands)
     else:
         assert ["docker", "volume", "rm", "database"] in commands
-        assert ["docker", "container", "rm", "--volumes", "remaining"] in commands
+        assert ["docker", "container", "rm", "--force", "--volumes", "remaining"] in commands
         assert not any("vanished" in cmd for cmd in commands if cmd[2] in ("stop", "rm"))
 
 
@@ -670,6 +675,77 @@ def test_down_stops_after_container_removal_failure(docker_resources):
         docker_command_utils.bring_compose_projects_down()
 
     assert not any(c.args[0][1:3] == ["volume", "rm"] for c in run.call_args_list)
+
+
+def test_down_force_removes_containers_that_outlive_stop(docker_resources, capsys):
+    resources, run = docker_resources
+    labels = {"com.docker.compose.project": "breeze"}
+    resources["container"] = [{"Id": "container", "Config": {"Labels": labels}}]
+    docker = run.side_effect
+
+    def fail(cmd, **kwargs):
+        if cmd[1:3] == ["container", "stop"]:
+            if kwargs.get("check"):
+                raise subprocess.CalledProcessError(1, cmd)
+            return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="did not receive an exit event")
+        return docker(cmd, **kwargs)
+
+    run.side_effect = fail
+    assert docker_command_utils.bring_compose_projects_down() == ["breeze"]
+
+    assert "Stopping Breeze containers" in capsys.readouterr().out
+    assert [c.args[0] for c in run.call_args_list if c.args[0][2] in ("stop", "wait", "rm")] == [
+        ["docker", "container", "stop", "container"],
+        ["docker", "container", "wait", "container"],
+        ["docker", "container", "rm", "--force", "--volumes", "container"],
+    ]
+
+
+def test_down_skips_removal_of_containers_that_removed_themselves(docker_resources):
+    resources, run = docker_resources
+    labels = {"com.docker.compose.project": "breeze"}
+    resources["container"] = [{"Id": "container", "Config": {"Labels": labels}}]
+    resources["volume"] = [{"Name": "database", "Labels": labels}]
+    docker = run.side_effect
+
+    def remove_on_stop(cmd, **kwargs):
+        if cmd[1:3] == ["container", "stop"]:
+            resources["container"].clear()
+        return docker(cmd, **kwargs)
+
+    run.side_effect = remove_on_stop
+    assert docker_command_utils.bring_compose_projects_down() == ["breeze"]
+
+    assert [c.args[0] for c in run.call_args_list if c.args[0][2] == "rm"] == [
+        ["docker", "volume", "rm", "database"]
+    ]
+
+
+def test_startup_cleanup_reports_containers_that_cannot_be_listed_after_stop(
+    docker_resources, tmp_path, capsys
+):
+    resources, run = docker_resources
+    labels = {
+        "com.docker.compose.project": "stale",
+        "org.apache.airflow.breeze": "true",
+        "org.apache.airflow.breeze.worktree": str(tmp_path / "deleted"),
+    }
+    resources["container"] = [{"Id": "remaining", "Config": {"Labels": labels}}]
+    docker = run.side_effect
+    stopped = False
+
+    def fail_listing_after_stop(cmd, **kwargs):
+        nonlocal stopped
+        result = docker(cmd, **kwargs)
+        if cmd[1:3] == ["container", "stop"]:
+            stopped = True
+        if stopped and cmd[1:3] == ["container", "ls"]:
+            result.returncode = 1
+        return result
+
+    run.side_effect = fail_listing_after_stop
+    assert docker_command_utils.bring_compose_projects_down(stale_only=True) == []
+    assert capsys.readouterr().out.count("Unable to clean up some deleted-worktree resources") == 1
 
 
 def test_down_removes_volumes_even_when_a_shared_network_is_still_in_use(docker_resources):
@@ -797,7 +873,7 @@ def test_enter_shell_openlineage_rejects_non_postgres_backend(
     mock_run_command.assert_not_called()
 
 
-CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.10:latest"
+CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.11:latest"
 
 
 def _fake_docker_calls(present_images: set[str], failing_pulls: dict[str, int]):

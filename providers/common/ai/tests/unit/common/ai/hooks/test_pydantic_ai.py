@@ -337,6 +337,21 @@ def registry():
         yield reg
 
 
+class TestPydanticAIHookGetHook:
+    def test_builds_the_connection_hook_with_hook_params(self, registry):
+        """Airflow 2's ``BaseHook.get_hook`` takes no ``hook_params``; the hook's own override does."""
+        registry.add("llm")
+
+        hook = PydanticAIHook.get_hook(
+            "llm", hook_params={"model_id": "openai:gpt-5", "fallback_conn_ids": []}
+        )
+
+        assert isinstance(hook, PydanticAIHook)
+        assert hook.llm_conn_id == "llm"
+        assert hook.model_id == "openai:gpt-5"
+        assert hook.fallback_conn_ids == []
+
+
 class _InferModelStub:
     """Resolve every model string to its own recognisable model, and record how it was built."""
 
@@ -1438,9 +1453,6 @@ class TestPydanticAIAzureHook:
     def test_conn_type(self):
         assert PydanticAIAzureHook.conn_type == "pydanticai_azure"
 
-    def test_hook_name(self):
-        assert "Azure" in PydanticAIAzureHook.hook_name
-
     def test_ui_metadata(self):
         expected_placeholders = {
             "host": "https://<resource>.openai.azure.com/openai/v1",
@@ -1571,9 +1583,6 @@ class TestPydanticAIBedrockHook:
     def test_conn_type(self):
         assert PydanticAIBedrockHook.conn_type == "pydanticai_bedrock"
 
-    def test_hook_name(self):
-        assert "Bedrock" in PydanticAIBedrockHook.hook_name
-
     def test_ui_hides_host_and_password(self):
         behaviour = PydanticAIBedrockHook.get_ui_field_behaviour()
         assert "host" in behaviour["hidden_fields"]
@@ -1700,9 +1709,6 @@ class TestPydanticAIVertexHook:
 
     def test_conn_type(self):
         assert PydanticAIVertexHook.conn_type == "pydanticai_vertex"
-
-    def test_hook_name(self):
-        assert "Vertex" in PydanticAIVertexHook.hook_name
 
     def test_ui_hides_host_and_password(self):
         behaviour = PydanticAIVertexHook.get_ui_field_behaviour()

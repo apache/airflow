@@ -165,8 +165,18 @@ class TestSqlAlchemySettings:
             engine_args = {"arg": 1}
             if settings.SQL_ALCHEMY_CONN.startswith("mysql"):
                 engine_args["isolation_level"] = "READ COMMITTED"
+            # Airflow merges driver defaults under the configured args rather than passing
+            # the configured object through, so compare against the merge rather than
+            # against SQL_ALCHEMY_CONNECT_ARGS itself.
+            expected_connect_args = {
+                **settings._psycopg3_connect_args(settings.SQL_ALCHEMY_CONN),
+                **SQL_ALCHEMY_CONNECT_ARGS,
+            }
+            if settings.SQL_ALCHEMY_CONN.startswith("sqlite"):
+                # configure_orm adds this after the merge.
+                expected_connect_args["check_same_thread"] = False
             expected_kwargs = dict(
-                connect_args=SQL_ALCHEMY_CONNECT_ARGS,
+                connect_args=expected_connect_args,
                 poolclass=NullPool,
                 future=True,
                 **engine_args,
