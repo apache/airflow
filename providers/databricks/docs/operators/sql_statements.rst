@@ -116,14 +116,21 @@ Explicit assets
 ``DatabricksSQLStatementsOperator`` does not infer which Databricks tables a SQL
 statement writes to. Declare output assets explicitly using ``outlets``::
 
-    from airflow.sdk import Asset
+    from airflow.providers.databricks.assets.databricks import UnityTableIdentity
+
+    table = UnityTableIdentity(
+        host="my-workspace.cloud.databricks.com",
+        catalog="main",
+        schema="default",
+        table="my_airflow_table",
+    )
 
     DatabricksSQLStatementsOperator(
         task_id="sql_statement",
         statement="insert into default.my_airflow_table values (3, 'test 3')",
         warehouse_id=WAREHOUSE_ID,
         outlets=[
-            Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")
+            table.to_asset()
         ],
     )
 
