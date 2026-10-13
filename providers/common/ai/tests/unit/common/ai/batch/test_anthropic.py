@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import pytest
@@ -29,6 +28,7 @@ from airflow.providers.common.ai.exceptions import LLMBatchLimitExceededError, L
 
 anthropic = pytest.importorskip("anthropic")
 
+from anthropic._utils._json import openapi_dumps  # noqa: E402
 from anthropic.types import Message, TextBlock, ToolUseBlock  # noqa: E402
 from anthropic.types.messages import MessageBatch, MessageBatchIndividualResponse  # noqa: E402
 
@@ -269,14 +269,15 @@ class TestSubmitRequestShape:
 
 def _inline_payload_bytes(client) -> int:
     """
-    Return the UTF-8 bytes the built requests occupy in the inline ``batches.create`` body.
+    Return the bytes the SDK's own encoder produces for the built requests.
 
-    Anthropic takes the batch inline, so httpx is what encodes it: ``ensure_ascii=False``
-    then UTF-8 (``httpx._content.encode_json``). The per-request sum ignores the constant
-    ``{"requests": [...]}`` framing, which is what ``validate_requests`` also leaves out.
+    Deriving the expectation from the encoder rather than repeating ``_utf8_size``'s
+    expression keeps it independent of the code under test, and turns these tests into
+    a tripwire for an SDK that changes how it serializes a request. The per-request sum
+    ignores the constant ``{"requests": [...]}`` framing, as ``validate_requests`` does.
     """
     built = client.messages.batches.created[0]["requests"]
-    return sum(len(json.dumps(item, ensure_ascii=False).encode()) for item in built)
+    return sum(len(openapi_dumps(item)) for item in built)
 
 
 class TestPayloadSizeEstimate:
@@ -310,7 +311,7 @@ class TestPayloadSizeEstimate:
 
         spec = build_output_spec(NonAsciiSchema)
         directive = adapter.build_output_directive(spec)
-        expected = len(json.dumps(directive, ensure_ascii=False).encode())
+        expected = len(openapi_dumps(directive))
 
         adapter.max_payload_bytes = 0
         with pytest.raises(LLMBatchLimitExceededError, match=rf"adds ~{expected} bytes"):

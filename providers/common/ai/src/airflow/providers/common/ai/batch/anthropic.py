@@ -75,15 +75,16 @@ def _batch_status(batch: Any) -> BatchStatus:
 
 def _utf8_size(payload: Any) -> int:
     r"""
-    Measure what ``payload`` costs in the inline ``batches.create`` body, in bytes.
+    Measure what one inline ``batches.create`` request costs on the wire, in bytes.
 
-    The requests go inline, so httpx is what serializes them: ``ensure_ascii=False``
-    and then UTF-8. Measuring with ``json.dumps`` defaults would instead charge a CJK
-    character the six bytes of its ``\uXXXX`` escape rather than the three it occupies
-    on the wire. ``batch/openai.py`` sizes its own payload with the ASCII-escaped
-    defaults because it builds the uploaded JSONL file that way itself.
+    The SDK serializes the batch itself and hands httpx a finished body, so its own
+    encoder settles the size (``anthropic/_utils/_json.py``): ``ensure_ascii=False``,
+    ``separators=(",", ":")``, then UTF-8. The ``json.dumps`` defaults would charge a
+    CJK character the six bytes of its ``\uXXXX`` escape rather than the three it
+    occupies, plus two bytes of whitespace per separator. The ``{"requests": [...]}``
+    framing around the requests is not counted.
     """
-    return len(json.dumps(payload, ensure_ascii=False).encode())
+    return len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode())
 
 
 def _build_client(api_key: str | None, base_url: str | None) -> Any:
