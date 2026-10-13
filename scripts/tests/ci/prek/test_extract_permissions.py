@@ -537,14 +537,21 @@ class TestExtractFromFile:
         assert len(entries) == 1
         assert entries[0].resource == "DAG"
 
-    def test_syntax_error_returns_empty_list(self, tmp_path, capsys):
+    def test_syntax_error_aborts_instead_of_dropping_entries(self, tmp_path, capsys):
         f = tmp_path / "broken.py"
         f.write_text("def broken(:\n")
-        entries = extract_from_file(f)
-        assert entries == []
-        # Should print a warning, not raise
+        with pytest.raises(SystemExit) as exc_info:
+            extract_from_file(f)
+        assert exc_info.value.code == 1
         captured = capsys.readouterr()
-        assert "WARN" in captured.err
+        assert "FAIL" in captured.err
+        assert str(f) in captured.err
+
+    def test_unreadable_file_aborts(self, tmp_path, capsys):
+        with pytest.raises(SystemExit) as exc_info:
+            extract_from_file(tmp_path / "does_not_exist.py")
+        assert exc_info.value.code == 1
+        assert "FAIL" in capsys.readouterr().err
 
     def test_source_file_is_basename(self, tmp_path):
         f = _make_route_file(

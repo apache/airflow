@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.11"
+# ///
 """
 Extract permission requirements from FastAPI routes in Airflow REST API.
 
@@ -276,8 +279,11 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source)
     except (OSError, SyntaxError) as exc:
-        print(f"[WARN] Could not parse {path.name}: {exc}", file=sys.stderr)
-        return []
+        # Returning no entries here would quietly shrink a security reference that readers
+        # trust to be complete, and the caller has no way to tell that apart from a file
+        # that genuinely declares no routes. Stop the run instead.
+        print(f"[FAIL] Could not parse {path}: {exc}", file=sys.stderr)
+        raise SystemExit(1)
 
     # Build lookup tables for this file
     module_consts = _extract_module_string_constants(tree)
