@@ -4165,7 +4165,8 @@ class TestMappedTaskInstanceReceiveValue:
         for ti in tis:
             ti.refresh_from_task(show_task)
             dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
-        assert outputs == [(2, 5), (2, 10), (4, 5), (4, 10), (8, 5), (8, 10)]
+        # The iterations run concurrently in worker threads, so the order they append in is not fixed.
+        assert sorted(outputs) == [(2, 5), (2, 10), (4, 5), (4, 10), (8, 5), (8, 10)]
 
     @pytest.mark.parametrize(
         ("upstream_is_iterated", "trigger_rule"),
