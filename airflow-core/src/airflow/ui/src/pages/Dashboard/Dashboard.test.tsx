@@ -39,7 +39,7 @@ vi.mock("openapi/queries", () => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    i18n: { language: "en" },
+    i18n: { dir: () => "ltr", language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, options?: { count?: number }) =>
       key === "alerts.showMoreAlerts"
@@ -151,5 +151,21 @@ describe("Dashboard alerts collapse toggle", () => {
     expect(screen.getByText("Only alert")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /alert/u })).not.toBeInTheDocument();
     expect(globalThis.localStorage.getItem(COLLAPSED_UI_ALERTS_KEY)).toBeNull();
+  });
+});
+
+describe("Time Schedule entry", () => {
+  it("renders a separate card linking to Time Schedule", () => {
+    setAlerts([]);
+
+    render(<Dashboard />, { wrapper: Wrapper });
+
+    expect(screen.getByRole("link", { name: "timeSchedule.title" })).toContainElement(
+      screen.getByText("timeSchedule.description"),
+    );
+    expect(screen.getByRole("link", { name: "timeSchedule.title" })).toHaveAttribute(
+      "href",
+      "/time-schedule",
+    );
   });
 });

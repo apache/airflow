@@ -43,6 +43,7 @@ import { Health } from "./Health";
 import { HistoricalMetrics } from "./HistoricalMetrics";
 import { PoolSummary } from "./PoolSummary";
 import { Stats } from "./Stats";
+import { TimeScheduleCard } from "./TimeScheduleCard";
 
 const defaultHour = "24";
 
@@ -131,9 +132,10 @@ export const Dashboard = () => {
             ? instanceName
             : translate("welcome")}
         </Heading>
-        <Box order={3}>
+        <Flex alignItems="center" gap={6} justifyContent="space-between" order={3} wrap="wrap">
           <Stats />
-        </Box>
+          <TimeScheduleCard />
+        </Flex>
         <Box order={4}>
           <FavoriteDags />
         </Box>

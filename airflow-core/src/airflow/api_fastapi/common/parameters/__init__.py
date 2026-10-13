@@ -78,6 +78,7 @@ from airflow.api_fastapi.common.parameters.dag_run import (
     QueryDagRunPartitionKeyPrefixSearch as QueryDagRunPartitionKeyPrefixSearch,
     QueryDagRunPartitionKeySearch as QueryDagRunPartitionKeySearch,
     QueryDagRunRunTypesFilter as QueryDagRunRunTypesFilter,
+    QueryDagRunStartWeekdayFilter as QueryDagRunStartWeekdayFilter,
     QueryDagRunStateFilter as QueryDagRunStateFilter,
     QueryDagRunTriggeringUserPrefixSearch as QueryDagRunTriggeringUserPrefixSearch,
     QueryDagRunTriggeringUserSearch as QueryDagRunTriggeringUserSearch,
@@ -129,6 +130,7 @@ from airflow.api_fastapi.common.parameters.range import (
     datetime_range_filter_factory as datetime_range_filter_factory,
     float_range_filter_factory as float_range_filter_factory,
     int_range_filter_factory as int_range_filter_factory,
+    time_range_filter_factory as time_range_filter_factory,
 )
 from airflow.api_fastapi.common.parameters.search import (
     _PrefixSearchParam as _PrefixSearchParam,

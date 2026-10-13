@@ -25,6 +25,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { isValidFilterValue } from "src/components/FilterBar/utils";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { TimezoneProvider } from "src/context/timezone";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { useFiltersHandler } from "./useFiltersHandler";
@@ -33,7 +34,9 @@ const createWrapper =
   (initialEntries: Array<string> = ["/dags"]) =>
   ({ children }: PropsWithChildren) => (
     <BaseWrapper>
-      <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
+        <TimezoneProvider>{children}</TimezoneProvider>
+      </MemoryRouter>
     </BaseWrapper>
   );
 

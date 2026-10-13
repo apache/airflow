@@ -18,17 +18,18 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
     Annotated,
 )
 
 from fastapi import Depends, HTTPException, Query
-from sqlalchemy import select as sql_select
+from sqlalchemy import extract, func, select as sql_select
 from sqlalchemy.orm import aliased
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters.base import BaseParam
 from airflow.api_fastapi.common.parameters.filter import FilterOptionEnum, FilterParam, filter_param_factory
 from airflow.api_fastapi.common.parameters.search import (
@@ -45,12 +46,47 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
+    from sqlalchemy.sql.elements import ColumnElement
 
 
 # A lookback this large is effectively unbounded (users omit the param for "any time"); capping it
 # also keeps utcnow() - timedelta(hours=...) from overflowing on an absurdly large value.
 _MAX_DAG_RUN_STATE_WINDOW_HOURS = 24 * 366 * 100  # ~100 years
+
+
+class _WeekdayFilter(BaseParam[list[int]]):
+    """Filter DagRuns by selected UTC weekdays."""
+
+    def __init__(self, session: Session, timestamp: ColumnElement[datetime], value: list[int] | None) -> None:
+        super().__init__(value)
+        self.session = session
+        self.timestamp = timestamp
+
+    def to_orm(self, select: Select) -> Select:
+        if not self.value:
+            return select
+        weekday = (
+            func.dayofweek(self.timestamp) - 1
+            if self.session.get_bind().dialect.name == "mysql"
+            else extract("dow", self.timestamp)
+        )
+        return select.where(weekday.in_(self.value))
+
+    @classmethod
+    def depends(
+        cls,
+        session: SessionDep,
+        start_weekday: list[Annotated[int, Query(ge=0, le=6)]] | None = Query(
+            None, description="Match any selected weekday. Sunday=0, Saturday=6."
+        ),
+    ) -> _WeekdayFilter:
+        timestamp = func.coalesce(DagRun.start_date, DagRun.run_after)
+        return cls(session, timestamp, start_weekday)
+
+
+QueryDagRunStartWeekdayFilter = Annotated[_WeekdayFilter, Depends(_WeekdayFilter.depends)]
 
 
 class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):

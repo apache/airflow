@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, time
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -27,10 +27,10 @@ from typing import (
     overload,
 )
 
-from fastapi import HTTPException, Query
+from fastapi import HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, extract, func, or_
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.parameters.base import BaseParam, T
@@ -39,7 +39,7 @@ from airflow.typing_compat import Self
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
-    from sqlalchemy.sql import Select
+    from sqlalchemy.sql import ColumnElement, Select
 
 
 def _safe_parse_datetime(date_to_check: str) -> datetime:
@@ -91,9 +91,11 @@ class Range(BaseModel, Generic[T]):
 class RangeFilter(BaseParam[Range]):
     """Filter on range in between the lower and upper bound."""
 
-    def __init__(self, value: Range | None, attribute: InstrumentedAttribute) -> None:
+    def __init__(
+        self, value: Range | None, attribute: ColumnElement[Any] | InstrumentedAttribute[Any]
+    ) -> None:
         super().__init__(value)
-        self.attribute: InstrumentedAttribute = attribute
+        self.attribute: ColumnElement[Any] | InstrumentedAttribute[Any] = attribute
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
@@ -102,13 +104,13 @@ class RangeFilter(BaseParam[Range]):
         if self.value is None:
             return select
 
-        if self.value.lower_bound_gte:
+        if self.value.lower_bound_gte is not None:
             select = select.where(self.attribute >= self.value.lower_bound_gte)
-        if self.value.lower_bound_gt:
+        if self.value.lower_bound_gt is not None:
             select = select.where(self.attribute > self.value.lower_bound_gt)
-        if self.value.upper_bound_lte:
+        if self.value.upper_bound_lte is not None:
             select = select.where(self.attribute <= self.value.upper_bound_lte)
-        if self.value.upper_bound_lt:
+        if self.value.upper_bound_lt is not None:
             select = select.where(self.attribute < self.value.upper_bound_lt)
 
         return select
@@ -186,6 +188,48 @@ def datetime_range_filter_factory(
         return RangeFilter(range_val, attr)
 
     return depends_datetime
+
+
+def time_range_filter_factory(filter_name: str, model: Base) -> Callable[..., RangeFilter]:
+    """Create a dependency for filtering DagRuns by the UTC time of their start date."""
+    timestamp = func.coalesce(getattr(model, "start_date"), getattr(model, "run_after"))
+
+    def depends_time_range(
+        start_time_gte: time | None = Query(None, alias=f"{filter_name}_gte"),
+        start_time_lt: time | None = Query(None, alias=f"{filter_name}_lt"),
+    ) -> RangeFilter:
+        def to_utc_minutes(value: time | None, default: int) -> int:
+            if value is None:
+                return default
+            offset = value.utcoffset()
+            if offset is None:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT, "Time bounds must include a timezone."
+                )
+            offset_minutes = int(offset.total_seconds() // 60)
+            return (value.hour * 60 + value.minute - offset_minutes) % (24 * 60)
+
+        lower = to_utc_minutes(start_time_gte, 0)
+        upper = to_utc_minutes(start_time_lt, 24 * 60)
+        if start_time_gte is not None and start_time_lt is not None and lower == upper:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "start_time_gte must be earlier than start_time_lt."
+            )
+        minute = extract("hour", timestamp) * 60 + extract("minute", timestamp)
+        if start_time_gte is not None and start_time_lt is not None and lower > upper:
+            # A local daytime range can cross midnight when converted to UTC.
+            minute = (minute - lower + 24 * 60) % (24 * 60)
+            upper = (upper - lower) % (24 * 60)
+            lower = 0
+        value = Range(
+            lower_bound_gte=lower if start_time_gte is not None else None,
+            lower_bound_gt=None,
+            upper_bound_lte=None,
+            upper_bound_lt=upper if start_time_lt is not None else None,
+        )
+        return RangeFilter(value, minute)
+
+    return depends_time_range
 
 
 def float_range_filter_factory(

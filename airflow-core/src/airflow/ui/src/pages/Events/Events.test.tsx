@@ -22,6 +22,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { EventLogService, TaskInstanceService } from "openapi/requests";
 
+import { TimezoneProvider } from "src/context/timezone";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { Events } from "./Events";
@@ -43,9 +44,11 @@ it("filters a regional audit tab by the pass coordinates, keeping every try and 
           `/dags/dag/runs/run/tasks/work/events?region_id=${regionId}&region_index=3&map_index=-1&try_number=2`,
         ]}
       >
-        <Routes>
-          <Route element={<Events />} path="/dags/:dagId/runs/:runId/tasks/:taskId/events" />
-        </Routes>
+        <TimezoneProvider>
+          <Routes>
+            <Route element={<Events />} path="/dags/:dagId/runs/:runId/tasks/:taskId/events" />
+          </Routes>
+        </TimezoneProvider>
       </MemoryRouter>
     </BaseWrapper>,
   );
