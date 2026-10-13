@@ -117,6 +117,176 @@ class InstanceFlexibilityPolicy:
     instance_selection_list: list[InstanceSelection]
 
 
+class HardwareClass(Enum):
+    """Hardware class of a High Obtainability (HO) mode instance group.
+
+    Representation for
+    google.cloud.dataproc.v1#google.cloud.dataproc.v1.FlexibleInstanceGroupConfig.HardwareClass.
+    """
+
+    STANDARD = "STANDARD"
+    PERFORMANCE = "PERFORMANCE"
+
+
+FLEXIBLE_CONFIG_ALLOWED_CORE_COUNTS = (2, 4, 8, 16, 32)
+
+
+@dataclass
+class FlexibleInstanceGroupConfig:
+    """Abstract (High Obtainability mode) configuration of a node group.
+
+    Representation for
+    google.cloud.dataproc.v1#google.cloud.dataproc.v1.FlexibleInstanceGroupConfig.
+
+    When a cluster is created with flexible instance group configs, Dataproc
+    High Obtainability (HO) mode is enabled: instead of concrete machine types
+    the caller specifies abstract requirements (number of cores and hardware
+    class) and the Dataproc backend resolves them into a ranked list of widely
+    available machine families to maximize obtainability.
+
+    ``num_instances`` is mutable (via ``DataprocUpdateClusterOperator`` and
+    autoscaling). ``core_count``, ``hardware_class`` and ``boot_disk_size_gb``
+    define the initial cluster shape and are create-time only.
+
+    :param num_instances: The number of VM instances in the node group.
+    :param core_count: Number of cores per instance. Must be one of
+        ``2, 4, 8, 16, 32``.
+    :param hardware_class: Hardware class of the instances: ``STANDARD`` or
+        ``PERFORMANCE`` (a string or a :class:`HardwareClass`).
+    :param boot_disk_size_gb: Optional. Size of the boot disk in GB.
+    """
+
+    num_instances: int
+    core_count: int
+    hardware_class: str | HardwareClass = HardwareClass.STANDARD
+    boot_disk_size_gb: int | None = None
+
+    def __post_init__(self):
+        if isinstance(self.hardware_class, str):
+            self.hardware_class = HardwareClass(self.hardware_class.upper())
+        if not isinstance(self.num_instances, int) or self.num_instances < 0:
+            raise ValueError(
+                "num_instances of a flexible config must be a non-negative integer,"
+                f" got {self.num_instances!r}."
+            )
+        if self.core_count not in FLEXIBLE_CONFIG_ALLOWED_CORE_COUNTS:
+            raise ValueError(
+                "core_count of a flexible config must be one of"
+                f" {list(FLEXIBLE_CONFIG_ALLOWED_CORE_COUNTS)}, got"
+                f" {self.core_count!r}."
+            )
+        if self.boot_disk_size_gb is not None and self.boot_disk_size_gb <= 0:
+            raise ValueError(
+                "boot_disk_size_gb of a flexible config must be a positive integer,"
+                f" got {self.boot_disk_size_gb!r}."
+            )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Returns the ``FlexibleInstanceGroupConfig`` as an API-shaped dict."""
+        data: dict[str, Any] = {
+            "num_instances": self.num_instances,
+            "core_count": self.core_count,
+            "hardware_class": HardwareClass(self.hardware_class).value,
+        }
+        if self.boot_disk_size_gb is not None:
+            data["boot_disk_size_gb"] = self.boot_disk_size_gb
+        return data
+
+
+def _to_flexible_config(
+    value: FlexibleInstanceGroupConfig | dict[str, Any] | None, name: str
+) -> FlexibleInstanceGroupConfig | None:
+    """Coerces a user supplied flexible config (dataclass or dict) to a dataclass."""
+    if value is None:
+        return None
+    if isinstance(value, FlexibleInstanceGroupConfig):
+        return value
+    if isinstance(value, dict):
+        try:
+            return FlexibleInstanceGroupConfig(**value)
+        except TypeError as e:
+            raise ValueError(
+                f"Invalid {name}: {e}. Expected keys: num_instances, core_count,"
+                " hardware_class, boot_disk_size_gb."
+            ) from e
+    raise ValueError(
+        f"{name} must be a FlexibleInstanceGroupConfig or a dict, got {type(value).__name__}."
+    )
+
+
+def flexible_scale_cluster_update(
+    num_workers: int | None = None,
+    num_secondary_workers: int | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Builds ``cluster`` and ``update_mask`` to scale a High Obtainability cluster.
+
+    Returns the arguments to pass to ``DataprocUpdateClusterOperator`` so that
+    the resize is expressed through the authoritative HO path
+    (``config.worker_flexible_config.num_instances`` /
+    ``config.secondary_worker_flexible_config.num_instances``). Only the
+    flexible update-mask paths are used; the legacy
+    ``config.worker_config.num_instances`` path is never combined with them so
+    that the server never sees conflicting instance counts.
+
+    Example usage:
+
+    .. code-block:: python
+
+        cluster, update_mask = flexible_scale_cluster_update(num_workers=5)
+        scale = DataprocUpdateClusterOperator(
+            task_id="scale_ho_cluster",
+            project_id="my-project",
+            region="us-central1",
+            cluster_name="my-ho-cluster",
+            cluster=cluster,
+            update_mask=update_mask,
+            graceful_decommission_timeout={"seconds": 600},
+        )
+
+    :param num_workers: The new number of primary workers.
+    :param num_secondary_workers: The new number of secondary workers.
+    :return: A ``(cluster, update_mask)`` tuple.
+    """
+    if num_workers is None and num_secondary_workers is None:
+        raise ValueError("At least one of num_workers or num_secondary_workers must be set.")
+    config: dict[str, Any] = {}
+    paths: list[str] = []
+    if num_workers is not None:
+        if num_workers < 0:
+            raise ValueError("num_workers must be a non-negative integer.")
+        config["worker_flexible_config"] = {"num_instances": num_workers}
+        paths.append("config.worker_flexible_config.num_instances")
+    if num_secondary_workers is not None:
+        if num_secondary_workers < 0:
+            raise ValueError("num_secondary_workers must be a non-negative integer.")
+        config["secondary_worker_flexible_config"] = {"num_instances": num_secondary_workers}
+        paths.append("config.secondary_worker_flexible_config.num_instances")
+    return {"config": config}, {"paths": paths}
+
+
+def _get_num_instances(cluster: Any, path: str) -> int | None:
+    """Reads the ``num_instances`` at ``path`` from a dict or ``Cluster`` message.
+
+    Returns ``None`` when the path is not present (e.g. the field is missing in
+    the dict, or the installed client library does not know it yet) or when
+    ``cluster`` is a templated string.
+    """
+    value: Any = cluster
+    for key in path.split("."):
+        if isinstance(value, dict):
+            value = value.get(key)
+        elif isinstance(value, str):
+            return None
+        else:
+            try:
+                value = getattr(value, key)
+            except (AttributeError, KeyError):
+                return None
+        if value is None:
+            return None
+    return int(value) if isinstance(value, int) else None
+
+
 @deprecated(
     planned_removal_date="September 1, 2027",
     reason="Since passing cluster parameters by keyword in the DataprocCreateClusterOperator is scheduled "
@@ -230,6 +400,28 @@ class ClusterGenerator:
     :param secondary_worker_accelerator_type: Type of the accelerator card (GPU) to attach to the secondary workers,
         see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
     :param secondary_worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the secondary workers
+    :param master_flexible_config: High Obtainability (HO) mode configuration of the master node group,
+        a :class:`FlexibleInstanceGroupConfig` or a dict with the same keys (``num_instances``,
+        ``core_count``, ``hardware_class``, ``boot_disk_size_gb``). Populates
+        ``ClusterConfig.master_flexible_config`` instead of ``master_config``. HO mode is cluster-wide:
+        when set, ``worker_flexible_config`` must be set too (or ``num_workers=0`` for a single-node
+        cluster), concrete machine type / disk / accelerator parameters for the same node group
+        (``num_masters``, ``master_machine_type``, ``master_disk_type``, ``master_disk_size``,
+        ``master_accelerator_*``) must not be set, ``num_instances`` must be 1 (no High Availability)
+        and ``zone`` must not be set (HO clusters are always auto-zoned).
+    :param worker_flexible_config: High Obtainability (HO) mode configuration of the primary worker node
+        group (see ``master_flexible_config``). Populates ``ClusterConfig.worker_flexible_config``
+        instead of ``worker_config``; ``num_workers``, ``min_num_workers``, ``worker_machine_type``,
+        ``worker_disk_type``, ``worker_disk_size`` and ``worker_accelerator_*`` must not be set and
+        ``num_instances`` must be positive. For a single-node HO cluster omit this parameter and set
+        ``num_workers=0`` together with ``master_flexible_config``.
+    :param secondary_worker_flexible_config: Optional High Obtainability (HO) mode configuration of the
+        secondary worker node group (see ``master_flexible_config``). Populates
+        ``ClusterConfig.secondary_worker_flexible_config`` instead of ``secondary_worker_config``. In HO
+        mode this is the only way to define secondary workers: ``num_preemptible_workers``,
+        ``secondary_worker_instance_flexibility_policy`` and ``secondary_worker_accelerator_*`` must not
+        be set, and ``preemptibility`` does not apply (the API decides the provisioning model of flexible
+        secondary workers). Not allowed for single-node clusters.
     :param cluster_tier: The tier of the cluster (e.g. "CLUSTER_TIER_STANDARD" / "CLUSTER_TIER_PREMIUM").
     :param cluster_type: The type of the cluster (e.g. "STANDARD" / "SINGLE_NODE" / "ZERO_SCALE")
     :param engine: Specifies the engine of the cluster created (e.g. "ENGINE_UNSPECIFIED" / "DEFAULT" / "LIGHTNING")
@@ -286,6 +478,9 @@ class ClusterGenerator:
         worker_instance_flexibility_policy: InstanceFlexibilityPolicy | None = None,
         secondary_worker_accelerator_type: str | None = None,
         secondary_worker_accelerator_count: int | None = None,
+        master_flexible_config: FlexibleInstanceGroupConfig | dict[str, Any] | None = None,
+        worker_flexible_config: FlexibleInstanceGroupConfig | dict[str, Any] | None = None,
+        secondary_worker_flexible_config: FlexibleInstanceGroupConfig | dict[str, Any] | None = None,
         *,
         cluster_tier: str | None = None,
         cluster_type: str | None = None,
@@ -345,6 +540,18 @@ class ClusterGenerator:
         self.cluster_tier = cluster_tier
         self.cluster_type = cluster_type
         self.engine = engine
+        self.master_flexible_config = _to_flexible_config(master_flexible_config, "master_flexible_config")
+        self.worker_flexible_config = _to_flexible_config(worker_flexible_config, "worker_flexible_config")
+        self.secondary_worker_flexible_config = _to_flexible_config(
+            secondary_worker_flexible_config, "secondary_worker_flexible_config"
+        )
+        self.high_obtainability_mode = any(
+            (
+                self.master_flexible_config,
+                self.worker_flexible_config,
+                self.secondary_worker_flexible_config,
+            )
+        )
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
@@ -365,6 +572,151 @@ class ClusterGenerator:
                 raise ValueError(
                     "The value of min_num_workers must be less than or equal to num_workers. "
                     f"Provided {self.min_num_workers}(min_num_workers) and {self.num_workers}(num_workers)."
+                )
+
+        if self.high_obtainability_mode:
+            self._validate_flexible_configs()
+
+    # Standard (concrete) node group parameters that conflict with the flexible
+    # config of the same node group, with their constructor defaults. A parameter
+    # is considered explicitly set when its value differs from the default.
+    _MASTER_STANDARD_PARAMS = (
+        ("num_masters", 1),
+        ("master_machine_type", "n1-standard-4"),
+        ("master_disk_type", "pd-standard"),
+        ("master_disk_size", 1024),
+        ("master_accelerator_type", None),
+        ("master_accelerator_count", None),
+        ("master_instance_flexibility_policy", None),
+    )
+    _WORKER_STANDARD_PARAMS = (
+        ("num_workers", None),
+        ("min_num_workers", None),
+        ("worker_machine_type", "n1-standard-4"),
+        ("worker_disk_type", "pd-standard"),
+        ("worker_disk_size", 1024),
+        ("worker_accelerator_type", None),
+        ("worker_accelerator_count", None),
+        ("worker_instance_flexibility_policy", None),
+    )
+    _SECONDARY_WORKER_STANDARD_PARAMS = (
+        ("num_preemptible_workers", 0),
+        ("secondary_worker_instance_flexibility_policy", None),
+        ("secondary_worker_accelerator_type", None),
+        ("secondary_worker_accelerator_count", None),
+    )
+
+    def _get_conflicting_params(self, param_specs) -> list[str]:
+        return [name for name, default in param_specs if getattr(self, name) != default]
+
+    def _validate_flexible_configs(self) -> None:
+        """Validates High Obtainability (HO) mode parameters.
+
+        Mirrors the Dataproc API validation rules so that misconfigured DAGs fail
+        at parse time with an actionable message instead of at execution time:
+
+        * HO mode is cluster-wide: the master and (unless the cluster is single
+          node, ``num_workers=0``) the primary workers must use a flexible config,
+          and no node group may use its concrete configuration
+          (``ClusterGenerator`` would otherwise emit a concrete
+          ``master_config``/``worker_config``/``secondary_worker_config`` which
+          the API rejects).
+        * A single-node HO cluster is defined by ``master_flexible_config`` and
+          ``num_workers=0`` only; the API rejects a worker flexible config with
+          zero instances and any secondary workers on single-node clusters.
+        * A node group is defined either by its concrete parameters or by its
+          flexible config, never both.
+        * HO clusters are always auto-zoned; an explicit ``zone`` is rejected.
+        * High Availability (``master_flexible_config.num_instances > 1``) is not
+          supported in HO mode.
+        * Custom images are set through ``InstanceGroupConfig.image_uri`` which
+          is not available for flexible configs.
+        """
+        ho_params = [
+            name
+            for name in (
+                "master_flexible_config",
+                "worker_flexible_config",
+                "secondary_worker_flexible_config",
+            )
+            if getattr(self, name) is not None
+        ]
+        ho_params_str = ", ".join(ho_params)
+
+        if self.master_flexible_config is None:
+            raise ValueError(
+                "High Obtainability mode is cluster-wide: master_flexible_config"
+                f" must be set when {ho_params_str} is provided."
+            )
+
+        if self.worker_flexible_config is None and not self.single_node:
+            raise ValueError(
+                "High Obtainability mode is cluster-wide: worker_flexible_config"
+                f" must be set when {ho_params_str} is provided (or set"
+                " num_workers=0 for a single-node cluster)."
+            )
+
+        if (
+            self.worker_flexible_config is not None
+            and self.worker_flexible_config.num_instances == 0
+        ):
+            raise ValueError(
+                "worker_flexible_config.num_instances must be positive. For a"
+                " single-node High Obtainability cluster omit worker_flexible_config"
+                " and set num_workers=0."
+            )
+
+        if self.single_node and self.secondary_worker_flexible_config is not None:
+            raise ValueError(
+                "secondary_worker_flexible_config can't be set for a single-node"
+                " (num_workers=0) High Obtainability cluster."
+            )
+
+        if self.zone:
+            raise ValueError(
+                f"zone can't be set together with {ho_params_str}: High"
+                " Obtainability clusters are always auto-zoned."
+            )
+
+        if self.master_flexible_config.num_instances != 1:
+            raise ValueError(
+                "High Obtainability mode does not support High Availability"
+                " clusters: master_flexible_config.num_instances must be 1, got"
+                f" {self.master_flexible_config.num_instances}."
+            )
+
+        if self.custom_image or self.custom_image_family:
+            raise ValueError(
+                "custom_image and custom_image_family can't be set together with"
+                " flexible configs; use image_version instead."
+            )
+
+        for ho_param, specs in (
+            ("master_flexible_config", self._MASTER_STANDARD_PARAMS),
+            ("worker_flexible_config", self._WORKER_STANDARD_PARAMS),
+            (
+                "secondary_worker_flexible_config",
+                self._SECONDARY_WORKER_STANDARD_PARAMS,
+            ),
+        ):
+            conflicts = self._get_conflicting_params(specs)
+            if not conflicts:
+                continue
+            if getattr(self, ho_param) is not None:
+                raise ValueError(
+                    f"{ho_param} can't be set together with {', '.join(conflicts)}:"
+                    " a node group is defined either by its flexible config or by"
+                    " its concrete machine configuration."
+                )
+            # The node group has no flexible config but would get a concrete one:
+            # only possible for the secondary workers (master/worker flexible
+            # configs are mandatory above, except num_workers=0 for single node).
+            if ho_param == "secondary_worker_flexible_config":
+                raise ValueError(
+                    "High Obtainability mode is cluster-wide:"
+                    f" {', '.join(conflicts)} can't be set together with"
+                    f" {ho_params_str}; define the secondary workers with"
+                    " secondary_worker_flexible_config instead."
                 )
 
     def _set_preemptibility_type(self, preemptibility: str):
@@ -455,6 +807,26 @@ class ClusterGenerator:
             driver_pool["node_group_id"] = self.driver_pool_id
         return driver_pool
 
+    def _build_flexible_node_groups(self) -> dict[str, Any]:
+        """Builds the High Obtainability (HO) mode node group configs.
+
+        In HO mode the concrete ``master_config`` / ``worker_config`` /
+        ``secondary_worker_config`` are not sent: node groups are defined only by
+        their ``FlexibleInstanceGroupConfig`` and the Dataproc backend resolves the
+        concrete machine types. A single-node HO cluster (``num_workers=0``) only
+        defines ``master_flexible_config``.
+        """
+        node_groups = {
+            "master_flexible_config": self.master_flexible_config.to_dict(),
+        }
+        if self.worker_flexible_config is not None:
+            node_groups["worker_flexible_config"] = self.worker_flexible_config.to_dict()
+        if self.secondary_worker_flexible_config is not None:
+            node_groups["secondary_worker_flexible_config"] = (
+                self.secondary_worker_flexible_config.to_dict()
+            )
+        return node_groups
+
     def _build_cluster_data(self):
         if self.zone:
             master_type_uri = (
@@ -467,25 +839,32 @@ class ClusterGenerator:
             master_type_uri = self.master_machine_type
             worker_type_uri = self.worker_machine_type
 
+        if self.high_obtainability_mode:
+            node_groups = self._build_flexible_node_groups()
+        else:
+            node_groups = {
+                "master_config": {
+                    "num_instances": self.num_masters,
+                    "machine_type_uri": master_type_uri,
+                    "disk_config": {
+                        "boot_disk_type": self.master_disk_type,
+                        "boot_disk_size_gb": self.master_disk_size,
+                    },
+                },
+                "worker_config": {
+                    "num_instances": self.num_workers,
+                    "machine_type_uri": worker_type_uri,
+                    "disk_config": {
+                        "boot_disk_type": self.worker_disk_type,
+                        "boot_disk_size_gb": self.worker_disk_size,
+                    },
+                },
+                "secondary_worker_config": {},
+            }
+
         cluster_data = {
             "gce_cluster_config": {},
-            "master_config": {
-                "num_instances": self.num_masters,
-                "machine_type_uri": master_type_uri,
-                "disk_config": {
-                    "boot_disk_type": self.master_disk_type,
-                    "boot_disk_size_gb": self.master_disk_size,
-                },
-            },
-            "worker_config": {
-                "num_instances": self.num_workers,
-                "machine_type_uri": worker_type_uri,
-                "disk_config": {
-                    "boot_disk_type": self.worker_disk_type,
-                    "boot_disk_size_gb": self.worker_disk_size,
-                },
-            },
-            "secondary_worker_config": {},
+            **node_groups,
             "software_config": {},
             "lifecycle_config": {},
             "encryption_config": {},
@@ -612,12 +991,34 @@ class ClusterGenerator:
 
         return cluster_data
 
-    def make(self):
+    def make(
+        self,
+        master_flexible_config: FlexibleInstanceGroupConfig | dict[str, Any] | None = None,
+        worker_flexible_config: FlexibleInstanceGroupConfig | dict[str, Any] | None = None,
+        secondary_worker_flexible_config: FlexibleInstanceGroupConfig | dict[str, Any] | None = None,
+    ):
         """
         Act as a helper method for easier migration.
 
         :return: Dict representing Dataproc cluster.
         """
+        if master_flexible_config is not None:
+            self.master_flexible_config = _to_flexible_config(master_flexible_config, "master_flexible_config")
+        if worker_flexible_config is not None:
+            self.worker_flexible_config = _to_flexible_config(worker_flexible_config, "worker_flexible_config")
+        if secondary_worker_flexible_config is not None:
+            self.secondary_worker_flexible_config = _to_flexible_config(
+                secondary_worker_flexible_config, "secondary_worker_flexible_config"
+            )
+        self.high_obtainability_mode = any(
+            (
+                self.master_flexible_config,
+                self.worker_flexible_config,
+                self.secondary_worker_flexible_config,
+            )
+        )
+        if self.high_obtainability_mode:
+            self._validate_flexible_configs()
         return self._build_cluster_data()
 
 
@@ -652,7 +1053,25 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         values to parameter of DataprocCreateCluster operator.
     :param cluster_config: Required. The cluster config to create.
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
+        :class:`~google.cloud.dataproc_v1.types.ClusterConfig`.
+        To create a High Obtainability (HO) mode cluster, define the node groups
+        with ``master_flexible_config`` / ``worker_flexible_config`` /
+        ``secondary_worker_flexible_config`` (see
+        :class:`FlexibleInstanceGroupConfig`) instead of ``master_config`` /
+        ``worker_config`` / ``secondary_worker_config``, for example through
+        :class:`ClusterGenerator`:
+
+        .. code-block:: python
+
+            cluster_config = ClusterGenerator(
+                project_id="my-project",
+                master_flexible_config={"num_instances": 1, "core_count": 4},
+                worker_flexible_config={
+                    "num_instances": 2,
+                    "core_count": 8,
+                    "hardware_class": "PERFORMANCE",
+                },
+            ).make()
     :param virtual_cluster_config: Optional. The virtual cluster config, used when creating a Dataproc
         cluster that does not directly control the underlying compute resources, for example, when creating a
         `Dataproc-on-GKE cluster
@@ -2135,7 +2554,29 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         example, to change the number of workers in a cluster to 5, the ``update_mask`` parameter would be
         specified as ``config.worker_config.num_instances``, and the ``PATCH`` request body would specify the
         new value. If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.protobuf.field_mask_pb2.FieldMask`
+        :class:`~google.protobuf.field_mask_pb2.FieldMask`.
+        For High Obtainability (HO) mode clusters, scale through the flexible
+        config paths ``config.worker_flexible_config.num_instances`` and
+        ``config.secondary_worker_flexible_config.num_instances`` (the legacy
+        ``config.worker_config.num_instances`` path is also accepted for
+        backwards compatibility; if both paths are given for the same node
+        group their instance counts must agree). Only ``num_instances`` is
+        mutable; ``core_count``, ``hardware_class`` and ``boot_disk_size_gb``
+        are create-time only and the master node group cannot be resized.
+        :func:`flexible_scale_cluster_update` builds ``cluster`` and
+        ``update_mask`` for HO scaling:
+
+        .. code-block:: python
+
+            cluster, update_mask = flexible_scale_cluster_update(num_workers=5)
+            DataprocUpdateClusterOperator(
+                task_id="scale_ho_cluster",
+                region="us-central1",
+                cluster_name="my-ho-cluster",
+                cluster=cluster,
+                update_mask=update_mask,
+                graceful_decommission_timeout={"seconds": 600},
+            )
     :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decommissioning. Graceful
         decommissioning allows removing nodes from the cluster without interrupting jobs in progress. Timeout
         specifies how long to wait for jobs in progress to finish before forcefully removing nodes (and
@@ -2209,6 +2650,83 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.polling_interval_seconds = polling_interval_seconds
+        self._validate_update_mask_paths(update_mask, cluster)
+
+    # Pairs of (legacy compatibility path, authoritative HO path) that resize
+    # the same node group. The API accepts both in one request only when the
+    # instance counts agree.
+    _CONFLICTING_SCALING_PATHS = (
+        (
+            "config.worker_config.num_instances",
+            "config.worker_flexible_config.num_instances",
+        ),
+        (
+            "config.secondary_worker_config.num_instances",
+            "config.secondary_worker_flexible_config.num_instances",
+        ),
+    )
+    # The only mutable fields of the flexible configs (``num_instances`` of the
+    # primary and secondary workers); every other flexible field is create-time
+    # only and the master node group cannot be resized.
+    _MUTABLE_FLEXIBLE_PATHS = frozenset(
+        flexible_path for _, flexible_path in _CONFLICTING_SCALING_PATHS
+    )
+
+    @classmethod
+    def _validate_update_mask_paths(
+        cls,
+        update_mask: dict[str, Any] | FieldMask,
+        cluster: dict[str, Any] | Cluster,
+    ) -> None:
+        """Validates High Obtainability (HO) scaling paths at DAG parse time.
+
+        Mirrors the Dataproc API rules so that misconfigured tasks fail early:
+
+        * ``core_count``, ``hardware_class`` and ``boot_disk_size_gb`` of the
+          flexible configs and the whole ``master_flexible_config`` are
+          create-time only; only ``config.worker_flexible_config.num_instances``
+          and ``config.secondary_worker_flexible_config.num_instances`` are
+          mutable.
+        * The legacy (``config.worker_config.num_instances``) and flexible paths
+          of the same node group may only be combined when they carry the same
+          instance count.
+
+        Templated (string) ``update_mask``/``cluster`` values are not validated
+        here; the API validates them at execution time.
+        """
+        if isinstance(update_mask, dict):
+            paths = update_mask.get("paths") or []
+        else:
+            paths = getattr(update_mask, "paths", None) or []
+        if isinstance(paths, str):
+            return
+        paths = set(paths)
+
+        for path in sorted(paths):
+            if (
+                re.fullmatch(r"config\.\w*flexible_config(\.\w+)*", path)
+                and path not in cls._MUTABLE_FLEXIBLE_PATHS
+            ):
+                raise ValueError(
+                    f"update_mask path {path!r} is not supported: core_count,"
+                    " hardware_class and boot_disk_size_gb of the flexible configs are"
+                    " create-time only and the master node group cannot be resized."
+                    f" Supported flexible paths: {sorted(cls._MUTABLE_FLEXIBLE_PATHS)}."
+                )
+
+        for legacy_path, flexible_path in cls._CONFLICTING_SCALING_PATHS:
+            if legacy_path not in paths or flexible_path not in paths:
+                continue
+            legacy_count = _get_num_instances(cluster, legacy_path)
+            flexible_count = _get_num_instances(cluster, flexible_path)
+            if legacy_count is None or legacy_count != flexible_count:
+                raise ValueError(
+                    "Conflicting instance counts: update_mask contains both"
+                    f" {legacy_path!r} ({legacy_count}) and {flexible_path!r}"
+                    f" ({flexible_count}) which resize the same node group. Use only"
+                    " the flexible path for High Obtainability clusters, see"
+                    " flexible_scale_cluster_update()."
+                )
 
     def execute(self, context: Context):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
