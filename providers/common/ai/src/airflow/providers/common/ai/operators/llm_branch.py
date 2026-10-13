@@ -96,7 +96,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         to a string as shorthand for its description. The description travels in the
         output schema next to the option, so the model reads "here is an option, here is
         what it means" rather than guessing from the task ID; ``min_confidence`` on an
-        option, which is experimental, is a bar for that branch alone. A downstream task
+        option is a bar for that branch alone. A downstream task
         without an entry is presented by its ID alone and takes the policy's bar; some
         decision-model servers refuse an option without a description, so describe every
         branch when the connection is a decision model. A key that is not a downstream task

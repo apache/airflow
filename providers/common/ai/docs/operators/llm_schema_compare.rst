@@ -66,8 +66,9 @@ With Object Storage or a Database Table
 .. note::
 
     Experimental: ``data_sources`` can change or be removed in a minor release of this
-    provider. A source whose connection is not a ``DbApiHook`` runs on the DataFusion engine of ``common.sql``, which pins ``datafusion``
-    below 52 because the DataFusion 52 crate is not supported with ``iceberg-core``.
+    provider. A source whose connection is not a ``DbApiHook`` runs on the DataFusion
+    engine of ``common.sql``, which pins ``datafusion`` below 52 because the DataFusion
+    52 crate is not supported with ``iceberg-core``.
     See :ref:`howto/stability`.
 
 Use ``data_sources`` with
