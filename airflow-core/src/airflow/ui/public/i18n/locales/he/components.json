@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "ריצה אחת תופעל.",
-    "affected_other": "{{count}} ריצות יופעלו.",
+    "affected_other": "{{count, number}} ריצות יופעלו.",
     "affected_two": "שתי ריצות יופעלו.",
     "affectedNone": "לא נמצאו ריצות התואמות לקריטריונים שנבחרו.",
     "allRuns": "כל ההרצות",
@@ -42,7 +42,6 @@
   },
   "close": "סגור",
   "configForm": {
-    "advancedOptions": "אפשרויות מתקדמות",
     "configJson": "הגדרות JSON",
     "invalidJson": "מבנה ה-JSON אינו תקין: {{errorMessage}}"
   },
@@ -50,7 +49,7 @@
     "error_one": "שגיאה",
     "errorAndWarning": "שגיאה אחת ו-{{warningText}}",
     "warning_one": "אזהרה אחת",
-    "warning_other": "{{count}} אזהרות",
+    "warning_other": "{{count, number}} אזהרות",
     "warning_two": "שתי אזהרות"
   },
   "dateRangeFilter": {
@@ -63,10 +62,10 @@
   "durationChart": {
     "duration": "משך זמן (שניות)",
     "lastDagRun_one": "ריצת Dag אחרונה",
-    "lastDagRun_other": "{{count}} ריצות Dag אחרונות",
+    "lastDagRun_other": "{{count, number}} ריצות Dag אחרונות",
     "lastDagRun_two": "שתי ריצות Dag אחרונות",
     "lastTaskInstance_one": "מופע משימה אחרונה",
-    "lastTaskInstance_other": "{{count}} מופעי משימות אחרונות",
+    "lastTaskInstance_other": "{{count, number}} מופעי משימות אחרונות",
     "lastTaskInstance_two": "שני מופעי משימות אחרונות",
     "medianTotalDuration": "סה״כ: {{duration}}",
     "queuedDuration": "זמן המתנה בתור",
@@ -75,7 +74,7 @@
   },
   "fileUpload": {
     "files_one": "קובץ אחד",
-    "files_other": "{{count}} קבצים",
+    "files_other": "{{count, number}} קבצים",
     "files_two": "שני קבצים"
   },
   "flexibleForm": {
@@ -100,21 +99,21 @@
     "downloadImageErrorTitle": "ההורדה נכשלה",
     "otherDagRuns": "+ ריצות Dag נוספות",
     "taskCount_one": "משימה אחת",
-    "taskCount_other": "{{count}} משימות",
+    "taskCount_other": "{{count, number}} משימות",
     "taskCount_two": "שתי משימות",
     "taskGroup": "קבוצת משימות",
     "zoomToTask": "התמקד במשימה שנבחרה"
   },
-  "limitedList": "+ {{count}} נוספים",
-  "limitedList.allItems": "כל {{count}} הפריטים:",
+  "limitedList": "+ {{count, number}} נוספים",
+  "limitedList.allItems": "כל {{count, number}} הפריטים:",
   "limitedList.allTags_one": "כל התגיות (1)",
-  "limitedList.allTags_other": "כל התגיות ({{count}})",
+  "limitedList.allTags_other": "כל התגיות ({{count, number}})",
   "limitedList.allTags_two": "כל התגיות (2)",
   "limitedList.clickToInteract": "לחץ על תגית כדי לסנן Dags",
-  "limitedList.clickToOpenFull": "לחץ על \"+{{count}} נוספים\" כדי לפתוח את התצוגה המלאה",
+  "limitedList.clickToOpenFull": "לחץ על \"+{{count, number}} נוספים\" כדי לפתוח את התצוגה המלאה",
   "limitedList.copyPasteText": "ניתן להעתיק ולהדביק את הטקסט שמעל",
   "limitedList.showingItems_one": "מציג פריט אחד",
-  "limitedList.showingItems_other": "מציג {{count}} פריטים",
+  "limitedList.showingItems_other": "מציג {{count, number}} פריטים",
   "limitedList.showingItems_two": "מציג שני פריטים",
   "logs": {
     "file": "קובץ",

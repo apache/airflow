@@ -60,6 +60,5 @@ PIP package                                 Version required
 ``modal``                                   ``>=1.5.0``
 ==========================================  ==================
 
-
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-modal/0.1.0/changelog.html>`_.

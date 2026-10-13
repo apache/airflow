@@ -35,6 +35,7 @@ import { StateBadge } from "src/components/StateBadge";
 import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
 import { formatNumber } from "src/utils";
+import { isLoopTaskInstance } from "src/utils/loopTaskInstance";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
@@ -52,8 +53,9 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
     onSuccessConfirm: onClose,
   });
 
-  const past = selectedOptions.includes("past");
-  const future = selectedOptions.includes("future");
+  const hasRegional = selectedTaskInstances.some(isLoopTaskInstance);
+  const past = !hasRegional && selectedOptions.includes("past");
+  const future = !hasRegional && selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
 
@@ -135,6 +137,9 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
                     action: "update" as const,
                     action_on_non_existence: "skip",
                     entities: directlyAffected.map((ti) => ({
+                      ...(ti.region_id === undefined
+                        ? {}
+                        : { region_id: ti.region_id, region_index: ti.region_index }),
                       dag_id: ti.dag_id,
                       dag_run_id: ti.dag_run_id,
                       include_downstream: downstream,
@@ -174,12 +179,12 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
             onChange={setSelectedOptions}
             options={[
               {
-                disabled: !hasLogicalDate,
+                disabled: !hasLogicalDate || hasRegional,
                 label: translate("dags:runAndTaskActions.options.past"),
                 value: "past",
               },
               {
-                disabled: !hasLogicalDate,
+                disabled: !hasLogicalDate || hasRegional,
                 label: translate("dags:runAndTaskActions.options.future"),
                 value: "future",
               },

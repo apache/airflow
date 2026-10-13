@@ -44,6 +44,7 @@ repos:
         language: node
         files: >
           (?x)
+          ^schema/supervisor-schema\.json$|
           ^src/generated/supervisor\.ts$|
           ^scripts/generate-supervisor\.mjs$
         additional_dependencies: ['pnpm@10.28.1']

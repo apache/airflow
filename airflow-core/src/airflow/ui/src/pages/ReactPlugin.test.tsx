@@ -39,10 +39,13 @@ const mockDagRun = { dag_id: "my_dag", dag_run_id: "run_1", state: "success" } a
 const mockTaskInstance = { dag_id: "my_dag", task_id: "my_task" } as TaskInstanceResponse;
 
 let mockParams: Record<string, string> = {};
+let mockSearch = new URLSearchParams();
+let taskQuery: unknown;
 
 vi.mock("react-router-dom", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRouterDom>()),
   useParams: () => mockParams,
+  useSearchParams: () => [mockSearch],
 }));
 
 type QueryOptions = { enabled?: boolean };
@@ -59,9 +62,11 @@ vi.mock("openapi/queries", () => ({
   useDagServiceGetDagDetails: (_params: unknown, _key: unknown, options?: QueryOptions) => ({
     data: options?.enabled ? mockDag : undefined,
   }),
-  useTaskInstanceServiceGetMappedTaskInstance: (_params: unknown, _key: unknown, options?: QueryOptions) => ({
-    data: options?.enabled ? mockTaskInstance : undefined,
-  }),
+  useTaskInstanceServiceGetMappedTaskInstance: (params: unknown, _key: unknown, options?: QueryOptions) => {
+    taskQuery = params;
+
+    return { data: options?.enabled ? mockTaskInstance : undefined };
+  },
 }));
 
 const reactApp = {
@@ -87,6 +92,7 @@ const renderPlugin = () => {
 describe("ReactPlugin context props", () => {
   beforeEach(() => {
     mockParams = {};
+    mockSearch = new URLSearchParams();
   });
 
   afterEach(() => {
@@ -100,6 +106,22 @@ describe("ReactPlugin context props", () => {
     expect(capturedProps?.dagRun).toBeUndefined();
     expect(capturedProps?.taskInstance).toBeUndefined();
     expect(capturedProps?.asset).toBeUndefined();
+  });
+
+  it("retrieves plugin task context using the selected region instead of the public map index", () => {
+    mockParams = { dagId: "my_dag", runId: "run_1", taskId: "my_task" };
+    mockSearch = new URLSearchParams({ region_id: "region", region_index: "3" });
+    renderPlugin();
+
+    expect(taskQuery).toEqual({
+      dagId: "my_dag",
+      dagRunId: "run_1",
+      mapIndex: -1,
+      regionId: "region",
+      regionIndex: 3,
+      taskId: "my_task",
+    });
+    expect(capturedProps?.taskInstance).toStrictEqual(mockTaskInstance);
   });
 
   it("passes the cached Dag object when dagId is in the route", () => {

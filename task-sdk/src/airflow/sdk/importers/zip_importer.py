@@ -21,6 +21,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import os
+import posixpath
 import sys
 import tempfile
 import threading
@@ -100,6 +101,18 @@ class ZipMemberDagDefinition(FileDagDefinition):
             with zipfile.ZipFile(self.zip_path) as z:
                 self._content = z.read(self.file_path)
         return self._content
+
+    def sibling(self, relpath: str) -> zipfile.Path:
+        base_dir = posixpath.dirname(self.file_path)
+        member = posixpath.normpath(posixpath.join(base_dir, relpath))
+        within = (
+            (member == base_dir or member.startswith(f"{base_dir}/"))
+            if base_dir
+            else not (member == ".." or member.startswith("../"))
+        )
+        if posixpath.isabs(member) or not within:
+            raise ValueError(f"{relpath!r} resolves outside the Dag file's directory")
+        return zipfile.Path(self.zip_path, member)
 
     @contextlib.contextmanager
     def as_file(self) -> Generator[Path, None, None]:

@@ -51,10 +51,9 @@ import java.lang.reflect.Type
  * binding at their position (through [TaskArgs]); [TaskInput] fields resolve
  * bindings by name.
  *
- * A natively authored Dag has no stub call site, so the supervisor sends no
- * bindings for it and the inputs the Dag itself wired stand in. When the
- * supervisor sends bindings they are used for every parameter; the Dag's own
- * inputs are read only when it sends none.
+ * A natively authored Dag resolves its own arguments instead: the bundle that
+ * holds the task also holds the call that wired it, so a task that wired any
+ * input reads those and never the bindings.
  *
  * A count that does not match is fatal for flat parameters and a warning for a
  * [TaskInput]: a position has no name to fall back on, while a field does, so
@@ -92,7 +91,7 @@ object ArgValues {
     // Runtime bindings carry argument names to match fields against. A wired
     // input carries none, so it decodes into the whole input at once -- which
     // is well defined because a TaskInput is a task's only data parameter.
-    wiredInputs(context, client)?.let { wired ->
+    wiredInputs(context)?.let { wired ->
       warnWiredArity(client, type, wired.size)
       return type.cast(decode(resolveWiredAll(wired.take(1), client).single(), type))
         ?: throw missingInput(wired[0], type.simpleName)
@@ -232,14 +231,15 @@ object ArgValues {
   ): Any? = decode(value, type)
 
   /**
-   * The inputs the Dag wired for this task, or null when the run's arguments
-   * come from the stub call site. A task with no wired inputs reads the
-   * bindings, so a stub call that bound nothing keeps its own diagnostics.
+   * The inputs the Dag wired for this task, or null when it wired none and the
+   * arguments come from the stub call site instead.
+   *
+   * A natively authored Dag always answers here, so its serialized binding
+   * spec is what Airflow records and shows rather than something read back at
+   * run time. A task handler wires nothing, so it reads the bindings and keeps
+   * its own diagnostics.
    */
-  internal fun wiredInputs(
-    context: Context,
-    client: Client,
-  ): List<Arg<*>>? = if (client.argBindings.isEmpty()) context.taskDef?.inputs?.takeIf { it.isNotEmpty() } else null
+  internal fun wiredInputs(context: Context): List<Arg<*>>? = context.taskDef?.inputs?.takeIf { it.isNotEmpty() }
 
   /**
    * The failure for a wired argument that resolved to nothing where a value is

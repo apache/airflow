@@ -86,7 +86,6 @@ class TestProjectStructure:
             "providers/fab/tests/unit/fab/www/extensions/test_init_manifest_files.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_security.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_views.py",
-            "providers/fab/tests/unit/fab/www/extensions/test_init_wsgi_middlewares.py",
             "providers/fab/tests/unit/fab/www/security/test_permissions.py",
             "providers/fab/tests/unit/fab/www/test_airflow_flask_app.py",
             "providers/fab/tests/unit/fab/www/test_security_appless.py",
@@ -391,6 +390,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dataproc._DataprocStartStopClusterBaseOperator",
         "airflow.providers.google.cloud.operators.dataplex.DataplexCatalogBaseOperator",
         "airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaBaseOperator",
+        # Compatibility fallback for GKEPodExecOperator, not a standalone Google operator.
+        "airflow.providers.google.cloud.operators.kubernetes_engine.KubernetesPodExecOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.ray.RayBaseOperator",
         "airflow.providers.google.cloud.operators.ray.RayJobBaseOperator",
@@ -514,8 +515,6 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
-        # S3 Exasol transfer difficult to test, see: https://github.com/apache/airflow/issues/22632
-        "airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator",
         # These operations take a lot of time, there are commented out in the system tests for this reason
         "airflow.providers.amazon.aws.operators.dms.DmsStartReplicationOperator",
         "airflow.providers.amazon.aws.operators.dms.DmsStopReplicationOperator",

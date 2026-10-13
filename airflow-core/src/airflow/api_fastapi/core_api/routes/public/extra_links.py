@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.sql import select
@@ -29,10 +29,12 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
+from airflow.api_fastapi.core_api.services.public.task_coordinates import TaskScopeDep
 from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
-from airflow.models import DagRun
 from airflow.models.dag import DagModel
+from airflow.models.task_coordinates import TaskCoordinateResolver
+from airflow.models.taskinstance import TaskInstance
 
 if TYPE_CHECKING:
     from airflow.serialization.serialized_objects import SerializedOperator
@@ -40,6 +42,13 @@ if TYPE_CHECKING:
 extra_links_router = AirflowRouter(
     tags=["Extra Links"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links"
 )
+
+
+def _get_try_number(try_number: int | None = None) -> int | None:
+    return try_number
+
+
+TryNumberDep = Annotated[int | None, Depends(_get_try_number)]
 
 
 def _find_operator_link(task: SerializedOperator, link_name: str) -> Any:
@@ -55,7 +64,9 @@ def _find_operator_link(task: SerializedOperator, link_name: str) -> Any:
 
 @extra_links_router.get(
     "",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE))],
     tags=["Task Instance"],
 )
@@ -65,19 +76,16 @@ def get_extra_links(
     task_id: str,
     session: SessionDep,
     dag_bag: DagBagDep,
-    map_index: int = -1,
-    try_number: int | None = None,
+    scope: TaskScopeDep,
+    try_number: TryNumberDep,
 ) -> ExtraLinkCollectionResponse:
     """Get extra links for task instance."""
-    from airflow.models.taskinstance import TaskInstance
-
-    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
-
     query = select(TaskInstance).where(
         TaskInstance.dag_id == dag_id,
         TaskInstance.run_id == dag_run_id,
         TaskInstance.task_id == task_id,
-        TaskInstance.map_index == map_index,
+        TaskInstance.region_id == scope.region_id,
+        TaskInstance.region_index == scope.region_index,
     )
     if try_number is not None:
         query = query.where(TaskInstance.try_number == try_number).execution_options(
@@ -91,11 +99,14 @@ def get_extra_links(
             "TaskInstance not found",
         )
 
-    dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
-
     try:
-        task = dag.get_task(task_id)
-    except TaskNotFound:
+        if ti.dag_version_id is None:
+            task = get_dag_for_run_or_latest_version(dag_bag, ti.dag_run, dag_id, session).get_task(task_id)
+        else:
+            task = TaskCoordinateResolver(dag_bag, session).get_task(
+                dag_id, dag_run_id, task_id, dag_version_id=ti.dag_version_id
+            )
+    except (TaskNotFound, ValueError):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task with ID = {task_id} not found")
 
     link_names: list[str] = task.extra_links

@@ -43,10 +43,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: "en" },
     // eslint-disable-next-line id-length
-    t: (translationKey: string) =>
-      ({
-        "configForm.advancedOptions": "Advanced Options",
-      })[translationKey] ?? translationKey,
+    t: (translationKey: string) => translationKey,
   }),
 }));
 
@@ -184,8 +181,6 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(screen.getByText("Advanced Options"));
-
     await waitFor(() => {
       const configJson = screen.getByLabelText("Configuration JSON");
 
@@ -197,7 +192,7 @@ describe("TriggerDAGForm", () => {
     });
   });
 
-  it("syncs Advanced Options JSON after Run Parameters edits in prefilled re-trigger mode", async () => {
+  it("syncs the Configuration JSON after Run Parameters edits in prefilled re-trigger mode", async () => {
     const { container } = render(
       <TriggerDAGForm
         dagId="example_params_trigger_ui"
@@ -229,7 +224,6 @@ describe("TriggerDAGForm", () => {
     }
 
     fireEvent.change(messageField, { target: { value: "Updated message" } });
-    fireEvent.click(screen.getByText("Advanced Options"));
 
     await waitFor(() => {
       const configJson = screen.getByLabelText("Configuration JSON");
@@ -257,8 +251,6 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(screen.getByText("Advanced Options"));
-
     await waitFor(() => expect(screen.getByText("runId")).toBeInTheDocument());
     expect(screen.queryByText("dagRun.partitionKey")).not.toBeInTheDocument();
   });
@@ -277,8 +269,6 @@ describe("TriggerDAGForm", () => {
       />,
       { wrapper: Wrapper },
     );
-
-    fireEvent.click(screen.getByText("Advanced Options"));
 
     await waitFor(() => expect(screen.getByText("dagRun.partitionKey")).toBeInTheDocument());
     expect(screen.getByText("components:triggerDag.partitionKeyHelp")).toBeInTheDocument();

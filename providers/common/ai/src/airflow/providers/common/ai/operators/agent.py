@@ -45,19 +45,20 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin, normalize_assigned_users
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
+from airflow.providers.common.ai.mixins.usage_budget import UsageBudgetMixin
 from airflow.providers.common.ai.observability import (
     build_run_identity_attributes,
     make_task_instance_run_key,
     stamp_identity_on_agent_spans,
 )
+from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import (
+    MODEL_NAME_XCOM_KEY,
     format_usage_for_xcom,
     log_run_summary,
     log_run_usage,
-    wrap_toolsets_for_logging,
 )
-from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import ensure_masked
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
@@ -87,7 +88,10 @@ try:
     # See LLMOperator: Newer ``apache-airflow-task-sdk`` versions register declared ``output_type`` classes
     # from a worker-side DAG walk, so the model instance flows through XCom; older
     # ``apache-airflow-task-sdk`` versions without the walk dump to a dict instead.
-    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+    from airflow.sdk.serde import (
+        SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER,
+        iter_pydantic_models,
+    )
 except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` walker
     _CORE_WALKER = False
 
@@ -166,24 +170,19 @@ def _replace_capability_toolset(
     return capability
 
 
-def _contains_code_mode(capabilities: Iterable[AgentCapability[Any]]) -> bool:
+def _contains_capability(
+    capabilities: Iterable[AgentCapability[Any]], capability_type: type[AbstractCapability[Any]]
+) -> bool:
     """
-    Whether any capability, or one nested inside a combined or wrapper capability, is ``CodeMode``.
+    Whether any capability, or one nested inside a combined or wrapper capability, has the given type.
 
     A capability function, or a ``DynamicCapability``, builds its capability when the run
     starts, so there is nothing to inspect here.
     """
-    # CodeMode's own module is in sys.modules once CodeMode has been imported, and only then.
-    # The pydantic_ai_harness package root is not a safe place to look: it exports CodeMode
-    # through a module __getattr__ that imports that module, which fails without the
-    # ``code-mode`` extra.
-    code_mode_cls = getattr(sys.modules.get("pydantic_ai_harness.code_mode"), "CodeMode", None)
-    if code_mode_cls is None:
-        return False
     pending = [capability for capability in capabilities if isinstance(capability, AbstractCapability)]
     while pending:
         capability = pending.pop()
-        if isinstance(capability, code_mode_cls):
+        if isinstance(capability, capability_type):
             return True
         if isinstance(capability, WrapperCapability):
             # apply() does not visit a wrapper's single wrapped capability, only a combined one's children.
@@ -193,6 +192,16 @@ def _contains_code_mode(capabilities: Iterable[AgentCapability[Any]]) -> bool:
             capability.apply(children.append)
             pending.extend(child for child in children if child is not capability)
     return False
+
+
+def _contains_code_mode(capabilities: Iterable[AgentCapability[Any]]) -> bool:
+    """Whether the declared capabilities contain ``CodeMode``."""
+    # CodeMode's own module is in sys.modules once CodeMode has been imported, and only then.
+    # The pydantic_ai_harness package root is not a safe place to look: it exports CodeMode
+    # through a module __getattr__ that imports that module, which fails without the
+    # ``code-mode`` extra.
+    code_mode_cls = getattr(sys.modules.get("pydantic_ai_harness.code_mode"), "CodeMode", None)
+    return code_mode_cls is not None and _contains_capability(capabilities, code_mode_cls)
 
 
 def _declares_agent_template_fields(toolset: Any) -> bool:
@@ -205,7 +214,7 @@ def _declares_agent_template_fields(toolset: Any) -> bool:
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
-class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
+class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, UsageBudgetMixin):
     """
     Run a pydantic-ai Agent with tools and multi-turn reasoning.
 
@@ -267,9 +276,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         ``agent_params`` still works, but stores each capability's repr
         in the serialized Dag, and cannot be combined with this argument (the
         task fails when it runs).
-    :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
-        ``LoggingToolset`` that logs tool calls with timing at INFO level and
-        arguments at DEBUG level. Set to ``False`` to disable.
+    :param enable_tool_logging: When ``True`` (default), wraps the agent's
+        assembled function toolset in a ``LoggingToolset`` that logs tool calls
+        with timing at INFO level and arguments at DEBUG level. This includes
+        tools supplied through ``toolsets=``, ``agent_params["tools"]``, and
+        capabilities, but not output tools, provider-native tools that run
+        server-side, or tools another capability adds through its own wrapper
+        (code mode's ``run_code``, ToolSearch's ``search_tools``). Set to
+        ``False`` to disable.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
     :param usage_limits: Optional pydantic-ai
@@ -382,8 +396,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         without calling the LLM. E.g. 5 allows changes at iterations 1–4.
         Default ``5``.
     :param hitl_timeout: Maximum wall-clock time to wait for
-        all review rounds combined.  ``None`` means no timeout (the
-        operator blocks until a terminal action).
+        all review rounds combined.  ``None`` means no wall-clock timeout;
+        the review still ends on a terminal action (approve or reject),
+        ``max_hitl_iterations``, or when polling the human action XCom fails
+        too many times in a row.
     :param hitl_poll_interval: Seconds between XCom polls
         while waiting for a human response.  Default ``10``.
 
@@ -506,6 +522,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         self._usage_budget: TaskStateStoreUsageBudget | None = None
         self._run_usage: RunUsage | None = None
         self._run_usage_base: RunUsage = RunUsage()
+
+        # The answer the HITL reviewer is looking at, as the agent returned it.
+        self._output_under_review: Any = None
 
         # Checked ahead of the combination rules below. When Airflow is older than 3.1, its version
         # is the real blocker, and reporting a combination error first would send the
@@ -708,8 +727,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             toolsets: list[AbstractToolset] = [ensure_masked(ts) for ts in self.toolsets]
             if self.durable and storage is not None and counter is not None:
                 toolsets = self._build_durable_toolsets(toolsets, storage, counter)
-            if self.enable_tool_logging:
-                toolsets = wrap_toolsets_for_logging(toolsets, self.log)
             extra_kwargs["toolsets"] = toolsets
         elif extra_kwargs.get("toolsets"):
             extra_kwargs["toolsets"] = [ensure_masked(ts) for ts in extra_kwargs["toolsets"]]
@@ -724,6 +741,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             capabilities = self._build_durable_capabilities(capabilities, storage, counter)
         if self.cache_prompt:
             capabilities.append(PromptCaching())
+        if self.enable_tool_logging and not _contains_capability(capabilities, ToolLoggingCapability):
+            # ToolLoggingCapability's innermost ordering keeps logging inside capability wrappers,
+            # including CodeModeToolset where code mode expects the wrapped tools.
+            capabilities.append(ToolLoggingCapability(logger=self.log))
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
         return self.llm_hook.create_agent(
@@ -903,22 +924,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             map_index=ti.map_index if ti.map_index is not None else -1,
         )
 
-    def _build_usage_budget(
-        self, context: Context, usage_limits: UsageLimits | None, *, ti: Any
-    ) -> TaskStateStoreUsageBudget | None:
-        """
-        Return the cross-attempt usage-budget accessor, or ``None`` when it should not apply.
-
-        Gated like ``_build_durable_storage``: only on Airflow >= 3.3, where the task
-        state store survives retries. Also gated on ``usage_limits is not None`` --
-        with ``usage_limits=None`` turning this on would silently impose pydantic-ai's
-        default ``request_limit=50`` across every attempt of every ``AgentOperator`` on
-        3.3+, which nobody asked for.
-        """
-        if not (AIRFLOW_V_3_3_PLUS and usage_limits is not None):
-            return None
-        return TaskStateStoreUsageBudget(context["task_state_store"], max_tries=ti.max_tries)
-
     def _report_failed_run(self, context: Context, run_usage: RunUsage) -> None:
         """
         Log and XCom-push the usage a failed attempt incurred before it raised.
@@ -981,19 +986,18 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         With ``durable=True``, the replay ledger's unused credits are given back before
         the total is persisted (see ``ReplayUsageLedger.settle``).
         """
-        base = copy_run_usage(run_usage)
-        try:
-            if caching_model is not None:
-                # After the snapshot above, so the credit never shows up in this attempt's delta.
-                caching_model.credit_first_replay()
-            result = self.run_agent_sync(agent, prompt, usage=run_usage, **run_kwargs)
-        finally:
-            if self._replay_usage is not None:
-                # A replay credit the run never used must not reach the persisted total.
-                self._replay_usage.settle()
-            if self._usage_budget:
-                self._usage_budget.save(run_usage)
-        return result, subtract_run_usage(run_usage, base)
+        return self._run_tracked(
+            agent,
+            prompt,
+            run_usage=run_usage,
+            before_run=caching_model.credit_first_replay if caching_model is not None else None,
+            **run_kwargs,
+        )
+
+    def _settle_tracked_usage(self) -> None:
+        if self._replay_usage is not None:
+            # A replay credit the run never used must not reach the persisted total.
+            self._replay_usage.settle()
 
     def _run_and_report_on_failure(
         self,
@@ -1104,20 +1108,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             self._pause_for_tool_approval(context, result, attempt_usage=attempt_usage)
         self._emit_run_metadata(context, result, usage=attempt_usage)
         if self._usage_budget and (run_usage := self._run_usage) is not None:
-            self.log.info(
-                "Cumulative usage across attempts: requests=%s, tool_calls=%s, input_tokens=%s, "
-                "output_tokens=%s, total_tokens=%s",
-                run_usage.requests,
-                run_usage.tool_calls,
-                run_usage.input_tokens,
-                run_usage.output_tokens,
-                run_usage.total_tokens,
-            )
-            if run_usage.cost is not None:
-                self.log.info(
-                    "Cumulative cost across attempts: $%s (USD, best-effort)",
-                    format(run_usage.cost, "f"),
-                )
+            self._log_cumulative_usage(run_usage)
 
         if self.message_history is not None:
             self._emit_message_history(context, result)
@@ -1125,19 +1116,28 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         output = result.output
 
         if self.enable_hitl_review:
-            result_str = self.run_hitl_review(  # type: ignore[misc]
+            self._output_under_review = output
+            self.run_hitl_review(  # type: ignore[misc]
                 context,
                 output,
                 message_history=result.all_messages(),
             )
-            hitl_output = rehydrate_pydantic_output(
-                self.output_type,
-                result_str,
-                serialize_output=self._serialize_model_output,
-            )
-            if self._usage_budget:
-                self._usage_budget.clear()
-            return hitl_output
+            # The reviewer can approve, reject, or ask for a new answer, but cannot edit the answer text.
+            # So the approved answer is the last answer the agent returned, and there is no need to parse
+            # it back from that text.
+            output = self._output_under_review
+            if isinstance(output, BaseModel) and (
+                self._serialize_model_output or type(output) not in iter_pydantic_models(self.output_type)
+            ):
+                # A downstream task can load a model from XCom only if the worker registered the model's
+                # class. The worker registers the classes that iter_pydantic_models finds in output_type.
+                # iter_pydantic_models finds no class in a list of output types, an output marker, an output
+                # function, a TypeAliasType or a NewType, so the operator pushes the model as a dict. When
+                # iter_pydantic_models could not be imported, _serialize_model_output is always True, so the
+                # condition above never reaches the iter_pydantic_models call.
+                output = output.model_dump()
+            self._clear_usage_budget(context)
+            return output
 
         if self._serialize_model_output and isinstance(output, BaseModel):
             output = output.model_dump()
@@ -1149,8 +1149,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         # re-executing every already-completed model and tool step.
         if self._durable_storage is not None:
             self._durable_storage.cleanup()
-        if self._usage_budget:
-            self._usage_budget.clear()
+        self._clear_usage_budget(context)
         return output
 
     def _pause_for_tool_approval(self, context: Context, result: Any, *, attempt_usage: RunUsage) -> NoReturn:
@@ -1386,12 +1385,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         context["task_instance"].xcom_push(key="message_history", value=transcript)
 
     def _emit_run_metadata(self, context: Context, result: Any, *, usage: RunUsage) -> None:
-        """Expose the pydantic-ai run id and token usage on XCom for downstream tasks."""
+        """Expose the pydantic-ai run id, resolved model name, and token usage on XCom."""
         if not self.do_xcom_push:
             return
         ti = context["task_instance"]
         ti.xcom_push(key="run_id", value=result.run_id)
         ti.xcom_push(key="usage", value=format_usage_for_xcom(usage))
+        if (model_name := getattr(result.response, "model_name", None)) is not None:
+            ti.xcom_push(key=MODEL_NAME_XCOM_KEY, value=model_name)
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """
@@ -1426,6 +1427,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         log_run_summary(self.log, result, usage=regen_usage)
 
         output = result.output
+        self._output_under_review = output
         if isinstance(output, BaseModel):
             output = output.model_dump_json()
         return str(output), result.all_messages()

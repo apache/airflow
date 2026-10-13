@@ -77,6 +77,7 @@ def test_nothing_is_dispatched_when_declined(monkeypatch, triggered):
     ("version", "expected_stage"),
     [
         pytest.param("3.1.3rc2", "candidate", id="rc-is-a-candidate"),
+        pytest.param("3.4.0b1", "beta", id="beta-is-a-beta"),
         pytest.param("3.1.3", "final", id="plain-version-is-final"),
     ],
 )

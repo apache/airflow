@@ -22,8 +22,15 @@
 # image can exec it directly -- no extra runtime needs to be installed. We only
 # bind-mount the bundle into the directory the ExecutableCoordinator scans and
 # point the worker at the "golang" queue where @task.stub tasks are routed.
+# The native-Dag bundle sits in the Dags folder, so the Dag processor execs it
+# to parse its Dags, with the same USER and HOME as the worker.
 ---
 services:
+  airflow-dag-processor:
+    environment:
+      USER: airflow
+      HOME: /home/airflow
+
   airflow-worker:
     # The bundle is built with CGO_ENABLED=0, so the SDK's user.Current() call at
     # init falls back to Go's pure-Go resolver, which reads $USER / $HOME and
