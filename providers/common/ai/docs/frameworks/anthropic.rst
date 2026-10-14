@@ -108,8 +108,8 @@ the toolset did not allow:
     }
 
 It then listed the tables, found ``orders``, and answered from it. ``SQLToolset``,
-``HookToolset`` and ``ObjectStorageToolset`` allow one correction: a tool that fails in
-two model turns in a row ends the run with
+``HookToolset`` and ``ObjectStorageToolset`` allow one correction unless you pass the
+toolset ``max_retries``: a tool that fails in two model turns in a row ends the run with
 ``ToolCallError: query kept failing after 1 correction(s): ...``. Each turn counts once,
 however many of its calls failed. ``SQLToolset`` treats every database error as
 correctable, so a query rejected because the connection's credentials are wrong ends the

@@ -50,8 +50,8 @@ AI because it does not tie a Dag to either:
 
 Pydantic AI is the recommendation, not a requirement. For a new agent, start with
 ``AgentOperator``, which gets the most from this provider. If your team has standardized
-on Strands, ADK or LangChain, keep that framework: the table below shows what this
-provider gives an agent written in each one.
+on Strands, ADK, LangChain or the Anthropic SDK, keep that framework: the table below
+shows what this provider gives an agent written in each one.
 
 Supported frameworks
 --------------------
