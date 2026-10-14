@@ -128,7 +128,7 @@ export const Callbacks = () => {
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : undefined;
 
-  const { data, error, isFetching, isLoading } = useDeadlinesServiceGetDeadlines(
+  const { data, error, isLoading } = useDeadlinesServiceGetDeadlines(
     {
       dagId,
       dagRunId: runId,
@@ -151,7 +151,6 @@ export const Callbacks = () => {
       errorMessage={<ErrorAlert error={error} />}
       getRowId={(deadline) => deadline.callback_id}
       initialState={tableURLState}
-      isFetching={isFetching}
       isLoading={isLoading}
       modelName="dag:callbacks.callback"
       onStateChange={setTableURLState}
