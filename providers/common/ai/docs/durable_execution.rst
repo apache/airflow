@@ -20,11 +20,6 @@
 Durable execution
 =================
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 An agent task makes several model calls and tool calls. When it fails partway (a
 network error, a timeout, a provider outage), a plain Airflow retry runs every one of
 them again: the model calls are paid for twice and the tools' side effects happen

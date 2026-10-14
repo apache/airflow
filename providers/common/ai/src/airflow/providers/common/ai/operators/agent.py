@@ -341,7 +341,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         :ref:`the cross-attempt usage budget <agent-usage-budget>` for how
         it is persisted, reset, and how ``durable`` replay and HITL
         regeneration interact with it.
-    :param durable: Experimental. When ``True``, attaches
+    :param durable: When ``True``, attaches
         :class:`~airflow.providers.common.ai.durable.AirflowDurability`, which
         records each step the agent completes -- model responses, tool calls from
         any toolset or capability, tool discovery, and other capabilities'
