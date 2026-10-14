@@ -60,7 +60,7 @@ sidecar runs in ``dns+nft`` mode, the one that drops connections to unlisted
 addresses rather than only name resolution (see
 :ref:`the OpenSandbox backend <sandbox-backend-opensandbox>`). On OpenShell they become
 a policy the sandbox runtime enforces, which the backend reads back before every
-operation and after each one that completes; a name lookup there is answered with a synthetic address instead of
+operation and after each one that succeeds; a name lookup there is answered with a synthetic address instead of
 failing, though no query leaves the sandbox (see
 :ref:`the OpenShell backend <sandbox-backend-openshell>`). ``allow_egress_to``
 names hosts the sandbox may reach, and ``sbx`` and Modal refuse it until you have
@@ -82,7 +82,8 @@ it, because every egress rule there names a host and its ports.
 
 **Packages.** A default sandbox has the Python standard library and no network,
 so an agent that reaches for ``pip install`` gets a DNS failure in a few seconds
-(on OpenShell, where lookups get a synthetic answer, a refused connection).
+(on OpenShell, where lookups get a synthetic answer, a connection that fails with
+"Permission denied").
 Bake what it needs into the image, which needs no egress at all:
 
 .. code-block:: python

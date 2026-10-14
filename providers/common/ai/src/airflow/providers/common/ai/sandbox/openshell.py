@@ -513,7 +513,7 @@ class OpenShellSandboxBackend(SandboxBackend):
     is exactly what was asked for, comes from the sandbox rather than a
     gateway-wide override, and cannot be widened by auto-approved proposals.
     The same check runs before every command and file operation and after each
-    one that completes, because a gateway administrator, an approved draft or a
+    one that succeeds, because a gateway administrator, an approved draft or a
     global policy can widen a running sandbox; a change fails the task. What it cannot see is the network the
     gateway runs on: on Kubernetes the NetworkPolicy that keeps a sandbox pod
     behind its supervisor is the cluster's to enforce.
@@ -571,7 +571,7 @@ class OpenShellSandboxBackend(SandboxBackend):
         self._request_timeout = request_timeout
         self._client: SandboxClient | None = None
         # The egress each sandbox was created with, compared against the effective
-        # policy before and after every command.
+        # policy before every command and file operation and after each one that succeeds.
         self._egress: dict[str, _EgressPolicy] = {}
 
     def _get_client(self) -> SandboxClient:

@@ -287,6 +287,7 @@ codebase
 codec
 codecov
 codepoints
+colima
 Colour
 colour
 colours

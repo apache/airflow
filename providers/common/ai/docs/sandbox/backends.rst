@@ -341,7 +341,7 @@ policy, keeps Landlock at ``hard_requirement``, and has neither
 Auto-approval is refused because OpenShell turns a denied connection into a
 proposed allow rule and, in that mode, approves it without review. The same
 check runs before every command and file operation and after each one that
-completes, because an administrator, an approved
+succeeds, because an administrator, an approved
 draft or a gateway-wide policy can widen a running sandbox; a change destroys the
 sandbox and fails the task. That detects a widening, it does not prevent one: a
 command already running when the policy changes can use it. The check sees
@@ -398,8 +398,8 @@ util-linux), GNU coreutils and findutils, and a ``/bin/sh`` that is dash or bash
 which ``python:*-slim`` and other Debian or Ubuntu based images have; an image
 without ``setsid`` fails the task at its first command. BusyBox ``ash``, the
 ``/bin/sh`` of Alpine images, is not supported: the timeout sweep does not finish
-under it, so a command that runs out of time ends with the sandbox destroyed after
-its budget plus 30 seconds instead of being killed. The gateway's own default image has no ``python3``, which is
+under it, so a command that runs out of time is not killed, and after its budget
+plus 30 seconds the backend asks the gateway to delete the sandbox instead. The gateway's own default image has no ``python3``, which is
 why the backend defaults to ``python:3.12-slim``.
 
 **Cleanup.** OpenShell has no server-side sandbox lifetime. ``destroy`` deletes
