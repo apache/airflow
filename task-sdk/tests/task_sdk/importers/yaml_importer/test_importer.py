@@ -71,11 +71,18 @@ OP_DEFAULT_TEMPLATE = f"{__name__}.{_DefaultTemplateOperator.__name__}"
 
 
 class _TemporalOperator(BaseOperator):
-    """An operator with a datetime-typed argument (``cutoff``)."""
+    """An operator with a datetime-typed argument (``cutoff``) and a timedelta-typed one (``window``)."""
 
-    def __init__(self, *, cutoff: datetime.datetime | None = None, **kwargs):
+    def __init__(
+        self,
+        *,
+        cutoff: datetime.datetime | None = None,
+        window: datetime.timedelta | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.cutoff = cutoff
+        self.window = window
 
 
 OP_TEMPORAL = f"{__name__}.{_TemporalOperator.__name__}"
@@ -277,6 +284,55 @@ def test_import_coerces_temporal_with_arg(mock_bundle):
     cutoff = result.dags[0].get_task("a").cutoff
     assert isinstance(cutoff, datetime.datetime)
     assert (cutoff.year, cutoff.month, cutoff.day) == (2024, 1, 1)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("30s", datetime.timedelta(seconds=30)),
+        ("5m", datetime.timedelta(minutes=5)),
+        ("1h30m", datetime.timedelta(hours=1, minutes=30)),
+        ("2d", datetime.timedelta(days=2)),
+    ],
+)
+def test_import_coerces_duration_task_args(mock_bundle, value, expected):
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(
+            f"- {{id: a, uses: {OP}, retry_delay: {value}, execution_timeout: {value}, with: {{payload: x}}}}",
+            extra=f"dagrun_timeout: {value}\n",
+        ),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    dag = result.dags[0]
+    assert dag.dagrun_timeout == expected
+    assert dag.get_task("a").retry_delay == expected
+    assert dag.get_task("a").execution_timeout == expected
+
+
+def test_import_coerces_duration_with_arg(mock_bundle):
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP_TEMPORAL}, with: {{window: 1h}}}}"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").window == datetime.timedelta(hours=1)
+
+
+@pytest.mark.parametrize("value", ["soon", "10", "5 m"])
+def test_import_keeps_non_duration_string(mock_bundle, value):
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP_TEMPORAL}, with: {{window: '{value}'}}}}"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").window == value
 
 
 def test_import_code_task_builds_stub_operator(mock_bundle):

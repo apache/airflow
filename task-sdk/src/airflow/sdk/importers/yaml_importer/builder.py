@@ -183,8 +183,8 @@ class DagBuilder:
         for name, value in task.with_.items():
             needs_render, has_marker = _field_markers(value)
             lowered = self._lower(value, protect=needs_render)
-            if name in temporal and not has_marker:  # a literal date/ISO string for a datetime arg
-                lowered = _to_datetime(lowered)
+            if (convert := temporal.get(name)) and not has_marker:  # a literal date or duration
+                lowered = convert(lowered)
             kwargs[name] = lowered
             if has_marker and name not in template_fields:
                 off_template.append(name)
@@ -349,19 +349,24 @@ def _reject_reserved_extra_keys(extras: Any) -> None:
 
 def _coerce_temporal(mapping: dict[str, Any], target: type) -> dict[str, Any]:
     """
-    Promote YAML-native dates and ISO date/datetime strings to datetimes.
+    Promote YAML-native dates and ISO date/datetime strings to datetimes, and duration strings to timedeltas.
 
     Some fields on a Dag or operator are datetimes, but YAML has distinct date
     and date-time formats, so a bare ``2024-01-01`` or a quoted ISO string would
     otherwise reach the datetime field unconverted. A date becomes midnight; an
     ISO string is parsed (which also helps JSON compatibility).
 
-    Only values bound to a *target* argument annotated as ``datetime`` are
-    coerced. A non-temporal argument is left untouched, so a string that merely
-    looks like a date keeps its type.
+    Likewise YAML has no duration type, so a duration such as ``30s``, ``5m``,
+    ``1h30m`` or ``2d`` becomes a timedelta.
+
+    Only values bound to a *target* argument annotated as ``datetime`` or
+    ``timedelta`` are coerced. Any other argument is left untouched, so a string
+    that merely looks like a date or a duration keeps its type.
     """
     temporal = _temporal_fields(target)
-    return {key: _to_datetime(value) if key in temporal else value for key, value in mapping.items()}
+    return {
+        key: convert(value) if (convert := temporal.get(key)) else value for key, value in mapping.items()
+    }
 
 
 def _to_datetime(value: Any) -> Any:
@@ -377,35 +382,56 @@ def _to_datetime(value: Any) -> Any:
     return value
 
 
+_DURATION_RE = re.compile(
+    r"(?:(?P<days>\d+)d)?(?:(?P<hours>\d+)h)?(?:(?P<minutes>\d+)m)?(?:(?P<seconds>\d+)s)?"
+)
+
+
+def _to_timedelta(value: Any) -> Any:
+    if isinstance(value, str) and (match := _DURATION_RE.fullmatch(value)) and match[0]:
+        return datetime.timedelta(**{unit: int(amount) for unit, amount in match.groupdict(0).items()})
+    return value
+
+
 # Airflow annotates arguments with either stdlib datetime or pendulum DateTime.
 # Matched by name (see _temporal_fields) rather than resolved to avoid having
 # to evaluate dynamically.
 _TEMPORAL_TYPE_NAMES = frozenset({"datetime", "DateTime"})
+_DURATION_TYPE_NAMES = frozenset({"timedelta"})
 _TYPE_NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*")
 
 
 @functools.cache
-def _temporal_fields(target: type) -> frozenset[str]:
+def _temporal_fields(target: type) -> dict[str, Callable[[Any], Any]]:
     """
-    Names of *target*'s constructor arguments annotated as a datetime type.
+    Map *target*'s constructor arguments annotated as a datetime or timedelta type to their converter.
 
-    The annotation text is matched against the datetime type names Airflow uses;
-    it is never resolved, so one referring to a ``TYPE_CHECKING``-only name does
-    not need importing. The constructor signature is read -- not class
+    The annotation text is matched against the datetime and timedelta type names
+    Airflow uses; it is never resolved, so one referring to a ``TYPE_CHECKING``-only
+    name does not need importing. The constructor signature is read -- not class
     attributes -- so attrs field aliases and operator-specific arguments are
-    covered. This is not perfect (a datetime type reached under another alias is
-    missed); we'll fix edge cases as we go.
+    covered. This is not perfect (a type reached under another alias is missed);
+    we'll fix edge cases as we go.
     """
     try:
         params = inspect.signature(target).parameters
     except (TypeError, ValueError):
-        return frozenset()
-    return frozenset(name for name, p in params.items() if _is_temporal_annotation(str(p.annotation)))
+        return {}
+    return {
+        name: convert
+        for name, p in params.items()
+        if (convert := _find_temporal_converter(str(p.annotation)))
+    }
 
 
-def _is_temporal_annotation(annotation: str) -> bool:
-    """Return True if *annotation* names a datetime type, ignoring any module prefix."""
-    return any(ref.rsplit(".", 1)[-1] in _TEMPORAL_TYPE_NAMES for ref in _TYPE_NAME_RE.findall(annotation))
+def _find_temporal_converter(annotation: str) -> Callable[[Any], Any] | None:
+    """Return the converter for the datetime or timedelta type *annotation* names, ignoring any module prefix."""
+    type_names = {ref.rsplit(".", 1)[-1] for ref in _TYPE_NAME_RE.findall(annotation)}
+    if type_names & _TEMPORAL_TYPE_NAMES:
+        return _to_datetime
+    if type_names & _DURATION_TYPE_NAMES:
+        return _to_timedelta
+    return None
 
 
 def _build_schedule(schedule: Any) -> Any:
