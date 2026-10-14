@@ -21,7 +21,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import type { HITLDetail } from "openapi/requests/types.gen";
 
-import { getHITLParamsDict, getHITLState, isHITLPending } from "./hitl";
+import { getHITLFormData, getHITLParamsDict, getHITLState, isHITLPending } from "./hitl";
 
 const mockTranslate = vi.fn((key: string) => key) as unknown as TFunction;
 
@@ -163,5 +163,52 @@ describe("getHITLParamsDict", () => {
     const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
 
     expect(paramsDict.freeze_until?.value).toBe("2026-09-03");
+  });
+
+  it.each([
+    { label: "string", type: "string" },
+    { label: "nullable string", type: ["string", "null"] },
+  ])("keeps a JSON-looking value of a $label param as text", ({ type }) => {
+    const output = '{"title": "Login broken", "priority": 2}';
+    const hitlDetail = createMockHITLDetail({
+      params: {
+        output: { description: null, schema: { type }, value: output },
+      },
+    });
+
+    const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
+
+    expect(paramsDict.output?.value).toBe(output);
+    expect(paramsDict.output?.schema.type).toEqual(type);
+    expect(getHITLFormData(paramsDict).params_input).toEqual({ output });
+  });
+
+  it("returns a string param's integers beyond 2**53 unchanged", () => {
+    const output = '{"id": 12345678901234567890}';
+    const hitlDetail = createMockHITLDetail({
+      params: {
+        output: { description: null, schema: { type: "string" }, value: output },
+      },
+    });
+
+    const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
+
+    expect(getHITLFormData(paramsDict).params_input?.output).toBe(output);
+  });
+
+  it.each([
+    { label: "an object", schema: { type: "object" } },
+    { label: "a nullable object", schema: { type: ["object", "null"] } },
+    { label: "an untyped", schema: {} },
+  ])("parses a JSON string for $label param into an object", ({ schema }) => {
+    const hitlDetail = createMockHITLDetail({
+      params: {
+        objectParam: { description: null, schema, value: '{"key": "value", "nested": {"data": 123}}' },
+      },
+    });
+
+    const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
+
+    expect(paramsDict.objectParam?.value).toEqual({ key: "value", nested: { data: 123 } });
   });
 });

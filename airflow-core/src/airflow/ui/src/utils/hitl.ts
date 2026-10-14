@@ -73,6 +73,15 @@ export const getPreloadHITLFormData = (searchParams: URLSearchParams, hitlDetail
   };
 };
 
+const allowsObjectValue = (type: ParamSchema["type"]): boolean => {
+  if (type === undefined) {
+    return true;
+  }
+  const types = Array.isArray(type) ? type : [type];
+
+  return types.includes("object") && !types.includes("string");
+};
+
 export const getHITLParamsDict = (
   hitlDetail: HITLDetailHistory,
   translate: TFunction,
@@ -132,8 +141,17 @@ export const getHITLParamsDict = (
       // Check if there's a preloaded value from URL params
       let finalValue = hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value);
 
-      // If preloaded value is a string that might be JSON, try to parse it
-      if (typeof finalValue === "string" && finalValue.trim().startsWith("{")) {
+      const declaredSchema =
+        paramData?.schema && typeof paramData.schema === "object" ? paramData.schema : undefined;
+
+      // A JSON-looking string is parsed into an object only when the param may hold an object.
+      // A param declared as a string keeps its text: parsing it would render "[object Object]" in
+      // the string field and send an object back where the task expects a string.
+      if (
+        typeof finalValue === "string" &&
+        finalValue.trim().startsWith("{") &&
+        allowsObjectValue(declaredSchema?.type)
+      ) {
         try {
           const parsed: unknown = JSON.parse(finalValue);
 
@@ -174,7 +192,7 @@ export const getHITLParamsDict = (
         title: key,
         type: valueType,
         values_display: undefined,
-        ...(paramData?.schema && typeof paramData.schema === "object" ? paramData.schema : {}),
+        ...declaredSchema,
       };
 
       paramsDict[key] = {
