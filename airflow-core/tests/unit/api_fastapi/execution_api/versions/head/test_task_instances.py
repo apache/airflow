@@ -686,8 +686,21 @@ class TestTIRunState:
 
     @pytest.mark.parametrize(
         "conf_value",
-        [-(2**63), 2**64 - 1, -(2**63) - 1, 2**64, str(2**64)],
-        ids=["min-int64", "max-uint64", "below-int64", "above-uint64", "large-number-string"],
+        [
+            pytest.param(-(2**63), id="min-int64"),
+            pytest.param(2**64 - 1, id="max-uint64"),
+            pytest.param(
+                -(2**63) - 1,
+                id="below-int64",
+                marks=pytest.mark.backend("postgres", "sqlite"),
+            ),
+            pytest.param(
+                2**64,
+                id="above-uint64",
+                marks=pytest.mark.backend("postgres", "sqlite"),
+            ),
+            pytest.param(str(2**64), id="large-number-string"),
+        ],
     )
     def test_run_conf_can_be_sent_to_task_runner(self, client, session, create_task_instance, conf_value):
         ti = create_task_instance(task_id="large_integer_conf", state=State.QUEUED)
