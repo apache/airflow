@@ -1221,6 +1221,8 @@ class TestSchedulerJob:
                 # over-long edge_job.command.
                 session.add(Variable(key="duplicate", val="y"))
             original_queue_workload(workload, session=session)
+            # Like EdgeExecutor, track the workload as running as soon as it is queued.
+            executor.running.add(workload.key)
 
         with mock.patch.object(executor, "queue_workload", autospec=True, side_effect=queue_workload):
             self.job_runner._enqueue_executor_callbacks(session)
@@ -1230,6 +1232,13 @@ class TestSchedulerJob:
         assert rejected.state == CallbackState.FAILED
         assert rejected.output == "Failed to queue callback: IntegrityError"
         assert session.get(ExecutorCallback, accepted_callback.id).state == CallbackState.QUEUED
+
+        queued_callback_ids = {
+            workload.callback.id
+            for workload in executor.executor_queues[WorkloadType.EXECUTE_CALLBACK].values()
+        }
+        assert queued_callback_ids == {str(accepted_callback.id)}
+        assert {key.id for key in executor.running} == {str(accepted_callback.id)}
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")

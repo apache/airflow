@@ -1391,6 +1391,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # A savepoint so that a callback the executor cannot store (e.g. a DB write rejected at
                 # flush) fails on its own instead of aborting the scheduler loop. Otherwise the rollback
                 # leaves it PENDING and every scheduler restart crashes on it again.
+                workload: workloads.ExecuteCallback | None = None
                 try:
                     with session.begin_nested():
                         workload = workloads.ExecuteCallback.make(
@@ -1402,6 +1403,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         callback.state = CallbackState.QUEUED
                         session.add(callback)
                 except Exception as e:
+                    if workload is not None:
+                        # The savepoint rollback does not undo what queue_workload put in executor memory.
+                        key = executor.get_workload_key(workload)
+                        executor.executor_queues[workload.type].pop(key, None)
+                        executor.running.discard(key)
                     self.log.exception("Failed to queue callback %s to %s", callback.id, executor)
                     callback.state = CallbackState.FAILED
                     callback.output = f"Failed to queue callback: {type(e).__name__}"
