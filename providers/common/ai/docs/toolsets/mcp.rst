@@ -196,8 +196,8 @@ agent is offered. It does not change what the server lets the connection's crede
 do, so give the connection the narrowest credential the server accepts.
 
 To keep a tool available but have a person approve a call to it before it runs, wrap
-the toolset with ``.approval_required()`` instead. A task instance can pause for
-approval once per Dag run; see :doc:`../tool_approval`.
+the toolset with ``.approval_required()`` instead. On Airflow 3.3 a task instance can
+pause for approval only once per Dag run; see :doc:`../tool_approval`.
 
 Direct pydantic-ai MCP toolsets
 -------------------------------
