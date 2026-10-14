@@ -46,8 +46,9 @@ class PowerBIDatasetRefreshStatus:
     TIMED_OUT = "TimedOut"
     CANCELLED = "Cancelled"
 
-    FAILURE_STATUSES = {FAILED, DISABLED, TIMED_OUT, CANCELLED}
-    TERMINAL_STATUSES = FAILURE_STATUSES | {COMPLETED}
+    TERMINAL_STATUSES = {FAILED, COMPLETED, DISABLED, TIMED_OUT, CANCELLED}
+    FAILURE_STATUSES = TERMINAL_STATUSES - {COMPLETED}
+    ACTIVE_EXTENDED_STATUSES = {"NotStarted", "InProgress"}
 
 
 class PowerBIDatasetRefreshException(AirflowException):
@@ -79,6 +80,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
     conn_name_attr: str = "conn_id"
     default_conn_name: str = "powerbi_default"
     hook_name: str = "Power BI"
+    VIA_ENHANCED_API = "ViaEnhancedApi"
 
     def __init__(
         self,
@@ -151,22 +153,21 @@ class PowerBIHook(KiotaRequestAdapterHook):
         """
         Convert raw refresh details into a dictionary containing required fields.
 
-        Enhanced refresh history entries retain their type for execution-detail polling.
+        Refresh history entries retain their type for execution-detail polling.
 
         :param refresh_details: Raw object of refresh details.
         """
-        details = {
+        return {
             PowerBIDatasetRefreshFields.REQUEST_ID.value: str(refresh_details.get("requestId")),
             PowerBIDatasetRefreshFields.STATUS.value: (
-                "In Progress"
-                if str(refresh_details.get("status")) == "Unknown"
+                PowerBIDatasetRefreshStatus.IN_PROGRESS
+                if refresh_details.get("status")
+                in PowerBIDatasetRefreshStatus.ACTIVE_EXTENDED_STATUSES | {"Unknown"}
                 else str(refresh_details.get("status"))
             ),
             PowerBIDatasetRefreshFields.ERROR.value: str(refresh_details.get("serviceExceptionJson")),
+            PowerBIDatasetRefreshFields.REFRESH_TYPE.value: str(refresh_details.get("refreshType")),
         }
-        if refresh_details.get("refreshType") == "ViaEnhancedApi":
-            details[PowerBIDatasetRefreshFields.REFRESH_TYPE.value] = "ViaEnhancedApi"
-        return details
 
     async def get_refresh_details_by_refresh_id(
         self, dataset_id: str, group_id: str, refresh_id: str
@@ -195,7 +196,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
 
         refresh_details = refresh_histories[refresh_ids.index(refresh_id)]
 
-        if refresh_details.get(PowerBIDatasetRefreshFields.REFRESH_TYPE.value) == "ViaEnhancedApi":
+        if refresh_details.get(PowerBIDatasetRefreshFields.REFRESH_TYPE.value) == self.VIA_ENHANCED_API:
             try:
                 execution_details = await self.run(
                     url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes/{refresh_id}",
@@ -210,9 +211,16 @@ class PowerBIHook(KiotaRequestAdapterHook):
                     "Failed to retrieve refresh execution details"
                 ) from error
             status = execution_details.get("extendedStatus")
-            if status not in PowerBIDatasetRefreshStatus.TERMINAL_STATUSES | {"NotStarted", "InProgress"}:
+            if status not in (
+                PowerBIDatasetRefreshStatus.TERMINAL_STATUSES
+                | PowerBIDatasetRefreshStatus.ACTIVE_EXTENDED_STATUSES
+            ):
                 status = execution_details.get("status")
-            errors = [message["message"] for message in execution_details.get("messages", [])]
+            errors = [
+                message["message"]
+                for message in execution_details.get("messages", [])
+                if message.get("message") and message.get("type") != "Warning"
+            ]
             if execution_details.get("serviceExceptionJson"):
                 errors.append(execution_details["serviceExceptionJson"])
             errors.extend(
@@ -224,6 +232,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
                 {
                     "requestId": refresh_id,
                     "status": status,
+                    "refreshType": refresh_details[PowerBIDatasetRefreshFields.REFRESH_TYPE.value],
                     "serviceExceptionJson": "; ".join(errors) if errors else None,
                 }
             )
