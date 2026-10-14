@@ -67,7 +67,7 @@ Dag bundles are configured in :ref:`config:dag_processor__dag_bundle_config_list
 Writing a bundle source
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Set :ref:`config:dag_processor__dag_bundle_source` to the import path of a class that extends
+Set ``[dag_processor] dag_bundle_source`` to the import path of a class that extends
 ``DagBundleSource``. The default, ``ConfigDagBundleSource``, reads ``dag_bundle_config_list``.
 This is a class extension point; it does not require a new Airflow provider package.
 
