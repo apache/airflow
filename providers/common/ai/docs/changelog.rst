@@ -26,6 +26,16 @@ Changelog
 ---------
 
 .. note::
+  ``LLMOperator``, the operators built on it (``LLMBranchOperator``, ``LLMSQLQueryOperator``,
+  ``LLMSchemaCompareOperator``, ``LLMFileAnalysisOperator``) and their ``@task.llm*``
+  decorators no longer accept ``agent_params``. These operators make one model call and run
+  no tools in the task; an agent with function tools, toolsets or capabilities belongs in
+  ``AgentOperator``, which keeps ``agent_params``. Passing ``agent_params`` to an LLM operator now fails when the Dag is
+  parsed. ``agent_params={"model_settings": {...}}`` becomes ``model_settings={...}``,
+  ``agent_params={"retries": n}`` becomes ``output_retries=n``, and ``tools``, ``toolsets``,
+  ``capabilities`` or ``spec_file`` move to ``AgentOperator`` or ``@task.agent``. See
+  :ref:`howto/operator:llm`.
+
   On Airflow >= 3.3, the ``usage_limits`` of the ``LLM*`` operators (``LLMOperator``,
   ``LLMBranchOperator``, ``LLMSQLQueryOperator``, ``LLMSchemaCompareOperator``,
   ``LLMFileAnalysisOperator``) counts usage across every attempt of the task instance
