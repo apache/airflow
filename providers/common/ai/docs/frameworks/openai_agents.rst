@@ -142,11 +142,65 @@ To turn the SDK's tracing off altogether, call ``agents.set_tracing_disabled(Tru
 ``OPENAI_AGENTS_DISABLE_TRACING=1`` in the worker's environment. That stops
 ``AirflowTraceProcessor`` from receiving anything too.
 
+.. _howto/frameworks:openai-agents-durable:
+
+Durable execution
+-----------------
+
+When a task that calls ``Runner.run`` fails and Airflow retries it, the agent starts
+again from the prompt: every model call is paid for again, and every tool call happens
+again. On a task with ``retries``, run the agent with
+:func:`~airflow.providers.common.ai.durable.openai_agents.run_durably_sync`, or
+:func:`~airflow.providers.common.ai.durable.openai_agents.run_durably` from async code,
+instead. They take the same arguments as ``Runner.run_sync`` and ``Runner.run``:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_openai_agents_durable.py
+    :language: python
+    :start-after: [START example_openai_agents_durable]
+    :end-before: [END example_openai_agents_durable]
+
+Each model call and function tool call is recorded in the task instance's durable
+journal as it completes, the journal ``AgentOperator(durable=True)`` uses (see
+:doc:`../durable_execution`). On a retry the agent runs again from the start, and each
+call that asks what the failed try asked, in the same order, returns what it returned
+then. From the first call that differs, that call and every call after it run live. Once
+the run succeeds, what was recorded is deleted, so clearing the task later starts over.
+
+A retry runs some work again:
+
+- A call that was running when the try failed runs again, so tools that change data
+  must still be safe to repeat.
+- When the run failed because of the model's answers (``MaxTurnsExceeded``,
+  ``ModelBehaviorError``, ``ModelRefusalError``, or an output or tool input guardrail),
+  replaying those answers would fail it the same way, so the retry asks the model again
+  from its last request. A ``ModelBehaviorError`` that a tool raises, such as arguments
+  that fail validation with ``failure_error_function=None``, counts as the tool's failure
+  instead: the tool call runs again, but the answer that asked for it replays.
+- A retry whose prompt, instructions, model settings or tools differ from the failed
+  try's runs everything live from the first call that sees the difference.
+- These are not recorded and run live on every try: tools other than function tools
+  (hosted tools such as web search, the tools of ``mcp_servers``, shell and computer
+  tools); a function tool whose ``needs_approval`` is a function, since the SDK checks the
+  arguments it approved only through its own invoker; the function tools of an agent
+  reached through ``handoff()``, and its model unless that is given by name or left to
+  the default; and a streamed run. An agent used through ``as_tool`` is recorded as one
+  call.
+- A ``session`` makes every retry run live: the SDK adds the failed try's prompt to it
+  before the first model call, so that call no longer asks what it asked then.
+- A ``SandboxToolset`` without ``attach_to`` is destroyed when the try ends, so the retry
+  starts with a new, empty sandbox that the replayed conversation does not describe.
+
+Recorded tool results pass through Airflow's secret masker before they are saved, and a
+replayed model call reports no token usage. ``run_durably`` refuses
+``previous_response_id``, ``conversation_id`` and ``auto_previous_response_id``: with them
+OpenAI keeps the conversation, and a replayed call never reaches it. Outside a task there
+is nothing to replay into, and it runs the agent as ``Runner.run`` does.
+
 Differences from ``AgentOperator``
 ----------------------------------
 
-- A task retry runs the agent again from the start, so tools that change data must be
-  safe to repeat.
+- A task retry runs the agent again from the start unless it runs through
+  ``run_durably``; see :ref:`howto/frameworks:openai-agents-durable`.
 - There is no human review step like ``AgentOperator(enable_hitl_review=True)``, and the
   SDK's own ``needs_approval`` interruptions are not connected to Airflow's approval UI.
 

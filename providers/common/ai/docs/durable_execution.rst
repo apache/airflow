@@ -30,7 +30,8 @@ them again. Only the steps the failed attempt never finished run live.
 Durable execution only helps a task that has retries. To decide *whether* a failure is
 worth retrying, see :doc:`retry_policies`; a retried ``LLMBatchOperator`` re-attaches to
 its running batch instead (:ref:`llm-batch-reattach`). To resume a Strands Agents agent on a
-retry, see :ref:`howto/frameworks:strands-durable`.
+retry, see :ref:`howto/frameworks:strands-durable`; for an OpenAI Agents SDK agent, see
+:ref:`howto/frameworks:openai-agents-durable`.
 
 Turn it on
 ----------
