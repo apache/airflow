@@ -298,7 +298,9 @@ class _ConnRegistry:
 
     def register_hook(self, conn_type: str, hook_class_name: str | None) -> None:
         self.hooks[conn_type] = HookInfo(
-            hook_class_name=hook_class_name,
+            # ``HookInfo`` types this as ``str``, but the providers manager registers ``None`` for
+            # types like ``generic``.
+            hook_class_name=hook_class_name,  # type: ignore[arg-type]
             connection_id_attribute_name="llm_conn_id",
             package_name="apache-airflow-providers-test",
             hook_name=conn_type,
