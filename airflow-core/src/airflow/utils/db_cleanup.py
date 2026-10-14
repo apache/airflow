@@ -824,7 +824,7 @@ def _cleanup_table(
     num_rows = _check_for_rows(
         session=session,
         query=query,
-        table_name=orm_model.name,
+        table_name=_format_table_name(orm_model.schema, orm_model.name),
         print_rows=False,
     )
 
