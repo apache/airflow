@@ -5306,7 +5306,9 @@ class _DatasetName(str, enum.Enum):
     ("value", "expected"),
     [
         pytest.param([], [], id="empty"),
-        pytest.param(({"a": 1},), [{"a": 1}], id="tuple"),
+        pytest.param(
+            [{("tuple", "key"): 1, "uri": "s3://b/o"}], [{"uri": "s3://b/o"}], id="non_str_key_dropped"
+        ),
         pytest.param([{"uri": _DatasetName.SYNC}], [{"uri": "user_sync"}], id="str_enum_uses_value"),
         pytest.param([{"n": Decimal("1.5")}], [{"n": "1.5"}], id="decimal"),
         pytest.param(
@@ -5323,11 +5325,10 @@ def test_convert_to_json_safe_list(value, expected):
 
 def test_convert_to_json_safe_list_returns_none_on_failure(caplog):
     with caplog.at_level(logging.WARNING):
-        assert _convert_to_json_safe_list([{("tuple", "key"): 1}], "outlets") is None
-    assert (
-        "Unable to serialize task `outlets` to a JSON list: keys must be str, int, float, bool or None, not tuple"
-        in caplog
-    )
+        circular: list = []
+        circular.append(circular)
+        assert _convert_to_json_safe_list(circular, "outlets") is None
+    assert "Unable to serialize task `outlets` to a JSON list: Circular reference detected" in caplog
 
 
 @patch("airflow.providers.openlineage.utils.utils.get_runtime_outlet_assets")

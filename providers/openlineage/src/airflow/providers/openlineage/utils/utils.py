@@ -2209,10 +2209,14 @@ class OpenLineageRedactor(SecretsMasker):
         return item
 
 
-def _convert_to_json_safe_list(value: Collection, name: str) -> list | None:
-    """Return ``value`` as a list of JSON-native types, casting non-serializable values with ``str()``."""
+def _convert_to_json_safe_list(value: list, name: str) -> list | None:
+    """
+    Return ``value`` with only JSON-native types.
+
+    Non-serializable values are cast with ``str()``; dict keys JSON can't encode (e.g. tuples) are dropped.
+    """
     try:
-        return json.loads(json.dumps(list(value), default=str))
+        return json.loads(json.dumps(value, default=str, skipkeys=True))
     except (TypeError, ValueError) as e:
         log.warning("Unable to serialize task `%s` to a JSON list: %s", name, e)
         return None
