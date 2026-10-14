@@ -357,3 +357,13 @@ config:
         type: string
         example: ~
         default: "api://snowflake_oauth_server/.default"
+      openlineage_query_for_extra_metadata:
+        description: |
+          Whether OpenLineage should query Snowflake's ``QUERY_HISTORY_BY_USER()`` after a task finishes
+          to get the execution status, start and end times, SQL text and errors of the task's queries.
+          Disabling it saves one extra query per task. Events are still emitted for every query,
+          using the task's state and the current time instead.
+        version_added: 6.20.0
+        type: boolean
+        example: ~
+        default: "True"

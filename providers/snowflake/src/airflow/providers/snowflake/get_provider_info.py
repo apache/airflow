@@ -214,7 +214,14 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "api://snowflake_oauth_server/.default",
-                    }
+                    },
+                    "openlineage_query_for_extra_metadata": {
+                        "description": "Whether OpenLineage should query Snowflake's ``QUERY_HISTORY_BY_USER()`` after a task finishes\nto get the execution status, start and end times, SQL text and errors of the task's queries.\nDisabling it saves one extra query per task. Events are still emitted for every query,\nusing the task's state and the current time instead.\n",
+                        "version_added": "6.20.0",
+                        "type": "boolean",
+                        "example": None,
+                        "default": "True",
+                    },
                 },
             }
         },

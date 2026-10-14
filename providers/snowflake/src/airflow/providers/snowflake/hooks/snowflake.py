@@ -1098,7 +1098,8 @@ class SnowflakeHook(DbApiHook):
         Note that `get_openlineage_database_specific_lineage` is usually called after task's execution,
         so if multiple query IDs are present, both START and COMPLETE event for each query will be emitted
         after task's execution. If we are able to query Snowflake for query execution metadata,
-        query event times will correspond to actual query's start and finish times.
+        query event times will correspond to actual query's start and finish times. Querying Snowflake
+        for that metadata can be turned off with ``[snowflake] openlineage_query_for_extra_metadata``.
 
         Args:
             task_instance: The Airflow TaskInstance object for which lineage is being collected.
@@ -1126,7 +1127,9 @@ class SnowflakeHook(DbApiHook):
             task_instance=task_instance,
             hook=self,
             query_ids=self.query_ids,
-            query_for_extra_metadata=True,
+            query_for_extra_metadata=conf.getboolean(
+                "snowflake", "openlineage_query_for_extra_metadata", fallback=True
+            ),
             query_source_namespace=namespace,
         )
 
