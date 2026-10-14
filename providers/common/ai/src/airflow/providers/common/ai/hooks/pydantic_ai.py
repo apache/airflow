@@ -640,9 +640,7 @@ class PydanticAIHook(BaseHook):
         # still wins over the provider's auto-instrumentation.
         caller_instrument = agent_kwargs.pop("instrument", _UNSET)
 
-        # Masks what every tool returns or raises before the model sees it, however the tool
-        # reaches the agent. Last in the list: among capabilities that also ask to be innermost,
-        # the last one is closest to the tool.
+        # Last, so it is the innermost capability; see MaskingCapability.
         agent_kwargs["capabilities"] = [*(agent_kwargs.get("capabilities") or ()), MaskingCapability()]
 
         if spec_file is not None:

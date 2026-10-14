@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import asyncio
-import dataclasses
 import logging
 import threading
 from abc import abstractmethod
@@ -36,7 +35,6 @@ from pydantic_ai.exceptions import (
     ToolRetryError,
     UnexpectedModelBehavior,
 )
-from pydantic_ai.messages import ToolReturn
 from pydantic_ai.toolsets import DynamicToolset
 from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.toolsets.wrapper import WrapperToolset
@@ -126,26 +124,16 @@ async def _mask_call(name: str, call: Awaitable[Any], *, count_as: str | None = 
     if error is not None:
         # Raised outside the except blocks, so Python does not chain the original back on.
         raise error
-    if isinstance(result, ToolReturn):
-        return dataclasses.replace(
-            result,
-            return_value=mask_secrets(result.return_value),
-            content=mask_secrets(result.content),
-            # Not sent to the model, but kept in the message history and recorded in traces.
-            metadata=mask_secrets(result.metadata),
-        )
+    # A ToolReturn is masked field by field, its metadata included: not sent to the model,
+    # but kept in the message history and recorded in traces.
     return mask_secrets(result)
 
 
 def _mask_tool_error_part(error: ToolRetryError | ToolFailedError) -> ToolRetryError | ToolFailedError:
-    """Rebuild ``error`` around a copy of the message part it carries, with that part's content masked."""
+    """Rebuild ``error`` around a masked copy of the message part it carries."""
     if isinstance(error, ToolRetryError):
-        return ToolRetryError(
-            dataclasses.replace(error.tool_retry, content=mask_secrets(error.tool_retry.content))
-        )
-    return ToolFailedError(
-        dataclasses.replace(error.tool_failed, content=mask_secrets(error.tool_failed.content))
-    )
+        return ToolRetryError(mask_secrets(error.tool_retry))
+    return ToolFailedError(mask_secrets(error.tool_failed))
 
 
 def _strip(error: Exception) -> Exception:

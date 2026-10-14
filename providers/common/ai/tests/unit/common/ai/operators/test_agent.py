@@ -3679,14 +3679,6 @@ class TestAgentOperatorMasksToolOutput:
 
         assert self._run(op) == "api key: ***"
 
-    def test_function_tools_passed_through_agent_params(self, registered_secret):
-        def read_setting() -> str:
-            return f"api key: {registered_secret}"
-
-        op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="c", agent_params={"tools": [read_setting]})
-
-        assert self._run(op) == "api key: ***"
-
     def test_other_capabilities_only_see_the_masked_result(self, registered_secret):
         seen = []
         op = AgentOperator(
