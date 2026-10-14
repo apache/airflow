@@ -45,7 +45,7 @@ from airflow.providers.common.ai.utils.decision import (
     validate_decision_policy,
 )
 from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY, log_run_summary
-from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.output_type import dump_output_to_json, rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseOperator
@@ -162,7 +162,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         ``decision_policy`` that reviews) and a positive
         ``approval_timeout``.
     :param allow_modifications: If ``True``, the reviewer can edit the output
-        before approving.  The modified value is returned as the task result.
+        before approving.  The edit is converted back into ``output_type`` and returned
+        as the task result.  For a type pydantic can validate, an edit that does not validate
+        fails the task with ``ReviewedOutputValidationError``; a retry runs the model again.
         Default ``False``.
     :param approval_notifiers: Notifiers called once the review is open, so a
         reviewer is told about it.  Only takes effect when a review is
@@ -375,7 +377,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
             self._log_review(review, confidence, threshold)
             body = None
             if review != "require_approval":
-                body = f"```\nPrompt: {self.prompt}\n\n{output}\n```\n\n" + "\n\n".join(
+                # The same JSON text the default body and the edit field show, not the object's repr.
+                body = f"```\nPrompt: {self.prompt}\n\n{dump_output_to_json(output)}\n```\n\n" + "\n\n".join(
                     describe_confidence(model_confidence, name, threshold) for name in fields
                 )
             self.defer_for_approval(context, output, body=body, decision=record)  # type: ignore[misc]
@@ -396,7 +399,11 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         event: dict[str, Any],
         decision: dict[str, Any] | None = None,
     ) -> Any:
-        """Resume after human review and restore the Pydantic model for XCom consumers."""
+        """
+        Resume after human review and convert the output back into ``output_type``.
+
+        :raises ReviewedOutputValidationError: If a reviewer's edit does not validate against ``output_type``.
+        """
         output = self._complete_review(context, generated_output, event, decision)
         self._clear_usage_budget(context)
         return output
@@ -408,11 +415,19 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         event: dict[str, Any],
         decision: dict[str, Any] | None,
     ) -> Any:
-        """Resolve the review and rehydrate the output, leaving the usage budget for the caller to clear."""
+        """
+        Resolve the review and rehydrate the output, leaving the usage budget for the caller to clear.
+
+        :raises ReviewedOutputValidationError: If a reviewer's edit does not validate against ``output_type``.
+        """
         output = self._resume_after_review(context, generated_output, event, decision)
         self._finalize_decision(context, event, decision, action=None)
         return rehydrate_pydantic_output(
-            self.output_type, output, serialize_output=self._serialize_model_output
+            self.output_type,
+            output,
+            serialize_output=self._serialize_model_output,
+            # An unedited approval hands back ``generated_output`` as is, and only an edit may fail the task.
+            is_edited=output != generated_output,
         )
 
     def _run_llm(

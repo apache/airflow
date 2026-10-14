@@ -50,6 +50,16 @@ Changelog
   and counted on its own, unchanged. See :ref:`howto/operator:llm`.
 
 .. note::
+  A reviewer's edit on ``LLMOperator``, ``LLMFileAnalysisOperator`` or
+  ``LLMSchemaCompareOperator`` (``allow_modifications=True``) is now converted back into
+  ``output_type``, and an edit that does not validate fails the task with
+  ``ReviewedOutputValidationError`` (a ``ValueError``) instead of returning the edited text as
+  a ``str``. Use ``output_type=str`` or ``str | None`` to keep accepting free text; a ``Literal`` or
+  a ``str`` ``Enum`` accepts one of its values typed as bare text, and any other edit now fails the
+  task. An approval without an edit never fails this way. The review text now shows field names and leaves out computed fields.
+  See :doc:`approval_gates`.
+
+.. note::
   Durable execution (``durable=True`` on ``AgentOperator``) is rebuilt on the
   ``AirflowDurability`` capability. The internal ``durable.caching_model``,
   ``durable.caching_toolset`` and ``durable.step_counter`` modules are removed, and the
