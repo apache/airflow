@@ -1781,6 +1781,32 @@ class TestGetLoopSummaryEndpoint:
         assert response.json()["max_iterations"] == 3
         assert [iteration["state"] for iteration in response.json()["iterations"]] == ["removed"] * 3
 
+    def test_summary_separates_stopping_below_the_cap_from_reaching_it(self, test_client, dag_maker):
+        """A loop that converges one pass below its cap stopped early; it did not run to the cap."""
+
+        @task
+        def work():
+            return 1
+
+        @task_group
+        def body():
+            work()
+
+        def converged(*, loop):
+            return loop.index == 2
+
+        with dag_maker(serialized=False) as dag:
+            body.loop(max_iterations=3, until=converged)
+        run = dag.test()
+
+        summary = test_client.get(f"/grid/loop/{run.dag_id}/{run.run_id}/body").json()
+
+        # A zero-based cap check reads the second of three passes as the cap and says ran_to_cap.
+        assert summary["status"] == "stopped_early"
+        assert summary["stopped_at_iteration"] == 2
+        assert summary["reason"] is None
+        assert summary["iterations_ran"] == 2
+
     def test_condition_docstring_reaches_loop_summary_and_structure(self, test_client, dag_maker):
         @task
         def work():

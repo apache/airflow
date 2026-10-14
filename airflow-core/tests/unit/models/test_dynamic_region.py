@@ -27,6 +27,7 @@ from sqlalchemy.exc import IntegrityError
 from airflow._shared.timezones import timezone
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import (
+    FIRST_LOOP_ITERATION,
     SENTINEL_REGION_ID,
     AmbiguousProducerError,
     DynamicRegion,
@@ -744,6 +745,13 @@ def read_loop_sequence(session, dag_run, loop, task_id, *, is_mapped):
     )
     order = build_loop_sequence_order(TaskInstance.region_id, TaskInstance.region_index)
     return list(session.scalars(select(TaskInstance).where(TaskInstance.id.in_(ids)).order_by(*order)))
+
+
+def test_first_loop_iteration_matches_the_task_sdk_copy():
+    """The SDK cannot import core, so the two constants are kept in step by this test."""
+    from airflow.sdk.definitions._internal.loop import FIRST_LOOP_ITERATION as sdk_first
+
+    assert sdk_first == FIRST_LOOP_ITERATION
 
 
 def test_loop_sequence_of_unmapped_task_is_ordered_by_iteration(loop_run, session):

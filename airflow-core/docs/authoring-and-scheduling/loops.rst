@@ -82,7 +82,9 @@ loop body must be keyword-only and cannot have a default other than ``None``.
 
 In a templated field, a Jinja ``{% for %}`` block defines its own ``loop`` that hides this one for
 the length of the block. Read the Airflow value before the block and use that inside it, for example
-``{% set iteration = loop.index %}``.
+``{% set iteration = loop.index %}``. Both count from one, so ``loop.index`` reads the same either
+way, but Jinja's loop also offers ``loop.index0`` and Airflow's does not: outside a ``{% for %}``
+block ``loop.index0`` raises an ``AttributeError``, and inside one it is Jinja's own counter.
 
 When ``until`` has no usable name, the gate is named ``__loop_gate`` instead.
 That covers a lambda, a ``functools.partial`` and a callable object. A gate name
@@ -239,8 +241,8 @@ The task receives a sequence (``LazyXComSequence``) with one element for each
 iteration the loop ran, in iteration order, so ``results[-1]`` is the last
 iteration's result and ``len(results)`` is the number of iterations. A mapped
 loop task gives one element per mapped instance for each iteration, ordered by
-iteration first and then by map index: all instances of iteration 0, then all
-instances of iteration 1, and so on. ``ti.xcom_pull(task_ids=...)`` and
+iteration first and then by map index: all instances of iteration 1, then all
+instances of iteration 2, and so on. ``ti.xcom_pull(task_ids=...)`` and
 ``{{ ti.xcom_pull(task_ids=...) }}`` in a template return the same sequence.
 
 Only the current executions are included. Iterations that a rerun replaced do
@@ -289,9 +291,10 @@ first iteration, then each previous result plus one.
    :start-after: [START mapped_loop]
    :end-before: [END mapped_loop]
 
-The loop iteration and mapped position are separate "coordinates". In this
-example, each iteration has mapped instances 0 and 1, so mapped instance 1 in
-iteration 0 is distinct from mapped instance 1 in iteration 1.
+The loop iteration and mapped position are separate "coordinates", and they do
+not count from the same number: iterations start at 1 and map indexes start at
+0. In this example iteration 1 has mapped instances 0 and 1, so mapped instance
+1 in iteration 1 is distinct from mapped instance 1 in iteration 2.
 Mapped instances appear within their loop iteration, so you can inspect their
 states, tries, and logs separately.
 

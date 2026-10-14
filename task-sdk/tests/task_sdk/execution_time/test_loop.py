@@ -235,6 +235,17 @@ def test_gate_fails_without_a_decision(loop_ti, mock_supervisor_comms, until, er
     assert sent.loop_decision is None
 
 
+def test_unmet_condition_before_the_cap_continues_instead_of_failing(loop_ti, mock_supervisor_comms):
+    """The pass before the cap has an iteration left, so a false condition just continues."""
+    ti = loop_ti(index=2, until=lambda: False)
+
+    state, message, error = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
+
+    assert (state, error) == (TaskInstanceState.SUCCESS, None)
+    assert isinstance(message, SucceedTask)
+    assert message.loop_decision == LoopDecisionPayload(stop=False)
+
+
 @pytest.mark.parametrize(
     ("result", "message", "reason"),
     [

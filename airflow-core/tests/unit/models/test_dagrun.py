@@ -62,9 +62,11 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import (
     DagRun,
     DagRunNote,
+    InvalidLoopDecision,
     clear_partition_runs,
     get_or_create_dagrun,
     lock_dag_runs,
+    validate_loop_decision,
 )
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
@@ -99,6 +101,7 @@ from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
+from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
@@ -352,6 +355,41 @@ def test_loop_runs_through_scheduler_sdk_and_api(dag_maker, session, mode):
         assert gates == [(1, State.SUCCESS), (2, State.SUCCESS)]
     outside = dr.get_task_instance(task_id="outside", session=session)
     assert outside.state == State.SUCCESS
+
+
+@pytest.mark.parametrize("has_until", [False, True])
+@pytest.mark.parametrize(
+    ("region_index", "decision", "accepted"),
+    [
+        # One pass below the cap there is still an iteration left, so "continue" is the only
+        # valid answer for a fixed-count loop. A zero-based cap check treats this as the limit.
+        pytest.param(2, "continue", True, id="continue below the cap"),
+        pytest.param(2, "stop", False, id="stop below the cap"),
+        # At the cap the loop cannot produce another pass.
+        pytest.param(3, "continue", False, id="continue at the cap"),
+        pytest.param(3, "stop", True, id="stop at the cap"),
+    ],
+)
+def test_validate_loop_decision_counts_the_cap_from_one(region_index, decision, accepted, has_until):
+    group = mock.create_autospec(SerializedLoopTaskGroup, instance=True)
+    group.max_iterations, group.has_until = 3, has_until
+    # A conditional loop may stop early, so only the fixed-count loop rejects an early stop.
+    expected = accepted or (has_until and decision == "stop")
+
+    if expected:
+        validate_loop_decision(decision, region_index, group)
+    else:
+        with pytest.raises(InvalidLoopDecision):
+            validate_loop_decision(decision, region_index, group)
+
+
+@pytest.mark.parametrize("decision", [None, "", "restart"])
+def test_validate_loop_decision_requires_a_known_decision(decision):
+    group = mock.create_autospec(SerializedLoopTaskGroup, instance=True)
+    group.max_iterations, group.has_until = 3, True
+
+    with pytest.raises(InvalidLoopDecision, match="requires a decision"):
+        validate_loop_decision(decision, 1, group)
 
 
 @pytest.fixture
