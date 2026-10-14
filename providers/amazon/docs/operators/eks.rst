@@ -224,7 +224,7 @@ The Pod must already exist and be running. The operator streams command output, 
 and does not create, restart, or delete the Pod.
 
 The AWS identity must have permission to call ``eks:DescribeCluster`` and be authorized to access the
-EKS cluster. Kubernetes RBAC must allow ``get`` on ``pods`` and ``pods/exec``.
+EKS cluster. Kubernetes RBAC must allow ``get`` on ``pods`` and both ``get`` and ``create`` on ``pods/exec``.
 
 See :class:`~airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator`
 for command, output, XCom, and retry behavior.

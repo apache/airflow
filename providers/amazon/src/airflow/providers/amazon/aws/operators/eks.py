@@ -1426,6 +1426,9 @@ class EksPodExecOperator(KubernetesPodExecOperator):
         botocore_config: dict | None = None,
         **kwargs,
     ) -> None:
+        for parameter in ("in_cluster", "config_file", "cluster_context"):
+            if parameter in kwargs:
+                raise ValueError(f"The {parameter} is not an allowed parameter for the EksPodExecOperator.")
         hook_params = AwsHookParams.from_constructor(
             aws_conn_id, region_name, verify, botocore_config, additional_params=kwargs
         )
