@@ -253,7 +253,9 @@ export const DagBreadcrumb = () => {
     // a task instance is always one row, so it falls back to the newest pass instead.
     const pinnedPass = searchParams.get(SearchParamsKeys.ITERATION);
     const isWholeLoop = taskId === undefined && (pinnedPass === null || pinnedPass === "");
-    const selected = isWholeLoop ? undefined : selectActivePass(loopOptions, searchParams);
+    // A loaded row knows its own pass; only a group has to read it off the url.
+    const resolvedPass = (mappedTaskInstance ?? taskInstance)?.loop_iteration?.iteration;
+    const selected = isWholeLoop ? undefined : selectActivePass(loopOptions, searchParams, resolvedPass);
 
     if (isWholeLoop || selected !== undefined) {
       crumbs.push({

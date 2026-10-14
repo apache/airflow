@@ -53,16 +53,24 @@ export const decodeLoopOption = (value: string): { iteration?: string; loopId: s
 export const selectActivePass = (
   options: Array<LoopOption>,
   searchParams: URLSearchParams,
+  resolvedPass?: number | null,
 ): LoopOption | undefined => {
   const [, ...passes] = options;
+
+  // The server resolves a row's pass for us, and it is the only answer that holds when the row
+  // is a mapped expansion -- there the region index is the map slot, not the pass -- or when a
+  // clear forked the later passes into a successor region.
+  if (resolvedPass !== null && resolvedPass !== undefined) {
+    return passes.find((pass) => pass.iteration === resolvedPass);
+  }
+
   const carriedLoop = searchParams.get(SearchParamsKeys.LOOP_ID);
 
   if (carriedLoop !== null && carriedLoop !== "" && carriedLoop !== passes[0]?.loopId) {
     return passes[0];
   }
 
-  const pinned =
-    searchParams.get(SearchParamsKeys.ITERATION) ?? searchParams.get(SearchParamsKeys.REGION_INDEX);
+  const pinned = searchParams.get(SearchParamsKeys.ITERATION);
 
   return pinned === null || pinned === ""
     ? passes[0]

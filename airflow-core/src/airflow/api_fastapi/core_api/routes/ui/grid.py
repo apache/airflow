@@ -487,7 +487,7 @@ def _build_ti_summaries(
             has_note=bool(getattr(ti, "has_note", False)),
             loop_positions=positions,
             region=(ti.region_id, ti.region_index) if positions else None,
-            count_state=all(
+            is_latest_pass=all(
                 iteration == latest_iteration[(ti.task_id, loop_id, family_id)]
                 for loop_id, (family_id, iteration) in positions.items()
             ),

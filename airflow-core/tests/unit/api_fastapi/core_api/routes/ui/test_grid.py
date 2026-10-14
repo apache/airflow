@@ -1531,6 +1531,36 @@ class TestGetLoopSummaryEndpoint:
         assert next(ti for ti in tasks if ti["task_id"] == "body")["loop_iterations_count"] == 2
         assert summary["iterations_ran"] == 2
 
+    def test_grid_counts_every_pass_but_links_to_the_newest(
+        self, test_client, executed_fixed_loop, session
+    ):
+        run = executed_fixed_loop
+        # Clearing one pass without its later iterations puts an earlier pass back to work while
+        # a later one stays finished.
+        for ti in session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == run.dag_id,
+                TaskInstance.run_id == run.run_id,
+                TaskInstance.task_id == "body.work",
+                TaskInstance.region_index == 0,
+            )
+        ):
+            ti.state = TaskInstanceState.RUNNING
+        session.commit()
+
+        response = test_client.get(f"/grid/ti_summaries/{run.dag_id}", params={"run_ids": [run.run_id]})
+        by_task_id = {ti["task_id"]: ti for ti in json.loads(response.text)["task_instances"]}
+
+        # States are aggregated onto the group. The cell stands for the loop's work, so the
+        # re-running pass shows rather than being hidden behind the finished later ones.
+        assert by_task_id["body"]["child_states"]["running"] == 1
+        # The later passes still count; a floor rather than a total, so the loop's own gate
+        # tasks do not pin this.
+        assert by_task_id["body"]["child_states"]["success"] >= 2
+        # The coordinate is recorded per row, and a link still has to address one, so it stays
+        # on the newest pass even though an earlier one is the thing now running.
+        assert by_task_id["body.work"]["latest_region_index"] == 2
+
     def test_loop_history_reads_runs_in_a_fixed_number_of_queries(self, test_client, dag_maker, session):
         @task
         def work():

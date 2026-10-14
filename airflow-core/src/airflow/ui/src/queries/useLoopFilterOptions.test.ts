@@ -21,6 +21,7 @@ import { describe, expect, it } from "vitest";
 import type { GridNodeResponse } from "openapi/requests/types.gen";
 
 import { loopsForNode } from "./useIsLoopGroup";
+import { selectActivePass, type LoopOption } from "./useLoopFilterOptions";
 
 const node = (id: string, extra: Partial<GridNodeResponse> = {}): GridNodeResponse =>
   ({ children: null, id, is_loop: false, label: id, ...extra }) as GridNodeResponse;
@@ -58,5 +59,36 @@ describe("loopsForNode", () => {
   it("gives nothing for a node no loop encloses", () => {
     expect(loopsForNode(STRUCTURE, "unrelated")).toEqual([]);
     expect(loopsForNode(STRUCTURE, "outer.plain")).toEqual([]);
+  });
+});
+
+const pass = (iteration: number | undefined): LoopOption => ({ iteration, loopId: "batch" }) as LoopOption;
+
+// [whole loop, then the passes newest first]
+const OPTIONS = [pass(undefined), pass(2), pass(1), pass(0)];
+
+describe("selectActivePass", () => {
+  it("takes the pass the server resolved for the row", () => {
+    // A mapped expansion's region index is its map slot, so the url cannot be read as a pass.
+    // Slot 7 names no pass, and before this the level simply disappeared.
+    const params = new URLSearchParams("region_index=7");
+
+    expect(selectActivePass(OPTIONS, params, 1)?.iteration).toBe(1);
+    // Reading the slot off the url is what used to hide the level.
+    expect(OPTIONS.find((option) => option.iteration === 7)).toBeUndefined();
+  });
+
+  it("falls back to the newest pass when nothing pins one", () => {
+    expect(selectActivePass(OPTIONS, new URLSearchParams())?.iteration).toBe(2);
+  });
+
+  it("reads a pass pinned as a filter", () => {
+    expect(selectActivePass(OPTIONS, new URLSearchParams("iteration=0"))?.iteration).toBe(0);
+  });
+
+  it("ignores a pass belonging to a different loop", () => {
+    const params = new URLSearchParams("loop_id=other&iteration=0");
+
+    expect(selectActivePass(OPTIONS, params)?.iteration).toBe(2);
   });
 });

@@ -77,21 +77,24 @@ class GridNodeAgg:
         dag_version_number: int | None,
         has_note: bool = False,
         loop_positions: dict[str, tuple[UUID, int]] | None = None,
-        count_state: bool = True,
+        is_latest_pass: bool = True,
         region: tuple[UUID, int] | None = None,
     ) -> None:
         """
         Merge one task instance row into the summary.
 
-        ``count_state`` is false for a superseded loop iteration: its position still counts
-        towards the iterations run, but its state no longer describes where the task stands.
+        Every pass counts towards the states. A looped task's cell stands for the work the loop
+        did rather than one run of it, and the UI says how many iterations that covers, so an
+        earlier pass that is re-running is visible instead of hidden behind a finished later one.
+
+        ``is_latest_pass`` is false for a superseded iteration. Its state still counts, but it
+        does not supply the coordinate: a link has to address the newest row.
         """
-        if count_state:
-            self.child_states[state] += 1
-            # A looped task has one row per iteration, so a link without a coordinate cannot say
-            # which one it means. Carry the newest so the grid can address it.
-            if region is not None:
-                self.latest_region = region
+        self.child_states[state] += 1
+        # A looped task has one row per iteration, so a link without a coordinate cannot say
+        # which one it means. Carry the newest so the grid can address it.
+        if is_latest_pass and region is not None:
+            self.latest_region = region
         if has_started(state, start_date):
             for loop_id, position in (loop_positions or {}).items():
                 self.loop_iterations.setdefault(loop_id, set()).add(position)
