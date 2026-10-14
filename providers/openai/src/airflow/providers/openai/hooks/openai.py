@@ -225,7 +225,9 @@ class OpenAIHook(BaseHook):
         secrets synchronously, so that guarantee does not hold there.
 
         Each call builds a new client. Close it when done, with ``async with`` or
-        ``await client.close()``, to release its HTTP connections.
+        ``await client.close()``, to release its HTTP connections. With ``auth_type``
+        ``workload_identity`` the client caches the exchanged token, so every new client
+        exchanges a token again: for many calls, keep one client open and reuse it.
         """
         conn = await get_async_connection(self.conn_id, hook=self)
         return AsyncOpenAI(**self._client_kwargs(conn, await get_async_extra_dejson(conn)))
