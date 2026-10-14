@@ -1426,36 +1426,12 @@ class TestAgentOperatorCapabilities:
 
         assert "Thinking" not in json.dumps(serialized, default=str)
 
-    @pytest.mark.parametrize(
-        "wrap",
-        [
-            pytest.param(lambda code_mode: code_mode, id="direct"),
-            pytest.param(lambda code_mode: CombinedCapability([Thinking(), code_mode]), id="combined"),
-            pytest.param(lambda code_mode: code_mode.prefix_tools("sandboxed"), id="prefixed"),
-            pytest.param(
-                lambda code_mode: CombinedCapability([PrefixTools(wrapped=code_mode, prefix="sandboxed")]),
-                id="prefixed-in-combined",
-            ),
-        ],
-    )
-    @pytest.mark.parametrize("passed_as", ["capabilities", "agent_params"])
-    def test_durable_refuses_a_code_mode_capability(self, fake_harness, wrap, passed_as):
-        capabilities = [wrap(_FakeCodeMode())]
-        kwargs = (
-            {"capabilities": capabilities}
-            if passed_as == "capabilities"
-            else {"agent_params": {"capabilities": capabilities}}
-        )
+    def test_durable_accepts_a_code_mode_capability(self, fake_harness):
+        code_mode = _FakeCodeMode()
 
-        with pytest.raises(ValueError, match="CodeMode capability"):
-            AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, **kwargs)
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[code_mode])
 
-    def test_durable_accepts_capabilities_without_code_mode(self, fake_harness):
-        thinking = Thinking()
-
-        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[thinking])
-
-        assert op.capabilities == [thinking]
+        assert op.capabilities == [code_mode]
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Per-tool approval needs Airflow >= 3.3")
     @pytest.mark.parametrize(
@@ -1474,19 +1450,20 @@ class TestAgentOperatorCapabilities:
     def test_harness_without_the_code_mode_extra_does_not_break_other_agents(
         self, harness_without_code_mode_extra
     ):
-        # Neither the durable check at construction nor the approval check at run time may
-        # touch the harness root, whose CodeMode export would raise ImportError here.
-        AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[Thinking()])
+        # The approval check at run time must not touch the harness root, whose CodeMode
+        # export would raise ImportError here.
         op = AgentOperator(task_id="u", prompt="p", llm_conn_id="llm", capabilities=[Thinking()])
 
         assert op._supports_tool_approval() is True
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Per-tool approval needs Airflow >= 3.3")
     def test_capability_function_is_left_for_the_run_to_resolve(self, fake_harness):
         def build(ctx):
-            return Thinking()
+            raise AssertionError("resolved before the run started")
 
-        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[build])
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[build])
 
+        assert op._supports_tool_approval() is True
         assert op.capabilities == [build]
 
 

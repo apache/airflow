@@ -160,5 +160,4 @@ What is not covered
   ``LLMBatchOperator`` re-attaches to its running batch (:ref:`llm-batch-reattach`).
 - A ``ManagedAgentToolset`` runs again on every attempt unless it is built with
   ``replayable=True``. Durable execution cannot be combined with ``enable_hitl_review``,
-  a ``CodeMode`` capability, a ``SandboxToolset`` or tool approval; see the limitations
-  in :doc:`durable_execution`.
+  a ``SandboxToolset`` or tool approval; see the limitations in :doc:`durable_execution`.
