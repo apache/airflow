@@ -32,7 +32,7 @@ import { useTranslation } from "react-i18next";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi2";
 import { useLocalStorage } from "usehooks-ts";
 
-import { IconButton, Pagination, ProgressBar, Toaster } from "src/system-components";
+import { IconButton, Pagination, Toaster } from "src/system-components";
 
 import { CardList } from "src/components/DataTable/CardList";
 import { FilterMenuButton } from "src/components/DataTable/FilterMenuButton";
@@ -66,7 +66,6 @@ type DataTableProps<TData extends RowData> = {
   readonly headingExtra?: ReactNode;
   readonly hideRowCountHeading?: boolean;
   readonly initialState?: TableState;
-  readonly isFetching?: boolean;
   readonly isLoading?: boolean;
   /**
    * i18n key naming the model this table lists — namespaced (`common:dagRun`) or bare for `common`.
@@ -128,7 +127,6 @@ export const DataTable = <TData extends RowData>({
   headingExtra,
   hideRowCountHeading,
   initialState,
-  isFetching,
   isLoading,
   modelName,
   nextCursor,
@@ -295,7 +293,6 @@ export const DataTable = <TData extends RowData>({
           gap={2}
           justifyContent="space-between"
           minH={10}
-          mt={2} // This offsets the spacing below created by the ProgressBar
         >
           <VStack alignItems="flex-start" flex="1" gap={2} minW={0} w="100%">
             {headingNode === undefined && headingExtra === undefined ? undefined : (
@@ -323,7 +320,6 @@ export const DataTable = <TData extends RowData>({
         </Flex>
       ) : undefined}
       {errorMessage}
-      <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0} overflow="auto">
         {display === "card" && cardDef !== undefined ? (
           <CardList cardDef={cardDef} isLoading={isLoading} noRowsMessage={noRowsNode} rows={rows} />

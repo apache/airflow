@@ -95,7 +95,7 @@ export const TogglePause = ({
 
   const label =
     state === "draining"
-      ? translate("dags:schedulingState.drainingTooltip", { dagDisplayName: displayName })
+      ? translate("dags:draining.tooltip", { dagDisplayName: displayName })
       : `${translate(state === "paused" ? "common:unpause" : "common:pause")} ${displayName}`;
   const actionLabel = pendingState === "paused" ? translate("common:pause") : translate("common:unpause");
 

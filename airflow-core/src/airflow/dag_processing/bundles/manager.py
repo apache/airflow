@@ -165,7 +165,12 @@ def _read_bundle_config_list() -> list[_ExternalBundleConfig]:
     return _parse_bundle_config(config_list)
 
 
-def _get_configured_bundle_team_names() -> dict[str, str | None]:
+def get_configured_bundle_names() -> frozenset[str]:
+    """Get the names of the configured Dag bundles, without importing their classes."""
+    return _load_bundle_config_snapshot().names
+
+
+def get_configured_bundle_team_names() -> dict[str, str | None]:
     """
     Get the team owning each explicitly configured Dag bundle.
 

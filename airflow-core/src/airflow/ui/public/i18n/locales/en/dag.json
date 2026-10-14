@@ -353,7 +353,6 @@
     "maxChanges": "Max changes",
     "maxChangesDefault": "Default",
     "noChanges": "These versions hold the same state.",
-    "observedState": "Observed state",
     "observedStateBoundary": "Compares currently stored state, not creation-time evidence. Source comparison is unavailable for historical versions; use the Code tab to compare source.",
     "operations": {
       "added": "Added",
@@ -362,9 +361,10 @@
     },
     "record_one": "Record",
     "record_other": "Records",
+    "schemaChange": "Serialized schema {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "Select two versions to see what changed between them.",
-    "summary_one": "{{count, number}} change · serialized schema {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count, number}} changes · serialized schema {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count, number}} change",
+    "summary_other": "{{count, number}} changes",
     "target": "Compare to",
     "truncated": {
       "description": "Changes at paths not shown were dropped to stay within the limit, so the count is a lower bound.",
@@ -375,7 +375,6 @@
       "title": "Comparison unavailable",
       "withoutReason": "These versions could not be compared."
     },
-    "valuesHidden": "Values hidden",
-    "valuesShown": "Values shown"
+    "valuesHidden": "Values hidden"
   }
 }
