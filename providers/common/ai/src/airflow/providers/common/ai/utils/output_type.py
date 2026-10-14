@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import inspect
 import logging
+import operator
+from functools import reduce
 from typing import Any, get_origin
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -72,7 +74,7 @@ def rehydrate_pydantic_output(
     """
     Turn the reviewed string back into ``output_type``.
 
-    ``raw`` is JSON, or bare text for types pydantic builds from a string. ``str`` outputs, output
+    ``raw`` is JSON, or bare text for types pydantic builds from a string. A list of candidate types is validated as their union. ``str`` outputs, output
     functions, pydantic-ai output markers such as ``ToolOutput`` and types pydantic has no schema for
     return ``raw`` unchanged, and so does an unedited output that does not validate back (with a warning).
 
@@ -83,11 +85,14 @@ def rehydrate_pydantic_output(
     if output_type is str:
         return raw
     try:
+        if isinstance(output_type, (list, tuple)):
+            # pydantic-ai treats a list of output types as "any of these".
+            output_type = reduce(operator.or_, output_type)
         adapter: TypeAdapter[Any] = TypeAdapter(output_type)
         is_output_function = _is_output_function(adapter.core_schema)
     # A pydantic-ai output marker (``ToolOutput``, ``NativeOutput``, ...) is not a type, and
-    # ``TypeAdapter`` fails on it with an ``AttributeError``.
-    except (PydanticUserError, AttributeError):
+    # ``TypeAdapter`` fails on it with an ``AttributeError``. Unioning an empty list or markers is a ``TypeError``.
+    except (PydanticUserError, AttributeError, TypeError):
         return raw
     if is_output_function:
         return raw
