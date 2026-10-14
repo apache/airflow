@@ -98,8 +98,8 @@ How it works
   ``LLMSchemaCompareOperator``, ``LLMFileAnalysisOperator`` -- don't publish it yet;
   this is upcoming work.
 * **Scope.** The ``run_id`` / ``usage`` XComs come only from ``AgentOperator`` and
-  ``@task.agent``, and so do the ``airflow.*`` identity attributes, apart from a Strands or
-  ADK agent run inside ``agent_framework_tracing`` (see below). ``LLMOperator`` /
+  ``@task.agent``, and so do the ``airflow.*`` identity attributes, apart from a Strands,
+  ADK or OpenAI Agents SDK agent run inside ``agent_framework_tracing`` (see below). ``LLMOperator`` /
   ``@task.llm`` additionally pushes the model name above. The other LLM
   operators still emit GenAI spans correlated to the task span by nesting, but
   without the identity attributes, the run join key, or the model name.
@@ -175,7 +175,8 @@ outputs (``gen_ai.input.messages`` / ``gen_ai.output.messages``), set:
     exported to your tracing backend **without redaction**. Airflow's secret masking
     applies to logs and rendered template fields, not to OpenTelemetry span
     attributes. The one exception is what a function tool returns or raises while it
-    runs in an agent this provider builds, which is masked before the span records it.
+    runs in an agent this provider builds, which is masked before the span records it,
+    and the content ``AirflowTraceProcessor`` records for an OpenAI Agents SDK agent.
     An output function's result is not (see :doc:`agent_security`). Enable it only for
     debugging in a trusted environment. It has no effect unless ``otel_export_enabled``
     is ``True``.
@@ -224,6 +225,25 @@ The identity attributes go on spans of the tracer provider that is installed whe
 starts, so set up the framework's own telemetry, such as ``StrandsTelemetry``, before
 entering it. They follow the task through ``asyncio``; ADK's synchronous ``Runner.run``
 runs the agent on a thread of its own that they do not reach, so use ``run_async``.
+
+The OpenAI Agents SDK traces runs with a system of its own, not OpenTelemetry. Register
+:class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor` with it,
+and run the agent inside the block, to record its traces as spans under the task's span
+with the same identity attributes and the same content rule:
+
+.. code-block:: python
+
+    from agents import Runner, set_trace_processors
+
+    from airflow.providers.common.ai.tools.openai_agents import AirflowTraceProcessor
+    from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
+
+    set_trace_processors([AirflowTraceProcessor()])
+    with agent_framework_tracing():
+        answer = Runner.run_sync(agent, question).final_output
+
+``set_trace_processors`` also stops the SDK sending the traces to OpenAI, which it does by
+default; use ``add_trace_processor`` to keep both. See :doc:`frameworks/openai_agents`.
 
 Counting tool calls
 -------------------

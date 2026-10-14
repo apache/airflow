@@ -18,10 +18,12 @@
 Run an OpenAI Agents SDK agent in an Airflow task, with Airflow's SQL toolset as its tools.
 
 The agent is plain OpenAI Agents SDK: you build the model, the ``Agent`` and the run
-yourself. Airflow supplies two things. The model's API key comes from an Airflow
-connection, and :class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTools`
+yourself. Airflow supplies three things. The model's API key comes from an Airflow
+connection; :class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTools`
 gives the agent a ``SQLToolset``'s tools, with read-only SQL validation and bounded
-results, and with Airflow's secret masker applied to every tool result.
+results, and with Airflow's secret masker applied to every tool result; and
+:class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor` records
+the SDK's traces as the task's OpenTelemetry spans instead of sending them to OpenAI.
 
 Before running:
 
@@ -53,11 +55,15 @@ def example_openai_agents_agent():
 
     @task
     def run_openai_agent(question: str = DEFAULT_QUESTION) -> str:
-        from agents import Agent, OpenAIChatCompletionsModel, RunConfig, Runner
+        from agents import Agent, OpenAIChatCompletionsModel, Runner, set_trace_processors
         from openai import AsyncOpenAI
 
-        from airflow.providers.common.ai.tools.openai_agents import AirflowTools
+        from airflow.providers.common.ai.tools.openai_agents import AirflowTools, AirflowTraceProcessor
+        from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
         from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+        # Record the SDK's traces as the task's OpenTelemetry spans instead of sending them to OpenAI.
+        set_trace_processors([AirflowTraceProcessor()])
 
         llm = BaseHook.get_connection(LLM_CONN_ID)
         agent = Agent(
@@ -72,9 +78,8 @@ def example_openai_agents_agent():
             ),
             tools=AirflowTools(SQLToolset(db_conn_id=DB_CONN_ID)),
         )
-        # The SDK sends traces to OpenAI by default, whatever the model; see the guide.
-        result = Runner.run_sync(agent, question, run_config=RunConfig(tracing_disabled=True))
-        return result.final_output
+        with agent_framework_tracing():
+            return Runner.run_sync(agent, question).final_output
 
     run_openai_agent()
 

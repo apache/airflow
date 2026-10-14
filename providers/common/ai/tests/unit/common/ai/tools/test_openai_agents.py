@@ -26,16 +26,45 @@ import pytest
 pytest.importorskip("agents")
 
 from agents import Agent, FunctionTool, Model, ModelResponse, RunConfig, Runner, Tool, Usage
-from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
+from agents.tracing import (
+    GenerationSpanData,
+    ResponseSpanData,
+    response_span,
+    set_trace_processors,
+    trace as sdk_trace,
+)
+from agents.tracing.processors import default_processor
+from openai.types.responses import (
+    Response,
+    ResponseFunctionToolCall,
+    ResponseOutputMessage,
+    ResponseOutputText,
+)
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import StatusCode
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets.function import FunctionToolset
 
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
 from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
-from airflow.providers.common.ai.tools.openai_agents import AirflowTools
+from airflow.providers.common.ai.tools.openai_agents import (
+    AirflowTools,
+    AirflowTraceProcessor,
+    _describe,
+    _masked,
+)
+from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
+from tests_common.test_utils.config import conf_vars
+from unit.common.ai.tools.test_tracing import TI
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
+
+TRACING = "airflow.providers.common.ai.tools.tracing"
+_OK = ToolResult("ok")
+CAPTURE_CONTENT = {("common.ai", "otel_export_enabled"): "True", ("common.ai", "capture_content"): "True"}
 
 
 class _ToolCallingModel(Model):
@@ -105,9 +134,9 @@ def _function_tools(*sources: AirflowTool | SQLToolset) -> list[FunctionTool]:
     return tools
 
 
-def _run(agent: Agent) -> str:
-    # Tracing off, so no test tries to export spans to OpenAI.
-    return Runner.run_sync(agent, "go", run_config=RunConfig(tracing_disabled=True)).final_output
+def _run(agent: Agent, *, tracing_disabled: bool = True) -> str:
+    # Tracing off unless a test routes it to its own processor, so none exports spans to OpenAI.
+    return Runner.run_sync(agent, "go", run_config=RunConfig(tracing_disabled=tracing_disabled)).final_output
 
 
 def _run_agent(tools: list[Tool], tool_name: str, arguments: dict[str, Any] | str) -> str:
@@ -264,3 +293,239 @@ class TestAgentRun:
             _run_agent(AirflowTools(ts), "list_tables", {})
 
         assert stats.incr.call_args.kwargs["tags"]["framework"] == "openai_agents"
+
+
+@pytest.fixture
+def recorded():
+    """Route the SDK's traces through an AirflowTraceProcessor into an in-memory exporter."""
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    set_trace_processors([AirflowTraceProcessor(tracer_provider=provider)])
+    try:
+        yield exporter, provider
+    finally:
+        set_trace_processors([default_processor()])
+
+
+def _traced_lookup(arguments: str = '{"key": "a"}', result: ToolResult | Exception = _OK) -> None:
+    """Run an agent that calls ``lookup`` once, with the SDK's tracing on."""
+    agent = Agent(
+        name="analyst", model=_ToolCallingModel("lookup", arguments), tools=AirflowTools(_tool(result))
+    )
+    _run(agent, tracing_disabled=False)
+
+
+def _span(exporter: InMemorySpanExporter, name: str = "execute_tool lookup") -> ReadableSpan:
+    (span,) = [span for span in exporter.get_finished_spans() if span.name == name]
+    return span
+
+
+class TestAirflowTraceProcessor:
+    def test_a_run_becomes_a_span_tree_under_the_current_span(self, recorded):
+        exporter, provider = recorded
+
+        with provider.get_tracer("test").start_as_current_span("task"):
+            _traced_lookup()
+
+        spans = exporter.get_finished_spans()
+        by_id = {span.context.span_id: span for span in spans}
+        ancestors = []
+        span: ReadableSpan | None = _span(exporter)
+        while span is not None and span.parent is not None:
+            span = by_id.get(span.parent.span_id)
+            ancestors.append(span.name if span is not None else None)
+        assert ancestors == [
+            "openai_agents.turn 1",
+            "invoke_agent analyst",
+            "openai_agents.task Agent workflow",
+            "Agent workflow",
+            "task",
+        ]
+        invoke, tool = _span(exporter, "invoke_agent analyst"), _span(exporter)
+        assert invoke.attributes["gen_ai.agent.name"] == "analyst"
+        assert tool.attributes["gen_ai.operation.name"] == "execute_tool"
+        assert tool.attributes["gen_ai.tool.name"] == "lookup"
+
+    def test_a_span_started_inside_a_tool_call_nests_under_it(self, recorded):
+        """Spans of other instrumentation, such as an HTTP client's, belong to the call that made them."""
+        exporter, provider = recorded
+
+        async def function(arguments: dict[str, Any]) -> ToolResult:
+            with provider.get_tracer("http").start_as_current_span("GET"):
+                return ToolResult("ok")
+
+        tool = AirflowTool(
+            name="lookup", description="Look up.", parameters={"type": "object"}, function=function
+        )
+        agent = Agent(name="analyst", model=_ToolCallingModel("lookup", "{}"), tools=AirflowTools(tool))
+
+        _run(agent, tracing_disabled=False)
+
+        request, call = _span(exporter, "GET"), _span(exporter)
+        assert request.parent is not None
+        assert request.parent.span_id == call.context.span_id
+
+    @pytest.mark.parametrize(
+        ("export", "capture"),
+        [("False", "False"), ("True", "False"), ("False", "True")],
+    )
+    def test_leaves_content_out_unless_export_and_capture_are_both_on(self, recorded, export, capture):
+        exporter, _ = recorded
+
+        with conf_vars(
+            {("common.ai", "otel_export_enabled"): export, ("common.ai", "capture_content"): capture}
+        ):
+            _traced_lookup()
+
+        attributes = _span(exporter).attributes
+        assert "gen_ai.tool.call.arguments" not in attributes
+        assert "gen_ai.tool.call.result" not in attributes
+
+    @pytest.mark.enable_redact
+    @conf_vars(CAPTURE_CONTENT)
+    def test_captured_content_passes_through_the_secret_masker(self, recorded, registered_secret):
+        exporter, _ = recorded
+
+        _traced_lookup(json.dumps({"key": registered_secret}), ToolResult(f"seen {registered_secret}"))
+
+        attributes = _span(exporter).attributes
+        assert attributes["gen_ai.tool.call.arguments"] == json.dumps({"key": "***"})
+        assert attributes["gen_ai.tool.call.result"] == "seen ***"
+
+    def test_spans_carry_the_task_whichever_provider_records_them(self, recorded):
+        """The processor's own provider gets no identity processor from agent_framework_tracing."""
+        exporter, _ = recorded
+
+        with (
+            patch(f"{TRACING}._live_tracer_provider", autospec=True, return_value=None),
+            patch(f"{TRACING}.get_current_context", autospec=True, return_value={"ti": TI}),
+            agent_framework_tracing(),
+        ):
+            _traced_lookup()
+
+        spans = exporter.get_finished_spans()
+        assert spans
+        assert {span.attributes["airflow.dag_id"] for span in spans} == {TI.dag_id}
+        assert {span.attributes["airflow.task_id"] for span in spans} == {TI.task_id}
+
+    @pytest.mark.parametrize(
+        ("settings", "description"),
+        [
+            pytest.param({}, None, id="content-off"),
+            pytest.param(CAPTURE_CONTENT, "Error running tool", id="content-on"),
+        ],
+    )
+    def test_a_failed_tool_call_marks_its_span_as_an_error(self, recorded, settings, description):
+        """The SDK's error message can be app-supplied text, so it follows the content rule."""
+        exporter, _ = recorded
+
+        with conf_vars(settings), pytest.raises(ToolCallError):
+            _traced_lookup(result=PermissionError("role cannot read orders"))
+
+        status = _span(exporter).status
+        assert status.status_code == StatusCode.ERROR
+        assert status.description == description
+
+    def test_a_response_span_is_named_for_its_model_once_the_response_arrives(self, recorded):
+        exporter, _ = recorded
+
+        with sdk_trace("workflow"), response_span() as span:
+            span.span_data.response = Response.model_construct(id="resp_1", model="gpt-5.6-luna", output=[])
+            span.span_data.usage = {"input_tokens": 12, "output_tokens": 3}
+
+        attributes = _span(exporter, "chat gpt-5.6-luna").attributes
+        assert attributes["gen_ai.usage.input_tokens"] == 12
+        assert attributes["gen_ai.usage.output_tokens"] == 3
+
+
+class TestDescribe:
+    def test_a_generation_span_carries_its_model_and_token_counts(self):
+        data = GenerationSpanData(model="gpt-5.6-luna", usage={"input_tokens": 12, "output_tokens": 3})
+
+        assert _describe(data, capture=False) == (
+            "chat gpt-5.6-luna",
+            {
+                "gen_ai.operation.name": "chat",
+                "gen_ai.request.model": "gpt-5.6-luna",
+                "gen_ai.usage.input_tokens": 12,
+                "gen_ai.usage.output_tokens": 3,
+            },
+        )
+
+    def test_a_response_span_carries_the_response_model_and_id(self):
+        response = Response.model_construct(id="resp_1", model="gpt-5.6-luna", output=[])
+        data = ResponseSpanData(response=response, usage={"input_tokens": 12, "output_tokens": 3})
+
+        name, attributes = _describe(data, capture=False)
+
+        assert name == "chat gpt-5.6-luna"
+        assert attributes == {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.response.id": "resp_1",
+            "gen_ai.response.model": "gpt-5.6-luna",
+            "gen_ai.usage.input_tokens": 12,
+            "gen_ai.usage.output_tokens": 3,
+        }
+
+    def test_captures_messages_only_when_asked(self):
+        data = GenerationSpanData(model="m", input=[{"role": "user", "content": "hi"}], output=[])
+
+        assert "gen_ai.input.messages" not in _describe(data, capture=False)[1]
+        assert _describe(data, capture=True)[1]["gen_ai.input.messages"] == json.dumps(
+            [{"role": "user", "content": "hi"}]
+        )
+
+    def test_captures_the_completion_of_a_response(self):
+        text = ResponseOutputText(text="42 orders", type="output_text", annotations=[])
+        message = ResponseOutputMessage(
+            id="msg", role="assistant", status="completed", type="message", content=[text]
+        )
+        data = ResponseSpanData(
+            response=Response.model_construct(id="resp_1", model="m", output=[message]),
+            input=[{"role": "user", "content": "How many orders?"}],
+        )
+
+        attributes = _describe(data, capture=True)[1]
+
+        assert json.loads(attributes["gen_ai.output.messages"])[0]["content"][0]["text"] == "42 orders"
+        assert json.loads(attributes["gen_ai.input.messages"]) == [
+            {"role": "user", "content": "How many orders?"}
+        ]
+
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param(
+                lambda secret: GenerationSpanData(
+                    model="m", input=[{"role": "user", "content": f"pw={secret}"}]
+                ),
+                id="generation",
+            ),
+            pytest.param(
+                lambda secret: ResponseSpanData(input=[{"role": "user", "content": f"pw={secret}"}]),
+                id="response",
+            ),
+        ],
+    )
+    def test_masks_a_secret_in_captured_messages(self, registered_secret, data):
+        attributes = _describe(data(registered_secret), capture=True)[1]
+
+        assert registered_secret not in attributes["gen_ai.input.messages"]
+        assert "pw=***" in attributes["gen_ai.input.messages"]
+
+
+class TestMasked:
+    @pytest.mark.enable_redact
+    def test_masks_a_secret_that_json_escapes_inside_json_text(self, register_secret):
+        """A quote in the secret is escaped inside the model's JSON arguments, so the raw text does not match."""
+        secret = register_secret('pa"ss-91c3')
+
+        masked = _masked(json.dumps({"password": secret}))
+
+        assert json.loads(masked) == {"password": "***"}
+
+    @pytest.mark.enable_redact
+    def test_masks_plain_text(self, registered_secret):
+        assert _masked(f"connected with {registered_secret}") == "connected with ***"

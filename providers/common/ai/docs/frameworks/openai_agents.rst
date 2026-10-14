@@ -103,18 +103,47 @@ nested run shares the outer run's retry count for each tool.
 Tracing
 -------
 
-The SDK has its own tracing, which is on by default and sends every run's traces to
-OpenAI's Traces backend using ``OPENAI_API_KEY`` from the environment. It does this
-whatever model the agent runs, including a self-hosted one, and the traces hold the
-prompts and model output. Tool results are masked before the model sees them; nothing
-else in a trace is.
+The SDK has a tracing system of its own rather than OpenTelemetry. By default it sends
+every run's traces to OpenAI's Traces backend using ``OPENAI_API_KEY`` from the
+environment, whatever model the agent runs, including a self-hosted one, and the traces
+hold the prompts and model output. Tool results are masked before the model sees them;
+nothing else in those traces is.
 
-The example turns tracing off for its run with ``RunConfig(tracing_disabled=True)``. To
-turn it off for the whole process, call ``agents.set_tracing_disabled(True)`` or set
-``OPENAI_AGENTS_DISABLE_TRACING=1`` in the worker's environment. The SDK does not emit
-OpenTelemetry spans, so
-:func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing` does not apply
-to it.
+:class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor` is a trace
+processor for the SDK that records each trace as OpenTelemetry spans under the task's
+span instead. The example replaces the SDK's processors with it, so nothing goes to
+OpenAI, and runs the agent inside
+:func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`, so the spans
+carry the task's identity:
+
+.. code-block:: python
+
+    from agents import Runner, set_trace_processors
+
+    from airflow.providers.common.ai.tools.openai_agents import AirflowTraceProcessor
+    from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
+
+    set_trace_processors([AirflowTraceProcessor()])
+    with agent_framework_tracing():
+        answer = Runner.run_sync(agent, question).final_output
+
+``set_trace_processors`` replaces every processor registered with the SDK. To keep the
+export to OpenAI, or a processor another instrumentation registered, add this one with
+``agents.add_trace_processor`` instead. The spans use the names of the OpenTelemetry GenAI
+conventions (``invoke_agent``, ``chat`` with the model and token counts,
+``execute_tool``), and the SDK's other spans are named ``openai_agents.<kind>``. Prompts, completions, and tool arguments and results are left
+out unless ``[common.ai] otel_export_enabled`` and ``capture_content`` are both on, and pass
+through Airflow's secret masker when they are recorded; see :doc:`../observability`.
+
+Third-party packages such as ``openinference-instrumentation-openai-agents`` and
+``opentelemetry-instrumentation-openai-agents`` also turn the SDK's traces into
+OpenTelemetry spans. Use ``AirflowTraceProcessor`` instead when the spans should follow this
+provider's content rule and pass through Airflow's secret masker: those packages have
+content switches of their own, which ``agent_framework_tracing`` does not set.
+
+To turn the SDK's tracing off altogether, call ``agents.set_tracing_disabled(True)`` or set
+``OPENAI_AGENTS_DISABLE_TRACING=1`` in the worker's environment. That stops
+``AirflowTraceProcessor`` from receiving anything too.
 
 Differences from ``AgentOperator``
 ----------------------------------
