@@ -24,9 +24,9 @@ Creating a custom Operator
 Airflow allows you to create new operators to suit the requirements of you or your team.
 This extensibility is one of the many features which make Apache Airflow powerful.
 
-You can create your own, custom operator by extending (inheriting from) the public SDK base class :class:`~airflow.sdk.BaseOperator`.
+You can create your own, custom operator by inheriting from the public SDK base class :class:`~airflow.sdk.BaseOperator`.
 
-There are two methods that you need to override your custom operator:
+There are two methods that you need to override in your custom operator:
 
 * Constructor (``__init__``): Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
   You can specify the ``default_args`` in the Dag file. See :ref:`Default args <concepts-default-arguments>` for more details.
