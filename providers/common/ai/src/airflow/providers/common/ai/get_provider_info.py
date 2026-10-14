@@ -81,6 +81,7 @@ def get_provider_info():
                 "external-doc-url": "https://open-sandbox.ai/",
                 "tags": ["software"],
             },
+            {"integration-name": "Boat", "external-doc-url": "https://docs.boat.dev/", "tags": ["service"]},
         ],
         "hooks": [
             {
@@ -101,7 +102,11 @@ def get_provider_info():
             {
                 "name": "hitl_review",
                 "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
-            }
+            },
+            {
+                "name": "ai_model_panel",
+                "plugin-class": "airflow.providers.common.ai.plugins.model_panel.ModelPanelPlugin",
+            },
         ],
         "config": {
             "common.ai": {
