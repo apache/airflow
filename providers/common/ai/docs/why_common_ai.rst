@@ -138,7 +138,9 @@ What a plain task leaves to you
     * - A person has to approve a tool call before it runs, such as a refund or a write
         to a production table.
       - A tool marked with Pydantic AI's approval API pauses ``AgentOperator`` before the
-        call, without holding a worker slot. Airflow 3.3 and later. Experimental.
+        call, without holding a worker slot. Airflow 3.3 and later. Experimental. Not with
+        ``durable=True`` or ``enable_hitl_review=True``; with either, a tool marked for
+        approval fails the task.
       - :doc:`tool_approval`
     * - A reviewer wants to send an agent's answer back with feedback, several times.
       - ``enable_hitl_review=True`` on ``AgentOperator`` opens a review loop with a chat
