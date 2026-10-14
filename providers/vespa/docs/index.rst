@@ -95,7 +95,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``pyvespa``                                 ``>=1.1.2``
+``pyvespa``                                 ``>=1.2.9``
 ==========================================  ==================
 
 Downloading official packages

@@ -119,7 +119,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-beam>=5.8.1"
 ]
 "apache.cassandra" = [
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
+    "apache-airflow-providers-apache-cassandra>=3.7.0"
 ]
 "apache.drill" = [
     "apache-airflow-providers-apache-drill>=2.8.1"
@@ -407,7 +407,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-vertica>=3.9.1"
 ]
 "vespa" = [
-    "apache-airflow-providers-vespa>=0.1.0; python_version !=\"3.14\""
+    "apache-airflow-providers-vespa>=0.1.0"
 ]
 "weaviate" = [
     "apache-airflow-providers-weaviate>=3.0.0"
@@ -431,7 +431,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-anthropic>=0.1.0",
     "apache-airflow-providers-apache-arrow>=0.1.0",
     "apache-airflow-providers-apache-beam>=5.8.1",
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
     "apache-airflow-providers-apache-flink>=1.6.0",
@@ -527,7 +527,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-teradata>=2.6.1",
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
-    "apache-airflow-providers-vespa>=0.1.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-vespa>=0.1.0",
     "apache-airflow-providers-weaviate>=3.0.0",
     "apache-airflow-providers-yandex>=4.0.0",
     "apache-airflow-providers-ydb>=1.4.0",
@@ -1652,6 +1652,12 @@ typesafe-sdk = "2026-09-19T00:00:00Z"
 # 1.9.3 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-10-10.
 boat-sdk = "2026-10-11T00:00:00Z"
+# Temporary: pyvespa 1.2.9 adds Python 3.14 and 3.15 support, required by the Vespa provider,
+# and was published 2026-10-13, inside the "4 days" exclude-newer window. This pins the
+# per-package cutoff just past that release so 1.2.9 resolves while any later release stays
+# quarantined.
+# Remove once the rolling window advances past 2026-10-13.
+pyvespa = "2026-10-14T00:00:00Z"
 
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
@@ -1841,6 +1847,8 @@ google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 typesafe-sdk = "2026-09-19T00:00:00Z"
 # Temporary: see the boat-sdk note in `[tool.uv.exclude-newer-package]`.
 boat-sdk = "2026-10-11T00:00:00Z"
+# Temporary: see the pyvespa note in `[tool.uv.exclude-newer-package]`.
+pyvespa = "2026-10-14T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
