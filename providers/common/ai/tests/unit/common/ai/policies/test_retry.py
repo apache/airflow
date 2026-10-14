@@ -39,6 +39,8 @@ from pydantic_ai.messages import ModelResponse
 # Skip the entire test module on older Airflow versions tested in compat CI.
 pytest.importorskip("airflow.sdk.definitions.retry_policy", reason="RetryPolicy requires Airflow 3.3+")
 
+from airflow.models.connection import Connection
+from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIAzureHook, PydanticAIHook
 from airflow.providers.common.ai.policies import retry as retry_module
 from airflow.providers.common.ai.policies.retry import (
     CLASSIFIER_INSTRUCTIONS,
@@ -79,14 +81,21 @@ def _agent(output, **kwargs):
     return agent
 
 
+def _stub_hook(mock_hook_cls):
+    """Make ``get_hook`` return a hook instance that keeps the real method signatures."""
+    hook = create_autospec(PydanticAIHook, instance=True)
+    mock_hook_cls.get_hook.return_value = hook
+    return hook
+
+
 def _install(mock_hook_cls, agent):
     """Wire a mock agent behind the patched hook class and return the mock agent."""
-    mock_hook_cls.return_value.create_agent.return_value = agent
+    _stub_hook(mock_hook_cls).create_agent.return_value = agent
     return agent
 
 
 def _output_type(mock_hook_cls):
-    return mock_hook_cls.return_value.create_agent.call_args.kwargs["output_type"]
+    return mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["output_type"]
 
 
 def _options(output_type):
@@ -186,7 +195,20 @@ class TestClassifierRetryPolicyConstruction:
             min_confidence=0.6,
         )
 
-        mock_hook_cls.assert_not_called()
+        mock_hook_cls.get_hook.assert_not_called()
+
+    def test_hook_resolves_to_the_connection_types_subclass(self):
+        """An Azure connection must get ``PydanticAIAzureHook``, not the base hook's ``base_url`` kwargs."""
+        policy = ClassifierRetryPolicy(
+            llm_conn_id="azure_conn", model_id="azure:gpt-5", categories=DEFAULT_CATEGORIES
+        )
+        conn = Connection(conn_id="azure_conn", conn_type="pydanticai_azure")
+
+        with patch.object(PydanticAIHook, "get_connection", return_value=conn):
+            hook = policy._hook()
+
+        assert isinstance(hook, PydanticAIAzureHook)
+        assert hook.model_id == "azure:gpt-5"
 
     def test_categories_must_be_a_mapping(self):
         with pytest.raises(TypeError, match="categories must be a mapping"):
@@ -375,7 +397,7 @@ class TestClassification:
             agent.run_sync.return_value = _run_result(kwargs["output_type"]("rate_limit"))
             return agent
 
-        mock_hook_cls.return_value.create_agent.side_effect = capture
+        _stub_hook(mock_hook_cls).create_agent.side_effect = capture
         policy = ClassifierRetryPolicy(llm_conn_id="test", categories=DEFAULT_CATEGORIES)
 
         decision = policy.evaluate(RuntimeError("429"), try_number=1, max_tries=3)
@@ -400,7 +422,7 @@ class TestClassification:
             agent.run_sync.return_value = _run_result(kwargs["output_type"](name))
             return agent
 
-        mock_hook_cls.return_value.create_agent.side_effect = capture
+        _stub_hook(mock_hook_cls).create_agent.side_effect = capture
         policy = ClassifierRetryPolicy(
             llm_conn_id="test",
             categories={
@@ -498,7 +520,7 @@ class TestClassification:
         policy.evaluate(RuntimeError("x"), try_number=1, max_tries=3)
 
         assert (
-            mock_hook_cls.return_value.create_agent.call_args.kwargs["instructions"]
+            mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["instructions"]
             == "Snowflake errors only."
         )
 
@@ -511,7 +533,9 @@ class TestClassification:
 
         policy.evaluate(RuntimeError("x"), try_number=1, max_tries=3)
 
-        mock_hook_cls.assert_called_once_with(llm_conn_id="jev_default", model_id="typesafe:jev-1.13.0")
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "jev_default", hook_params={"model_id": "typesafe:jev-1.13.0"}
+        )
 
     @patch(HOOK, autospec=True)
     def test_timeout_passed_via_model_settings(self, mock_hook_cls):
@@ -949,7 +973,7 @@ class TestFallbackBehaviour:
 
     @patch(HOOK, autospec=True)
     def test_hook_creation_failure_triggers_fallback(self, mock_hook_cls):
-        mock_hook_cls.return_value.create_agent.side_effect = RuntimeError("unexpected")
+        _stub_hook(mock_hook_cls).create_agent.side_effect = RuntimeError("unexpected")
         policy = ClassifierRetryPolicy(
             llm_conn_id="test",
             fallback_rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL, reason="caught")],
@@ -1036,7 +1060,7 @@ class TestOnUncertain:
         def create_agent(**kwargs):
             return llm if kwargs["output_type"] is ErrorClassification else classifier
 
-        mock_hook_cls.return_value.create_agent.side_effect = create_agent
+        _stub_hook(mock_hook_cls).create_agent.side_effect = create_agent
         return ClassifierRetryPolicy(
             llm_conn_id="jev",
             min_confidence=bar,
@@ -1075,7 +1099,7 @@ class TestOnUncertain:
 
         assert decision.action == RetryAction.RETRY
         assert decision.reason == "category=network confidence=0.95 threshold=0.80 action=retry delay=10s"
-        assert mock_hook_cls.return_value.create_agent.call_count == 1
+        assert mock_hook_cls.get_hook.return_value.create_agent.call_count == 1
 
     @patch(HOOK, autospec=True)
     def test_unsure_classifier_escalates_to_the_llm(self, mock_hook_cls):
@@ -1203,7 +1227,7 @@ class TestOnUncertain:
     @patch(HOOK, autospec=True)
     def test_nested_classifiers_both_down_still_reach_the_outer_fail_rule(self, mock_hook_cls):
         """A ClassifierRetryPolicy as fallback_policy falls back with a DEFAULT of its own; the outer rules must still run."""
-        mock_hook_cls.return_value.create_agent.return_value.run_sync.side_effect = TimeoutError("down")
+        _stub_hook(mock_hook_cls).create_agent.return_value.run_sync.side_effect = TimeoutError("down")
         inner = ClassifierRetryPolicy(llm_conn_id="jev_b", min_confidence=0.5)
         policy = ClassifierRetryPolicy(
             llm_conn_id="jev_a",
@@ -1218,7 +1242,7 @@ class TestOnUncertain:
 
         assert decision.action == RetryAction.FAIL
         assert decision.reason == "classifier answer not applied (model_error); never retry 403"
-        assert mock_hook_cls.return_value.create_agent.call_count == 2
+        assert mock_hook_cls.get_hook.return_value.create_agent.call_count == 2
 
 
 def _open_agent(category, should_retry, delay=0, reasoning="test"):
@@ -1263,7 +1287,7 @@ class TestLLMRetryPolicy:
         _install(mock_hook_cls, _open_agent("auth", should_retry=False))
         LLMRetryPolicy(llm_conn_id="test").evaluate(PermissionError("403"), try_number=1, max_tries=3)
 
-        kwargs = mock_hook_cls.return_value.create_agent.call_args.kwargs
+        kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
         assert kwargs["output_type"] is ErrorClassification
         assert kwargs["instructions"] == DEFAULT_INSTRUCTIONS
 
@@ -1315,7 +1339,7 @@ class TestLLMRetryPolicy:
         assert decision.action == RetryAction.RETRY
         assert decision.retry_delay == timedelta(seconds=30)
         assert decision.reason == "warehouse_suspended: auto-resume"
-        assert mock_hook_cls.return_value.create_agent.call_args.kwargs["instructions"].startswith(
+        assert mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["instructions"].startswith(
             "'Warehouse suspended'"
         )
 

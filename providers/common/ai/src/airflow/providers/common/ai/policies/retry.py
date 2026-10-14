@@ -318,7 +318,7 @@ class _ModelRetryPolicy(RetryPolicy):
     def _hook(self) -> PydanticAIHook:
         from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 
-        return PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
+        return PydanticAIHook.get_hook(self.llm_conn_id, hook_params={"model_id": self.model_id})
 
     def _prompt(self, exception: BaseException, try_number: int, max_tries: int) -> str:
         if self.include_traceback:
