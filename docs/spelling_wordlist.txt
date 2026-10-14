@@ -29,6 +29,7 @@ afterall
 agentcore
 AgentDetails
 agentic
+AgentResult
 AgentVersionDetails
 ai
 aio
@@ -199,6 +200,8 @@ bitmask
 Bitnami
 bitshift
 bitwise
+Boat
+boat
 booktabs
 Bool
 bool
@@ -1839,6 +1842,7 @@ triggerer
 triggerers
 trino
 trojan
+TrustedRouter
 truthy
 tsql
 tsv

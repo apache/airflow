@@ -28,6 +28,7 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxTerminalError,
     dag_run_owner,
 )
+from airflow.providers.common.ai.sandbox.boat import BoatSandboxBackend
 
 # The Islo backend imports its SDK lazily, on first use, so the package is
 # importable without the optional ``islo`` extra; a missing SDK surfaces as an
@@ -38,6 +39,7 @@ from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
     "AttachableSandboxBackend",
+    "BoatSandboxBackend",
     "IsloSandboxBackend",
     "OpenSandboxBackend",
     "ModalSandboxBackend",
