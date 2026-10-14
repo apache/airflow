@@ -41,9 +41,7 @@ _PROVIDER_CREDENTIAL_ALIASES = {
 }
 
 
-def _get_credential_provider(provider: str | None) -> str | None:
-    if provider is None:
-        return None
+def _get_credential_provider(provider: str) -> str:
     return _PROVIDER_CREDENTIAL_ALIASES.get(provider, provider)
 
 
@@ -219,8 +217,8 @@ class PydanticAIHook(BaseHook):
     # Core connection / agent API
     # ------------------------------------------------------------------
 
-    @staticmethod
     def _get_provider_kwargs(
+        self,
         api_key: str | None,
         base_url: str | None,
         extra: dict[str, Any],
@@ -228,11 +226,14 @@ class PydanticAIHook(BaseHook):
         """
         Return the kwargs to pass to the provider constructor.
 
-        The model prefix selects this mapper or a provider-specific mapper from
-        ``_PROVIDER_CONNECTION_CONFIGS``. Overriding this method in a subclass
-        does not register a provider-specific mapping. The base implementation
-        handles the common ``api_key`` / ``base_url`` pattern used by OpenAI,
-        Anthropic, Groq, Mistral, Ollama, and most other providers.
+        The model prefix selects the mapper. A prefix registered in
+        ``_PROVIDER_CONNECTION_CONFIGS`` uses that provider-specific mapper. An
+        unregistered prefix that equals the hook's :attr:`model_provider` uses the
+        hook's own override of this method, so a subclass for a platform outside
+        that table maps its connection itself. Any other prefix uses this base
+        implementation, which handles the common ``api_key`` / ``base_url``
+        pattern used by OpenAI, Anthropic, Groq, Mistral, Ollama, and most other
+        providers.
 
         :param api_key: Value of ``conn.password``.
         :param base_url: Value of ``conn.host``.
@@ -248,8 +249,14 @@ class PydanticAIHook(BaseHook):
             kwargs["base_url"] = base_url
         return kwargs
 
-    def _get_conn_and_extra(self, conn_id: str) -> tuple[Connection, dict[str, Any]]:
-        """Return this hook's connection and its deserialized extra, fetching at most once."""
+    def _get_conn_and_extra(self, conn_id: str | None = None) -> tuple[Connection, dict[str, Any]]:
+        """
+        Return a connection and its deserialized extra, fetching each connection at most once.
+
+        :param conn_id: Connection to fetch. Defaults to :attr:`llm_conn_id`.
+        """
+        if conn_id is None:
+            conn_id = self.llm_conn_id
         if conn_id not in self._connections:
             conn = self.get_connection(conn_id)
             extra = conn.extra_dejson
@@ -281,7 +288,9 @@ class PydanticAIHook(BaseHook):
                 "API mode is now selected via the model prefix ('google-cloud:' vs. 'google:')."
             )
         if provider_config is None:
-            return PydanticAIHook._get_provider_kwargs(conn.password, conn.host, extra)
+            if provider_name is not None and provider_name == self.model_provider:
+                return self._get_provider_kwargs(conn.password, conn.host, extra)
+            return PydanticAIHook._get_provider_kwargs(self, conn.password, conn.host, extra)
         if provider_config.replacement_fields:
             ignored_fields = [
                 field for field, value in (("password", conn.password), ("host", conn.host)) if value
@@ -333,11 +342,11 @@ class PydanticAIHook(BaseHook):
 
         return create_provider
 
-    def _validate_embedding_connection_provider(self, embed_model_name: str, extra: dict[str, Any]) -> None:
+    def _validate_embedding_connection_provider(self, embed_model_name: str) -> None:
         if self.embed_conn_id != self.llm_conn_id:
             return
 
-        llm_model_name = self.model_id or extra.get("model", "")
+        llm_model_name = self._get_configured_model_name()
         if not llm_model_name:
             return
 
@@ -360,9 +369,9 @@ class PydanticAIHook(BaseHook):
 
         Resolution order for this hook's own connection:
 
-        1. **Explicit credentials** — when :meth:`_get_provider_kwargs` returns
-           a non-empty dict the provider class is instantiated with those kwargs
-           and wrapped in a ``provider_factory``.
+        1. **Explicit credentials** — when the mapper selected by the model prefix
+           (see :meth:`_get_provider_kwargs`) returns a non-empty dict, the provider
+           class is instantiated with those kwargs and wrapped in a ``provider_factory``.
         2. **Default resolution** — delegates to pydantic-ai ``infer_model``
            which reads standard env vars (``OPENAI_API_KEY``, ``AWS_PROFILE``, …).
 
@@ -639,7 +648,7 @@ class PydanticAIHook(BaseHook):
         if provider_factory is None:
             embedding_model = infer_embedding_model(embed_model_name)
         else:
-            self._validate_embedding_connection_provider(embed_model_name, extra)
+            self._validate_embedding_connection_provider(embed_model_name)
             embedding_model = infer_embedding_model(embed_model_name, provider_factory=provider_factory)
 
         constructor_kwargs = dict(embedder_kwargs)

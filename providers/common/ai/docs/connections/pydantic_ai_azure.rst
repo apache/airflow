@@ -59,7 +59,8 @@ Model
 
 Embedding Model
     Azure embedding model identifier (e.g. ``azure:text-embedding-3-small``).
-    This field stores its value in ``extra["embed_model"]``.
+    This field stores its value in ``extra["embed_model"]``. Unlike Model, a bare
+    name is not qualified, so always write the ``azure:`` prefix.
 
 API Key (Password field)
     The Azure OpenAI API key.

@@ -23,7 +23,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, call, patch, sentinel
+from unittest.mock import ANY, MagicMock, call, patch, sentinel
 
 import pytest
 from pydantic_ai import Agent, Embedder
@@ -1265,6 +1265,72 @@ class TestPydanticAIHookFallbackConnectionFetchCount:
         assert mock_get_connection.call_count == 3
 
 
+class _ExtraTokenGroqHook(PydanticAIHook):
+    """A subclass for a platform with no entry in the hook's provider mapping table."""
+
+    conn_type = "pydanticai_extra_token_groq"
+    default_conn_name = "pydanticai_extra_token_groq_default"
+    model_provider = "groq"
+
+    def _get_provider_kwargs(
+        self, api_key: str | None, base_url: str | None, extra: dict[str, Any]
+    ) -> dict[str, Any]:
+        return {"api_key": extra["token"]}
+
+
+class TestPydanticAIHookSubclassProviderKwargs:
+    @pytest.mark.parametrize(
+        ("model", "expected_model", "expected_provider_kwargs"),
+        [
+            pytest.param(
+                "llama-3.3-70b-versatile",
+                "groq:llama-3.3-70b-versatile",
+                {"api_key": "extra-token"},
+                id="own-platform-uses-subclass-override",
+            ),
+            pytest.param(
+                "openai:gpt-5",
+                "openai:gpt-5",
+                {"api_key": "connection-password"},
+                id="other-platform-uses-base-mapper",
+            ),
+        ],
+    )
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    def test_provider_kwargs_for_platform_outside_mapping_table(
+        self, mock_infer_model, model, expected_model, expected_provider_kwargs
+    ):
+        mock_infer_model.return_value = MagicMock(spec=Model)
+        hook = _ExtraTokenGroqHook(llm_conn_id="groq_conn")
+        conn = Connection(
+            conn_id="groq_conn",
+            conn_type="pydanticai_extra_token_groq",
+            password="connection-password",
+            extra=json.dumps({"model": model, "token": "extra-token"}),
+        )
+
+        with patch.object(hook, "get_connection", autospec=True, return_value=conn):
+            hook.get_conn()
+
+        assert mock_infer_model.call_args.args == (expected_model,)
+        provider_factory = mock_infer_model.call_args.kwargs["provider_factory"]
+        with patch(
+            "airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True
+        ) as mock_infer_provider_class:
+            provider_factory(expected_model.partition(":")[0])
+        mock_infer_provider_class.return_value.assert_called_once_with(**expected_provider_kwargs)
+
+    def test_get_conn_and_extra_defaults_to_llm_conn_id(self):
+        hook = PydanticAIHook(llm_conn_id="chat_conn", embed_conn_id="embedding_conn")
+        conn = Connection(conn_id="chat_conn", conn_type="pydanticai", extra='{"model": "openai:gpt-5"}')
+
+        with patch.object(hook, "get_connection", autospec=True, return_value=conn) as mock_get_connection:
+            result = hook._get_conn_and_extra()
+
+        assert result == (conn, {"model": "openai:gpt-5"})
+        mock_get_connection.assert_called_once_with("chat_conn")
+
+
 class TestPydanticAIHookCreateEmbedder:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
     def test_embedding_uses_model_provider_mapping_instead_of_hook_type(self, mock_infer_provider_class):
@@ -1499,12 +1565,12 @@ class TestPydanticAIHookCreateEmbedder:
     ):
         mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
         hook = PydanticAIHook(model_id=llm_model_id, embed_model_id=embed_model_id)
-        conn = Connection(conn_id="pydanticai_default", conn_type="pydanticai")
+        conn = Connection(conn_id="pydanticai_default", conn_type="pydanticai", password="shared-key")
 
         with patch.object(hook, "get_connection", return_value=conn):
             hook.create_embedder()
 
-        mock_infer_embedding_model.assert_called_once_with(embed_model_id)
+        mock_infer_embedding_model.assert_called_once_with(embed_model_id, provider_factory=ANY)
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
     def test_create_embedder_rejects_unsupported_embedding_provider(self, mock_infer_provider_class):
@@ -1604,6 +1670,7 @@ class TestPydanticAIHookCreateEmbedder:
         embedding_conn = Connection(
             conn_id="embedding_conn",
             conn_type="pydanticai",
+            password="openai-key",
             extra='{"embed_model": "openai:text-embedding-3-small"}',
         )
 
@@ -1611,7 +1678,9 @@ class TestPydanticAIHookCreateEmbedder:
             hook.create_embedder()
 
         mock_get_connection.assert_called_once_with("embedding_conn")
-        mock_infer_embedding_model.assert_called_once_with("openai:text-embedding-3-small")
+        mock_infer_embedding_model.assert_called_once_with(
+            "openai:text-embedding-3-small", provider_factory=ANY
+        )
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     def test_create_embedder_without_credentials_uses_default_provider(self, mock_infer_embedding_model):
@@ -2529,8 +2598,9 @@ class TestPydanticAIVertexHook:
 
     def test_get_google_cloud_provider_kwargs_returns_empty_for_adc(self):
         """When no keys are in extra, return {} so ADC path is taken."""
-        hook = PydanticAIVertexHook.__new__(PydanticAIVertexHook)
-        result = hook._get_provider_kwargs(None, None, {"model": "google-cloud:gemini-2.5-flash"})
+        result = PydanticAIVertexHook._get_google_cloud_provider_kwargs(
+            None, None, {"model": "google-cloud:gemini-2.5-flash"}
+        )
         assert result == {}
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
