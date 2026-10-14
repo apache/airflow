@@ -47,7 +47,11 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
-from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import (
+    DagCallbackRequest,
+    DagSkippedIntervalsCallbackRequest,
+    TaskCallbackRequest,
+)
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
@@ -76,6 +80,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG as SdkDAG, BaseOperator
 from airflow.sdk.importers import DagDefinition, DagImporterRegistry, DagImportError, DagSourceCode
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+from airflow.timetables.base import DataInterval, SkippedIntervalsSummary
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
@@ -1745,6 +1750,20 @@ class TestDagFileProcessorManager:
                 "Dropping TaskCallbackRequest for dags.native (dag_id=native_dag run_id=run "
                 "task_id=extract): Lang-SDK runtimes do not run callbacks",
                 id="task",
+            ),
+            pytest.param(
+                DagSkippedIntervalsCallbackRequest.from_summary(
+                    filepath="dags.native",
+                    dag_id="native_dag",
+                    bundle_name="testing",
+                    bundle_version="v1",
+                    summary=SkippedIntervalsSummary(
+                        skipped_range=DataInterval(start=DEFAULT_DATE, end=DEFAULT_DATE),
+                    ),
+                ),
+                "Dropping DagSkippedIntervalsCallbackRequest for dags.native (dag_id=native_dag): "
+                "Lang-SDK runtimes do not run callbacks",
+                id="skipped_intervals",
             ),
         ],
     )
