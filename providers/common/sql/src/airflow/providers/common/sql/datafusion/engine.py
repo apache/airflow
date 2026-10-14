@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import inspect
 import os
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
@@ -84,12 +83,7 @@ class DataFusionEngine(LoggingMixin):
                 datasource_config.uri, connection_config=connection_config
             )
             canonical_uri = storage_provider.normalize_uri(datasource_config.uri)
-            # Providers written before get_scheme() took a uri define it without parameters.
-            schema = (
-                storage_provider.get_scheme(canonical_uri)
-                if inspect.signature(storage_provider.get_scheme).parameters
-                else storage_provider.get_scheme()
-            )
+            schema = storage_provider.get_scheme()
             # abfs(s) folds account+container into one host token, so the container-name host
             # DataFusion defaults to when host is omitted would miss the registered store.
             host = urlsplit(canonical_uri).netloc

@@ -24,15 +24,13 @@ from pathlib import Path
 
 from datafusion.object_store import AmazonS3, GoogleCloud, LocalFileSystem, MicrosoftAzure
 
-from airflow.providers.common.sql.config import STORAGE_TYPE_SCHEMES, ConnectionConfig, StorageType
+from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
 from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
 
 
 class S3ObjectStorageProvider(ObjectStorageProvider):
     """S3 Object Storage Provider using DataFusion's AmazonS3."""
-
-    SCHEMES = STORAGE_TYPE_SCHEMES[StorageType.S3]
 
     @property
     def get_storage_type(self) -> StorageType:
@@ -56,11 +54,13 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
         except Exception as e:
             raise ObjectStoreCreationException(f"Failed to create S3 object store: {e}")
 
+    def get_scheme(self) -> str:
+        """Return the scheme for S3."""
+        return "s3://"
+
 
 class GCSObjectStorageProvider(ObjectStorageProvider):
     """GCS Object Storage Provider using DataFusion's GoogleCloud."""
-
-    SCHEMES = STORAGE_TYPE_SCHEMES[StorageType.GCS]
 
     @property
     def get_storage_type(self) -> StorageType:
@@ -104,6 +104,10 @@ class GCSObjectStorageProvider(ObjectStorageProvider):
             if temp_key_path is not None:
                 Path(temp_key_path).unlink(missing_ok=True)
 
+    def get_scheme(self) -> str:
+        """Return the scheme for GCS."""
+        return "gs://"
+
 
 _ABFS_URI_RE = re.compile(
     r"^abfss?://(?P<container>[^@/]+)@(?P<account>[^./]+)\.(?P<host>[^/]+)(?P<path>/.*)?$"
@@ -116,8 +120,6 @@ _ABFS_SCHEMES = ("abfs://", "abfss://")
 
 class AzureObjectStorageProvider(ObjectStorageProvider):
     """Azure Object Storage Provider using DataFusion's MicrosoftAzure."""
-
-    SCHEMES = STORAGE_TYPE_SCHEMES[StorageType.AZURE]
 
     @property
     def get_storage_type(self) -> StorageType:
@@ -199,11 +201,13 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
             # A bad credential combination panics as pyo3_runtime.PanicException, not a plain Exception.
             raise ObjectStoreCreationException(f"Failed to create Azure object store: {e}")
 
+    def get_scheme(self) -> str:
+        """Return the scheme for Azure; ``normalize_uri`` rewrites abfs(s) URIs onto it."""
+        return "az://"
+
 
 class LocalObjectStorageProvider(ObjectStorageProvider):
     """Local Object Storage Provider using DataFusion's LocalFileSystem."""
-
-    SCHEMES = STORAGE_TYPE_SCHEMES[StorageType.LOCAL]
 
     @property
     def get_storage_type(self) -> StorageType:
@@ -214,13 +218,8 @@ class LocalObjectStorageProvider(ObjectStorageProvider):
         """Create a Local object store."""
         return LocalFileSystem()
 
-    def get_scheme(self, uri: str | None = None) -> str:
-        """
-        Return "file://" regardless of ``uri``.
-
-        A bare path (no ``file://`` prefix) arrives only through an explicit
-        ``storage_type=StorageType.LOCAL``, so the scheme is fixed rather than read from ``uri``.
-        """
+    def get_scheme(self) -> str:
+        """Return the scheme to a Local file system."""
         return "file://"
 
 

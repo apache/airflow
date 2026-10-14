@@ -49,7 +49,7 @@ class TestObjectStorageProvider:
         )
         assert store == mock_s3.return_value
         assert provider.get_storage_type == StorageType.S3
-        assert provider.get_scheme("s3://demo-data/path") == "s3://"
+        assert provider.get_scheme() == "s3://"
 
     def test_s3_provider_failure(self):
         provider = S3ObjectStorageProvider()
@@ -77,7 +77,7 @@ class TestObjectStorageProvider:
         mock_gcs.assert_called_once_with(bucket_name="demo-data", service_account_path=str(key_path))
         assert store == mock_gcs.return_value
         assert provider.get_storage_type == StorageType.GCS
-        assert provider.get_scheme("gs://demo-data/path") == "gs://"
+        assert provider.get_scheme() == "gs://"
 
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.GoogleCloud")
     def test_gcs_provider_success_with_keyfile_dict(self, mock_gcs):
@@ -157,17 +157,22 @@ class TestObjectStorageProvider:
         )
         assert store == mock_azure.return_value
         assert provider.get_storage_type == StorageType.AZURE
-        assert provider.get_scheme("az://demo-container/path") == "az://"
+        assert provider.get_scheme() == "az://"
 
     @pytest.mark.parametrize(
-        ("uri", "expected_scheme"),
+        "uri",
         [
-            ("abfs://demo-container@myaccount.dfs.core.windows.net/path", "abfs://"),
-            ("abfss://demo-container@myaccount.dfs.core.windows.net/path", "abfss://"),
+            "abfs://demo-container@myaccount.dfs.core.windows.net/path",
+            "abfss://demo-container@myaccount.dfs.core.windows.net/path",
+            "abfss://demo-container@myaccount.blob.core.windows.net/path",
+            "abfss://demo-container@myaccount.DFS.Core.Windows.Net/path",
         ],
     )
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
-    def test_azure_provider_success_with_abfs_uri(self, mock_azure, uri, expected_scheme):
+    def test_azure_provider_success_with_abfs_uri(self, mock_azure, uri, monkeypatch):
+        # Without these, a public-cloud host check that is too strict would still pass.
+        monkeypatch.delenv("AZURE_STORAGE_ENDPOINT", raising=False)
+        monkeypatch.delenv("AZURE_ENDPOINT", raising=False)
         provider = AzureObjectStorageProvider()
         connection_config = ConnectionConfig(
             conn_id="wasb_default",
@@ -181,7 +186,6 @@ class TestObjectStorageProvider:
         )
         assert store == mock_azure.return_value
         assert provider.get_bucket(uri) == "demo-container"
-        assert provider.get_scheme(uri) == expected_scheme
 
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
     def test_azure_provider_abfs_uri_account_mismatch_raises(self, mock_azure):
@@ -341,14 +345,9 @@ class TestObjectStorageProvider:
     def test_local_provider(self, mock_local):
         provider = LocalObjectStorageProvider()
         assert provider.get_storage_type == StorageType.LOCAL
-        assert provider.get_scheme("file://path") == "file://"
+        assert provider.get_scheme() == "file://"
         local_store = provider.create_object_store("file://path")
         assert local_store == mock_local.return_value
-
-    def test_local_provider_get_scheme_ignores_bare_path(self):
-        provider = LocalObjectStorageProvider()
-
-        assert provider.get_scheme("/data/x.csv") == "file://"
 
     def test_get_object_storage_provider(self):
         assert isinstance(get_object_storage_provider(StorageType.S3), S3ObjectStorageProvider)

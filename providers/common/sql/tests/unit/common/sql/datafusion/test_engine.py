@@ -216,8 +216,7 @@ class TestDataFusionEngine:
     @pytest.mark.parametrize("uri_prefix", ["file://", ""], ids=["file-uri", "bare-path"])
     @patch.object(DataFusionEngine, "_get_connection_config")
     def test_execute_query_with_local_csv(self, mock_get_conn, uri_prefix):
-        """A bare path (no file:// prefix) arrives through an explicit
-        storage_type=StorageType.LOCAL, which get_scheme also handles."""
+        """A bare path (no file:// prefix) is accepted with an explicit storage_type=StorageType.LOCAL."""
         mock_get_conn.return_value = None
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
