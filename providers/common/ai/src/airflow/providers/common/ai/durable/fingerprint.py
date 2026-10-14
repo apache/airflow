@@ -156,9 +156,10 @@ def fingerprint_model_request(
         return _digest(
             {
                 "model": model_identifier,
-                # The journal records tool results with secrets masked, while a live run hands
-                # the model the unmasked result, so a replayed history holds ``***`` where the
-                # live one held the secret. Masking the history here as well makes both match.
+                # The journal records tool results with secrets masked, and not everything in a
+                # live run's history is (an output function's result, for one), so a replayed
+                # history can hold ``***`` where the live one held the secret. Masking the
+                # history here as well makes both match.
                 "messages": _strip_volatile(mask_secrets(dumped)),
                 "settings": _content_settings(model_settings),
                 "params": _normalize_params(params),

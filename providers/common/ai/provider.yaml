@@ -156,9 +156,11 @@ config:
           finish reason are recorded, never message text. Turning this on exports
           model inputs and outputs to your tracing backend without redaction. Airflow's
           secret masking applies to logs and rendered template fields, not to
-          OpenTelemetry span attributes, so it does not scrub this content.
-          Enable it only for debugging in a trusted environment. Has no effect
-          unless ``otel_export_enabled`` is ``True``.
+          OpenTelemetry span attributes. The exception is what a function tool
+          returns or raises while it runs in an agent this provider builds, which
+          is masked before the span records it. Enable it only for debugging in
+          a trusted environment. Has no effect unless ``otel_export_enabled`` is
+          ``True``.
         version_added: 0.4.0
         type: boolean
         example: "False"

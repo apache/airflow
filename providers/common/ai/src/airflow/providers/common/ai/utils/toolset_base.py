@@ -34,6 +34,7 @@ from pydantic_ai.exceptions import (
     ToolFailed,
     ToolFailedError,
     ToolRetryError,
+    UnexpectedModelBehavior,
 )
 from pydantic_ai.messages import ToolReturn
 from pydantic_ai.toolsets import DynamicToolset
@@ -110,6 +111,11 @@ async def _mask_call(name: str, call: Awaitable[Any], *, count_as: str | None = 
         # exception's text, so that part is what gets masked.
         log.debug("Tool %s returned an error for the model", name, exc_info=e)
         error = _mask_tool_error_part(e)
+    except UnexpectedModelBehavior as e:
+        # What pydantic-ai raises, below a capability's wrap_tool_execute, once a tool has
+        # used up its retries. The run fails with it, so it is not logged as the tool failing.
+        log.debug("Tool %s ran out of retries", name, exc_info=e)
+        error = _strip(e)
     except Exception as e:
         if not getattr(e, _STRIPPED, False):
             log.warning("Tool %s failed", name, exc_info=e)
@@ -301,10 +307,20 @@ class MaskingCapability(AbstractCapability[Any]):
     ``Toolset`` built per run, or a ``Toolset`` inside ``PrefixTools`` or a
     ``CombinedCapability``. This masks around every tool call instead.
 
-    Other capabilities see a tool's result only after this one has masked it, provided it
-    is the innermost capability: it declares the innermost position, and pydantic-ai breaks
-    ties between capabilities that declare it by list order, the last one innermost. Put it
-    last in the capability list, as ``AgentOperator`` does.
+    :meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.create_agent`
+    adds it to every agent it builds, so add it yourself only to an agent you build with
+    ``Agent(...)``, last in its ``capabilities``:
+
+    .. code-block:: python
+
+        agent = Agent(model, toolsets=[my_toolset], capabilities=[*my_capabilities, MaskingCapability()])
+
+    It declares the innermost position, and pydantic-ai breaks ties between capabilities
+    that declare it by list order, the last one innermost, so the agent's other capabilities
+    hooking tool execution see a result only after it is masked. Two kinds still see it
+    first: a capability passed to ``run(capabilities=...)``, which wraps inside the agent's
+    own, and a toolset wrapper a capability adds with ``get_wrapper_toolset``, which runs
+    below every capability's hooks.
     """
 
     def get_ordering(self) -> CapabilityOrdering:

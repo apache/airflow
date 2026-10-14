@@ -3553,6 +3553,24 @@ class _RecordToolResults(AbstractCapability):
         return result
 
 
+class _OwnLeafToolset(AbstractToolset):
+    """A Dag author's own toolset, which pydantic-ai's durable backend does not run as a durable unit."""
+
+    def __init__(self, inner: FunctionToolset):
+        self.inner = inner
+
+    @property
+    def id(self):
+        return self.inner.id
+
+    async def get_tools(self, ctx):
+        tools = await self.inner.get_tools(ctx)
+        return {name: dataclasses.replace(tool, toolset=self) for name, tool in tools.items()}
+
+    async def call_tool(self, name, tool_args, ctx, tool):
+        return await self.inner.call_tool(name, tool_args, ctx, dataclasses.replace(tool, toolset=self.inner))
+
+
 @pytest.mark.enable_redact
 class TestAgentOperatorMasksToolOutput:
     """What any tool hands the model is masked, however the toolset reaches the agent."""
@@ -3612,14 +3630,30 @@ class TestAgentOperatorMasksToolOutput:
             pytest.param(lambda ts: {"capabilities": [Toolset(ts)]}, id="toolset-capability"),
         ],
     )
-    def test_a_toolset_is_masked_before_the_durable_journal_stores_it(self, registered_secret, passed_as):
+    @pytest.mark.parametrize(
+        "toolset",
+        [
+            pytest.param(lambda ts: ts, id="durable-unit"),
+            pytest.param(_OwnLeafToolset, id="own-leaf"),
+        ],
+    )
+    def test_the_durable_journal_never_stores_a_registered_secret(
+        self, registered_secret, passed_as, toolset
+    ):
+        """
+        The journal masks what it records itself, whichever path journals the call.
+
+        It sits inside every masking layer: pydantic-ai runs a function toolset as a durable
+        unit, and AirflowDurability journals any other leaf toolset, both below the masking
+        wrapper around the toolset and the masking capability.
+        """
         storage = MemoryStorage()
         op = AgentOperator(
             task_id="t",
             prompt="hi",
             llm_conn_id="c",
             durable=True,
-            **passed_as(self._dag_authors_toolset(registered_secret)),
+            **passed_as(toolset(self._dag_authors_toolset(registered_secret))),
         )
 
         assert self._run(op, storage) == "api key: ***"
@@ -3680,12 +3714,13 @@ class TestAgentOperatorMasksToolOutput:
             ),
         ],
     )
-    def test_an_error_from_a_capabilitys_tool_is_masked(self, registered_secret, error, reply_is):
+    def test_an_error_from_a_capabilitys_tool_is_masked(self, registered_secret, error, reply_is, caplog):
         """
         pydantic-ai hands a capability both as its own wrapper errors; the model sees the part inside.
 
         A ModelRetry comes back to the model as a retry prompt and a ToolFailed as a failed tool
-        result, which does not spend the retry budget; masking must keep them apart.
+        result, which does not spend the retry budget; masking must keep them apart. Neither is
+        the tool failing, so neither is logged as one.
         """
 
         def read_setting() -> str:
@@ -3708,6 +3743,7 @@ class TestAgentOperatorMasksToolOutput:
         ]
         assert reply_is(reply)
         assert reply.content == "bad key ***"
+        assert "Tool read_setting failed" not in caplog.messages
 
     def test_a_toolset_that_masks_its_own_output_is_not_wrapped_again(self):
         sql = SQLToolset("pg_default")

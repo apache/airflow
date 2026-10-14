@@ -803,8 +803,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
         # create_agent adds a MaskingCapability that masks every tool call. The toolset-level
-        # masking above stays because the durable cache sits below the capability hooks and must
-        # only ever store masked results.
+        # masking above stays because toolset wrappers a capability adds (get_wrapper_toolset,
+        # as ToolLoggingCapability does) run below the capability hooks and would otherwise see
+        # the unmasked result. The durable journal masks what it records on its own.
         return self.llm_hook.create_agent(
             output_type=self._agent_output_type(),
             instructions=self.system_prompt,
