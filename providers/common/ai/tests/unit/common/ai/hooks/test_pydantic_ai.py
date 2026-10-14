@@ -1608,14 +1608,14 @@ class TestPydanticAIHookTestConnection:
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    def test_get_conn_raises_when_provider_class_rejects_credentials(
+    def test_get_conn_raises_when_provider_class_cannot_be_built(
         self, mock_infer_model, mock_infer_provider_class, registry
     ):
         mock_infer_provider_class.return_value = _RejectsKwargsProvider
         mock_infer_model.side_effect = _call_provider_factory
         registry.add("primary", password="sk-key", extra={"model": "openai:gpt-5.6-sol"})
 
-        with pytest.raises(ValueError, match="rejected the credentials") as exc_info:
+        with pytest.raises(ValueError, match="Could not build provider") as exc_info:
             PydanticAIHook(llm_conn_id="primary").get_conn()
 
         assert isinstance(exc_info.value.__cause__, TypeError)
@@ -1629,7 +1629,7 @@ class TestPydanticAIHookTestConnection:
     )
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    def test_reports_credentials_rejected_by_provider_class(
+    def test_reports_provider_class_build_failure(
         self, mock_infer_model, mock_infer_provider_class, registry, fallback_conn_ids, expected_conn_id
     ):
         mock_infer_provider_class.return_value = _RejectsKwargsProvider
@@ -1646,7 +1646,9 @@ class TestPydanticAIHookTestConnection:
         ).test_connection()
 
         assert success is False
-        assert f"Provider 'openai' rejected the credentials from connection '{expected_conn_id}'" in message
+        assert (
+            f"Could not build provider 'openai' from the fields on connection '{expected_conn_id}'" in message
+        )
         assert "(fields passed: api_key)" in message
         assert "unexpected keyword argument 'api_key'" in message
 

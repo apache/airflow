@@ -448,7 +448,7 @@ class PydanticAIHook(BaseHook):
                     return infer_provider_class(pname)(**_kwargs)
                 except TypeError as e:
                     raise ValueError(
-                        f"Provider '{pname}' rejected the credentials from connection "
+                        f"Could not build provider '{pname}' from the fields on connection "
                         f"'{self.llm_conn_id}' (fields passed: {', '.join(_kwargs)}): {e}. "
                         "Not falling back to environment-variable auth, which would authenticate as a different identity."
                     ) from e
@@ -672,7 +672,7 @@ class PydanticAIHook(BaseHook):
         """
         Test connection by resolving the model.
 
-        A provider class rejecting the connection's credentials is reported as a failure
+        A provider class that cannot be built from the connection's fields is reported as a failure
         naming the provider, the fields passed and the provider's ``TypeError`` text.
 
         Does NOT make an LLM API call — that would be expensive and fail for
