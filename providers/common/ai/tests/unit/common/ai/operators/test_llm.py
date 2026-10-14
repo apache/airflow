@@ -1341,6 +1341,27 @@ class TestLLMOperatorApproval:
         with pytest.raises(ReviewedOutputValidationError, match="'thirty-one'"):
             op.execute_complete({}, generated_output="5", event=event)
 
+    @requires_typed_xcom
+    def test_execute_complete_restores_a_model_the_form_sent_back_as_an_object(self):
+        # The HITL form parses a JSON-object value into an object, so an untouched model comes back as a dict.
+        op = LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            output_type=Summary,
+            require_approval=True,
+            allow_modifications=True,
+        )
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "admin"},
+            "params_input": {"output": {"text": "hello"}},
+        }
+
+        result = op.execute_complete({}, generated_output='{"text":"hello"}', event=event)
+
+        assert result == Summary(text="hello")
+
     def test_execute_complete_returns_an_unedited_output_that_does_not_validate_back(self):
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=int, require_approval=True)
         event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}

@@ -156,7 +156,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
     :param allow_modifications: If ``True``, the reviewer can edit the output
         before approving.  The edit is converted back into ``output_type`` and returned
         as the task result.  For a type pydantic can validate, an edit that does not validate
-        fails the task with ``ReviewedOutputValidationError``.  Default ``False``.
+        fails the task with ``ReviewedOutputValidationError``; a retry calls the model again and
+        opens a new review.  Default ``False``.
     :param approval_notifiers: Notifiers called once the review is open, so a
         reviewer is told about it.  Only takes effect when a review is
         opened.  A retry re-notifies with the regenerated
@@ -377,7 +378,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         """
         Resume after human review and convert the output back into ``output_type``.
 
-        :raises ReviewedOutputValidationError: If the approved output does not validate against it.
+        :raises ReviewedOutputValidationError: If a reviewer's edit does not validate against ``output_type``.
         """
         output = self._complete_review(context, generated_output, event, decision)
         self._clear_usage_budget(context)

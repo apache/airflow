@@ -187,7 +187,7 @@ class TestDeferForApproval:
     )
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_non_string_non_pydantic_output_is_json_encoded(
+    def test_non_string_output_is_dumped_for_review(
         self, mock_upsert, mock_trigger_cls, approval_op, context, output, expected
     ):
         approval_op.defer_for_approval(context, output)
@@ -464,17 +464,42 @@ class TestDeferForApproval:
     def test_approved_with_non_string_modified_output_raises(self, approval_op_with_modifications):
         # On the awaiting_input path nothing upstream schema-validates params_input
         # (HITLTrigger did on the legacy path), so execute_complete must enforce the
-        # string contract instead of returning a dict as the task's output.
+        # string contract instead of returning another type as the task's output.
         event = {
             "chosen_options": ["Approve"],
             "responded_by_user": {"id": "u1", "name": "editor"},
-            "params_input": {"output": {"sneaky": "dict"}},
+            "params_input": {"output": 42},
         }
 
         with pytest.raises(HITLTriggerEventError, match="must be a string"):
             approval_op_with_modifications.execute_complete(
                 {}, generated_output="original output", event=event
             )
+
+    @pytest.mark.parametrize(
+        ("modified", "expected"),
+        [
+            ({"title": "a", "priority": 0}, '{"title":"a","priority":0}'),
+            ({"title": "b", "priority": 3}, '{"title":"b","priority":3}'),
+            ({"title": "café"}, '{"title":"café"}'),
+        ],
+        ids=["untouched", "edited", "non-ascii"],
+    )
+    def test_approved_with_object_output_from_the_form_is_dumped_as_json(
+        self, approval_op_with_modifications, modified, expected
+    ):
+        # The HITL form parses a JSON-object value into an object, so a model output comes back as a dict.
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "editor"},
+            "params_input": {"output": modified},
+        }
+
+        result = approval_op_with_modifications.execute_complete(
+            {}, generated_output='{"title":"a","priority":0}', event=event
+        )
+
+        assert result == expected
 
     def test_approved_with_list_modified_output_is_serialized(self, approval_op_with_modifications):
         event = {

@@ -24,14 +24,27 @@ from typing import Any, get_origin
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.errors import PydanticUserError
-from pydantic_core import PydanticSerializationError
+from pydantic_core import CoreSchema, PydanticSerializationError
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 
 log = logging.getLogger(__name__)
 
 _MAX_SHOWN_CHARS = 200
-_CONTAINER_MISMATCH_TYPES = frozenset({"model_type", "dict_type", "list_type", "tuple_type", "set_type"})
+# Errors pydantic raises when a whole string meets a structured type, so the JSON error says more.
+_CONTAINER_MISMATCH_TYPES = frozenset(
+    {
+        "model_type",
+        "model_attributes_type",
+        "dataclass_type",
+        "dict_type",
+        "list_type",
+        "tuple_type",
+        "set_type",
+        "frozen_set_type",
+        "arguments_type",
+    }
+)
 
 
 def dump_output_to_json(output: Any) -> str:
@@ -46,13 +59,13 @@ def dump_output_for_display(output: Any) -> str:
     return _dump_json(output)
 
 
-def _dump_json(output: Any, **dump_options: Any) -> str:
+def _dump_json(output: Any, *, round_trip: bool = False, by_alias: bool | None = None) -> str:
     if isinstance(output, str):
         return output
     try:
         if isinstance(output, BaseModel):
-            return output.model_dump_json(**dump_options)
-        return TypeAdapter(type(output)).dump_json(output, **dump_options).decode()
+            return output.model_dump_json(round_trip=round_trip, by_alias=by_alias)
+        return TypeAdapter(type(output)).dump_json(output, round_trip=round_trip, by_alias=by_alias).decode()
     except (PydanticUserError, PydanticSerializationError):
         log.warning("Cannot serialize a %s to JSON, so the reviewer sees its str().", type(output).__name__)
         return str(output)
@@ -69,8 +82,8 @@ def rehydrate_pydantic_output(
     Turn the reviewed string back into ``output_type``.
 
     ``raw`` is JSON, or bare text for types pydantic builds from a string. ``str`` outputs, output
-    functions and types pydantic has no schema for return ``raw`` unchanged, and so does an unedited
-    output that does not validate back (with a warning).
+    functions, pydantic-ai output markers such as ``ToolOutput`` and types pydantic has no schema for
+    return ``raw`` unchanged, and so does an unedited output that does not validate back (with a warning).
 
     :param is_edited: ``False`` when ``raw`` is the unmodified generated output.
 
@@ -81,7 +94,9 @@ def rehydrate_pydantic_output(
     try:
         adapter: TypeAdapter[Any] = TypeAdapter(output_type)
         is_output_function = _is_output_function(adapter.core_schema)
-    except PydanticUserError:
+    # A pydantic-ai output marker (``ToolOutput``, ``NativeOutput``, ...) is not a type, and
+    # ``TypeAdapter`` fails on it with an ``AttributeError``.
+    except (PydanticUserError, AttributeError):
         return raw
     if is_output_function:
         return raw
@@ -92,7 +107,9 @@ def rehydrate_pydantic_output(
         # Bare text is how a str-valued Literal, Enum or ``str | None`` output is carried through review.
         try:
             rehydrated = _validate_bare_text(adapter, raw)
-        except (ValidationError, ValueError, TypeError) as text_error:
+        # This retry feeds a string to validators that may only expect the type's own input (a
+        # ``mode="before"`` validator calling ``data.get``), so any failure here just means "not bare text".
+        except Exception as text_error:
             message = _build_failure_message(output_type, raw, json_error, text_error)
             if not is_edited:
                 log.warning("%s Returning the output unchanged.", message)
@@ -126,16 +143,17 @@ def _build_failure_message(output_type: Any, raw: str, json_error: Exception, te
 
 def _is_bare_text_failure(json_error: Exception, text_error: Exception) -> bool:
     """Tell a text that was never JSON from a JSON edit with a typo, which the JSON error explains best."""
+    if not isinstance(text_error, ValidationError):
+        return False
     is_not_json = isinstance(json_error, ValidationError) and all(
         error["type"] == "json_invalid" for error in json_error.errors()
     )
-    is_container_mismatch = isinstance(text_error, ValidationError) and all(
-        error["loc"] == () and error["type"] in _CONTAINER_MISMATCH_TYPES for error in text_error.errors()
-    )
+    # A union adds its member to ``loc``, so match on the error type alone.
+    is_container_mismatch = all(error["type"] in _CONTAINER_MISMATCH_TYPES for error in text_error.errors())
     return is_not_json and not is_container_mismatch
 
 
-def _is_output_function(schema: Any) -> bool:
+def _is_output_function(schema: CoreSchema) -> bool:
     """
     Tell an output function from a type, both of which can have a ``call`` core schema.
 

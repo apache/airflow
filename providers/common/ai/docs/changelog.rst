@@ -36,6 +36,15 @@ Changelog
   headroom. On Airflow < 3.3, or when ``usage_limits`` is ``None``, each attempt is checked
   and counted on its own, unchanged. See :ref:`howto/operator:llm`.
 
+  A reviewer's edit on ``LLMOperator``, ``LLMFileAnalysisOperator`` or
+  ``LLMSchemaCompareOperator`` (``allow_modifications=True``) is now converted back into
+  ``output_type``, and an edit that does not validate fails the task with
+  ``ReviewedOutputValidationError`` (a ``ValueError``) instead of returning the edited text as
+  a ``str``. Use ``output_type=str``, or a type that accepts bare text such as a ``Literal``, a
+  ``str`` ``Enum`` or ``str | None``, to keep accepting free text. An approval without an edit
+  never fails this way. The review text now shows field names and leaves out computed fields.
+  See :doc:`approval_gates`.
+
 0.11.0
 ......
 

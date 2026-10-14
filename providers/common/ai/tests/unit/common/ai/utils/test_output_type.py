@@ -21,7 +21,8 @@ from enum import Enum
 from typing import Annotated, Literal, NamedTuple
 
 import pytest
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic_ai import NativeOutput, PromptedOutput, ToolOutput
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.utils.output_type import dump_output_to_json, rehydrate_pydantic_output
@@ -29,6 +30,15 @@ from airflow.providers.common.ai.utils.output_type import dump_output_to_json, r
 
 class A(BaseModel):
     x: int
+
+
+class B(BaseModel):
+    y: str
+
+
+@dataclass
+class DataclassOutput:
+    a: int
 
 
 class Color(str, Enum):
@@ -48,6 +58,18 @@ class SerializedByAlias(BaseModel):
     user_name: str = Field(serialization_alias="userName")
 
 
+class DictOnlyBeforeValidator(BaseModel):
+    """A model whose before-validator assumes dict input, so it breaks on a bare string."""
+
+    amount: int
+
+    @model_validator(mode="before")
+    @classmethod
+    def default_amount(cls, data):
+        amount = data.get("amount", 0)
+        return {**data, "amount": amount}
+
+
 class ComputedForbidExtra(BaseModel):
     model_config = ConfigDict(extra="forbid")
     a: int
@@ -63,6 +85,7 @@ class Address(BaseModel):
 
 
 class Order(BaseModel):
+    # Reuses Address, so pydantic wraps a function taking an Order in a ``definitions`` schema.
     billing: Address
     shipping: Address
 
@@ -90,10 +113,6 @@ class TestRehydratePydanticOutput:
     def test_returns_dict_when_serialize_output(self):
         result = rehydrate_pydantic_output(A, '{"x": 7}', serialize_output=True)
         assert result == {"x": 7}
-
-    def test_returns_raw_for_str_output_type(self):
-        result = rehydrate_pydantic_output(str, "anything", serialize_output=False)
-        assert result == "anything"
 
     @pytest.mark.parametrize(
         ("output_type", "raw", "expected"),
@@ -127,7 +146,10 @@ class TestRehydratePydanticOutput:
         assert result == expected
         assert type(result) is type(expected)
 
-    def test_returns_raw_for_output_function_without_calling_it(self):
+    @pytest.mark.parametrize(
+        "takes_an_order", [False, True], ids=["call-schema", "definitions-wrapped-schema"]
+    )
+    def test_returns_raw_for_output_function_without_calling_it(self, takes_an_order):
         calls = []
 
         def clean(text: str) -> str:
@@ -138,15 +160,33 @@ class TestRehydratePydanticOutput:
             calls.append(order.billing.city)
             return order.billing.city
 
-        assert rehydrate_pydantic_output(clean, "Paris", serialize_output=False) == "Paris"
-        assert rehydrate_pydantic_output(route, "Paris", serialize_output=False) == "Paris"
+        output_function = route if takes_an_order else clean
+
+        assert rehydrate_pydantic_output(output_function, "Paris", serialize_output=False) == "Paris"
         assert calls == []
 
     @pytest.mark.parametrize("output_type", [NoSchema, UnresolvedForwardReference])
     def test_returns_raw_for_type_pydantic_cannot_build_a_schema_for(self, output_type):
         assert rehydrate_pydantic_output(output_type, "anything", serialize_output=False) == "anything"
 
-    @pytest.mark.parametrize("raw", ['"hi"', "null", "42"])
+    @pytest.mark.parametrize(
+        "output_type",
+        [ToolOutput(A), NativeOutput(A), PromptedOutput(A)],
+        ids=["tool-output", "native-output", "prompted-output"],
+    )
+    @pytest.mark.parametrize("is_edited", [False, True], ids=["unedited", "edited"])
+    def test_returns_raw_for_a_pydantic_ai_output_marker(self, output_type, is_edited):
+        result = rehydrate_pydantic_output(
+            output_type, '{"x": 1}', serialize_output=False, is_edited=is_edited
+        )
+
+        assert result == '{"x": 1}'
+
+    @pytest.mark.parametrize(
+        "raw",
+        ["anything", '"hi"', "null", "42"],
+        ids=["plain-text", "json-string", "json-null", "json-number"],
+    )
     def test_returns_any_text_for_a_str_output_type_unparsed(self, raw):
         assert rehydrate_pydantic_output(str, raw, serialize_output=False) == raw
 
@@ -158,14 +198,13 @@ class TestRehydratePydanticOutput:
         assert type(result) is Point
 
     @pytest.mark.parametrize(
-        ("raw", "expected"),
-        [('{"user_name": "kax"}', "kax"), ('{"userName": "kax"}', "kax")],
-        ids=["field-name", "alias"],
+        "raw", ['{"user_name": "kax"}', '{"userName": "kax"}'], ids=["field-name", "alias"]
     )
-    def test_accepts_a_field_name_or_an_alias(self, raw, expected):
+    def test_accepts_a_field_name_or_an_alias(self, raw):
         result = rehydrate_pydantic_output(ValidationAlias, raw, serialize_output=False)
 
-        assert result.user_name == expected
+        assert type(result) is ValidationAlias
+        assert result.user_name == "kax"
 
     def test_returns_raw_with_a_warning_for_an_unedited_output_that_does_not_validate_back(self, caplog):
         assert rehydrate_pydantic_output(int, "null", serialize_output=False, is_edited=False) == "null"
@@ -177,6 +216,24 @@ class TestRehydratePydanticOutput:
 
         assert "x" * 200 + "..." in str(exc_info.value)
         assert "x" * 201 not in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        ("raw", "detail"),
+        [('{"amount": "ten"}', "valid integer"), ('{"amount": 1,}', "trailing comma")],
+        ids=["invalid-field", "json-typo"],
+    )
+    def test_a_before_validator_failing_on_bare_text_reports_the_json_error(self, raw, detail):
+        with pytest.raises(ReviewedOutputValidationError, match=detail):
+            rehydrate_pydantic_output(DictOnlyBeforeValidator, raw, serialize_output=False)
+
+    def test_a_before_validator_failing_on_bare_text_leaves_an_unedited_output_unchanged(self):
+        raw = '{"amount": "ten"}'
+
+        result = rehydrate_pydantic_output(
+            DictOnlyBeforeValidator, raw, serialize_output=False, is_edited=False
+        )
+
+        assert result == raw
 
     @pytest.mark.parametrize(
         ("output_type", "raw", "type_name", "detail"),
@@ -225,9 +282,25 @@ class TestRehydratePydanticOutput:
         [
             (A, '{"x": 1,}', "trailing comma"),
             (list[str], '["a","b",]', "trailing comma"),
+            (A | B, '{"x": 1,}', "trailing comma"),
+            (list[int] | dict[str, int], "[1,]", "trailing comma"),
+            (DataclassOutput, '{"a": 1,}', "trailing comma"),
+            (frozenset[int], "[1,]", "trailing comma"),
+            (Point, '[1, "a",]', "trailing comma"),
             (Literal["a", "b"], "c", "Input should be 'a' or 'b'"),
+            (A | int, "hello", "valid integer"),
         ],
-        ids=["model-typo", "list-typo", "bare-text"],
+        ids=[
+            "model-typo",
+            "list-typo",
+            "model-union-typo",
+            "container-union-typo",
+            "dataclass-typo",
+            "frozenset-typo",
+            "named-tuple-typo",
+            "bare-text",
+            "bare-text-for-a-model-or-int",
+        ],
     )
     def test_error_reports_the_json_error_for_a_json_typo_and_the_text_error_otherwise(
         self, output_type, raw, detail

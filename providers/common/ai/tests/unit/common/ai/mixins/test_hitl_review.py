@@ -159,7 +159,7 @@ class TestToString:
             "unresolved-schema-falls-back-to-str",
         ],
     )
-    def test_serializes_non_str_output_as_json(self, output, expected):
+    def test_to_string_dumps_json_or_falls_back_to_str(self, output, expected):
         assert HITLReviewMixin._to_string(output) == expected
 
     def test_warns_when_it_falls_back_to_str(self, caplog):

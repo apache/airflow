@@ -355,6 +355,11 @@ class LLMApprovalMixin:
                         )
                 # Compact so an unchanged selection compares equal to generated_output
                 modified = json.dumps(modified, separators=(",", ":"))
+            elif isinstance(modified, dict):
+                # The HITL form parses a JSON-object value into an object before sending it back, so a
+                # model output arrives as a dict. Compact and non-ASCII-preserving, like pydantic's dump,
+                # so an untouched object still compares equal to generated_output.
+                modified = json.dumps(modified, separators=(",", ":"), ensure_ascii=False)
             if modified is not None and not isinstance(modified, str):
                 # On the awaiting_input path nothing upstream schema-validates params_input
                 # (HITLTrigger did on the legacy path), so enforce the string contract here

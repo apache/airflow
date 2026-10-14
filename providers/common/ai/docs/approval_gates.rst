@@ -39,10 +39,12 @@ a Pydantic model.  Types that pydantic builds from a string, such as a ``Literal
 the task fails with
 :class:`~airflow.providers.common.ai.exceptions.ReviewedOutputValidationError`
 naming the type and the (truncated) text received, rather than passing a value of the wrong
-type downstream.
+type downstream.  Airflow retries it like any other failure, so with ``retries`` set the
+next try calls the model again and opens a new review; the rejected edit is not carried over.
 
-With ``output_type=str`` any edit is accepted as is.  An output function, or a type
-pydantic has no schema for, is returned as the text unchanged.  An approval without an
+With ``output_type=str`` any edit is accepted as is.  An output function, a pydantic-ai
+output marker such as ``ToolOutput``, or a type pydantic has no schema for, is returned as
+the text unchanged.  An approval without an
 edit whose output cannot be converted back (for example a custom serializer) also returns
 the text with a warning, instead of failing the task.  Computed fields are left out of the
 text.  A model with a serializer that cannot be reversed, or a required field excluded from
