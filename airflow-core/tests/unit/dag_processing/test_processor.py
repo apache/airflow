@@ -2408,13 +2408,39 @@ class TestDagProcessingMessageTypes:
 
 
 class TestDagFileProcessorProcess:
+    @pytest.mark.parametrize("callback_index", [None, -1, 0])
+    def test_emit_requires_callback_from_parent_batch(self, proc, callback_index):
+        response, _ = proc._handle_emit_asset_event(
+            comms.EmitAssetEvent(name="asset", uri="example://asset", callback_index=callback_index),
+            structlog.get_logger(),
+            req_id=1,
+        )
+        assert isinstance(response, comms.ErrorResponse)
+        assert response.error.value == "PERMISSION_DENIED"
+        proc.client.asset_events.emit.assert_not_called()
+
+    def test_emit_rejects_non_dag_callback(self, proc):
+        proc._emission_callbacks = [EmailRequest.model_construct()]
+        response, _ = proc._handle_emit_asset_event(
+            comms.EmitAssetEvent(name="asset", uri="example://asset", callback_index=0),
+            structlog.get_logger(),
+            req_id=1,
+        )
+        assert isinstance(response, comms.ErrorResponse)
+        assert response.error.value == "PERMISSION_DENIED"
+        proc.client.asset_events.emit.assert_not_called()
+
     def test_registered_message_types(self):
         expected = set(typing.get_args(typing.get_args(ToManager)[0]))
         assert set(DagFileProcessorProcess._request_handlers) == expected
 
     @pytest.mark.parametrize(
         "message_type",
-        sorted(set(typing.get_args(typing.get_args(ToManager)[0])) - {DagFileParsingResult}, key=str),
+        sorted(
+            set(typing.get_args(typing.get_args(ToManager)[0]))
+            - {DagFileParsingResult, comms.EmitAssetEvent},
+            key=str,
+        ),
         ids=lambda message_type: message_type.__name__,
     )
     def test_reuses_shared_request_handlers(self, message_type):

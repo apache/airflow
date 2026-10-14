@@ -40,6 +40,14 @@ export const AssetEvent = ({
   const { t: translate } = useTranslation("dashboard");
   const { t: rootTranslate } = useTranslation();
   let source = "";
+  let sourceUrl = `/dags/${event.source_dag_id}/runs/${event.source_run_id}`;
+
+  if (Boolean(event.source_task_id)) {
+    sourceUrl += `/tasks/${event.source_task_id}`;
+    if ((event.source_map_index ?? -1) > -1) {
+      sourceUrl += `/mapped/${event.source_map_index}`;
+    }
+  }
 
   const { from_rest_api: fromRestAPI, from_trigger: fromTrigger, ...extra } = event.extra ?? {};
 
@@ -83,9 +91,7 @@ export const AssetEvent = ({
       <HStack flexWrap="wrap">
         <Box>{translate("source")}: </Box>
         {source === "" ? (
-          <Link
-            to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
-          >
+          <Link to={sourceUrl}>
             <Box color="fg.info" overflowWrap="anywhere" padding={0}>
               {event.source_dag_id}
             </Box>

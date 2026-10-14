@@ -19,10 +19,43 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from pydantic import AwareDatetime, Field, field_validator, model_validator
 from pydantic.types import JsonValue
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
+
+
+class EmitAssetEventBody(StrictBaseModel):
+    """Immediate emission; source identity is supplied only by trusted supervisors."""
+
+    name: str
+    uri: str
+    extra: dict[str, JsonValue] = Field(default_factory=dict)
+    partition_key: str | None = Field(default=None, max_length=250)
+    partition_date: AwareDatetime | None = None
+    source_dag_id: str | None = None
+    source_run_id: str | None = None
+
+    @field_validator("partition_key")
+    @classmethod
+    def validate_partition_key(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("partition_key must not be empty or whitespace-only")
+        return value
+
+    @model_validator(mode="after")
+    def validate_partition_date(self):
+        if self.partition_date is not None and self.partition_key is None:
+            raise ValueError("partition_date requires partition_key")
+        return self
+
+
+class AssetEventReceipt(StrictBaseModel):
+    """Acknowledgement of a persisted event, not of downstream scheduling."""
+
+    id: int
+    timestamp: datetime
 
 
 class DagRunAssetReference(StrictBaseModel):

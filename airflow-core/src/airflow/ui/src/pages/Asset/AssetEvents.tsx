@@ -38,7 +38,7 @@ export const AssetEvents = () => {
   const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
   const [searchParams] = useSearchParams();
 
-  const { data, isLoading } = useAssetServiceGetAssetEvents(
+  const { data, error, isLoading } = useAssetServiceGetAssetEvents(
     {
       assetId,
       limit: pagination.pageSize,
@@ -70,6 +70,7 @@ export const AssetEvents = () => {
       <AssetEventsTable
         assetId={assetId}
         data={data}
+        error={error}
         isLoading={isLoading}
         setOrderBy={setOrderBy}
         setTableUrlState={setTableURLState}

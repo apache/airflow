@@ -23,7 +23,7 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import exc, insert, or_, select
+from sqlalchemy import exc, insert, null, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dag import DagModel
+    from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.assets import (
         SerializedAsset,
@@ -273,6 +274,7 @@ class AssetManager(LoggingMixin):
         cls,
         *,
         task_instance: TaskInstance | None = None,
+        dag_run: DagRun | None = None,
         asset: SerializedAsset | AssetModel | SerializedAssetUniqueKey,
         extra=None,
         source_alias_names: Collection[str] = (),
@@ -314,6 +316,9 @@ class AssetManager(LoggingMixin):
         """
         from airflow.models.dag import DagModel
 
+        if task_instance is not None and dag_run is not None:
+            raise ValueError("Specify task_instance or dag_run, not both")
+
         asset_model: AssetModel | None = session.scalar(
             select(AssetModel)
             .where(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
@@ -350,6 +355,11 @@ class AssetManager(LoggingMixin):
                 source_run_id=task_instance.run_id,
                 source_map_index=source_map_index,
                 source_task_instance_id=task_instance.id,
+            )
+        elif dag_run is not None:
+            # Explicit SQL NULL avoids the unmapped-task server default (-1).
+            event_kwargs.update(
+                source_dag_id=dag_run.dag_id, source_run_id=dag_run.run_id, source_map_index=null()
             )
 
         asset_event = AssetEvent(**event_kwargs)
@@ -427,10 +437,9 @@ class AssetManager(LoggingMixin):
             callback_sink.append(partial(cls.nofity_asset_event_emitted, asset_event=listener_asset_event))
 
         team_name = None
-        if task_instance and conf.getboolean("core", "multi_team"):
-            from airflow.models.dag import DagModel
-
-            team_name = DagModel.get_team_name(task_instance.dag_id, session=session)
+        source_dag_id = asset_event.source_dag_id
+        if source_dag_id and conf.getboolean("core", "multi_team"):
+            team_name = DagModel.get_team_name(source_dag_id, session=session)
         stats.incr("asset.updates", tags=prune_dict({"team_name": team_name}))
 
         dags_to_queue = (
@@ -450,6 +459,10 @@ class AssetManager(LoggingMixin):
                 )
                 resolved_consumer_teams = outlet_ref.allow_consumer_teams if outlet_ref else None
                 resolved_global_consumers = outlet_ref.allow_global_consumers if outlet_ref else True
+            elif dag_run is not None:
+                resolved_source_teams = {team_name} if team_name else set()
+                resolved_consumer_teams = None
+                resolved_global_consumers = True
             else:
                 resolved_source_teams = api_user_teams or set()
                 resolved_consumer_teams = api_allow_consumer_teams

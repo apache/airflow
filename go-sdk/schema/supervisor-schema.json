@@ -18,6 +18,31 @@
       "title": "AssetAliasReferenceAssetEventDagRun",
       "type": "object"
     },
+    "AssetEventEmissionResult": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "type": {
+          "const": "AssetEventEmissionResult",
+          "default": "AssetEventEmissionResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "timestamp"
+      ],
+      "title": "AssetEventEmissionResult",
+      "type": "object"
+    },
     "AssetEventResponse": {
       "description": "Asset event schema with fields that are needed for Runtime.",
       "properties": {
@@ -1857,6 +1882,74 @@
         "context_from_server"
       ],
       "title": "EmailRequest",
+      "type": "object"
+    },
+    "EmitAssetEvent": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "extra": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Extra",
+          "type": "object"
+        },
+        "partition_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Key"
+        },
+        "partition_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partition Date"
+        },
+        "callback_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Callback Index"
+        },
+        "type": {
+          "const": "EmitAssetEvent",
+          "default": "EmitAssetEvent",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "uri"
+      ],
+      "title": "EmitAssetEvent",
       "type": "object"
     },
     "ErrorResponse": {

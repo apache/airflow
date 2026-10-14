@@ -3080,6 +3080,7 @@ class TestTriggererMessageTypes:
         trigger_runner_types = get_type_names(ToTriggerRunner)
 
         in_supervisor_but_not_in_trigger_supervisor = {
+            "EmitAssetEvent",
             "AwaitInputTask",
             "DeferTask",
             "GetAssetByName",
@@ -3117,6 +3118,7 @@ class TestTriggererMessageTypes:
         }
 
         in_task_but_not_in_trigger_runner = {
+            "AssetEventEmissionResult",
             "AssetResult",
             "AssetsByAliasResult",
             "AssetEventsResult",

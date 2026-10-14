@@ -23,7 +23,7 @@ from uuid import uuid4
 
 import pytest
 import time_machine
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, null, select, update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -1056,6 +1056,33 @@ class TestGetAssetEventsPerDagScoping(TestAssets):
 
 
 class TestGetAssetEvents(TestAssets):
+    @pytest.mark.parametrize("filter_by_asset", [False, True])
+    def test_dag_sourced_event_with_null_map_index(self, test_client, session, filter_by_asset):
+        asset = _create_assets(session)[0]
+        event = AssetEvent(
+            asset_id=asset.id,
+            source_dag_id="source_dag_id",
+            source_run_id="failed_run",
+            source_map_index=null(),
+            partition_key="2026-10-01",
+        )
+        session.add(event)
+        session.commit()
+
+        response = test_client.get("/assets/events", params={"asset_id": asset.id} if filter_by_asset else {})
+
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["total_entries"] == 1
+        result = payload["asset_events"][0]
+        assert result["id"] == event.id
+        assert result["source_dag_id"] == "source_dag_id"
+        assert result["source_run_id"] == "failed_run"
+        assert result["source_task_id"] is None
+        assert result["source_task_instance_id"] is None
+        assert result["source_map_index"] is None
+        assert result["partition_key"] == "2026-10-01"
+
     @pytest.mark.parametrize("unknown", [False, True])
     def test_filters_exact_execution_before_pagination(self, test_client, session, unknown):
         assets = _create_assets(session)
