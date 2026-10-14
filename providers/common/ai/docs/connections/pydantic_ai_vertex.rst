@@ -24,10 +24,11 @@ The ``pydanticai_vertex`` connection type configures access to
 `Google Vertex AI <https://cloud.google.com/vertex-ai>`__ via the pydantic-ai
 framework. It backs ``PydanticAIVertexHook``, the dedicated subclass of
 ``PydanticAIHook`` for Google Cloud's project/location/service-account
-credential shape, which does not fit the plain ``api_key`` + ``base_url``
-shape that the generic :doc:`pydantic_ai` connection assumes. All fields live
-in ``extra``; the ``password`` and ``host`` fields are hidden in the connection
-form.
+credential shape. The hook picks the credential mapping from the model prefix,
+so a generic :doc:`pydantic_ai` connection with a ``google-cloud:`` or
+``google:`` model reads the same ``extra`` keys. This connection type gives
+those keys their own form inputs and hides the ``password`` and ``host``
+fields, which Google models ignore.
 
 .. note::
 
@@ -59,6 +60,12 @@ Model
     Generative Language API instead, prefix the model explicitly with
     ``google:`` -- that spelling routes to a different provider regardless of
     which fields this connection sets.
+
+Embedding Model
+    Google embedding model identifier (e.g. ``google-cloud:text-embedding-005``).
+    This field stores its value in ``extra["embed_model"]``. Unlike Model, a bare
+    name is not qualified, so always write the ``google-cloud:`` or ``google:``
+    prefix.
 
 GCP Project
     Google Cloud project ID. Falls back to the ``GOOGLE_CLOUD_PROJECT``
