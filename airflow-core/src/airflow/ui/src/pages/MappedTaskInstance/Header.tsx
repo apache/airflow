@@ -21,7 +21,7 @@ import type { ReactNode } from "react";
 import { Box, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
@@ -29,17 +29,11 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 
-import { selectActivePass, useLoopFilterOptions } from "src/queries/useLoopFilterOptions";
 import { formatNumber, useDurationFormat } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { dagId = "", runId = "" } = useParams();
-  const [searchParams] = useSearchParams();
   const { i18n, t: translate } = useTranslation();
-  // These expansions were produced by one pass of the enclosing loop, and the summary they are
-  // built from does not record which, so it comes from the scope that addressed them.
-  const { options: loopOptions } = useLoopFilterOptions({ dagId, groupId: taskInstance.task_id, runId });
-  const pass = selectActivePass(loopOptions, searchParams);
   const { formatElapsed } = useDurationFormat();
   const entries: Array<{ key?: string; label: string; value: number | ReactNode | string }> = [];
   let taskCount: number = 0;
@@ -66,14 +60,6 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
   });
   const stats = [
     ...entries,
-    ...(pass === undefined
-      ? []
-      : [
-          {
-            label: translate("common:filters.iteration"),
-            value: `${pass.iteration}/${loopOptions[0]?.iterationsRan ?? pass.iteration}`,
-          },
-        ]),
     { label: translate("startDate"), value: <Time datetime={taskInstance.min_start_date} /> },
     { label: translate("endDate"), value: <Time datetime={taskInstance.max_end_date} /> },
     ...(Boolean(taskInstance.max_end_date)
