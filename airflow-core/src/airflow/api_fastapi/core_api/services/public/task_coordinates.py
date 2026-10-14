@@ -144,7 +144,6 @@ def loop_iteration_filter(
     return or_(*predicates) if predicates else false()
 
 
-
 def resolve_task_scope(
     *,
     dag_id: str,

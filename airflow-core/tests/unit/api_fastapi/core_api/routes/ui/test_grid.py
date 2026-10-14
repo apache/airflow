@@ -1531,9 +1531,7 @@ class TestGetLoopSummaryEndpoint:
         assert next(ti for ti in tasks if ti["task_id"] == "body")["loop_iterations_count"] == 2
         assert summary["iterations_ran"] == 2
 
-    def test_grid_counts_every_pass_but_links_to_the_newest(
-        self, test_client, executed_fixed_loop, session
-    ):
+    def test_grid_counts_every_pass_but_links_to_the_newest(self, test_client, executed_fixed_loop, session):
         run = executed_fixed_loop
         # Clearing one pass without its later iterations puts an earlier pass back to work while
         # a later one stays finished.

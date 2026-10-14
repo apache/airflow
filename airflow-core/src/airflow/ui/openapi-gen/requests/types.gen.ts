@@ -2999,7 +2999,6 @@ export type ExecutionTaskResponse = {
     region_id?: string;
     region_index?: number;
     map_index: number;
-    in_loop?: boolean;
     try_number: number;
     state: TaskInstanceState | null;
     start_date: string | null;
@@ -4007,10 +4006,6 @@ export type GetExecutionData = {
     dagRunId: string;
     limit?: number;
     offset?: number;
-    /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, task_id, map_index, state, try_number, start_date, end_date, duration`
-     */
-    orderBy?: Array<(string)>;
     regionId?: string | null;
     regionIndex?: number | null;
     taskId?: string | null;

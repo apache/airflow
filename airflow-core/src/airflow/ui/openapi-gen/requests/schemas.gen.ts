@@ -11497,11 +11497,6 @@ export const $ExecutionTaskResponse = {
             type: 'integer',
             title: 'Map Index'
         },
-        in_loop: {
-            type: 'boolean',
-            title: 'In Loop',
-            default: false
-        },
         try_number: {
             type: 'integer',
             title: 'Try Number'

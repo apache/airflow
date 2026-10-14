@@ -1521,7 +1521,6 @@ export class DagRunService {
      * @param data.tryNumber
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, task_id, map_index, state, try_number, start_date, end_date, duration`
      * @returns ExecutionCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1539,8 +1538,7 @@ export class DagRunService {
                 region_index: data.regionIndex,
                 try_number: data.tryNumber,
                 limit: data.limit,
-                offset: data.offset,
-                order_by: data.orderBy
+                offset: data.offset
             },
             errors: {
                 400: 'Bad Request',
