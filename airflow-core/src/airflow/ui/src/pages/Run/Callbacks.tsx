@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
+import { Button } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { FiFileText } from "react-icons/fi";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { FiChevronDown, FiChevronRight } from "react-icons/fi";
+import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineResponse } from "openapi/requests/types.gen";
@@ -37,10 +37,11 @@ import { TruncatedText } from "src/components/TruncatedText";
 
 import { type DurationFormat, useAutoRefresh, useDurationFormat } from "src/utils";
 
+import { CallbackLogs } from "./CallbackLogs";
+
 const ACTIVE_STATES = new Set(["pending", "queued", "running"]);
 
-// Shared with the callback logs page, which shows the callback's row without the logs column.
-export const getCallbackColumns = (
+const getCallbackColumns = (
   translate: TFunction,
   runEndDate: string | null | undefined,
   renderDuration: DurationFormat["renderDuration"],
@@ -97,13 +98,17 @@ export const getCallbackColumns = (
   },
   {
     accessorKey: "logs",
-    cell: ({ row: { original } }) => (
-      <Link asChild color="fg.info">
-        <RouterLink to={`${original.callback_id}/logs`}>
-          <FiFileText />
-          {translate("tabs.logs")}
-        </RouterLink>
-      </Link>
+    cell: ({ row }) => (
+      <Button
+        aria-expanded={row.getIsExpanded()}
+        color="fg.info"
+        onClick={row.getToggleExpandedHandler()}
+        size="xs"
+        variant="ghost"
+      >
+        {row.getIsExpanded() ? <FiChevronDown /> : <FiChevronRight />}
+        {translate("tabs.logs")}
+      </Button>
     ),
     enableSorting: false,
     header: translate("tabs.logs"),
@@ -144,11 +149,13 @@ export const Callbacks = () => {
       columns={getCallbackColumns(translate, dagRun?.end_date, renderDuration)}
       data={data?.deadlines ?? []}
       errorMessage={<ErrorAlert error={error} />}
+      getRowId={(deadline) => deadline.callback_id}
       initialState={tableURLState}
       isFetching={isFetching}
       isLoading={isLoading}
       modelName="dag:callbacks.callback"
       onStateChange={setTableURLState}
+      renderSubComponent={(deadline) => <CallbackLogs callbackId={deadline.callback_id} />}
       total={data?.total_entries}
     />
   );

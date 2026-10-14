@@ -71,16 +71,8 @@ export const Run = () => {
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
     { icon: <MdOutlineTask />, label: translate("execution.title"), value: "execution" },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
-    // matchPaths keeps the tab active on a callback's logs page.
     ...(hasCallbacks
-      ? [
-          {
-            icon: <FiPhoneCall />,
-            label: translate("tabs.callbacks"),
-            matchPaths: ["logs"],
-            value: "callbacks",
-          },
-        ]
+      ? [{ icon: <FiPhoneCall />, label: translate("tabs.callbacks"), value: "callbacks" }]
       : []),
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },

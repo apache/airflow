@@ -17,9 +17,9 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import type { DeadlineResponse } from "openapi/requests/types.gen";
@@ -33,10 +33,22 @@ import { Callbacks } from "./Callbacks";
 vi.mock("openapi/queries", async (importOriginal) => {
   const actual = await importOriginal<typeof OpenapiQueries>();
 
-  return { ...actual, useDeadlinesServiceGetDeadlines: vi.fn() };
+  return {
+    ...actual,
+    useDeadlinesServiceGetCallbackLogs: vi.fn(),
+    useDeadlinesServiceGetDeadlines: vi.fn(),
+  };
 });
 
-const { useDeadlinesServiceGetDeadlines } = await import("openapi/queries");
+vi.mock("src/queries/useConfig", () => ({ useConfig: () => undefined }));
+
+const { useDeadlinesServiceGetCallbackLogs, useDeadlinesServiceGetDeadlines } =
+  await import("openapi/queries");
+
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "offsetHeight", { value: 20 });
+  Object.defineProperty(HTMLElement.prototype, "offsetWidth", { value: 800 });
+});
 
 const deadlines: Array<DeadlineResponse> = [
   {
@@ -68,7 +80,16 @@ const deadlines: Array<DeadlineResponse> = [
 ];
 
 describe("Callbacks", () => {
-  it("lists the run's callbacks with a link to each callback's logs", () => {
+  it("lists the run's callbacks and expands a callback's logs in place", async () => {
+    vi.mocked(useDeadlinesServiceGetCallbackLogs).mockReturnValue({
+      data: {
+        content: [
+          { event: "Deadline miss callback started", level: "info", timestamp: "2026-10-01T00:00:06Z" },
+        ],
+      },
+      error: null,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useDeadlinesServiceGetCallbackLogs>);
     vi.mocked(useDeadlinesServiceGetDeadlines).mockReturnValue({
       data: { deadlines, total_entries: deadlines.length },
       error: null,
@@ -97,10 +118,22 @@ describe("Callbacks", () => {
     expect(screen.getByText(i18n.t("common:states.success"))).toBeInTheDocument();
     expect(screen.getByText(i18n.t("common:states.pending"))).toBeInTheDocument();
 
-    const logLinks = screen.getAllByRole("link", { name: i18n.t("dag:tabs.logs") });
+    const [firstLogsButton] = screen.getAllByRole("button", { name: i18n.t("dag:tabs.logs") });
 
-    expect(logLinks.map((link) => link.getAttribute("href"))).toEqual(
-      deadlines.map(({ callback_id: id }) => `/dags/my_dag/runs/run_1/callbacks/${id}/logs`),
-    );
+    expect(screen.queryByTestId("table-sub-row")).not.toBeInTheDocument();
+    expect(firstLogsButton).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(firstLogsButton as HTMLElement);
+
+    expect(firstLogsButton).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByTestId("table-sub-row")).toHaveLength(1);
+    expect(vi.mocked(useDeadlinesServiceGetCallbackLogs).mock.lastCall?.[0]).toMatchObject({
+      callbackId: deadlines[0]?.callback_id,
+    });
+    await waitFor(() => expect(screen.getByText(/Deadline miss callback started/u)).toBeInTheDocument());
+
+    fireEvent.click(firstLogsButton as HTMLElement);
+
+    expect(screen.queryByTestId("table-sub-row")).not.toBeInTheDocument();
   });
 });

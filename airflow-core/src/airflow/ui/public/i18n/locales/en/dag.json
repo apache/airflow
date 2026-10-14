@@ -36,7 +36,6 @@
     }
   },
   "callbacks": {
-    "allCallbacks": "All callbacks",
     "callback_one": "Callback",
     "callback_other": "Callbacks",
     "columns": {

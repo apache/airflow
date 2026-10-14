@@ -24,7 +24,6 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import type * as OpenapiQueries from "openapi/queries";
 
 import { TimezoneProvider } from "src/context/timezone";
-import i18n from "src/i18n/config";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { CallbackLogs } from "./CallbackLogs";
@@ -61,10 +60,13 @@ describe("CallbackLogs", () => {
 
     render(
       <BaseWrapper>
-        <MemoryRouter initialEntries={[`/dags/my_dag/runs/run_1/callbacks/${CALLBACK_ID}/logs`]}>
+        <MemoryRouter initialEntries={["/dags/my_dag/runs/run_1/callbacks"]}>
           <TimezoneProvider>
             <Routes>
-              <Route element={<CallbackLogs />} path="/dags/:dagId/runs/:runId/callbacks/:callbackId/logs" />
+              <Route
+                element={<CallbackLogs callbackId={CALLBACK_ID} />}
+                path="/dags/:dagId/runs/:runId/callbacks"
+              />
             </Routes>
           </TimezoneProvider>
         </MemoryRouter>
@@ -79,9 +81,5 @@ describe("CallbackLogs", () => {
     });
     await waitFor(() => expect(screen.getByText(/Deadline miss callback started/u)).toBeInTheDocument());
     expect(screen.getByText(/Deadline miss callback finished/u)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: i18n.t("dag:callbacks.allCallbacks") })).toHaveAttribute(
-      "href",
-      "/dags/my_dag/runs/run_1/callbacks",
-    );
   });
 });

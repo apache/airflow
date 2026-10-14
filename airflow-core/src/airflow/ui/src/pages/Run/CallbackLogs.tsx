@@ -18,21 +18,16 @@
  */
 import { useState } from "react";
 
-import { Box, Heading, Link } from "@chakra-ui/react";
+import { Box, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiArrowLeft } from "react-icons/fi";
-import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
-
-import { useDagRunServiceGetDagRun, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 
 import { Modal } from "src/system-components";
 
 import { TaskLogContent, type TaskLogContentProps } from "src/pages/TaskInstance/Logs/TaskLogContent";
 import { TaskLogHeader, type TaskLogHeaderProps } from "src/pages/TaskInstance/Logs/TaskLogHeader";
 import { getDownloadText } from "src/pages/TaskInstance/Logs/utils";
-
-import { DataTable } from "src/components/DataTable";
 
 import {
   LOG_SHOW_LOG_LEVEL_KEY,
@@ -45,12 +40,10 @@ import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 import { useCallbackLogs } from "src/queries/useLogs";
-import { useDurationFormat } from "src/utils";
 
-import { getCallbackColumns } from "./Callbacks";
-
-export const CallbackLogs = () => {
-  const { callbackId = "", dagId = "", runId = "" } = useParams();
+// Shown under a callback's row in the Callbacks tab.
+export const CallbackLogs = ({ callbackId }: { readonly callbackId: string }) => {
+  const { dagId = "", runId = "" } = useParams();
   const [searchParams] = useSearchParams();
   const { t: translate } = useTranslation("dag");
 
@@ -67,18 +60,6 @@ export const CallbackLogs = () => {
   const [expanded, setExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
-
-  // Same params as the Callbacks tab's first page, so this is usually served from its cache.
-  const pageSize = useConfig("fallback_page_limit") as number;
-  const { data: deadlines } = useDeadlinesServiceGetDeadlines({
-    dagId,
-    dagRunId: runId,
-    limit: pageSize,
-    offset: 0,
-  });
-  const deadline = deadlines?.deadlines.find((dl) => dl.callback_id === callbackId);
-  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId });
-  const { renderDuration } = useDurationFormat();
 
   const { error, fetchedData, isLoading, parsedData } = useCallbackLogs({
     callbackId,
@@ -180,26 +161,7 @@ export const CallbackLogs = () => {
   };
 
   return (
-    <Box display="flex" flexDirection="column" h="100%" p={2}>
-      <Link asChild color="fg.info" fontSize="sm" mb={2}>
-        <RouterLink to={`/dags/${dagId}/runs/${runId}/callbacks`}>
-          <FiArrowLeft />
-          {translate("callbacks.allCallbacks")}
-        </RouterLink>
-      </Link>
-      {deadline === undefined ? undefined : (
-        <Box mb={4.5}>
-          <DataTable
-            columns={getCallbackColumns(translate, dagRun?.end_date, renderDuration).filter(
-              (column) => !("accessorKey" in column && column.accessorKey === "logs"),
-            )}
-            data={[deadline]}
-            hideRowCountHeading
-            modelName="dag:callbacks.callback"
-            showColumnsMenu={false}
-          />
-        </Box>
-      )}
+    <Box display="flex" flexDirection="column" maxH="60vh" p={2}>
       <TaskLogHeader {...logHeaderProps} />
       <TaskLogContent {...logContentProps} />
       <Modal
