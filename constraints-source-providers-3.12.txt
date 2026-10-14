@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-14T03:40:46.419082
+# This constraints file was automatically generated on 2026-10-14T07:48:50.878118
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -356,6 +356,7 @@ ipdb==0.13.13
 ipykernel==7.3.0
 ipython==9.17.1
 ipython_pygments_lexers==1.1.1
+islo==0.3.19
 isodate==0.7.2
 isoduration==20.11.0
 itsdangerous==2.2.0
