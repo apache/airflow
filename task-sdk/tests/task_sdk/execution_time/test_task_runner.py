@@ -3176,7 +3176,7 @@ class TestIndexedTaskRunner:
     def test_in_flight_registers_the_operator_while_its_code_runs(self, make_indexed_ti):
         """run()/arun() enter in_flight() in the thread or coroutine running the operator, not __enter__."""
         ti = make_indexed_ti()
-        state = IterationState()
+        state = IterationState(mock.Mock())
         runner = IndexedTaskRunner(task_instance=ti, register=state)
 
         with runner:
@@ -3188,7 +3188,7 @@ class TestIndexedTaskRunner:
     def test_in_flight_unregisters_on_failure(self, make_indexed_ti):
         """The operator leaves the register even when it raises, so on_kill() never reaches a stopped one."""
         ti = make_indexed_ti()
-        state = IterationState()
+        state = IterationState(mock.Mock())
         runner = IndexedTaskRunner(task_instance=ti, register=state)
 
         with pytest.raises(ValueError, match="boom"):
@@ -3204,7 +3204,7 @@ class TestIndexedTaskRunner:
         operator stays registered for the parent's kill off the loop once the timeout has unwound.
         """
         ti = make_indexed_ti()
-        state = IterationState()
+        state = IterationState(mock.Mock())
         runner = IndexedTaskRunner(task_instance=ti, register=state)
 
         with pytest.raises(AirflowTaskTimeout):
@@ -3219,7 +3219,7 @@ class TestIndexedTaskRunner:
         first, second = make_indexed_ti(index=0), make_indexed_ti(index=1)
         first.task, second.task = BaseOperator(task_id="same"), BaseOperator(task_id="same")
         assert first.task == second.task
-        state = IterationState()
+        state = IterationState(mock.Mock())
 
         with IndexedTaskRunner(task_instance=first, register=state).in_flight():
             with IndexedTaskRunner(task_instance=second, register=state).in_flight():

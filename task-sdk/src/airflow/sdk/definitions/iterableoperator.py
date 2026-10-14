@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import os
 import threading
 import time
-from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial, wraps
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -80,29 +81,79 @@ SKIPPED_WITH_A_SKIPPED_UPSTREAM = frozenset(
 FAIL_WITHOUT_RETRY = (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)
 
 
+def _retryable(raised: BaseException) -> bool:
+    """Whether ``raised`` is a failure the runner may retry, judged member by member for a group."""
+    if isinstance(raised, BaseExceptionGroup):
+        return all(_retryable(exc) for exc in raised.exceptions)
+    return not isinstance(raised, FAIL_WITHOUT_RETRY) and isinstance(raised, (Exception, AirflowTaskTimeout))
+
+
+def _fail_fast_for(
+    task: IndexedTaskInstance | UnreadIndex, raised: BaseException
+) -> AirflowFailException | None:
+    """
+    Return the failure that ends the task at once for an outcome the iteration cannot carry.
+
+    An indexed task is not a task instance of its own: it cannot defer, reschedule, trigger a
+    DAG run or skip downstream tasks, and a ``BaseException`` that is no ``Exception``
+    (``KeyboardInterrupt``, ``SystemExit``) must never be swallowed
+    into a retry. Each of these fails the whole task without a retry, with a message saying
+    why. Any other exception, an ``AirflowTaskTimeout`` the operator raised itself included, is
+    the indexed task's own failure, which :meth:`IndexedTaskOutcomes.record` collects.
+    """
+    indexed_task_name = f"Indexed task {task.task_id}[{task.index}]"
+    if isinstance(raised, TaskDeferred):
+        return AirflowFailException(
+            f"{indexed_task_name} attempted to defer. Deferrable operators are not supported inside IterableOperator."
+        )
+    if isinstance(raised, (DagRunTriggerException, DownstreamTasksSkipped)):
+        return AirflowFailException(
+            f"{indexed_task_name} raised {type(raised).__name__}. Triggering DAG runs (TriggerDagRunOperator) and "
+            "skipping downstream tasks (ShortCircuitOperator and similar) are not supported inside "
+            "IterableOperator: an indexed task has no downstream tasks or DAG run of its own for "
+            "the effect to apply to."
+        )
+    if isinstance(raised, AirflowRescheduleException):
+        return AirflowFailException(
+            f"{indexed_task_name} attempted to reschedule (raised AirflowRescheduleException). Reschedule-mode "
+            "sensors are not supported inside IterableOperator: an indexed task has no task "
+            "instance of its own to reschedule."
+        )
+    if isinstance(raised, AirflowTaskTimeout):
+        # The parent's timeout never gets here (IndexedTaskLifecycle.run re-raises it); this one the
+        # operator raised itself, off the main thread, and the runner judges it as it does for a plain
+        # task that raises it: a failure it retries.
+        return None
+    if not isinstance(raised, Exception):
+        return AirflowFailException(
+            f"{indexed_task_name} raised a non-Exception BaseException: {type(raised).__name__}: {raised}"
+        )
+    return None
+
+
 def keeps_failure_to_its_indexed_task(
     step: Callable[..., Awaitable[Outcome]],
 ) -> Callable[..., Awaitable[Outcome | tuple[IndexedTaskInstance, None, BaseException]]]:
     """
     Make what an indexed task's step raises that indexed task's outcome, not the end of the task.
 
-    ``step`` is a coroutine method of :class:`IterableOperator` taking the indexed task as its first
-    argument after ``self``. Whatever it raises, a ``BaseException`` included, is returned as
-    ``(task, None, raised)``: the siblings go on, the run counts it with the other outcomes, and a
-    non-``Exception`` still fails the task at once (see ``IterableOperator._fail_fast_for``). A
-    cancellation and the parent's ``execution_timeout`` are not the step's outcome and go on unchanged.
+    ``step`` is a coroutine method of :class:`IndexedTaskLifecycle`, whose ``task`` the outcome is.
+    Whatever it raises, a ``BaseException`` included, is returned as ``(task, None, raised)``: the
+    siblings go on, the run counts it with the other outcomes, and a non-``Exception`` still fails
+    the task at once (see ``_fail_fast_for``). A cancellation and the parent's ``execution_timeout``
+    are not the step's outcome and go on unchanged.
     """
 
     @wraps(step)
     async def kept(
-        self: IterableOperator, task: IndexedTaskInstance, *args: Any, **kwargs: Any
+        self: IndexedTaskLifecycle, *args: Any, **kwargs: Any
     ) -> Outcome | tuple[IndexedTaskInstance, None, BaseException]:
         try:
-            return await step(self, task, *args, **kwargs)
+            return await step(self, *args, **kwargs)
         except (asyncio.CancelledError, AirflowTaskTimeout):
             raise
         except BaseException as e:
-            return task, None, e
+            return self.task, None, e
 
     return kept
 
@@ -182,12 +233,21 @@ class Checkpoints:
                 },
             )
 
+    def trusts(self, checkpoint: IndexedTaskState, input_fingerprint: str | None) -> bool:
+        """
+        Whether an indexed task's ``checkpoint`` may settle it: written since the last clear, for its input.
+
+        A checkpoint from before a clear (an older ``try_number`` than :attr:`since`) or for another
+        input (another ``input_fingerprint``) is not trusted.
+        """
+        return checkpoint.try_number >= self.since and checkpoint.fingerprint == input_fingerprint
+
 
 class IndexedTaskInstanceNotStarted(Exception):
     """
     The outcome of an indexed task instance pulled before a kill and reached after it.
 
-    Never raised: ``IterableOperator._run_indexed_task`` returns it as the instance's outcome, so that
+    Never raised: :meth:`IndexedTaskLifecycle.run` returns it as the instance's outcome, so that
     :meth:`IndexedTaskOutcomes.record` counts it apart from the failures. It ran no code, wrote
     no checkpoint and fires no callback; the next attempt runs it.
     """
@@ -211,12 +271,13 @@ class UnreadIndex:
 
 class IterationState:
     """
-    The state of one run of an iterated task, kept apart from the operator's configuration.
+    What a kill of one run of an iterated task must reach, kept apart from the operator's configuration.
 
-    It holds what the run needs to remember while it is going: the indexed operators in flight and
-    those already killed, so that :meth:`IterableOperator.on_kill` reaches each one once; the
-    stop flag a kill sets, which the executor consults before starting the next indexed task;
-    and the resolved input. What the indexed tasks ended with is :class:`IndexedTaskOutcomes`.
+    It holds the indexed operators in flight and those already killed, so that
+    :meth:`IterableOperator.on_kill` reaches each one once; the stop flag a kill sets, which the
+    executor consults before starting the next indexed task; and the threads the indexed operators
+    are killed from. The rest of what a run holds is :class:`IterationRun`'s, which only exists while
+    the run goes; this exists before it, so that a kill that arrives first still stops the run.
 
     A copy of the operator (``copy.copy`` in ``prepare_for_execution``, the deep copy of
     ``dag.partial_subset``) is another task with nothing in flight and no kill pending, so copying
@@ -225,12 +286,12 @@ class IterationState:
     clean, while a kill that arrives before the run sets the stop flag on the state the run uses.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, log: Logger) -> None:
         # Keyed by identity: BaseOperator equality compares fields such as task_id, which every
         # indexed operator of one iterated task shares, so a set would hold one of them at most.
         self._in_flight: dict[int, BaseOperator] = {}
         self._lock = threading.Lock()
-        # The runner calls on_kill() again after the execution timeout that made _run_tasks call
+        # The runner calls on_kill() again after the execution timeout that made the run call
         # it first, and an indexed operator is killed once.
         self._killed: set[int] = set()
         # A plain flag and a plain list, not an Event and not guarded by the lock: on_kill() runs in
@@ -241,22 +302,14 @@ class IterationState:
         self._stop_requested = False
         # The threads on_kill() started to kill the indexed operators in flight; see await_kill.
         self._kill_threads: list[threading.Thread] = []
-        #: The input resolved for this task instance, once ``aresolve`` returned.
-        self.resolved: Resolved | None = None
-        #: The input fingerprint of this run, made by the first indexed task that asks; see
-        #: input_fingerprint.
-        self._input_fingerprint: InputFingerprint | None = None
-        self._input_fingerprint_lock = threading.Lock()
-        #: Whether the operator the task iterates pushes its results, as built for an indexed task:
-        #: an operator may set ``do_xcom_push`` in its own ``__init__``, not only through
-        #: ``partial()``. The same for every indexed task; True until one is built.
-        self.do_xcom_push = True
+        #: The iterated task's logger, which :meth:`kill` reports an ``on_kill`` failure to.
+        self._log = log
 
     def __copy__(self) -> IterationState:
-        return IterationState()
+        return IterationState(self._log)
 
     def __deepcopy__(self, memo: dict[int, Any]) -> IterationState:
-        return IterationState()
+        return IterationState(self._log)
 
     def register(self, operator: BaseOperator) -> None:
         """Note that ``operator`` is executing, so a kill reaches it."""
@@ -294,11 +347,20 @@ class IterationState:
         self._kill_threads.append(thread)
         thread.start()
 
+    def kill(self, operators: list[BaseOperator]) -> None:
+        """Call ``on_kill`` of each of ``operators``; what one raises does not keep the kill from the others."""
+        # Whatever one raises, a BaseException included, is caught here as a plain error is.
+        for operator in operators:
+            try:
+                operator.on_kill()
+            except BaseException:
+                self._log.exception("Error calling on_kill() for indexed task operator %s", operator.task_id)
+
     def await_kill(self, timeout: float) -> None:
         """
         Wait up to ``timeout`` seconds for the threads :meth:`start_kill` started.
 
-        Called by ``IterableOperator._run_tasks`` once the loop closed and before the run
+        Called by :meth:`IterationRun.run` once the loop closed and before the run
         concludes, so the task does not end, and the process with it, while an indexed operator's
         ``on_kill`` is still cleaning up. The threads are daemon threads: one that never returns
         holds the run for ``timeout`` at most, and the supervisor's SIGKILL bounds the rest.
@@ -307,33 +369,16 @@ class IterationState:
         for thread in list(self._kill_threads):
             thread.join(max(0.0, deadline - time.monotonic()))
 
-    def input_fingerprint(self, make: Callable[[], InputFingerprint]) -> InputFingerprint:
-        """
-        Return this run's input fingerprint, made with ``make`` by the first indexed task that asks.
-
-        One per run, as it keeps what is the same for every index of the run; indexed tasks are
-        created in worker threads, so the lock makes sure they all get the same one.
-        """
-        with self._input_fingerprint_lock:
-            if self._input_fingerprint is None:
-                self._input_fingerprint = make()
-            return self._input_fingerprint
-
     def stop_requested(self) -> bool:
         """Whether :meth:`request_stop` was called; passed to the executor as its ``stop``."""
         return self._stop_requested
-
-    @property
-    def length(self) -> int | None:
-        """How many indexed tasks the resolved input gives, or None while it is still being resolved."""
-        return self.resolved.length if self.resolved is not None else None
 
 
 class IndexedTaskOutcomes:
     """
     What the indexed tasks of one run ended with, and what the task ends with because of it.
 
-    Entered by ``IterableOperator._run_tasks`` around the loop that drives the indexed tasks.
+    Entered by :meth:`IterationRun.run` around the loop that drives the indexed tasks.
     :meth:`record` takes each outcome: a skip is noted, an outcome the iteration cannot carry
     raises at once, any other failure is logged and collected. :meth:`conclude` turns what was
     collected, and whether the run's :class:`IterationState` was asked to stop, into the task's
@@ -394,16 +439,19 @@ class IndexedTaskOutcomes:
             return
         # An outcome the iteration cannot carry stops it at once: every later indexed task would
         # end the same way.
-        if (fail_fast := self._fail_fast_for(task, raised)) is not None:
+        if (fail_fast := _fail_fast_for(task, raised)) is not None:
             raise fail_fast from raised
         self.log.exception(
             "An exception occurred for task_id %s with index %s", task.task_id, task.index, exc_info=raised
         )
         self.exceptions.append(raised)
 
-    def conclude(self) -> list[int]:
+    def conclude(self, length: int | None) -> list[int]:
         """
         Raise the task's outcome from what was recorded, or return the skipped indices.
+
+        ``length`` is how many indexed tasks the resolved input gives, None while it was still being
+        resolved; a kill names it.
 
         A kill comes first: with every killed indexed task returning normally there would be no
         failure to raise, the completion marker would be written and a result returned over
@@ -415,7 +463,7 @@ class IndexedTaskOutcomes:
         skips the task too.
         """
         if self._state.stop_requested():
-            raise AirflowTaskTerminated(self._killed_message()) from (
+            raise AirflowTaskTerminated(self._killed_message(length)) from (
                 BaseExceptionGroup("Indexed task failures", self.exceptions) if self.exceptions else None
             )
         if self.exceptions:
@@ -426,7 +474,7 @@ class IndexedTaskOutcomes:
             raise next(iter(self.skipped.values()))
         return sorted(self.skipped)
 
-    def _killed_message(self) -> str:
+    def _killed_message(self, length: int | None) -> str:
         """
         Say what a kill left behind, naming only the counts that are not zero.
 
@@ -434,7 +482,6 @@ class IndexedTaskOutcomes:
         that ran (the killed ones among them, which came back as failures), those pulled before
         the kill and never started, and those never pulled add up to the length.
         """
-        length = self._state.length
         if length is None:
             return "The iterated task was killed before its input was resolved."
         parts = [f"{self.total} of {length} indexed tasks ran"]
@@ -470,7 +517,7 @@ class IndexedTaskOutcomes:
         policy that calls a model may answer differently each time, and the callbacks must say
         what the exception handed over says.
         """
-        if not self._retryable(raised):
+        if not _retryable(raised):
             return False
         if not self._failed_runners[0].task_instance.is_eligible_to_retry:
             return False
@@ -491,58 +538,6 @@ class IndexedTaskOutcomes:
             if decision.action == RetryAction.FAIL:
                 return False
         return True
-
-    @classmethod
-    def _retryable(cls, raised: BaseException) -> bool:
-        """Whether ``raised`` is a failure the runner may retry, judged member by member for a group."""
-        if isinstance(raised, BaseExceptionGroup):
-            return all(cls._retryable(exc) for exc in raised.exceptions)
-        return not isinstance(raised, FAIL_WITHOUT_RETRY) and isinstance(
-            raised, (Exception, AirflowTaskTimeout)
-        )
-
-    @staticmethod
-    def _fail_fast_for(
-        task: IndexedTaskInstance | UnreadIndex, raised: BaseException
-    ) -> AirflowFailException | None:
-        """
-        Return the failure that ends the task at once for an outcome the iteration cannot carry.
-
-        An indexed task is not a task instance of its own: it cannot defer, reschedule, trigger a
-        DAG run or skip downstream tasks, and a ``BaseException`` that is no ``Exception``
-        (``KeyboardInterrupt``, ``SystemExit``) must never be swallowed
-        into a retry. Each of these fails the whole task without a retry, with a message saying
-        why. Any other exception, an ``AirflowTaskTimeout`` the operator raised itself included, is
-        the indexed task's own failure, which :meth:`record` collects.
-        """
-        indexed_task_name = f"Indexed task {task.task_id}[{task.index}]"
-        if isinstance(raised, TaskDeferred):
-            return AirflowFailException(
-                f"{indexed_task_name} attempted to defer. Deferrable operators are not supported inside IterableOperator."
-            )
-        if isinstance(raised, (DagRunTriggerException, DownstreamTasksSkipped)):
-            return AirflowFailException(
-                f"{indexed_task_name} raised {type(raised).__name__}. Triggering DAG runs (TriggerDagRunOperator) and "
-                "skipping downstream tasks (ShortCircuitOperator and similar) are not supported inside "
-                "IterableOperator: an indexed task has no downstream tasks or DAG run of its own for "
-                "the effect to apply to."
-            )
-        if isinstance(raised, AirflowRescheduleException):
-            return AirflowFailException(
-                f"{indexed_task_name} attempted to reschedule (raised AirflowRescheduleException). Reschedule-mode "
-                "sensors are not supported inside IterableOperator: an indexed task has no task "
-                "instance of its own to reschedule."
-            )
-        if isinstance(raised, AirflowTaskTimeout):
-            # The parent's timeout never gets here (_run_indexed_task re-raises it); this one the operator
-            # raised itself, off the main thread, and the runner judges it as it does for a plain
-            # task that raises it: a failure it retries.
-            return None
-        if not isinstance(raised, Exception):
-            return AirflowFailException(
-                f"{indexed_task_name} raised a non-Exception BaseException: {type(raised).__name__}: {raised}"
-            )
-        return None
 
     def _pick_failure_for_runner(self) -> BaseException:
         """
@@ -597,6 +592,478 @@ class IndexedTaskOutcomes:
         if len(exceptions) > 1:
             chosen.__cause__ = group
         return chosen
+
+
+class IndexedTaskUnmapper:
+    """
+    Build the indexed task of each index of one run: unmapped, with its params, rendered and fingerprinted.
+
+    Unmapping and rendering go together, as in :meth:`MappedOperator.render_template_fields`: the
+    operator is unmapped from the index's ``mapped_kwargs`` and its template fields rendered against
+    the context the indexed task will run with. It holds what that needs and is the same for every
+    index of the run: the mapped operator, the template environment and the run's
+    :class:`InputFingerprint`. Called from worker threads, one index at a time per thread.
+    """
+
+    def __init__(
+        self,
+        operator: IterableOperator,
+        mapped_operator: MappedOperator,
+        context: Context,
+        *,
+        stop_requested: Callable[[], bool],
+    ) -> None:
+        self._params = operator.params
+        self._mapped_operator = mapped_operator
+        self._context = context
+        self._jinja_env = operator.get_template_env(dag=operator.dag)
+        # One per run, as it keeps what is the same for every index of the run.
+        self._input_fingerprint = InputFingerprint(
+            operator.partial_kwargs, stop_requested=stop_requested, log=operator.log
+        )
+        #: Whether the operator the task iterates pushes its results, as built for an indexed task:
+        #: an operator may set ``do_xcom_push`` in its own ``__init__``, not only through
+        #: ``partial()``. The same for every indexed task; True until one is built.
+        self.do_xcom_push = True
+
+    def unmap(self, index: int, mapped_kwargs: Mapping[str, Any]) -> IndexedTaskInstance:
+        """Build the indexed task of ``index`` from its ``mapped_kwargs``, rendered and fingerprinted."""
+        context = self._context
+        unmapped_task = self._mapped_operator.unmap(mapped_kwargs)
+        self.do_xcom_push = unmapped_task.do_xcom_push
+        # Make sure deferred operators will always raise a DeferredTask exception when executed
+        unmapped_task.start_from_trigger = False
+
+        indexed_ti = IndexedTaskInstance.create_indexed_task(
+            context=context,
+            index=index,
+            operator=unmapped_task,
+        )
+        if unmapped_task.params != self._params:
+            # Processed as a mapped task instance's are; the parent's processed params, which
+            # clone_context copies into every indexed context, stand for any other index.
+            indexed_ti.own_params = process_params(
+                context["dag"], unmapped_task, context["dag_run"].conf, suppress_exception=False
+            )
+
+        # Rendered against the context the indexed task will execute with (its own ti, task, params
+        # and store view), not the parent's: a template must read the same values as execute() does.
+        unmapped_task._do_render_template_fields(
+            parent=unmapped_task,
+            template_fields=self._mapped_operator.template_fields,
+            context=indexed_ti.context_for(context),
+            jinja_env=self._jinja_env,
+            seen_oids=set(),
+        )
+        # Taken once rendered, so the partial kwargs an upstream provides are in it with their value.
+        indexed_ti.input_fingerprint = self._input_fingerprint.of(mapped_kwargs, unmapped_task)
+        return indexed_ti
+
+
+class IndexedTaskLifecycle:
+    """
+    One indexed task of a run, from its checkpoint to its outcome.
+
+    :meth:`run` settles it from its checkpoint on a retry, or runs its operator, writes its checkpoint
+    and then publishes it, records its skip or records its failure. Every step returns the outcome
+    ``(task, result, raised)`` the run records; what a step raises is the indexed task's outcome
+    (see :func:`keeps_failure_to_its_indexed_task`), not the end of the run.
+    """
+
+    def __init__(self, run: IterationRun, task: IndexedTaskInstance, executor: AsyncAwareExecutor) -> None:
+        self._run = run
+        self.task = task
+        self._executor = executor
+        # The indexed task runs against its own view of the context (see IndexedTaskRunner.indexed_context),
+        # with its own outlet events: indexed tasks run concurrently and each needs its events
+        # attributed correctly so they can be checkpointed and merged individually (see
+        # IndexedTaskState.record_outlet_events and IndexedTaskRunner.merge_outlet_events_into).
+        self._runner = IndexedTaskRunner(task_instance=task, register=run.state)
+
+    async def run(self) -> tuple[IndexedTaskInstance, Any | None, BaseException | None]:
+        """Settle the indexed task from its checkpoint, or run it; return its outcome."""
+        task = self.task
+        runner = self._runner
+        context = self._run.context
+        # Checkpoints are consulted only on a retry that is not a rerun after a clear (see Checkpoints).
+        if (
+            self._run.checkpoints.trust_checkpoints
+            and (replayed := await self._replay_checkpoint()) is not None
+        ):
+            return replayed
+
+        # Pulled before the kill and reached after it. on_kill() reaches the operators that started
+        # and the stop flag keeps the executor from pulling more; an indexed task is neither until its runner
+        # starts, so a kill that lands while its checkpoint is read above would otherwise start it
+        # after the kill. A sync indexed task is still handed to the pool below, whose threads are as many
+        # as the calls in flight, so only that pickup remains.
+        if self._run.state.stop_requested():
+            return (
+                task,
+                None,
+                IndexedTaskInstanceNotStarted(
+                    f"Indexed task {task.task_id}[{task.index}] was pulled before the kill and never started"
+                ),
+            )
+
+        try:
+            if task.is_async:
+                with runner:
+                    result = await runner.arun(context)
+            else:
+                # Entered and exited in the worker thread with execute, so what the exit does runs
+                # there too, as the reports below do (see _report).
+
+                def run_indexed_task():
+                    with runner:
+                        return runner.run(context)
+
+                result = await self._executor.run_sync(run_indexed_task)
+
+            indexed_task_state = IndexedTaskState(
+                status=TaskInstanceState.SUCCESS,
+                fingerprint=task.input_fingerprint,
+                try_number=task.try_number,
+            )
+            # The result is checkpointed as well as pushed to XCom: the runner deletes every XCom
+            # key listed by the server before each attempt (xcom_keys_to_clear), so XCom alone
+            # cannot survive a retry, while the state store does. Both writes happen here, inside
+            # the coroutine, so they overlap with the indexed tasks still running instead of adding a
+            # synchronous pass over every index once the executor has drained. With a
+            # state_store_backend configured the checkpoint holds only a reference to the payload.
+            if result is not None and task.do_xcom_push:
+                indexed_task_state.result = result
+            indexed_task_state.record_outlet_events(runner.outlet_events)
+            # Written with the one checkpoint, not per push: a retry that skips this indexed task pushes
+            # them again, as the runner has deleted them by then.
+            if task.pushed_xcoms:
+                indexed_task_state.xcoms = dict(task.pushed_xcoms)
+            await task.aset_state(indexed_task_state)
+        except (asyncio.CancelledError, AirflowTaskTimeout) as stopped:
+            if isinstance(stopped, AirflowTaskTimeout) and runner.timed_out_on_its_own:
+                # Raised by the operator in its worker thread, which the parent's signal never
+                # reaches: this indexed task's own failure, as it is the mapped task instance's under
+                # .expand(); the siblings go on.
+                return await self._record_failure(stopped)
+            # Not this indexed task's outcome: it is being stopped from outside, by the executor
+            # cancelling it or by the parent's execution_timeout, whose signal handler raises on the
+            # main thread in whichever indexed task happens to run there. Both go on unchanged, so a
+            # cancellation stays one and the timeout reaches the runner, which retries the task. The
+            # indexed task the timeout struck is reported with the others (a cancelled one has nothing).
+            if isinstance(stopped, asyncio.CancelledError):
+                # A sync indexed task's thread may still be running: it gets no checkpoint from here on,
+                # so its exit must report nothing either (see IndexedTaskRunner.cancel).
+                runner.cancel()
+            if runner.failure is not None:
+                self._run.outcomes.note_failed(runner)
+            raise
+        except AirflowSkipException as skipped:
+            return await self._record_skip(skipped)
+        except BaseException as e:
+            return await self._record_failure(e)
+
+        return await self._publish(indexed_task_state, result)
+
+    @keeps_failure_to_its_indexed_task
+    async def _replay_checkpoint(self) -> tuple[IndexedTaskInstance, None, BaseException | None] | None:
+        """
+        Settle the indexed task from its checkpoint on a retry, or return None for it to run.
+
+        A checkpoint the run's :class:`Checkpoints` does not trust (from before a clear, or for
+        another input) is not replayed. A SUCCESS checkpoint is replayed: its result, other XComs and
+        outlet events are pushed again, as the runner deleted the XComs before this attempt. A
+        SKIPPED one is skipped again. A read or a replay that fails is the indexed task's outcome and
+        leaves the checkpoint as it is: the indexed task cannot tell whether it already succeeded, so
+        it does not run, and the next retry reads or replays the checkpoint again. A checkpoint serde
+        refuses to restore is the exception: it would be refused on every retry, so the indexed
+        task runs again as if there were none, with a warning.
+        """
+        task = self.task
+        log = self._run.log
+        try:
+            indexed_task_state = await task.aget_state()
+        except CheckpointDeserializationError as e:
+            # Refused on this attempt, it is refused on every one: kept as the outcome, the indexed
+            # task could never finish again, so it runs as if there were no checkpoint.
+            log.warning(
+                "Running task instance %s for %s again: its checkpoint cannot be restored: %s",
+                task.index,
+                task.task_id,
+                e,
+            )
+            return None
+        if indexed_task_state is None:
+            return None
+        if not self._run.checkpoints.trusts(indexed_task_state, task.input_fingerprint):
+            log.info(
+                "Running task instance %s for %s again: its checkpoint is from before the task was "
+                "cleared or for another input",
+                task.index,
+                task.task_id,
+            )
+            return None
+        if indexed_task_state.status == TaskInstanceState.SUCCESS:
+            log.info(
+                "Skipping task instance %s for %s which already succeeded on a previous attempt",
+                task.index,
+                task.task_id,
+            )
+            if indexed_task_state.result is not None:
+                await self._push_result(indexed_task_state.result)
+            for key, value in (indexed_task_state.xcoms or {}).items():
+                await task.axcom_push(key=key, value=value)
+            if indexed_task_state.outlet_events:
+                indexed_task_state.replay_outlet_events(self._run.context["outlet_events"])
+            return task, None, None
+        if indexed_task_state.status == TaskInstanceState.SKIPPED:
+            return (
+                task,
+                None,
+                AirflowSkipException(
+                    f"Indexed task {task.task_id}[{task.index}] was skipped on a previous attempt"
+                ),
+            )
+        return None
+
+    @keeps_failure_to_its_indexed_task
+    async def _publish(
+        self, indexed_task_state: IndexedTaskState, result: Any | None
+    ) -> tuple[IndexedTaskInstance, Any | None, None]:
+        """
+        Report the succeeded indexed task and publish its result, once its SUCCESS checkpoint is written.
+
+        Reported then, not when execute returned: the callback speaks for work a retry will not run
+        again, and a checkpoint write that fails fires nothing, as a plain task whose result could
+        not be pushed fires no success callback. A report or a push that fails, a callback raising a
+        BaseException included, leaves the checkpoint as it is, so the retry replays the result
+        (see :meth:`_replay_checkpoint`) instead of running the operator again, and reports nothing
+        again.
+        """
+        await self._report(self._runner.report_success, self.task.task.on_success_callback)
+        # The result is only checkpointed when the indexed task pushes XComs and returned something,
+        # so the same condition decides whether there is a return_value_<index> to push at all.
+        if indexed_task_state.result is not None:
+            await self._push_result(indexed_task_state.result)
+        self._runner.merge_outlet_events_into(self._run.context["outlet_events"])
+        return self.task, result, None
+
+    @keeps_failure_to_its_indexed_task
+    async def _record_skip(
+        self, skipped: AirflowSkipException
+    ) -> tuple[IndexedTaskInstance, None, AirflowSkipException]:
+        """
+        Checkpoint the skipped indexed task as SKIPPED, report it and return the skip as the outcome.
+
+        A checkpoint write that fails, or a BaseException from ``on_skipped_callback``, is the indexed
+        task's outcome, as for a success. A failed write leaves no checkpoint and the retry runs the
+        indexed task again; a failed report leaves the SKIPPED checkpoint, which the retry replays.
+        """
+        task = self.task
+        await task.aset_state(
+            IndexedTaskState(
+                status=TaskInstanceState.SKIPPED,
+                fingerprint=task.input_fingerprint,
+                try_number=task.try_number,
+            )
+        )
+        await self._report(self._runner.report_skip, task.task.on_skipped_callback)
+        return task, None, skipped
+
+    async def _record_failure(self, raised: BaseException) -> tuple[IndexedTaskInstance, None, BaseException]:
+        """Note the failed indexed task for its callbacks, checkpoint it as UP_FOR_RETRY and return it as the outcome."""
+        task = self.task
+        if self._runner.failure is not None:
+            self._run.outcomes.note_failed(self._runner)
+        # Written with the input and the attempt, like the other outcomes, so the next attempt
+        # tells a plain retry apart from a clear or a changed input and logs only the latter.
+        # A write that fails leaves the outcome as it is: the indexed task failed either way, and
+        # without the checkpoint the retry runs it again, as it would after UP_FOR_RETRY.
+        try:
+            await task.aset_state(
+                IndexedTaskState(
+                    status=TaskInstanceState.UP_FOR_RETRY,
+                    fingerprint=task.input_fingerprint,
+                    try_number=task.try_number,
+                )
+            )
+        except (asyncio.CancelledError, AirflowTaskTimeout):
+            raise
+        except Exception:
+            self._run.log.exception(
+                "Could not checkpoint task instance %s for %s as up for retry", task.index, task.task_id
+            )
+        return task, None, raised
+
+    async def _report(self, report: Callable[[], None], callbacks: Sequence[Callable]) -> None:
+        """
+        Run the indexed task's success or skip report where its code ran.
+
+        On the loop for an async operator, in a worker thread for a sync one, where a synchronous
+        SDK call made from the callback waits its turn for the channel instead of holding up the loop.
+        Without ``callbacks`` the report only sets the state and ``end_date``, which makes no SDK
+        call, so it runs on the loop and spares the indexed task a thread hand-off.
+        """
+        if self.task.is_async or not callbacks:
+            report()
+        else:
+            await self._executor.run_sync(report)
+
+    async def _push_result(self, value: Any) -> None:
+        """Push ``value`` as the indexed task's return value."""
+        await self.task.axcom_push(key=BaseXCom.XCOM_RETURN_KEY, value=value)
+
+
+class IterationRun:
+    """
+    One run of an iterated task, driving every index of its input to an outcome.
+
+    Made by :meth:`IterableOperator.execute` and dropped with the run. It holds what the run shares
+    between its indexed tasks, which the operator, a Dag node, has no use for between runs: the
+    context, the :class:`Checkpoints`, the :class:`IndexedTaskOutcomes` and the resolved input. Its
+    collaborators do the rest: the :class:`IndexedTaskUnmapper` builds each index's indexed task, an
+    :class:`IndexedTaskLifecycle` takes that task to its outcome, and the operator's
+    :class:`IterationState`, handed in as it exists before the run, is what a kill reaches.
+    """
+
+    # How long the run waits for its threads to end once it is over: the executor's worker and
+    # coroutine shutdown, and the thread on_kill() kills the indexed operators from.
+    _SHUTDOWN_TIMEOUT: float = 10.0
+
+    def __init__(
+        self,
+        *,
+        operator: IterableOperator,
+        unmapper: IndexedTaskUnmapper,
+        state: IterationState,
+        context: Context,
+    ) -> None:
+        self._operator = operator
+        self.unmapper = unmapper
+        self.state = state
+        self.context = context
+        self.checkpoints = Checkpoints(context)
+        self.outcomes = IndexedTaskOutcomes(operator, state, context)
+        #: The input resolved for this task instance, once ``aresolve`` returned.
+        self.resolved: Resolved | None = None
+
+    @property
+    def log(self) -> Logger:
+        """The iterated task's logger: what the run logs belongs to that task."""
+        return self._operator.log
+
+    @property
+    def length(self) -> int | None:
+        """How many indexed tasks the resolved input gives, or None while it is still being resolved."""
+        return self.resolved.length if self.resolved is not None else None
+
+    def run(self) -> tuple[XComIterable | None, list[int]]:
+        """Run every index to completion; return the task's result and the skipped indices."""
+        skipped = self._run_indexed_tasks()
+        result = (
+            XComIterable(
+                task_id=self._operator.task_id,
+                dag_id=self._operator.dag_id,
+                run_id=self.context["run_id"],
+                length=self.length,
+                map_index=self.context["ti"].map_index,
+                skipped=skipped,
+            )
+            if self.unmapper.do_xcom_push and self.resolved
+            else None
+        )
+        return result, skipped
+
+    async def _indices(self) -> AsyncIterator[int]:
+        # Resolved by the executor on the running event loop, so the input's XCom reads go
+        # through asend and do not hold up the indexed tasks' own SDK calls (see
+        # AsyncAwareExecutor.imap_unordered). Each index is read by its own indexed task (see
+        # _run_index), so what reading it raises is that index's outcome.
+        self.resolved = await self._operator.expand_input.aresolve(self.context)
+        for index in range(self.resolved.length):
+            yield index
+
+    def _run_indexed_tasks(self) -> list[int]:
+        """Run every index to completion; return the skipped indices."""
+        max_workers = self._operator.max_workers
+        self.log.info("Running tasks with %d workers", max_workers)
+        with self.checkpoints, self.outcomes:
+            try:
+                with (
+                    event_loop() as loop,
+                    AsyncAwareExecutor(
+                        loop=loop, max_workers=max_workers, shutdown_timeout=self._SHUTDOWN_TIMEOUT
+                    ) as executor,
+                ):
+                    try:
+                        for task, _result, raised in executor.imap_unordered(
+                            partial(self._run_index, executor),
+                            self._indices(),
+                            stop=self.state.stop_requested,
+                        ):
+                            self.outcomes.record(task, raised)
+                    except BaseException:
+                        # Whatever ends the loop early (the parent's execution_timeout, a failure that
+                        # stops the task) is followed by the executor cancelling the coroutines, which
+                        # would leave nothing registered for on_kill(); kill what is in flight first,
+                        # off the loop thread, so that an indexed operator's synchronous SDK call in on_kill
+                        # waits its turn while the loop goes on serving the indexed tasks' calls in flight.
+                        # Awaited here, unlike on_kill()'s own thread: the loop keeps running meanwhile.
+                        self.state.request_stop()
+                        in_flight = self.state.take_in_flight()
+                        # On a thread of its own, as on_kill()'s is, and waited for as long as the
+                        # SIGTERM path waits: an on_kill that never returns (a cancel call with no
+                        # network timeout) holds the run for _SHUTDOWN_TIMEOUT, not forever.
+                        self.state.start_kill(partial(self.state.kill, in_flight))
+                        try:
+                            loop.run_until_complete(
+                                asyncio.to_thread(self.state.await_kill, self._SHUTDOWN_TIMEOUT)
+                            )
+                        except RuntimeError:
+                            self.state.await_kill(self._SHUTDOWN_TIMEOUT)
+                        raise
+            finally:
+                # The kill on_kill() started runs on its own thread and may still be cleaning an
+                # indexed operator up once the killed indexed tasks came back and the loop closed. Waited
+                # for here, before the failure callbacks fire and the run concludes, so the task does
+                # not end with that cleanup half done. The loop is closed, so a synchronous SDK call
+                # in that on_kill no longer has an asend to wait for.
+                self.state.await_kill(self._SHUTDOWN_TIMEOUT)
+            return self.outcomes.conclude(self.length)
+
+    async def _run_index(
+        self, executor: AsyncAwareExecutor, index: int
+    ) -> tuple[IndexedTaskInstance | UnreadIndex, Any | None, BaseException | None]:
+        """
+        Read the input of ``index`` and run its indexed task.
+
+        Reading the input is part of the index's run, as resolving its input is part of a mapped
+        task instance's run under ``.expand()``: a ``.map()`` callable that raises, or a template
+        that fails to render, ends this index and no other (see :class:`UnreadIndex`).
+        Only an ``Exception`` is taken as the index's outcome; a cancellation or the parent's
+        timeout stops the run as a whole.
+        """
+        task_id = self._operator.task_id
+        if self.state.stop_requested():
+            return (
+                UnreadIndex(task_id, index),
+                None,
+                IndexedTaskInstanceNotStarted(
+                    f"Indexed task {task_id}[{index}] was pulled before the kill and never started"
+                ),
+            )
+        resolved = self.resolved
+        if TYPE_CHECKING:
+            assert resolved is not None
+        try:
+            mapped_kwargs = await resolved.aget(index)
+            # Rendering may call the supervisor synchronously (an XComArg in a partial kwarg,
+            # ``{{ var.value.x }}``, ``{{ conn.x }}``): on the loop thread that call would hold up
+            # every indexed task for its round trip, from a worker thread it waits its turn while the
+            # loop runs, as in XComArg.aresolve.
+            task = await asyncio.to_thread(self.unmapper.unmap, index, mapped_kwargs)
+        except Exception as raised:
+            return UnreadIndex(task_id, index), None, raised
+        return await IndexedTaskLifecycle(self, task, executor).run()
 
 
 class IterableOperator(BaseOperator):
@@ -772,24 +1239,6 @@ class IterableOperator(BaseOperator):
         "_log",
     )
 
-    @staticmethod
-    def _refuse_operators_that_skip_downstream(operator: MappedOperator) -> None:
-        """
-        Refuse to iterate an operator that can skip downstream tasks.
-
-        An iteration has no downstream tasks of its own, so ``ShortCircuitOperator``, the branch
-        operators and any other ``SkipMixin`` would skip nothing and let every downstream task run.
-        Checked on the class: ``MappedOperator._can_skip_downstream`` is only derived from ``SkipMixin``
-        on the classic path, while the ``@task`` path copies a class default that is ``False`` even for
-        ``@task.short_circuit`` and ``@task.branch``.
-        """
-        if issubclass(operator.operator_class, SkipMixin):
-            raise TypeError(
-                f"{operator.operator_name} can skip downstream tasks and cannot be iterated: an iteration "
-                f"of {operator.task_id!r} has no downstream tasks of its own, so it would skip nothing and "
-                "every downstream task would run. Use .expand() for it instead."
-            )
-
     def __init__(
         self,
         *,
@@ -799,7 +1248,17 @@ class IterableOperator(BaseOperator):
     ):
         if operator.get_closest_mapped_task_group() is not None:
             raise NotImplementedError("operator expansion in an expanded task group is not yet supported")
-        self._refuse_operators_that_skip_downstream(operator)
+        # An iteration has no downstream tasks of its own, so ShortCircuitOperator, the branch operators
+        # and any other SkipMixin would skip nothing and let every downstream task run. Checked on the
+        # class: MappedOperator._can_skip_downstream is only derived from SkipMixin on the classic path,
+        # while the @task path copies a class default that is False even for @task.short_circuit and
+        # @task.branch.
+        if issubclass(operator.operator_class, SkipMixin):
+            raise TypeError(
+                f"{operator.operator_name} can skip downstream tasks and cannot be iterated: an iteration "
+                f"of {operator.task_id!r} has no downstream tasks of its own, so it would skip nothing and "
+                "every downstream task would run. Use .expand() for it instead."
+            )
 
         super().__init__(
             **{
@@ -895,21 +1354,17 @@ class IterableOperator(BaseOperator):
         for key, value in self.partial_kwargs.items():
             if key in self._operator.template_fields:
                 XComArg.apply_upstream_relationship(self, value)
-        # What one run remembers while it is going (see IterationState); fresh for every run and
-        # for every copy of the operator.
-        self._state = IterationState()
+        # What a kill of the run must reach (see IterationState); fresh for every run and for every
+        # copy of the operator.
+        self._state = IterationState(self.log)
 
     def __copy__(self) -> IterableOperator:
         # prepare_for_execution copies the operator with copy.copy, which would share the state of
         # the run with the Dag's operator: a kill in one attempt would then stop the next one under
         # dag.test(). The copy is another run and starts with a state of its own (see IterationState).
         other = type(self).__new__(type(self))
-        other.__setstate__({**self.__getstate__(), "_state": IterationState()})
+        other.__setstate__({**self.__getstate__(), "_state": copy.copy(self._state)})
         return other
-
-    # How long the run waits for its threads to end once it is over: the executor's worker and
-    # coroutine shutdown, and the thread on_kill() kills the indexed operators from.
-    _SHUTDOWN_TIMEOUT: float = 10.0
 
     def on_kill(self) -> None:
         # The default BaseOperator.on_kill() is a no-op, which would otherwise leave every
@@ -925,19 +1380,10 @@ class IterableOperator(BaseOperator):
         # hang the handler, so nothing here takes one (see IterationState). On that thread a
         # synchronous SDK call in an indexed operator's on_kill would also hold up the event loop, and
         # every indexed task on it, for its round trip; in its own thread the call waits its turn and
-        # the loop goes on serving the indexed tasks. _run_tasks kills what is in
-        # flight through _kill directly, from a thread the loop drives, and waits for this thread
-        # before the run concludes (see IterationState.await_kill).
-        state.start_kill(lambda: self._kill(state.take_in_flight()))
-
-    def _kill(self, operators: list[BaseOperator]) -> None:
-        # One indexed operator's on_kill must not keep the kill from the others: whatever it raises, a
-        # BaseException included, is caught here as a plain error is.
-        for operator in operators:
-            try:
-                operator.on_kill()
-            except BaseException:
-                self.log.exception("Error calling on_kill() for indexed task operator %s", operator.task_id)
+        # the loop goes on serving the indexed tasks. IterationRun.run kills what is in
+        # flight through IterationState.kill directly, from a thread the loop drives, and waits for
+        # this thread before the run concludes (see IterationState.await_kill).
+        state.start_kill(lambda: state.kill(state.take_in_flight()))
 
     def deserialization_allowed_values(self) -> list[Any]:
         """Return the values the operator this task iterates declares: every indexed task pushes what it does."""
@@ -978,84 +1424,6 @@ class IterableOperator(BaseOperator):
     def _get_specified_expand_input(self) -> ExpandInput:
         return self.expand_input
 
-    def _render_unmapped_operator(
-        self, context: Context, unmapped_task: BaseOperator, jinja_env: jinja2.Environment
-    ) -> None:
-        unmapped_task._do_render_template_fields(
-            parent=unmapped_task,
-            template_fields=self._operator.template_fields,
-            context=context,
-            jinja_env=jinja_env,
-            seen_oids=set(),
-        )
-
-    async def axcom_push(self, task: IndexedTaskInstance, value: Any) -> None:
-        await task.axcom_push(key=BaseXCom.XCOM_RETURN_KEY, value=value)
-
-    def _run_tasks(
-        self,
-        context: Context,
-        indices: AsyncIterable[int],
-        jinja_env: jinja2.Environment,
-    ) -> tuple[bool, list[int]]:
-        """Run every index to completion; return whether its tasks pushed results, and the skipped indices."""
-        self.log.info("Running tasks with %d workers", self.max_workers)
-        with (
-            Checkpoints(context) as checkpoints,
-            IndexedTaskOutcomes(self, self._state, context) as outcomes,
-        ):
-            try:
-                with (
-                    event_loop() as loop,
-                    AsyncAwareExecutor(
-                        loop=loop, max_workers=self.max_workers, shutdown_timeout=self._SHUTDOWN_TIMEOUT
-                    ) as executor,
-                ):
-                    try:
-                        for task, _result, raised in executor.imap_unordered(
-                            partial(
-                                self._run_index,
-                                executor,
-                                context,
-                                jinja_env=jinja_env,
-                                trust_checkpoints=checkpoints.trust_checkpoints,
-                                since=checkpoints.since,
-                                outcomes=outcomes,
-                            ),
-                            indices,
-                            stop=self._state.stop_requested,
-                        ):
-                            outcomes.record(task, raised)
-                    except BaseException:
-                        # Whatever ends the loop early (the parent's execution_timeout, a failure that
-                        # stops the task) is followed by the executor cancelling the coroutines, which
-                        # would leave nothing registered for on_kill(); kill what is in flight first,
-                        # off the loop thread, so that an indexed operator's synchronous SDK call in on_kill
-                        # waits its turn while the loop goes on serving the indexed tasks' calls in flight.
-                        # Awaited here, unlike on_kill()'s own thread: the loop keeps running meanwhile.
-                        self._state.request_stop()
-                        in_flight = self._state.take_in_flight()
-                        # On a thread of its own, as on_kill()'s is, and waited for as long as the
-                        # SIGTERM path waits: an on_kill that never returns (a cancel call with no
-                        # network timeout) holds the run for _SHUTDOWN_TIMEOUT, not forever.
-                        self._state.start_kill(partial(self._kill, in_flight))
-                        try:
-                            loop.run_until_complete(
-                                asyncio.to_thread(self._state.await_kill, self._SHUTDOWN_TIMEOUT)
-                            )
-                        except RuntimeError:
-                            self._state.await_kill(self._SHUTDOWN_TIMEOUT)
-                        raise
-            finally:
-                # The kill on_kill() started runs on its own thread and may still be cleaning an
-                # indexed operator up once the killed indexed tasks came back and the loop closed. Waited
-                # for here, before the failure callbacks fire and the run concludes, so the task does
-                # not end with that cleanup half done. The loop is closed, so a synchronous SDK call
-                # in that on_kill no longer has an asend to wait for.
-                self._state.await_kill(self._SHUTDOWN_TIMEOUT)
-            skipped = outcomes.conclude()
-        return self._state.do_xcom_push, skipped
-
     def _skip_downstream_of_a_partial_skip(self, context: Context, result: XComIterable | None) -> None:
         """
         Skip the downstream tasks a skipped mapped task instance would have skipped.
@@ -1079,383 +1447,21 @@ class IterableOperator(BaseOperator):
         _push_xcom_if_needed(result, ti, self.log)
         raise DownstreamTasksSkipped(tasks=to_skip)
 
-    async def _run_index(
-        self,
-        executor: AsyncAwareExecutor,
-        context: Context,
-        index: int,
-        *,
-        jinja_env: jinja2.Environment,
-        trust_checkpoints: bool,
-        since: int = 0,
-        outcomes: IndexedTaskOutcomes,
-    ) -> tuple[IndexedTaskInstance | UnreadIndex, Any | None, BaseException | None]:
-        """
-        Read the input of ``index`` and run its indexed task.
-
-        Reading the input is part of the index's run, as resolving its input is part of a mapped
-        task instance's run under ``.expand()``: a ``.map()`` callable that raises, or a template
-        that fails to render, ends this index and no other (see :class:`UnreadIndex`).
-        Only an ``Exception`` is taken as the index's outcome; a cancellation or the parent's
-        timeout stops the run as a whole.
-        """
-        if self._state.stop_requested():
-            return (
-                UnreadIndex(self.task_id, index),
-                None,
-                IndexedTaskInstanceNotStarted(
-                    f"Indexed task {self.task_id}[{index}] was pulled before the kill and never started"
-                ),
-            )
-        resolved = self._state.resolved
-        if TYPE_CHECKING:
-            assert resolved is not None
-        try:
-            mapped_kwargs = await resolved.aget(index)
-            # Rendering may call the supervisor synchronously (an XComArg in a partial kwarg,
-            # ``{{ var.value.x }}``, ``{{ conn.x }}``): on the loop thread that call would hold up
-            # every indexed task for its round trip, from a worker thread it waits its turn while the
-            # loop runs, as in XComArg.aresolve.
-            task = await asyncio.to_thread(
-                self._create_indexed_task,
-                context=context,
-                index=index,
-                mapped_kwargs=mapped_kwargs,
-                jinja_env=jinja_env,
-            )
-        except Exception as raised:
-            return UnreadIndex(self.task_id, index), None, raised
-        return await self._run_indexed_task(
-            executor, context, task, trust_checkpoints, since, outcomes=outcomes
-        )
-
-    async def _run_indexed_task(
-        self,
-        executor: AsyncAwareExecutor,
-        context: Context,
-        task: IndexedTaskInstance,
-        trust_checkpoints: bool,
-        since: int = 0,
-        *,
-        outcomes: IndexedTaskOutcomes,
-    ) -> tuple[IndexedTaskInstance, Any | None, BaseException | None]:
-        # See _run_tasks: checkpoints are consulted only on a retry that is not a rerun after a clear.
-        if (
-            trust_checkpoints
-            and (replayed := await self._replay_checkpoint(task, context, since)) is not None
-        ):
-            return replayed
-
-        # Pulled before the kill and reached after it. on_kill() reaches the operators that started
-        # and the stop flag keeps the executor from pulling more; an indexed task is neither until its runner
-        # starts, so a kill that lands while its checkpoint is read above would otherwise start it
-        # after the kill. A sync indexed task is still handed to the pool below, whose threads are as many
-        # as the calls in flight, so only that pickup remains.
-        if self._state.stop_requested():
-            return (
-                task,
-                None,
-                IndexedTaskInstanceNotStarted(
-                    f"Indexed task {task.task_id}[{task.index}] was pulled before the kill and never started"
-                ),
-            )
-
-        # The indexed task runs against its own view of the context (see IndexedTaskRunner.indexed_context),
-        # with its own outlet events: indexed tasks run concurrently and each needs its events
-        # attributed correctly so they can be checkpointed and merged individually (see
-        # IndexedTaskState.record_outlet_events and IndexedTaskRunner.merge_outlet_events_into).
-        indexed_task_runner = IndexedTaskRunner(
-            task_instance=task,
-            register=self._state,
-        )
-        try:
-            if task.is_async:
-                with indexed_task_runner:
-                    result = await indexed_task_runner.arun(context)
-            else:
-                # Entered and exited in the worker thread with execute, so what the exit does runs
-                # there too, as the reports below do (see _report_indexed_task).
-
-                def run_indexed_task():
-                    with indexed_task_runner:
-                        return indexed_task_runner.run(context)
-
-                result = await executor.run_sync(run_indexed_task)
-
-            indexed_task_state = IndexedTaskState(
-                status=TaskInstanceState.SUCCESS,
-                fingerprint=task.input_fingerprint,
-                try_number=task.try_number,
-            )
-            # The result is checkpointed as well as pushed to XCom: the runner deletes every XCom
-            # key listed by the server before each attempt (xcom_keys_to_clear), so XCom alone
-            # cannot survive a retry, while the state store does. Both writes happen here, inside
-            # the coroutine, so they overlap with the indexed tasks still running instead of adding a
-            # synchronous pass over every index once the executor has drained. With a
-            # state_store_backend configured the checkpoint holds only a reference to the payload.
-            if result is not None and task.do_xcom_push:
-                indexed_task_state.result = result
-            indexed_task_state.record_outlet_events(indexed_task_runner.outlet_events)
-            # Written with the one checkpoint, not per push: a retry that skips this indexed task pushes
-            # them again, as the runner has deleted them by then.
-            if task.pushed_xcoms:
-                indexed_task_state.xcoms = dict(task.pushed_xcoms)
-            await task.aset_state(indexed_task_state)
-        except (asyncio.CancelledError, AirflowTaskTimeout) as stopped:
-            if isinstance(stopped, AirflowTaskTimeout) and indexed_task_runner.timed_out_on_its_own:
-                # Raised by the operator in its worker thread, which the parent's signal never
-                # reaches: this indexed task's own failure, as it is the mapped task instance's under
-                # .expand(); the siblings go on.
-                return await self._record_failure(task, indexed_task_runner, outcomes, stopped)
-            # Not this indexed task's outcome: it is being stopped from outside, by the executor
-            # cancelling it or by the parent's execution_timeout, whose signal handler raises on the
-            # main thread in whichever indexed task happens to run there. Both go on unchanged, so a
-            # cancellation stays one and the timeout reaches the runner, which retries the task. The
-            # indexed task the timeout struck is reported with the others (a cancelled one has nothing).
-            if isinstance(stopped, asyncio.CancelledError):
-                # A sync indexed task's thread may still be running: it gets no checkpoint from here on,
-                # so its exit must report nothing either (see IndexedTaskRunner.cancel).
-                indexed_task_runner.cancel()
-            if indexed_task_runner.failure is not None:
-                outcomes.note_failed(indexed_task_runner)
-            raise
-        except AirflowSkipException as skipped:
-            return await self._record_skip(task, executor, indexed_task_runner, skipped)
-        except BaseException as e:
-            return await self._record_failure(task, indexed_task_runner, outcomes, e)
-
-        return await self._publish(task, executor, context, indexed_task_runner, indexed_task_state, result)
-
-    @keeps_failure_to_its_indexed_task
-    async def _replay_checkpoint(
-        self, task: IndexedTaskInstance, context: Context, since: int
-    ) -> tuple[IndexedTaskInstance, None, BaseException | None] | None:
-        """
-        Settle an indexed task from its checkpoint on a retry, or return None for it to run.
-
-        A checkpoint from before a clear (an older ``try_number`` than ``since``) or for another input
-        is not trusted. A SUCCESS checkpoint is replayed: its result, other XComs and outlet events
-        are pushed again, as the runner deleted the XComs before this attempt. A SKIPPED one is
-        skipped again. A read or a replay that fails is the indexed task's outcome and leaves the
-        checkpoint as it is: the indexed task cannot tell whether it already succeeded, so it does
-        not run, and the next retry reads or replays the checkpoint again. A checkpoint serde
-        refuses to restore is the exception: it would be refused on every retry, so the indexed
-        task runs again as if there were none, with a warning.
-        """
-        try:
-            indexed_task_state = await task.aget_state()
-        except CheckpointDeserializationError as e:
-            # Refused on this attempt, it is refused on every one: kept as the outcome, the indexed
-            # task could never finish again, so it runs as if there were no checkpoint.
-            self.log.warning(
-                "Running task instance %s for %s again: its checkpoint cannot be restored: %s",
-                task.index,
-                task.task_id,
-                e,
-            )
-            return None
-        if indexed_task_state is None:
-            return None
-        if indexed_task_state.try_number < since or indexed_task_state.fingerprint != task.input_fingerprint:
-            self.log.info(
-                "Running task instance %s for %s again: its checkpoint is from before the task was "
-                "cleared or for another input",
-                task.index,
-                task.task_id,
-            )
-            return None
-        if indexed_task_state.status == TaskInstanceState.SUCCESS:
-            self.log.info(
-                "Skipping task instance %s for %s which already succeeded on a previous attempt",
-                task.index,
-                task.task_id,
-            )
-            if indexed_task_state.result is not None:
-                await self.axcom_push(task, indexed_task_state.result)
-            for key, value in (indexed_task_state.xcoms or {}).items():
-                await task.axcom_push(key=key, value=value)
-            if indexed_task_state.outlet_events:
-                indexed_task_state.replay_outlet_events(context["outlet_events"])
-            return task, None, None
-        if indexed_task_state.status == TaskInstanceState.SKIPPED:
-            return (
-                task,
-                None,
-                AirflowSkipException(
-                    f"Indexed task {task.task_id}[{task.index}] was skipped on a previous attempt"
-                ),
-            )
-        return None
-
-    @keeps_failure_to_its_indexed_task
-    async def _publish(
-        self,
-        task: IndexedTaskInstance,
-        executor: AsyncAwareExecutor,
-        context: Context,
-        runner: IndexedTaskRunner,
-        indexed_task_state: IndexedTaskState,
-        result: Any | None,
-    ) -> tuple[IndexedTaskInstance, Any | None, None]:
-        """
-        Report a succeeded indexed task and publish its result, once its SUCCESS checkpoint is written.
-
-        Reported then, not when execute returned: the callback speaks for work a retry will not run
-        again, and a checkpoint write that fails fires nothing, as a plain task whose result could
-        not be pushed fires no success callback. A report or a push that fails, a callback raising a
-        BaseException included, leaves the checkpoint as it is, so the retry replays the result
-        (see :meth:`_replay_checkpoint`) instead of running the operator again, and reports nothing
-        again.
-        """
-        await self._report_indexed_task(executor, task, runner.report_success, task.task.on_success_callback)
-        # The result is only checkpointed when the indexed task pushes XComs and returned something,
-        # so the same condition decides whether there is a return_value_<index> to push at all.
-        if indexed_task_state.result is not None:
-            await self.axcom_push(task, indexed_task_state.result)
-        runner.merge_outlet_events_into(context["outlet_events"])
-        return task, result, None
-
-    @keeps_failure_to_its_indexed_task
-    async def _record_skip(
-        self,
-        task: IndexedTaskInstance,
-        executor: AsyncAwareExecutor,
-        runner: IndexedTaskRunner,
-        skipped: AirflowSkipException,
-    ) -> tuple[IndexedTaskInstance, None, AirflowSkipException]:
-        """
-        Checkpoint a skipped indexed task as SKIPPED, report it and return the skip as the outcome.
-
-        A checkpoint write that fails, or a BaseException from ``on_skipped_callback``, is the indexed
-        task's outcome, as for a success. A failed write leaves no checkpoint and the retry runs the
-        indexed task again; a failed report leaves the SKIPPED checkpoint, which the retry replays.
-        """
-        await task.aset_state(
-            IndexedTaskState(
-                status=TaskInstanceState.SKIPPED,
-                fingerprint=task.input_fingerprint,
-                try_number=task.try_number,
-            )
-        )
-        await self._report_indexed_task(executor, task, runner.report_skip, task.task.on_skipped_callback)
-        return task, None, skipped
-
-    async def _record_failure(
-        self,
-        task: IndexedTaskInstance,
-        runner: IndexedTaskRunner,
-        outcomes: IndexedTaskOutcomes,
-        raised: BaseException,
-    ) -> tuple[IndexedTaskInstance, None, BaseException]:
-        """Note a failed indexed task for its callbacks, checkpoint it as UP_FOR_RETRY and return it as the outcome."""
-        if runner.failure is not None:
-            outcomes.note_failed(runner)
-        # Written with the input and the attempt, like the other outcomes, so the next attempt
-        # tells a plain retry apart from a clear or a changed input and logs only the latter.
-        # A write that fails leaves the outcome as it is: the indexed task failed either way, and
-        # without the checkpoint the retry runs it again, as it would after UP_FOR_RETRY.
-        try:
-            await task.aset_state(
-                IndexedTaskState(
-                    status=TaskInstanceState.UP_FOR_RETRY,
-                    fingerprint=task.input_fingerprint,
-                    try_number=task.try_number,
-                )
-            )
-        except (asyncio.CancelledError, AirflowTaskTimeout):
-            raise
-        except Exception:
-            self.log.exception(
-                "Could not checkpoint task instance %s for %s as up for retry", task.index, task.task_id
-            )
-        return task, None, raised
-
-    @staticmethod
-    async def _report_indexed_task(
-        executor: AsyncAwareExecutor,
-        task: IndexedTaskInstance,
-        report: Callable[[], None],
-        callbacks: Sequence[Callable],
-    ) -> None:
-        """
-        Run an indexed task's success or skip report where its code ran.
-
-        On the loop for an async operator, in a worker thread for a sync one, where a synchronous
-        SDK call made from the callback waits its turn for the channel instead of holding up the loop.
-        Without ``callbacks`` the report only sets the state and ``end_date``, which makes no SDK
-        call, so it runs on the loop and spares the indexed task a thread hand-off.
-        """
-        if task.is_async or not callbacks:
-            report()
-        else:
-            await executor.run_sync(report)
-
-    def _create_indexed_task(
-        self,
-        context: Context,
-        index: int,
-        mapped_kwargs: Mapping[str, Any],
-        jinja_env: jinja2.Environment,
-    ) -> IndexedTaskInstance:
-        unmapped_task = self._operator.unmap(mapped_kwargs)
-        self._state.do_xcom_push = unmapped_task.do_xcom_push
-        # Make sure deferred operators will always raise a DeferredTask exception when executed
-        unmapped_task.start_from_trigger = False
-
-        indexed_ti = IndexedTaskInstance.create_indexed_task(
-            context=context,
-            index=index,
-            operator=unmapped_task,
-        )
-        if unmapped_task.params != self.params:
-            # Processed as a mapped task instance's are; the parent's processed params, which
-            # clone_context copies into every indexed context, stand for any other index.
-            indexed_ti.own_params = process_params(
-                context["dag"], unmapped_task, context["dag_run"].conf, suppress_exception=False
-            )
-
-        # Rendered against the context the indexed task will execute with (its own ti, task, params
-        # and store view), not the parent's: a template must read the same values as execute() does.
-        self._render_unmapped_operator(indexed_ti.context_for(context), unmapped_task, jinja_env)
-        # Taken once rendered, so the partial kwargs an upstream provides are in it with their value.
-        fingerprint = self._state.input_fingerprint(
-            partial(
-                InputFingerprint, self.partial_kwargs, stop_requested=self._state.stop_requested, log=self.log
-            )
-        )
-        indexed_ti.input_fingerprint = fingerprint.of(mapped_kwargs, unmapped_task)
-        return indexed_ti
-
     def execute(self, context: Context):
-        jinja_env = self.get_template_env(dag=self.dag)
-
-        async def indices() -> AsyncIterator[int]:
-            # Resolved by the executor on the running event loop, so the input's XCom reads go
-            # through asend and do not hold up the indexed tasks' own SDK calls (see
-            # AsyncAwareExecutor.imap_unordered). Each index is read by its own indexed task (see
-            # _run_index), so what reading it raises is that index's outcome.
-            self._state.resolved = await self.expand_input.aresolve(context)
-            for index in range(self._state.resolved.length):
-                yield index
-
         try:
-            do_xcom_push, skipped = self._run_tasks(context=context, indices=indices(), jinja_env=jinja_env)
-            result = (
-                XComIterable(
-                    task_id=self.task_id,
-                    dag_id=self.dag_id,
-                    run_id=context["run_id"],
-                    length=self._state.length,
-                    map_index=context["ti"].map_index,
-                    skipped=skipped,
-                )
-                if do_xcom_push and self._state.resolved
-                else None
-            )
+            state = self._state
+            result, skipped = IterationRun(
+                operator=self,
+                unmapper=IndexedTaskUnmapper(
+                    self, self._operator, context, stop_requested=state.stop_requested
+                ),
+                state=state,
+                context=context,
+            ).run()
             if skipped:
                 self._skip_downstream_of_a_partial_skip(context, result)
             return result
         finally:
             # Renewed once the run ended, not when it starts (see IterationState): a kill that lands
             # before the run must stop it, and a rerun in the same process must not see that kill.
-            self._state = IterationState()
+            self._state = IterationState(self.log)

@@ -60,8 +60,11 @@ from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.iterableoperator import (
     Checkpoints,
     IndexedTaskInstanceNotStarted,
+    IndexedTaskLifecycle,
     IndexedTaskOutcomes,
+    IndexedTaskUnmapper,
     IterableOperator,
+    IterationRun,
     IterationState,
     keeps_failure_to_its_indexed_task,
 )
@@ -127,11 +130,30 @@ def fingerprint_of_a_run(iterable_op: IterableOperator) -> InputFingerprint:
     )
 
 
+def run_of(iterable_op: IterableOperator, context, *, trust_checkpoints: bool = False) -> IterationRun:
+    """
+    One run of ``iterable_op`` in ``context``, as ``execute`` makes it.
+
+    ``trust_checkpoints`` stands for what a retry's :class:`Checkpoints` decide when the run enters them.
+    """
+    state = iterable_op._state
+    run = IterationRun(
+        operator=iterable_op,
+        unmapper=IndexedTaskUnmapper(
+            iterable_op, iterable_op._operator, context, stop_requested=state.stop_requested
+        ),
+        state=state,
+        context=context,
+    )
+    run.checkpoints.trust_checkpoints = trust_checkpoints
+    return run
+
+
 class MockTaskStateStoreAccessor:
     """Minimal in-memory stand-in for ``TaskStateStoreAccessor``, exposing only the async
     ``aget``/``aset`` methods used by ``IterableOperator`` to checkpoint each indexed task's
-    progress (see ``IterableOperator._run_indexed_task``), plus the sync ``get``/``set``/``delete`` used for
-    the completion marker (see ``IterableOperator._run_tasks``)."""
+    progress (see ``IndexedTaskLifecycle.run``), plus the sync ``get``/``set``/``delete`` used for
+    the completion marker (see ``IterationRun.run``)."""
 
     def __init__(self):
         self._data: dict[str, Any] = {}
@@ -278,7 +300,7 @@ class MockOperatorWithCustomName(MockOperator):
 
 class MockOutletEventOperator(BaseOperator):
     """Operator that records an outlet asset event on execute, used to test that
-    IterableOperator merges/replays each indexed task's outlet events (see ``_run_indexed_task``)."""
+    IterableOperator merges/replays each indexed task's outlet events (see ``IndexedTaskLifecycle.run``)."""
 
     template_fields = ()
 
@@ -827,7 +849,7 @@ class TestIterableOperator:
             assert isinstance(iterable_op.partial_kwargs, dict)
 
     def test_xcom_push_delegates_to_task(self):
-        """_xcom_push awaits task.axcom_push with the default XCom return key."""
+        """An indexed task's result is pushed through task.axcom_push under the default XCom return key."""
         from unittest import mock
 
         with DAG("test_dag") as dag:
@@ -839,7 +861,8 @@ class TestIterableOperator:
         task.task_id = "my_task"
         task.index = 0
 
-        asyncio.run(iterable_op.axcom_push(task=task, value="result_value"))
+        lifecycle = IndexedTaskLifecycle(run_of(iterable_op, MagicMock()), task, executor=Mock())
+        asyncio.run(lifecycle._push_result("result_value"))
 
         task.axcom_push.assert_awaited_once_with(key=BaseXCom.XCOM_RETURN_KEY, value="result_value")
 
@@ -919,7 +942,7 @@ class TestIterableOperator:
 
     def test_execute_marks_iteration_completed_once_every_index_succeeds(self):
         """
-        Once every indexed task has succeeded, ``_run_tasks`` writes a single completion marker
+        Once every indexed task has succeeded, ``IterationRun.run`` writes a single completion marker
         instead of deleting the per-index checkpoints one by one, and leaves any state written by
         user code inside the iterated task untouched.
         """
@@ -942,7 +965,7 @@ class TestIterableOperator:
         """
         A manual clear does not reset the parent TI's ``try_number`` (see ``clear_task_instances``),
         so the next attempt looks like a retry. The completion marker left by the previous fully
-        successful run tells ``_run_tasks`` to ignore the stale ``SUCCESS`` checkpoints and run every
+        successful run tells ``IterationRun.run`` to ignore the stale ``SUCCESS`` checkpoints and run every
         index again, recording first where the rerun starts so a crash mid-rerun resumes from the
         new checkpoints only.
         """
@@ -1134,12 +1157,12 @@ class TestIterableOperator:
         checkpoint stays SUCCESS and the next indexed task still runs, so the following retry replays the
         result instead of running the indexed task.
         """
-        original_axcom_push = IterableOperator.axcom_push
+        original_push_result = IndexedTaskLifecycle._push_result
 
-        async def axcom_push_failing_the_first_item(self, task, value):
-            if task.index == 0:
+        async def axcom_push_failing_the_first_item(self, value):
+            if self.task.index == 0:
                 raise RuntimeError("xcom backend down")
-            return await original_axcom_push(self, task, value)
+            return await original_push_result(self, value)
 
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
@@ -1158,7 +1181,7 @@ class TestIterableOperator:
                     fingerprint=fingerprint_of({"arg1": 1}),
                 ).serialize()
 
-                with patch.object(IterableOperator, "axcom_push", axcom_push_failing_the_first_item):
+                with patch.object(IndexedTaskLifecycle, "_push_result", axcom_push_failing_the_first_item):
                     with pytest.raises(RuntimeError, match="xcom backend down"):
                         iterable_op.execute(context=context)
                 status_after_the_failed_replay = store["_iterable_0"]["status"]
@@ -1288,7 +1311,7 @@ class TestIterableOperator:
 
         ``context_update_for_unmapped`` sets ``context["ti"].task = task`` in place. Since
         ``context.copy()`` is only a shallow copy, ``context["ti"]`` in the copy is the *same*
-        object as the parent's. If ``_create_indexed_task`` rendered the unmapped indexed operator against a
+        object as the parent's. If ``IndexedTaskUnmapper.unmap`` rendered the unmapped indexed operator against a
         context still carrying the parent's `ti`, the parent's `ti.task` would end up pointing at
         whichever indexed task was unmapped last, corrupting anything the runner reads off `ti.task`
         after `execute()` returns (e.g. `do_xcom_push`/`multiple_outputs` in `_push_xcom_if_needed`).
@@ -1617,12 +1640,7 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 context["task_state_store"].set("offset", "parents")
                 context["task_state_store"].set("offset_1", 7)
-                task = iterable_op._create_indexed_task(
-                    context=context,
-                    index=1,
-                    mapped_kwargs={"offset": template},
-                    jinja_env=iterable_op.get_template_env(dag=dag),
-                )
+                task = run_of(iterable_op, context).unmapper.unmap(1, {"offset": template})
 
         assert task.task.offset == "7"
 
@@ -1776,7 +1794,9 @@ class TestIterableOperator:
             with (
                 mock_context(task=iterable_op) as context,
                 patch.object(
-                    IterableOperator, "axcom_push", new=AsyncMock(spec=IterableOperator.axcom_push)
+                    IndexedTaskLifecycle,
+                    "_push_result",
+                    new=AsyncMock(spec=IndexedTaskLifecycle._push_result),
                 ) as axcom_push,
             ):
                 result = iterable_op.execute(context=context)
@@ -1804,7 +1824,9 @@ class TestIterableOperator:
             with (
                 mock_context(task=iterable_op) as context,
                 patch.object(
-                    IterableOperator, "axcom_push", new=AsyncMock(spec=IterableOperator.axcom_push)
+                    IndexedTaskLifecycle,
+                    "_push_result",
+                    new=AsyncMock(spec=IndexedTaskLifecycle._push_result),
                 ) as axcom_push,
             ):
                 iterable_op.execute(context=context)
@@ -2043,12 +2065,8 @@ class TestIterableOperator:
             iterable_op = create_iterable_operator(dag, expand_input, task_id="skipped_before")
 
             with mock_context(task=iterable_op) as context:
-                task = iterable_op._create_indexed_task(
-                    context=context,
-                    index=0,
-                    mapped_kwargs={"raise_exception": RuntimeError("must not run again")},
-                    jinja_env=iterable_op.get_template_env(dag=dag),
-                )
+                run = run_of(iterable_op, context, trust_checkpoints=True)
+                task = run.unmapper.unmap(0, {"raise_exception": RuntimeError("must not run again")})
                 await context["task_state_store"].aset(
                     task.state_key,
                     IndexedTaskState(
@@ -2057,13 +2075,7 @@ class TestIterableOperator:
                 )
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
-                    _, result, raised = await iterable_op._run_indexed_task(
-                        executor,
-                        context,
-                        task,
-                        trust_checkpoints=True,
-                        outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
-                    )
+                    _, result, raised = await IndexedTaskLifecycle(run, task, executor).run()
 
         assert result is None
         assert isinstance(raised, AirflowSkipException)
@@ -2226,7 +2238,7 @@ class TestIterableOperator:
             ):
                 context["ti"].try_number = 1
                 with patch.object(
-                    IterableOperator, "axcom_push", side_effect=RuntimeError("xcom backend down")
+                    IndexedTaskLifecycle, "_push_result", side_effect=RuntimeError("xcom backend down")
                 ):
                     with pytest.raises(RuntimeError, match="xcom backend down"):
                         iterable_op.execute(context=context)
@@ -2312,7 +2324,7 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 context["ti"].try_number = 1
                 with patch.object(
-                    IterableOperator, "axcom_push", side_effect=RuntimeError("xcom backend down")
+                    IndexedTaskLifecycle, "_push_result", side_effect=RuntimeError("xcom backend down")
                 ):
                     with pytest.raises(RuntimeError, match="xcom backend down"):
                         iterable_op.execute(context=context)
@@ -2698,7 +2710,7 @@ class TestIterableOperator:
     async def test_run_indexed_task_skips_indexed_task_already_checkpointed_as_succeeded(self):
         """
         When the task_state_store already records an indexed task as succeeded (e.g. because
-        Airflow retried the whole IterableOperator after a previous partial failure), ``_run_indexed_task``
+        Airflow retried the whole IterableOperator after a previous partial failure), ``IndexedTaskLifecycle.run``
         must skip re-executing that indexed task entirely.
         """
         from unittest import mock
@@ -2708,10 +2720,8 @@ class TestIterableOperator:
             iterable_op = create_iterable_operator(dag, expand_input, task_id="checkpoint_skip")
 
             with mock_context(task=iterable_op) as context:
-                jinja_env = iterable_op.get_template_env(dag=dag)
-                task = iterable_op._create_indexed_task(
-                    context=context, index=0, mapped_kwargs={"arg1": 1, "arg2": 10}, jinja_env=jinja_env
-                )
+                run = run_of(iterable_op, context, trust_checkpoints=True)
+                task = run.unmapper.unmap(0, {"arg1": 1, "arg2": 10})
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
                 await context["task_state_store"].aset(
                     task.state_key,
@@ -2721,13 +2731,7 @@ class TestIterableOperator:
                 )
 
                 executor = mock.MagicMock()
-                _, result, raised = await iterable_op._run_indexed_task(
-                    executor,
-                    context,
-                    task,
-                    trust_checkpoints=True,
-                    outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
-                )
+                _, result, raised = await IndexedTaskLifecycle(run, task, executor).run()
 
                 assert result is None
                 assert raised is None
@@ -2738,7 +2742,7 @@ class TestIterableOperator:
         """
         An indexed task whose checkpoint records ``UP_FOR_RETRY`` (left behind by a previous failed or
         crashed attempt) is re-executed rather than skipped — only a ``SUCCESS`` checkpoint causes
-        ``_run_indexed_task`` to skip re-execution — and a new ``SUCCESS`` checkpoint recording its result is
+        ``IndexedTaskLifecycle.run`` to skip re-execution — and a new ``SUCCESS`` checkpoint recording its result is
         stored once it completes.
         """
         from airflow.sdk.execution_time.executor import AsyncAwareExecutor
@@ -2748,10 +2752,8 @@ class TestIterableOperator:
             iterable_op = create_iterable_operator(dag, expand_input, task_id="checkpoint_pending")
 
             with mock_context(task=iterable_op) as context:
-                jinja_env = iterable_op.get_template_env(dag=dag)
-                task = iterable_op._create_indexed_task(
-                    context=context, index=0, mapped_kwargs={"arg1": 1, "arg2": 10}, jinja_env=jinja_env
-                )
+                run = run_of(iterable_op, context, trust_checkpoints=True)
+                task = run.unmapper.unmap(0, {"arg1": 1, "arg2": 10})
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
                 await context["task_state_store"].aset(
                     task.state_key,
@@ -2759,13 +2761,7 @@ class TestIterableOperator:
                 )
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
-                    result_task, result, raised = await iterable_op._run_indexed_task(
-                        executor,
-                        context,
-                        task,
-                        trust_checkpoints=True,
-                        outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
-                    )
+                    result_task, result, raised = await IndexedTaskLifecycle(run, task, executor).run()
 
                 assert raised is None
                 assert result == (1, 10, None)
@@ -2801,19 +2797,11 @@ class TestIterableOperator:
             )
 
             with mock_context(task=iterable_op) as context:
-                jinja_env = iterable_op.get_template_env(dag=dag)
-                task = iterable_op._create_indexed_task(
-                    context=context, index=0, mapped_kwargs={}, jinja_env=jinja_env
-                )
+                run = run_of(iterable_op, context, trust_checkpoints=True)
+                task = run.unmapper.unmap(0, {})
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
-                    _, result, raised = await iterable_op._run_indexed_task(
-                        executor,
-                        context,
-                        task,
-                        trust_checkpoints=True,
-                        outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
-                    )
+                    _, result, raised = await IndexedTaskLifecycle(run, task, executor).run()
 
                 assert raised is None
                 assert result == "done"
@@ -2835,7 +2823,7 @@ class TestIterableOperator:
     async def test_run_indexed_task_replays_outlet_events_when_skipping_already_succeeded_indexed_task(self):
         """An indexed task skipped on retry (because its checkpoint already records SUCCESS) never
         re-executes, so it would otherwise never re-populate the fresh ``outlet_events`` accessor
-        created for the new attempt; ``_run_indexed_task`` must replay the events it recorded on its
+        created for the new attempt; ``IndexedTaskLifecycle.run`` must replay the events it recorded on its
         earlier successful attempt instead of silently losing them."""
         from unittest import mock
 
@@ -2846,10 +2834,8 @@ class TestIterableOperator:
             )
 
             with mock_context(task=iterable_op) as context:
-                jinja_env = iterable_op.get_template_env(dag=dag)
-                task = iterable_op._create_indexed_task(
-                    context=context, index=0, mapped_kwargs={}, jinja_env=jinja_env
-                )
+                run = run_of(iterable_op, context, trust_checkpoints=True)
+                task = run.unmapper.unmap(0, {})
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
                 await context["task_state_store"].aset(
                     task.state_key,
@@ -2869,13 +2855,7 @@ class TestIterableOperator:
                 )
 
                 executor = mock.MagicMock()
-                _, result, raised = await iterable_op._run_indexed_task(
-                    executor,
-                    context,
-                    task,
-                    trust_checkpoints=True,
-                    outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
-                )
+                _, result, raised = await IndexedTaskLifecycle(run, task, executor).run()
 
         assert raised is None
         assert result is None
@@ -3115,7 +3095,7 @@ class TestIterableOperator:
 
             with (
                 mock_context(task=iterable_op) as context,
-                patch.object(IterableOperator, "_SHUTDOWN_TIMEOUT", 0.2),
+                patch.object(IterationRun, "_SHUTDOWN_TIMEOUT", 0.2),
             ):
 
                 def run():
@@ -3173,7 +3153,7 @@ class TestIterableOperator:
 
             with (
                 mock_context(task=iterable_op) as context,
-                patch.object(IterableOperator, "_SHUTDOWN_TIMEOUT", 0.2),
+                patch.object(IterationRun, "_SHUTDOWN_TIMEOUT", 0.2),
             ):
                 try:
                     with pytest.raises(AirflowFailException, match="attempted to defer"):
@@ -3186,7 +3166,7 @@ class TestIterableOperator:
     def test_run_indexed_task_tracks_active_indexed_operator_during_execution(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """``_run_indexed_task`` must register the indexed task's unmapped operator in the iteration state
+        """``IndexedTaskLifecycle.run`` must register the indexed task's unmapped operator in the iteration state
         only for the duration of its execution, so ``on_kill()`` propagates only to indexed tasks that
         are actually running."""
         with DAG("test_dag") as dag:
@@ -3196,10 +3176,8 @@ class TestIterableOperator:
             )
 
             with mock_context(task=iterable_op) as context:
-                jinja_env = iterable_op.get_template_env(dag=dag)
-                task = iterable_op._create_indexed_task(
-                    context=context, index=0, mapped_kwargs={}, jinja_env=jinja_env
-                )
+                run = run_of(iterable_op, context, trust_checkpoints=False)
+                task = run.unmapper.unmap(0, {})
 
                 seen_active_during_run = []
 
@@ -3209,15 +3187,7 @@ class TestIterableOperator:
                 monkeypatch.setattr("airflow.sdk.execution_time.task_runner._execute_task", tracking_execute)
 
                 with event_loop() as loop, AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
-                    _, _, raised = loop.run_until_complete(
-                        iterable_op._run_indexed_task(
-                            executor,
-                            context,
-                            task,
-                            trust_checkpoints=False,
-                            outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
-                        )
-                    )
+                    _, _, raised = loop.run_until_complete(IndexedTaskLifecycle(run, task, executor).run())
 
         assert raised is None
         assert seen_active_during_run == [True]
@@ -3313,22 +3283,12 @@ class TestIterableOperator:
             iterable_op = create_iterable_operator(dag, expand_input, task_id="cancelled_task")
 
             with mock_context(task=iterable_op) as context:
-                task = iterable_op._create_indexed_task(
-                    context=context,
-                    index=0,
-                    mapped_kwargs={"raise_exception": asyncio.CancelledError()},
-                    jinja_env=iterable_op.get_template_env(dag=dag),
-                )
+                run = run_of(iterable_op, context)
+                task = run.unmapper.unmap(0, {"raise_exception": asyncio.CancelledError()})
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
                     with pytest.raises(asyncio.CancelledError):
-                        await iterable_op._run_indexed_task(
-                            executor,
-                            context,
-                            task,
-                            trust_checkpoints=False,
-                            outcomes=IndexedTaskOutcomes(iterable_op, IterationState(), context),
-                        )
+                        await IndexedTaskLifecycle(run, task, executor).run()
 
                 assert task.state_key not in context["task_state_store"]
 
@@ -3539,7 +3499,7 @@ class TestIterationState:
     """What one run of an iterated task remembers, apart from the operator's configuration."""
 
     def test_registered_operators_are_in_flight_until_unregistered(self):
-        state = IterationState()
+        state = IterationState(Mock())
         op = MockOperator(task_id="op")
         assert op not in state
         state.register(op)
@@ -3550,7 +3510,7 @@ class TestIterationState:
 
     def test_in_flight_is_keyed_by_identity(self):
         """Indexed operators of one iterated task compare equal; each is registered on its own."""
-        state = IterationState()
+        state = IterationState(Mock())
         first, second = MockOperator(task_id="same"), MockOperator(task_id="same")
         assert first == second
         state.register(first)
@@ -3563,7 +3523,7 @@ class TestIterationState:
 
     def test_take_in_flight_hands_each_operator_out_once(self):
         """The runner's second on_kill() after a timeout must not kill the same operator again."""
-        state = IterationState()
+        state = IterationState(Mock())
         first, second, third = (MockOperator(task_id=f"op{i}") for i in range(3))
         state.register(first)
         state.register(second)
@@ -3575,7 +3535,7 @@ class TestIterationState:
         assert first in state
 
     def test_stop_is_requested_once_asked(self):
-        state = IterationState()
+        state = IterationState(Mock())
         assert not state.stop_requested()
         state.request_stop()
         assert state.stop_requested()
@@ -3584,7 +3544,7 @@ class TestIterationState:
 
     def test_the_calls_a_signal_handler_makes_take_no_lock(self):
         """``request_stop`` and ``start_kill`` run in the SIGTERM handler, on the thread that may hold the lock."""
-        state = IterationState()
+        state = IterationState(Mock())
         op = MockOperator(task_id="op")
         state.register(op)
         taken: list[BaseOperator] = []
@@ -3601,7 +3561,7 @@ class TestIterationState:
     def test_a_copy_is_a_fresh_state(self):
         import copy
 
-        state = IterationState()
+        state = IterationState(Mock())
         op = MockOperator(task_id="op")
         state.register(op)
         state.request_stop()
@@ -3611,27 +3571,59 @@ class TestIterationState:
         assert copied is not state
         assert op not in copied
         assert not copied.stop_requested()
-        assert copied.resolved is None
         assert op in state
         assert state.stop_requested()
 
-    def test_length_is_unknown_until_the_input_is_resolved(self):
-        from airflow.sdk.definitions._internal.expandinput import Resolved
+    def test_a_fresh_state_remembers_nothing(self):
+        state = IterationState(Mock())
+        assert not state.stop_requested()
+        assert state.take_in_flight() == []
 
-        state = IterationState()
-        assert state.length is None
+    def test_kill_reaches_every_operator_whatever_one_raises(self):
+        """One indexed operator's on_kill raising, a BaseException included, does not keep the kill from the others."""
+        log = Mock()
+        state = IterationState(log)
+        first, second = MockOperator(task_id="first"), MockOperator(task_id="second")
+        first.on_kill = Mock(side_effect=KeyboardInterrupt)
+        second.on_kill = Mock()
+
+        state.kill([first, second])
+
+        second.on_kill.assert_called_once_with()
+        log.exception.assert_called_once_with("Error calling on_kill() for indexed task operator %s", "first")
+
+
+class TestIterationRun:
+    """One run of an iterated task: what its indexed tasks share while it goes."""
+
+    def test_length_is_unknown_until_the_input_is_resolved(self):
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([{"arg1": 1}]))
+        run = run_of(iterable_op, MagicMock())
+        assert run.resolved is None
+        assert run.length is None
 
         async def aget(index):
             return {}
 
-        state.resolved = Resolved(3, aget)
-        assert state.length == 3
+        run.resolved = Resolved(3, aget)
+        assert run.length == 3
 
-    def test_a_fresh_state_remembers_nothing(self):
-        state = IterationState()
-        assert state.resolved is None
-        assert state.length is None
-        assert state.take_in_flight() == []
+
+class TestIndexedTaskUnmapper:
+    """The indexed task of each index of a run, built from its mapped kwargs."""
+
+    def test_a_run_pushes_until_an_indexed_task_says_otherwise(self):
+        """Whether the run's result is pushed follows the operator built for an indexed task, True until one is."""
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{"arg1": 1}]), do_xcom_push=False
+            )
+            with mock_context(task=iterable_op) as context:
+                run = run_of(iterable_op, context)
+                assert run.unmapper.do_xcom_push is True
+                run.unmapper.unmap(0, {"arg1": 1})
+        assert run.unmapper.do_xcom_push is False
 
 
 class TestIndexedTaskOutcomes:
@@ -3644,14 +3636,7 @@ class TestIndexedTaskOutcomes:
                 dag, ListOfDictsExpandInput([{"arg1": "a"}]), task_id="it", retries=retries
             )
         context = {"ti": MagicMock(try_number=1, max_tries=3)}
-        return IndexedTaskOutcomes(op, state or IterationState(), context)  # type: ignore[arg-type]
-
-    @staticmethod
-    def _resolved(length: int) -> Resolved:
-        async def aget(index):
-            return {}
-
-        return Resolved(length, aget)
+        return IndexedTaskOutcomes(op, state or IterationState(Mock()), context)  # type: ignore[arg-type]
 
     @staticmethod
     def _task(index: int) -> IndexedTaskInstance:
@@ -3696,21 +3681,19 @@ class TestIndexedTaskOutcomes:
         assert outcomes.exceptions == []
 
     def test_a_kill_concludes_as_terminated_whatever_else_happened(self):
-        state = IterationState()
-        state.resolved = self._resolved(5)
+        state = IterationState(Mock())
         outcomes = self._outcomes(state=state)
         outcomes.record(self._task(0), ValueError("a"))
         outcomes.record(self._task(1), None)
         state.request_stop()
         with pytest.raises(AirflowTaskTerminated, match="2 of 5 indexed tasks ran") as info:
-            outcomes.conclude()
+            outcomes.conclude(5)
         assert isinstance(info.value.__cause__, BaseExceptionGroup)
         assert info.value.__cause__.exceptions == (outcomes.exceptions[0],)
 
     def test_an_indexed_task_not_started_after_the_kill_is_counted_apart(self):
         """It ran no code: not a failure to collect or log, not an indexed task that ran, named in the message."""
-        state = IterationState()
-        state.resolved = self._resolved(3)
+        state = IterationState(Mock())
         outcomes = self._outcomes(state=state)
         outcomes.record(self._task(0), None)
         outcomes.record(self._task(1), IndexedTaskInstanceNotStarted("pulled before the kill"))
@@ -3722,24 +3705,23 @@ class TestIndexedTaskOutcomes:
             AirflowTaskTerminated,
             match=r"1 of 3 indexed tasks ran, 1 pulled but never started, 1 never pulled\.$",
         ):
-            outcomes.conclude()
+            outcomes.conclude(3)
 
     def test_a_kill_after_every_indexed_task_was_pulled_claims_no_remainder(self):
         """Every indexed task pulled and run, the killed one back as a failure: the message ends with the count."""
-        state = IterationState()
-        state.resolved = self._resolved(2)
+        state = IterationState(Mock())
         outcomes = self._outcomes(state=state)
         outcomes.record(self._task(0), ValueError("killed"))
         outcomes.record(self._task(1), None)
         state.request_stop()
         with pytest.raises(AirflowTaskTerminated, match=r"2 of 2 indexed tasks ran\.$"):
-            outcomes.conclude()
+            outcomes.conclude(2)
 
     def test_a_kill_while_resolving_is_not_an_empty_input(self):
-        state = IterationState()
+        state = IterationState(Mock())
         state.request_stop()
         with pytest.raises(AirflowTaskTerminated, match="before its input was resolved") as info:
-            self._outcomes(state=state).conclude()
+            self._outcomes(state=state).conclude(None)
         assert info.value.__cause__ is None
 
     def test_failures_conclude_on_the_exception_handed_to_the_runner(self):
@@ -3748,12 +3730,12 @@ class TestIndexedTaskOutcomes:
         outcomes.record(self._task(0), raised)
         outcomes.record(self._task(1), None)
         with pytest.raises(ValueError, match="a") as info:
-            outcomes.conclude()
+            outcomes.conclude(2)
         assert info.value is raised
 
     def test_an_empty_input_concludes_as_a_skip(self):
         with pytest.raises(AirflowSkipException, match="empty"):
-            self._outcomes().conclude()
+            self._outcomes().conclude(0)
 
     def test_every_indexed_task_skipped_skips_the_task(self):
         outcomes = self._outcomes()
@@ -3761,7 +3743,7 @@ class TestIndexedTaskOutcomes:
         outcomes.record(self._task(0), first)
         outcomes.record(self._task(1), AirflowSkipException("second"))
         with pytest.raises(AirflowSkipException) as info:
-            outcomes.conclude()
+            outcomes.conclude(2)
         assert info.value is first
 
     def test_a_partial_skip_concludes_with_the_skipped_indices_in_order(self):
@@ -3769,7 +3751,7 @@ class TestIndexedTaskOutcomes:
         outcomes.record(self._task(2), AirflowSkipException("c"))
         outcomes.record(self._task(0), AirflowSkipException("a"))
         outcomes.record(self._task(1), None)
-        assert outcomes.conclude() == [0, 2]
+        assert outcomes.conclude(3) == [0, 2]
 
     def test_failed_runners_are_kept_in_the_order_they_failed(self):
         outcomes = self._outcomes()
@@ -3915,7 +3897,7 @@ class TestAKillSticks:
         assert all(f"_iterable_{index}" not in store for index in (1, 2))
 
     def test_a_kill_before_the_run_started_still_stops_it(self):
-        """SIGTERM can land between the operator's creation and _run_tasks: the stop must survive."""
+        """SIGTERM can land between the operator's creation and its run: the stop must survive."""
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
                 dag, ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}]), task_id="killed_early"
@@ -4885,14 +4867,17 @@ class TestKeepsFailureToItsItem:
     """The rule an indexed task's steps share: what a step raises is that indexed task's outcome."""
 
     class Steps:
-        """Stands in for IterableOperator: the decorator only needs a method taking the task first."""
+        """Stands in for IndexedTaskLifecycle: the decorator only needs the ``task`` its steps are of."""
+
+        def __init__(self, task):
+            self.task = task
 
         @keeps_failure_to_its_indexed_task
-        async def step(self, task, raised=None, *, result="done"):
+        async def step(self, raised=None, *, result="done"):
             """Raise ``raised`` when given, else return the outcome."""
             if raised is not None:
                 raise raised
-            return task, result, None
+            return self.task, result, None
 
     @pytest.mark.parametrize(
         "raised",
@@ -4902,7 +4887,7 @@ class TestKeepsFailureToItsItem:
     def test_what_the_step_raises_is_returned_as_the_outcome(self, raised):
         task = object()
 
-        assert asyncio.run(self.Steps().step(task, raised)) == (task, None, raised)
+        assert asyncio.run(self.Steps(task).step(raised)) == (task, None, raised)
 
     @pytest.mark.parametrize(
         "raised",
@@ -4911,12 +4896,12 @@ class TestKeepsFailureToItsItem:
     )
     def test_a_cancellation_or_the_parents_timeout_goes_on(self, raised):
         with pytest.raises(type(raised)):
-            asyncio.run(self.Steps().step(object(), raised))
+            asyncio.run(self.Steps(object()).step(raised))
 
     def test_the_outcome_of_a_step_that_succeeds_is_kept(self):
         task = object()
 
-        assert asyncio.run(self.Steps().step(task, result="pushed")) == (task, "pushed", None)
+        assert asyncio.run(self.Steps(task).step(result="pushed")) == (task, "pushed", None)
 
     def test_the_step_keeps_its_name_and_docstring(self):
         assert self.Steps.step.__name__ == "step"

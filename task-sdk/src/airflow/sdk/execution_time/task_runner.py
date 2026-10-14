@@ -999,7 +999,7 @@ class IndexedTaskState:
     # attempt that fails never registers what its succeeded indexed tasks emitted. An indexed task skipped
     # on retry (because it already succeeded) never re-executes, so it never re-emits into the
     # fresh OutletEventAccessors created for the new attempt; persisting a snapshot here lets
-    # IterableOperator._run_indexed_task replay it, which is the only way those events survive, and it
+    # IndexedTaskLifecycle replay it, which is the only way those events survive, and it
     # cannot double-emit because the failed attempt sent nothing.
     outlet_events: list[dict[str, Any]] | None = None
     # Digest of the input the indexed task ran with. An index only means the same work while its input
@@ -1288,7 +1288,7 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         them, so that a template and ``execute`` read the same values. Without params of its
         own, the parent's processed params, copied by ``clone_context``, are this task's. The one
         place these keys are listed: :meth:`IndexedTaskRunner.indexed_context` builds the context
-        the task runs in from it, and ``IterableOperator._create_indexed_task`` the one its
+        the task runs in from it, and ``IndexedTaskUnmapper.unmap`` the one its
         templates are rendered against. ``outlet_events`` is swapped when given, for the run;
         before it, nothing is emitted and the parent's accessor stays.
         """
@@ -1478,7 +1478,7 @@ class IndexedTaskRunner(LoggingMixin):
         reach it. The operator the parent's execution timeout strikes stays registered as well:
         the timeout lands on the main thread, where the loop runs async operators, and its
         ``on_kill`` must not run there, where a synchronous SDK call would hold up the loop, and every
-        indexed task on it, for its round trip, so ``IterableOperator._run_tasks`` kills it off the loop
+        indexed task on it, for its round trip, so ``IterationRun.run`` kills it off the loop
         thread with the others once the timeout has unwound. ``TimeoutPosix`` raises on the main
         thread only, so an ``AirflowTaskTimeout`` on a worker thread was raised by the operator
         itself (a hook that gave up waiting): that is this indexed task's own failure, noted as
@@ -1565,7 +1565,7 @@ class IndexedTaskRunner(LoggingMixin):
         """
         Report this indexed task as succeeded: its state, ``end_date`` and ``on_success_callback``.
 
-        Called by ``IterableOperator._run_indexed_task`` once the SUCCESS checkpoint is written, where the
+        Called by ``IndexedTaskLifecycle.run`` once the SUCCESS checkpoint is written, where the
         indexed task's code ran. The callback then speaks for work a retry will not run again: a
         checkpoint write that fails fires nothing, and the attempt that runs the indexed task again
         reports it then; a result push that fails after the checkpoint is replayed from it, so the
