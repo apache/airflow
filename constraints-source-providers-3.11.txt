@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-14T09:43:05.238947
+# This constraints file was automatically generated on 2026-10-14T11:28:17.248442
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -488,6 +488,7 @@ openpyxl==3.1.5
 opensandbox==1.1.0
 opensearch-protobufs==1.2.0
 opensearch-py==3.2.0
+openshell==0.1.3
 opentelemetry-api==1.44.0
 opentelemetry-exporter-otlp-proto-common==1.44.0
 opentelemetry-exporter-otlp-proto-grpc==1.44.0
