@@ -19,8 +19,10 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.execution.Cancellation
 import org.apache.airflow.sdk.execution.Logger
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import java.time.Duration
 import java.time.OffsetDateTime
 import org.apache.airflow.sdk.execution.comm.DagRun.DagRunType as CommDagRunType
 
@@ -127,10 +129,49 @@ data class Context(
   /** Registration of the executing task; resolves wired data inputs. */
   internal var taskDef: TaskDef? = null
 
+  internal var cancellation = Cancellation()
+
+  /**
+   * Whether Airflow has asked this task to stop.
+   *
+   * Airflow asks a running task to stop when, for example, a user marks its task
+   * instance as failed. The supervisor, which is the Airflow process that started
+   * the JVM, then sends the JVM SIGTERM. If the JVM is still running after a
+   * grace period, the supervisor sends SIGKILL.
+   *
+   * Once a task has called this method or [awaitCancellation], the SDK catches
+   * the first SIGTERM or SIGINT. The SDK records the stop request instead of
+   * letting the JVM exit, so the task can stop its work before SIGKILL arrives.
+   * From then on the task must keep checking until it returns.
+   *
+   * If a task has called neither method, or if a second signal arrives, the JVM
+   * handles the signal as it would without the SDK. By default the JVM runs its
+   * shutdown hooks and exits.
+   *
+   * A context made with [copy] does not see the stop request.
+   */
+  fun isCancelled(): Boolean = cancellation.check()
+
+  /**
+   * Waits until Airflow asks this task to stop, or until [timeout] passes.
+   *
+   * Use this method in place of [Thread.sleep] in a polling loop, so the task
+   * stops waiting as soon as Airflow asks it to stop. See [isCancelled] for when
+   * Airflow asks a task to stop.
+   *
+   * @param timeout How long to wait at most.
+   * @return `true` if Airflow asked the task to stop, `false` if [timeout]
+   *    passed first.
+   * @throws InterruptedException if the waiting thread is interrupted.
+   */
+  @Throws(InterruptedException::class)
+  fun awaitCancellation(timeout: Duration): Boolean = cancellation.await(timeout)
+
   internal companion object {
     fun from(
       request: StartupDetails,
       taskDef: TaskDef? = null,
+      cancellation: Cancellation = Cancellation(),
     ): Context =
       Context(
         dagRun =
@@ -147,6 +188,9 @@ data class Context(
             )
           },
         ti = with(request.ti) { TaskInstance(dagId, runId, taskId, mapIndex, tryNumber) },
-      ).also { it.taskDef = taskDef }
+      ).also {
+        it.taskDef = taskDef
+        it.cancellation = cancellation
+      }
   }
 }
