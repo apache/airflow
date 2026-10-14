@@ -783,6 +783,28 @@ class TestLLMOperatorConfidenceGate:
         assert "LLM run cost: $0.1 (USD, best-effort)" in caplog.messages
         context["task_instance"].xcom_push.assert_not_called()
 
+    @patch("airflow.providers.common.ai.operators.llm.log_run_usage", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_failed_usage_log_while_reporting_does_not_mask_the_original_exception(
+        self, mock_hook_cls, mock_log_run_usage
+    ):
+        """A failure logging the failed run's usage must not replace the run's own exception."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.side_effect = UsageLimitExceeded("boom")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_log_run_usage.side_effect = RuntimeError("log down")
+
+        context = _make_context(ti_id="ti-1")
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        with pytest.raises(UsageLimitExceeded):
+            op.execute(context)
+
+        mock_log_run_usage.assert_called_once()
+        assert {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list} == {
+            "usage",
+            "run_id",
+        }
+
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_failed_xcom_push_while_reporting_does_not_mask_the_original_exception(self, mock_hook_cls):
         """A failing XCom push while reporting the failed run must not replace the run's own exception."""
