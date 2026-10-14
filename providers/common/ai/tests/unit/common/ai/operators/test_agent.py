@@ -1671,7 +1671,8 @@ class TestAgentOperatorDurable:
 
         op._build_agent()
 
-        assert "capabilities" not in op.llm_hook.create_agent.call_args.kwargs
+        capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
+        assert not [c for c in capabilities if isinstance(c, AirflowDurability)]
 
     @pytest.mark.parametrize("passed_as", ["capabilities", "agent_params"])
     def test_durable_keeps_masking_and_tool_logging_on_a_toolset_capability(self, passed_as):
@@ -1690,7 +1691,11 @@ class TestAgentOperatorDurable:
         capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
         assert isinstance(capabilities[0].toolset, MaskingToolset)
         assert capabilities[0].toolset.wrapped is inner
-        assert [type(c) for c in capabilities[1:]] == [AirflowDurability, PromptCaching, ToolLoggingCapability]
+        assert [type(c) for c in capabilities[1:]] == [
+            AirflowDurability,
+            PromptCaching,
+            ToolLoggingCapability,
+        ]
 
     def test_durable_refuses_its_capability_passed_as_well(self):
         with pytest.raises(ValueError, match="pass durable=True or the capability, not both"):

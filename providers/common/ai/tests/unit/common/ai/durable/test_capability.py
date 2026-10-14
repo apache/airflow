@@ -363,6 +363,46 @@ class TestUnloadableRecords:
         # Counted as run live in the attempt's summary, not as replayed.
         assert journal.stats.replayed[kind] == 0
 
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            pytest.param({"kind": "tool_return"}, id="no result"),
+            pytest.param({"kind": "renamed_in_a_later_version"}, id="unknown kind"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_function_tool_record_that_no_longer_loads_runs_live(self, memory_storage, payload):
+        calls = Calls()
+        await attempt(memory_storage, self.build(calls, self.function_toolset(calls)))
+        for entry in memory_storage.steps():
+            if entry["kind"] == "tool":
+                entry["payload"] = payload
+
+        result = await attempt(memory_storage, self.build(calls, self.function_toolset(calls)))
+
+        assert result.output == "answer: 3 rows"
+        assert calls["query"] == 2
+
+    @pytest.mark.asyncio
+    async def test_a_capability_operation_record_that_no_longer_loads_runs_live(self, memory_storage):
+        calls = Calls()
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(lambda messages, info: ModelResponse(parts=[TextPart("done")])),
+                name="analyst",
+                capabilities=[AirflowDurability(), _Ledger(calls)],
+            )
+
+        await attempt(memory_storage, build())
+        for entry in memory_storage.steps():
+            if "accrue" in entry["name"]:
+                entry["payload"] = "not an amount"
+
+        await attempt(memory_storage, build())
+
+        assert calls["accrue"] == 2
+
     @pytest.mark.asyncio
     async def test_an_airflow_toolset_record_that_no_longer_loads_runs_live(self, memory_storage):
         calls = Calls()
@@ -476,6 +516,54 @@ class TestMasking:
 
         assert result.output == "answer: password=***"
         assert registered_secret not in str(memory_storage.entries)
+
+    @pytest.mark.asyncio
+    async def test_a_masked_tool_result_does_not_stop_the_retry_replaying(
+        self, memory_storage, registered_secret
+    ):
+        """The model saw the secret live but sees ``***`` on replay; the steps after it still replay."""
+        calls = Calls()
+        fail_final = [True]
+
+        def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            calls.bump("model")
+            match responses_so_far(messages):
+                case 0:
+                    return ModelResponse(parts=[ToolCallPart("query", {"sql": "select 1"})])
+                case 1:
+                    return ModelResponse(parts=[ToolCallPart("notify", {})])
+            if fail_final[0]:
+                raise RuntimeError("worker died")
+            return ModelResponse(parts=[TextPart("done")])
+
+        def build() -> Agent[None, str]:
+            # No masking wrapper around it, as in a plain @task.
+            toolset = FunctionToolset(id="db")
+
+            @toolset.tool_plain
+            def query(sql: str) -> str:
+                return f"password={registered_secret}"
+
+            @toolset.tool_plain
+            def notify() -> str:
+                calls.bump("notify")
+                return "sent"
+
+            return Agent(
+                FunctionModel(model_fn),
+                name="analyst",
+                toolsets=[toolset],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        await attempt(memory_storage, build())
+
+        assert calls["notify"] == 1
+        # Three model steps on the first attempt, and only the one that failed on the retry.
+        assert calls["model"] == 4
 
     @pytest.mark.asyncio
     async def test_journal_holds_airflow_toolset_results_masked(self, memory_storage, registered_secret):

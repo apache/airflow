@@ -22,6 +22,7 @@ from collections.abc import Awaitable, Callable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from functools import partial
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, cast
 
 from pydantic_ai.durable_exec import (
@@ -54,6 +55,10 @@ from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 if TYPE_CHECKING:
     from pydantic_ai.agent import EventStreamHandler
     from pydantic_ai.capabilities import WrapRunHandler
+
+    # The operation a backend binds is typed only in these modules; ``bind`` itself is public.
+    from pydantic_ai.durable_exec._operation import DurableOperation, ParamsT, ResultT, WireT
+    from pydantic_ai.durable_exec._operation_backend import BoundDurableOperation
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.models import Model, ModelRequestParameters
     from pydantic_ai.run import AgentRunResult
@@ -61,7 +66,7 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import RunContext
     from pydantic_ai.toolsets import AbstractToolset, ToolsetTool
 
-    from airflow.providers.common.ai.durable.journal import DurableRun, JournalStep
+    from airflow.providers.common.ai.durable.journal import DurableRun, JournalStep, StepKind
 
 __all__ = ["AirflowDurability"]
 
@@ -250,6 +255,38 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
             agent_name=durability.name, default_model_id=durability.default_model_id, config=_NO_CONFIG
         )
         self._durability = durability
+        # How pydantic-ai decodes each operation's result, by operation.
+        self._loaders: dict[DurableOperationId, Callable[[object], object]] = {}
+
+    def bind(
+        self, operation: DurableOperation[ParamsT, WireT, ResultT]
+    ) -> BoundDurableOperation[ParamsT, WireT, ResultT]:
+        # pydantic-ai decodes the payload ``execute`` returns only after ``execute`` returns, when
+        # it is too late to run the step live instead. Keeping the decoder lets ``execute`` reject
+        # a recorded payload that no longer decodes, such as one another version wrote.
+        self._loaders[operation.operation_id] = operation.result_codec.load
+        return super().bind(operation)
+
+    def _loads(self, operation_id: DurableOperationId, payload: object) -> bool:
+        try:
+            self._loaders[operation_id](payload)
+        except (TypeError, ValueError):
+            return False
+        return True
+
+    def _claim(
+        self,
+        active: _ActiveRun,
+        operation_id: DurableOperationId,
+        name: str,
+        *,
+        kind: StepKind,
+        fingerprint: str | None,
+    ) -> JournalStep:
+        step = active.durable_run.claim(name, kind=kind, fingerprint=fingerprint)
+        if step.replayed and not self._loads(operation_id, step.payload):
+            active.durable_run.reject(step, reason=_UNLOADABLE)
+        return step
 
     async def execute(
         self,
@@ -265,10 +302,15 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
             return await body()
         match operation_id:
             case ModelRequestId(streaming=streaming):
-                return await self._model_request(active, name, body, cache_key, streaming=streaming)
+                return await self._model_request(
+                    active, operation_id, name, body, cache_key, streaming=streaming
+                )
             case ToolsetCallToolId():
                 step = _claim_tool_call(
-                    active, name, _tool_fingerprint(cache_key), valid_payload=_is_recorded_tool_result
+                    active,
+                    name,
+                    _tool_fingerprint(cache_key),
+                    valid_payload=partial(self._loads, operation_id),
                 )
                 if step.replayed:
                     return step.payload
@@ -280,7 +322,7 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
                 # save by replaying it, and it is the same on every attempt, so it takes no position.
                 return await body()
             case CapabilityOperationId():
-                step = active.durable_run.claim(name, kind="other", fingerprint=None)
+                step = self._claim(active, operation_id, name, kind="other", fingerprint=None)
                 if step.replayed:
                     active.ledger.record_capability_replay(step.payload)
                     return step.payload
@@ -288,11 +330,15 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
             case _:
                 # Tool discovery, compaction, event handling, and the operations later
                 # pydantic-ai versions add: replayed by name and position.
-                return await active.durable_run.run(name, kind="other", fingerprint=None, body=body)
+                step = self._claim(active, operation_id, name, kind="other", fingerprint=None)
+                if step.replayed:
+                    return step.payload
+                return await step.run(body)
 
     async def _model_request(
         self,
         active: _ActiveRun,
+        operation_id: ModelRequestId,
         name: str,
         body: Callable[[], Awaitable[object]],
         cache_key: tuple[object, ...],
@@ -306,11 +352,9 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
         ledger = active.ledger
         continuation = ledger.begin_model_request(messages)
         had_request_credit = ledger.settle()
-        step = active.durable_run.claim(name, kind="model", fingerprint=fingerprint)
-        response = _load_model_response(step.payload, streaming=streaming) if step.replayed else None
-        if step.replayed and response is None:
-            active.durable_run.reject(step, reason=_UNLOADABLE)
-        if response is not None:
+        step = self._claim(active, operation_id, name, kind="model", fingerprint=fingerprint)
+        if step.replayed:
+            response = _load_model_response(step.payload, streaming=streaming)
             ledger.record_model_replay(response, continuation=continuation)
             ledger.track_chain(response, parameters)
             if response.state != "suspended":
@@ -318,8 +362,7 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
             return step.payload
         ledger.record_live_model_request(had_request_credit=had_request_credit)
         payload = await step.run(body)
-        if (live := _load_model_response(payload, streaming=streaming)) is not None:
-            ledger.track_chain(live, parameters)
+        ledger.track_chain(_load_model_response(payload, streaming=streaming), parameters)
         return payload
 
     async def _fingerprint_model_request(
@@ -458,20 +501,10 @@ def _decode_tool_payload(payload: Any) -> Any:
     raise DurableJournalError(f"durable execution found a tool result it cannot replay: {kind!r}")
 
 
-def _load_model_response(payload: object, *, streaming: bool) -> ModelResponse | None:
-    """Decode a recorded model response, or return ``None`` when it no longer loads."""
-    # A streamed request records the response together with the events it streamed.
+def _load_model_response(payload: object, *, streaming: bool) -> ModelResponse:
+    """Decode a model response payload; a streamed request records it with the events it streamed."""
     raw = payload.get("response") if streaming and isinstance(payload, dict) else payload
-    try:
-        return JSON_CODEC.load(ModelResponse, raw)
-    except (TypeError, ValueError):
-        return None
-
-
-def _is_recorded_tool_result(payload: object) -> bool:
-    # pydantic-ai decodes what its own toolsets recorded with a type it keeps private, so only
-    # the field it dispatches on can be checked here.
-    return isinstance(payload, dict) and isinstance(payload.get("kind"), str)
+    return JSON_CODEC.load(ModelResponse, raw)
 
 
 def _is_journaled_tool_payload(payload: object) -> bool:

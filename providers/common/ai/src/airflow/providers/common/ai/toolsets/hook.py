@@ -264,7 +264,7 @@ class HookToolset(AirflowToolset):
     def _validate_args(self, bytes_params: frozenset[str], ctx: RunContext[Any], /, **tool_args: Any) -> None:
         self._refuse_pinned(ctx, **tool_args)
         # Only checked here: the decoded bytes are not kept, so what the toolset chain passes
-        # on, and CachingToolset fingerprints, stays JSON.
+        # on, and the durable journal fingerprints, stays JSON.
         _decode_bytes_args(tool_args, bytes_params)
 
     def _refuse_pinned(self, ctx: RunContext[Any], /, **tool_args: Any) -> None:
@@ -288,7 +288,7 @@ class HookToolset(AirflowToolset):
         # The framework bridges validate arguments without args_validator_func, so check again here.
         self._refuse_pinned(ctx, **tool_args)
         # Decoded here rather than in the args validator: validated arguments travel the whole
-        # toolset chain, and CachingToolset fingerprints them with a plain json.dumps, so bytes
+        # toolset chain, and the durable journal fingerprints them with a plain json.dumps, so bytes
         # upstream of this point would make every binary call unverifiable on durable replay.
         tool_args = _decode_bytes_args(tool_args, self._bytes_params[method_name])
         # A copy per call, so a method that modifies an argument it is given cannot change the pin.
