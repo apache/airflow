@@ -414,6 +414,27 @@ context, but not all at the same moment:
   its state; an indexed task has no task instance of its own and fires none. With ``.expand()`` they fire
   once per mapped task instance.
 
+.. _iterate-clear:
+
+Retries and clears
+------------------
+
+Each indexed task writes a checkpoint to the task state store when it finishes. A retry of the
+iterated task reads them back: indexed tasks that succeeded or skipped keep that outcome, and only
+the others run again.
+
+What a clear does depends on whether it keeps the task state, where the checkpoints live:
+
+* Clearing the task instance (**Clear** on the task instance in the UI, or the
+  ``clearTaskInstances`` endpoint) discards its task state unless **Keep task state and resume**
+  is ticked (``keep_task_state``, off by default). Without it every indexed task runs again.
+* Clearing the Dag run, and marking a run failed or successful (which clears downstream tasks),
+  keep the task state.
+
+With the task state kept, a clear after a failed attempt runs only the indexed tasks that did not
+succeed or skip, as a retry does. A clear after an attempt whose indexed tasks all finished runs
+every indexed task again: what they produced was already handed downstream.
+
 Comparison
 ----------
 
@@ -448,6 +469,10 @@ Comparison
    * - Retry behavior
      - Per item
      - Whole task retries, but checkpointed indexed tasks are skipped
+   * - Clear
+     - Each cleared task instance runs again
+     - Depends on how the task is cleared and whether the task state is kept; see
+       :ref:`iterate-clear`
    * - Skipped items
      - A skipped task instance pushes no XCom. Downstream tasks with ``all_success`` are skipped;
        with ``none_failed`` they run over the other items

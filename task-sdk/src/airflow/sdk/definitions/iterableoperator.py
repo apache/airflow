@@ -137,8 +137,11 @@ class Checkpoints:
     the block exits without an exception, and when every iteration skipped: the task is then
     ``SKIPPED``, a final state, and a clear of it must run every iteration again rather than
     replay the skips, as a cleared mapped task instance would. An attempt that fails, even with
-    some iterations skipped, writes no marker, so a retry or a clear after it resumes: iterations
-    that succeeded or skipped keep that outcome and only the others run again.
+    some iterations skipped, writes no marker, so a retry, or a clear that keeps the task state,
+    resumes after it: iterations that succeeded or skipped keep that outcome and only the others
+    run again. A Dag run clear keeps the task state; a task instance clear discards it unless
+    ``keep_task_state`` is set, and then finds neither marker nor checkpoints, so every iteration
+    runs again.
 
     The checkpoints themselves are never deleted: one marker write costs the same whatever the indexed task
     count, and the store is scoped to the parent task instance, so state an indexed task stored for itself
