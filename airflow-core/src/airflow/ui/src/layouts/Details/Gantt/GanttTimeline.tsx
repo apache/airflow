@@ -403,20 +403,28 @@ export const GanttTimeline = ({
                           >
                             <Badge
                               alignItems="center"
+                              borderBottomColor={isPinnedPass ? pinnedOutline : undefined}
                               borderBottomLeftRadius={touchesPrev ? 0 : barRadius}
                               borderBottomRightRadius={touchesNext ? 0 : barRadius}
+                              borderBottomStyle={isPinnedPass ? "solid" : undefined}
+                              borderBottomWidth={isPinnedPass ? "2px" : undefined}
+                              borderLeftColor={isPinnedPass ? pinnedOutline : undefined}
+                              borderLeftStyle={isPinnedPass && !touchesPrev ? "solid" : undefined}
+                              borderLeftWidth={isPinnedPass && !touchesPrev ? "2px" : undefined}
+                              borderRightColor={isPinnedPass ? pinnedOutline : undefined}
+                              borderRightStyle={isPinnedPass && !touchesNext ? "solid" : undefined}
+                              borderRightWidth={isPinnedPass && !touchesNext ? "2px" : undefined}
+                              borderTopColor={isPinnedPass ? pinnedOutline : undefined}
                               borderTopLeftRadius={touchesPrev ? 0 : barRadius}
                               borderTopRightRadius={touchesNext ? 0 : barRadius}
+                              borderTopStyle={isPinnedPass ? "solid" : undefined}
+                              borderTopWidth={isPinnedPass ? "2px" : undefined}
                               colorPalette={state ?? "none"}
                               data-pinned-pass={isPinnedPass || undefined}
                               display="flex"
                               h="100%"
                               justifyContent="center"
                               minH={0}
-                              outlineColor={isPinnedPass ? pinnedOutline : undefined}
-                              outlineOffset="-2px"
-                              outlineStyle={isPinnedPass ? "solid" : undefined}
-                              outlineWidth={isPinnedPass ? "2px" : undefined}
                               p={0}
                               // Aggregate task-group bars are the envelope of their children's
                               // runtime, not a real running task. Overlay a diagonal stripe so

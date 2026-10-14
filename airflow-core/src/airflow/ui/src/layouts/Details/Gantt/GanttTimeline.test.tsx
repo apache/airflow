@@ -512,4 +512,51 @@ describe("GanttTimeline segment bars", () => {
 
     expect(document.querySelectorAll("[data-pinned-pass]")).toHaveLength(0);
   });
+
+  it("leaves the highlight open where one run's segments meet", () => {
+    mockParams = { taskId: "refine.improve" };
+    mockSearchParams = new URLSearchParams("iteration=2");
+    // Two segments of the same attempt, as a queued stretch followed by the run itself.
+    const shared = { loopIteration: { iteration: 2, loop_id: "refine" }, taskInstanceId: "one-try" };
+    const half = MIN_MS + (MAX_MS - MIN_MS) / 2;
+    const segments: Array<GanttDataItem> = [
+      {
+        ...shared,
+        state: "queued",
+        taskId: "refine.improve",
+        tryNumber: 1,
+        x: [MIN_MS, half],
+        y: "refine.improve",
+      },
+      {
+        ...shared,
+        state: "success",
+        taskId: "refine.improve",
+        tryNumber: 1,
+        x: [half, MAX_MS],
+        y: "refine.improve",
+      },
+    ];
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        flatNodes={[{ ...BASE_NODE, id: "refine.improve", label: "refine.improve" }]}
+        rowSegments={[segments]}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    const [first, second] = [...document.querySelectorAll("[data-pinned-pass]")];
+    const styleOf = (node: Element) => globalThis.getComputedStyle(node as HTMLElement);
+
+    // The run is ringed at its ends and along its length, but not down the seam between the
+    // two states, which is inside the thing being highlighted rather than its edge.
+    expect(styleOf(first as Element).borderLeftWidth).toBe("2px");
+    expect(styleOf(first as Element).borderRightWidth).not.toBe("2px");
+    expect(styleOf(second as Element).borderLeftWidth).not.toBe("2px");
+    expect(styleOf(second as Element).borderRightWidth).toBe("2px");
+    expect(styleOf(first as Element).borderTopWidth).toBe("2px");
+  });
 });
