@@ -36,22 +36,6 @@ _MAX_SHOWN_CHARS = 200
 # that indexes its input (``data.get``) when the review text is not the shape it expects. Anything else,
 # such as a validator's network or timeout error, propagates instead of reading as a failed conversion.
 _CONVERSION_ERRORS = (ValidationError, ValueError, TypeError, AttributeError, KeyError, IndexError)
-# Errors pydantic raises when a whole string meets a structured type, so the JSON error says more.
-# A NamedTuple raises ``arguments_type`` before pydantic 2.14 and ``named_tuple_type`` from it.
-_CONTAINER_MISMATCH_TYPES = frozenset(
-    {
-        "model_type",
-        "model_attributes_type",
-        "dataclass_type",
-        "dict_type",
-        "list_type",
-        "tuple_type",
-        "set_type",
-        "frozen_set_type",
-        "arguments_type",
-        "named_tuple_type",
-    }
-)
 
 
 def dump_output_to_json(output: Any) -> str:
@@ -107,9 +91,10 @@ def rehydrate_pydantic_output(
         return raw
     if is_output_function:
         return raw
-    # Output is dumped by field name, so accept a field name or a validation alias.
+    # Output is dumped by field name, so also accept a field name. An alias stays accepted when the model
+    # validates by alias, its default; forcing it would override a model that turned it off.
     try:
-        rehydrated = adapter.validate_json(raw, by_alias=True, by_name=True)
+        rehydrated = adapter.validate_json(raw, by_name=True)
     except _CONVERSION_ERRORS as json_error:
         # Bare text is how a str-valued Literal, Enum or ``str | None`` output is carried through review.
         try:
@@ -155,8 +140,19 @@ def _is_bare_text_failure(raw: str, json_error: Exception, text_error: Exception
         error["type"] == "json_invalid" for error in json_error.errors()
     )
     # A union adds its member to ``loc``, so match on the error type alone.
-    is_container_mismatch = all(error["type"] in _CONTAINER_MISMATCH_TYPES for error in text_error.errors())
+    is_container_mismatch = all(_is_container_mismatch(error["type"]) for error in text_error.errors())
     return is_not_json and not is_container_mismatch
+
+
+def _is_container_mismatch(error_type: str) -> bool:
+    """
+    Tell whether pydantic refused the whole text for a structured type, where the JSON error says more.
+
+    Those errors end in ``_type`` (``model_type``, ``list_type``, ``named_tuple_type``, ...), while a type
+    that accepts text fails with ``*_parsing``, ``*_error`` or ``enum``. Matching the suffix rather than a
+    list keeps up with pydantic renaming them, as 2.14 did for a NamedTuple and a deque.
+    """
+    return error_type.endswith("_type") or error_type == "sequence_str"
 
 
 def _is_output_function(schema: CoreSchema) -> bool:

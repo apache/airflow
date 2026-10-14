@@ -41,9 +41,9 @@ Changelog
   ``LLMSchemaCompareOperator`` (``allow_modifications=True``) is now converted back into
   ``output_type``, and an edit that does not validate fails the task with
   ``ReviewedOutputValidationError`` (a ``ValueError``) instead of returning the edited text as
-  a ``str``. Use ``output_type=str``, or a type that accepts bare text such as a ``Literal``, a
-  ``str`` ``Enum`` or ``str | None``, to keep accepting free text. An approval without an edit
-  never fails this way. The review text now shows field names and leaves out computed fields.
+  a ``str``. Use ``output_type=str`` or ``str | None`` to keep accepting free text; a ``Literal`` or
+  a ``str`` ``Enum`` accepts one of its values typed as bare text, and any other edit now fails the
+  task. An approval without an edit never fails this way. The review text now shows field names and leaves out computed fields.
   See :doc:`approval_gates`.
 
 .. note::

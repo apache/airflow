@@ -484,8 +484,16 @@ class TestDeferForApproval:
             ('{"score":2.0}', {"score": 2}),
             ('{"b":1,"10":2}', {"10": 2, "b": 1}),
             ('{\n  "a": 1\n}', {"a": 1}),
+            ('{"ids":[9007199254740993]}', {"ids": [9007199254740992]}),
         ],
-        ids=["same", "int-rounded-by-javascript", "integral-float", "reordered-keys", "pretty-printed"],
+        ids=[
+            "same",
+            "int-rounded-by-javascript",
+            "integral-float",
+            "reordered-keys",
+            "pretty-printed",
+            "int-rounded-in-a-list",
+        ],
     )
     def test_approved_with_untouched_object_from_the_form_returns_the_generated_output(
         self, approval_op_with_modifications, generated_output, modified
@@ -503,21 +511,29 @@ class TestDeferForApproval:
 
         assert result == generated_output
 
+    @pytest.mark.parametrize(
+        ("generated_output", "modified", "expected"),
+        [
+            ('{"amount":0}', {"amount": False}, '{"amount":false}'),
+            ('{"flags":[0]}', {"flags": [False]}, '{"flags":[false]}'),
+        ],
+        ids=["field", "in-a-list"],
+    )
     def test_approved_with_a_bool_in_place_of_a_number_counts_as_an_edit(
-        self, approval_op_with_modifications
+        self, approval_op_with_modifications, generated_output, modified, expected
     ):
         # Python treats ``False == 0``, but the reviewer changed the value's JSON type.
         event = {
             "chosen_options": ["Approve"],
             "responded_by_user": {"id": "u1", "name": "editor"},
-            "params_input": {"output": {"amount": False}},
+            "params_input": {"output": modified},
         }
 
         result = approval_op_with_modifications.execute_complete(
-            {}, generated_output='{"amount":0}', event=event
+            {}, generated_output=generated_output, event=event
         )
 
-        assert result == '{"amount":false}'
+        assert result == expected
 
     @pytest.mark.parametrize(
         ("modified", "expected"),

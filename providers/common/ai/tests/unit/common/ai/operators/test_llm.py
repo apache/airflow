@@ -628,6 +628,9 @@ class TestLLMOperatorConfidenceGate:
 
         body = mock_upsert.call_args.kwargs["body"]
         assert "Confidence: 0.40 (minimum 0.70)" in body
+        # The JSON a reviewer can paste into the edit field, not the model's repr.
+        assert '{"category":"billing","score":0.3}' in body
+        assert "category='billing'" not in body
         pushes = {
             c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
         }

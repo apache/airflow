@@ -43,7 +43,9 @@ naming the type and the (truncated) text received, rather than passing a value o
 type downstream.  Airflow retries it like any other failure, so with ``retries`` set the
 next try runs the model again and the rejected edit is not carried over.
 
-With ``output_type=str`` any edit is accepted as is.  An output function, a pydantic-ai
+With ``output_type=str`` any edit is accepted as is, and so is an edit to a union with a ``str``
+member, such as ``Model | str``, which keeps the text when it does not validate as the model.
+An output function, a pydantic-ai
 output marker such as ``ToolOutput``, or a type pydantic has no schema for, is returned as
 the text unchanged.  An approval without an
 edit whose output cannot be converted back (for example a custom serializer) also returns

@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from collections import deque
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import Annotated, Literal, NamedTuple
@@ -25,7 +27,11 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 from pydantic_ai import NativeOutput, PromptedOutput, ToolOutput
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
-from airflow.providers.common.ai.utils.output_type import dump_output_to_json, rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.output_type import (
+    _is_container_mismatch,
+    dump_output_to_json,
+    rehydrate_pydantic_output,
+)
 
 
 class A(BaseModel):
@@ -84,6 +90,25 @@ class ValidatorWithOperationalError(BaseModel):
     @classmethod
     def look_up_amount(cls, data):
         raise TimeoutError("lookup service did not answer")
+
+
+class AliasNamedLikeAnotherField(BaseModel):
+    """A model that validates by name only, with an alias that is another field's name."""
+
+    model_config = ConfigDict(validate_by_alias=False, validate_by_name=True)
+    source: str
+    destination: str = Field(alias="source")
+
+
+class IndexingBeforeValidator(BaseModel):
+    """A model whose before-validator indexes into its input, so a missing key or item raises."""
+
+    first: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def take_first_item(cls, data):
+        return {"first": data["items"][0]}
 
 
 class ComputedForbidExtra(BaseModel):
@@ -248,6 +273,15 @@ class TestRehydratePydanticOutput:
         with pytest.raises(ReviewedOutputValidationError, match=detail):
             rehydrate_pydantic_output(DictOnlyBeforeValidator, raw, serialize_output=False)
 
+    @pytest.mark.parametrize(
+        ("raw", "detail"),
+        [("{}", "'items'"), ('{"items": []}', "list index out of range")],
+        ids=["key-error", "index-error"],
+    )
+    def test_a_before_validator_indexing_a_wrong_shape_reports_a_failed_conversion(self, raw, detail):
+        with pytest.raises(ReviewedOutputValidationError, match=detail):
+            rehydrate_pydantic_output(IndexingBeforeValidator, raw, serialize_output=False)
+
     @pytest.mark.parametrize("is_edited", [False, True], ids=["unedited", "edited"])
     def test_a_validator_error_unrelated_to_the_text_propagates(self, is_edited):
         with pytest.raises(TimeoutError, match="lookup service"):
@@ -319,6 +353,8 @@ class TestRehydratePydanticOutput:
             (Literal["a", "b"], "c", "Input should be 'a' or 'b'"),
             (A | int, "hello", "valid integer"),
             (Literal["a", "b"] | A, '{"x": 1,}', "trailing comma"),
+            (Literal["a", "b"] | A, ' {"x": 1,}', "trailing comma"),
+            (int, "3.5", "fractional part"),
         ],
         ids=[
             "model-typo",
@@ -331,6 +367,8 @@ class TestRehydratePydanticOutput:
             "bare-text",
             "bare-text-for-a-model-or-int",
             "json-typo-for-a-literal-or-model",
+            "json-typo-after-whitespace",
+            "valid-json-of-the-wrong-kind",
         ],
     )
     def test_error_reports_the_json_error_for_a_json_typo_and_the_text_error_otherwise(
@@ -351,6 +389,8 @@ class TestRehydratePydanticOutput:
             set[int],
             frozenset[int],
             Point,
+            deque[int],
+            Sequence[int],
         ],
         ids=[
             "model_type",
@@ -362,10 +402,51 @@ class TestRehydratePydanticOutput:
             "set_type",
             "frozen_set_type",
             "arguments_or_named_tuple_type",
+            "list_or_deque_type",
+            "sequence_str",
         ],
     )
     def test_error_reports_the_json_error_for_plain_text_sent_to_a_structured_type(self, output_type):
-        # Each id is the error pydantic raises when the whole text meets the type (a NamedTuple raises
-        # arguments_type before pydantic 2.14 and named_tuple_type from it). The JSON error says more.
+        # Each id is the error pydantic raises when the whole text meets the type (pydantic 2.14 renamed
+        # the NamedTuple and deque ones). The JSON error says more.
         with pytest.raises(ReviewedOutputValidationError, match="Invalid JSON"):
             rehydrate_pydantic_output(output_type, "hello", serialize_output=False)
+
+    def test_a_union_with_str_keeps_an_edit_that_is_not_the_model_as_text(self):
+        raw = '{"x": "not-a-number"}'
+
+        assert rehydrate_pydantic_output(A | str, raw, serialize_output=False) == raw
+
+
+def test_a_model_that_turned_off_validation_by_alias_reads_its_dump_back_unchanged():
+    output = AliasNamedLikeAnotherField(source="SRC", destination="DST")
+
+    result = rehydrate_pydantic_output(
+        AliasNamedLikeAnotherField, dump_output_to_json(output), serialize_output=False, is_edited=False
+    )
+
+    assert result == output
+
+
+class TestIsContainerMismatch:
+    @pytest.mark.parametrize(
+        "error_type",
+        [
+            "model_type",
+            "dict_type",
+            "list_type",
+            "arguments_type",
+            # Names pydantic 2.14 introduced, which the locked pydantic cannot raise.
+            "named_tuple_type",
+            "deque_type",
+            "sequence_str",
+        ],
+    )
+    def test_a_structured_type_refusing_the_whole_text(self, error_type):
+        assert _is_container_mismatch(error_type)
+
+    @pytest.mark.parametrize(
+        "error_type", ["int_parsing", "bool_parsing", "uuid_parsing", "literal_error", "enum", "json_invalid"]
+    )
+    def test_a_type_that_takes_text_rejecting_its_value(self, error_type):
+        assert not _is_container_mismatch(error_type)

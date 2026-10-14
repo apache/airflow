@@ -388,7 +388,7 @@ class LLMApprovalMixin:
                             }
                         )
                 # Compact so an unchanged selection compares equal to generated_output
-                modified = json.dumps(modified, separators=(",", ":"))
+                modified = json.dumps(modified, separators=(",", ":"), ensure_ascii=False)
             elif isinstance(modified, dict):
                 # TODO: Drop once the HITL form stops parsing a string param that looks like JSON into an
                 # object (airflow-core ui/src/utils/hitl.ts); until then a model output comes back as a dict.
