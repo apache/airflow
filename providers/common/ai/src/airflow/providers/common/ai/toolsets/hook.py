@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import base64
 import copy
+import functools
 import inspect
 import re
 import types
@@ -174,8 +175,10 @@ class HookToolset(AirflowToolset):
         if conn_attr is None or not hasattr(hook, conn_attr):
             conn_attr = "conn_id" if hasattr(hook, "conn_id") else None
         self._conn_attr = conn_attr
-        # Names of each method's ``bytes``-typed parameters, filled in by get_tools.
-        self._bytes_params: dict[str, frozenset[str]] = {}
+        self._bytes_params = {
+            method_name: _introspect_signature(getattr(hook, method_name))[1]
+            for method_name in allowed_methods
+        }
 
     @property
     def conn_id(self) -> str | None:
@@ -206,7 +209,6 @@ class HookToolset(AirflowToolset):
             tool_name = f"{self._name_prefix}{method_name}"
 
             json_schema, bytes_params = _introspect_signature(method)
-            self._bytes_params[method_name] = bytes_params
             description = _extract_description(method)
             param_docs = _parse_param_docs(method.__doc__ or "")
             properties = json_schema["properties"]
@@ -215,8 +217,9 @@ class HookToolset(AirflowToolset):
             for param_name, param_desc in param_docs.items():
                 if param_name in properties:
                     properties[param_name]["description"] = param_desc
-            # After the loop above, which would otherwise overwrite the note. Most
-            # function-calling APIs drop ``contentEncoding``; the description is what the model sees.
+            # After the loop above, which would otherwise overwrite the note. The encoding is
+            # stated in the description rather than as ``contentEncoding``: Gemini drops that
+            # keyword, and pydantic-ai passes it through to OpenAI strict mode.
             for param_name in bytes_params:
                 existing = properties[param_name].get("description")
                 properties[param_name]["description"] = (
@@ -250,9 +253,19 @@ class HookToolset(AirflowToolset):
                 max_retries=max_retries,
                 args_validator=build_args_validator(args_schema),
                 # Refused during validation, so an approval gate never asks about such a call.
-                args_validator_func=self._refuse_pinned if self._pinned else None,
+                args_validator_func=(
+                    functools.partial(self._validate_args, bytes_params)
+                    if self._pinned or bytes_params
+                    else None
+                ),
             )
         return tools
+
+    def _validate_args(self, bytes_params: frozenset[str], ctx: RunContext[Any], /, **tool_args: Any) -> None:
+        self._refuse_pinned(ctx, **tool_args)
+        # Only checked here: the decoded bytes are not kept, so what the toolset chain passes
+        # on, and CachingToolset fingerprints, stays JSON.
+        _decode_bytes_args(tool_args, bytes_params)
 
     def _refuse_pinned(self, ctx: RunContext[Any], /, **tool_args: Any) -> None:
         if supplied := sorted(self._pinned.keys() & tool_args.keys()):
@@ -274,13 +287,10 @@ class HookToolset(AirflowToolset):
         method: Callable[..., Any] = getattr(self._hook, method_name)
         # The framework bridges validate arguments without args_validator_func, so check again here.
         self._refuse_pinned(ctx, **tool_args)
-        bytes_params = self._bytes_params.get(method_name)
-        if bytes_params is None:
-            bytes_params = self._bytes_params[method_name] = _introspect_signature(method)[1]
         # Decoded here rather than in the args validator: validated arguments travel the whole
         # toolset chain, and CachingToolset fingerprints them with a plain json.dumps, so bytes
         # upstream of this point would make every binary call unverifiable on durable replay.
-        tool_args = _decode_bytes_args(tool_args, bytes_params)
+        tool_args = _decode_bytes_args(tool_args, self._bytes_params[method_name])
         # A copy per call, so a method that modifies an argument it is given cannot change the pin.
         result = await self.run_blocking(method, **tool_args, **copy.deepcopy(self._pinned))
         return serialize_for_llm(result)
@@ -337,13 +347,13 @@ def _decode_bytes_args(tool_args: dict[str, Any], bytes_params: frozenset[str]) 
         if not isinstance(value, str):
             continue
         try:
-            # validate=True: the default discards characters outside the alphabet instead of
+            # Whitespace never carries data, so line-wrapped base64 is accepted. validate=True
+            # because the default discards any other character outside the alphabet instead of
             # failing, which would store the wrong bytes without a word.
-            decoded[name] = base64.b64decode(value, validate=True)
+            decoded[name] = base64.b64decode("".join(value.split()), validate=True)
         except ValueError as e:
-            # ModelRetry is the only exception pydantic-ai feeds back to the model; any other
-            # fails the run without giving it the chance to correct the call.
-            raise ModelRetry(f"Parameter {name!r} must be base64-encoded binary data.") from e
+            # ModelRetry asks the model to correct the call; a ValueError would fail the run.
+            raise ModelRetry(f"Parameter {name!r} must be base64-encoded binary data: {e}.") from e
     return decoded
 
 
@@ -364,8 +374,8 @@ def _resolve_annotations(method: Callable[..., Any]) -> dict[str, Any]:
         try:
             hints |= get_type_hints(holder, globalns=globalns)
         except Exception:
-            # Evaluating an annotation runs arbitrary expressions: a TYPE_CHECKING-only name
-            # raises NameError, an attribute of one (``pd.DataFrame``) AttributeError.
+            # Evaluating an annotation runs an arbitrary expression: a TYPE_CHECKING-only name
+            # raises NameError, a name a module no longer has AttributeError.
             continue
     return hints
 
@@ -374,8 +384,8 @@ def _introspect_signature(method: Callable[..., Any]) -> tuple[dict[str, Any], f
     """
     Build ``method``'s JSON Schema and the names of its ``bytes``-typed parameters.
 
-    Both come from one pass, so a parameter is advertised as base64 exactly when its
-    value is decoded on the way back.
+    Both come from one pass, so the parameters described to the model as base64 are
+    exactly the ones decoded on the way back.
     """
     sig = inspect.signature(method)
     hints = _resolve_annotations(method)
@@ -399,7 +409,6 @@ def _introspect_signature(method: Callable[..., Any]) -> tuple[dict[str, Any], f
         properties[name] = prop
         if _resolves_to_bytes(annotation):
             bytes_params.add(name)
-            prop["contentEncoding"] = "base64"
 
         if param.default is inspect.Parameter.empty:
             required.append(name)

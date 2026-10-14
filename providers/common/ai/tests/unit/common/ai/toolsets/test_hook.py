@@ -47,7 +47,6 @@ from airflow.providers.common.ai.utils.tool_definition import (
 )
 
 if TYPE_CHECKING:
-    import fractions
     from decimal import Decimal
 
 
@@ -278,16 +277,12 @@ class TestHookToolsetGetTools:
         assert "description" in props["bucket"]
         assert "S3 bucket" in props["bucket"]["description"]
 
-    def test_bytes_params_declare_base64_encoding(self):
+    def test_bytes_params_ask_for_base64_in_their_description(self):
         ts = HookToolset(_FakeHook(), allowed_methods=["upload_bytes"])
         tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
 
         props = tools["upload_bytes"].tool_def.parameters_json_schema["properties"]
-        assert props["data"] == {
-            "type": "string",
-            "contentEncoding": "base64",
-            "description": f"Content to store. {_BASE64_PARAM_NOTE}",
-        }
+        assert props["data"] == {"type": "string", "description": f"Content to store. {_BASE64_PARAM_NOTE}"}
         assert props["key"] == {"type": "string", "description": "Destination key."}
 
     def test_base64_note_is_added_to_a_param_without_docs(self):
@@ -297,7 +292,6 @@ class TestHookToolsetGetTools:
         props = tools["upload_optional_bytes"].tool_def.parameters_json_schema["properties"]
         assert props["data"] == {
             "anyOf": [{"type": "string"}, {"type": "null"}],
-            "contentEncoding": "base64",
             "description": _BASE64_PARAM_NOTE,
         }
 
@@ -426,13 +420,25 @@ class TestHookToolsetBytes:
             pytest.param("upload_optional_bytes", {"data": "aGk="}, "data type=bytes", id="optional-bytes"),
             pytest.param("upload_optional_bytes", {"data": None}, "data type=NoneType", id="explicit-null"),
             pytest.param("upload_optional_bytes", {}, "data type=NoneType", id="omitted"),
+            pytest.param(
+                "upload_bytes",
+                {"data": "aGVs\nbG8=\n", "key": "k"},
+                "uploaded 5 bytes to k (type=bytes)",
+                id="line-wrapped",
+            ),
         ],
     )
     def test_decodes_base64_for_bytes_params(self, method_name, tool_args, expected):
         assert self._call(method_name, tool_args) == expected
 
     @pytest.mark.parametrize(
-        "value", ["hello world", "not base64!!", "abc"], ids=["text", "punctuation", "bad-padding"]
+        "value",
+        [
+            pytest.param("hello world", id="text"),
+            pytest.param("abc", id="bad-padding"),
+            # Decodes to b"hello" when characters outside the alphabet are discarded.
+            pytest.param("aGVs*bG8=", id="outside-alphabet"),
+        ],
     )
     def test_an_undecodable_value_asks_the_model_to_retry(self, value):
         with pytest.raises(ModelRetry, match="'data' must be base64-encoded"):
@@ -468,6 +474,23 @@ class TestHookToolsetBytes:
 
         assert "'data' must be base64-encoded binary data" in answer
         assert answer.endswith("uploaded 5 bytes to k (type=bytes)")
+
+    def test_an_approval_gate_is_never_asked_about_an_undecodable_value(self):
+        """A task instance can pause for approval only once, so the request must be one that can run."""
+        ts = HookToolset(_FakeHook(), allowed_methods=["upload_bytes"])
+        valid = {"data": base64.b64encode(b"hello").decode(), "key": "k"}
+        attempts = iter([{"data": "hello world", "key": "k"}, valid])
+
+        def model(messages, info):
+            return ModelResponse(parts=[ToolCallPart("upload_bytes", next(attempts), tool_call_id="c")])
+
+        agent = Agent(
+            FunctionModel(model), toolsets=[ts.approval_required()], output_type=[str, DeferredToolRequests]
+        )
+        output = agent.run_sync("upload").output
+
+        assert isinstance(output, DeferredToolRequests)
+        assert [call.args for call in output.approvals] == [valid]
 
     def test_a_pinned_bytes_argument_is_passed_as_given(self):
         ts = HookToolset(_FakeHook(), allowed_methods=["upload_bytes"], pinned_arguments={"data": b"raw"})
@@ -510,11 +533,14 @@ class TestBytesParamDetection:
         ],
     )
     def test_only_bytes_and_optional_bytes_are_decoded(self, func, is_bytes_param):
-        schema, bytes_params = _introspect_signature(func)
+        hook = type("_Hook", (), {"method": staticmethod(func)})()
+        ts = HookToolset(hook, allowed_methods=["method"])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+        prop = tools["method"].tool_def.parameters_json_schema["properties"]["value"]
 
-        assert ("value" in bytes_params) is is_bytes_param
-        # A parameter advertised as base64 but never decoded would hand the hook the encoded text.
-        assert ("base64" in json.dumps(schema["properties"]["value"])) is is_bytes_param
+        assert ("value" in _introspect_signature(func)[1]) is is_bytes_param
+        # A parameter described as base64 but never decoded would hand the hook the encoded text.
+        assert (_BASE64_PARAM_NOTE in prop.get("description", "")) is is_bytes_param
 
     def test_var_args_are_never_decoded(self):
         def fn(*chunks: bytes, **extra: bytes): ...
@@ -534,14 +560,16 @@ class TestBytesParamDetection:
         assert bytes_params == {"data"}
         assert schema["properties"]["data"]["type"] == "string"
 
-    def test_an_attribute_of_an_unresolvable_module_does_not_hide_the_other_params(self):
-        # Like ``-> pd.DataFrame`` with pandas imported under TYPE_CHECKING.
-        def fn(data: bytes, ratio: fractions.Fraction | None = None): ...
+    def test_a_name_missing_from_an_imported_module_does_not_hide_the_other_params(self):
+        def fn(data: bytes, other=None): ...
+
+        # Raises AttributeError, not NameError, when evaluated: ``json`` is imported.
+        fn.__annotations__["other"] = "json.NoSuchType | None"
 
         schema, bytes_params = _introspect_signature(fn)
 
         assert bytes_params == {"data"}
-        assert schema["properties"]["ratio"] == {}
+        assert schema["properties"]["other"] == {}
 
 
 class TestBuildJsonSchemaFromSignature:
@@ -680,6 +708,10 @@ class TestSerializeForLlm:
 
     def test_utf8_bytes_are_returned_as_text(self):
         assert serialize_for_llm("café".encode()) == "café"
+
+    @pytest.mark.enable_redact
+    def test_utf8_bytes_are_masked(self, registered_secret):
+        assert serialize_for_llm(f"password={registered_secret}".encode()) == "password=***"
 
     def test_non_utf8_bytes_are_returned_as_base64(self):
         assert json.loads(serialize_for_llm(b"\x89PNG\xff")) == {"base64": "iVBOR/8="}

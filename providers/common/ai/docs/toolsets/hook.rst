@@ -179,23 +179,26 @@ Parameters
   or one that supplies a pinned argument. Default ``None``, the agent's ``retries``. See
   :ref:`toolset-retry-budget`.
 
+.. _hook-toolset-binary-data:
+
 Binary data
 -----------
 
 JSON has no binary type, so ``bytes`` travels between the model and the hook as
 base64. A parameter typed ``bytes`` or ``bytes | None``, such as ``bytes_data`` of
-``S3Hook.load_bytes``, is offered to the model as a base64 string: the schema
-declares ``contentEncoding: base64``, and the parameter description says the same,
-because most function-calling APIs drop that keyword. The value is decoded before
-the method is called. A value that is not valid base64 never reaches the hook; the
-model is asked to correct the call. A parameter that also accepts text, such as
-``bytes | str``, receives the string the model sent.
+``S3Hook.load_bytes``, is offered to the model as a string whose description asks
+for base64, and the value is decoded before the method is called. A value that is
+not valid base64 is refused while the call's arguments are validated, before an
+approval gate or the hook sees it, and the model is asked to correct the call.
+Decoding cannot tell every plain word from base64, though: ``test`` decodes, to
+other bytes. A parameter that also accepts text, such as ``bytes | str``, receives
+the string the model sent.
 
 A method that returns ``bytes``, such as ``GCSHook.download``, gives the model the
-text when the bytes are valid UTF-8, and ``{"base64": "..."}`` when they are not, so
-a binary file the model read can be passed to a ``bytes`` parameter unchanged.
-``bytes`` nested in a returned list or dict are rendered as UTF-8 text, with any
-byte that does not decode replaced.
+text when the bytes are valid UTF-8, and ``{"base64": "..."}`` when they are not.
+The value of ``base64`` can be passed to a ``bytes`` parameter as it is; text has
+to be encoded by the model first. ``bytes`` nested in a returned list or dict are
+rendered as UTF-8 text, with any byte that does not decode replaced.
 
 When to choose it
 -----------------
@@ -222,7 +225,8 @@ reflection-based adapter, so the work is choosing the method list.
   in that step, not only this toolset's. This is not specific to ``HookToolset``;
   see :ref:`toolset-call-barriers`.
 - It returns exactly one shape. Every result goes through ``serialize_for_llm``
-  and comes back as a JSON-encoded string; there is no structured error type and
+  and comes back as a string, JSON-encoded unless it was text (see
+  :ref:`hook-toolset-binary-data`); there is no structured error type and
   no ``ModelRetry`` wrapper, so a hook exception fails the agent run, and the
   task with it, instead of giving the model something it can correct.
   ``SQLToolset``, by contrast, hands the database's own error back as a retry.

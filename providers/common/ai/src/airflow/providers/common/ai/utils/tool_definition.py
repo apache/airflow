@@ -55,7 +55,7 @@ def serialize_for_llm(value: Any) -> str:
 
     ``bytes`` that are valid UTF-8 are returned as their text, like a ``str``. Any other
     ``bytes`` are returned as ``{"base64": "..."}``, whose value the model can pass unchanged
-    to a ``bytes`` parameter, rather than as text with the undecodable bytes replaced. ``bytes``
+    to a ``bytes`` parameter, rather than as text with the bytes that do not decode replaced. ``bytes``
     nested inside a container are still rendered as UTF-8 text.
 
     :param value: The tool's return value.
