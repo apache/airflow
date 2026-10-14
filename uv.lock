@@ -2707,7 +2707,7 @@ requires-dist = [
     { name = "sphinxcontrib-httpdomain", marker = "extra == 'docs'", specifier = ">=1.8.1" },
     { name = "sphinxcontrib-jquery", marker = "extra == 'docs'", specifier = ">=4.1" },
     { name = "sphinxcontrib-jsmath", marker = "extra == 'docs'", specifier = ">=1.0.1" },
-    { name = "sphinxcontrib-mermaid", marker = "extra == 'docs'", specifier = ">=1.0.0" },
+    { name = "sphinxcontrib-mermaid", marker = "extra == 'docs'", specifier = ">=2.1.0" },
     { name = "sphinxcontrib-qthelp", marker = "extra == 'docs'", specifier = ">=1.0.3" },
     { name = "sphinxcontrib-serializinghtml", marker = "extra == 'docs'", specifier = ">=1.1.5" },
     { name = "sphinxcontrib-spelling", marker = "extra == 'docs'", specifier = ">=8.0.0" },
