@@ -990,7 +990,14 @@ export type DAGDetailsResponse = {
     [key: string]: (string);
 } | null;
     is_favorite?: boolean;
+    /**
+     * Number of currently running runs (backfill runs excluded).
+     */
     active_runs_count?: number;
+    /**
+     * Number of currently queued runs (backfill runs excluded).
+     */
+    queued_runs_count?: number;
     /**
      * Whether this Dag is currently at its max_active_runs limit, counting running and queued runs (backfill runs excluded).
      */

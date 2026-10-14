@@ -3284,7 +3284,19 @@ class DAGDetailsResponse(BaseModel):
     rerun_with_latest_version: Annotated[bool | None, Field(title="Rerun With Latest Version")] = None
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
-    active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
+    active_runs_count: Annotated[
+        int | None,
+        Field(
+            description="Number of currently running runs (backfill runs excluded).",
+            title="Active Runs Count",
+        ),
+    ] = 0
+    queued_runs_count: Annotated[
+        int | None,
+        Field(
+            description="Number of currently queued runs (backfill runs excluded).", title="Queued Runs Count"
+        ),
+    ] = 0
     is_at_max_active_runs: Annotated[
         bool,
         Field(

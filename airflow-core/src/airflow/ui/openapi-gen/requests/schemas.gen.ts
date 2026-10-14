@@ -3558,6 +3558,13 @@ export const $DAGDetailsResponse = {
         active_runs_count: {
             type: 'integer',
             title: 'Active Runs Count',
+            description: 'Number of currently running runs (backfill runs excluded).',
+            default: 0
+        },
+        queued_runs_count: {
+            type: 'integer',
+            title: 'Queued Runs Count',
+            description: 'Number of currently queued runs (backfill runs excluded).',
             default: 0
         },
         is_at_max_active_runs: {
