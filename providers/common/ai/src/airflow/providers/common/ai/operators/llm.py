@@ -378,10 +378,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         except BaseException:
             # A run that raises partway through (e.g. a cost_limit-triggered UsageLimitExceeded)
             # still reports what it spent: the capped run is the one cost tracking most needs.
-            try:
-                log_run_usage(self.log, attempt_usage, outcome="failed")
-            except Exception:
-                self.log.warning("Failed to log partial usage for the failed run", exc_info=True)
+            log_run_usage(self.log, attempt_usage, outcome="failed")
             try:
                 self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
             except Exception:
