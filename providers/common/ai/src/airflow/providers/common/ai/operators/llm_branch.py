@@ -122,8 +122,10 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         every downstream task rather than only the direct ones, so a task whose
         trigger rule would still run it is skipped too. Only takes effect when a
         review is opened. Default ``False``.
-    :param agent_params: Additional keyword arguments passed to the pydantic-ai
-        ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
+    :param model_settings: Pydantic AI ``ModelSettings`` for the model call, such as
+        ``temperature`` or ``max_tokens``. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+    :param output_retries: How many times the model is asked again when its output
+        fails validation. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
 
     ``usage_limits`` is inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
@@ -229,10 +231,9 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
-        agent = self.llm_hook.create_agent(
+        agent = self._create_agent(
             output_type=output_type,
             instructions=self.system_prompt,
-            **self.agent_params,
         )
         result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output

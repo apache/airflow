@@ -35,7 +35,8 @@ Fields that pydantic-ai regenerates on every attempt (message-level
 ``timestamp``/``run_id``/``conversation_id``, part-level ``timestamp``, the
 ``capability_id`` of a tool from a capability without an ``id``) are excluded
 from the fingerprint, and set-valued request
-parameters are sorted or dropped.  Requests that cannot be serialized to JSON
+parameters are sorted or dropped.  Registered secrets in the message history are
+masked before hashing, as they are in the tool results the journal records.  Requests that cannot be serialized to JSON
 fingerprint as ``None``, which degrades that step to unverified positional
 replay (the pre-fingerprint behavior) rather than disabling caching.
 """
@@ -50,6 +51,7 @@ from pydantic import TypeAdapter
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import ModelRequestParameters
 
+from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.prompt_cache import PROMPT_CACHE_SETTING_NAMES
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
@@ -154,7 +156,11 @@ def fingerprint_model_request(
         return _digest(
             {
                 "model": model_identifier,
-                "messages": _strip_volatile(dumped),
+                # The journal records tool results with secrets masked, and not everything in a
+                # live run's history is (an output function's result, for one), so a replayed
+                # history can hold ``***`` where the live one held the secret. Masking the
+                # history here as well makes both match.
+                "messages": _strip_volatile(mask_secrets(dumped)),
                 "settings": _content_settings(model_settings),
                 "params": _normalize_params(params),
             }
