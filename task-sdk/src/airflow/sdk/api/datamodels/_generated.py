@@ -136,6 +136,20 @@ class DagParseTokenResponse(BaseModel):
     ]
 
 
+class DagProcessorSessionTokenResponse(BaseModel):
+    """
+    A session credential issued after workload identity verification.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    token: Annotated[str, Field(min_length=1, title="Token")]
+    expires_in: Annotated[
+        int, Field(description="Seconds until the session credential expires.", gt=0, title="Expires In")
+    ]
+
+
 class DagResponse(BaseModel):
     """
     Schema for DAG response.
