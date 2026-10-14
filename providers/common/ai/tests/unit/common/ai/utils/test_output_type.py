@@ -361,10 +361,11 @@ class TestRehydratePydanticOutput:
             "tuple_type",
             "set_type",
             "frozen_set_type",
-            "arguments_type",
+            "arguments_or_named_tuple_type",
         ],
     )
     def test_error_reports_the_json_error_for_plain_text_sent_to_a_structured_type(self, output_type):
-        # Each id is the error pydantic raises when the whole text meets the type; the JSON error says more.
+        # Each id is the error pydantic raises when the whole text meets the type (a NamedTuple raises
+        # arguments_type before pydantic 2.14 and named_tuple_type from it). The JSON error says more.
         with pytest.raises(ReviewedOutputValidationError, match="Invalid JSON"):
             rehydrate_pydantic_output(output_type, "hello", serialize_output=False)

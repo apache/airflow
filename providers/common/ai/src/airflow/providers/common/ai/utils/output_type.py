@@ -37,6 +37,7 @@ _MAX_SHOWN_CHARS = 200
 # such as a validator's network or timeout error, propagates instead of reading as a failed conversion.
 _CONVERSION_ERRORS = (ValidationError, ValueError, TypeError, AttributeError, KeyError, IndexError)
 # Errors pydantic raises when a whole string meets a structured type, so the JSON error says more.
+# A NamedTuple raises ``arguments_type`` before pydantic 2.14 and ``named_tuple_type`` from it.
 _CONTAINER_MISMATCH_TYPES = frozenset(
     {
         "model_type",
@@ -48,6 +49,7 @@ _CONTAINER_MISMATCH_TYPES = frozenset(
         "set_type",
         "frozen_set_type",
         "arguments_type",
+        "named_tuple_type",
     }
 )
 
