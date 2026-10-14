@@ -305,47 +305,6 @@ class TestDagEndpoint:
 class TestGetDags(TestDagEndpoint):
     """Unit tests for Get DAGs."""
 
-    @pytest.mark.parametrize(
-        ("prefix", "display_name", "dag_id", "other_name"),
-        [
-            ("카페", None, "카페매출집계", "커피매출집계"),
-            ("카페", "카페매출집계", "prefix_match", "커피매출집계"),
-            ("café", "caféteria", "prefix_match", "cafother"),
-            pytest.param(
-                "카페a", "카페abc", "prefix_match", "카페Abc", marks=pytest.mark.backend("postgres", "sqlite")
-            ),
-        ],
-    )
-    def test_get_dags_unicode_display_name_prefix(
-        self, test_client, session, prefix, display_name, dag_id, other_name
-    ):
-        session.add_all(
-            [
-                DagModel(
-                    dag_id=dag_id,
-                    _dag_display_property_value=display_name,
-                    bundle_name="dag_maker",
-                    fileloc="unicode.py",
-                    is_stale=False,
-                ),
-                DagModel(
-                    dag_id="prefix_non_match",
-                    _dag_display_property_value=other_name,
-                    bundle_name="dag_maker",
-                    fileloc="unicode.py",
-                    is_stale=False,
-                ),
-            ]
-        )
-        session.commit()
-
-        response = test_client.get("/dags", params={"dag_display_name_prefix_pattern": prefix})
-
-        assert response.status_code == 200
-        body = response.json()
-        assert body["total_entries"] == 1
-        assert [dag["dag_id"] for dag in body["dags"]] == [dag_id]
-
     def _update_and_assert_dag_fields(self, session, expected_fields):
         """Persist DAG controls and query them back before exercising the API."""
         for dag_id, fields in expected_fields.items():

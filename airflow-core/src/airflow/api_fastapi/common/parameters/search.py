@@ -100,9 +100,13 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         that back. It is an equality and not ``LIKE 'lower%'`` so it resolves under the same
         collation as the bounds — ``LIKE`` is case-insensitive on SQLite and MySQL ``_ci``
         columns, and would keep leaking case variants.
+
+        The upper bound is dropped when its bumped character is non-ASCII: the next code point
+        does not follow collation order there (PostgreSQL ``en_US.utf8`` sorts ``'카페매출집계'``
+        after ``'카펙'``), so the bound would exclude real matches.
         """
         clauses: list[ColumnElement[bool]] = [column >= lower]
-        if upper is not None:
+        if upper is not None and upper[-1].isascii():
             clauses.append(column < upper)
         clauses.append(func.substr(column, 1, len(lower)) == lower)
         return clauses
@@ -362,15 +366,12 @@ def prefix_search_param_factory(
     prefix_pattern_name: str,
     skip_none: bool = True,
     pipe_as_or: bool = True,
-    param_class: type[_PrefixSearchParam] = _PrefixSearchParam,
-    description: str | None = None,
 ) -> Callable[[str | None], _PrefixSearchParam]:
     """
     Build a FastAPI ``Depends`` returning a :class:`_PrefixSearchParam` for prefix matching.
 
     Prefer this over :func:`search_param_factory` for performance: prefix matching uses a
     B-tree index range scan, while substring matching requires a full table scan.
-    ``param_class`` can specialize matching for expressions requiring different predicates.
     """
     DESCRIPTION = (
         "Case-sensitive, index-friendly prefix match. "
@@ -379,11 +380,9 @@ def prefix_search_param_factory(
     )
 
     def depends_prefix_search(
-        value: str | None = Query(
-            alias=prefix_pattern_name, default=None, description=description or DESCRIPTION
-        ),
+        value: str | None = Query(alias=prefix_pattern_name, default=None, description=DESCRIPTION),
     ) -> _PrefixSearchParam:
-        search_parm = param_class(attribute, skip_none, pipe_as_or=pipe_as_or)
+        search_parm = _PrefixSearchParam(attribute, skip_none, pipe_as_or=pipe_as_or)
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
 

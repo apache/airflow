@@ -27,15 +27,7 @@ from typing import (
 
 from fastapi import Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import (
-    and_,
-    false as sql_false,
-    func,
-    not_,
-    or_,
-    select as sql_select,
-    true as sql_true,
-)
+from sqlalchemy import and_, false as sql_false, not_, or_, select as sql_select, true as sql_true
 
 from airflow.api_fastapi.common.parameters.base import BaseParam, T
 from airflow.api_fastapi.common.parameters.filter import FilterParam, filter_param_factory
@@ -57,18 +49,6 @@ from airflow.utils.state import DagSchedulingState
 if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
-
-
-class _DagDisplayNamePrefixSearchParam(_PrefixSearchParam):
-    """Match Unicode display-name prefixes without code point bounds that can disagree with collation order."""
-
-    def _prefix_clause(self, term: str):
-        lower = self._prefix_lower_bound(term)
-        if lower and not lower.isascii():
-            # Keep this fallback scoped to Dag display names; the shared matcher is tracked in
-            # https://github.com/apache/airflow/issues/74551
-            return func.substr(self.attribute, 1, len(lower)) == lower
-        return super()._prefix_clause(term)
 
 
 class _FavoriteFilter(BaseParam[bool]):
@@ -391,14 +371,7 @@ QueryDagDisplayNamePatternSearch = Annotated[
 
 QueryDagDisplayNamePrefixPatternSearch = Annotated[
     _PrefixSearchParam,
-    Depends(
-        prefix_search_param_factory(
-            DagModel.dag_display_name,
-            "dag_display_name_prefix_pattern",
-            param_class=_DagDisplayNamePrefixSearchParam,
-            description='Case-sensitive prefix match. See "Filtering with pattern parameters".',
-        )
-    ),
+    Depends(prefix_search_param_factory(DagModel.dag_display_name, "dag_display_name_prefix_pattern")),
 ]
 
 QueryTimetableTypePrefixPatternSearch = Annotated[

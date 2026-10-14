@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import Column, MetaData, String, Table, case, create_engine, select, text
+from sqlalchemy import Column, MetaData, String, Table, create_engine, literal, select, text
 from sqlalchemy.orm import aliased
 
 from airflow.api_fastapi.common.parameters import (
@@ -38,7 +38,7 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.parameters.asset import _AssetDependencyFilter, _ConsumingAssetFilter
-from airflow.api_fastapi.common.parameters.dag import _DagDisplayNamePrefixSearchParam, _OwnersFilter
+from airflow.api_fastapi.common.parameters.dag import _OwnersFilter
 from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter
 from airflow.api_fastapi.common.parameters.search import (
     _escape_like_pattern,
@@ -487,6 +487,26 @@ class TestPrefixSearchParam:
         assert "dag_id < 'dah'" in sql
         assert "substr(dag.dag_id, 1, 5) = 'dag_9'" in sql
 
+    @pytest.mark.parametrize(
+        ("term", "upper"),
+        [
+            ("münchen", "müncheo"),
+            ("카페a", "카페b"),
+            ("카페", None),
+            ("café", None),
+        ],
+    )
+    def test_to_orm_drops_upper_bound_after_non_ascii_bump(self, term, upper):
+        param = _PrefixSearchParam(DagModel.dag_id).set_value(term)
+        sql = _compile(param.to_orm(select(DagModel)))
+
+        assert f"dag_id >= '{term}'" in sql
+        assert f"substr(dag.dag_id, 1, {len(term)}) = '{term}'" in sql
+        if upper is None:
+            assert "dag_id <" not in sql
+        else:
+            assert f"dag_id < '{upper}'" in sql
+
     def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
         """``pipe_as_or=False`` must not interfere with the ``~`` → empty alias."""
         param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False)
@@ -557,55 +577,26 @@ class TestPrefixSearchParamOnARealEngine:
 
 
 @pytest.mark.db_test
-@pytest.mark.backend("postgres")
+@pytest.mark.backend("postgres", "mysql")
 @pytest.mark.parametrize(
-    ("collation", "prefix", "name"),
+    ("term", "value"),
     [
-        ("libc", "카페", "카페매출집계"),
-        ("libc", "café", "caféteria"),
-        ("icu", "카페", "카페매출집계"),
-        ("icu", "카페a", "카페Abc"),
-        ("icu", "Å", "Å카페"),
+        ("카페", "카페매출집계"),
+        ("café", "caféteria"),
+        ("카페a", "카페abc"),
     ],
 )
-def test_dag_display_name_prefix_with_collation(session, collation, prefix, name):
-    if collation == "libc":
-        if not session.scalar(
-            text("SELECT EXISTS (SELECT 1 FROM pg_collation WHERE collname = 'en_US.utf8')")
-        ):
-            pytest.skip("Requires PostgreSQL en_US.utf8 collation")
-        session.execute(text('CREATE COLLATION prefix_test_collation FROM "en_US.utf8"'))
+def test_prefix_search_matches_under_locale_collation(session, term, value):
+    if session.get_bind().dialect.name == "mysql":
+        collation = "utf8mb4_unicode_ci"
+    elif session.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_collation WHERE collname = 'en_US.utf8')")):
+        collation = "en_US.utf8"
     else:
-        if not session.scalar(text("SELECT EXISTS (SELECT 1 FROM pg_collation WHERE collprovider = 'i')")):
-            pytest.skip("Requires PostgreSQL ICU collations")
-        session.execute(
-            text(
-                "CREATE COLLATION prefix_test_collation "
-                "(provider = icu, locale = 'und-u-ks-level2', deterministic = false)"
-            )
-        )
-    table = Table(
-        "prefix_collation_probe",
-        MetaData(),
-        Column("dag_id", String(250, collation="prefix_test_collation")),
-        Column("dag_display_name", String(2000)),
-        prefixes=["TEMPORARY"],
-    )
-    table.create(session.connection())
-    session.execute(
-        table.insert(),
-        [
-            {"dag_id": name, "dag_display_name": None},
-            {"dag_id": "display_match", "dag_display_name": name},
-            {"dag_id": "non_match", "dag_display_name": "다른이름"},
-        ],
-    )
-    display_name = case(
-        (table.c.dag_display_name.is_not(None), table.c.dag_display_name), else_=table.c.dag_id
-    )
-    param = _DagDisplayNamePrefixSearchParam(display_name).set_value(prefix)
+        pytest.skip("Requires the PostgreSQL en_US.utf8 collation")
+    column = literal(value, type_=String()).collate(collation)
+    param = _PrefixSearchParam(column).set_value(term)
 
-    assert set(session.scalars(param.to_orm(select(table.c.dag_id)))) == {name, "display_match"}
+    assert session.scalars(param.to_orm(select(column))).all() == [value]
 
 
 class TestTaskDisplayNamePrefixPatternParam:

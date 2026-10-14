@@ -23,7 +23,6 @@ from typing import (
 
 from fastapi import Depends
 
-from airflow.api_fastapi.common.parameters.dag import QueryDagDisplayNamePrefixPatternSearch
 from airflow.api_fastapi.common.parameters.search import (
     _PrefixSearchParam,
     _SearchParam,
@@ -46,7 +45,10 @@ QueryXComDagDisplayNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagModel.dag_display_name, "dag_display_name_pattern"))
 ]
 
-QueryXComDagDisplayNamePrefixPatternSearch = QueryDagDisplayNamePrefixPatternSearch
+QueryXComDagDisplayNamePrefixPatternSearch = Annotated[
+    _PrefixSearchParam,
+    Depends(prefix_search_param_factory(DagModel.dag_display_name, "dag_display_name_prefix_pattern")),
+]
 
 QueryXComRunIdPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(XComModel.run_id, "run_id_pattern"))
