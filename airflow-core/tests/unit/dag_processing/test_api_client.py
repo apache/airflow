@@ -21,7 +21,7 @@ import runpy
 from contextvars import Context
 from unittest import mock
 
-import httpx
+import httpx2
 import jwt
 import pytest
 from tenacity import wait_none
@@ -50,7 +50,7 @@ def make_job_token(**claims):
 
 
 def make_registration_response(*, job_id=1, token=None, expires_in=300, **kwargs):
-    return httpx.Response(
+    return httpx2.Response(
         201,
         json={"job_id": job_id, "token": token or make_job_token(job_id=job_id), "expires_in": expires_in},
         **kwargs,
@@ -94,7 +94,7 @@ def make_client(token_file, clock):
             base_url="http://api/execution/",
             token_file=token_file,
             hostname="processor-1",
-            transport=httpx.MockTransport(handle),
+            transport=httpx2.MockTransport(handle),
             **kwargs,
         )
         clients.append(client)
@@ -108,8 +108,8 @@ def make_client(token_file, clock):
 def test_registration_and_runtime_use_distinct_credentials(make_client):
     client, requests = make_client(
         make_registration_response(headers={"Refreshed-API-Token": "wrong-token"}),
-        httpx.Response(200, json={"state": "restarting"}, headers={"Refreshed-API-Token": "wrong-token"}),
-        httpx.Response(200, json={"state": "running"}),
+        httpx2.Response(200, json={"state": "restarting"}, headers={"Refreshed-API-Token": "wrong-token"}),
+        httpx2.Response(200, json={"state": "running"}),
         unixname="airflow",
         bundle_names=["bundle-a"],
     )
@@ -133,17 +133,17 @@ def test_registration_and_runtime_use_distinct_credentials(make_client):
 
 def test_unread_non_json_error_body_is_a_plain_status_error(make_client):
     client, _ = make_client(
-        httpx.Response(
-            409, headers={"content-type": "text/html"}, stream=httpx.ByteStream(b"<html>proxy error</html>")
+        httpx2.Response(
+            409, headers={"content-type": "text/html"}, stream=httpx2.ByteStream(b"<html>proxy error</html>")
         )
     )
 
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(httpx2.HTTPStatusError):
         client.register_job(retry=False)
 
 
 def test_registration_identity_survives_response_loss_but_not_a_process_restart(make_client):
-    first, requests = make_client(httpx.ReadError("Lost acknowledgment"), make_registration_response())
+    first, requests = make_client(httpx2.ReadError("Lost acknowledgment"), make_registration_response())
     second, _ = make_client()
 
     first.register_job()
@@ -160,16 +160,16 @@ def test_registration_reloads_a_rotated_credential_after_authentication_failure(
 ):
     def rotate(request):
         token_file.write_text("session-2")
-        return httpx.Response(status)
+        return httpx2.Response(status)
 
     client, requests = make_client(
-        rotate, make_registration_response() if succeeds else httpx.Response(status)
+        rotate, make_registration_response() if succeeds else httpx2.Response(status)
     )
 
     if succeeds:
         client.register_job()
     else:
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(httpx2.HTTPStatusError):
             client.register_job()
 
     assert [request.headers["Authorization"] for request in requests] == [
@@ -181,10 +181,10 @@ def test_registration_reloads_a_rotated_credential_after_authentication_failure(
 
 @pytest.mark.parametrize("status", [401, 403, 404, 409])
 def test_registration_errors_do_not_start_another_job(make_client, status):
-    client, requests = make_client(httpx.Response(status))
+    client, requests = make_client(httpx2.Response(status))
     registration_id = client.registration_id
 
-    with pytest.raises(httpx.HTTPStatusError) as error:
+    with pytest.raises(httpx2.HTTPStatusError) as error:
         client.register_job()
 
     assert error.value.response.status_code == status
@@ -195,7 +195,7 @@ def test_registration_errors_do_not_start_another_job(make_client, status):
 
 def test_registration_retry_after_a_crashed_job_keeps_its_identity(make_client):
     client, requests = make_client(
-        httpx.Response(409, json={"detail": {"reason": "job_running"}}),
+        httpx2.Response(409, json={"detail": {"reason": "job_running"}}),
         make_registration_response(),
     )
     registration_id = client.registration_id
@@ -212,9 +212,9 @@ def test_registration_retry_after_a_crashed_job_keeps_its_identity(make_client):
 def test_rotation_is_detected_within_the_cache_interval(make_client, token_file, clock):
     client, requests = make_client(
         make_registration_response(),
-        httpx.Response(204),
+        httpx2.Response(204),
         make_registration_response(token=make_job_token(iat=30, exp=330)),
-        httpx.Response(204),
+        httpx2.Response(204),
     )
     client.register_job()
     token_file.write_text("session-2")
@@ -235,7 +235,7 @@ def test_rotation_is_detected_within_the_cache_interval(make_client, token_file,
 
 def test_job_token_renewal_uses_monotonic_time(make_client, clock, time_machine):
     client, requests = make_client(
-        make_registration_response(), httpx.Response(204), make_registration_response(), httpx.Response(204)
+        make_registration_response(), httpx2.Response(204), make_registration_response(), httpx2.Response(204)
     )
     client.register_job()
     time_machine.move_to("2030-01-01", tick=False)
@@ -251,10 +251,10 @@ def test_job_token_renewal_uses_monotonic_time(make_client, clock, time_machine)
 
 @pytest.mark.parametrize("status", [401, 403, 404, 409])
 def test_runtime_errors_do_not_renew_credentials(make_client, status):
-    client, requests = make_client(make_registration_response(), httpx.Response(status))
+    client, requests = make_client(make_registration_response(), httpx2.Response(status))
     client.register_job()
 
-    with pytest.raises(httpx.HTTPStatusError) as error:
+    with pytest.raises(httpx2.HTTPStatusError) as error:
         client.get("resource")
 
     assert error.value.response.status_code == status
@@ -262,14 +262,14 @@ def test_runtime_errors_do_not_renew_credentials(make_client, status):
 
 
 @pytest.mark.parametrize("expired", [False, True])
-@pytest.mark.parametrize("failure", [httpx.ReadError("Unavailable"), httpx.Response(503)])
+@pytest.mark.parametrize("failure", [httpx2.ReadError("Unavailable"), httpx2.Response(503)])
 def test_heartbeat_does_not_retry_transport_failures(make_client, clock, expired, failure):
     client, requests = make_client(make_registration_response(), failure)
     client.register_job()
     if expired:
         clock.return_value = 300
 
-    with pytest.raises(httpx.HTTPError):
+    with pytest.raises(httpx2.HTTPError):
         client.heartbeat()
 
     assert len(requests) == 2
@@ -334,7 +334,7 @@ def test_runtime_operations_require_registration(make_client, operation):
 
 def test_completion_recovers_a_lost_acknowledgment_with_the_same_token_and_outcome(make_client):
     client, requests = make_client(
-        make_registration_response(), httpx.ReadError("Lost acknowledgment"), httpx.Response(204)
+        make_registration_response(), httpx2.ReadError("Lost acknowledgment"), httpx2.Response(204)
     )
     client.register_job()
 
@@ -352,11 +352,11 @@ def test_completion_retries_remain_possible_after_transport_retries_are_exhauste
 ):
     client, requests = make_client(
         make_registration_response(),
-        *[httpx.ReadError("Lost acknowledgment") for _ in range(API_RETRIES)],
-        httpx.Response(204),
+        *[httpx2.ReadError("Lost acknowledgment") for _ in range(API_RETRIES)],
+        httpx2.Response(204),
     )
     client.register_job()
-    with pytest.raises(httpx.ReadError):
+    with pytest.raises(httpx2.ReadError):
         client.complete_job(TerminalJobState.FAILED)
     token_file.unlink()
     clock.return_value = 290
@@ -370,12 +370,12 @@ def test_completion_retries_remain_possible_after_transport_retries_are_exhauste
 
 @pytest.mark.parametrize("status", [204, 401, 403, 404])
 def test_completion_stops_normal_work_even_when_acknowledgment_is_uncertain(make_client, status):
-    client, requests = make_client(make_registration_response(), httpx.Response(status))
+    client, requests = make_client(make_registration_response(), httpx2.Response(status))
     client.register_job()
     if status == 204:
         client.complete_job(TerminalJobState.SUCCESS)
     else:
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(httpx2.HTTPStatusError):
             client.complete_job(TerminalJobState.SUCCESS)
 
     with pytest.raises(RuntimeError, match="only completion retries"):
@@ -395,17 +395,17 @@ def test_invalid_reload_interval_is_rejected(make_client, interval):
 
 @pytest.mark.parametrize("operation", ["runtime", "heartbeat"])
 @pytest.mark.parametrize(
-    "failure", [httpx.ReadTimeout("Unavailable"), httpx.Response(503), httpx.Response(403)]
+    "failure", [httpx2.ReadTimeout("Unavailable"), httpx2.Response(503), httpx2.Response(403)]
 )
 def test_failed_early_renewal_keeps_using_the_valid_token(make_client, clock, operation, failure):
     response_body = {"state": "running"} if operation == "heartbeat" else {"key": "key", "value": "value"}
     client, requests = make_client(
         make_registration_response(),
         failure,
-        httpx.Response(200, json=response_body),
-        httpx.Response(200, json=response_body),
+        httpx2.Response(200, json=response_body),
+        httpx2.Response(200, json=response_body),
         make_registration_response(),
-        httpx.Response(204),
+        httpx2.Response(204),
     )
     client.register_job()
     clock.return_value = 240
@@ -429,7 +429,7 @@ def test_failed_early_renewal_keeps_using_the_valid_token(make_client, clock, op
 @pytest.mark.parametrize("missing", [False, True])
 def test_unreadable_rotated_file_does_not_discard_a_valid_token(make_client, token_file, clock, missing):
     client, requests = make_client(
-        make_registration_response(), httpx.Response(200, json={"state": "running"})
+        make_registration_response(), httpx2.Response(200, json={"state": "running"})
     )
     client.register_job()
     token_file.unlink() if missing else token_file.write_text("")
@@ -442,10 +442,10 @@ def test_unreadable_rotated_file_does_not_discard_a_valid_token(make_client, tok
 def test_renewal_that_outlasts_the_token_requires_synchronous_recovery(make_client, clock):
     def time_out(request):
         clock.return_value = 300
-        raise httpx.ReadTimeout("Outlasted the token")
+        raise httpx2.ReadTimeout("Outlasted the token")
 
     client, requests = make_client(
-        make_registration_response(), time_out, make_registration_response(), httpx.Response(204)
+        make_registration_response(), time_out, make_registration_response(), httpx2.Response(204)
     )
     client.register_job()
     clock.return_value = 299
@@ -459,10 +459,10 @@ def test_renewal_that_outlasts_the_token_requires_synchronous_recovery(make_clie
 def test_retired_registration_signals_restart_without_blocking_valid_requests(make_client, clock, complete):
     client, requests = make_client(
         make_registration_response(),
-        httpx.Response(409, json={"detail": {"reason": "registration_retired"}}),
-        httpx.Response(204),
-        httpx.Response(204),
-        httpx.Response(204),
+        httpx2.Response(409, json={"detail": {"reason": "registration_retired"}}),
+        httpx2.Response(204),
+        httpx2.Response(204),
+        httpx2.Response(204),
     )
     client.register_job()
     clock.return_value = 240
@@ -484,8 +484,8 @@ def test_retired_registration_signals_restart_without_blocking_valid_requests(ma
     "payload", [{"detail": "conflict"}, ["unexpected"], {"detail": {"reason": "registration_conflict"}}]
 )
 def test_other_conflicts_are_not_mistaken_for_retirement(make_client, payload):
-    client, _ = make_client(httpx.Response(409, json=payload))
-    with pytest.raises(httpx.HTTPStatusError):
+    client, _ = make_client(httpx2.Response(409, json=payload))
+    with pytest.raises(httpx2.HTTPStatusError):
         client.register_job()
     assert not client.restart_required
 
@@ -493,7 +493,7 @@ def test_other_conflicts_are_not_mistaken_for_retirement(make_client, payload):
 def test_closed_job_signals_restart(make_client):
     client, _ = make_client(
         make_registration_response(),
-        httpx.Response(403, json={"detail": {"reason": "job_closed", "message": "replaced"}}),
+        httpx2.Response(403, json={"detail": {"reason": "job_closed", "message": "replaced"}}),
     )
     client.register_job()
 
@@ -507,10 +507,10 @@ def test_closed_job_signals_restart(make_client):
     "payload", [{"detail": "Invalid auth token"}, {"detail": {"reason": "bundle_not_granted"}}]
 )
 def test_other_authorization_failures_are_not_mistaken_for_a_closed_job(make_client, payload):
-    client, _ = make_client(make_registration_response(), httpx.Response(403, json=payload))
+    client, _ = make_client(make_registration_response(), httpx2.Response(403, json=payload))
     client.register_job()
 
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(httpx2.HTTPStatusError):
         client.get("resource")
 
     assert not client.restart_required
@@ -519,9 +519,9 @@ def test_other_authorization_failures_are_not_mistaken_for_a_closed_job(make_cli
 def test_sdk_helpers_keep_bundle_context_for_reads_and_writes(make_client):
     client, requests = make_client(
         make_registration_response(),
-        httpx.Response(200, json={"key": "key", "value": "value"}),
-        httpx.Response(204),
-        httpx.Response(
+        httpx2.Response(200, json={"key": "key", "value": "value"}),
+        httpx2.Response(204),
+        httpx2.Response(
             200,
             json={
                 "conn_id": "connection",
@@ -549,14 +549,14 @@ def test_sdk_helpers_keep_bundle_context_for_reads_and_writes(make_client):
 def test_bundle_context_preserves_headers_and_restores_context_on_error(make_client):
     client, requests = make_client(
         make_registration_response(),
-        httpx.Response(204),
-        httpx.ReadError("Subprocess failure"),
-        *[httpx.Response(204) for _ in range(3)],
+        httpx2.Response(204),
+        httpx2.ReadError("Subprocess failure"),
+        *[httpx2.Response(204) for _ in range(3)],
     )
     client.register_job()
     with client.use_bundle("bundle-a"):
         client.put("resource", content=b"data", headers={"content-type": "text/plain", "custom": "value"})
-        with pytest.raises(httpx.ReadError), client.use_bundle("bundle-b"):
+        with pytest.raises(httpx2.ReadError), client.use_bundle("bundle-b"):
             client.request(
                 "PUT",
                 "resource",
@@ -590,18 +590,18 @@ def test_empty_bundle_context_is_rejected(make_client):
 @pytest.mark.parametrize("lost_acknowledgment", [False, True])
 def test_completion_renews_an_expired_token_if_the_job_is_still_open(make_client, clock, lost_acknowledgment):
     failures = (
-        [httpx.ReadError("Lost acknowledgment") for _ in range(API_RETRIES)] if lost_acknowledgment else []
+        [httpx2.ReadError("Lost acknowledgment") for _ in range(API_RETRIES)] if lost_acknowledgment else []
     )
     renewed_token = make_job_token(iat=300, exp=600)
     client, requests = make_client(
         make_registration_response(),
         *failures,
         make_registration_response(token=renewed_token),
-        httpx.Response(204),
+        httpx2.Response(204),
     )
     client.register_job()
     if lost_acknowledgment:
-        with pytest.raises(httpx.ReadError):
+        with pytest.raises(httpx2.ReadError):
             client.complete_job(TerminalJobState.SUCCESS)
     clock.return_value = 300
 
@@ -616,7 +616,8 @@ def test_completion_renews_an_expired_token_if_the_job_is_still_open(make_client
 
 def test_completion_does_not_claim_success_when_expired_registration_is_retired(make_client, clock):
     client, requests = make_client(
-        make_registration_response(), httpx.Response(409, json={"detail": {"reason": "registration_retired"}})
+        make_registration_response(),
+        httpx2.Response(409, json={"detail": {"reason": "registration_retired"}}),
     )
     client.register_job()
     clock.return_value = 300
@@ -634,19 +635,19 @@ def test_completion_does_not_claim_success_when_expired_registration_is_retired(
 def test_completion_recovers_if_the_token_expires_during_the_request(make_client, clock, status, succeeds):
     def expire(request):
         clock.return_value += 300
-        return httpx.Response(status)
+        return httpx2.Response(status)
 
     client, requests = make_client(
         make_registration_response(),
         expire,
         make_registration_response(),
-        httpx.Response(204) if succeeds else expire,
+        httpx2.Response(204) if succeeds else expire,
     )
     client.register_job()
     if succeeds:
         client.complete_job(TerminalJobState.SUCCESS)
     else:
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(httpx2.HTTPStatusError):
             client.complete_job(TerminalJobState.SUCCESS)
 
     assert requests[0].content == requests[2].content
@@ -674,7 +675,7 @@ def test_control_contracts_do_not_require_new_sdk_models(monkeypatch, token_file
 
 def test_secrets_comms_answers_lookups_for_the_selected_bundle(make_client):
     client, requests = make_client(
-        make_registration_response(), httpx.Response(200, json={"key": "my_key", "value": "my_value"})
+        make_registration_response(), httpx2.Response(200, json={"key": "my_key", "value": "my_value"})
     )
     client.register_job()
     comms = DagProcessorSecretsComms(client)
@@ -725,7 +726,7 @@ def make_parse_token_response(*, expires_in=60, **claims):
         },
         SECRET,
     )
-    return httpx.Response(200, json={"token": token, "expires_in": expires_in})
+    return httpx2.Response(200, json={"token": token, "expires_in": expires_in})
 
 
 def test_parse_requests_exchange_once_and_restore_the_manager_credential(make_client):
@@ -733,9 +734,9 @@ def test_parse_requests_exchange_once_and_restore_the_manager_credential(make_cl
     client, requests = make_client(
         make_registration_response(),
         exchanged,
-        httpx.Response(200, json={"key": "key", "value": "value"}),
-        httpx.Response(200, json={"key": "key", "value": "value"}),
-        httpx.Response(200, json={"state": "running"}),
+        httpx2.Response(200, json={"key": "key", "value": "value"}),
+        httpx2.Response(200, json={"key": "key", "value": "value"}),
+        httpx2.Response(200, json={"state": "running"}),
     )
     client.register_job()
     context = make_parse_context()
@@ -760,9 +761,9 @@ def test_parse_requests_exchange_once_and_restore_the_manager_credential(make_cl
 def test_parse_exchange_recovers_a_lost_response_without_changing_attempt(make_client):
     client, requests = make_client(
         make_registration_response(),
-        httpx.ReadError("exchange acknowledgment lost"),
+        httpx2.ReadError("exchange acknowledgment lost"),
         make_parse_token_response(),
-        httpx.Response(200),
+        httpx2.Response(200),
     )
     client.register_job()
     with client.use_parse(make_parse_context()):
@@ -782,10 +783,10 @@ def test_interleaved_parses_keep_distinct_file_credentials(make_client):
     client, requests = make_client(
         make_registration_response(),
         first_response,
-        httpx.Response(200),
+        httpx2.Response(200),
         second_response,
-        httpx.Response(200),
-        httpx.Response(200),
+        httpx2.Response(200),
+        httpx2.Response(200),
     )
     client.register_job()
     second = make_parse_context(
@@ -812,10 +813,10 @@ def test_parse_credential_renews_with_the_same_file_and_attempt(make_client, clo
     client, requests = make_client(
         make_registration_response(),
         make_parse_token_response(),
-        httpx.Response(200),
-        httpx.Response(200),
+        httpx2.Response(200),
+        httpx2.Response(200),
         make_parse_token_response(iat=renew_at, exp=renew_at + 60),
-        httpx.Response(200),
+        httpx2.Response(200),
     )
     client.register_job()
     with client.use_parse(make_parse_context()):
@@ -832,7 +833,7 @@ def test_parse_credential_renews_with_the_same_file_and_attempt(make_client, clo
 
 @pytest.mark.parametrize(
     "failure",
-    [httpx.ReadError("unavailable"), httpx.Response(503), httpx.Response(200, json={"token": "invalid"})],
+    [httpx2.ReadError("unavailable"), httpx2.Response(503), httpx2.Response(200, json={"token": "invalid"})],
 )
 @pytest.mark.parametrize("recovers_at_expiry", [False, True])
 def test_failed_early_parse_renewal_keeps_the_valid_token_until_expiry(
@@ -842,12 +843,12 @@ def test_failed_early_parse_renewal_keeps_the_valid_token_until_expiry(
     client, requests = make_client(
         make_registration_response(),
         token,
-        httpx.Response(200),
+        httpx2.Response(200),
         failure,
-        httpx.Response(200),
-        httpx.Response(200),
-        make_parse_token_response(iat=60, exp=120) if recovers_at_expiry else httpx.Response(503),
-        httpx.Response(200),
+        httpx2.Response(200),
+        httpx2.Response(200),
+        make_parse_token_response(iat=60, exp=120) if recovers_at_expiry else httpx2.Response(503),
+        httpx2.Response(200),
     )
     client.register_job()
     with client.use_parse(make_parse_context()):
@@ -858,7 +859,7 @@ def test_failed_early_parse_renewal_keeps_the_valid_token_until_expiry(
         if recovers_at_expiry:
             client.request("GET", "variables/key", retry=False)
         else:
-            with pytest.raises(httpx.HTTPStatusError):
+            with pytest.raises(httpx2.HTTPStatusError):
                 client.request("GET", "variables/key", retry=False)
 
     assert [request.url.path for request in requests[:7]] == [
@@ -881,15 +882,15 @@ def test_failed_early_parse_renewal_keeps_the_valid_token_until_expiry(
 def test_parse_renewal_that_outlasts_the_token_requires_synchronous_recovery(make_client, clock):
     def expire(request):
         clock.return_value = 60
-        return httpx.Response(503)
+        return httpx2.Response(503)
 
     client, requests = make_client(
         make_registration_response(),
         make_parse_token_response(),
-        httpx.Response(200),
+        httpx2.Response(200),
         expire,
         make_parse_token_response(iat=60, exp=120),
-        httpx.Response(200),
+        httpx2.Response(200),
     )
     client.register_job()
     with client.use_parse(make_parse_context()):
@@ -906,15 +907,15 @@ def test_early_parse_renewal_does_not_hide_authorization_errors(make_client, clo
     client, requests = make_client(
         make_registration_response(),
         make_parse_token_response(),
-        httpx.Response(200),
-        httpx.Response(403, json={"detail": {"reason": reason}}),
+        httpx2.Response(200),
+        httpx2.Response(403, json={"detail": {"reason": reason}}),
     )
     client.register_job()
     with client.use_parse(make_parse_context()):
         client.get("variables/key")
         clock.return_value = 48
         with pytest.raises(
-            DagProcessorRegistrationRetired if reason == "job_closed" else httpx.HTTPStatusError
+            DagProcessorRegistrationRetired if reason == "job_closed" else httpx2.HTTPStatusError
         ):
             client.get("variables/key")
 
@@ -940,8 +941,8 @@ def test_invalid_exchanged_lifetimes_never_reach_a_runtime_endpoint(make_client,
 def test_exchange_failure_restores_context_and_signals_a_closed_job(make_client):
     client, requests = make_client(
         make_registration_response(),
-        httpx.Response(403, json={"detail": {"reason": "job_closed"}}),
-        httpx.Response(200, json={"state": "restarting"}),
+        httpx2.Response(403, json={"detail": {"reason": "job_closed"}}),
+        httpx2.Response(200, json={"state": "restarting"}),
     )
     client.register_job()
     with client.use_parse(make_parse_context()), pytest.raises(DagProcessorRegistrationRetired):
