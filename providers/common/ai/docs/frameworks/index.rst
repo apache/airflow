@@ -80,9 +80,9 @@ is Airflow's and which part stays yours.
      - No agent
      - ``[llamaindex]`` extra
 
-The Strands and ADK integrations, the framework-neutral tool interface under them, and
-the tracing helper are experimental: they can change or be removed in a minor release of
-this provider. See :ref:`howto/stability`.
+The Strands and ADK integrations and the tracing helper are experimental: they can change
+or be removed in a minor release of this provider. The framework-neutral tool interface
+under them is stable. See :ref:`howto/stability`.
 
 Tested versions
 ---------------

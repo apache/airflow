@@ -78,7 +78,7 @@ class HookToolset(AirflowToolset):
         (``"s3_"`` → ``"s3_list_keys"``, ``"s3"`` → ``"s3list_keys"``) and not validated.
         Passing it with ``tool_prefix`` raises ``ValueError`` unless it equals
         ``"<tool_prefix>_"``.
-    :param pinned_arguments: Experimental. Arguments the Dag author fixes, such as the bucket a
+    :param pinned_arguments: Arguments the Dag author fixes, such as the bucket a
         storage hook may use: ``{"bucket_name": "reports"}``. Each is left out of the
         arguments the model sees, refused if the model supplies it anyway, and passed to
         every allowed method as it is written here, not rendered as a template. Every allowed
