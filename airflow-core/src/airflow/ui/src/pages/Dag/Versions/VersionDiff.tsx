@@ -123,6 +123,7 @@ const buildColumns = (translate: TFunction<"dag">, valuesShown: boolean): Change
 export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: VersionDiffProps) => {
   const { t: translate } = useTranslation("dag");
   const valuesShown = diff.values_status === "available";
+  const schemaChanged = diff.serializer_versions.base !== diff.serializer_versions.target;
 
   if (diff.mode === "unavailable") {
     return (
@@ -150,23 +151,24 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
             {translate("versions.heading", { base: baseVersionNumber, target: targetVersionNumber })}
           </Heading>
           <Text color="fg.muted" fontSize="sm">
-            {translate("versions.summary", {
-              baseSchema: diff.serializer_versions.base ?? "?",
-              count: diff.total_changes,
-              targetSchema: diff.serializer_versions.target ?? "?",
-            })}
+            {translate("versions.summary", { count: diff.total_changes })}
+            {/* Only worth a mention when the two versions were stored by different serializers. */}
+            {schemaChanged
+              ? ` · ${translate("versions.schemaChange", {
+                  baseSchema: diff.serializer_versions.base ?? "?",
+                  targetSchema: diff.serializer_versions.target ?? "?",
+                })}`
+              : undefined}
           </Text>
         </Box>
         <Flex alignItems="center" gap={2}>
-          <Badge colorPalette="teal">{translate("versions.observedState")}</Badge>
-          <Badge colorPalette={valuesShown ? "green" : "gray"}>
-            {translate(valuesShown ? "versions.valuesShown" : "versions.valuesHidden")}
-          </Badge>
-          {/* Says what grants values, since the viewer cannot grant it here: the server decides
-              from the caller's access to Dag code. */}
-          <Text color="fg.muted" fontSize="sm">
-            {translate("versions.codeAccess")}
-          </Text>
+          {/* The hover says what grants values, since the viewer cannot grant it here: the server
+              decides from the caller's access to Dag code. */}
+          {valuesShown ? undefined : (
+            <Tooltip content={translate("versions.codeAccess")} portalled>
+              <Badge colorPalette="gray">{translate("versions.valuesHidden")}</Badge>
+            </Tooltip>
+          )}
           {/* Above the table rather than below it: a long diff would otherwise push the caveat
               off-screen exactly when it matters most. */}
           <Tooltip content={translate("versions.observedStateBoundary")} portalled>

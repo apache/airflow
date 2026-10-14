@@ -20,6 +20,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 
+/** The coordinate naming the task instance a page shows, as the url carries it. */
 export const useTaskInstanceCoordinates = () => {
   const [searchParams] = useSearchParams();
   const regionIndex = searchParams.get(SearchParamsKeys.REGION_INDEX);

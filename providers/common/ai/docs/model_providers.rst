@@ -26,6 +26,9 @@ name picks the vendor. Switching vendors is a connection
 change, not a Dag change. Find your vendor below, install the extra, create the connection
 type shown, and set the model name with that prefix.
 
+For the exhaustive, generated-and-hand-written list of every service this provider
+reaches (connections and toolsets alike), see :doc:`supported_services`.
+
 .. list-table::
    :header-rows: 1
    :widths: 18 16 18 20 28
@@ -118,6 +121,23 @@ Any other vendor that `pydantic-ai supports <https://ai.pydantic.dev/models/over
 (Cohere, OpenRouter, Hugging Face and more) works the same
 way: install the ``pydantic-ai-slim`` extra named on that vendor's pydantic-ai page, create a
 ``pydanticai`` connection, and use the prefix from that page.
+
+Hosted OpenAI-compatible services
+---------------------------------
+
+A hosted service that exposes the OpenAI-compatible API is set up like a self-hosted server:
+a ``pydanticai`` connection with the service's base URL in **Host**, its API key in
+**Password**, and the ``openai:`` prefix on the model name. For example, TrustedRouter is an
+OpenAI-compatible router:
+
+.. code-block:: json
+
+    {
+        "conn_type": "pydanticai",
+        "host": "https://api.trustedrouter.com/v1",
+        "password": "<api-key>",
+        "extra": "{\"model\": \"openai:trustedrouter/auto\"}"
+    }
 
 Where the model name goes
 -------------------------

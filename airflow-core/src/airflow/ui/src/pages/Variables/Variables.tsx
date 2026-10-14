@@ -164,7 +164,7 @@ export const Variables = () => {
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`] : ["-key"];
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
-  const { data, error, isFetching, isLoading } = useVariableServiceGetVariables({
+  const { data, error, isLoading } = useVariableServiceGetVariables({
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
@@ -222,7 +222,6 @@ export const Variables = () => {
           />
         }
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="admin:variables.variable"
         noRowsMessage={translate("variables.noRowsMessage")}

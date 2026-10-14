@@ -237,6 +237,7 @@ export type MaxIterations = number;
 export type TerminalTaskId = string;
 export type TerminalIsMapped = boolean;
 export type TaskRescheduleCount = number;
+export type FirstTaskRescheduleStartDate = string | null;
 export type MaxTries = number;
 export type Key = string;
 export type Value = string | null;
@@ -1049,6 +1050,7 @@ export interface TIRunContext {
   dag_run: DagRun;
   loop?: LoopContext | null;
   task_reschedule_count?: TaskRescheduleCount;
+  first_task_reschedule_start_date?: FirstTaskRescheduleStartDate;
   max_tries: MaxTries;
   variables?: Variables;
   connections?: Connections;

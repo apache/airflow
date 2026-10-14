@@ -24,8 +24,8 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 
 from jinja2 import TemplateError
-from pydantic import BaseModel, TypeAdapter
 
+from airflow.providers.common.ai.utils.output_type import dump_output_to_json
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
@@ -41,6 +41,40 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.notifier import BaseNotifier
     from airflow.sdk import Context
     from airflow.sdk.execution_time.hitl import HITLUser
+
+
+def _object_from_the_form_as_text(modified: dict[str, Any], generated_output: str) -> str:
+    """
+    Turn the object the HITL form sent back into review text, keeping ``generated_output`` if untouched.
+
+    The form round-trips the value through JavaScript, which rounds integers above 2**53, writes ``1.0``
+    as ``1`` and may reorder keys (so may the metadata database), so compare values the same way rather
+    than text; a re-dumped untouched object would otherwise read as an edit and could change a value.
+    """
+    try:
+        generated = json.loads(generated_output)
+    except ValueError:
+        generated = None
+    if _with_javascript_numbers(modified) == _with_javascript_numbers(generated):
+        return generated_output
+    return json.dumps(modified, separators=(",", ":"), ensure_ascii=False)
+
+
+def _with_javascript_numbers(value: Any) -> Any:
+    """Map every number to a float, as ``JSON.parse`` does, so values compare as the browser sees them."""
+    if isinstance(value, bool):
+        # Tagged, because Python treats ``False == 0.0`` and ``True == 1.0`` as equal and JSON does not.
+        return ("bool", value)
+    if isinstance(value, int | float):
+        try:
+            return float(value)
+        except OverflowError:
+            return value
+    if isinstance(value, dict):
+        return {key: _with_javascript_numbers(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_with_javascript_numbers(item) for item in value]
+    return value
 
 
 def normalize_assigned_users(value: Any, *, param: str) -> list[HITLUser]:
@@ -194,11 +228,8 @@ class LLMApprovalMixin:
         self.validate_approval_prompt()
 
         raw_output = output
-        if isinstance(output, BaseModel):
-            output = output.model_dump_json()
-        elif not isinstance(output, str):
-            # JSON round-trip: execute_complete validates the string back into output_type.
-            output = TypeAdapter(type(output)).dump_json(output).decode()
+        # JSON round-trip: execute_complete validates the string back into output_type.
+        output = dump_output_to_json(output)
 
         ti_id = context["task_instance"].id
         timeout_defaults = LLMApprovalMixin.TIMEOUT_DEFAULTS.get(self.on_approval_timeout)
@@ -357,7 +388,11 @@ class LLMApprovalMixin:
                             }
                         )
                 # Compact so an unchanged selection compares equal to generated_output
-                modified = json.dumps(modified, separators=(",", ":"))
+                modified = json.dumps(modified, separators=(",", ":"), ensure_ascii=False)
+            elif isinstance(modified, dict):
+                # TODO: Drop once the HITL form stops parsing a string param that looks like JSON into an
+                # object (airflow-core ui/src/utils/hitl.ts); until then a model output comes back as a dict.
+                modified = _object_from_the_form_as_text(modified, generated_output)
             if modified is not None and not isinstance(modified, str):
                 # On the awaiting_input path nothing upstream schema-validates params_input
                 # (HITLTrigger did on the legacy path), so enforce the string contract here

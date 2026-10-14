@@ -60,7 +60,6 @@ import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
 import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
-import { Execution } from "src/pages/Run/Execution";
 import { Security } from "src/pages/Security";
 import { Settings } from "src/pages/Settings";
 import { Task } from "src/pages/Task";
@@ -244,7 +243,6 @@ export const routerConfig = [
       {
         children: [
           { element: <TaskInstances />, index: true },
-          { element: <Execution />, path: "execution" },
           // The Required Actions tab is now a button + modal; this keeps old /required_actions
           // deep links alive by rendering the task instances, where the route sync opens the modal.
           { element: <TaskInstances />, path: "required_actions" },

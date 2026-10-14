@@ -785,10 +785,13 @@ def select_loop_clear_scope(
                 matched_relatives[key] = tuple(matches)
             retry.update((other.id, other) for other in matched_relatives[key])
 
+    # Both directions start from the selection only. Walking downstream from upstream relatives
+    # would also select their other descendants, including gates whose later passes then get archived.
+    seeds = tuple(retry.values())
     for is_upstream, enabled in ((True, upstream), (False, downstream)):
         if not enabled:
             continue
-        for ti in tuple(retry.values()):
+        for ti in seeds:
             task = resolver.get_task(dag_id, run_id, ti.task_id, dag_version_id=ti.dag_version_id)
             add_relatives(ti, task.get_flat_relatives(upstream=is_upstream))
     if include_setups_and_teardowns:

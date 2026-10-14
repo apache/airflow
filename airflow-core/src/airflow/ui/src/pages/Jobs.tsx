@@ -146,7 +146,7 @@ export const Jobs = () => {
   const filteredEndDateLte = searchParams.get(SearchParamsKeys.END_DATE_LTE);
   const teams = searchParams.getAll(SearchParamsKeys.TEAMS);
 
-  const { data, error, isFetching, isLoading } = useJobServiceGetJobs({
+  const { data, error, isLoading } = useJobServiceGetJobs({
     endDateGte: filteredEndDateGte ?? undefined,
     endDateLte: filteredEndDateLte ?? undefined,
     executorClass: filteredExecutorClass ?? undefined,
@@ -175,7 +175,6 @@ export const Jobs = () => {
           />
         }
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="admin:jobs.job"
         onStateChange={setTableURLState}
