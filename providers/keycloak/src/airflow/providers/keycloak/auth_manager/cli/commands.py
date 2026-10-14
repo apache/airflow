@@ -565,6 +565,7 @@ def _validate_permission_creation_plan(
         ),
         scopes=scopes,
         resources=resources,
+        teams=teams,
     )
 
 
@@ -662,6 +663,7 @@ def _validate_required_authz_objects(
     *,
     scopes: list[dict],
     resources: list[dict],
+    teams: list[str],
 ) -> None:
     """Validate that permission prerequisites exist."""
     available_resources = {resource["name"] for resource in resources}
@@ -677,12 +679,16 @@ def _validate_required_authz_objects(
     missing_resources = required_resources - available_resources
     missing_scopes = required_scopes - available_scopes
 
+    resource_command = "create-resources"
+    if teams:
+        resource_command += f" --teams {','.join(teams)}"
+
     if missing_resources or missing_scopes:
         raise ValueError(
             "Cannot create permissions: "
             f"missing resources={sorted(missing_resources)}, "
             f"missing scopes={sorted(missing_scopes)}. "
-            "Run create-scopes and create-resources first."
+            f"Run create-scopes and {resource_command} first."
         )
 
 
@@ -798,6 +804,7 @@ def _get_permissions_to_create(
         perm_configs,
         scopes=all_scopes,
         resources=all_resources,
+        teams=teams,
     )
 
     result = []

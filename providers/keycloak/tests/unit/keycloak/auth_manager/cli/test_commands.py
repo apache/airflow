@@ -372,12 +372,16 @@ def test_default_permissions_reject_missing_resources_or_scopes(teams, missing_r
 
     expected_resources = [missing_resource] if missing_resource else []
     expected_scopes = [missing_scope] if missing_scope else []
+    expected_hint = (
+        "Run create-scopes and create-resources --teams team-a first."
+        if teams
+        else "Run create-scopes and create-resources first."
+    )
 
     assert str(exc_info.value) == (
         "Cannot create permissions: "
         f"missing resources={expected_resources}, "
-        f"missing scopes={expected_scopes}. "
-        "Run create-scopes and create-resources first."
+        f"missing scopes={expected_scopes}. " + expected_hint
     )
 
 
