@@ -42,28 +42,6 @@ import { Execution } from "./Execution";
 
 vi.mock("src/router", () => ({ taskInstanceRoutes: [] }));
 
-// The running-task gate opens a second dialog that jsdom dismisses before its dry run settles.
-vi.mock("src/components/Clear/TaskInstance/ClearTaskInstanceConfirmationDialog", async () => {
-  const { useEffect } = await import("react");
-
-  const ConfirmImmediately = ({
-    onClose,
-    onConfirm,
-  }: {
-    readonly onClose: () => void;
-    readonly onConfirm?: () => void;
-  }) => {
-    useEffect(() => {
-      onConfirm?.();
-      onClose();
-    }, [onClose, onConfirm]);
-
-    return undefined;
-  };
-
-  return { default: ConfirmImmediately };
-});
-
 beforeAll(() => {
   i18n.addResourceBundle("en", "dag", dagTranslations, true, true);
   i18n.addResourceBundle("en", "common", commonTranslations, true, true);
