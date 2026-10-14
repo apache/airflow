@@ -517,6 +517,7 @@ def _do_delete(
                     session=session,
                     dialect_name=dialect_name,
                 )
+                session.commit()
             except BaseException:
                 with suppress(Exception):
                     session.rollback()
@@ -659,7 +660,6 @@ def _delete_directly(
 
     logger.debug("direct delete statement:\n%s", delete.compile())
     session.execute(delete)
-    session.commit()
 
 
 def _subquery_keep_last(
