@@ -22,6 +22,7 @@ import os
 import subprocess
 import time
 import uuid
+from typing import cast
 
 import pytest
 
@@ -155,17 +156,23 @@ class TestEventProducer:
         finally:
             consumer.close()
 
-        topic_msg_bodies: list[dict] = []
+        topic_msg_bodies: list[tuple[str, dict]] = []
         for message in messages:
-            topic_msg_bodies.append(json.loads(message.value()))
+            topic = cast("str", message.topic())
+            value = json.loads(cast("str | bytes", message.value()))
+            topic_msg_bodies.append((topic, value))
 
         assert len(topic_msg_bodies) == len(expected_events)
 
-        for body in topic_msg_bodies:
+        for topic, body in topic_msg_bodies:
             assert body["dag_id"] == dag_id
             assert body["run_id"] == run_id
             if body["event"].startswith("task_instance."):
                 assert body["task_id"] == "task1"
+                assert topic == self.TASK_INSTANCE_TOPIC
+            if body["event"].startswith("dag_run."):
+                assert body["dag_id"] == "demo_dag"
+                assert topic == self.DAGRUN_TOPIC
 
-        received_events = [body["event"] for body in topic_msg_bodies]
+        received_events = [body["event"] for _topic, body in topic_msg_bodies]
         assert sorted(received_events) == sorted(expected_events)
