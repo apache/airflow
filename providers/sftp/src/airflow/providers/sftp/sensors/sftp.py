@@ -64,6 +64,7 @@ class SFTPSensor(BaseSensorOperator):
         "path",
         "file_pattern",
         "newer_than",
+        "sftp_conn_id",
     )
 
     def __init__(

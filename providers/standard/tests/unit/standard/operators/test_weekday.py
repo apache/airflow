@@ -25,22 +25,17 @@ from sqlalchemy import delete
 
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.common.compat.standard.utils import XCOM_SKIPMIXIN_FOLLOWED, XCOM_SKIPMIXIN_KEY
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.weekday import BranchDayOfWeekOperator
 from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.timetables.base import DataInterval
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
+from tests_common.test_utils.db import clear_db_xcom
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.models.xcom import XComModel as XCom
-else:
-    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -73,7 +68,7 @@ class TestBranchDayOfWeekOperator:
         with create_session() as session:
             session.execute(delete(DagRun))
             session.execute(delete(TI))
-            session.execute(delete(XCom))
+        clear_db_xcom()
 
     def _assert_task_ids_match_states(self, dr, task_ids_to_states):
         """Helper that asserts task instances with a given id are in a given state"""

@@ -26,28 +26,37 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 import structlog
 from sqlalchemy import (
     Boolean,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     UniqueConstraint,
+    case,
     delete,
     func,
     select,
+    text,
 )
 from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
 from airflow.models.base import Base, StringID
-from airflow.utils.session import create_session
-from airflow.utils.sqlalchemy import UtcDateTime, is_lock_not_available_error, with_row_locks
+from airflow.utils.db import get_dialect_name
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.sqlalchemy import (
+    UtcDateTime,
+    is_lock_not_available_error,
+    with_row_locks,
+)
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -188,6 +197,8 @@ class Backfill(Base):
         nullable=True,
     )  # The user that triggered the Backfill, if applicable
 
+    __table_args__ = (Index("idx_backfill_dag_id_completed_at", dag_id, completed_at),)
+
     backfill_dag_run_associations = relationship("BackfillDagRun", back_populates="backfill")
 
     dag_model = relationship(
@@ -199,6 +210,35 @@ class Backfill(Base):
 
     def __repr__(self):
         return f"Backfill({self.dag_id=}, {self.from_date=}, {self.to_date=})"
+
+    @hybrid_property
+    def duration(self) -> float | None:
+        if self.completed_at and self.created_at:
+            return (self.completed_at - self.created_at).total_seconds()
+        return None
+
+    @duration.expression  # type: ignore[no-redef]
+    def duration(cls) -> Any:
+        @provide_session
+        def _get_dialect(*, session: Session = NEW_SESSION) -> str:
+            return get_dialect_name(session=session)
+
+        dialect_name = _get_dialect()
+
+        duration_expr: Any
+        if dialect_name == "mysql":
+            duration_expr = func.timestampdiff(text("SECOND"), cls.created_at, cls.completed_at)
+        elif dialect_name == "sqlite":
+            duration_expr = (func.julianday(cls.completed_at) - func.julianday(cls.created_at)) * 86400
+        else:
+            duration_expr = func.extract("epoch", cls.completed_at - cls.created_at)  # type: ignore[operator, arg-type]
+
+        when_condition = (
+            cls.completed_at.isnot(None) & cls.created_at.isnot(None),  # type: ignore[union-attr, attr-defined]
+            duration_expr,
+        )
+
+        return case(when_condition, else_=None)
 
 
 class BackfillDagRunExceptionReason(str, Enum):
@@ -221,7 +261,7 @@ class BackfillDagRun(Base):
     backfill_id: Mapped[int] = mapped_column(Integer, nullable=False)
     dag_run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     exception_reason: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    logical_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=True)
+    logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     sort_ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -631,6 +671,7 @@ def _create_backfill(
     triggering_user_name: str | None,
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
+    drain_dag: bool = False,
 ) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
@@ -723,6 +764,8 @@ def _create_backfill(
                     run_on_latest_version=run_on_latest_version,
                     session=session,
                 )
+            if drain_dag:
+                DagModel.start_drain(dag_id, session=session)
         except OperationalError as e:
             if is_lock_not_available_error(e):
                 # Lock error: clean up the orphan so the user can retry. The

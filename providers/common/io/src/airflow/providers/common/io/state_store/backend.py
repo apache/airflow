@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 from functools import cache
 from typing import TYPE_CHECKING
@@ -24,6 +25,7 @@ from urllib.parse import quote, urlsplit
 import fsspec.utils
 
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.io.version_compat import AIRFLOW_V_3_4_PLUS
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -32,9 +34,11 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
+    from airflow.sdk.state import StoreScope
+
 
 from airflow.sdk import ObjectStoragePath
-from airflow.sdk._shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
+from airflow.sdk.state import AssetScope, BaseStoreBackend, TaskScope
 
 SECTION = "common.io"
 
@@ -76,16 +80,16 @@ def _sanitise_segment(value: str) -> str:
     return quote(value, safe="")
 
 
+def _build_task_prefix(scope: TaskScope) -> ObjectStoragePath:
+    prefix = _get_base_path() / _sanitise_segment(scope.dag_id) / _sanitise_segment(scope.run_id)
+    if AIRFLOW_V_3_4_PLUS and scope.region_id.int:
+        prefix /= f"region={scope.region_id}"
+    return prefix / _sanitise_segment(scope.task_id)
+
+
 def _build_task_path(scope: TaskScope, key: str) -> ObjectStoragePath:
     suffix = _get_compression_suffix()
-    return (
-        _get_base_path()
-        / _sanitise_segment(scope.dag_id)
-        / _sanitise_segment(scope.run_id)
-        / _sanitise_segment(scope.task_id)
-        / str(scope.map_index)
-        / f"{_sanitise_segment(key)}{suffix}"
-    )
+    return _build_task_prefix(scope) / str(scope.map_index) / f"{_sanitise_segment(key)}{suffix}"
 
 
 def _build_asset_path(scope: AssetScope, key: str) -> ObjectStoragePath:
@@ -160,23 +164,12 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
     ) -> None:
         match scope:
             case TaskScope():
+                prefix = _build_task_prefix(scope)
                 if all_map_indices:
-                    prefix = (
-                        _get_base_path()
-                        / _sanitise_segment(scope.dag_id)
-                        / _sanitise_segment(scope.run_id)
-                        / _sanitise_segment(scope.task_id)
-                    )
                     for p in prefix.glob("*/*"):
                         p.unlink(missing_ok=True)
                 else:
-                    prefix = (
-                        _get_base_path()
-                        / _sanitise_segment(scope.dag_id)
-                        / _sanitise_segment(scope.run_id)
-                        / _sanitise_segment(scope.task_id)
-                        / str(scope.map_index)
-                    )
+                    prefix /= str(scope.map_index)
                     for p in prefix.glob("*"):
                         p.unlink(missing_ok=True)
             case AssetScope():
@@ -187,8 +180,11 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
             case _:
                 raise TypeError(f"Unknown scope type: {type(scope)}")
 
+    # fsspec is synchronous even for filesystems whose transport is async underneath, so the
+    # a-prefixed methods offload to a worker thread to keep the caller's event loop free.
+    # ``session`` is unused throughout: this backend never touches the metastore.
     async def aget(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> str | None:
-        raise NotImplementedError
+        return await asyncio.to_thread(self.get, scope, key)
 
     async def aset(
         self,
@@ -199,15 +195,15 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
         expires_at: datetime | None = None,
         session: AsyncSession | None = None,
     ) -> None:
-        raise NotImplementedError
+        await asyncio.to_thread(self.set, scope, key, value, expires_at=expires_at)
 
     async def adelete(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> None:
-        raise NotImplementedError
+        await asyncio.to_thread(self.delete, scope, key)
 
     async def aclear(
         self, scope: StoreScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
     ) -> None:
-        raise NotImplementedError
+        await asyncio.to_thread(self.clear, scope, all_map_indices=all_map_indices)
 
     def serialize_task_state_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
         serialized = json.dumps(value)

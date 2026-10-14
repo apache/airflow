@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Switch } from "src/system-components";
+
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
-import { Switch } from "../ui";
 
 export const FieldBool = ({ name, namespace = "default" }: FlexibleFormElementProps) => {
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
@@ -37,8 +38,10 @@ export const FieldBool = ({ name, namespace = "default" }: FlexibleFormElementPr
       checked={Boolean(param.value)}
       disabled={disabled}
       id={`element_${name}`}
+      justifyContent="flex-end"
       name={`element_${name}`}
       onCheckedChange={(event) => onCheck(event.checked)}
+      width="full"
     />
   );
 };

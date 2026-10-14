@@ -1,0 +1,101 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+# SandboxToolset system tests
+
+Each test exercises the complete toolset boundary with a deterministic pydantic-ai model:
+
+1. an Airflow task runs a deterministic pydantic-ai agent;
+2. the agent calls every sandbox tool;
+3. the selected backend creates a sandbox;
+4. later calls read the file written by the first call, proving per-run persistence; and
+5. the agent run tears the sandbox down.
+
+## Docker Sandboxes
+
+Install the `sbx` CLI on every worker that can run this Dag and initialize its network policy once:
+
+```console
+sbx policy init deny-all
+```
+
+The worker must also be able to pull the default `python:3.12-slim` template. Run the test in an
+Airflow system-test environment whose task process has access to the host `sbx` installation:
+
+```console
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_sbx.py
+```
+
+## Modal
+
+Install the Modal extra and authenticate, then:
+
+```console
+pip install "apache-airflow-providers-common-ai[modal]"
+modal token new
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_modal.py
+```
+
+## Islo
+
+Install the Islo extra and export a short-lived API key into the task process:
+
+```console
+pip install "apache-airflow-providers-common-ai[islo]"
+export ISLO_API_KEY="..."
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_islo.py
+```
+
+The test requests the default no-egress policy and a 15-minute server-side TTL.
+
+## OpenSandbox
+
+Install the OpenSandbox extra, point the SDK at a running server, and run:
+
+```console
+pip install "apache-airflow-providers-common-ai[opensandbox]"
+export OPEN_SANDBOX_DOMAIN="opensandbox.example.com"
+export OPEN_SANDBOX_API_KEY="..."
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_opensandbox.py
+```
+
+The test requests the default deny-all egress policy, so the OpenSandbox server
+must run its egress sidecar with `[egress] mode = "dns+nft"`; the backend refuses
+a sidecar in `dns` mode. It also applies a 15-minute server-side sandbox lifetime.
+
+## Boat
+
+Install the Boat extra and export a short-lived API key into the task process:
+
+```console
+pip install "apache-airflow-providers-common-ai[boat]"
+export BOAT_API_KEY="..."
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_boat.py
+```
+
+The backend reads this key lazily in the worker process; it is not copied
+into `SandboxSpec.env` or exposed inside the sandbox. The test passes a separate non-secret marker
+through `SandboxSpec.env` and verifies it from a sandbox command, exercises successful and
+non-zero command exits plus write/read/list operations, checks that a command stopped by its
+in-guest deadline leaves the sandbox and its files in place, checks that the toolset deletes
+the one sandbox when the run ends, and requests open egress
+(`SandboxSpec(block_network=False)`) because Boat cannot enforce a deny-all network policy.
+A 15-minute server-side TTL stops the sandbox if worker-side teardown cannot run; the
+backend creates it without snapshots or monitoring, so stopping it erases its disk and Boat
+keeps no history of its commands.

@@ -19,25 +19,69 @@
 
 from __future__ import annotations
 
-import os
 import pathlib
-from typing import Any
+import stat
+from typing import TYPE_CHECKING, Any
 
 import attrs
+import structlog
 import yaml
 
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Iterator
 
-def convert_roots(
-    value: None | os.PathLike[str] | pathlib.Path | list[os.PathLike[str] | pathlib.Path],
-) -> list[pathlib.Path]:
-    """Normalize a coordinator's root-directories kwarg into a list of expanded paths."""
-    if value is None:
+    from structlog.typing import FilteringBoundLogger
+
+log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators")
+
+
+def walk_files(
+    roots: Iterable[pathlib.Path], *, match: Callable[[pathlib.Path], bool]
+) -> Iterator[pathlib.Path]:
+    """
+    Yield the regular files under *roots* that satisfy *match*, descending into directories.
+
+    Roots are visited in order and each directory's entries sorted, so coordinator selection does
+    not depend on filesystem ordering.
+
+    ``JavaCoordinator`` and ``ExecutableCoordinator`` still carry equivalent walks and should move
+    onto this one.
+    """
+    yield from _walk_files(roots, match, set())
+
+
+def _walk_files(
+    items: Iterable[pathlib.Path],
+    match: Callable[[pathlib.Path], bool],
+    seen_dirs: set[tuple[int, int]],
+) -> Iterator[pathlib.Path]:
+    for item in items:
+        try:
+            file_info = item.stat()
+        except OSError:
+            # A broken symlink or unreadable parent must not abort the scan.
+            # The caller reports a genuinely missing artifact once every root is searched.
+            continue
+        if stat.S_ISDIR(file_info.st_mode):
+            # Dedupe by identity so a symlink loop cannot recurse until the stack is exhausted.
+            key = (file_info.st_dev, file_info.st_ino)
+            if key in seen_dirs:
+                log.debug("Skipping already-visited directory", path=item)
+                continue
+            seen_dirs.add(key)
+            yield from _walk_files(_sorted_children(item), match, seen_dirs)
+        elif stat.S_ISREG(file_info.st_mode) and match(item):
+            yield item
+
+
+def _sorted_children(directory: pathlib.Path) -> list[pathlib.Path]:
+    # iterdir() is lazy, so an unreadable directory raises only once iteration starts.
+    try:
+        return sorted(directory.iterdir())
+    except OSError:
         return []
-    if isinstance(value, (str, os.PathLike, pathlib.Path)):
-        return [pathlib.Path(value).expanduser()]
-    return [pathlib.Path(v).expanduser() for v in value]
 
 
 def validate_schema_version(instance, _, value) -> str:
@@ -80,3 +124,19 @@ def extract_supervisor_schema_version(metadata: dict[str, Any]) -> str:
     if not isinstance(value, str) or not value:
         raise ValueError("missing or invalid sdk.supervisor_schema_version")
     return value
+
+
+def resolve_source_path(metadata: dict[str, Any], dag_id: str | None) -> str | None:
+    """
+    Return the embedded source path to show for *dag_id*, or ``None`` when there is none.
+
+    A Dag mapped in ``dag_source_paths`` resolves to its own file. Any other Dag, such as one built
+    dynamically, and a *dag_id* of ``None`` resolve to ``entrypoint_path``.
+    """
+    dag_source_paths = metadata.get("dag_source_paths")
+    if dag_id is not None and isinstance(dag_source_paths, dict):
+        mapped = dag_source_paths.get(dag_id)
+        if isinstance(mapped, str):
+            return mapped
+    entrypoint_path = metadata.get("entrypoint_path")
+    return entrypoint_path if isinstance(entrypoint_path, str) else None

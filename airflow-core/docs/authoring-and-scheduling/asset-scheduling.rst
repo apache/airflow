@@ -147,6 +147,30 @@ If one asset is updated multiple times before all consumed assets update, the do
 
     }
 
+Gate scheduled runs on asset updates
+------------------------------------
+
+Use ``AssetAndTimeSchedule`` when you want a Dag to follow a normal time-based timetable but only create a scheduled DagRun after specific assets have been updated. Airflow creates the scheduled DagRun only when both the timetable's scheduled time has arrived and every required asset has queued an event. When the DagRun is created, those asset events are consumed so the next scheduled run waits for new updates. This does not create additional asset-triggered runs.
+
+If the scheduled time arrives before the required assets are ready, Airflow does not create a DagRun. The scheduler re-checks on later loops and holds the oldest pending scheduled slot until the assets arrive.
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, Asset, AssetAndTimeSchedule, CronTriggerTimetable
+
+    example_asset = Asset("s3://asset/example.csv")
+
+    with DAG(
+        dag_id="gated_hourly_dag",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("0 * * * *", timezone="UTC"),
+            assets=[example_asset],
+        ),
+        ...,
+    ):
+        ...
+
+
 Fetching information from a triggering asset event
 ----------------------------------------------------
 
@@ -416,6 +440,73 @@ Combining asset and time-based schedules
 
 AssetTimetable Integration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-You can schedule Dags based on both asset events and time-based schedules using ``AssetOrTimeSchedule``. This allows you to create workflows when a Dag needs both to be triggered by data updates and run periodically according to a fixed timetable.
+Asset-aware timetables combine asset expressions with a time-based schedule:
 
-For more detailed information on ``AssetOrTimeSchedule``, refer to the corresponding section in :ref:`AssetOrTimeSchedule <asset-timetable-section>`.
+* Use ``AssetOrTimeSchedule`` to create runs both on a timetable and when assets update, producing scheduled runs and asset-triggered runs independently.
+* Use ``AssetAndTimeSchedule`` to keep a Dag on a timetable but only create scheduled runs once the referenced assets have been updated.
+
+For more detailed information on asset-aware timetables, refer to :ref:`AssetOrTimeSchedule <asset-timetable-section>`.
+
+
+Controlling DagRun creation per asset event
+---------------------------------------------
+
+.. versionadded:: 3.4.0
+
+Asset-triggered Dags create one Dag run per event by default. Set
+``batch_asset_events=True`` on the timetable to consume queued events together
+in one run. The :ref:`config:scheduler__batch_asset_events` setting changes the
+default for the deployment; an explicit timetable argument takes precedence.
+Reparse Dags after changing the setting. Previously serialized timetables without
+this option retain batching until they are reparsed.
+
+The option is also available on ``AssetOrTimeSchedule`` and
+``PartitionedAssetTimetable``. Asset conditions using ``&`` and partition mappers based on
+``RollupMapper`` need several events to satisfy their condition and cannot consume each event
+independently, so they default to batching when ``batch_asset_events`` is not set.
+Passing ``batch_asset_events=False`` explicitly for them makes timetable validation
+raise an error. Single-asset schedules and ``|`` expressions support either mode.
+
+Pending partitioned runs created while batching was disabled are not merged when you
+enable batching, so let them finish before changing the setting.
+
+For non-partitioned Dags, per-event run creation respects ``max_active_runs`` and the scheduler's
+:ref:`config:scheduler__max_dagruns_to_create_per_loop` budget. Events left over
+remain queued for subsequent scheduler passes.
+
+For non-partitioned asset-triggered Dags, ``catchup=False`` consumes only events
+queued for that Dag. It does not discard a queued backlog: with batching disabled,
+each queued event still produces its own run.
+
+With ``catchup=True``, once queued events satisfy the asset condition, the scheduler
+also includes older, unconsumed events for the Dag's scheduled assets and aliases,
+including events emitted before the Dag started consuming them. Events already
+consumed by a run of that Dag are excluded in both modes. ``batch_asset_events``
+controls whether the eligible events produce separate runs or are consumed together.
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, Asset, AssetTriggeredTimetable
+
+    # Each update to "data-file" produces its own DagRun
+    with DAG(
+        dag_id="per-event-consumer",
+        schedule=AssetTriggeredTimetable(
+            assets=Asset("s3://bucket/data-file"),
+            batch_asset_events=False,
+        ),
+    ):
+        ...
+
+To consume several queued updates to an asset in one run, enable batching:
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="combined-consumer",
+        schedule=AssetTriggeredTimetable(
+            assets=Asset("s3://bucket/orders"),
+            batch_asset_events=True,
+        ),
+    ):
+        ...

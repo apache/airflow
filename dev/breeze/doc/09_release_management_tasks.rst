@@ -176,6 +176,20 @@ automates it.
   :alt: Breeze release-management create-minor-branch
 
 
+Start beta process
+""""""""""""""""""
+
+When we prepare a beta pre-release, we automate some of the steps we need to do.
+
+.. code-block:: bash
+
+     breeze release-management start-beta-process
+
+.. image:: ./images/output_release-management_start-beta-process.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_start-beta-process.svg
+  :width: 100%
+  :alt: Breeze release-management start-beta-process
+
 Start release candidate process
 """""""""""""""""""""""""""""""
 
@@ -1080,6 +1094,51 @@ These are all available flags of ``workflow-run publish-docs`` command:
   :width: 100%
   :alt: Breeze workflow-run publish-docs
 
+Syncing the staging site with main
+""""""""""""""""""""""""""""""""""
+
+Before publishing release candidate docs to staging, reset the ``staging`` branches of
+``apache/airflow-site`` and ``apache/airflow-site-archive`` to ``main`` with the
+``breeze workflow-run sync-staging-to-main`` command. It triggers the ``reset-staging.yml`` workflow in both
+repositories, which force-updates each ``staging`` branch to the current ``main`` commit (``main`` itself is
+not changed); in ``apache/airflow-site`` it also rebuilds the staging site. Before asking for confirmation,
+the command lists the commits that exist only on each ``staging`` branch (and would be dropped), so you can
+tell whether the branch holds docs prepared for another release.
+
+.. warning::
+
+   Skip this step if a vote for any other release is in progress. The ``staging`` branches hold the
+   docs prepared for that vote, and resetting them to ``main`` overwrites them. The command asks for
+   confirmation before triggering the workflow.
+
+These are all available flags of ``workflow-run sync-staging-to-main`` command:
+
+.. image:: ./images/output_workflow-run_sync-staging-to-main.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_sync-staging-to-main.svg
+  :width: 100%
+  :alt: Breeze workflow-run sync-staging-to-main
+
+Resolving the constraints for a release
+"""""""""""""""""""""""""""""""""""""""
+
+To trigger the GitHub Actions workflow that resolves, publishes and tags the constraints belonging to a
+release, you can use the ``breeze workflow-run release-constraints`` command. The release commands trigger
+it themselves, so this is for redoing a candidate's constraints or producing them for a release cut before
+the workflow existed.
+
+The stage is derived from ``--version`` alone, so it cannot be set inconsistently with it. A candidate
+(``3.1.3rc1``) resolves allowing pre-releases for ``apache-airflow-providers-*`` — the providers of the wave
+being voted on are on PyPI only as ``rcN`` versions — and lands on a branch of its own, leaving the shared
+``constraints-X-Y`` branch where it was. A final (``3.1.3``) resolves without them and commits onto
+``constraints-X-Y``, which is what makes the released constraints the baseline everything downstream reads.
+
+These are all available flags of ``workflow-run release-constraints`` command:
+
+.. image:: ./images/output_workflow-run_release-constraints.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_release-constraints.svg
+  :width: 100%
+  :alt: Breeze workflow-run release-constraints
+
 Publishing the schema files to S3
 """""""""""""""""""""""""""""""""
 
@@ -1193,7 +1252,7 @@ Example usage:
 
 .. code-block:: bash
 
-     breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why
+     breeze release-management constraints-version-check --python 3.11 --airflow-constraints-mode constraints-source-providers --explain-why
 
 
 -----

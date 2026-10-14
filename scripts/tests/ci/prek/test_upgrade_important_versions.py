@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC
 from unittest import mock
 
 import pytest
@@ -199,15 +200,40 @@ def test_remove_override_entry_no_match_is_noop():
 
 def test_is_version_within_cooldown_uses_per_package_override():
     """A shorter per-package cooldown lets a release through that the global window would block."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from ci.prek.upgrade_important_versions import _is_version_within_cooldown
 
     # Published 2 days ago — inside the 4-day global window, outside a 6-hour window.
-    two_days_ago = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+    two_days_ago = (datetime.now(UTC) - timedelta(days=2)).isoformat()
     releases = {"1.0.1": [{"upload_time_iso_8601": two_days_ago.replace("+00:00", "Z")}]}
 
     # No override → global 4-day cooldown applies → version is "within cooldown".
     assert _is_version_within_cooldown(releases, "1.0.1") is True
     # 6-hour override → version is older than that → "outside cooldown".
     assert _is_version_within_cooldown(releases, "1.0.1", cooldown_hours=6) is False
+
+
+def test_flit_core_upgrade_updates_provider_pyproject_template(monkeypatch):
+    """Provider pyproject.toml files are regenerated from the template, so its pin must move with them."""
+    from ci.prek import upgrade_important_versions as uiv
+
+    monkeypatch.setattr(uiv, "UPGRADE_FLIT_CORE", True)
+    monkeypatch.setattr(uiv, "UPGRADE_PYTHON", False)
+    template = (
+        uiv.AIRFLOW_ROOT_PATH
+        / "dev"
+        / "breeze"
+        / "src"
+        / "airflow_breeze"
+        / "templates"
+        / "pyproject_TEMPLATE.toml.jinja2"
+    )
+    files_to_update = dict(uiv.FILES_TO_UPDATE)
+    assert template in files_to_update
+
+    new_content = uiv.update_file_with_versions(
+        template.read_text(), files_to_update[template], {"flit_core": "99.0.0"}, latest_python_versions={}
+    )
+
+    assert 'requires = ["flit_core==99.0.0"]' in new_content

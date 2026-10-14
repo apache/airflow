@@ -27,6 +27,43 @@
 Changelog
 ---------
 
+3.13.3
+......
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+3.13.2
+......
+
+Misc
+~~~~
+
+* ``Fix template-field validation in PapermillOperator (#70435)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare provider documentation 2026-06-16 (#68642)``
+   * ``[main] Upgrade important CI environment (#68322)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
 3.13.1
 ......
 

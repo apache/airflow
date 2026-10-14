@@ -19,6 +19,8 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:23.0.6
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration for manual testing of multi-team Airflow."
     entrypoint: /opt/keycloak/keycloak-entrypoint.sh
     environment:
@@ -56,6 +58,7 @@ services:
       interval: 10s
       timeout: 10s
       start_period: 30s
+      start_interval: 1s
       retries: 5
 
   airflow:

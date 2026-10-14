@@ -16,24 +16,27 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from sqlalchemy import delete, update
 
-from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView, DagDetails
 from airflow.api_fastapi.core_api.routes.public.import_error import REDACTED_STACKTRACE
 from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_import_errors
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
@@ -44,9 +47,9 @@ FILENAME3 = "Lorem_ipsum.py"
 STACKTRACE1 = "test_stacktrace1"
 STACKTRACE2 = "test_stacktrace2"
 STACKTRACE3 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-TIMESTAMP1 = datetime(2024, 6, 15, 1, 0, tzinfo=timezone.utc)
-TIMESTAMP2 = datetime(2024, 6, 15, 5, 0, tzinfo=timezone.utc)
-TIMESTAMP3 = datetime(2024, 6, 15, 3, 0, tzinfo=timezone.utc)
+TIMESTAMP1 = datetime(2024, 6, 15, 1, 0, tzinfo=UTC)
+TIMESTAMP2 = datetime(2024, 6, 15, 5, 0, tzinfo=UTC)
+TIMESTAMP3 = datetime(2024, 6, 15, 3, 0, tzinfo=UTC)
 IMPORT_ERROR_NON_EXISTED_ID = 9999
 IMPORT_ERROR_NON_EXISTED_KEY = "non_existed_key"
 BUNDLE_NAME = "testing"
@@ -150,6 +153,14 @@ def set_mock_auth_manager__batch_is_authorized_dag(
     return mock_batch_is_authorized_dag
 
 
+def set_mock_auth_manager__authorize_view(
+    mock_auth_manager: mock.Mock, authorize_view_return_value: bool = False
+) -> mock.Mock:
+    mock_method = mock_auth_manager.return_value.authorize_view
+    mock_method.return_value = authorize_view_return_value
+    return mock_method
+
+
 class TestGetImportError:
     @pytest.mark.parametrize(
         ("prepared_import_error_idx", "expected_status_code", "expected_body"),
@@ -160,6 +171,7 @@ class TestGetImportError:
                 {
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
                     "filename": FILENAME1,
+                    "source_reference": None,
                     "stack_trace": STACKTRACE1,
                     "bundle_name": BUNDLE_NAME,
                 },
@@ -170,6 +182,7 @@ class TestGetImportError:
                 {
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP2),
                     "filename": FILENAME2,
+                    "source_reference": None,
                     "stack_trace": STACKTRACE2,
                     "bundle_name": BUNDLE_NAME,
                 },
@@ -180,6 +193,7 @@ class TestGetImportError:
                 {
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP3),
                     "filename": FILENAME3,
+                    "source_reference": None,
                     "stack_trace": STACKTRACE3,
                     "bundle_name": BUNDLE_NAME,
                 },
@@ -197,6 +211,7 @@ class TestGetImportError:
         test_client,
         permitted_dag_model_all,
         import_errors,
+        url_safe_serializer,
     ):
         import_error: ParseImportError | None = (
             import_errors[prepared_import_error_idx] if prepared_import_error_idx is not None else None
@@ -208,8 +223,44 @@ class TestGetImportError:
         if expected_status_code != 200:
             return
 
-        expected_body.update({"import_error_id": import_error_id})
+        expected_body.update(
+            {
+                "import_error_id": import_error_id,
+                "file_token": url_safe_serializer.dumps(
+                    {"bundle_name": import_error.bundle_name, "relative_fileloc": import_error.filename}
+                ),
+            }
+        )
         assert response.json() == expected_body
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_error_with_source_reference(
+        self, mock_get_auth_manager, test_client, session, permitted_dag_model_all, url_safe_serializer
+    ):
+        error = ParseImportError(
+            bundle_name=BUNDLE_NAME,
+            filename=FILENAME1,
+            source_reference="archive.zip/dags/my_dag.py",
+            stacktrace=STACKTRACE1,
+            timestamp=TIMESTAMP1,
+        )
+        session.add(error)
+        session.commit()
+
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        response = test_client.get(f"/importErrors/{error.id}")
+        assert response.status_code == 200
+        assert response.json() == {
+            "import_error_id": error.id,
+            "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
+            "filename": FILENAME1,
+            "source_reference": "archive.zip/dags/my_dag.py",
+            "stack_trace": STACKTRACE1,
+            "bundle_name": BUNDLE_NAME,
+            "file_token": url_safe_serializer.dumps(
+                {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+            ),
+        }
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, import_errors):
         import_error_id = import_errors[0].id
@@ -244,6 +295,7 @@ class TestGetImportError:
         permitted_dag_model_all,
         not_permitted_dag_model,
         import_errors,
+        url_safe_serializer,
     ):
         import_error_id = import_errors[0].id
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
@@ -255,32 +307,106 @@ class TestGetImportError:
             "import_error_id": import_error_id,
             "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
             "filename": FILENAME1,
+            "source_reference": None,
             "stack_trace": "REDACTED - you do not have read permission on all Dags in the file",
             "bundle_name": BUNDLE_NAME,
+            "file_token": url_safe_serializer.dumps(
+                {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+            ),
         }
 
+    @pytest.mark.parametrize(
+        ("can_view_all_import_errors", "expected_status_code"),
+        [
+            pytest.param(True, 200, id="with-IMPORT_ERRORS_ALL-sees-raw"),
+            pytest.param(False, 403, id="without-IMPORT_ERRORS_ALL-forbidden"),
+        ],
+    )
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
-    def test_get_import_error__no_dag_in_dagmodel(self, mock_get_auth_manager, test_client, import_errors):
-        """Import error is returned with the raw stacktrace when no Dag exists
-        in ``DagModel`` for the file.
-
-        Proper handling of unregistered files (separate admin-only permission,
-        multi-team isolation) is tracked as follow-up work; for now the endpoint
-        returns the raw error rather than redacting it.
+    def test_get_import_error__no_dag_in_dagmodel(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        import_errors,
+        can_view_all_import_errors,
+        expected_status_code,
+        url_safe_serializer,
+    ):
+        """A file with no registered Dag has no per-Dag key to authorize on, so
+        visibility is gated on the dedicated ``IMPORT_ERRORS_ALL`` view: callers
+        holding it (admins by default) see the raw stacktrace, everyone else is
+        denied (403) rather than the endpoint failing open or leaking the row.
         """
         import_error_id = import_errors[0].id
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        mock_method = set_mock_auth_manager__authorize_view(mock_get_auth_manager, can_view_all_import_errors)
 
         response = test_client.get(f"/importErrors/{import_error_id}")
 
-        assert response.status_code == 200
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
+            assert response.json() == {
+                "import_error_id": import_error_id,
+                "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
+                "filename": FILENAME1,
+                "source_reference": None,
+                "stack_trace": STACKTRACE1,
+                "bundle_name": BUNDLE_NAME,
+                "file_token": url_safe_serializer.dumps(
+                    {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+                ),
+            }
+        # The unregistered-file view is what gates access, scoped to the file's
+        # team (None for the un-teamed "testing" bundle).
+        mock_method.assert_called_once_with(
+            access_view=AccessView.IMPORT_ERRORS_ALL, user=mock.ANY, team_name=None
+        )
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_error__file_registered_only_in_other_bundle_is_unregistered(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        import_errors,
+        session,
+    ):
+        """Regression: the has-any-Dag lookup is scoped per bundle. Matching on
+        ``relative_fileloc`` alone would resolve the same-named file's Dag in a
+        *different* bundle, treat this error as registered, and hand back the raw
+        stacktrace on the strength of an unrelated bundle's read permission --
+        never consulting ``IMPORT_ERRORS_ALL``.
+        """
+        import_error_id = import_errors[0].id
+        other_bundle = "other_bundle"
+        session.add(DagBundleModel(name=other_bundle))
+        session.flush()
+        # FILENAME1 has a registered Dag only in ``other_bundle``, while the
+        # import error for the same path lives in BUNDLE_NAME, which has none.
+        session.add(
+            DagModel(
+                fileloc=f"/other/{FILENAME1}",
+                relative_fileloc=FILENAME1,
+                dag_id="dag_in_other_bundle",
+                is_paused=False,
+                bundle_name=other_bundle,
+            )
+        )
+        session.commit()
+
+        # Readable other-bundle Dag must not grant visibility into the
+        # same-named file's error in BUNDLE_NAME.
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, {"dag_in_other_bundle"})
+        mock_method = set_mock_auth_manager__authorize_view(mock_get_auth_manager, False)
+
+        response = test_client.get(f"/importErrors/{import_error_id}")
+
+        assert response.status_code == 403
         assert response.json() == {
-            "import_error_id": import_error_id,
-            "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
-            "filename": FILENAME1,
-            "stack_trace": STACKTRACE1,
-            "bundle_name": BUNDLE_NAME,
+            "detail": "You do not have permission to view import errors for files with no registered Dag"
         }
+        mock_method.assert_called_once_with(
+            access_view=AccessView.IMPORT_ERRORS_ALL, user=mock.ANY, team_name=None
+        )
 
 
 class TestGetImportErrors:
@@ -373,7 +499,10 @@ class TestGetImportErrors:
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
         set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
 
-        with assert_queries_count(5):
+        # One extra query vs. the has-Dag path: the list endpoint probes for
+        # import errors of files with no registered Dag so it can authorize them
+        # on the IMPORT_ERRORS_ALL view before building the main query.
+        with assert_queries_count(6):
             response = test_client.get("/importErrors", params=query_params)
 
         assert response.status_code == expected_status_code
@@ -490,6 +619,102 @@ class TestGetImportErrors:
         assert response_json["total_entries"] == 1
         assert response_json["import_errors"][0]["bundle_name"] == BUNDLE_NAME
         assert response_json["import_errors"][0]["stack_trace"] == STACKTRACE1
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_errors__file_registered_only_in_other_bundle_is_unregistered(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        session,
+    ):
+        """Regression: the has-any-Dag lookup is scoped per bundle. The same
+        ``relative_fileloc`` can exist in several bundles, so an import error
+        whose file has a registered Dag only in a *different* bundle must still
+        be treated as unregistered in its own bundle and gated on
+        ``IMPORT_ERRORS_ALL`` -- matching on the filename alone leaked it as
+        registered and could duplicate the row across bundles.
+        """
+        clear_db_import_errors()
+        other_bundle = "other_bundle"
+        session.add(DagBundleModel(name=other_bundle))
+        session.flush()
+        # FILENAME1 has a registered Dag only in ``other_bundle`` ...
+        session.add(
+            DagModel(
+                fileloc=f"/other/{FILENAME1}",
+                relative_fileloc=FILENAME1,
+                dag_id="dag_in_other_bundle",
+                is_paused=False,
+                bundle_name=other_bundle,
+            )
+        )
+        # ... while the import error for the same path is in BUNDLE_NAME, which
+        # has no Dag for it.
+        error = ParseImportError(
+            bundle_name=BUNDLE_NAME,
+            filename=FILENAME1,
+            stacktrace=STACKTRACE1,
+            timestamp=TIMESTAMP1,
+        )
+        session.add(error)
+        session.commit()
+
+        # Being able to read the other-bundle Dag must not grant visibility into
+        # the same-named file's error in BUNDLE_NAME.
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, {"dag_in_other_bundle"})
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+        mock_view = set_mock_auth_manager__authorize_view(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors")
+
+        assert response.status_code == 200
+        body = response.json()
+        # Exactly one row (no filename-only-join duplication), admitted only via
+        # the IMPORT_ERRORS_ALL view.
+        assert body["total_entries"] == 1
+        assert [e["bundle_name"] for e in body["import_errors"]] == [BUNDLE_NAME]
+        mock_view.assert_called_once_with(
+            access_view=AccessView.IMPORT_ERRORS_ALL, user=mock.ANY, team_name=None
+        )
+
+    @pytest.mark.parametrize(
+        ("order_by", "expected_filenames"),
+        [
+            ("source_reference", [FILENAME2, FILENAME3, FILENAME1]),
+            ("-source_reference", [FILENAME1, FILENAME3, FILENAME2]),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_errors_source_reference(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        session,
+        order_by,
+        expected_filenames,
+        permitted_dag_model_all,
+    ):
+        source_references = {
+            FILENAME1: f"c.zip/{FILENAME1}",
+            FILENAME2: f"a.zip/{FILENAME2}",
+            FILENAME3: f"b.zip/{FILENAME3}",
+        }
+        for filename, source_reference in source_references.items():
+            session.execute(
+                update(ParseImportError)
+                .where(ParseImportError.filename == filename)
+                .values(source_reference=source_reference)
+            )
+        session.commit()
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors", params={"order_by": order_by})
+
+        assert response.status_code == 200
+        assert [(e["filename"], e["source_reference"]) for e in response.json()["import_errors"]] == [
+            (filename, source_references[filename]) for filename in expected_filenames
+        ]
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/importErrors")
@@ -610,6 +835,7 @@ class TestGetImportErrors:
         expected_stack_trace,
         permitted_dag_model_all,
         import_errors,
+        url_safe_serializer,
     ):
         dag_id1 = "dag_id1"
         mock_get_dag_id_to_team_name_mapping.return_value = {dag_id1: team}
@@ -632,8 +858,12 @@ class TestGetImportErrors:
                     "import_error_id": import_errors[0].id,
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
                     "filename": FILENAME1,
+                    "source_reference": None,
                     "stack_trace": expected_stack_trace,
                     "bundle_name": BUNDLE_NAME,
+                    "file_token": url_safe_serializer.dumps(
+                        {"bundle_name": BUNDLE_NAME, "relative_fileloc": FILENAME1}
+                    ),
                 }
             ],
         }
@@ -678,6 +908,13 @@ class TestGetImportErrors:
         session.merge(dag_model1)
         session.commit()
 
+        # FILENAME1 now has no Dag in BUNDLE_NAME (its only Dag moved to another
+        # bundle), so its error there is unregistered and gated on the dedicated
+        # IMPORT_ERRORS_ALL view -- which this caller does not hold, so the row
+        # is hidden. (Matching on filename alone would have wrongly treated it as
+        # registered via the same-named Dag in the other bundle.)
+        set_mock_auth_manager__authorize_view(mock_get_auth_manager, False)
+
         response2 = test_client.get("/importErrors")
 
         # Assert - should return 0 entries because bundle_name no longer matches
@@ -686,29 +923,45 @@ class TestGetImportErrors:
         assert response_json2["total_entries"] == 0
         assert response_json2["import_errors"] == []
 
+    @pytest.mark.parametrize(
+        ("can_view_all_import_errors", "expected_total_entries", "expected_stacktraces"),
+        [
+            pytest.param(
+                True,
+                3,
+                {FILENAME1: STACKTRACE1, FILENAME2: STACKTRACE2, FILENAME3: STACKTRACE3},
+                id="with-IMPORT_ERRORS_ALL-sees-raw",
+            ),
+            pytest.param(False, 0, {}, id="without-IMPORT_ERRORS_ALL-hidden"),
+        ],
+    )
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
-    def test_get_import_errors__no_dag_in_dagmodel(self, mock_get_auth_manager, test_client, import_errors):
-        """Import errors are returned with their raw stacktraces when no Dag
-        exists in ``DagModel`` for the file.
-
-        Proper handling of unregistered files is deferred to a follow-up issue
-        that introduces a dedicated permission and respects multi-team isolation.
+    def test_get_import_errors__no_dag_in_dagmodel(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        import_errors,
+        can_view_all_import_errors,
+        expected_total_entries,
+        expected_stacktraces,
+    ):
+        """List endpoint gates unregistered-file import errors on the dedicated
+        ``IMPORT_ERRORS_ALL`` view: callers holding it see the raw stacktrace,
+        callers without it do not see the rows at all (excluded from both the
+        results and ``total_entries``, so the file's existence does not leak).
         """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        set_mock_auth_manager__authorize_view(mock_get_auth_manager, can_view_all_import_errors)
 
         response = test_client.get("/importErrors")
 
         assert response.status_code == 200
         response_json = response.json()
-        assert response_json["total_entries"] == 3
+        assert response_json["total_entries"] == expected_total_entries
         stacktrace_by_filename = {
             error["filename"]: error["stack_trace"] for error in response_json["import_errors"]
         }
-        assert stacktrace_by_filename == {
-            FILENAME1: STACKTRACE1,
-            FILENAME2: STACKTRACE2,
-            FILENAME3: STACKTRACE3,
-        }
+        assert stacktrace_by_filename == expected_stacktraces
 
 
 class TestImportErrorFileAuthorization:
@@ -838,25 +1091,35 @@ class TestImportErrorFileAuthorization:
         response = test_client.get(f"/importErrors/{lonely_file_import_error.id}")
         assert response.status_code == 403
 
+    @pytest.mark.parametrize(
+        ("can_view_all_import_errors", "expected_status_code"),
+        [
+            pytest.param(True, 200, id="with-IMPORT_ERRORS_ALL-sees-raw"),
+            pytest.param(False, 403, id="without-IMPORT_ERRORS_ALL-forbidden"),
+        ],
+    )
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
-    def test_single_endpoint_returns_raw_stacktrace_when_file_has_no_known_dags(
+    def test_single_endpoint_gates_unregistered_file_stacktrace_on_import_errors_all(
         self,
         mock_get_auth_manager,
         test_client,
         import_errors,
+        can_view_all_import_errors,
+        expected_status_code,
     ):
-        """Single endpoint returns the raw stacktrace when the
-        ``ParseImportError`` refers to a file with no matching ``DagModel``
-        rows at all -- for example a file that failed to parse before any
-        Dag was defined. Proper handling of this case (dedicated permission,
-        multi-team isolation) is tracked as follow-up work.
+        """Single endpoint gates a file with no matching ``DagModel`` rows (for
+        example a file that failed to parse before any Dag was defined) on the
+        dedicated ``IMPORT_ERRORS_ALL`` view instead of failing open. Callers
+        holding it see the raw stacktrace; others are denied (403).
         """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        set_mock_auth_manager__authorize_view(mock_get_auth_manager, can_view_all_import_errors)
         response = test_client.get(f"/importErrors/{import_errors[0].id}")
-        assert response.status_code == 200
-        body = response.json()
-        assert body["filename"] == FILENAME1
-        assert body["stack_trace"] == STACKTRACE1
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
+            body = response.json()
+            assert body["filename"] == FILENAME1
+            assert body["stack_trace"] == STACKTRACE1
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_list_endpoint_redacts_mixed_file_with_colocated_dag_outside_callers_scope(
@@ -894,26 +1157,86 @@ class TestImportErrorFileAuthorization:
         assert len(mixed_entries) == 1
         assert mixed_entries[0]["stack_trace"] == REDACTED_STACKTRACE
 
+    @pytest.mark.parametrize(
+        ("can_view_all_import_errors", "expected_total_entries", "expected_stacktraces"),
+        [
+            pytest.param(
+                True,
+                3,
+                {FILENAME1: STACKTRACE1, FILENAME2: STACKTRACE2, FILENAME3: STACKTRACE3},
+                id="with-IMPORT_ERRORS_ALL-sees-raw",
+            ),
+            pytest.param(False, 0, {}, id="without-IMPORT_ERRORS_ALL-hidden"),
+        ],
+    )
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
-    def test_list_endpoint_returns_raw_stacktrace_when_file_has_no_known_dags(
+    def test_list_endpoint_gates_unregistered_file_stacktrace_on_import_errors_all(
         self,
         mock_get_auth_manager,
         test_client,
         import_errors,
+        can_view_all_import_errors,
+        expected_total_entries,
+        expected_stacktraces,
     ):
-        """List endpoint returns the raw stacktrace for import errors whose
-        file has no matching ``DagModel`` rows. Proper handling of this case
-        (dedicated permission, multi-team isolation) is tracked as follow-up
-        work.
+        """List endpoint gates import errors whose file has no matching
+        ``DagModel`` rows on the dedicated ``IMPORT_ERRORS_ALL`` view instead of
+        failing open. Callers holding it see the raw stacktrace; callers without
+        it do not see the rows at all (excluded from results and
+        ``total_entries``).
         """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        set_mock_auth_manager__authorize_view(mock_get_auth_manager, can_view_all_import_errors)
         response = test_client.get("/importErrors")
         assert response.status_code == 200
         body = response.json()
-        assert body["total_entries"] == 3
+        assert body["total_entries"] == expected_total_entries
         stacktrace_by_filename = {entry["filename"]: entry["stack_trace"] for entry in body["import_errors"]}
-        assert stacktrace_by_filename == {
-            FILENAME1: STACKTRACE1,
-            FILENAME2: STACKTRACE2,
-            FILENAME3: STACKTRACE3,
-        }
+        assert stacktrace_by_filename == expected_stacktraces
+
+    @pytest.fixture
+    def team_scoped_unregistered_import_error(self) -> Generator[ParseImportError, None, None]:
+        """An import error for a file with no registered Dag, whose bundle is
+        mapped to a team, so the endpoint must scope the ``IMPORT_ERRORS_ALL``
+        check to that team."""
+        from airflow.models.team import Team
+
+        with create_session() as session:
+            team = Team(name="team_b")
+            bundle = DagBundleModel(name="team_b_bundle")
+            bundle.teams = [team]
+            session.add_all([team, bundle])
+            error = ParseImportError(
+                bundle_name="team_b_bundle",
+                filename="team_b_unregistered.py",
+                stacktrace="team b stack trace",
+                timestamp=TIMESTAMP1,
+            )
+            session.add(error)
+            session.commit()
+            session.refresh(error)
+            session.expunge(error)
+        yield error
+        with create_session() as cleanup_session:
+            cleanup_session.execute(delete(Team).where(Team.name == "team_b"))
+            cleanup_session.commit()
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_single_endpoint_scopes_unregistered_file_view_to_bundle_team(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        team_scoped_unregistered_import_error,
+    ):
+        """The ``IMPORT_ERRORS_ALL`` check for an unregistered file is scoped to
+        the file's team, resolved from its bundle. A caller not in that team is
+        denied (403)."""
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        mock_method = set_mock_auth_manager__authorize_view(mock_get_auth_manager, False)
+
+        response = test_client.get(f"/importErrors/{team_scoped_unregistered_import_error.id}")
+
+        assert response.status_code == 403
+        mock_method.assert_called_once_with(
+            access_view=AccessView.IMPORT_ERRORS_ALL, user=mock.ANY, team_name="team_b"
+        )

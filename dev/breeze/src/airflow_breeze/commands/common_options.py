@@ -36,7 +36,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_TERMINAL_MULTIPLEXERS,
     ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
-    ALLOWED_WORKER_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_ALL_INTEGRATIONS,
     AUTOCOMPLETE_CORE_INTEGRATIONS,
@@ -59,6 +58,7 @@ from airflow_breeze.utils.custom_param_types import (
     VerboseOption,
 )
 from airflow_breeze.utils.packages import get_available_distributions
+from airflow_breeze.utils.path_utils import get_default_project_name
 from airflow_breeze.utils.recording import generating_command_images
 
 
@@ -358,12 +358,11 @@ option_postgres_version = click.option(
 )
 option_project_name = click.option(
     "--project-name",
-    help="Name of the docker-compose project to bring down. "
-    "The `docker-compose` is for legacy breeze project name and you can use "
-    "`breeze down --project-name docker-compose` to stop all containers belonging to it.",
-    show_default=True,
+    help="Compose project name. Defaults to breeze-<worktree directory name> in a linked worktree, "
+    "or breeze in the main checkout.",
+    show_default=False,
     type=NotVerifiedBetterChoice(ALLOWED_DOCKER_COMPOSE_PROJECTS),
-    default=ALLOWED_DOCKER_COMPOSE_PROJECTS[0],
+    default=get_default_project_name,
     envvar="PROJECT_NAME",
 )
 option_python = click.option(
@@ -467,13 +466,6 @@ option_use_uv_default_depends_on_installation_method = click.option(
     help="Use uv instead of pip as packaging tool to build the image (default is True for installing "
     "from sources and False for installing from packages).",
     envvar="USE_UV",
-)
-option_uv_http_timeout = click.option(
-    "--uv-http-timeout",
-    help="Deprecated: This option isn't exposed anymore",
-    type=click.IntRange(min=1),
-    default=30,
-    hidden=True,
 )
 option_use_airflow_version = click.option(
     "--use-airflow-version",
@@ -602,14 +594,6 @@ option_platform_single = click.option(
     envvar="PLATFORM",
     callback=_normalize_platform,
     type=BetterChoice(SINGLE_PLATFORMS),
-)
-
-option_worker_types = click.option(
-    "--worker-type",
-    help="Start a specific worker",
-    type=BetterChoice(ALLOWED_WORKER_TYPES),
-    multiple=True,
-    envvar="WORKER_TYPE",
 )
 
 option_sdk = click.option(

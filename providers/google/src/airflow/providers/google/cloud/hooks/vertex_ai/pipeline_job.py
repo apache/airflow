@@ -185,6 +185,7 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
         network: str | None = None,
         create_request_timeout: float | None = None,
         experiment: str | experiment_resources.Experiment | None = None,
+        reserved_ip_ranges: list[str] | None = None,
         # END: run param
     ) -> PipelineJob:
         """
@@ -234,6 +235,9 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
             PipelineJob. Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as
             metrics to the current Experiment Run. Pipeline parameters will be associated as parameters to
             the current Experiment Run.
+        :param reserved_ip_ranges: Optional. A list of names for the reserved IP ranges under the VPC
+            network that can be used for this PipelineJob. If set, the PipelineJob will only use IP
+            addresses from these ranges.
         """
         self._pipeline_job = self.get_pipeline_job_object(
             display_name=display_name,
@@ -252,6 +256,7 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
         self._pipeline_job.submit(
             service_account=service_account,
             network=network,
+            reserved_ip_ranges=reserved_ip_ranges,
             create_request_timeout=create_request_timeout,
             experiment=experiment,
         )
@@ -279,6 +284,7 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
         network: str | None = None,
         create_request_timeout: float | None = None,
         experiment: str | experiment_resources.Experiment | None = None,
+        reserved_ip_ranges: list[str] | None = None,
         # END: run param
     ) -> PipelineJob:
         """
@@ -331,6 +337,9 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
             Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as metrics
             to the current Experiment Run. Pipeline parameters will be associated as parameters to
             the current Experiment Run.
+        :param reserved_ip_ranges: Optional. A list of names for the reserved IP ranges under the VPC
+            network that can be used for this PipelineJob. If set, the PipelineJob will only use IP
+            addresses from these ranges.
         """
         self._pipeline_job = self.get_pipeline_job_object(
             display_name=display_name,
@@ -349,6 +358,7 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
         self._pipeline_job.submit(
             service_account=service_account,
             network=network,
+            reserved_ip_ranges=reserved_ip_ranges,
             create_request_timeout=create_request_timeout,
             experiment=experiment,
         )

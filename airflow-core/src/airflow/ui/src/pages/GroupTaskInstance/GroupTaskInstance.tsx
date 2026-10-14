@@ -22,6 +22,7 @@ import { MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { useDocumentTitle } from "src/utils";
 
@@ -37,6 +38,7 @@ export const GroupTaskInstance = () => {
   const gridTISummaries = summariesByRunId.get(runId);
   const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === groupId);
 
+  // A looped group's iteration view lives on this same tab -- see GroupTaskInstances.
   const tabs = [{ icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" }];
 
   return (

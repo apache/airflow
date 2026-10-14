@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import os
 import socket
@@ -44,6 +45,8 @@ if TYPE_CHECKING:
 FORCE_COLOR = bool(os.environ.get("FORCE_COLOR", ""))
 NO_COLOR = bool(os.environ.get("NO_COLOR", ""))
 
+REFRESH_INTERVAL_ENV_VAR = "AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL"
+
 
 class StandaloneCommand:
     """
@@ -62,6 +65,7 @@ class StandaloneCommand:
         self.output_queue = deque()
         self.ready_time = None
         self.ready_delay = 3
+        self.api_server_port = None
 
     @providers_configuration_loaded
     def run(self):
@@ -69,6 +73,7 @@ class StandaloneCommand:
         # Silence built-in logging at INFO
         logging.getLogger("").setLevel(logging.WARNING)
         # Startup checks and prep
+        self.api_server_port = conf.getint("api", "port")
         env = self.calculate_env()
         self.find_user_info()
         self.initialize_database()
@@ -189,7 +194,35 @@ class StandaloneCommand:
             env["AIRFLOW__CORE__AUTH_MANAGER"] = simple_auth_manager_classpath
             os.environ["AIRFLOW__CORE__AUTH_MANAGER"] = simple_auth_manager_classpath  # also in this process!
 
+        # A new Dag file is found only when its bundle refreshes, every few minutes by default. Have the
+        # Dag processor refresh the Dags folder each time it checks whether any bundle is due.
+        if self.uses_default_dag_discovery():
+            refresh_interval = conf.getint("dag_processor", "bundle_refresh_check_interval")
+            self.print_output(
+                "standalone",
+                f"Checking for new Dag files every {refresh_interval} seconds "
+                "(set [dag_processor] refresh_interval to change this)",
+            )
+            env[REFRESH_INTERVAL_ENV_VAR] = str(refresh_interval)
+
         return env
+
+    def uses_default_dag_discovery(self) -> bool:
+        """
+        Check that the user left the Dags folder bundle and its refresh interval at their defaults.
+
+        The generated airflow.cfg writes out every default, so a value equal to the default counts as
+        unset there; an environment variable counts as a choice whatever its value. Other bundles are
+        left alone, since refreshing a remote bundle fetches from it.
+        """
+        if REFRESH_INTERVAL_ENV_VAR in os.environ:
+            return False
+        if conf.get("dag_processor", "refresh_interval") != conf.get_default_value(
+            "dag_processor", "refresh_interval"
+        ):
+            return False
+        default_bundles = json.loads(conf.get_default_value("dag_processor", "dag_bundle_config_list"))
+        return conf.getjson("dag_processor", "dag_bundle_config_list") == default_bundles
 
     def find_user_info(self):
         if conf.get("core", "simple_auth_manager_all_admins").lower() == "true":
@@ -226,10 +259,12 @@ class StandaloneCommand:
         """
         Detect when all Airflow components are ready to serve.
 
-        For now, it's simply time-based.
+        Ready means the API server accepts connections and the scheduler, Dag
+        processor and triggerer are all heartbeating.
         """
         return (
-            self.job_running(SchedulerJobRunner)
+            self.port_open(self.api_server_port)
+            and self.job_running(SchedulerJobRunner)
             and self.job_running(DagProcessorJobRunner)
             and self.job_running(TriggererJobRunner)
         )
@@ -238,7 +273,7 @@ class StandaloneCommand:
         """
         Check if the given port is listening on the local machine.
 
-        Used to tell if webserver is alive.
+        Used to tell if the API server is alive.
         """
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -291,6 +326,7 @@ class SubCommand(threading.Thread):
         self.name = name
         self.command = command
         self.env = env
+        self.process: subprocess.Popen[bytes] | None = None
 
     def run(self):
         """Run the actual process and captures it output to a queue."""
@@ -305,7 +341,8 @@ class SubCommand(threading.Thread):
 
     def stop(self):
         """Call to stop this process (and thus this thread)."""
-        self.process.terminate()
+        if self.process is not None:
+            self.process.terminate()
 
 
 # Alias for use in the CLI parser

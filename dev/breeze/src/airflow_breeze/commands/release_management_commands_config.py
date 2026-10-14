@@ -22,6 +22,7 @@ RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
         "create-minor-branch",
         "prepare-airflow-distributions",
         "prepare-tarball",
+        "start-beta-process",
         "start-rc-process",
         "start-release",
         "release-prod-images",
@@ -253,6 +254,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--distributions-list-file",
                 "--skip-deleting-generated-files",
+                "--skip-git-fetch",
                 "--skip-tag-check",
                 "--version-suffix",
                 "--distributions-list",
@@ -292,6 +294,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--release-date",
                 "--incremental-update",
+                "--mark-doc-only",
                 "--only-min-version-update",
                 "--reapply-templates-only",
                 "--non-interactive",
@@ -339,6 +342,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Generate constraints flags",
             "options": [
                 "--airflow-constraints-mode",
+                "--allow-pre-releases",
                 "--github-repository",
                 "--python",
                 "--use-uv",
@@ -496,6 +500,16 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Debug options",
             "options": ["--provider-id", "--provider-version"],
         },
+    ],
+    "breeze release-management start-beta-process": [
+        {
+            "name": "Start beta process flags",
+            "options": [
+                "--version",
+                "--task-sdk-version",
+                "--remote-name",
+            ],
+        }
     ],
     "breeze release-management start-rc-process": [
         {

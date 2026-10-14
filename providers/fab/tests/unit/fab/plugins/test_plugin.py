@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 from fastapi import FastAPI
 from flask import Blueprint
@@ -38,6 +40,14 @@ from tests_common.test_utils.mock_operators import (
 )
 from unit.listeners import empty_listener
 from unit.listeners.class_listener import ClassBasedListener
+
+if TYPE_CHECKING:
+    from airflow.plugins_manager import (
+        ExternalViewDict,
+        FastAPIAppDict,
+        FastAPIRootMiddlewareDict,
+        ReactAppDict,
+    )
 
 pytestmark = pytest.mark.db_test
 
@@ -89,7 +99,7 @@ bp = Blueprint(
 
 app = FastAPI()
 
-app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
+app_with_metadata: FastAPIAppDict = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
 
 
 class DummyMiddleware(BaseHTTPMiddleware):
@@ -97,14 +107,14 @@ class DummyMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-middleware_with_metadata = {
+middleware_with_metadata: FastAPIRootMiddlewareDict = {
     "middleware": DummyMiddleware,
     "args": [],
     "kwargs": {},
     "name": "Name of the Middleware",
 }
 
-external_view_with_metadata = {
+external_view_with_metadata: ExternalViewDict = {
     "name": "Test IFrame Airflow Docs",
     "href": "https://airflow.apache.org/",
     "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
@@ -113,7 +123,7 @@ external_view_with_metadata = {
     "category": "browse",
 }
 
-react_app_with_metadata = {
+react_app_with_metadata: ReactAppDict = {
     "name": "Test React App",
     "bundle_url": "https://example.com/test-plugin-bundle.js",
     "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",

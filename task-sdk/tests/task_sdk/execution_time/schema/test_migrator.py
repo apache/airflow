@@ -28,9 +28,12 @@ schema diverges from head.
 
 from __future__ import annotations
 
+import datetime
 import subprocess
 import sys
+import uuid
 from typing import Literal
+from uuid import UUID
 
 import pytest
 from cadwyn import (
@@ -48,6 +51,26 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
     _SupervisorResponse,
 )
 
+from airflow.sdk import TaskInstanceState
+from airflow.sdk.api.datamodels._generated import (
+    BundleInfo,
+    DagRun,
+    DagRunState,
+    DagRunType,
+    LoopContext,
+    PreviousTIResponse,
+    TaskInstance,
+    TIRunContext,
+)
+from airflow.sdk.execution_time.comms import (
+    GetXCom,
+    GetXComCount,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
+    PreviousTIResult,
+    StartupDetails,
+    TaskState,
+)
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
@@ -62,6 +85,46 @@ class _MockBody(BaseModel):
     ti_id: str
     queue_capacity: int | None = None
     sentry_trace_id: str | None = None
+
+
+@pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
+def test_previous_ti_response_coordinates_follow_supervisor_version(version):
+    message = PreviousTIResult(
+        task_instance=PreviousTIResponse(
+            dag_id="dag",
+            task_id="task",
+            run_id="run",
+            try_number=1,
+            map_index=-1,
+            region_id=UUID(int=1),
+            region_index=3,
+        )
+    )
+    result = get_schema_version_migrator().downgrade(message, version).model_dump()["task_instance"]
+    assert result["map_index"] == -1
+    if version == "2026-06-16":
+        assert "region_id" not in result
+        assert "region_index" not in result
+    else:
+        assert result["region_id"] == UUID(int=1)
+        assert result["region_index"] == 3
+
+
+@pytest.mark.parametrize(
+    ("model", "extra", "field"),
+    [
+        (GetXCom, {}, "previous_iteration"),
+        (GetXComCount, {}, "previous_iteration"),
+        (GetXComSequenceItem, {"offset": 0}, "previous_iteration"),
+        (GetXComSequenceSlice, {"start": None, "stop": None, "step": None}, "previous_iteration"),
+    ],
+)
+def test_loop_selectors_follow_supervisor_version(model, extra, field):
+    message = model(dag_id="dag", run_id="run", task_id="task", key="key", **extra, **{field: True})
+    migrator = get_schema_version_migrator()
+
+    assert field not in migrator.downgrade(message, "2026-06-16").model_dump()
+    assert migrator.downgrade(message, "2026-10-30").model_dump()[field] is True
 
 
 class _IntroduceQueueCapacity(VersionChange):
@@ -105,12 +168,9 @@ _LATEST_VERSION = "3026-06-16"
 class TestSchemaVersionMigratorDowngrade:
     """
     Drive the downgrade direction against a mock bundle so we can pin
-    *field-level* migration behaviour. The real supervisor bundle has
-    no schema-level migrations on the IPC bodies yet, so it would no-op
-    every version -- which proves nothing about the migration chain.
-    The mock bundle's mechanism is identical to the real one, so what
-    we prove about it applies to the real bundle the moment a
-    ``schema(...)`` instruction lands.
+    *field-level* migration behaviour independent of the real bundle's
+    contents. The real bundle's ``arg_bindings`` migration is covered by
+    :class:`TestRealBundleArgBindingsDowngrade` below.
     """
 
     @pytest.fixture
@@ -369,3 +429,226 @@ class TestLazyCadwynImport:
             "assert 'cadwyn' in sys.modules, 'cadwyn should load when the bundle is accessed'"
         )
         subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
+
+
+class TestRealBundleArgBindingsDowngrade:
+    """
+    Drive the *real* supervisor bundle through the ``arg_bindings`` migration.
+
+    ``AddArgBindingsToSupervisorTIRunContext`` is the bundle's first ``schema(...)``
+    instruction on a model *nested* inside a registered body
+    (``StartupDetails.ti_context``); this pins that the downgrade
+    re-validation strips the nested field on the wire for a runtime
+    pinned to the previous version, and keeps it at head.
+    """
+
+    @pytest.fixture
+    def startup_details(self):
+        import datetime
+        import uuid
+
+        from airflow.sdk.api.datamodels._generated import (
+            BundleInfo,
+            DagRun,
+            DagRunState,
+            DagRunType,
+            TaskInstance,
+            TIRunContext,
+        )
+        from airflow.sdk.execution_time.comms import StartupDetails
+
+        now = datetime.datetime.now(datetime.UTC)
+        return StartupDetails(
+            ti=TaskInstance(
+                id=uuid.uuid4(),
+                task_id="transform",
+                dag_id="d",
+                run_id="r",
+                try_number=1,
+                dag_version_id=uuid.uuid4(),
+                region_id=uuid.uuid4(),
+                region_index=7,
+                map_index=-1,
+            ),
+            dag_rel_path="d.py",
+            bundle_info=BundleInfo(name="b", version=None),
+            start_date=now,
+            ti_context=TIRunContext(
+                dag_run=DagRun(
+                    dag_id="d",
+                    run_id="r",
+                    logical_date=now,
+                    data_interval_start=None,
+                    data_interval_end=None,
+                    start_date=now,
+                    end_date=None,
+                    run_type=DagRunType.MANUAL,
+                    state=DagRunState.RUNNING,
+                    run_after=now,
+                    consumed_asset_events=[],
+                    partition_key=None,
+                ),
+                max_tries=1,
+                arg_bindings=[
+                    # No value_schema: the unconstrained ("any") case rides through the migrator too.
+                    {"name": "country", "kind": "literal", "value": "uk"},
+                    {
+                        "name": "extracted",
+                        "kind": "xcom",
+                        "value_schema": {"type": "object"},
+                        "task_id": "extract",
+                    },
+                    {
+                        "name": "limit",
+                        "kind": "literal",
+                        "value_schema": {"type": "integer", "format": "int64"},
+                        "value": 10,
+                        "from_default": True,
+                    },
+                ],
+            ),
+            sentry_integration="",
+        )
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    def test_downgrade_strips_arg_bindings_for_previous_version(self, real_migrator, startup_details):
+        out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
+        assert "arg_bindings" not in out["ti_context"]
+
+    @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
+    def test_loop_context_follows_supervisor_version(self, real_migrator, startup_details, version):
+        startup_details.ti_context.loop = LoopContext(
+            node_id="body",
+            index=2,
+            max_iterations=4,
+            terminal_task_id="body.terminal",
+            terminal_is_mapped=True,
+        )
+        context = real_migrator.downgrade(startup_details, version).model_dump()["ti_context"]
+
+        if version == "2026-06-16":
+            assert "loop" not in context
+        else:
+            assert context["loop"] == startup_details.ti_context.loop.model_dump()
+
+    @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
+    def test_task_coordinates_follow_supervisor_version(self, real_migrator, startup_details, version):
+        ti = real_migrator.downgrade(startup_details, version).model_dump()["ti"]
+        assert ti["map_index"] == -1
+        if version == "2026-06-16":
+            assert "region_id" not in ti
+            assert "region_index" not in ti
+        else:
+            assert ti["region_id"] == startup_details.ti.region_id
+            assert ti["region_index"] == 7
+
+    def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
+        from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding
+
+        out = real_migrator.downgrade(startup_details, "2026-10-30")
+        assert out.ti_context.arg_bindings is not None
+        literal, xcom, defaulted = (a.root for a in out.ti_context.arg_bindings)
+        assert isinstance(literal, LiteralArgBinding)
+        assert literal.value == "uk"
+        assert literal.name == "country"
+        assert literal.from_default is False
+        assert literal.value_schema is None
+        assert isinstance(xcom, XComArgBinding)
+        assert xcom.task_id == "extract"
+        assert xcom.name == "extracted"
+        assert xcom.value_schema.root == {"type": "object"}
+        assert isinstance(defaulted, LiteralArgBinding)
+        assert defaulted.from_default is True
+        assert defaulted.value_schema.root == {"type": "integer", "format": "int64"}
+
+
+class TestRealBundleRetryReason:
+    """
+    Drive the *real* supervisor bundle through the ``retry_reason`` migration.
+
+    ``TaskState`` flows foreign-runtime -> supervisor, so ``upgrade`` is the direction a
+    pinned runtime travels. Only ``downgrade`` re-validates against the versioned class,
+    so that is the direction that fails if ``AddRetryReasonToTaskState`` is dropped.
+    """
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    def test_downgrade_strips_retry_reason_for_previous_version(self, real_migrator):
+        msg = TaskState(state=TaskInstanceState.FAILED, retry_reason="auth error, do not retry")
+        out = real_migrator.downgrade(msg, "2026-06-16").model_dump()
+        assert "retry_reason" not in out
+
+    def test_downgrade_keeps_retry_reason_at_head(self, real_migrator):
+        msg = TaskState(state=TaskInstanceState.FAILED, retry_reason="auth error, do not retry")
+        out = real_migrator.downgrade(msg, "2026-10-30").model_dump()
+        assert out["retry_reason"] == "auth error, do not retry"
+
+    def test_upgrade_fills_missing_retry_reason_with_none(self, real_migrator):
+        body = {"type": "TaskState", "state": "failed", "end_date": None, "rendered_map_index": None}
+        out = real_migrator.upgrade(body, TaskState, "2026-06-16")
+        assert out["retry_reason"] is None
+
+
+class TestRealBundleFirstTaskRescheduleStartDate:
+    """
+    Drive the *real* supervisor bundle through the ``first_task_reschedule_start_date`` migration.
+
+    ``AddFirstTaskRescheduleStartDateToSupervisorTIRunContext`` is ``didnt_exist``-only, so the
+    downgrade re-validation is the only place it is visible: dropping it from the bundle, or
+    registering it under the wrong version, leaves the field on the wire for a pinned runtime.
+    """
+
+    FIRST_RESCHEDULE = datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
+
+    @pytest.fixture
+    def startup_details(self):
+        now = datetime.datetime.now(datetime.UTC)
+        return StartupDetails(
+            ti=TaskInstance(
+                id=uuid.uuid4(),
+                task_id="wait",
+                dag_id="d",
+                run_id="r",
+                try_number=1,
+                dag_version_id=uuid.uuid4(),
+            ),
+            dag_rel_path="d.py",
+            bundle_info=BundleInfo(name="b", version=None),
+            start_date=now,
+            ti_context=TIRunContext(
+                dag_run=DagRun(
+                    dag_id="d",
+                    run_id="r",
+                    logical_date=now,
+                    data_interval_start=None,
+                    data_interval_end=None,
+                    start_date=now,
+                    end_date=None,
+                    run_type=DagRunType.MANUAL,
+                    state=DagRunState.RUNNING,
+                    run_after=now,
+                    consumed_asset_events=[],
+                    partition_key=None,
+                ),
+                max_tries=1,
+                first_task_reschedule_start_date=self.FIRST_RESCHEDULE,
+            ),
+            sentry_integration="",
+        )
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    def test_downgrade_strips_field_for_previous_version(self, real_migrator, startup_details):
+        out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
+        assert "first_task_reschedule_start_date" not in out["ti_context"]
+
+    def test_head_version_keeps_field(self, real_migrator, startup_details):
+        out = real_migrator.downgrade(startup_details, "2026-10-30")
+        assert out.ti_context.first_task_reschedule_start_date == self.FIRST_RESCHEDULE

@@ -17,12 +17,12 @@
 
 [build-system]
 requires = [
-    "hatchling==1.31.0",
-    "packaging==26.2",
+    "hatchling==1.32.4",
+    "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.6.1.19",
+    "tomlkit==0.15.1",
+    "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
 
@@ -33,7 +33,7 @@ description = "Apache Airflow API (Stable)"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -49,7 +49,6 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -59,7 +58,7 @@ classifiers = [
 
 dependencies = [
     "pydantic >= 2.11.0",
-    "python-dateutil",
+    "python-dateutil>=2.7.0",
     "urllib3>=2.1.0,!=2.6.0",
 ]
 
@@ -81,7 +80,7 @@ run-coverage = "pytest test"
 run = "run-coverage --no-cov"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.10", "3.11"]
+python = ["3.11", "3.12"]
 
 [tool.hatch.version]
 path = "./version.txt"

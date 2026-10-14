@@ -80,10 +80,12 @@ class KubernetesPodTrigger(BaseTrigger):
     :param pod_namespace: The namespace of the pod.
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the Kubernetes cluster.
+    :param connection_extras: Extra connection kwargs.
     :param cluster_context: Context that points to kubernetes cluster.
     :param config_dict: Content of kubeconfig file in dict format.
     :param poll_interval: Polling period in seconds to check for the status.
-    :param trigger_start_time: time in Datetime format when the trigger was started
+    :param trigger_start_time: Time in Datetime format when the trigger was started.
+    :param base_container_name: The container whose logs / status the trigger watches.
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param startup_timeout: timeout in seconds to start up the pod.
@@ -316,7 +318,7 @@ class KubernetesPodTrigger(BaseTrigger):
             )
         try:
             return await asyncio.wait_for(self._wait_for_pod_start(), timeout=remaining)
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             raise PodLaunchTimeoutException(
                 f"Pod {self.pod_namespace}/{self.pod_name} reached the task's "
                 "execution_timeout deadline while waiting for the pod to start."
@@ -351,7 +353,7 @@ class KubernetesPodTrigger(BaseTrigger):
         Waits until container is no longer in running state. If trigger is configured with a logging period,
         then will emit an event to resume the task for the purpose of fetching more logs.
         """
-        time_begin = datetime.datetime.now(tz=datetime.timezone.utc)
+        time_begin = datetime.datetime.now(tz=datetime.UTC)
         time_get_more_logs = None
         if self.logging_interval is not None:
             time_get_more_logs = time_begin + datetime.timedelta(seconds=self.logging_interval)
@@ -402,7 +404,7 @@ class KubernetesPodTrigger(BaseTrigger):
                     }
                 )
             self.log.debug("Container is not completed and still working.")
-            now = datetime.datetime.now(tz=datetime.timezone.utc)
+            now = datetime.datetime.now(tz=datetime.UTC)
             if time_get_more_logs and now >= time_get_more_logs:
                 if self.get_logs and self.logging_interval:
                     self.last_log_time = await self.pod_manager.fetch_container_logs_before_current_sec(
@@ -452,13 +454,11 @@ class KubernetesPodTrigger(BaseTrigger):
                 )
             )
             if task_instance is None:
-                raise AirflowException(
-                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    ti.dag_id,
-                    ti.task_id,
-                    ti.run_id,
-                    ti.map_index,
+                msg = (
+                    f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
+                    f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
                 )
+                raise AirflowException(msg)
             return task_instance
 
     async def get_task_state(self):
@@ -483,13 +483,12 @@ class KubernetesPodTrigger(BaseTrigger):
             try:
                 return task_states_response[self.task_instance.run_id][ti_key]
             except KeyError:
-                raise AirflowException(
-                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    self.task_instance.dag_id,
-                    self.task_instance.task_id,
-                    self.task_instance.run_id,
-                    self.task_instance.map_index,
+                msg = (
+                    f"TaskInstance with dag_id: {self.task_instance.dag_id}, "
+                    f"task_id: {self.task_instance.task_id}, run_id: {self.task_instance.run_id} "
+                    f"and map_index: {self.task_instance.map_index} is not found"
                 )
+                raise AirflowException(msg)
         else:
             task_instance = await sync_to_async(self.get_task_instance)()  # type: ignore[call-arg]
             return task_instance.state

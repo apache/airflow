@@ -98,11 +98,8 @@ The Google provider supports two IAM authentication paths:
 Configure Service Accounts on Google Cloud IAM side
 """""""""""""""""""""""""""""""""""""""""""""""""""
 
-For connecting via IAM you need to use Service Account. It can be the same service account which you use for
-the ``gcloud`` authentication or an another account. If you decide to use a different account then this
-account should be impersonated from the account which used for ``gcloud`` authentication and granted
-a ``Service Account Token Creator`` role. More information how to grant a role `here
-<https://cloud.google.com/iam/docs/manage-access-service-accounts?hl=en&_gl=1*3bsv5i*_ga*NDY4NDIyNTcxLjE3MjkxNzQ4MTM.*_ga_WH2QY8WWF5*MTcyOTE5MzU1OS4yLjEuMTcyOTE5NTM0My4wLjAuMA..#single-role>`_.
+For connecting via IAM you need to use Service Account. It must be the same service account which you use for
+the ``gcloud`` authentication.
 
 Also the Service Account should be configured for working with IAM.
 Here are links describing what should be done before the start: `PostgreSQL

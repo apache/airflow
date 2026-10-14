@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "ประเภทของอีเวนต์"
-    },
-    "title": "บันทึกการตรวจสอบ (Audit Log)"
+    }
   },
   "xcom": {
     "columns": {

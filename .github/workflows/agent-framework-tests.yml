@@ -1,0 +1,89 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Agent framework tests
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
+        type: string
+      default-python-version:
+        description: "Which version of python should be used by default"
+        required: true
+        type: string
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
+      canary-run:
+        description: >
+          On a canary run the frameworks' own dependency pins win, which is the environment a
+          user who installs them gets. Otherwise every package in the CI image keeps its version
+          and the frameworks' caps on them are overridden.
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  tests:
+    timeout-minutes: 30
+    name: >-
+      Agent framework tests: ${{ matrix.framework }}
+      (${{ inputs.canary-run == 'true' && 'framework pins' || 'image versions' }})
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    # amd64 only for now: ci-amd.yml and ci-arm.yml must stay in sync, so the platform gate lives here.
+    if: inputs.platform == 'linux/amd64'
+    strategy:
+      # One job per framework, so a breaking release of one does not hide the other's result.
+      fail-fast: false
+      matrix:
+        framework: [strands-agents, google-adk]
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      PLATFORM: "${{ inputs.platform }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERBOSE: "true"
+      FRAMEWORK_PINS_FLAG: "${{ inputs.canary-run == 'true' && '--framework-pins' || '' }}"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+      - name: "Run the common.ai agent framework adapter tests"
+        run: >
+          breeze shell --backend none --skip-db-tests
+          "bash /opt/airflow/scripts/in_container/run_agent_framework_tests.sh
+          ${{ matrix.framework }} ${FRAMEWORK_PINS_FLAG}"

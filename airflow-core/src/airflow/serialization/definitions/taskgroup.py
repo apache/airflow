@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 import attrs
 import methodtools
 
+from airflow._shared.dagnode.node import TaskGroupMixin
 from airflow.serialization.definitions.node import DAGNode
 
 if TYPE_CHECKING:
@@ -38,7 +39,7 @@ if TYPE_CHECKING:
 
 
 @attrs.define(eq=False, hash=False, kw_only=True)
-class SerializedTaskGroup(DAGNode):
+class SerializedTaskGroup(TaskGroupMixin, DAGNode):
     """Serialized representation of a TaskGroup used in protected processes."""
 
     _group_id: str | None = attrs.field(alias="group_id")
@@ -215,14 +216,28 @@ class SerializedTaskGroup(DAGNode):
                 yield group
             group = group.parent_group
 
-    def topological_sort(self) -> list[DAGNode]:
+    def hierarchical_alphabetical_sort(self) -> list[DAGNode]:
+        """
+        Sort children in hierarchical alphabetical order: groups first, then tasks, each alphabetical.
+
+        Mirrors ``TaskGroup.hierarchical_alphabetical_sort`` in task-sdk. This orders one group's
+        direct children; the server-side graph/grid builder in
+        ``api_fastapi.core_api.services.ui.task_group`` walks the tree and re-applies it at every
+        level, so the API response is fully ordered at all nesting levels and the UI renders it as-is.
+        """
+        return sorted(
+            self.children.values(),
+            key=lambda node: (not isinstance(node, SerializedTaskGroup), node.node_id),
+        )
+
+    def topological_sort(
+        self, *, group_dict: dict[str | None, SerializedTaskGroup] | None = None
+    ) -> list[DAGNode]:
         """
         Sort children topologically — a task always comes after its upstream dependencies.
 
-        See ``TaskGroup.topological_sort`` in task-sdk for the algorithm. Cycles are
-        treated as corrupt input: ``DAG.check_cycle`` rejects cyclic Dags before
-        serialization, so a cycle reaching this code indicates malformed serialized data,
-        and we raise ``ValueError`` rather than silently looping forever.
+        See ``TaskGroup.topological_sort`` in task-sdk for the algorithm, including how siblings
+        that depend on each other in a cycle are ordered.
         """
         children = self.children
         if not children:
@@ -231,11 +246,13 @@ class SerializedTaskGroup(DAGNode):
         nodes = list(children.values())
         n = len(nodes)
         id_to_idx = {nid: i for i, nid in enumerate(children)}
+        if group_dict is None:
+            group_dict = self.dag.task_group.get_task_group_dict()
 
         projected: list[tuple[int, ...]] = [()] * n
         nodes_with_back_edge = 0
         for i, child in enumerate(nodes):
-            deps = self._project_child_deps(i, child, id_to_idx)
+            deps = self._project_child_deps(i, child, id_to_idx, group_dict)
             if deps:
                 projected[i] = deps
                 if any(d > i for d in deps):
@@ -248,9 +265,13 @@ class SerializedTaskGroup(DAGNode):
         return self._sweep_projection(nodes, projected)
 
     def _project_child_deps(
-        self, child_idx: int, child: DAGNode, id_to_idx: dict[str, int]
+        self,
+        child_idx: int,
+        child: DAGNode,
+        id_to_idx: dict[str, int],
+        group_dict: dict[str | None, SerializedTaskGroup],
     ) -> tuple[int, ...]:
-        upstream_ids = child.upstream_task_ids
+        upstream_ids = child._topological_upstream_ids
         if not upstream_ids:
             return ()
         sib_deps: set[int] = set()
@@ -260,8 +281,10 @@ class SerializedTaskGroup(DAGNode):
                 if j != child_idx:
                     sib_deps.add(j)
                 continue
-            edge = self.dag.get_task(edge_id)
-            tg = edge.task_group
+            tg = group_dict.get(edge_id)
+            if tg is None:
+                edge = self.dag.get_task(edge_id)
+                tg = edge.task_group
             while tg is not None:
                 anc_idx = id_to_idx.get(tg.node_id)
                 if anc_idx is not None:
@@ -304,44 +327,16 @@ class SerializedTaskGroup(DAGNode):
                 emitted[i] = 1
                 order_append(nodes[i])
             if len(next_pending) == len(pending):
-                raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
+                return self._sort_cyclic_projection(nodes, projected)
             pending = next_pending
         return order
 
     def _sort_via_pass_numbering(
         self, nodes: list[DAGNode], projected: list[tuple[int, ...]]
     ) -> list[DAGNode]:
-        n = len(nodes)
-        in_degree = [len(deps) for deps in projected]
-        successors: list[list[int]] = [[] for _ in range(n)]
-        for i, deps in enumerate(projected):
-            for d in deps:
-                successors[d].append(i)
-
-        pass_of = [0] * n
-        queue: deque[int] = deque(i for i in range(n) if in_degree[i] == 0)
-        processed = 0
-        while queue:
-            i = queue.popleft()
-            my_pass = 1
-            for d in projected[i]:
-                d_pass = pass_of[d]
-                if d < i:
-                    if d_pass > my_pass:
-                        my_pass = d_pass
-                elif d_pass + 1 > my_pass:
-                    my_pass = d_pass + 1
-            pass_of[i] = my_pass
-            processed += 1
-            for s in successors[i]:
-                in_degree[s] -= 1
-                if in_degree[s] == 0:
-                    queue.append(s)
-
-        if processed != n:
-            raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
-
-        sorted_indices = sorted(range(n), key=lambda i: (pass_of[i], i))
+        sorted_indices = self._compute_pass_order(projected)
+        if len(sorted_indices) != len(nodes):
+            return self._sort_cyclic_projection(nodes, projected)
         return [nodes[i] for i in sorted_indices]
 
     def add(self, node: DAGNode) -> DAGNode:
@@ -352,6 +347,16 @@ class SerializedTaskGroup(DAGNode):
                 node.dag = self.dag
         self.children[node.node_id] = node
         return node
+
+
+@attrs.define(kw_only=True, repr=False)
+class SerializedLoopTaskGroup(SerializedTaskGroup):
+    """Serialized loop definition used in protected processes."""
+
+    max_iterations: int
+    has_until: bool
+    terminal_task_id: str
+    gate_task_id: str
 
 
 @attrs.define(kw_only=True, repr=False)

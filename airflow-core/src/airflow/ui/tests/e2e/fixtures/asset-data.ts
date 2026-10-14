@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * Asset data fixture — triggers asset_produces_1 Dag and waits for success.
  */

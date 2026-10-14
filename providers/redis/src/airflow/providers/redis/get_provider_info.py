@@ -65,6 +65,15 @@ def get_provider_info():
                 "ui-field-behaviour": {"hidden-fields": ["schema", "extra"], "relabeling": {}},
                 "conn-fields": {
                     "db": {"label": "DB", "schema": {"type": ["integer", "null"], "default": 0}},
+                    "cluster": {
+                        "label": "Is cluster",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                    "startup_nodes": {
+                        "label": "Startup nodes",
+                        "description": "Comma-separated extra bootstrap nodes as host:port. Only for cluster Redis deployments.",
+                        "schema": {"type": ["string", "null"]},
+                    },
                     "ssl": {"label": "Enable SSL", "schema": {"type": ["boolean", "null"], "default": False}},
                     "ssl_cert_reqs": {
                         "label": "SSL verify mode",

@@ -34,7 +34,14 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst",
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst",
+                    "/docs/apache-airflow-providers-amazon/operators/athena/athena_spark.rst",
                 ],
+                "tags": ["aws"],
+            },
+            {
+                "integration-name": "DuckDB on AWS",
+                "external-doc-url": "https://duckdb.org/docs/stable/extensions/httpfs/s3api",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/duckdb.rst"],
                 "tags": ["aws"],
             },
             {
@@ -381,6 +388,11 @@ def get_provider_info():
                 "tags": ["aws"],
             },
             {
+                "integration-name": "Amazon MSK",
+                "external-doc-url": "https://aws.amazon.com/msk/",
+                "tags": ["aws"],
+            },
+            {
                 "integration-name": "Amazon S3 Vectors",
                 "external-doc-url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html",
                 "logo": "/docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png",
@@ -391,7 +403,10 @@ def get_provider_info():
         "operators": [
             {
                 "integration-name": "Amazon Athena",
-                "python-modules": ["airflow.providers.amazon.aws.operators.athena"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.operators.athena",
+                    "airflow.providers.amazon.aws.operators.athena_spark",
+                ],
             },
             {
                 "integration-name": "Amazon Web Services",
@@ -718,6 +733,10 @@ def get_provider_info():
                 ],
             },
             {
+                "integration-name": "DuckDB on AWS",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.duckdb"],
+            },
+            {
                 "integration-name": "Amazon Bedrock",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.bedrock"],
             },
@@ -898,6 +917,7 @@ def get_provider_info():
                     "airflow.providers.amazon.aws.hooks.neptune_analytics",
                 ],
             },
+            {"integration-name": "Amazon MSK", "python-modules": ["airflow.providers.amazon.aws.hooks.msk"]},
         ],
         "bundles": [
             {
@@ -927,12 +947,20 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.triggers.comprehend"],
             },
             {
+                "integration-name": "Amazon DynamoDB",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.dynamodb"],
+            },
+            {
                 "integration-name": "Amazon EC2",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.ec2"],
             },
             {
                 "integration-name": "AWS Lambda",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.lambda_function"],
+            },
+            {
+                "integration-name": "Amazon Kinesis Data Stream",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.kinesis"],
             },
             {
                 "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
@@ -1018,6 +1046,10 @@ def get_provider_info():
                 "integration-name": "AWS Database Migration Service",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.dms"],
             },
+            {
+                "integration-name": "Amazon QuickSight",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.quicksight"],
+            },
         ],
         "transfers": [
             {
@@ -1101,6 +1133,7 @@ def get_provider_info():
             {
                 "source-integration-name": "Exasol",
                 "target-integration-name": "Amazon Simple Storage Service (S3)",
+                "how-to-guide": "/docs/apache-airflow-providers-amazon/transfer/exasol_to_s3.rst",
                 "python-module": "airflow.providers.amazon.aws.transfers.exasol_to_s3",
             },
             {
@@ -1208,6 +1241,19 @@ def get_provider_info():
                 },
             },
             {
+                "hook-class-name": "airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook",
+                "hook-name": "DuckDB on AWS",
+                "connection-type": "duckdb_aws",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password", "port", "schema"],
+                    "relabeling": {"host": "Database path"},
+                    "placeholders": {
+                        "host": "/tmp/analytics.duckdb (leave empty for an in-memory database)",
+                        "extra": '{\n  "credential_strategy": "credential_chain",\n  "region_name": "us-east-1",\n  "memory_limit": "2GB",\n  "threads": 4\n}\n',
+                    },
+                },
+            },
+            {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.emr.EmrHook",
                 "hook-name": "Amazon Elastic MapReduce",
                 "connection-type": "emr",
@@ -1250,9 +1296,17 @@ def get_provider_info():
             "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend",
             "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
         ],
+        "email-backends": ["airflow.providers.amazon.aws.utils.emailer.send_email"],
         "logging": [
             "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler",
             "airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler",
+        ],
+        "remote-logging": [
+            {
+                "classpath": "airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudWatchRemoteLogIO",
+                "scheme": "cloudwatch",
+            },
+            {"classpath": "airflow.providers.amazon.aws.log.s3_task_handler.S3RemoteLogIO", "scheme": "s3"},
         ],
         "config": {
             "aws": {
@@ -1271,6 +1325,13 @@ def get_provider_info():
                         "version_added": "8.7.2",
                         "example": "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize",
                         "default": "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy",
+                    },
+                    "s3_task_handler_acl_policy": {
+                        "description": "The ACL applied to task log objects uploaded to S3 by the S3 remote log handler,\nfor example ``bucket-owner-full-control``.\n\nThis is primarily useful for cross-account remote logging: when Airflow runs under one AWS\naccount but writes logs to a bucket owned by another account, S3 makes the writing account\nthe object owner, so the bucket owner cannot read or manage the log objects. Setting\n``bucket-owner-full-control`` grants the bucket owner full control over the uploaded logs.\n\nWhen unset, no ACL is sent and the bucket's default object ownership applies.\n",
+                        "type": "string",
+                        "version_added": "9.34.0",
+                        "example": "bucket-owner-full-control",
+                        "default": None,
                     },
                 },
             },
@@ -1537,6 +1598,13 @@ def get_provider_info():
                         "example": None,
                         "default": None,
                     },
+                    "allow_idp_initiated_login": {
+                        "description": "Whether to accept SAML assertions that no login started from Airflow asked for, such as\nthe ones produced by clicking the Airflow tile in the AWS Identity Center access portal\n(IdP-initiated SSO).\n\nWhen this is disabled, a SAML response is only accepted if it answers an AuthnRequest that\nthe same browser started. That binding is what stops an assertion obtained elsewhere from\nbeing accepted in another user's browser, which would sign that user in as the assertion's\nsubject. Enable it only where the access portal flow is required and that trade-off is\naccepted.\n",
+                        "version_added": "9.37.0",
+                        "type": "boolean",
+                        "example": "True",
+                        "default": "False",
+                    },
                 },
             },
         },
@@ -1547,5 +1615,8 @@ def get_provider_info():
         ],
         "auth-managers": ["airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"],
         "cli": ["airflow.providers.amazon.aws.cli.definition.get_aws_cli_commands"],
-        "queues": ["airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider"],
+        "queues": [
+            "airflow.providers.amazon.aws.queues.kinesis.KinesisMessageQueueProvider",
+            "airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider",
+        ],
     }

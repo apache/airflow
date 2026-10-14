@@ -55,6 +55,7 @@ class BaseNodeResponse(BaseModel):
         "trigger",
     ]
     team: str | None = None
+    asset_condition_type: Literal["or-gate", "and-gate"] | None = None
 
 
 E = TypeVar("E", bound=BaseEdgeResponse)
@@ -68,6 +69,10 @@ class GridNodeResponse(BaseModel):
     label: str
     children: list[GridNodeResponse] | None = None
     is_mapped: bool | None
+    is_loop: bool | None = None
+    loop_max_iterations: int | None = None
+    loop_exit_task_id: str | None = None
+    loop_exit_criteria_doc: str | None = None
     setup_teardown_type: Literal["setup", "teardown"] | None = None
     doc_md: str | None = None
 

@@ -47,7 +47,7 @@ router = VersionedAPIRouter(
 
 def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScope:
     ti = session.get(TI, task_instance_id)
-    if ti is None:
+    if ti is None or ti.working_set is not True:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -55,10 +55,16 @@ def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScop
                 "message": f"Task instance {task_instance_id} not found",
             },
         )
-    return TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+    return TaskScope(
+        dag_id=ti.dag_id,
+        run_id=ti.run_id,
+        task_id=ti.task_id,
+        map_index=ti.region_index,
+        region_id=ti.region_id,
+    )
 
 
-@router.get("/{task_instance_id}/{key}")
+@router.get("/{task_instance_id}/{key:path}")
 def get_task_state_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
@@ -78,7 +84,7 @@ def get_task_state_store(
     return TaskStateStoreResponse(value=json.loads(value))
 
 
-@router.put("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
+@router.put("/{task_instance_id}/{key:path}", status_code=status.HTTP_204_NO_CONTENT)
 def set_task_state_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
@@ -90,7 +96,7 @@ def set_task_state_store(
     get_state_backend().set(scope, key, json.dumps(body.value), expires_at=body.expires_at, session=session)
 
 
-@router.delete("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{task_instance_id}/{key:path}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task_state_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],

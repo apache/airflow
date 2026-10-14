@@ -152,7 +152,7 @@ class TestSerializers:
         serde must read that form back (used e.g. for trigger kwargs encoded via
         BaseSerialization) and reconstruct a UTC ``datetime`` with the same instant.
         """
-        moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.timezone.utc)
+        moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.UTC)
         legacy = {"__type": "datetime", "__var": moment.timestamp()}
 
         deserialized = deserialize(legacy)
@@ -163,6 +163,18 @@ class TestSerializers:
         # The same form nested inside a dict (the shape trigger kwargs take).
         nested = deserialize({"moment": legacy})
         assert nested["moment"].timestamp() == moment.timestamp()
+
+    @pytest.mark.parametrize(
+        ("payload", "expected"),
+        [
+            pytest.param(2700, datetime.timedelta(minutes=45), id="int"),
+            pytest.param(2700.0, datetime.timedelta(minutes=45), id="float"),
+            pytest.param("2700", datetime.timedelta(minutes=45), id="str"),
+        ],
+    )
+    def test_deserialize_timedelta_numeric_payloads(self, payload, expected):
+        """Timedelta payloads may arrive as int (DeadlineAlert interval); see #72319."""
+        assert deserialize({CLASSNAME: "datetime.timedelta", VERSION: 2, DATA: payload}) == expected
 
     @pytest.mark.parametrize(
         ("expr", "expected"),
@@ -281,6 +293,25 @@ class TestSerializers:
         d = deserialize(e)
         assert i.equals(d)
 
+    @pytest.mark.parametrize(
+        "classname",
+        ["pandas.DataFrame", "pandas.core.frame.DataFrame"],
+    )
+    def test_pandas_deserializes_regardless_of_writer_qualname(self, classname):
+        """
+        A DataFrame XCom must deserialize under either pandas major's registry qualname.
+
+        The installed pandas only ever produces its own qualname, so this forges the tag to
+        force the lookup through the other registry entry.
+        """
+        import pandas as pd
+
+        i = pd.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})
+        e = serialize(i)
+        e[CLASSNAME] = classname
+        d = deserialize(e)
+        assert i.equals(d)
+
     def test_pandas_serializers(self):
         from airflow.sdk.serde.serializers.pandas import serialize
 
@@ -289,12 +320,18 @@ class TestSerializers:
     @pytest.mark.parametrize(
         ("klass", "version", "data", "msg"),
         [
-            (pd.DataFrame, 999, "", r"serialized 999 of pandas.core.frame.DataFrame > 1"),  # version too new
+            # pandas 3 qualifies the class as pandas.DataFrame, pandas 2 as pandas.core.frame.DataFrame
+            (
+                pd.DataFrame,
+                999,
+                "",
+                r"serialized 999 of pandas(\.core\.frame)?\.DataFrame > 1",
+            ),  # version too new
             (
                 pd.DataFrame,
                 1,
                 123,
-                r"serialized pandas.core.frame.DataFrame has wrong data type .*<class 'int'>",
+                r"serialized pandas(\.core\.frame)?\.DataFrame has wrong data type .*<class 'int'>",
             ),  # bad payload type
             (str, 1, "", r"do not know how to deserialize builtins.str"),  # bad class
         ],

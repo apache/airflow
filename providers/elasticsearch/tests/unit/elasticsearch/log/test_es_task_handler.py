@@ -20,18 +20,21 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+import os
 import re
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import Mock, patch
 from urllib.parse import quote
+from uuid import UUID, uuid4
 
 import elasticsearch
 import pendulum
 import pytest
 
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
 from airflow.providers.elasticsearch.log.es_task_handler import (
@@ -40,22 +43,57 @@ from airflow.providers.elasticsearch.log.es_task_handler import (
     ElasticsearchRemoteLogIO,
     ElasticsearchTaskHandler,
     _build_log_fields,
+    _build_log_query,
     _clean_date,
     _format_error_detail,
+    _get_ti_id_fields,
     _render_log_id,
     _safe_build_structured_log_message,
     _strip_userinfo,
     get_es_kwargs_from_config,
     getattr_nested,
 )
-from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+
+@pytest.mark.parametrize(
+    ("is_airflow_3_4_plus", "expected"),
+    [(False, {}), (True, {"ti_id": "some-ti-id"})],
+)
+def test_ti_id_is_only_written_from_airflow_3_4(is_airflow_3_4_plus, expected):
+    ti = SimpleNamespace(id="some-ti-id")
+
+    with patch("airflow.providers.elasticsearch.log.es_task_handler.AIRFLOW_V_3_4_PLUS", is_airflow_3_4_plus):
+        assert _get_ti_id_fields(ti) == expected
+
+
+@pytest.mark.parametrize("is_airflow_3_4_plus", [False, True])
+def test_log_query_matches_ti_id_or_documents_without_it(is_airflow_3_4_plus):
+    ti = SimpleNamespace(id=uuid4())
+    log_id_match = {"match_phrase": {"log_id": "some-log-id"}}
+
+    with patch("airflow.providers.elasticsearch.log.es_task_handler.AIRFLOW_V_3_4_PLUS", is_airflow_3_4_plus):
+        must = _build_log_query("some-log-id", ti)
+
+    if not is_airflow_3_4_plus:
+        assert must == [log_id_match]
+        return
+    assert must == [
+        {
+            "bool": {
+                "should": [
+                    {"match_phrase": {"ti_id": str(ti.id)}},
+                    {"bool": {"must": [log_id_match], "must_not": {"exists": {"field": "ti_id"}}}},
+                ],
+                "minimum_should_match": 1,
+            }
+        }
+    ]
 
 
 @dataclasses.dataclass
@@ -65,6 +103,7 @@ class _MockTI:
     run_id: str = "run_for_testing_es_log_handler"
     try_number: int = 1
     map_index: int = -1
+    id: UUID = dataclasses.field(default_factory=uuid4)
 
 
 def get_ti(dag_id, task_id, run_id, logical_date, create_task_instance):
@@ -160,7 +199,7 @@ class TestElasticsearchTaskHandler:
     RUN_ID = "run_for_testing_es_log_handler"
     MAP_INDEX = -1
     TRY_NUM = 1
-    LOGICAL_DATE = datetime(2016, 1, 1)
+    LOGICAL_DATE = timezone.datetime(2016, 1, 1)
     LOG_ID = f"{DAG_ID}-{TASK_ID}-{RUN_ID}-{MAP_INDEX}-{TRY_NUM}"
     FILENAME_TEMPLATE = "{try_number}.log"
 
@@ -517,8 +556,14 @@ class TestElasticsearchTaskHandler:
     def test_render_log_id(self, ti):
         assert _render_log_id(self.es_task_handler.log_id_template, ti, 1) == self.LOG_ID
 
+    def test_render_log_id_uses_the_stored_region_index_of_a_loop_pass(self):
+        public = _MockTI(map_index=-1)
+        public.region_index = 3
+        assert _render_log_id("{map_index}", public, 1) == "3"
+        assert _render_log_id("{map_index}", _MockTI(map_index=4), 1) == "4"
+
     def test_clean_date(self):
-        clean_logical_date = _clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
+        clean_logical_date = _clean_date(timezone.datetime(2016, 7, 8, 9, 10, 11, 12))
         assert clean_logical_date == "2016_07_08T09_10_11_000012"
 
     @pytest.mark.db_test
@@ -707,6 +752,7 @@ class TestElasticsearchRemoteLogIO:
         file_path.write_text("\n".join(json.dumps(log) for log in sample_logs) + "\n")
         return file_path
 
+    @patch("airflow.providers.elasticsearch.log.es_task_handler.AIRFLOW_V_3_4_PLUS", True)
     def test_write_to_stdout(self, tmp_json_file, ti, capsys):
         self.elasticsearch_io.write_to_es = False
         self.elasticsearch_io.upload(tmp_json_file, ti)
@@ -715,6 +761,7 @@ class TestElasticsearchRemoteLogIO:
         stdout_lines = captured.out.strip().splitlines()
         log_entries = [json.loads(line) for line in stdout_lines]
         assert [entry["message"] for entry in log_entries] == ["start", "processing", "end"]
+        assert {entry["ti_id"] for entry in log_entries} == {str(ti.id)}
 
     def test_invalid_task_log_file_path(self, ti):
         with (
@@ -817,7 +864,7 @@ class TestElasticsearchRemoteLogIO:
         query = {
             "bool": {
                 "filter": [{"range": {self.elasticsearch_io.offset_field: {"gt": 2}}}],
-                "must": [{"match_phrase": {"log_id": log_id}}],
+                "must": _build_log_query(log_id, ti),
             }
         }
 
@@ -977,8 +1024,14 @@ class TestBuildStructuredLogFields:
         assert result["level"] == "ERROR"
         assert "levelname" not in result
 
-    def test_at_timestamp_mapped_to_timestamp(self):
+    def test_at_timestamp_mapped_to_timestamp_if_no_timestamp_present(self):
         hit = {"event": "msg", "@timestamp": "2024-01-01T00:00:00Z"}
+        result = _build_log_fields(hit)
+        assert result["timestamp"] == "2024-01-01T00:00:00Z"
+        assert "@timestamp" not in result
+
+    def test_at_timestamp_not_included_if_timestamp_present(self):
+        hit = {"event": "msg", "@timestamp": "2024-01-01T00:00:00Z", "timestamp": "2024-01-01T00:00:00Z"}
         result = _build_log_fields(hit)
         assert result["timestamp"] == "2024-01-01T00:00:00Z"
         assert "@timestamp" not in result
@@ -1018,3 +1071,64 @@ class TestSafeBuildStructuredLogMessage:
         assert result.event == str(["a", "b"])
         assert result.timestamp is not None
         mock_logger.debug.assert_called_once()
+
+
+class TestElasticsearchRemoteLogIOFromConfig:
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("logging", "delete_local_logs"): "True",
+            ("elasticsearch", "host"): "http://elasticsearch.example.com:9200",
+            ("elasticsearch", "target_index"): "my-logs",
+            ("elasticsearch", "write_stdout"): "True",
+            ("elasticsearch", "write_to_es"): "True",
+            ("elasticsearch", "json_format"): "True",
+            ("elasticsearch", "host_field"): "host.name",
+            ("elasticsearch", "offset_field"): "log.offset",
+            ("elasticsearch", "log_id_template"): "{dag_id}-{task_id}-{run_id}",
+        }
+    )
+    def test_from_config(self):
+        subject = ElasticsearchRemoteLogIO.from_config()
+
+        assert subject.base_log_folder == Path(os.path.expanduser("~/airflow/logs"))
+        assert subject.delete_local_copy is True
+        assert subject.host == "http://elasticsearch.example.com:9200"
+        assert subject.target_index == "my-logs"
+        assert subject.write_stdout is True
+        assert subject.write_to_es is True
+        assert subject.json_format is True
+        assert subject.host_field == "host.name"
+        assert subject.offset_field == "log.offset"
+        assert subject.log_id_template == "{dag_id}-{task_id}-{run_id}"
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("elasticsearch", "host"): "",
+            ("elasticsearch", "target_index"): "my-logs",
+            ("elasticsearch", "host_field"): "host",
+            ("elasticsearch", "offset_field"): "offset",
+            ("elasticsearch", "log_id_template"): "{dag_id}-{task_id}-{run_id}",
+        }
+    )
+    def test_from_config_missing_host_keeps_class_default(self):
+        # An empty [elasticsearch] host must not override the class default with "", which would
+        # make elasticsearch.Elasticsearch("") raise and silently disable remote logging.
+        subject = ElasticsearchRemoteLogIO.from_config()
+
+        assert subject.host == "http://localhost:9200"
+
+    def test_provider_registers_elasticsearch_scheme(self):
+        from airflow.providers_manager import ProvidersManager
+
+        manager = ProvidersManager()
+        if not hasattr(manager, "remote_logging_handler_by_scheme"):
+            pytest.skip("Airflow core does not support remote logging provider dispatch")
+
+        info = manager.remote_logging_handler_by_scheme("elasticsearch")
+
+        assert info is not None
+        assert (
+            info.classpath == "airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchRemoteLogIO"
+        )

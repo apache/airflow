@@ -27,7 +27,10 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
-from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
+from airflow.providers.common.ai.mixins.hitl_review import (
+    _MAX_CONSECUTIVE_XCOM_PULL_FAILURES,
+    HITLReviewMixin,
+)
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
     XCOM_AGENT_SESSION,
@@ -57,7 +60,7 @@ class FakeAgenticOperator(HITLReviewMixin):
         self.max_hitl_iterations = 5
         self.hitl_timeout = hitl_timeout or timedelta(seconds=30)
         self.hitl_poll_interval = hitl_poll_interval
-        self.log = MagicMock(spec=["info", "warning"])
+        self.log = MagicMock(spec=["info", "warning", "error"])
 
     def regenerate_with_feedback(self, *, feedback: str, message_history):
         return f"Revised: {feedback}", message_history
@@ -217,6 +220,36 @@ class TestHITLReviewMixin:
 
         with pytest.raises(HITLTimeoutError, match="Task exceeded timeout"):
             fake_op.run_hitl_review(context, "Output")
+
+    @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)
+    def test_xcom_pull_failures_raise_after_limit(self, mock_sleep, fake_op, mock_ti, context):
+        fake_op.hitl_timeout = None
+
+        def failing_pull(*args, **kwargs):
+            if mock_ti.xcom_pull.call_count > _MAX_CONSECUTIVE_XCOM_PULL_FAILURES + 2:
+                pytest.fail("XCom pull retried past the limit")
+            raise ConnectionError("api server down")
+
+        mock_ti.xcom_pull.side_effect = failing_pull
+
+        with pytest.raises(ConnectionError, match="api server down"):
+            fake_op.run_hitl_review(context, "Output")
+
+        assert mock_ti.xcom_pull.call_count == _MAX_CONSECUTIVE_XCOM_PULL_FAILURES
+        assert fake_op.log.warning.call_count == _MAX_CONSECUTIVE_XCOM_PULL_FAILURES - 1
+        fake_op.log.error.assert_called_once_with(
+            "Giving up HITL review after %d consecutive XCom pull failures",
+            _MAX_CONSECUTIVE_XCOM_PULL_FAILURES,
+        )
+
+    @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)
+    def test_xcom_pull_failure_counter_resets_on_success(self, mock_sleep, fake_op, mock_ti, context):
+        fake_op.hitl_timeout = None
+        approve = HumanActionData(action="approve", iteration=1).model_dump(mode="json")
+        failures = [ConnectionError("blip")] * (_MAX_CONSECUTIVE_XCOM_PULL_FAILURES - 1)
+        mock_ti.xcom_pull.side_effect = [*failures, None, *failures, approve]
+
+        assert fake_op.run_hitl_review(context, "Output") == "Output"
 
     @patch.object(FakeAgenticOperator, "regenerate_with_feedback")
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)

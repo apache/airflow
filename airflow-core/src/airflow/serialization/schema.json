@@ -142,6 +142,19 @@
       "description": "A python dictionary containing values of any type",
       "type": "object"
     },
+    "arg_binding": {
+      "$comment": "One captured TaskFlow call argument of a @task.stub task. Materialized directly by _serialize_node, so it stays plain JSON with no {__type, __var} encoding. The object stays open so future binding fields keep validating on older cores",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "type": "string", "enum": [ "xcom", "literal" ] },
+        "value_schema": { "type": "object" },
+        "task_id": { "type": "string" },
+        "value": {},
+        "from_default": { "type": "boolean" }
+      },
+      "required": [ "name", "kind" ]
+    },
     "color": {
       "type": "string",
       "pattern": "^#[a-fA-F0-9]{3,6}$"
@@ -201,6 +214,13 @@
                     "type": "array",
                     "items": { "$ref": "#/definitions/dict" }
                 },
+                {
+                    "$comment": "Once persisted, a Dag's deadline alerts live as rows in the deadline_alert table and the serialized Dag keeps only a list of UUID strings referencing them (see SerializedDagModel._generate_deadline_uuids). This branch lets the stored form validate at any lifecycle stage, not only before the dict->UUID rewrite.",
+                    "type": "array",
+                    "items": { "type": "string",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+                  }
+                },
                 { "type": "null" }
             ]
         },
@@ -237,7 +257,18 @@
     },
     "tasks": {
       "type": "array",
-      "additionalProperties": { "$ref": "#/definitions/operator" }
+      "items": {
+        "type": "object",
+        "required": [ "__type", "__var" ],
+        "properties": {
+          "__type": { "const": "operator" },
+          "__var": {
+            "type": "object",
+            "required": [ "task_id" ],
+            "properties": { "task_id": { "type": "string" } }
+          }
+        }
+      }
     },
     "params": {
       "type": "array",
@@ -300,6 +331,7 @@
         "executor": { "type": "string" },
         "executor_config": { "$ref": "#/definitions/dict" },
         "do_xcom_push": { "type": "boolean", "default": true },
+        "returns_dag_result": { "type": "boolean", "default": false },
         "email_on_failure": { "type": "boolean", "default": true },
         "email_on_retry": { "type": "boolean", "default": true },
         "ui_color": { "type": "string", "default": "#fff" },
@@ -345,7 +377,12 @@
         "is_teardown": {"type": "boolean", "default": false},
         "on_failure_fail_dagrun": {"type": "boolean", "default": false},
         "max_active_tis_per_dag": {"type": "integer"},
-        "max_active_tis_per_dagrun": {"type": "integer"}
+        "max_active_tis_per_dagrun": {"type": "integer"},
+        "_arg_bindings": {
+          "$comment": "Used for mixed-language tasks (the @task.stub operator) or tasks defined in a non-Python SDK Dag",
+          "type": "array",
+          "items": { "$ref": "#/definitions/arg_binding" }
+        }
       },
       "dependencies": {
         "expand_input": ["partial_kwargs", "_is_mapped"],
@@ -374,6 +411,17 @@
         "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
         "group_display_name": {"type": "string" },
         "is_mapped": { "type": "boolean" },
+        "loop": {
+          "type": "object",
+          "required": ["max_iterations", "has_until", "terminal_task_id", "gate_task_id"],
+          "properties": {
+            "max_iterations": { "type": "integer", "minimum": 1 },
+            "has_until": { "type": "boolean" },
+            "terminal_task_id": { "type": "string" },
+            "gate_task_id": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
         "prefix_group_id": { "type": "boolean" },
         "children":  { "$ref": "#/definitions/dict" },
         "tooltip": { "type": "string" },

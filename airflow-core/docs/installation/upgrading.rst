@@ -59,13 +59,9 @@ How to upgrade
 
 Reinstall Apache Airflow®, specifying the desired new version.
 
-To upgrade a bootstrapped local instance, you can set the ``AIRFLOW_VERSION`` environment variable to the
-intended version prior to rerunning the installation command. Upgrade incrementally by patch version: e.g.,
-if upgrading from version 2.8.2 to 2.8.4, upgrade first to 2.8.3. For more detailed guidance, see
-:doc:`/start`.
-
 To upgrade a PyPI package, rerun the ``pip install`` command in your environment using the desired version
-as a constraint. For more detailed guidance, see :doc:`/installation/installing-from-pypi`.
+as a constraint. For detailed installation and upgrade scenarios, see
+:ref:`installing-from-pypi-installation-and-upgrade-scenarios`.
 
 In order to manually migrate the database you should run the ``airflow db migrate`` command in your
 environment. It can be run either in your virtual environment or in the containers that give
@@ -93,7 +89,7 @@ Handling migration problems
 Wrong Encoding in MySQL database
 ................................
 
-If you are using old Airflow 1.10 as a database created initially either manually or with previous version of MySQL,
+If you have an old Airflow 1.10 database that was created initially either manually or with a previous version of MySQL,
 depending on the original character set of your database, you might have problems with migrating to a newer
 version of Airflow and your migration might fail with strange errors ("key size too big", "missing indexes" etc).
 The next chapter describes how to fix the problem manually.

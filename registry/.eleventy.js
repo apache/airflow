@@ -17,6 +17,8 @@
  * under the License.
  */
 
+const { collectExternalServices } = require("./src/_data/providerExternalServices");
+
 module.exports = function(eleventyConfig) {
   // Copy static assets
   eleventyConfig.addPassthroughCopy("src/assets");
@@ -97,6 +99,73 @@ module.exports = function(eleventyConfig) {
 
   eleventyConfig.addFilter("dump", (obj) => {
     return JSON.stringify(obj);
+  });
+
+  // Attaches each type's module count and drops zero-count types, sorted by
+  // count descending -- used to render the provider-page module tabs with the
+  // busiest categories first.
+  eleventyConfig.addFilter("sortTypesByCount", (types, moduleCounts) => {
+    if (!Array.isArray(types)) return [];
+    const counts = moduleCounts || {};
+    return types
+      .filter((t) => (counts[t.id] || 0) > 0)
+      .map((t) => Object.assign({}, t, { count: counts[t.id] || 0 }))
+      .sort((a, b) => b.count - a.count);
+  });
+
+  // Looks up the curated single-letter icon for a type id from types.json, instead of
+  // deriving it from the id's first character at each render site (which reintroduces
+  // the letter collisions types.json's `icon` field was curated to avoid).
+  eleventyConfig.addFilter("typeIcon", (types, typeId) => {
+    if (!Array.isArray(types) || !typeId) return "";
+    const match = types.find((t) => t.id === typeId);
+    if (match && match.icon) return match.icon;
+    return typeId.charAt(0).toUpperCase();
+  });
+
+  // Flattens a provider's per-connection external services into one deduped
+  // list, so the /providers/ filter box can match them the way the pagefind
+  // index already does.
+  eleventyConfig.addFilter("externalServices", (provider) => {
+    if (!provider || typeof provider !== "object") return [];
+    return collectExternalServices(provider);
+  });
+
+  // Groups a provider's uri_schemes by the Airflow feature that routes them to
+  // the provider. Listing only registered schemes per feature avoids a matrix
+  // whose empty cells read as "unsupported" when the feature just doesn't apply
+  // (redshift:// is never an object store). Features with no schemes are dropped.
+  eleventyConfig.addFilter("uriSchemeGroups", (uriSchemes) => {
+    const docs = "https://airflow.apache.org/docs/apache-airflow/stable";
+    const features = [
+      {
+        label: "ObjectStoragePath",
+        docsUrl: `${docs}/core-concepts/objectstorage.html`,
+        detail: (s) => s.filesystem,
+      },
+      {
+        label: "Asset URIs",
+        docsUrl: `${docs}/authoring-and-scheduling/assets.html#what-is-valid-uri`,
+        detail: (s) =>
+          s.asset &&
+          ([s.asset.handler, s.asset.factory, s.asset.to_openlineage_converter].filter(Boolean).join(", ") ||
+            "No-op handler"),
+      },
+      {
+        label: "Remote logging",
+        docsUrl: `${docs}/administration-and-deployment/logging-monitoring/logging-tasks.html`,
+        detail: (s) => s.remote_logging,
+      },
+    ];
+    return features
+      .map(({ label, docsUrl, detail }) => ({
+        label,
+        docsUrl,
+        schemes: (uriSchemes || [])
+          .filter((s) => detail(s))
+          .map((s) => ({ scheme: s.scheme, detail: detail(s) })),
+      }))
+      .filter((group) => group.schemes.length > 0);
   });
 
   eleventyConfig.addShortcode("year", () => `${new Date().getFullYear()}`);

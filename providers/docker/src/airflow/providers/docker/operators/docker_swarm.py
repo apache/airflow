@@ -174,6 +174,7 @@ class DockerSwarmOperator(DockerOperator):
             self.log_driver_config = None
 
     def execute(self, context: Context) -> None:
+        self._normalize_mounts()
         self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
         return self._run_service()
 

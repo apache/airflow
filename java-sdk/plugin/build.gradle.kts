@@ -23,12 +23,14 @@ plugins {
     id("airflow-publish")
 }
 
-repositories {
-    gradlePluginPortal()
-}
-
 dependencies {
     implementation("com.gradleup.shadow:shadow-gradle-plugin:9.1.0") // Last supporting Java 11.
+
+    testImplementation(kotlin("test"))
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 gradlePlugin {

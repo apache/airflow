@@ -17,19 +17,18 @@
  * under the License.
  */
 
-import { describe, expectTypeOf, it } from "vitest";
-import type { StartCoordinatorOptions } from "../../src/coordinator/index.js";
-import { startCoordinator } from "../../src/coordinator/index.js";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import * as coordinator from "../../src/coordinator/index.js";
 
 describe("coordinator public API", () => {
-  it("exports the coordinator runtime entrypoint from the coordinator subpath", () => {
-    expectTypeOf<typeof startCoordinator>().toEqualTypeOf<
-      (opts?: StartCoordinatorOptions) => Promise<void>
-    >();
-    expectTypeOf<StartCoordinatorOptions>().toEqualTypeOf<{
-      commAddr?: string;
-      logsAddr?: string;
-      argv?: readonly string[];
-    }>();
+  it("names neither the coordinator nor the serve it performs", () => {
+    // A Dag author reaches the runtime through `bundle.serve()`. The subpath
+    // carries only the schema version, so nothing here is an entry point.
+    for (const name of ["startCoordinator", "serveBundle", "serveDags"]) {
+      expect(name in coordinator).toBe(false);
+    }
+    expectTypeOf<typeof coordinator>().not.toHaveProperty("startCoordinator");
+    expectTypeOf<typeof coordinator>().not.toHaveProperty("serveBundle");
+    expectTypeOf<typeof coordinator>().toHaveProperty("SUPERVISOR_API_VERSION");
   });
 });

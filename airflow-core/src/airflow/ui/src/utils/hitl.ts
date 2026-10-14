@@ -19,11 +19,14 @@
 import type { TFunction } from "i18next";
 
 import type { HITLDetail, HITLDetailHistory, TaskInstanceState } from "openapi/requests/types.gen";
-import type { ParamSchema, ParamsSpec } from "src/queries/useDagParams";
+
+import type { ParamSchema, ParamSpec, ParamsSpec } from "src/queries/useDagParams";
 
 export type HITLResponseParams = {
   chosen_options?: Array<string>;
   params_input?: Record<string, unknown>;
+  // The created_at of the request the form was loaded for; the server refuses a stale answer.
+  request_created_at?: string;
 };
 
 // A HITL task is "pending a response" while parked: pre-3.3 it parks in "deferred", from 3.3 it
@@ -117,10 +120,17 @@ export const getHITLParamsDict = (
       if (!hitlDetail.params) {
         return;
       }
-      const paramData = hitlDetail.params[key] as ParamsSpec | undefined;
+      const paramData = hitlDetail.params[key] as ParamSpec | undefined;
+
+      // A serialized param arrives as a `{value, description, schema}` wrapper, but `params` may
+      // also carry a bare value. Only unwrap the former: reading `paramData.value` with `??` made a
+      // `null` default (nullish) fall through to `value`, which for a wrapper is the whole object —
+      // that then reached the widget and broke it. Probing for the key distinguishes "wrapper whose
+      // default is null" from "bare value".
+      const isWrapped = paramData !== undefined && "value" in paramData;
 
       // Check if there's a preloaded value from URL params
-      let finalValue = hitlDetail.params_input?.[key] ?? paramData?.value ?? value;
+      let finalValue = hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value);
 
       // If preloaded value is a string that might be JSON, try to parse it
       if (typeof finalValue === "string" && finalValue.trim().startsWith("{")) {

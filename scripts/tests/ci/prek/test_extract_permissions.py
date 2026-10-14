@@ -274,6 +274,9 @@ class TestBuildResourceLabel:
     def test_alias_dag_run_bulk_forces_run_entity(self):
         assert _build_resource_label("requires_access_dag_run_bulk", None) == "DAG.RUN"
 
+    def test_dag_bulk_with_no_entity_returns_base(self):
+        assert _build_resource_label("requires_access_dag_bulk", None) == "DAG"
+
     def test_alias_event_log_forces_audit_log(self):
         assert _build_resource_label("requires_access_event_log", None) == "DAG.AUDIT_LOG"
 
@@ -627,7 +630,8 @@ class TestExtractAllPermissions:
     """
 
     @pytest.fixture(scope="class")
-    def all_entries(self) -> list[PermissionEntry]:
+    @classmethod
+    def all_entries(cls) -> list[PermissionEntry]:
         return extract_all_permissions(PUBLIC_ROUTES_DIR)
 
     def test_extracts_non_empty_result(self, all_entries):
@@ -769,7 +773,8 @@ class TestExtractAllPermissions:
 
 class TestRenderRst:
     @pytest.fixture(scope="class")
-    def rst_content(self) -> str:
+    @classmethod
+    def rst_content(cls) -> str:
         entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
         return render_rst(entries)
 

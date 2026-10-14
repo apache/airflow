@@ -31,7 +31,7 @@ import warnings
 from argparse import Namespace
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, Literal, TypeVar, cast, overload
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -44,6 +44,7 @@ from airflow.utils.platform import getuser, is_terminal_support_colors
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
+    from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.sdk import DAG
     from airflow.serialization.definitions.dag import SerializedDAG
 
@@ -77,6 +78,7 @@ def action_cli(func=None, check_db=True):
             dag_id : dag id (optional)
             task_id : task_id (optional)
             logical_date : logical date (optional)
+            team_name : team the command is scoped to (optional)
             error : exception instance if there's an exception
 
         :param f: function instance
@@ -142,7 +144,7 @@ def _build_metrics(func_name, namespace):
 
     It assumes that function arguments is from airflow.bin.cli module's function
     and has Namespace instance where it optionally contains "dag_id", "task_id",
-    and "logical_date".
+    "logical_date", and a team name.
 
     :param func_name: name of function
     :param namespace: Namespace instance from argparse
@@ -222,6 +224,11 @@ def _build_metrics(func_name, namespace):
     metrics["dag_id"] = tmp_dic.get("dag_id")
     metrics["task_id"] = tmp_dic.get("task_id")
     metrics["logical_date"] = tmp_dic.get("logical_date")
+    # The ``teams`` commands take the team they act on as a positional ``name``; everything else
+    # scoped to a team (``triggerer``, ``pools set``) takes it as ``--team-name``.
+    metrics["team_name"] = tmp_dic.get("team_name") or (
+        tmp_dic.get("name") if func_name.startswith("team_") else None
+    )
     metrics["host_name"] = socket.gethostname()
 
     return metrics
@@ -275,16 +282,51 @@ def _search_for_dag_file(val: str | None) -> str | None:
     return None
 
 
-def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> DAG:
+@overload
+def get_bagged_dag(
+    bundle_names: list | None,
+    dag_id: str,
+    dagfile_path: str | None = None,
+    *,
+    allow_lang_sdk_dag: Literal[False] = False,
+) -> DAG: ...
+
+
+@overload
+def get_bagged_dag(
+    bundle_names: list | None,
+    dag_id: str,
+    dagfile_path: str | None = None,
+    *,
+    allow_lang_sdk_dag: bool,
+) -> BaggedDAG: ...
+
+
+def get_bagged_dag(
+    bundle_names: list | None,
+    dag_id: str,
+    dagfile_path: str | None = None,
+    *,
+    allow_lang_sdk_dag: bool = False,
+) -> BaggedDAG:
     """
     Return DAG of a given dag_id.
 
     First we'll try to use the given subdir.  If that doesn't work, we'll try to
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
+
+    :param allow_lang_sdk_dag: when ``True``, also parses native Lang-SDK Dag files with their runtime,
+        and may return such a Dag as a ``LangSDKSerializedDAG``.
     """
-    from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
+    from airflow.dag_processing.dagbag import BundleDagBag, LangSDKSerializedDAG, sync_bag_to_db
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+
+    def check_dag(dag: BaggedDAG) -> BaggedDAG:
+        # TODO: Support running a Lang-SDK Dag directly from the CLI.
+        if not allow_lang_sdk_dag and isinstance(dag, LangSDKSerializedDAG):
+            raise SystemExit(f"Dag {dag_id!r} is a native Lang-SDK Dag, which this command cannot run.")
+        return dag
 
     manager = DagBundlesManager()
     for bundle_name in bundle_names or ():
@@ -294,9 +336,10 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
                 bundle_name=bundle.name,
+                parse_lang_sdk_files=allow_lang_sdk_dag,
             )
         if dag := dagbag.dags.get(dag_id):
-            return dag
+            return check_dag(dag)
 
     manager.sync_bundles_to_db()
     for bundle in manager.get_all_dag_bundles():
@@ -306,10 +349,11 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
                 bundle_name=bundle.name,
+                parse_lang_sdk_files=allow_lang_sdk_dag,
             )
             sync_bag_to_db(dagbag, bundle.name, bundle.version)
         if dag := dagbag.dags.get(dag_id):
-            return dag
+            return check_dag(dag)
         if dag:
             break
     raise AirflowException(

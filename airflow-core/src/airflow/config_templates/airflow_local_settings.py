@@ -50,6 +50,9 @@ DAG_PROCESSOR_LOG_TARGET: str = conf.get_mandatory_value("logging", "DAG_PROCESS
 BASE_LOG_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("logging", "BASE_LOG_FOLDER"))
 
 # This isn't used anymore, but kept for compat of people who might have imported it
+# Default value for the ``[logging] logging_config_class`` option. Plain
+# ``logging.config.dictConfig`` dict; the ``_class`` suffix on the config option
+# is historical.
 DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -121,6 +124,11 @@ if EXTRA_LOGGER_NAMES:
 ##################
 
 REMOTE_LOGGING: bool = conf.getboolean("logging", "remote_logging")
+
+# Side-channel attributes read by ``discover_remote_log_handler`` from whichever
+# module ``[logging] logging_config_class`` resolves through. Custom modules that
+# override that option should define both at module scope to enable remote
+# task-log read-back.
 REMOTE_TASK_LOG: RemoteLogIO | RemoteLogStreamIO | None = None
 DEFAULT_REMOTE_CONN_ID: str | None = None
 
@@ -349,7 +357,10 @@ if REMOTE_LOGGING:
     elif OPENSEARCH_HOST:
         from airflow.providers.opensearch.log.os_task_handler import OpensearchRemoteLogIO
 
-        OPENSEARCH_PORT = conf.getint("opensearch", "PORT", fallback=9200)
+        # ``[opensearch] port`` declares an empty-string default, so the key is always present and
+        # ``conf.getint`` raises on ``int("")`` instead of falling back to 9200.
+        _opensearch_port = conf.get("opensearch", "PORT", fallback="")
+        OPENSEARCH_PORT = int(_opensearch_port) if _opensearch_port else 9200
         OPENSEARCH_USERNAME: str = conf.get_mandatory_value("opensearch", "USERNAME")
         OPENSEARCH_PASSWORD: str = conf.get_mandatory_value("opensearch", "PASSWORD")
         OPENSEARCH_WRITE_STDOUT: bool = conf.getboolean("opensearch", "WRITE_STDOUT")

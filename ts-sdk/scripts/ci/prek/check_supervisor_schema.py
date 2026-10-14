@@ -36,7 +36,6 @@ GENERATED = "ts-sdk/src/generated/supervisor.ts"
 
 if __name__ == "__main__":
     directory = AIRFLOW_ROOT_PATH / "ts-sdk"
-    run_command(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=directory)
     run_command(["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=directory)
     # Regenerate, then format exactly as `pnpm run format` would, so the diff
     # reflects a stale schema and not raw-vs-prettier formatting noise.
@@ -52,8 +51,8 @@ if __name__ == "__main__":
     )
     if diff.stdout.strip():
         message = (
-            f"{GENERATED} is out of date with the supervisor wire schema "
-            "(task-sdk/src/airflow/sdk/execution_time/schema/schema.json).\n"
+            f"{GENERATED} is out of date with the vendored supervisor wire schema "
+            "(ts-sdk/schema/supervisor-schema.json).\n"
             "Regenerate it with `pnpm run generate:supervisor` in ts-sdk/ and commit the result."
         )
         if console:

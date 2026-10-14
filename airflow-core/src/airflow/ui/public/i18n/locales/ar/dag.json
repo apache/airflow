@@ -42,10 +42,11 @@
   },
   "deadlineAlerts": {
     "completionRule": "يجب الإكمال خلال {{interval}} من {{reference}}",
-    "count_few": "{{count}} مواعيد نهائية",
-    "count_many": "{{count}} موعداً نهائياً",
+    "completionRuleDynamic": "يجب الإكمال خلال فترة متغيرة تُقاس من {{reference}}",
+    "count_few": "{{count, number}} مواعيد نهائية",
+    "count_many": "{{count, number}} موعداً نهائياً",
     "count_one": "موعد نهائي واحد",
-    "count_other": "{{count}} موعد نهائي",
+    "count_other": "{{count, number}} موعد نهائي",
     "count_two": "موعدان نهائيان",
     "count_zero": "لا توجد مواعيد نهائية",
     "referenceType": {
@@ -62,19 +63,19 @@
     "label": "الموعد النهائي",
     "met": "تم الالتزام",
     "missed": "فائت",
-    "missedCount_few": "{{count}} مواعيد نهائية فائتة",
-    "missedCount_many": "{{count}} موعداً نهائياً فائتاً",
+    "missedCount_few": "{{count, number}} مواعيد نهائية فائتة",
+    "missedCount_many": "{{count, number}} موعداً نهائياً فائتاً",
     "missedCount_one": "موعد نهائي فائت واحد",
-    "missedCount_other": "{{count}} موعد نهائي فائت",
+    "missedCount_other": "{{count, number}} موعد نهائي فائت",
     "missedCount_two": "موعدان نهائيان فائتان",
     "missedCount_zero": "لا توجد مواعيد نهائية فائتة",
-    "mixedCount": "{{missedCount}} فائتة، {{upcomingCount}} قادمة",
+    "mixedCount": "{{missedCount, number}} فائتة، {{upcomingCount, number}} قادمة",
     "stillRunning": "لا يزال قيد التشغيل",
     "upcoming": "قادمة",
-    "upcomingCount_few": "{{count}} مواعيد نهائية قادمة",
-    "upcomingCount_many": "{{count}} موعداً نهائياً قادماً",
+    "upcomingCount_few": "{{count, number}} مواعيد نهائية قادمة",
+    "upcomingCount_many": "{{count, number}} موعداً نهائياً قادماً",
     "upcomingCount_one": "موعد نهائي قادم واحد",
-    "upcomingCount_other": "{{count}} موعد نهائي قادم",
+    "upcomingCount_other": "{{count, number}} موعد نهائي قادم",
     "upcomingCount_two": "موعدان نهائيان قادمان",
     "upcomingCount_zero": "لا توجد مواعيد نهائية قادمة"
   },
@@ -110,7 +111,7 @@
     "info": "معلومات",
     "noTryNumber": "لا يوجد رقم محاولة",
     "search": {
-      "matchCount": "{{current}} من {{total}}",
+      "matchCount": "{{current, number}} من {{total, number}}",
       "noMatches": "لا توجد مطابقات",
       "placeholder": "ابحث في السجلات..."
     },
@@ -175,13 +176,7 @@
       "label": "عدد تشغيلات Dag"
     },
     "dependencies": {
-      "label": "التبعيات",
-      "options": {
-        "allDagDependencies": "جميع تبعيات Dag",
-        "externalConditions": "الشروط الخارجية",
-        "onlyTasks": "المهام فقط"
-      },
-      "placeholder": "التبعيات"
+      "allDagDependencies": "جميع تبعيات Dag"
     },
     "graphDirection": {
       "label": "اتجاه الرسم البياني"
@@ -247,19 +242,18 @@
     "code": "الكود",
     "details": "التفاصيل",
     "logs": "السجلات",
-    "mappedTaskInstances_few": "مثيلات مهمة [{{count}}]",
-    "mappedTaskInstances_many": "مثيل مهمة [{{count}}]",
-    "mappedTaskInstances_one": "مثيل مهمة [{{count}}]",
-    "mappedTaskInstances_other": "مثيل مهمة [{{count}}]",
+    "mappedTaskInstances_few": "مثيلات مهمة [{{count, number}}]",
+    "mappedTaskInstances_many": "مثيل مهمة [{{count, number}}]",
+    "mappedTaskInstances_one": "مثيل مهمة [{{count, number}}]",
+    "mappedTaskInstances_other": "مثيل مهمة [{{count, number}}]",
     "mappedTaskInstances_two": "مثيلان لمهمة",
     "mappedTaskInstances_zero": "لا توجد أي مثيل مهمة",
     "overview": "نظرة عامة",
     "renderedTemplates": "القوالب المعروضة",
     "requiredActions": "إجراءات مطلوبة",
     "runs": "تشغيلات",
-    "storage": "التخزين",
     "taskInstances": "مثيلات المهام",
-    "taskStore": "مخزن المهام",
+    "taskStateStore": "مخزن حالة المهمة",
     "tasks": "المهام",
     "xcom": "XCom"
   },
@@ -267,17 +261,17 @@
     "collapseAll": "طي جميع مجموعات المهام",
     "expandAll": "توسيع جميع مجموعات المهام"
   },
-  "taskStore": {
-    "add": "إضافة مخزن المهام",
+  "taskStateStore": {
+    "add": "إضافة مخزن حالة المهمة",
     "clearAll": {
-      "resource": "كل مخزن المهام",
-      "title": "مسح كل مخزن المهام",
-      "warning": "سيتم مسح كل مخزن المهام. لن تتمكن المهام التي تستخدم هذا المخزن لتتبع العمل الخارجي من الاستئناف دون إعادة التشغيل من البداية."
+      "resource": "كل مخزن حالة المهمة",
+      "title": "مسح كل مخزن حالة المهمة",
+      "warning": "سيتم مسح كل مخزن حالة المهمة. لن تتمكن المهام التي تستخدم هذا المخزن لتتبع العمل الخارجي من الاستئناف دون إعادة التشغيل من البداية."
     },
-    "delete": "حذف مخزن المهام",
+    "delete": "حذف مخزن حالة المهمة",
     "deleteWarning": "ستفقد المهمة هذه الذاكرة المحفوظة. إذا كانت المهمة تستخدم هذا المفتاح لتتبع عمل خارجي (مثل معرّف وظيفة خارجية)، فلن تتمكن من استئنافه.",
-    "edit": "تعديل مخزن المهام",
-    "emptyStore": "يخزّن مخزن المهام قيماً تستمر عبر إعادات المحاولة. يمكن للعمّال الكتابة إلى مخزن المهام عبر Task SDK.",
+    "edit": "تعديل مخزن حالة المهمة",
+    "emptyStore": "يخزّن مخزن حالة المهمة قيماً تستمر عبر إعادات المحاولة. يمكن للعمّال الكتابة إلى مخزن حالة المهمة عبر Task SDK.",
     "expiresAt": {
       "column": "تنتهي الصلاحية في",
       "custom": "مخصص",
@@ -285,6 +279,6 @@
       "label": "انتهاء الصلاحية",
       "never": "أبداً"
     },
-    "title": "مخزن المهام"
+    "title": "مخزن حالة المهمة"
   }
 }

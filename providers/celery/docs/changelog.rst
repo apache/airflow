@@ -27,6 +27,119 @@
 Changelog
 ---------
 
+3.25.0
+......
+
+Features
+~~~~~~~~
+
+* ``Carry task attempt UUIDs through remote executor providers (#73917)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use configured default queue for Celery executor callbacks (#73552)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Correlate executor task events by attempt UUID (#73916)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+3.24.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix airflow celery stop crashing on stale PID file (#72817)``
+
+Misc
+~~~~
+
+* ``Unify executor workload queues (#63491)``
+* ``Stop recommending psycopg3 connection strings on older Airflow (#70619)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove note about airflow 2.7.0 from docs (#72913)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+3.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``Parse additional Kafka, Redis & SQS options in 'broker_transport_options' (#70228)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mismatched AirflowConfigException in celery and edge3 (#72437)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+3.23.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Honor verbose logging for Celery workers (#69828)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.23.0
+......
+
+.. note::
+    When ``[celery] result_backend`` is not set and Airflow derives it from ``sql_alchemy_conn``, a
+    driverless ``postgresql://`` connection string now produces ``db+postgresql+psycopg://...`` instead
+    of ``db+postgresql+psycopg2://...``, matching the sync Postgres driver default change in
+    ``apache-airflow`` and ``apache-airflow-providers-postgres``. An explicit ``[celery] result_backend``
+    or an explicit driver in ``sql_alchemy_conn`` is unaffected.
+
+Features
+~~~~~~~~
+
+* ``Add streaming task log support to KubernetesExecutor (#69300)``
+* ``Add the team_name tag to the Celery executor task_timeout_error (#69092)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery worker crash on Airflow 3.0 with json_logs (#69919)``
+
+Misc
+~~~~
+
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 3.22.0
 ......
 
@@ -597,7 +710,7 @@ Misc
 ......
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 3.10.1
 ......

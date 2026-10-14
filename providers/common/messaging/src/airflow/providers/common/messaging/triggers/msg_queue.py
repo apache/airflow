@@ -52,16 +52,31 @@ class MessageQueueTrigger(BaseEventTrigger):
     :param scheme: The queue scheme (e.g., 'kafka', 'redis+pubsub', 'sqs'). Used for provider matching.
     :param queue: **Deprecated** The queue identifier (URI format). If provided, this takes precedence over scheme parameter.
         This parameter is deprecated and will be removed in future versions. Use the 'scheme' parameter instead.
+    :param trigger_queue: Assign this trigger to a specific trigger queue (see
+        :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of ``airflow triggerer``).
+        Named differently from the ``queue`` parameter above, which is the deprecated broker queue URI
+        and cannot be repurposed for triggerer routing without breaking existing callers.
 
     .. seealso::
         For more information on how to use this trigger, take a look at the guide:
         :ref:`howto/trigger:MessageQueueTrigger`
     """
 
-    queue: str | None = None
+    queue_uri: str | None = None
     scheme: str | None = None
 
-    def __init__(self, *, queue: str | None = None, scheme: str | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        queue: str | None = None,
+        scheme: str | None = None,
+        trigger_queue: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        # Stored under our own name rather than through `BaseEventTrigger.__init__(queue=...)` so this
+        # works regardless of the installed airflow-core version, see `queue` property below.
+        self._trigger_queue = trigger_queue
+
         if queue is None and scheme is None:
             raise ValueError("Either `queue` or `scheme` parameter must be provided.")
 
@@ -73,13 +88,21 @@ class MessageQueueTrigger(BaseEventTrigger):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            self.queue = queue
+            self.queue_uri = queue
             self.scheme = None
         else:
-            self.queue = None
+            self.queue_uri = None
             self.scheme = scheme
 
         self.kwargs = kwargs
+
+    @property
+    def queue(self) -> str | None:
+        return self._trigger_queue
+
+    @queue.setter
+    def queue(self, value: str | None) -> None:
+        self._trigger_queue = value
 
     @cached_property
     def trigger(self) -> BaseEventTrigger:
@@ -91,12 +114,12 @@ class MessageQueueTrigger(BaseEventTrigger):
             raise ValueError("No message queue providers are available. ")
 
         # Find matching providers based on queue URI or scheme
-        if self.queue is not None:
+        if self.queue_uri is not None:
             # Use existing queue-based matching for backward compatibility
             providers = [
-                provider for provider in MESSAGE_QUEUE_PROVIDERS if provider.queue_matches(self.queue)
+                provider for provider in MESSAGE_QUEUE_PROVIDERS if provider.queue_matches(self.queue_uri)
             ]
-            identifier = self.queue
+            identifier = self.queue_uri
             match_by = "queue"
         elif self.scheme is not None:
             # Use new scheme-based matching
@@ -131,9 +154,9 @@ class MessageQueueTrigger(BaseEventTrigger):
 
         # Create trigger instance
         selected_provider = providers[0]
-        if self.queue is not None:
+        if self.queue_uri is not None:
             # Pass queue to trigger_kwargs for backward compatibility
-            trigger_kwargs = selected_provider.trigger_kwargs(self.queue, **self.kwargs)
+            trigger_kwargs = selected_provider.trigger_kwargs(self.queue_uri, **self.kwargs)
             return selected_provider.trigger_class()(**trigger_kwargs, **self.kwargs)
         # For scheme-based matching, we need to pass all current kwargs to the trigger
         return selected_provider.trigger_class()(**self.kwargs)

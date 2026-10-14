@@ -22,6 +22,7 @@ import { useParams } from "react-router-dom";
 
 import type { GridRunsResponse, GridTISummaries } from "openapi/requests";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 
 import { GridTI } from "./GridTI";
@@ -150,6 +151,7 @@ export const TaskInstancesColumn = ({
               isGroup={node.isGroup}
               isMapped={node.is_mapped}
               label={node.label}
+              loopMaxIterations={node.loop_max_iterations}
               onClick={onCellClick}
               runId={run.run_id}
               taskId={node.id}

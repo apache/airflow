@@ -27,7 +27,7 @@ import sys
 import warnings
 from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
 from unittest import mock
@@ -118,6 +118,7 @@ if not keep_env_variables:
                 del os.environ[env_key]
 
 SUPPORTED_DB_BACKENDS = ("sqlite", "postgres", "mysql")
+_SQLITE_DB_HEALTH_REQUIRED_TABLES = {"alembic_version"}
 
 # A bit of a Hack - but we need to check args before they are parsed by pytest in order to
 # configure the DB before Airflow gets initialized (which happens at airflow import time).
@@ -165,7 +166,7 @@ ALL_PYPROJECT_TOML_FILES: list[Path] = []
 
 
 def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
-    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text().splitlines()
+    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text(encoding="utf-8").splitlines()
     in_workspace = False
     for line in pyproject_toml_content:
         trimmed_line = line.strip()
@@ -197,9 +198,12 @@ if not PROVIDER_DEPENDENCIES_JSON_PATH.exists() or not PROVIDER_DEPENDENCIES_JSO
     subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
 else:
     calculated_provider_deps_hash = _calculate_provider_deps_hash()
-    if calculated_provider_deps_hash.strip() != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text().strip():
+    if (
+        calculated_provider_deps_hash.strip()
+        != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text(encoding="utf-8").strip()
+    ):
         subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
-        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_provider_deps_hash)
+        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_provider_deps_hash, encoding="utf-8")
 # End of copied code from breeze
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
@@ -447,25 +451,190 @@ def initialize_airflow_tests(request):
 
 def _initialize_airflow_db(force_db_init: bool, airflow_home: str | Path):
     db_init_lock_file = Path(airflow_home).joinpath(".airflow_db_initialised")
+    db_health_failure_reason = None
     if not force_db_init and db_init_lock_file.exists():
-        print(
-            "Skipping initializing of the DB as it was initialized already.\n"
-            "You can re-initialize the database by adding --with-db-init flag when running tests."
-        )
-        return
+        db_health_failure_reason = _get_airflow_db_health_failure_reason()
+        if db_health_failure_reason:
+            print(
+                "The DB initialization marker exists, but the DB health check failed.\n"
+                f"{db_health_failure_reason}\n"
+                "Re-initializing the DB."
+            )
+        else:
+            print(
+                "Skipping initializing of the DB as it was initialized already.\n"
+                "You can re-initialize the database by adding --with-db-init flag when running tests."
+            )
+            return
 
     from tests_common.test_utils.db import initial_db_init
 
     if force_db_init:
         print("Initializing the DB - forced with --with-db-init flag.")
+    elif db_health_failure_reason:
+        print("Initializing the DB - existing DB did not pass the health check.")
     else:
         print(
             "Initializing the DB - first time after entering the container.\n"
             "Initialization can be also forced by adding --with-db-init flag when running tests."
         )
 
-    initial_db_init()
+    try:
+        initial_db_init()
+    except _get_db_maintenance_exception_types() as ex:
+        if sqlite_db_file := _get_configured_sqlite_db_file():
+            raise RuntimeError(
+                f"Unable to re-initialize the SQLite test DB. Remove `{sqlite_db_file}` and rerun pytest."
+            ) from ex
+        raise
     db_init_lock_file.touch(exist_ok=True)
+
+
+def _get_airflow_db_health_failure_reason() -> str | None:
+    from airflow.configuration import conf
+    from airflow.models import import_all_models
+    from airflow.models.base import Base
+
+    sql_alchemy_conn = conf.get("database", "sql_alchemy_conn")
+    import_all_models()
+    required_tables = set(Base.metadata.tables) | _SQLITE_DB_HEALTH_REQUIRED_TABLES
+    table_health_failure_reason = _get_sqlite_db_health_failure_reason(
+        sql_alchemy_conn,
+        required_tables=required_tables,
+    )
+    if table_health_failure_reason:
+        return table_health_failure_reason
+
+    if not _is_sqlite_db(sql_alchemy_conn):
+        return None
+
+    core_migration_health_failure_reason = _get_core_migration_health_failure_reason()
+    if core_migration_health_failure_reason:
+        return core_migration_health_failure_reason
+
+    return _get_external_db_manager_health_failure_reason(sql_alchemy_conn)
+
+
+def _is_sqlite_db(sql_alchemy_conn: str) -> bool:
+    from sqlalchemy.engine import make_url
+
+    return make_url(sql_alchemy_conn).get_backend_name() == "sqlite"
+
+
+def _get_core_migration_health_failure_reason() -> str | None:
+    from airflow.utils.db import _configured_alembic_environment
+
+    try:
+        with _configured_alembic_environment() as env:
+            context = env.get_context()
+            source_heads = set(env.script.get_heads())
+            db_heads = set(context.get_current_heads())
+    except _get_db_maintenance_exception_types() as ex:
+        return f"Unable to inspect SQLite test DB core migration state: {ex}"
+
+    if source_heads == db_heads:
+        return None
+
+    db_heads_display = ", ".join(sorted(db_heads)) or "<none>"
+    source_heads_display = ", ".join(sorted(source_heads)) or "<none>"
+    return (
+        "SQLite test DB migration revision does not match the current Airflow migration head. "
+        f"DB heads: {db_heads_display}; source heads: {source_heads_display}."
+    )
+
+
+def _get_external_db_manager_health_failure_reason(sql_alchemy_conn: str) -> str | None:
+    from airflow import settings
+    from airflow.utils.db_manager import RunDBManager
+
+    external_db_manager = RunDBManager()
+    required_tables = external_db_manager.get_required_table_names()
+    if not required_tables:
+        return None
+
+    table_health_failure_reason = _get_sqlite_db_health_failure_reason(
+        sql_alchemy_conn,
+        required_tables=required_tables,
+    )
+    if table_health_failure_reason:
+        return table_health_failure_reason
+
+    session_factory = settings.Session
+    if session_factory is None:
+        return "Unable to inspect SQLite test DB external DB manager migration state: settings.Session is not configured."
+
+    session = session_factory()
+    try:
+        if external_db_manager.check_migration(session):
+            return None
+    except _get_db_maintenance_exception_types() as ex:
+        return f"Unable to inspect SQLite test DB external DB manager migration state: {ex}"
+    finally:
+        session.close()
+
+    return "SQLite test DB external DB manager migrations do not match their current migration heads."
+
+
+def _get_db_maintenance_exception_types() -> tuple[type[Exception], ...]:
+    from alembic.script.revision import RevisionError
+    from alembic.util.exc import CommandError
+    from sqlalchemy.exc import SQLAlchemyError
+
+    return SQLAlchemyError, CommandError, RevisionError
+
+
+def _get_sqlite_db_health_failure_reason(
+    sql_alchemy_conn: str,
+    *,
+    required_tables: set[str],
+) -> str | None:
+    from sqlalchemy import create_engine, inspect
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.exc import SQLAlchemyError
+
+    url = make_url(sql_alchemy_conn)
+    if url.get_backend_name() != "sqlite":
+        return None
+
+    sqlite_db_file = _get_sqlite_db_file(sql_alchemy_conn)
+    if not sqlite_db_file:
+        return "SQLite test DB uses an in-memory URL, so it must be re-initialized for this test run."
+
+    if not sqlite_db_file.exists():
+        return f"SQLite test DB file `{sqlite_db_file}` does not exist."
+
+    engine = create_engine(url)
+    try:
+        try:
+            existing_tables = set(inspect(engine).get_table_names())
+        except SQLAlchemyError as ex:
+            return f"Unable to inspect SQLite test DB schema: {ex}"
+    finally:
+        engine.dispose()
+
+    missing_tables = sorted(required_tables - existing_tables)
+    if missing_tables:
+        missing_table_list = ", ".join(missing_tables[:10])
+        if len(missing_tables) > 10:
+            missing_table_list = f"{missing_table_list}, ... ({len(missing_tables)} total)"
+        return f"SQLite test DB schema is missing expected tables: {missing_table_list}."
+
+    return None
+
+
+def _get_configured_sqlite_db_file() -> Path | None:
+    from airflow.configuration import conf
+
+    return _get_sqlite_db_file(conf.get("database", "sql_alchemy_conn"))
+
+
+def _get_sqlite_db_file(sql_alchemy_conn: str) -> Path | None:
+    from sqlalchemy.engine import make_url
+
+    url = make_url(sql_alchemy_conn)
+    if url.get_backend_name() != "sqlite" or not url.database or url.database == ":memory:":
+        return None
+    return Path(url.database)
 
 
 def _initialize_kerberos():
@@ -802,7 +971,7 @@ def frozen_sleep(monkeypatch):
 
     def fake_sleep(seconds):
         nonlocal traveller
-        utcnow = datetime.now(tz=timezone.utc)
+        utcnow = datetime.now(tz=UTC)
         if traveller is not None:
             traveller.stop()
         traveller = time_machine.travel(utcnow + timedelta(seconds=seconds))
@@ -937,6 +1106,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         AIRFLOW_V_3_1_PLUS,
         AIRFLOW_V_3_2_PLUS,
         AIRFLOW_V_3_3_PLUS,
+        AIRFLOW_V_3_4_PLUS,
         NOTSET,
     )
 
@@ -1310,8 +1480,29 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             ti = self.create_ti(task_id, dag_run=dag_run, dag_run_kwargs=dag_run_kwargs, map_index=map_index)
             if AIRFLOW_V_3_2_PLUS:
+                from airflow.ti_deps.dep_context import DepContext
+                from airflow.ti_deps.dependencies_deps import RUNNING_DEPS
+
                 from tests_common.test_utils.taskinstance import run_task_instance
 
+                if ti.try_number == 0 and ti.state is None:
+                    dep_context = DepContext(
+                        deps=RUNNING_DEPS,
+                        ignore_depends_on_past=kwargs.get("ignore_depends_on_past", False),
+                        ignore_task_deps=kwargs.get("ignore_task_deps", False),
+                        ignore_ti_state=kwargs.get("ignore_ti_state", False),
+                    )
+                    if not kwargs.get("mark_success", False) and not ti.are_dependencies_met(
+                        dep_context=dep_context, session=self.session, verbose=True
+                    ):
+                        self.session.commit()
+                        return ti
+                    ti.get_dagrun(session=self.session).schedule_tis([ti], session=self.session)
+                    ti.refresh_from_db(session=self.session)
+                    if ti.state == "scheduled":
+                        ti.state = "queued"
+                        self.session.merge(ti)
+                    self.session.commit()
                 run_task_instance(ti, task, **kwargs)
             else:
                 ti.run(**kwargs)
@@ -1405,7 +1596,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance
             from airflow.models.serialized_dag import SerializedDagModel
-            from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
 
             from tests_common.test_utils.compat import AssetEvent
@@ -1439,9 +1629,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         )
                         self.session.execute(delete(DagRun).where(DagRun.dag_id.in_(dag_ids)))
                         self.session.execute(delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)))
-                    self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
+                    if not AIRFLOW_V_3_4_PLUS:
+                        self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
                     self.session.execute(delete(DagModel).where(DagModel.dag_id.in_(dag_ids)))
-                    self.session.execute(delete(TaskMap).where(TaskMap.dag_id.in_(dag_ids)))
                     self.session.execute(delete(AssetEvent).where(AssetEvent.source_dag_id.in_(dag_ids)))
                     if AIRFLOW_V_3_0_PLUS:
                         for bundle_name in self.created_bundle_names:
@@ -1957,6 +2147,18 @@ def clear_lru_cache():
 
 
 @pytest.fixture(autouse=True)
+def discard_async_engine_pool():
+    """Pooled async connections stay bound to the loop that opened them, so drop them before a later test's loop can reuse one."""
+    yield
+    if importlib.util.find_spec("airflow") is None:
+        return
+    from airflow import settings
+
+    if (async_engine := getattr(settings, "async_engine", None)) is not None:
+        async_engine.sync_engine.dispose(close=False)
+
+
+@pytest.fixture(autouse=True)
 def reset_team_name_cache():
     """Reset the per-process Dag team-name cache between tests.
 
@@ -1979,6 +2181,52 @@ def reset_team_name_cache():
         yield
     finally:
         clear_team_name_cache()
+
+
+@pytest.fixture(autouse=True)
+def clear_current_task_instance_session():
+    """Reset the process global taskinstance session between tests.
+
+    Reaching it outside a task run leaves it set, and every later ``ti.run()`` in the process
+    then raises "Session already set for this task". No-op on Airflow 3.
+    """
+    try:
+        import airflow.utils.task_instance_session as task_instance_session
+    except ModuleNotFoundError:
+        yield
+        return
+
+    task_instance_session.__current_task_instance_session = None
+    try:
+        yield
+    finally:
+        task_instance_session.__current_task_instance_session = None
+
+
+@pytest.fixture(autouse=True)
+def reset_dag_bundle_config_cache():
+    """Reset the per-process Dag bundle configuration cache between tests.
+
+    The configuration is parsed once per process, so a test that sets a different
+    ``[dag_processor] dag_bundle_config_list`` would otherwise be served the previous
+    test's bundles. ``conf_vars`` clears it too, for tests that switch config midway.
+    """
+    if importlib.util.find_spec("airflow") is None:
+        yield
+        return
+
+    try:
+        from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
+    except ImportError:
+        # compat for airflow versions without the snapshot cache
+        yield
+        return
+
+    _load_bundle_config_snapshot.cache_clear()
+    try:
+        yield
+    finally:
+        _load_bundle_config_snapshot.cache_clear()
 
 
 @pytest.fixture(autouse=True)
@@ -2696,6 +2944,9 @@ def create_runtime_ti(mocked_parse):
                     "run_after": run_after,  # type: ignore
                     "conf": conf,
                     "consumed_asset_events": [],
+                    # Nullable-but-required in the generated schema, so they must be
+                    # passed explicitly; guarded for older Task SDKs that lack them.
+                    **{f: None for f in ("end_date", "partition_key") if f in DagRun.model_fields},
                     **({"state": DagRunState.RUNNING} if "state" in DagRun.model_fields else {}),
                 }
             ),
@@ -3042,7 +3293,7 @@ def _import_timezone():
         try:
             from airflow._shared.timezones import timezone
         except ImportError:
-            from airflow.utils import timezone
+            from airflow.utils import timezone  # noqa: TID251
     return timezone
 
 

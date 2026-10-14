@@ -19,17 +19,15 @@
 
 const providersData = require("./providers.json");
 const exploreCategories = require("./exploreCategories");
+const { categoryMatchesProvider } = require("./providerKeywordMatch");
 
 module.exports = function () {
   const map = {};
   for (const provider of providersData.providers) {
     const cats = [];
     for (const category of exploreCategories) {
-      for (const keyword of category.keywords) {
-        if (provider.id.includes(keyword) || keyword.includes(provider.id)) {
-          cats.push(category.id);
-          break;
-        }
+      if (categoryMatchesProvider(category, provider)) {
+        cats.push(category.id);
       }
     }
     if (cats.length > 0) {

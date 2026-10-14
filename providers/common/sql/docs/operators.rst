@@ -239,6 +239,35 @@ The example below shows how to instantiate the SQLInsertRowsOperator task.
     :start-after: [START howto_operator_sql_insert_rows]
     :end-before: [END howto_operator_sql_insert_rows]
 
+.. _howto/operator:SQLBulkLoadOperator:
+
+Bulk load data into a table
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.common.sql.operators.sql.SQLBulkLoadOperator`
+to bulk load a tab-delimited file into a database table using the database's
+native bulk loading mechanism. Parameters of the operator are:
+
+- ``table`` - name of the target table (templated).
+- ``tmp_file`` - path to the tab-delimited file to load (templated).
+- ``conn_id`` - the Airflow connection ID used to connect to the database.
+- ``database`` (optional) - name of the database which overrides the one defined
+  in the connection.
+- ``preoperator`` (optional) - SQL statement or list of statements to execute
+  before bulk loading (templated).
+- ``postoperator`` (optional) - SQL statement or list of statements to execute
+  after bulk loading (templated).
+- ``hook_params`` (optional) - dictionary of additional parameters passed to the
+  underlying hook.
+
+The example below shows how to instantiate the SQLBulkLoadOperator task.
+
+.. exampleinclude:: /../tests/system/common/sql/example_sql_bulk_load.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sql_bulk_load]
+    :end-before: [END howto_operator_sql_bulk_load]
+
 .. _howto/operator:GenericTransfer:
 
 Generic Transfer
@@ -267,10 +296,12 @@ The Analytics Operator is ideal for performing efficient, high-performance analy
 Supported Storage Systems
 -------------------------
 - S3
+- GCS
+- Azure Blob Storage
 - Local File System
 
 .. note::
-   GCS, Azure, HTTP, Delta, Iceberg are not yet supported but will be added in the future.
+   HTTP, Delta are not yet supported but will be added in the future.
 
 
 
@@ -311,6 +342,95 @@ S3 Storage
     :dedent: 4
     :start-after: [START howto_analytics_operator_with_s3]
     :end-before: [END howto_analytics_operator_with_s3]
+
+GCS Storage
+-----------
+Use a ``conn_id`` pointing to a ``google_cloud_platform`` connection. Credentials are
+resolved in this order:
+
+1. ``key_path`` -- a service account JSON file on disk
+2. ``keyfile_dict`` -- the service account JSON contents, inline
+3. the ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable
+4. Application Default Credentials -- the local ``gcloud`` CLI credentials file, or
+   the GCE/GKE metadata server
+
+``key_path`` and ``keyfile_dict`` are mutually exclusive. ``key_secret_name``,
+``credential_config_file``, and ``impersonation_chain`` are not supported.
+
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_analytics_operator_with_gcs]
+    :end-before: [END howto_analytics_operator_with_gcs]
+
+Azure Storage
+-------------
+Use an ``az://``, ``abfs://``, or ``abfss://`` URI with a ``conn_id`` pointing
+to a ``wasb`` connection. ``az://container/path`` takes the storage account
+from the connection; when the connection resolves none (no ``host``, and no ``login``
+or a service principal), the binding falls back to ``AZURE_STORAGE_ACCOUNT_NAME`` on
+the worker.
+``abfs://container@account.dfs.core.windows.net/path`` and ``abfss://...``
+additionally name the account in the URI itself -- if it disagrees with the
+account the connection resolves to, registering the datasource raises rather
+than silently picking one, and when the connection names no account at all, the
+URI's account is used instead of ``AZURE_STORAGE_ACCOUNT_NAME``. The URI host
+follows the same cloud rule as the connection host below: a host outside
+``*.core.windows.net`` raises unless ``AZURE_STORAGE_ENDPOINT``/``AZURE_ENDPOINT``
+is set. The account name
+comes from ``host`` (its first DNS label) when set, falling back to
+``login`` only when ``host`` is empty and the connection is not a service principal
+(``tenant_id`` set, where ``login`` is the client ID); only the public
+``*.blob.core.windows.net`` cloud is supported, since DataFusion's binding
+otherwise has no endpoint override -- unless the worker sets
+``AZURE_STORAGE_ENDPOINT``/``AZURE_ENDPOINT`` for a real sovereign-cloud
+hostname. A ``host:port`` address (the Azurite emulator's shape, e.g.
+``azurite:10000``) is never a real DNS hostname and always raises instead,
+even with those variables set: put the account name in ``login`` with
+``host`` left empty for Azurite, alongside those same variables and
+``AZURE_ALLOW_HTTP=true``. ``client_secret_auth_config`` (the authority
+override ``WasbHook`` honors) is not read here.
+
+The connection supplies one of the following credentials, checked in this
+order (matching ``WasbHook.get_conn``):
+
+1. Azure AD service principal -- ``tenant_id`` extra, with ``login`` as the
+   client ID and ``password`` as the client secret (both required together)
+2. Shared key -- the ``shared_access_key`` extra
+3. SAS token -- ``sas_token`` extra, as a query string
+4. Shared key -- ``password``, or the ``account_key`` extra
+5. None of the above -- ambient auth (see below)
+
+**A worker environment variable can override the connection, but only from a
+higher-priority tier.** DataFusion reads ``AZURE_*`` environment variables
+first, and resolves credentials in this priority order:
+
+1. Bearer token
+2. Access key -- the shared-key connection's tier
+3. Workload identity
+4. Client secret -- the service-principal connection's tier
+5. SAS -- the SAS connection's tier
+
+Only a complete credential from an earlier tier can override the
+connection -- a single bearer or access-key variable, or every variable a
+multi-field tier needs. This raises when found, naming the variables,
+instead of silently using the wrong identity.
+
+With no explicit credential, authentication falls back to ``AZURE_*``
+environment variables, managed identity, or workload identity. Unlike
+``WasbHook`` (which tries ``az login`` automatically), DataFusion's
+underlying ``object_store`` binding only tries the Azure CLI if
+``AZURE_USE_AZURE_CLI=true`` is set; otherwise it defaults straight to
+IMDS managed identity.
+
+``connection_string``, ``managed_identity_client_id``, ``workload_identity_tenant_id``,
+and a URL-form ``sas_token`` are not supported.
+
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_analytics_operator_with_azure]
+    :end-before: [END howto_analytics_operator_with_azure]
 
 Local File System Storage
 -------------------------
