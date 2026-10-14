@@ -615,15 +615,10 @@ def get_task_instances(
                     "data_interval_end",
                     "rendered_map_index",
                     "operator",
-                    "iteration",
                 ],
                 TI,
                 to_replace={
                     "map_index": public_map_index_expression(TI),
-                    # A loop member's pass number is its own region index. Rows a loop did not
-                    # produce have no pass, and a mapped expansion nested in one is indexed by
-                    # its slot, so this orders meaningfully alongside a ``loop_id`` filter.
-                    "iteration": TI.region_index,
                     "logical_date": DagRun.logical_date,
                     "run_after": DagRun.run_after,
                     "data_interval_start": DagRun.data_interval_start,

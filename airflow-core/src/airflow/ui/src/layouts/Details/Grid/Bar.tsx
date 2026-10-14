@@ -21,7 +21,6 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 
-import { clearCoordinates } from "src/constants/regions";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 
 import { GridButton } from "./GridButton";

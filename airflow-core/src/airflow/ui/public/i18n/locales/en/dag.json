@@ -68,13 +68,6 @@
     "upcomingCount_one": "{{count, number}} Upcoming Deadline",
     "upcomingCount_other": "{{count, number}} Upcoming Deadlines"
   },
-  "execution": {
-    "clearSelected": "Clear selected executions",
-    "empty": "No executions in this run.",
-    "select": "Select {{task}}",
-    "selectAll": "Select all {{task}}",
-    "selectAllIterations": "Select all loaded"
-  },
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {

@@ -1526,49 +1526,6 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert forked.status_code == 200, forked.text
         assert {ti["region_index"] for ti in forked.json()["task_instances"]} == {2, 7}
 
-    def test_order_by_iteration_orders_loop_members_by_their_pass(self, test_client, dag_maker, session):
-        @task_group
-        def body():
-            MockOperator(task_id="member")
-
-        with dag_maker("loop-sort", serialized=True) as dag:
-            loop = create_loop(body, max_iterations=4)
-        dr = dag_maker.create_dagrun()
-        member = next(ti for ti in dr.task_instances if ti.task_id == "body.member")
-        region = DynamicRegion.get_or_create(
-            dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
-        )
-        session.add(region)
-        session.flush()
-        member.region_id, member.region_index = region.id, 1
-        # Added out of order, so passing the assertion needs the sort rather than insertion order.
-        for index in (3, 0, 2):
-            session.add(
-                TaskInstance(
-                    task=dag.get_task(member.task_id),
-                    run_id=dr.run_id,
-                    dag_version_id=member.dag_version_id,
-                    region_id=region.id,
-                    region_index=index,
-                )
-            )
-        session.commit()
-        url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances"
-
-        response = test_client.get(url, params={"loop_id": loop.group_id, "order_by": "iteration"})
-        assert response.status_code == 200, response.text
-        ascending = [ti["loop_iteration"]["iteration"] for ti in response.json()["task_instances"]]
-        # The loop's gate runs in a pass of its own, so the rows are asserted to be ordered
-        # rather than to be an exact list of the members added above.
-        assert ascending == sorted(ascending)
-        assert set(ascending) == {0, 1, 2, 3}
-
-        response = test_client.get(url, params={"loop_id": loop.group_id, "order_by": "-iteration"})
-        assert response.status_code == 200, response.text
-        descending = [ti["loop_iteration"]["iteration"] for ti in response.json()["task_instances"]]
-        assert descending == sorted(descending, reverse=True)
-        assert sorted(descending) == ascending
-
     def test_region_index_requires_region_id(self, test_client):
         response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"region_index": 1})
         assert response.status_code == 400

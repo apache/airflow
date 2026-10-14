@@ -53,6 +53,11 @@ export const setExecutionCoordinates = (
   if (regionId !== null && regionId !== undefined && regionIndex !== null && regionIndex !== undefined) {
     searchParams.set(SearchParamsKeys.REGION_ID, regionId);
     searchParams.set(SearchParamsKeys.REGION_INDEX, String(regionIndex));
+    // The coordinate decides which row is shown, and it is the newest pass here rather than
+    // whichever one was being read. Carrying the old pass label over would leave the breadcrumb
+    // and the Gantt naming a pass the page is not on, and Clear acting on a row nothing names.
+    searchParams.delete(SearchParamsKeys.ITERATION);
+    searchParams.delete(SearchParamsKeys.LOOP_ID);
   }
 
   return searchParams;

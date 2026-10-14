@@ -26,7 +26,6 @@ import { Tooltip } from "src/system-components";
 
 import Time from "src/components/Time";
 
-import { clearCoordinates } from "src/constants/regions";
 import { useDurationFormat } from "src/utils";
 import { stripExecutionParams } from "src/utils/executionParams";
 

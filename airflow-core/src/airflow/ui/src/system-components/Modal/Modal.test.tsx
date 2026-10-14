@@ -125,8 +125,12 @@ describe("Modal", () => {
     const footer = screen.getByRole("button", { name: "Save" }).closest(".chakra-dialog__footer");
     const option = screen.getByText("Keep state");
 
-    // The options group precedes the actions group in the document, so it renders left of it.
-    expect(footer?.firstElementChild?.contains(option)).toBe(true);
+    // Compared against the Save button rather than the footer's first child, which wraps both
+    // groups and would contain the option whichever order they were in.
+    const save = screen.getByRole("button", { name: "Save" });
+
+    // eslint-disable-next-line no-bitwise
+    expect(option.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("lets headerProps and bodyProps children override the defaults", () => {

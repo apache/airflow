@@ -196,11 +196,11 @@ const taskInstanceColumns = ({
         {
           accessorKey: "loop_iteration",
           cell: ({ row: { original } }: TaskInstanceRow) => original.loop_iteration?.iteration,
-          enableSorting: true,
+          // The endpoint has no sort for the pass: a row's own region index is its map slot
+          // once a mapped task runs inside a loop, and the enclosing pass is an ancestry walk
+          // rather than a column.
+          enableSorting: false,
           header: translate("taskInstance.iteration"),
-          // ``orderBy`` is built from the column id, so it has to be the name the endpoint
-          // sorts by rather than the field the cell reads.
-          id: "iteration",
         },
       ]
     : []),
@@ -339,9 +339,12 @@ export const TaskInstances = () => {
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
   const loopFilter = searchParams.get(SearchParamsKeys.LOOP_ID);
   // The filter now survives navigation, so a loop carried in from elsewhere is ignored unless
-  // this page is actually inside it.
+  // this page is actually inside it. A loop lives in one run, and the endpoint rejects the
+  // filter without one, so the cross-run Task page drops it rather than asking for a 400.
   const loopInScope =
-    loopFilter !== null && loopsInScope(declaredLoops, groupId ?? taskId).includes(loopFilter);
+    loopFilter !== null &&
+    runId !== undefined &&
+    loopsInScope(declaredLoops, groupId ?? taskId).includes(loopFilter);
   const iterationFilter = searchParams.get(SearchParamsKeys.ITERATION);
   const parsedIteration = iterationFilter === null ? Number.NaN : Number.parseInt(iterationFilter, 10);
   const startDate = searchParams.get(START_DATE_PARAM);

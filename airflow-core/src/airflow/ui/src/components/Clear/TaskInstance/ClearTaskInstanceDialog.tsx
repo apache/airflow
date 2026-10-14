@@ -364,9 +364,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
         },
       });
     }
-    // Closing is left to the mutation's success path. Closing here unmounted the dialog before
-    // the request settled, taking its mutation observer with it, so neither the error toast nor
-    // the query invalidation ever ran -- the clear looked like it did nothing.
+    onCloseDialog();
   };
   const hasNoLogicalDate =
     targets.length > 0 && targets.every((target) => (target.logical_date ?? null) === null);

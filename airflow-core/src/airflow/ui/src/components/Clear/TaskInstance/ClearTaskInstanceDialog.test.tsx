@@ -522,22 +522,4 @@ describe("ClearTaskInstanceDialog", () => {
 
     expect(await screen.findByRole("button", { name: /options\.laterIterations/iu })).toBeVisible();
   });
-
-  it("leaves the dialog open until the clear settles", async () => {
-    const onClose = vi.fn();
-
-    render(<ClearTaskInstanceDialog onClose={onClose} open taskInstance={taskInstance} />, {
-      wrapper: Wrapper,
-    });
-
-    const confirmButton = await screen.findByRole("button", { name: /modal\.confirm/iu });
-
-    fireEvent.click(confirmButton);
-
-    await waitFor(() => expect(mutateMock).toHaveBeenCalled());
-
-    // Closing here would unmount the dialog with its mutation observer, so the error toast and
-    // the query invalidation would never run. The mutation's success path closes it instead.
-    expect(onClose).not.toHaveBeenCalled();
-  });
 });

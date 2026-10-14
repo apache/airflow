@@ -442,17 +442,26 @@ def _build_ti_summaries(
         if isinstance(group, SerializedLoopTaskGroup)
     }
     regions = DynamicRegion.load_for_run(dag_id, run_id, session=session) if loop_ids else {}
-    positions_by_ti = [
-        (
-            ti,
-            {
-                loop_id: position
-                for loop_id in loop_ids
-                if (position := loop_position(regions, ti.region_id, ti.region_index, loop_id)) is not None
-            },
-        )
-        for ti in chain([first], rows)
-    ]
+    streamed = chain([first], rows)
+    # Only a Dag with loops needs two passes over the rows, one to find each invocation's newest
+    # iteration and one to build the summaries. Without loops the stream is consumed once, so a
+    # run of any size is not held in memory to learn that none of it was looped.
+    positions_by_ti: Iterable[tuple[TaskInstance, dict[str, tuple[UUID, int]]]]
+    if loop_ids:
+        positions_by_ti = [
+            (
+                ti,
+                {
+                    loop_id: position
+                    for loop_id in loop_ids
+                    if (position := loop_position(regions, ti.region_id, ti.region_index, loop_id))
+                    is not None
+                },
+            )
+            for ti in streamed
+        ]
+    else:
+        positions_by_ti = ((ti, {}) for ti in streamed)
     # A looped task has one row per iteration. Counting them all would report the work done
     # across the whole loop rather than the state the task is in, so the state counts come from
     # the newest iteration of each invocation. Every iteration still feeds loop_iterations,
