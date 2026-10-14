@@ -294,9 +294,9 @@ used to allow exactly one correction whatever ``retries`` said, so an agent that
 ``retries`` now applies it to them too: ``retries=0`` fails the run on the first bad
 query, and a large integer ``retries`` meant for output validation also lets a failing
 database be queried that many times. Pass ``max_retries=1`` to a toolset to keep the old
-behaviour. Outside a pydantic-ai agent (the LangChain, Strands and Google ADK bridges)
-there is no agent budget, so each tool gets one correction unless its toolset sets
-``max_retries``.
+behaviour. Outside a pydantic-ai agent (the LangChain, Strands, Google ADK and Anthropic
+tool runner bridges) there is no agent budget, so each tool gets one correction unless its
+toolset sets ``max_retries``.
 
 Layering
 --------
