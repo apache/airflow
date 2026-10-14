@@ -565,4 +565,23 @@ describe("GanttTimeline segment bars", () => {
     expect(styleOf(second as Element).borderRightWidth).toBe("2px");
     expect(styleOf(first as Element).borderTopWidth).toBe("2px");
   });
+
+  it("does not read a region index as a pass", () => {
+    mockParams = { taskId: "refine.improve" };
+    // A mapped expansion's region index is its map slot. Ringing bars because slot 2 happens to
+    // look like pass 2 would highlight an unrelated pass.
+    mockSearchParams = new URLSearchParams("region_index=2&region_id=expansion");
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        flatNodes={[{ ...BASE_NODE, id: "refine.improve", label: "refine.improve" }]}
+        rowSegments={[[passSegment("refine.improve", 2)]]}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    expect(document.querySelectorAll("[data-pinned-pass]")).toHaveLength(0);
+  });
 });

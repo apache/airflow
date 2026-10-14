@@ -132,8 +132,9 @@ export const GanttTimeline = ({
   const groupMembers = useGroupMembers(selectedGroupId);
   // The pass the page is pinned to, named either as a filter or as a region coordinate. Bars
   // from that pass are outlined the way the grid outlines the instance you are looking at.
-  const pinnedPass =
-    searchParams.get(SearchParamsKeys.ITERATION) ?? searchParams.get(SearchParamsKeys.REGION_INDEX);
+  // Only an explicitly chosen pass highlights. A region index cannot stand in for one: on a
+  // mapped expansion it is the map slot, so reading it here rings bars of an unrelated pass.
+  const pinnedPass = searchParams.get(SearchParamsKeys.ITERATION);
   const pinnedOutline = SELECTED_TASK_OUTLINE_COLOR[colorMode];
   const [bodyWidthPx, setBodyWidthPx] = useState(0);
   const bodyRef = useRef<HTMLDivElement | null>(null);
