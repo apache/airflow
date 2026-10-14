@@ -23,6 +23,16 @@ class HITLMaxIterationsError(AirflowException):
     """Raised when the HITL review loop exhausts max iterations without approval or rejection."""
 
 
+class ToolRunnerMaxIterationsError(RuntimeError):
+    """
+    Raised when an Anthropic tool runner reaches ``max_iterations`` while the model is still calling tools.
+
+    The runner's last message asks for tools and holds no answer. Airflow's default retry
+    behaviour retries it like any other exception, and a fresh attempt may finish within
+    the limit.
+    """
+
+
 class ToolApprovalError(RuntimeError):
     """
     Raised when a run paused for tool approval cannot resume safely.

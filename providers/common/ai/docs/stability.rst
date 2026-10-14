@@ -257,6 +257,9 @@ Everything this provider ships that is not in the table above is experimental.
        (:doc:`frameworks/index`)
      - Written against Strands 1.56 and ADK 2.9.1, which change often. Strands marks its
        own checkpointing experimental.
+   * - The Anthropic tool runner adapter (:doc:`frameworks/anthropic`)
+     - Built on ``tool_runner``, a beta helper of the Anthropic SDK that can change between
+       SDK releases.
    * - The ``common_ai.tool_calls`` metric and
        :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
        (:doc:`observability`)
