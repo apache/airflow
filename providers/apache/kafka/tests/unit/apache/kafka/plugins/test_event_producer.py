@@ -424,6 +424,24 @@ class TestCheckTopicExists:
             assert topic_arg == task_instance_topic
         assert retry_interval_arg == event_producer._get_topic_check_retry_interval()
 
+    def test_one_topic_doesnt_exist(self, monkeypatch, dagrun_topic, task_instance_topic):
+        kafka_producer_mock = MagicMock()
+        kafka_producer_mock.list_topics.return_value.topics.__contains__.side_effect = [True, False]
+
+        log_warning_mock = MagicMock()
+        monkeypatch.setattr(event_producer.log, "warning", log_warning_mock)
+
+        with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
+            assert event_producer._check_topic_exists(event_producer.EventProducerKafkaTopic.TASK_INSTANCE)
+            assert event_producer._check_topic_exists(event_producer.EventProducerKafkaTopic.DAG_RUN) is False
+
+        log_warning_mock.assert_called_once()
+        # Format string + the two formatting args are passed positionally to log.warning.
+        warning_format, topic_arg, retry_interval_arg = log_warning_mock.call_args.args
+        assert "topic %r not found on the broker" in warning_format
+        assert topic_arg == dagrun_topic
+        assert retry_interval_arg == event_producer._get_topic_check_retry_interval()
+
     def test_list_topics_failure_warns_and_sets_cooldown(self, monkeypatch, topic_type):
         kafka_producer_mock = MagicMock()
         kafka_producer_mock.list_topics.side_effect = ValueError("broker down")
