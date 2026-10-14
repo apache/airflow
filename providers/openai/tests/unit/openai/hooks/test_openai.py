@@ -1204,10 +1204,17 @@ async def test_acreate_embeddings_concurrent_calls_each_close_their_own_client()
     """Concurrent calls on one hook each build a client and close it; none is shared or left open."""
     clients = [_async_client([(0, [0.1, 0.2])]) for _ in range(3)]
     hook = OpenAIHook(conn_id="openai_async")
-    with patch.object(OpenAIHook, "aget_conn", new=AsyncMock(side_effect=clients)):
+    with (
+        patch(
+            "airflow.providers.openai.hooks.openai.get_async_connection",
+            new=AsyncMock(return_value=_async_conn({}, password="api_key")),
+        ),
+        patch("airflow.providers.openai.hooks.openai.AsyncOpenAI", side_effect=clients) as mock_client,
+    ):
         results = await asyncio.gather(*(hook.acreate_embeddings(f"text {i}") for i in range(3)))
 
     assert results == [[0.1, 0.2]] * 3
+    assert mock_client.call_count == 3
     for client in clients:
         client.embeddings.create.assert_awaited_once()
         client.__aexit__.assert_awaited_once()
