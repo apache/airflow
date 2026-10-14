@@ -20,8 +20,9 @@ Decision models
 
 .. note::
 
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
+    Experimental: the ``typesafe`` extra can change or be removed in a minor release of this
+    provider, because the ``typesafe-sdk`` it installs is before its 1.0 release. See
+    :ref:`howto/stability`.
 
 Every other model in this provider writes text. A decision model does not: you give it
 some text and a typed question, and it answers with a value from a set you named in

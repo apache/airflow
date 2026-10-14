@@ -173,6 +173,17 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        ``redact_exception=False`` or a custom ``redactor`` replaces the masking. If the
        model call fails, it falls back to ``fallback_rules`` and then to the task's own
        retry settings; it never fails the task itself.
+   * - :class:`~airflow.providers.common.ai.policies.retry.ClassifierRetryPolicy` and
+       :class:`~airflow.providers.common.ai.policies.retry.ErrorCategory`
+     - The model can only answer with one of the names in ``categories``, and that name's
+       ``ErrorCategory`` decides whether the task retries and after what ``delay``.
+       Without ``categories`` the policy uses
+       :data:`~airflow.providers.common.ai.policies.retry.DEFAULT_CATEGORIES`, whose seven
+       names and their retry or fail split stay the same. When the model call fails, or
+       ``min_confidence`` is set and the answer is under it or carries no confidence, the
+       policy uses the RETRY or FAIL of ``fallback_policy``, then ``fallback_rules``, then
+       the task's own retry settings. Secrets are masked in the exception text as for
+       ``LLMRetryPolicy``.
    * - Output review: ``require_approval``, ``enable_hitl_review`` and the review plugin
      - With ``require_approval=True``, the task defers after generating output and returns
        it only once a person approves it on the Required Actions page. A rejection, or a
@@ -191,9 +202,8 @@ Everything this provider ships that is not in the table above is experimental.
 
    * - Feature
      - Why it is experimental
-   * - :class:`~airflow.providers.common.ai.policies.retry.ClassifierRetryPolicy`
-       (:doc:`decision_models`)
-     - What it does when the classifier is unsure or unavailable is changing.
+   * - The ``typesafe`` extra (:doc:`decision_models`)
+     - It installs ``typesafe-sdk``, which is before its 1.0 release.
    * - :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`, and
        ``min_confidence`` on
        :class:`~airflow.providers.common.ai.policies.decision.BranchOption`

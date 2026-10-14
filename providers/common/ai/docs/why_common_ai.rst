@@ -85,10 +85,9 @@ and a bucket of report files. What differs:
 - **The tools.** The hand-written ``query`` runs any SQL the model writes, including
   ``DELETE``, on any table the connection can reach, and returns every row it gets.
   ``SQLToolset`` allows only the ``orders`` table, rejects statements that write, and caps
-  the rows and bytes it returns. ``ObjectStorageToolset`` (experimental) keeps reads under
-  the prefix you gave it. Both run Airflow's secrets masker over results, which hides
-  values Airflow knows are secret, such as connection passwords, not personal data in your
-  tables.
+  the rows and bytes it returns. ``ObjectStorageToolset`` keeps reads under the prefix you
+  gave it. Both run Airflow's secrets masker over results, which hides values Airflow knows
+  are secret, such as connection passwords, not personal data in your tables.
 - **The model.** The plain task names a vendor in code and reads its key from the
   environment. ``AgentOperator`` takes both from a connection, so moving to another vendor
   or adding a fallback is a connection change. See :doc:`model_providers`.
@@ -137,7 +136,7 @@ What a plain task leaves to you
     * - A person has to approve a tool call before it runs, such as a refund or a write
         to a production table.
       - A tool marked with Pydantic AI's approval API pauses ``AgentOperator`` before the
-        call, without holding a worker slot. Airflow 3.3 and later. Experimental. Not with
+        call, without holding a worker slot. Airflow 3.3 and later. Not with
         ``durable=True`` or ``enable_hitl_review=True``; with either, a tool marked for
         approval fails the task.
       - :doc:`tool_approval`
@@ -150,10 +149,10 @@ What a plain task leaves to you
       - :doc:`hitl_review`
     * - The agent needs your databases, object storage or an API you already have a
         hook for.
-      - ``SQLToolset``, ``HookToolset`` and ``ObjectStorageToolset`` (experimental) build
-        tools from an Airflow connection, with table allow-lists, read-only SQL and size
-        limits. Results pass through Airflow's secrets masker before the model sees
-        them. They work in an agent you run yourself too.
+      - ``SQLToolset``, ``HookToolset`` and ``ObjectStorageToolset`` build tools from an
+        Airflow connection, with table allow-lists, read-only SQL and size limits. Results
+        pass through Airflow's secrets masker before the model sees them. They work in an
+        agent you run yourself too.
       - :doc:`toolsets/index`
     * - A model vendor is down.
       - ``fallback_conn_ids`` fails over to other connections in order.
@@ -162,11 +161,10 @@ What a plain task leaves to you
       - The batch operator sends them through the OpenAI or Anthropic batch API at
         roughly half the per-token cost. A retry re-attaches to the batch already
         submitted if the prompts, model, output schema and connection are unchanged.
-        With ``deferrable=True`` the wait does not hold a worker slot. Experimental.
+        With ``deferrable=True`` the wait does not hold a worker slot.
       - :doc:`operators/llm_batch`
 
 The provider runs on Airflow 2.11 and later; a row that needs a newer Airflow says so.
-Experimental features can change in a minor release; see :doc:`stability`.
 
 Decide whether a failed task retries
 ------------------------------------
@@ -187,9 +185,8 @@ When the task fails, the model reads the exception and decides whether to retry 
 long to wait, so it can decide to wait out a rate limit and to fail a revoked credential
 at once. The exception text goes through the secrets masker before the model sees it,
 and ``fallback_rules`` decide when the model cannot be reached. ``ClassifierRetryPolicy``
-(experimental) has a cheaper model pick from categories you define, and can hand the
-cases it is unsure of to an ``LLMRetryPolicy``. Both need Airflow 3.3 or later. See
-:doc:`retry_policies`.
+has a cheaper model pick from categories you define, and can hand the cases it is unsure
+of to an ``LLMRetryPolicy``. Both need Airflow 3.3 or later. See :doc:`retry_policies`.
 
 When a plain task is enough
 ---------------------------
