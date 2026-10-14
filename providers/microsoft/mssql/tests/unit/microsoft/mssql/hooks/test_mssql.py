@@ -24,7 +24,7 @@ import pytest
 import sqlalchemy
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, conf
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 from tests_common.test_utils.file_loading import load_file_from_resources
@@ -476,7 +476,7 @@ class TestMsSqlHookDbapiDriver:
     )
     def test_get_conn_mssql_python_not_installed(self, mock_import_module):
         hook = _mssql_hook('{"dbapi_driver": "mssql_python"}')
-        with pytest.raises(ImportError, match="mssql-python"):
+        with pytest.raises(AirflowOptionalProviderFeatureException, match="mssql-python"):
             hook.get_conn()
 
     @mock.patch("pymssql.connect")
