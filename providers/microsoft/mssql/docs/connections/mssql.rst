@@ -85,7 +85,14 @@ By default the hook connects with `pymssql <https://pypi.org/project/pymssql/>`_
 
     pip install 'apache-airflow-providers-microsoft-mssql[mssql-python]'
 
-and set ``dbapi_driver`` to ``mssql_python`` in the connection extra:
+and set ``dbapi_driver`` to ``mssql_python`` in the connection extra. As a URI, the extras go in as query parameters:
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_MSSQL_DEFAULT='mssql://username:password@server.com:1433/database_name?dbapi_driver=mssql_python&TrustServerCertificate=yes'
+
+If serializing with JSON:
+
 
 .. code-block:: bash
 
