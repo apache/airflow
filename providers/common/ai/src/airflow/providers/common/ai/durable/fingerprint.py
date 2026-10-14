@@ -62,10 +62,12 @@ share a digest.  Sorting changes the digest of a set whose order was already
 stable, such as a set of integers, so a history holding one can re-run from that
 step once after upgrading.
 
-Python mode cannot dump a set of models or dataclass instances, or a dict keyed
-by one, because it turns them into dicts, which cannot be hashed.  The message history
-and the request parameters are then hashed from their JSON rendering alone, as
-they were before, with nothing sorted and nothing refused.
+Python mode cannot dump a set of models or dataclass instances, because it turns
+them into dicts, which cannot be hashed; from pydantic 2.13 the same goes for a
+dict keyed by one.  The message history and the request parameters are then
+hashed from their JSON rendering alone, as they were before, with nothing sorted
+and nothing refused anywhere in them, so a set of strings elsewhere in the same
+history hashes in hash-seed order again.
 
 Tool arguments are rendered from deep copies, so nothing that rendering runs -- a
 computed field, a cached property, a serializer -- reaches the objects the tool is
@@ -89,6 +91,7 @@ import copy
 import datetime
 import enum
 import hashlib
+import itertools
 import json
 import math
 import uuid
@@ -151,6 +154,10 @@ _SEED_FREE_TYPES = frozenset({bool, int, float, complex, type(None), Decimal, da
 # Every way pydantic renders bytes as JSON. Bytes inside a model follow that model's
 # ``ser_json_bytes``, which the python-mode dump does not record.
 _BYTES_MODES: tuple[Literal["base64", "utf8", "hex"], ...] = ("base64", "utf8", "hex")
+
+# Every way pydantic renders ``nan`` and ``inf``: the message dump renders them as
+# ``None``, where ``to_jsonable_python`` keeps them by default.
+_INF_NAN_MODES: tuple[Literal["constants", "null"], ...] = ("constants", "null")
 
 
 def _content_settings(model_settings: ModelSettings | None) -> dict[str, Any] | None:
@@ -297,10 +304,13 @@ def _apply_template(template: Any, rendered: Any) -> Any:
 
 
 def _seed_free(member: Any) -> bool:
-    """Whether the hash of a set member is the same in every process."""
+    """Whether a set member lands in the same place in a set in every process."""
     if type(member) in (tuple, frozenset):
         return all(_seed_free(item) for item in member)
-    return type(member) in _SEED_FREE_TYPES
+    if type(member) not in _SEED_FREE_TYPES:
+        return False
+    # A NaN hashes by its identity, so where it lands changes from run to run.
+    return member == member
 
 
 def _unpaired(guide: Any, rendered: Any) -> Any:
@@ -350,9 +360,9 @@ def _order_set(guide: set[Any] | frozenset[Any], rendered: Any) -> Any:
         return _unpaired(guide, rendered)
     ordered = sorted((_apply_template(template, item) for item in rendered), key=_json_order)
     encoded = [_json_order(member) for member in ordered]
-    for bytes_mode in _BYTES_MODES:
+    for bytes_mode, inf_nan_mode in itertools.product(_BYTES_MODES, _INF_NAN_MODES):
         try:
-            own = to_jsonable_python(guide, bytes_mode=bytes_mode)
+            own = to_jsonable_python(guide, bytes_mode=bytes_mode, inf_nan_mode=inf_nan_mode)
         except ValueError:
             # Bytes that are not UTF-8 cannot have been rendered as UTF-8.
             continue
@@ -376,9 +386,11 @@ def _order_sets(guide: Any, rendered: Any) -> Any:
     Raises ``TypeError`` where distinct dict keys render alike, such as ``1`` and
     ``"1"``: hashing the rendering would let two different payloads share a digest.
     The keys are rendered on their own to tell that apart from a serializer that
-    drops, renames or reorders entries, whose dict is kept as rendered. ``None``
-    and ``nan`` collide only in a message dump, so a dict with a ``nan`` or ``inf``
-    key that renders fewer keys is refused as well.
+    drops, renames or reorders entries, whose dict is kept as rendered. Rendered
+    on their own, keys cannot show the two collisions that depend on where the
+    dict is: ``None`` and ``nan`` collide only in a message dump, and ``b"a"`` and
+    ``"a"`` only inside a model, which renders bytes as UTF-8. So a dict with a
+    ``nan``, ``inf`` or bytes key that renders fewer keys is refused as well.
     """
     if isinstance(guide, enum.Enum):
         # An Enum member renders as its value.
@@ -396,10 +408,11 @@ def _order_sets(guide: Any, rendered: Any) -> Any:
                 # Keys only the enclosing schema can render, such as a ``PurePath``:
                 # nothing says which entries the rendering kept.
                 return _unpaired(guide, rendered)
-            # The message dump renders ``nan`` and ``inf`` keys as ``None``, which
-            # rendering the keys on their own does not show.
+            # The message dump renders ``nan`` and ``inf`` keys as ``None``, and a model
+            # renders bytes keys as UTF-8, which rendering the keys on their own does not show.
             unsure = len(rendered) < len(guide) and any(
-                isinstance(key, float) and not math.isfinite(key) for key in guide
+                isinstance(key, (bytes, bytearray)) or (isinstance(key, float) and not math.isfinite(key))
+                for key in guide
             )
             if len(keys) < len(guide) or unsure:
                 raise TypeError("dict keys collide once rendered as JSON")
@@ -424,10 +437,11 @@ def _guide(adapter: TypeAdapter[Any], payload: Any) -> tuple[Any, bool]:
 
     Returns the guide and whether the JSON rendering needs ``_order_sets``. Python
     mode dumps a model or a dataclass to a dict even where it is a member of a set
-    or a dict key, which fails with ``TypeError: unhashable type: 'dict'`` although
-    JSON mode renders the same value. There is then no guide: the JSON rendering is
-    hashed as it is, exactly as before, so nothing in it is sorted and an iterator
-    in it is read rather than refused.
+    (from pydantic 2.13, also where it is a dict key), which fails with
+    ``TypeError: unhashable type: 'dict'`` although JSON mode renders the same
+    value. There is then no guide: the JSON rendering is hashed as it is, exactly
+    as before, so nothing in it is sorted and an iterator in it is read rather
+    than refused.
     """
     try:
         guide = adapter.dump_python(payload)
@@ -448,9 +462,9 @@ def _render(value: Any, *, copy_first: bool = False) -> Any:
     model's own ``ser_json_bytes``. A value pydantic cannot serialize raises
     ``PydanticSerializationError`` (a ``ValueError``) naming its type, so the caller
     degrades to an unverifiable ``None`` rather than hashing a process-local repr
-    like ``<object at 0x...>`` that would never match on retry. So does a model used
-    as a dict key, and a set of models: python mode dumps them to dicts, which
-    cannot be hashed.
+    like ``<object at 0x...>`` that would never match on retry. A set of models
+    raises ``TypeError``, and from pydantic 2.13 so does a model used as a dict key:
+    python mode dumps them to dicts, which cannot be hashed.
 
     With ``copy_first``, each rendering is taken from a deep copy of ``value``, so the
     objects themselves are left exactly as they were: rendering can run a computed

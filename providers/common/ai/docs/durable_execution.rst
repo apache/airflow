@@ -122,30 +122,38 @@ A step whose request cannot be fingerprinted is not cached, and on retry it runs
 live rather than replaying an unverified entry. That happens when pydantic cannot
 render a value at all; when two distinct dict keys render alike, such as ``1`` and
 ``"1"``, because the fingerprint would then be unable to tell those payloads apart;
-when a set of strings cannot be found in the rendering, because a serializer that
-applies only in JSON mode renamed or reshaped it, so its order would differ on the
+when a set whose iteration order changes from one process to the next, such as a
+set of strings, cannot be found in the rendering, so its order would differ on the
 next attempt; and when a value would render through an iterator, since rendering it
-would consume it. A tool argument or a setting that holds a set of models or
-dataclass instances, or a dict keyed by one, is not fingerprinted either, as
-before; in the message history pydantic renders those, and they hash as they
-always did. A parameter
-annotated ``Iterable[...]`` is the usual iterator: pydantic validates it lazily,
-and reading it in order to hash it would consume the input the tool itself has not
-read yet. Tool arguments are rendered from copies, so fingerprinting never changes
-what the tool receives, and an argument that cannot be copied is not fingerprinted
-either. Such a step counts among the steps the end-of-run summary reports as not
-cached.
+would consume it. A set cannot be found when its members have different shapes, or
+when a serializer that applies only in JSON mode (``when_used="json"``) renamed or
+reshaped it, even one that also sorts it. A parameter annotated ``Iterable[...]`` is
+the usual iterator: pydantic validates it lazily, and reading it in order to hash it
+would consume the input the tool itself has not read yet. Tool arguments are
+rendered from copies, so fingerprinting never changes what the tool receives, and
+an argument that cannot be copied is not fingerprinted either. Such a step counts
+among the steps the end-of-run summary reports as not cached.
+
+A set of models or dataclass instances, and from pydantic 2.13 a dict keyed by a
+model or dataclass instance, is a special case. In a tool argument or a setting it
+is not fingerprinted, as before. In the message history pydantic renders it, and
+the history is then hashed exactly as earlier versions hashed it: nothing in it is
+ordered and nothing is refused, so a set of strings elsewhere in that history can
+still make the step miss on retry.
 
 Apart from those, a step that an earlier version could already fingerprint hashes
-the same way as before, so its cached entry still matches, with one exception: the
-members of a ``set`` are now ordered before hashing, so that a set matches on a
-later attempt. A history holding a set whose order was already stable, such as a
-set of integers returned by a tool, can therefore re-run from that step once, on
-the first retry after upgrading. A list that a serializer produces is hashed as the
-serializer produced it, so a set that a serializer turns into a list may not match
-on retry. The one list that is re-sorted is the output of a serializer that applies
-only in JSON mode (``when_used="json"``) and returns the members of a set: it cannot
-be told from the set itself, so ``["z-first", "a"]`` hashes as ``["a", "z-first"]``.
+the same way as before, so its cached entry still matches, with two exceptions.
+First, the members of a ``set`` are now ordered before hashing, so that a set
+matches on a later attempt. A history holding a set whose order was already
+stable, such as a set of integers returned by a tool, can therefore re-run from
+that step once, on the first retry after upgrading. Second, a set of strings behind
+a JSON-only serializer that renames or reshapes it is now refused, as described
+above, so a history that holds one is no longer cached from that step on. A list
+that a serializer produces is hashed as the serializer produced it, so a set that a
+serializer turns into a list may not match on retry. The one list that is re-sorted
+is the output of a JSON-only serializer that returns the members of a set: it
+cannot be told from the set itself, so ``["z-first", "a"]`` hashes as
+``["a", "z-first"]``.
 
 On the model path a request that cannot be fingerprinted is rarely confined to a
 single step. The value at fault is usually in ``model_settings``, which is attached

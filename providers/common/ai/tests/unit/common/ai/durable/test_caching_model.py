@@ -405,11 +405,16 @@ class TestCachingModelReplayVerification:
         mock_model.request.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_unverifiable_current_request_treated_as_miss(
-        self, mock_model, mock_storage, counter, sample_response
+    @pytest.mark.parametrize("cached_text", [None, "stale"], ids=["no-entry", "entry-without-fingerprint"])
+    async def test_unverifiable_request_is_neither_replayed_nor_cached(
+        self, mock_model, mock_storage, counter, sample_response, cached_text
     ):
-        stale = ModelResponse(parts=[TextPart(content="stale")])
-        mock_storage.load_model_response.return_value = (stale, None)
+        """An entry stored without a fingerprint can never satisfy the replay guard, so none is written."""
+        if cached_text is not None:
+            mock_storage.load_model_response.return_value = (
+                ModelResponse(parts=[TextPart(content=cached_text)]),
+                None,
+            )
         mock_model.request = AsyncMock(return_value=sample_response)
         mock_model.prepare_request = lambda settings, params: ({"extra_body": object()}, params)
         caching = CachingModel(mock_model, storage=mock_storage, counter=counter)
@@ -419,23 +424,6 @@ class TestCachingModelReplayVerification:
         assert result is sample_response
         mock_model.request.assert_called_once()
         assert counter.replayed_model == 0
-        mock_storage.save_model_response.assert_not_called()
-        # Not written, so it counts as skipped, like a write the backend refused.
-        assert (counter.cached_model, counter.skipped_model) == (0, 1)
-
-    @pytest.mark.asyncio
-    async def test_unverifiable_request_is_not_cached(
-        self, mock_model, mock_storage, counter, sample_response
-    ):
-        """An entry stored without a fingerprint can never satisfy the replay guard, so none is written."""
-        mock_model.request = AsyncMock(return_value=sample_response)
-        mock_model.prepare_request = lambda settings, params: ({"extra_body": object()}, params)
-        caching = CachingModel(mock_model, storage=mock_storage, counter=counter)
-
-        result = await caching.request([], None, ModelRequestParameters())
-
-        assert result is sample_response
-        mock_model.request.assert_called_once()
         mock_storage.save_model_response.assert_not_called()
         # Not written, so it counts as skipped, like a write the backend refused.
         assert (counter.cached_model, counter.skipped_model) == (0, 1)

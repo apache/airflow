@@ -66,6 +66,8 @@ from airflow.providers.common.ai.durable.fingerprint import (
     _member_template,
     _normalize_params,
     _render,
+    _seed_free,
+    _template,
     _unpaired,
     fingerprint_model_request,
     fingerprint_tool_call,
@@ -1728,6 +1730,44 @@ class TestListsThatDidNotComeFromTheSet:
         )
 
     @pytest.mark.parametrize(
+        ("value", "template"),
+        [
+            pytest.param(set(), _LEAF, id="empty-set"),
+            pytest.param({"a", "b"}, _LEAF, id="strings"),
+            pytest.param({_Scope.READ}, ("set", _LEAF), id="enum-member-holding-a-set"),
+            pytest.param(
+                {(1, frozenset({"a"})), (2, frozenset({"b", "c"}))},
+                ("sequence", (_LEAF, ("set", _LEAF))),
+                id="tuples-holding-sets",
+            ),
+            pytest.param({(1, "a"), (2, "b")}, _LEAF, id="tuples-of-leaves"),
+        ],
+    )
+    def test_member_template_says_where_the_sets_in_a_member_are(self, value, template):
+        assert _member_template(value) == template
+
+    def test_member_that_dumps_to_a_dict_has_no_template(self):
+        """Python mode refuses a set of models, so nothing is known about a dict member."""
+        assert _template({"a": 1}) is None
+        assert _template((1, {"a": 1})) is None
+
+    def test_sets_inside_tuple_members_are_ordered(self):
+        groups = {(1, frozenset({"b", "a", "c"})), (2, frozenset({"e", "d"}))}
+
+        assert _render({"groups": groups}) == {"groups": [[1, ["a", "b", "c"]], [2, ["d", "e"]]]}
+
+    def test_set_holding_nan_is_ordered_in_the_history(self):
+        """A NaN hashes by identity, so a set holding one iterates differently in every run."""
+        assert _seed_free(1.5)
+        assert not _seed_free(math.nan)
+        assert not _seed_free((1, math.nan))
+        assert fingerprint_model_request(
+            "m", _with_tool_return({math.nan, 7.0}), None, ModelRequestParameters()
+        ) == fingerprint_model_request(
+            "m", _with_tool_return([7.0, math.nan]), None, ModelRequestParameters()
+        )
+
+    @pytest.mark.parametrize(
         ("guide", "refused"),
         [
             pytest.param({"tags": {"a", "b"}}, True, id="strings"),
@@ -1746,6 +1786,10 @@ class TestListsThatDidNotComeFromTheSet:
                 _unpaired(guide, rendered)
         else:
             assert _unpaired(guide, rendered) is rendered
+
+
+class _CountsByKey(pydantic.BaseModel):
+    counts: dict[bytes | str, int]
 
 
 class TestJsonOnlySerializersOnDictsWithOtherKeys:
@@ -1783,6 +1827,14 @@ class TestJsonOnlySerializersOnDictsWithOtherKeys:
             is None
         )
 
+    def test_bytes_and_str_keys_that_render_alike_in_a_model_are_refused(self):
+        """A model renders bytes as UTF-8, so ``b"a"`` and ``"a"`` become one key there."""
+        value = _CountsByKey(counts={b"a": 1, "a": 2})
+
+        assert (
+            fingerprint_model_request("m", _with_tool_return(value), None, ModelRequestParameters()) is None
+        )
+
 
 # Every case that could follow the hash seed, fingerprinted in one interpreter:
 # starting one imports Airflow, which takes seconds.
@@ -1816,6 +1868,7 @@ class Camel(pydantic.BaseModel):
 
 class Scope(enum.Enum):
     READ = TAGS
+    WRITE = frozenset({"iota", "kappa", "lambda", "mu"})
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1846,6 +1899,8 @@ print(json.dumps({
     "enum value and sets in a set": mod.fingerprint_tool_call(
         "t", {"scope": Scope.READ, "groups": {TAGS, frozenset({"iota", "kappa", "lambda"})}}, "c1"
     ),
+    "enum members holding sets, in a set": request({Scope.READ, Scope.WRITE}),
+    "tuples holding sets, in a set": request({("r", TAGS), ("w", frozenset({"iota", "kappa", "lambda"}))}),
     "set in model settings": mod.fingerprint_model_request(
         "m", prompt, {"extra_body": {"include": set(TAGS)}}, ModelRequestParameters()
     ),
@@ -1891,6 +1946,8 @@ class TestDigestsAcrossHashSeeds:
             "generated alias and revealed tool names",
             "enum value in the history",
             "enum value and sets in a set",
+            "enum members holding sets, in a set",
+            "tuples holding sets, in a set",
             "set in model settings",
             "set of frozen dataclasses",
         ],
