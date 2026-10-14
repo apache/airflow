@@ -782,6 +782,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             # pydantic-ai wraps capability hooks in list order, so merging the two lists
             # would pick an order the Dag author never wrote down.
             raise ValueError("Pass capabilities either as capabilities=... or in agent_params, not both.")
+        # create_agent adds a MaskingCapability that masks every tool call. The toolsets are
+        # masked here as well because toolset wrappers a capability adds (get_wrapper_toolset,
+        # as ToolLoggingCapability does) run below the capability hooks and would otherwise see
+        # the unmasked result. The durable journal masks what it records on its own.
         if self.toolsets:
             toolsets: list[AbstractToolset] = [ensure_masked(ts) for ts in self.toolsets]
             extra_kwargs["toolsets"] = toolsets
