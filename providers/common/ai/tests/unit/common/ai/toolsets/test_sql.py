@@ -180,6 +180,11 @@ def _call_prefixed(ts: SQLToolset, name: str, args: dict):
     return asyncio.run(ts.call_tool(name, args, ctx=MagicMock(), tool=MagicMock()))
 
 
+class TestSQLToolsetNameConflictHint:
+    def test_hint_points_to_tool_prefix(self):
+        assert "tool_prefix" in SQLToolset("pg_default").tool_name_conflict_hint
+
+
 class TestSQLToolsetToolPrefixModelFacingText:
     """Text shown to the model names this toolset's own tools, not the bare base names."""
 
