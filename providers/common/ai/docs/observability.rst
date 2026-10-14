@@ -103,7 +103,9 @@ How it works
   ``@task.llm`` additionally pushes the model name above. The other LLM
   operators still emit GenAI spans correlated to the task span by nesting, but
   without the identity attributes, the run join key, or the model name.
-* **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
+* .. _howto/observability:model-tab:
+
+  **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
   task-instance page showing the resolved model name and the ``usage`` XCom above as a
   readable table, including an estimated cost. It needs Airflow >= 3.4, since it relies on
   the ``applies_to`` operator scoping core added in that version to show up only for
