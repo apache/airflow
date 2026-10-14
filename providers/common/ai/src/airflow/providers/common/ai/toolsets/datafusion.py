@@ -39,8 +39,8 @@ from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.ai.utils.query_results import (
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_RESULT_BYTES,
-    GET_SCHEMA_TOOL_DESCRIPTION as _GET_SCHEMA_DESCRIPTION,
     QUERY_TOOL_DESCRIPTION as _QUERY_DESCRIPTION,
+    build_get_schema_description,
     build_query_result,
     build_schema_result,
 )
@@ -196,7 +196,11 @@ class DataFusionToolset(AirflowToolset):
 
         for base, description, schema in (
             ("list_tables", "List available table names.", _LIST_TABLES_SCHEMA),
-            ("get_schema", _GET_SCHEMA_DESCRIPTION, _GET_SCHEMA_SCHEMA),
+            (
+                "get_schema",
+                build_get_schema_description(tool_name=self._build_tool_name("get_schema")),
+                _GET_SCHEMA_SCHEMA,
+            ),
             ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
         ):
             name = self._build_tool_name(base)
@@ -261,6 +265,7 @@ class DataFusionToolset(AirflowToolset):
             max_columns=self._max_columns,
             max_result_bytes=self._max_result_bytes,
             name_contains=name_contains,
+            tool_name=self._build_tool_name("get_schema"),
         )
 
     def _query(self, sql: str) -> str:
@@ -293,7 +298,8 @@ class DataFusionToolset(AirflowToolset):
         except QueryExecutionException as ex:
             if self._is_retryable_query_error(ex):
                 raise ModelRetry(
-                    f"error: {ex!s}, Use get_schema and list_tables tools for more details."
+                    f"error: {ex!s}, Use {self._build_tool_name('get_schema')} and "
+                    f"{self._build_tool_name('list_tables')} tools for more details."
                 ) from ex
             return dumps_masked({"error": str(ex), "query": sql})
 

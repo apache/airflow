@@ -44,8 +44,8 @@ from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.ai.utils.query_results import (
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_RESULT_BYTES,
-    GET_SCHEMA_TOOL_DESCRIPTION as _GET_SCHEMA_DESCRIPTION,
     QUERY_TOOL_DESCRIPTION as _QUERY_DESCRIPTION,
+    build_get_schema_description,
     build_query_result,
     build_schema_result,
 )
@@ -411,7 +411,11 @@ class SQLToolset(AirflowToolset):
 
         for base, description, schema in (
             ("list_tables", "List available table names in the database.", _LIST_TABLES_SCHEMA),
-            ("get_schema", _GET_SCHEMA_DESCRIPTION, _GET_SCHEMA_SCHEMA),
+            (
+                "get_schema",
+                build_get_schema_description(tool_name=self._build_tool_name("get_schema")),
+                _GET_SCHEMA_SCHEMA,
+            ),
             ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
             ("check_query", "Validate SQL syntax without executing it.", _CHECK_QUERY_SCHEMA),
         ):
@@ -457,7 +461,8 @@ class SQLToolset(AirflowToolset):
             # for Airflow to retry, rather than being silently worked around.
             raise ModelRetry(
                 f"The {name} tool failed: {e}\n"
-                "Use the list_tables and get_schema tools to inspect the database, "
+                f"Use the {self._build_tool_name('list_tables')} and {self._build_tool_name('get_schema')} tools "
+                "to inspect the database, "
                 "then fix the query and try again."
             ) from e
 
@@ -520,6 +525,7 @@ class SQLToolset(AirflowToolset):
             max_columns=self._max_columns,
             max_result_bytes=self._max_result_bytes,
             name_contains=name_contains,
+            tool_name=self._build_tool_name("get_schema"),
         )
 
     def _dialect_for_validation(self) -> str | None:
@@ -609,7 +615,7 @@ class SQLToolset(AirflowToolset):
             raise SQLSafetyError(
                 f"Query uses a data source that cannot be checked against allowed_tables: "
                 f"{'; '.join(scan.unverifiable_sources)}. Query the allowed tables directly: "
-                f"use list_tables to see them."
+                f"use {self._build_tool_name('list_tables')} to see them."
             )
         disallowed = [
             ".".join(part for part in (catalog, schema, table) if part)
@@ -619,5 +625,5 @@ class SQLToolset(AirflowToolset):
         if disallowed:
             raise SQLSafetyError(
                 f"Query references tables that are not in the allowed tables list: "
-                f"{', '.join(sorted(set(disallowed)))}. Use list_tables to see the allowed tables."
+                f"{', '.join(sorted(set(disallowed)))}. Use {self._build_tool_name('list_tables')} to see the allowed tables."
             )
