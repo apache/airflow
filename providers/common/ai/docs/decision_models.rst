@@ -194,6 +194,12 @@ Where it fits in this provider
        taking arguments raises ``ToolCallProposed`` after the request, which is a
        ``ModelAPIError`` rather than a refusal, so ``FallbackModel`` hands those requests to
        a text model behind it and only they cost a full call.
+   * - Approving an agent's tool calls
+     - Yes
+     - Whether a proposed call may run without a person is a three-way pick: allow,
+       deny, or ask. A ``HandleDeferredToolCalls`` handler asks the decision model for
+       each call that needs approval and sends an unsure answer to the task's existing
+       approval pause; see :ref:`howto/tool_approval_judge`.
 
 Reading the confidence
 ----------------------
