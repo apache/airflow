@@ -260,6 +260,9 @@ Everything this provider ships that is not in the table above is experimental.
    * - The Anthropic tool runner adapter (:doc:`frameworks/anthropic`)
      - Built on ``tool_runner``, a beta helper of the Anthropic SDK that can change between
        SDK releases.
+   * - The OpenAI Agents SDK adapter (:doc:`frameworks/openai_agents`)
+     - Written against OpenAI Agents SDK 0.20 and 0.23. The SDK is pre-1.0 and changes
+       its tool and runner APIs between minor releases.
    * - The ``common_ai.tool_calls`` metric and
        :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
        (:doc:`observability`)
