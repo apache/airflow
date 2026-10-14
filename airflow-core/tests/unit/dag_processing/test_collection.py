@@ -1133,7 +1133,8 @@ class TestUpdateDagParsingResults:
         assert session.get(DagModel, ("bad_dag",)) is None
         error = import_errors[("testing", "abc.py")]
         assert "bad_dag" in error
-        assert "Variable something not found" in error
+        assert "Traceback (most recent call last)" in error
+        assert "RuntimeError: Variable something not found" in error
         [stored] = session.scalars(select(ParseImportError)).all()
         assert stored.filename == "abc.py"
 

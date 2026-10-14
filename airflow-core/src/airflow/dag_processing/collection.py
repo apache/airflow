@@ -588,10 +588,11 @@ def _reject_dags_with_unloadable_timetables(
     for dag in dags:
         try:
             dag.timetable
-        except Exception as e:
+        except Exception:
             log.exception("Failed to load timetable of Dag", dag_id=dag.dag_id)
+            depth = conf.getint("core", "dagbag_import_error_traceback_depth")
             import_errors[(bundle_name, dag.relative_fileloc)] = (
-                f"Failed to load the timetable of Dag '{dag.dag_id}': {type(e).__name__}: {e}"
+                f"Failed to load the timetable of Dag '{dag.dag_id}':\n{traceback.format_exc(limit=-depth)}"
             )
             continue
         accepted.append(dag)
