@@ -98,7 +98,8 @@ object-storage XCom backend for long sessions.
 The operator has no built-in cross-session memory. To let an agent use facts
 from earlier sessions, store them yourself, load them in an upstream task (the
 same load, run, store pattern as above), and put them in the prompt or the
-instructions.
+instructions. To let the agent keep its own notes across Dag runs instead, see
+:doc:`memory`.
 
 Related pydantic-ai documentation
 ---------------------------------
