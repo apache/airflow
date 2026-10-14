@@ -258,6 +258,19 @@ class TestLLMOperator:
         mock_agent.run_sync.assert_called_once_with("p", usage=ANY, usage_limits=None, cancellation_token=ANY)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_failed_run_without_task_instance_reports_no_run_id(self, mock_hook_cls, caplog):
+        """A failed run with no task instance has no run id to report, and still raises its own exception."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.side_effect = UsageLimitExceeded("boom")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="test", prompt="p", llm_conn_id="my_llm")
+        with caplog.at_level(logging.WARNING), pytest.raises(UsageLimitExceeded):
+            op.execute(context={})
+
+        assert caplog.messages == ["No task instance in the context; 'usage' was not pushed to XCom."]
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_coerces_usage_limits_dict_before_run_sync(
         self, mock_hook_cls, make_mock_run_result, usage_budget_context
     ):
@@ -333,7 +346,9 @@ class TestLLMOperator:
             FunctionModel(_build_priced_response), **kw
         )
 
-        ti = MagicMock()
+        ti = MagicMock(
+            spec=["id", "max_tries", "xcom_push", "dag_id", "task_id", "run_id", "try_number", "map_index"]
+        )
         ti.id = uuid4()
         ti.max_tries = 0
         usage_budget_context["task_instance"] = ti
@@ -578,7 +593,10 @@ class TestLLMOperatorUsageBudget:
         """The ``usage`` XCom holds what this attempt spent, not the cross-attempt total."""
         seed_usage_budget(task_state_store_accessor, requests=2, input_tokens=20)
         self._stub_agent(mock_hook_cls, make_mock_run_result, requests_used=1, error=error)
-        ti = MagicMock()
+        ti = MagicMock(
+            spec=["id", "max_tries", "xcom_push", "dag_id", "task_id", "run_id", "try_number", "map_index"]
+        )
+        ti.id = uuid4()
         ti.max_tries = 0
         context = {"task_instance": ti, "task_state_store": task_state_store_accessor}
         op = self._make_operator(usage_limits=UsageLimits(request_limit=10))
