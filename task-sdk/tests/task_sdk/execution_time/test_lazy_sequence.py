@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import Mock, call
+from unittest.mock import AsyncMock, Mock, call
 
 import pytest
 
@@ -57,6 +57,64 @@ def mock_ti():
 @pytest.fixture
 def lazy_sequence(mock_xcom_arg, mock_ti):
     return LazyXComSequence(mock_xcom_arg, mock_ti)
+
+
+@pytest.mark.asyncio
+async def test_aget(mock_supervisor_comms, lazy_sequence):
+    mock_supervisor_comms.asend = AsyncMock(return_value=XComSequenceIndexResult(root="f"))
+
+    assert await lazy_sequence.aget(1) == "f"
+
+    mock_supervisor_comms.asend.assert_awaited_once_with(
+        GetXComSequenceItem(
+            key=BaseXCom.XCOM_RETURN_KEY, dag_id="dag", task_id="task", run_id="run", offset=1
+        ),
+    )
+    mock_supervisor_comms.send.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_aget_out_of_range_raises_index_error(mock_supervisor_comms, lazy_sequence):
+    mock_supervisor_comms.asend = AsyncMock(
+        return_value=ErrorResponse(error=ErrorType.XCOM_NOT_FOUND, detail={"oops": "sorry!"})
+    )
+
+    with pytest.raises(IndexError):
+        await lazy_sequence.aget(3)
+
+
+@pytest.mark.asyncio
+async def test_aiter(mock_supervisor_comms, lazy_sequence):
+    """``async for`` fetches item by item through ``asend`` and never through the blocking ``send``."""
+    mock_supervisor_comms.asend = AsyncMock(
+        side_effect=[
+            XComSequenceIndexResult(root="f"),
+            XComSequenceIndexResult(root="g"),
+            ErrorResponse(error=ErrorType.XCOM_NOT_FOUND, detail={"oops": "sorry!"}),
+        ]
+    )
+
+    assert [item async for item in lazy_sequence] == ["f", "g"]
+
+    assert [call.args[0].offset for call in mock_supervisor_comms.asend.await_args_list] == [0, 1, 2]
+    mock_supervisor_comms.send.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_async_reads_ask_for_the_previous_iteration(mock_supervisor_comms, mock_xcom_arg, mock_ti):
+    """Inside a loop, the async reads ask for the previous iteration's values, as the sync ones do."""
+    sequence = LazyXComSequence(mock_xcom_arg, mock_ti, previous_iteration=True)
+    mock_supervisor_comms.asend = AsyncMock(
+        side_effect=[XComCountResponse(len=2), XComSequenceIndexResult(root="f")]
+    )
+
+    assert await sequence.alen() == 2
+    assert await sequence.aget(0) == "f"
+
+    assert [request.previous_iteration for (request,), _ in mock_supervisor_comms.asend.await_args_list] == [
+        True,
+        True,
+    ]
 
 
 class CustomXCom(BaseXCom):
