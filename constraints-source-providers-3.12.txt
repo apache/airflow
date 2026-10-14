@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-12T10:30:16.539789
+# This constraints file was automatically generated on 2026-10-14T03:40:46.419082
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -136,6 +136,7 @@ bitarray==3.11.0
 black==26.5.1
 bleach==6.4.0
 blinker==1.9.0
+boat_sdk==1.9.3
 boto3==1.43.75
 botocore==1.43.75
 build==1.6.1
