@@ -333,9 +333,18 @@ class TestLLMOperator:
             FunctionModel(_build_priced_response), **kw
         )
 
+        ti = MagicMock()
+        ti.id = uuid4()
+        ti.max_tries = 0
+        usage_budget_context["task_instance"] = ti
+
         op = LLMOperator(task_id="test", prompt="Summarize", llm_conn_id="my_llm", **cap_kwargs)
         with pytest.raises(UsageLimitExceeded, match=r"cost_limit.*0\.05"):
             op.execute(context=usage_budget_context)
+
+        pushes = {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list}
+        assert pushes["usage"]["requests"] == 1
+        assert pushes["usage"]["cost"] == str(PRICED_COST)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_completes_when_cost_stays_under_cap(self, mock_hook_cls, usage_budget_context):
@@ -731,6 +740,53 @@ class TestLLMOperatorConfidenceGate:
             "cache_read_tokens": 0,
             "cache_write_tokens": 0,
             "cost": "0.1",
+        }
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_failure_logs_partial_usage_without_xcom(self, mock_hook_cls, caplog):
+        """The failed run's usage reaches the task log even with ``do_xcom_push=False``."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+
+        def _run_sync(*args, **kwargs):
+            kwargs["usage"].incr(RunUsage(requests=1, input_tokens=10, cost=Decimal("0.1")))
+            raise UsageLimitExceeded("boom")
+
+        mock_agent.run_sync.side_effect = _run_sync
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", do_xcom_push=False)
+        context = _make_context(ti_id="ti-1")
+        with caplog.at_level(logging.INFO), pytest.raises(UsageLimitExceeded):
+            op.execute(context)
+
+        assert (
+            "LLM run failed: requests=1, tool_calls=0, input_tokens=10, output_tokens=0, total_tokens=10"
+            in caplog.messages
+        )
+        assert "LLM run cost: $0.1 (USD, best-effort)" in caplog.messages
+        context["task_instance"].xcom_push.assert_not_called()
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_failed_xcom_push_while_reporting_does_not_mask_the_original_exception(self, mock_hook_cls):
+        """A failing XCom push while reporting the failed run must not replace the run's own exception."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+
+        def _run_sync(*args, **kwargs):
+            kwargs["usage"].incr(RunUsage(requests=1))
+            raise UsageLimitExceeded("boom")
+
+        mock_agent.run_sync.side_effect = _run_sync
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        context = _make_context(ti_id="ti-1")
+        context["task_instance"].xcom_push.side_effect = RuntimeError("xcom down")
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        with pytest.raises(UsageLimitExceeded):
+            op.execute(context)
+        assert {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list} == {
+            "usage",
+            "run_id",
         }
 
     @pytest.mark.skipif(
