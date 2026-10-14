@@ -28,6 +28,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, Mock, call, create_autospec, patch
@@ -1224,6 +1225,33 @@ class TestIterableOperator:
         assert digests.pop() == IterableOperator._compute_fingerprint(
             {"tags": {"delta", "gamma", "beta", "alpha"}, "nested": [frozenset({"z", "y", "x"})]}
         )
+
+    def test_upstream_inputs_are_serialized_once_per_run(self):
+        """The partial kwargs from an upstream are the same for every index: one serialization serves them all."""
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([{"arg1": "a"}]))
+        iterable_op.partial_kwargs = {"arg2": make_xcom_arg(None)}
+        rendered = SimpleNamespace(arg2=[{"id": i} for i in range(5)])
+        take = partial(iterable_op._canonical_upstream_inputs, rendered)
+
+        with patch.object(
+            IterableOperator, "_to_canonical_json", wraps=IterableOperator._to_canonical_json
+        ) as to_canonical_json:
+            texts = {iterable_op._state.upstream_inputs_json(take) for _ in range(3)}
+
+        assert to_canonical_json.call_count == 1
+        assert texts == {IterableOperator._to_canonical_json({"arg2": rendered.arg2})}
+
+    def test_fingerprint_follows_the_upstream_inputs(self):
+        """Other upstream inputs give another fingerprint; none leaves the input's own digest as it was."""
+        own = IterableOperator._compute_fingerprint({"arg1": 1})
+
+        assert IterableOperator._compute_fingerprint({"arg1": 1}, "") == own
+        assert IterableOperator._compute_fingerprint({"arg1": 1}, '{"arg2": [1]}') != own
+        assert IterableOperator._compute_fingerprint(
+            {"arg1": 1}, '{"arg2": [1]}'
+        ) != IterableOperator._compute_fingerprint({"arg1": 1}, '{"arg2": [2]}')
+        assert IterableOperator._compute_fingerprint({"arg1": 1}, None) is None
 
     def test_canonical_json_of_a_value_without_a_set_is_serdes_own(self):
         """Only sets are reordered, so a checkpoint written before keeps its fingerprint."""

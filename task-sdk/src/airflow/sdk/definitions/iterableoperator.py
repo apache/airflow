@@ -33,6 +33,7 @@ from airflow.sdk._shared.serialization import CLASSNAME, DATA
 from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
 from airflow.sdk.bases.xcom import XComIterable
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision
 from airflow.sdk.definitions.xcom_arg import XComArg
@@ -262,6 +263,11 @@ class IterationState:
         #: run by whichever indexed task asks first; see upstream_digest.
         self._upstream_digests: dict[str, str | None] = {}
         self._upstream_digests_lock = threading.Lock()
+        #: The canonical JSON of the partial kwargs an upstream provides, the same for every index,
+        #: taken once per run by whichever indexed task asks first; see upstream_inputs_json. A
+        #: lock of its own: taking it asks upstream_digest, which holds the one above.
+        self._upstream_inputs: str | None | ArgNotSet = NOTSET
+        self._upstream_inputs_lock = threading.Lock()
         #: Whether the operator the task iterates pushes its results, as built for an indexed task:
         #: an operator may set ``do_xcom_push`` in its own ``__init__``, not only through
         #: ``partial()``. The same for every indexed task; True until one is built.
@@ -333,6 +339,18 @@ class IterationState:
             if path not in self._upstream_digests:
                 self._upstream_digests[path] = digest()
             return self._upstream_digests[path]
+
+    def upstream_inputs_json(self, take: Callable[[], str | None]) -> str | None:
+        """
+        Return the canonical JSON of the partial kwargs from an upstream, taken with ``take`` once per run.
+
+        They are the same for every index, so the first indexed task to ask serializes them and the
+        others reuse its text instead of serializing them again.
+        """
+        with self._upstream_inputs_lock:
+            if isinstance(self._upstream_inputs, ArgNotSet):
+                self._upstream_inputs = take()
+            return self._upstream_inputs
 
     def stop_requested(self) -> bool:
         """Whether :meth:`request_stop` was called; passed to the executor as its ``stop``."""
@@ -1406,7 +1424,9 @@ class IterableOperator(BaseOperator):
             await executor.run_sync(report)
 
     @classmethod
-    def _compute_fingerprint(cls, mapped_kwargs: Mapping[str, Any]) -> str | None:
+    def _compute_fingerprint(
+        cls, mapped_kwargs: Mapping[str, Any], upstream_inputs: str | None = ""
+    ) -> str | None:
         """
         Digest one indexed task's input, stored on its checkpoint to tell whether it still applies.
 
@@ -1414,12 +1434,35 @@ class IterableOperator(BaseOperator):
         cleared together with this task and produced other values. An index then no longer means the
         same work, and replaying its result would hand downstream a value computed from the old value.
         An input serde cannot serialize has no digest, and its checkpoint is honoured by index alone.
+
+        :param upstream_inputs: the canonical JSON of the partial kwargs an upstream provides, the
+            same for every index (see :meth:`_canonical_upstream_inputs`): ``""`` when there are
+            none, which leaves the digest that of ``mapped_kwargs`` alone, None when serde cannot
+            serialize them.
         """
+        if upstream_inputs is None:
+            return None
         try:
             serialized = cls._to_canonical_json(mapped_kwargs)
         except (TypeError, ValueError, AttributeError, RecursionError):
             return None
+        if upstream_inputs:
+            serialized = f"{serialized}\n{upstream_inputs}"
         return hashlib.sha256(serialized.encode()).hexdigest()
+
+    def _canonical_upstream_inputs(self, unmapped_task: BaseOperator) -> str | None:
+        """
+        Serialize the partial kwargs an upstream provides for :meth:`_compute_fingerprint`, once per run.
+
+        ``""`` when no partial kwarg comes from an upstream, None when serde cannot serialize one.
+        """
+        inputs = self._collect_partial_inputs_from_upstream(unmapped_task)
+        if not inputs:
+            return ""
+        try:
+            return self._to_canonical_json(inputs)
+        except (TypeError, ValueError, AttributeError, RecursionError):
+            return None
 
     @classmethod
     def _to_canonical_json(cls, value: Any) -> str:
@@ -1568,8 +1611,10 @@ class IterableOperator(BaseOperator):
         # and store view), not the parent's: a template must read the same values as execute() does.
         self._render_unmapped_operator(indexed_ti.context_for(context), unmapped_task, jinja_env)
         # Taken once rendered, so the partial kwargs an upstream provides are in it with their value.
+        # Those are the same for every index and serialized once per run.
         indexed_ti.input_fingerprint = self._compute_fingerprint(
-            {**mapped_kwargs, **self._collect_partial_inputs_from_upstream(unmapped_task)}
+            mapped_kwargs,
+            self._state.upstream_inputs_json(partial(self._canonical_upstream_inputs, unmapped_task)),
         )
         return indexed_ti
 
