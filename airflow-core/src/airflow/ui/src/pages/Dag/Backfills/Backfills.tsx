@@ -26,12 +26,13 @@ import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse, ReprocessBehavior } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { type DurationFormat, useDurationFormat } from "src/utils";
+import { type DurationFormat, isOneOf, useDurationFormat } from "src/utils";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 import { BackfillsFilters } from "./BackfillsFilters";
@@ -52,14 +53,11 @@ const {
   TO_DATE_LTE: TO_DATE_LTE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const REPROCESS_BEHAVIOR_VALUES = [
+const isReprocessBehavior = isOneOf([
   "failed",
   "completed",
   "none",
-] as const satisfies ReadonlyArray<ReprocessBehavior>;
-
-const isReprocessBehavior = (value: string | null): value is ReprocessBehavior =>
-  (REPROCESS_BEHAVIOR_VALUES as ReadonlyArray<string | null>).includes(value);
+] as const satisfies ReadonlyArray<ReprocessBehavior>);
 
 type ColumnProps = {
   readonly onSelectBackfill: (backfillId: number) => void;
@@ -70,7 +68,7 @@ const getColumns = ({
   formatElapsed,
   onSelectBackfill,
   translate,
-}: ColumnProps): Array<ColumnDef<BackfillResponse>> => [
+}: ColumnProps): Array<ColumnDef<DataTableFeatures, BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
@@ -180,7 +178,7 @@ export const Backfills = () => {
   const reprocessBehaviorParam = searchParams.get(REPROCESS_BEHAVIOR_PARAM);
   const reprocessBehavior = isReprocessBehavior(reprocessBehaviorParam) ? reprocessBehaviorParam : undefined;
 
-  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
+  const { data, error, isLoading } = useBackfillServiceListBackfillsUi({
     completedAtGte: completedAtGte ?? undefined,
     completedAtLte: completedAtLte ?? undefined,
     createdAtGte: createdAtGte ?? undefined,
@@ -229,7 +227,6 @@ export const Backfills = () => {
       <DataTable
         columns={columns}
         data={data ? data.backfills : []}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:backfill"
         onStateChange={setTableURLState}

@@ -71,6 +71,11 @@ type DagSerializer interface {
 	SerializeDags(fileloc, relativeFileloc string) []SerializedDag
 }
 
+// DagSourceLister reports the source file that declared each Dag of a bundle, by dag_id.
+type DagSourceLister interface {
+	ListDagSourceFiles() map[string]string
+}
+
 type taskFunction struct {
 	fn       reflect.Value
 	fullName string

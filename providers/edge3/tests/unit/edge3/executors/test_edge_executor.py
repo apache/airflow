@@ -844,7 +844,9 @@ class _WorkloadFactory:
             session.execute(delete(EdgeJobModel))
             session.commit()
 
-    def _make_execute_task(self, task_id: str = "test_task", dag_id: str = "test_dag") -> ExecuteTask:
+    def _make_execute_task(
+        self, task_id: str = "test_task", dag_id: str = "test_dag", priority_weight: int = 1
+    ) -> ExecuteTask:
         ti = TaskInstanceDTO(
             id=uuid4(),
             dag_version_id=uuid4(),
@@ -855,7 +857,7 @@ class _WorkloadFactory:
             map_index=-1,
             pool_slots=1,
             queue="default",
-            priority_weight=1,
+            priority_weight=priority_weight,
         )
         return ExecuteTask(
             ti=ti,
@@ -1073,6 +1075,19 @@ class TestQueueWorkload(_WorkloadFactory):
             jobs = session.scalars(select(EdgeJobModel)).all()
             assert len(jobs) == 1
             assert jobs[0].state == TaskInstanceState.QUEUED
+
+    def test_queue_workload_stores_task_priority_weight(self):
+        executor = EdgeExecutor()
+
+        with create_session() as session:
+            executor.queue_workload(self._make_execute_task(priority_weight=42), session=session)
+        with create_session() as session:
+            assert session.scalar(select(EdgeJobModel)).priority_weight == 42
+
+        with create_session() as session:
+            executor.queue_workload(self._make_execute_task(priority_weight=7), session=session)
+        with create_session() as session:
+            assert session.scalar(select(EdgeJobModel)).priority_weight == 7
 
     def test_queue_workload_execute_callback(self):
         executor = EdgeExecutor()

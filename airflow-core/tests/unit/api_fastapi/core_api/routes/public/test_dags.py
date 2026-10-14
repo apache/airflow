@@ -1840,6 +1840,13 @@ class TestDagDetails(TestDagEndpoint):
         assert response.status_code == 200
         assert response.json()["team_name"] is None
 
+    def test_dag_details_should_not_query_on_event_loop(self, test_client, event_loop_queries):
+        """Regression for #74239: the latest Dag version must not be queried during serialization."""
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        assert response.json()["latest_dag_version"]["version_number"] == 1
+        assert event_loop_queries == []
+
     @conf_vars({("core", "multi_team"): "True"})
     def test_dag_details_includes_team_name(self, session, test_client):
         original_bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == DAG1_ID))

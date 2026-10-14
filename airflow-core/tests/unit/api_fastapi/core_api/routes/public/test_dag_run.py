@@ -24,7 +24,8 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import delete, func, select, update
+import uuid6
+from sqlalchemy import delete, func, insert, select, update
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
@@ -33,15 +34,18 @@ from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessE
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun, DagTag, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import Asset, Param, result, task
+from airflow.sdk import Asset, Param, result, task, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
@@ -2031,6 +2035,7 @@ class TestGetDagRunAssetTriggerEvents:
                     "name": "ds1",
                     "source_dag_id": ti.dag_id,
                     "source_map_index": ti.map_index,
+                    "source_task_instance_id": None,
                     "source_run_id": ti.run_id,
                     "source_task_id": ti.task_id,
                     "created_dagruns": [
@@ -2250,6 +2255,40 @@ class TestClearDagRun:
             .where(Log.dag_id == DAG1_ID, Log.run_id == dag_run_id, Log.event == "clear_dag_run")
         )
         assert logs == 0
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_dry_run_reports_loop_coordinates(self, test_client, dag_maker, session):
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        with dag_maker("dry_run_loop", serialized=True):
+            loop = create_loop(body, max_iterations=3)
+        run = dag_maker.create_dagrun(run_id="dry_run_loop_run")
+        region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+        later = TaskInstance(
+            task=dag_maker.dag.get_task("body.work"),
+            run_id=run.run_id,
+            dag_version_id=run.created_dag_version_id,
+            region_id=region.id,
+            region_index=1,
+        )
+        later.state = State.SUCCESS
+        session.add(later)
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{run.dag_id}/dagRuns/{run.run_id}/clear", json={"dry_run": True, "only_failed": False}
+        )
+
+        assert response.status_code == 200, response.text
+        work = [row for row in response.json()["task_instances"] if row["task_id"] == "body.work"]
+        assert {row["region_index"] for row in work} == {0, 1}
+        assert {row["map_index"] for row in work} == {-1}
+        assert all(
+            row["loop_iteration"] == {"loop_id": loop.group_id, "iteration": row["region_index"]}
+            for row in work
+        )
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run_dry_run_response_has_full_task_instance_fields(self, test_client):
@@ -4479,6 +4518,148 @@ class TestResolveRunOnLatestVersion:
 
 
 class TestWaitDagRun:
+    @pytest.mark.parametrize("state", [DagRunState.RUNNING, DagRunState.SUCCESS])
+    @pytest.mark.parametrize("explicit", [False, True])
+    @pytest.mark.parametrize("mapped", [False, True])
+    @pytest.mark.parametrize("has_live_tis", [False, True])
+    def test_rejects_loop_results_before_streaming(
+        self, test_client, dag_maker, session, state, explicit, mapped, has_live_tis
+    ):
+        with dag_maker("wait_loop_result", session=session):
+
+            @task
+            def value(v=1):
+                return v
+
+            @task_group
+            def body():
+                output = value.expand(v=[1, 2]) if mapped else value()
+                if not explicit:
+                    # Authoring rejects this now; a Dag serialized before that still reaches the wait API.
+                    output.operator.returns_dag_result = True
+
+            create_loop(body, max_iterations=2)
+
+        run = dag_maker.create_dagrun(state=state, session=session)
+        if not has_live_tis:
+            session.execute(delete(TaskInstance).where(TaskInstance.dag_id == run.dag_id))
+        session.commit()
+        with mock.patch.object(DagRunWaiter, "wait", autospec=True, return_value=iter(())) as stream:
+            response = test_client.get(
+                f"/dags/{run.dag_id}/dagRuns/{run.run_id}/wait",
+                params={"interval": 1, **({"result": "body.value"} if explicit else {})},
+            )
+
+        assert response.status_code == 409
+        assert "outside the loop" in response.json()["detail"]
+        stream.assert_not_called()
+
+    @pytest.mark.parametrize("explicit", [False, True])
+    def test_loop_result_preflight_uses_pinned_definition(self, test_client, dag_maker, session, explicit):
+        with dag_maker("wait_pinned_loop", session=session):
+
+            @task_group
+            def body():
+                output = EmptyOperator(task_id="value")
+                output.returns_dag_result = True
+
+            create_loop(body, max_iterations=2)
+        run = dag_maker.create_dagrun(state=DagRunState.SUCCESS, session=session)
+        session.commit()
+
+        with dag_maker("wait_pinned_loop", session=session):
+            EmptyOperator(task_id="body.value")
+
+        response = test_client.get(
+            f"/dags/{run.dag_id}/dagRuns/{run.run_id}/wait",
+            params={"interval": 1, **({"result": "body.value"} if explicit else {})},
+        )
+        assert response.status_code == 409
+
+    def test_loop_run_can_return_an_outside_result(self, test_client, dag_maker, session):
+        with dag_maker("wait_outside_result", session=session) as dag:
+
+            @task_group
+            def body():
+                EmptyOperator(task_id="value")
+
+            loop = create_loop(body, max_iterations=2)
+            outside = EmptyOperator(task_id="outside")
+            loop >> outside
+            dag.add_result(outside.output)
+        run = dag_maker.create_dagrun(state=DagRunState.SUCCESS, session=session)
+        XComModel.set(
+            key="return_value",
+            value=42,
+            dag_id=run.dag_id,
+            run_id=run.run_id,
+            task_id="outside",
+            dag_result=True,
+            session=session,
+        )
+        session.commit()
+        response = test_client.get(
+            f"/dags/{run.dag_id}/dagRuns/{run.run_id}/wait",
+            params={"interval": 1},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"state": "success", "results": {"outside": "42"}}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("mapped", [False, True])
+    async def test_result_rejects_ambiguous_loop_producers(self, dag_maker, session, mapped):
+        with dag_maker("ambiguous_loop_result") as dag:
+
+            @result
+            @task
+            def value(v=0):
+                return v
+
+            if mapped:
+                value.expand(v=[0])
+            else:
+                value()
+        run = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
+        loop = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
+        session.add(loop)
+        session.flush()
+        original = run.task_instances[0]
+        for index in range(2):
+            region = loop
+            if mapped:
+                region = DynamicRegion(
+                    dag_id=run.dag_id,
+                    run_id=run.run_id,
+                    node_id="value",
+                    parent_region_id=loop.id,
+                    parent_region_index=index,
+                )
+                session.add(region)
+                session.flush()
+            ti = (
+                original
+                if index == 0
+                else TaskInstance(
+                    dag.get_task("value"), run_id=run.run_id, dag_version_id=original.dag_version_id
+                )
+            )
+            ti.region_id, ti.region_index = region.id, 0 if mapped else index
+            session.add(ti)
+            session.flush()
+            XComModel.set_for_attempt(
+                task_instance_id=ti.id,
+                key="return_value",
+                value=index,
+                serialize=False,
+                dag_result=True,
+                session=session,
+            )
+        session.commit()
+
+        waiter = DagRunWaiter(run.dag_id, run.run_id, 1, None)
+        with pytest.raises(ValueError, match="Ambiguous current producers for task 'value'"):
+            await waiter._serialize_xcoms()
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
             f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
@@ -4607,7 +4788,8 @@ class TestWaitDagRun:
         data = response.json()
         assert data == {"state": DagRunState.SUCCESS}
 
-    def test_collect_mapped_task_dag_result(self, test_client, dag_maker, session):
+    @pytest.mark.parametrize("explicit", [False, True])
+    def test_collect_mapped_task_dag_result(self, test_client, dag_maker, session, explicit):
         """XComs from a mapped @result task are aggregated into a list ordered by map_index."""
         with dag_maker("dag_mapped_result"):
 
@@ -4629,11 +4811,33 @@ class TestWaitDagRun:
         )
         for ti in dag_run.task_instances:
             run_task_instance(ti, mapped_op, session=session)
+        first = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_run.dag_id,
+                TaskInstance.run_id == dag_run.run_id,
+                TaskInstance.region_index == 0,
+            )
+        ).one()
+        archived = {column.name: getattr(first, column.key) for column in TaskInstance.__table__.columns} | {
+            "id": uuid6.uuid7(),
+            "working_set": None,
+            "archived_reason": "retry",
+            "try_number": 7,
+        }
+        session.execute(insert(TaskInstance.__table__).values(archived))
+        XComModel.set_for_attempt(
+            task_instance_id=archived["id"],
+            key="return_value",
+            value=-999,
+            serialize=False,
+            dag_result=True,
+            session=session,
+        )
         session.commit()
 
         response = test_client.get(
             f"/dags/dag_mapped_result/dagRuns/{dag_run.run_id}/wait",
-            params={"interval": "1"},
+            params={"interval": "1", **({"result": "a"} if explicit else {})},
         )
         assert response.status_code == 200
         assert response.json() == {"state": DagRunState.SUCCESS, "results": {"a": [2, 4]}}

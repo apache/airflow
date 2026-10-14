@@ -2,8 +2,8 @@
   "alerts": {
     "seeLessContext": "See less",
     "seeMoreContext": "See more",
-    "showMoreAlerts_one": "+{{count}} more alert",
-    "showMoreAlerts_other": "+{{count}} more alerts"
+    "showMoreAlerts_one": "+{{count, number}} more alert",
+    "showMoreAlerts_other": "+{{count, number}} more alerts"
   },
   "deadlines": {
     "pending": {
@@ -17,11 +17,11 @@
     "showMore": "Show more",
     "title": "Deadlines"
   },
-  "deferredSlotsNotCounted": "Deferred not counted in slots: {{count}}",
+  "deferredSlotsNotCounted": "Deferred not counted in slots: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "Deferred tasks shown in the bar are counted against pool slots. Deferred tasks shown below the bar are from pools that do not count deferred tasks against slots.",
   "favorite": {
-    "favoriteDags_one": "First {{count}} favorite Dag",
-    "favoriteDags_other": "First {{count}} favorite Dags",
+    "favoriteDags_one": "First {{count, number}} favorite Dag",
+    "favoriteDags_other": "First {{count, number}} favorite Dags",
     "noDagRuns": "There is no DagRun for this dag yet.",
     "noFavoriteDags": "No favorites yet. Click the star icon next to a Dag in the list to add it to your favorites."
   },
@@ -40,8 +40,8 @@
       "bundles": "Bundles",
       "hostname": "Host",
       "team": "Team",
-      "title_one": "{{title}} — {{status}} ({{count}} instance)",
-      "title_other": "{{title}} — {{status}} ({{count}} instances)",
+      "title_one": "{{title}} — {{status}} ({{count, number}} instance)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} instances)",
       "unknownHostname": "Unknown host"
     },
     "lastHeartbeat": "Last Heartbeat",

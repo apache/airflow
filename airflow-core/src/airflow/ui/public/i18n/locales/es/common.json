@@ -211,8 +211,8 @@
     "receivedAssetEvents": "Eventos de Asset Recibidos"
   },
   "pause": "Pausar",
-  "pendingDagRun_one": "{{count}} Ejecución del Dag Pendiente",
-  "pendingDagRun_other": "{{count}} Ejecuciones del Dag Pendientes",
+  "pendingDagRun_one": "{{count, number}} Ejecución del Dag Pendiente",
+  "pendingDagRun_other": "{{count, number}} Ejecuciones del Dag Pendientes",
   "presetFilters": {
     "deleteTitle": "Eliminar Filtro Preestablecido",
     "deleteWarning": "Los filtros preestablecidos se almacenan solo en este navegador.",
@@ -456,8 +456,8 @@
   "taskInstance_one": "Instancia de Tarea",
   "taskInstance_other": "Instancias de Tarea",
   "teams": {
-    "more_one": "y {{count}} más",
-    "more_other": "y {{count}} más",
+    "more_one": "y {{count, number}} más",
+    "more_other": "y {{count, number}} más",
     "none": "Sin equipo",
     "title": "Equipos"
   },
@@ -483,21 +483,21 @@
     "bulkClear": {
       "error": "Solicitud de Limpieza Masiva de {{resourceName}} Fallida",
       "success": {
-        "description": "{{count}} {{resourceName}} han sido limpiados exitosamente. Claves: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} han sido limpiados exitosamente. Claves: {{keys}}",
         "title": "Solicitud de Limpieza Masiva de {{resourceName}} Enviada"
       }
     },
     "bulkDelete": {
       "error": "Solicitud de Eliminación Masiva de {{resourceName}} Fallida",
       "success": {
-        "description": "{{count}} {{resourceName}} han sido eliminados exitosamente. Claves: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} han sido eliminados exitosamente. Claves: {{keys}}",
         "title": "Solicitud de Eliminación Masiva de {{resourceName}} Enviada"
       }
     },
     "bulkUpdate": {
       "error": "Solicitud de Actualización Masiva de {{resourceName}} Fallida",
       "success": {
-        "description": "{{count}} {{resourceName}} han sido actualizados exitosamente. Claves: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} han sido actualizados exitosamente. Claves: {{keys}}",
         "title": "Solicitud de Actualización Masiva de {{resourceName}} Enviada"
       }
     },
@@ -518,7 +518,7 @@
     "import": {
       "error": "Solicitud de Importación de {{resourceName}} Fallida",
       "success": {
-        "description": "{{count}} {{resourceName}} han sido importados exitosamente.",
+        "description": "{{count, number}} {{resourceName}} han sido importados exitosamente.",
         "title": "Solicitud de Importación de {{resourceName}} Enviada"
       }
     },

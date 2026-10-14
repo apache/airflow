@@ -20,11 +20,6 @@
 Files on object storage: ``ObjectStorageToolset``
 =================================================
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 Give an agent the files under one location in S3, GCS, Azure Blob Storage or any other
 store Airflow's :class:`~airflow.sdk.ObjectStoragePath` can open, and let it find and
 read what it needs: a month's reports, the config files of a failing job, the first
@@ -142,7 +137,9 @@ storage already uses; Parquet and Avro need this provider's ``parquet`` or ``avr
 extra. To hand the model a known file rather than let it find one, ``@task.llm_file_analysis``
 reads the file for it. For read-only access through a hook's own methods,
 ``HookToolset(S3Hook(), allowed_methods=["list_keys", "read_key"])`` works too, but the
-model then chooses the bucket and key, where this toolset holds it under one root.
+model then chooses the bucket and key. Pinning ``bucket_name`` with ``pinned_arguments``
+fixes the bucket and still leaves the model any key in it, where this toolset keeps the
+model under one root.
 
 **What it cannot do**
 
@@ -160,6 +157,7 @@ Using it with other agent frameworks
 
 ``ObjectStorageToolset`` implements
 :class:`~airflow.providers.common.ai.tools.ToolProvider`, so the same three tools work in
-a Strands or Google ADK agent through ``AirflowTools``; see :doc:`../frameworks/index`.
+a Strands or Google ADK agent, or the Anthropic SDK's tool runner, through
+``AirflowTools``; see :doc:`../frameworks/index`.
 Outside ``AgentOperator``, ``path`` and ``conn_id`` are used as given: they are not
 rendered as templates.

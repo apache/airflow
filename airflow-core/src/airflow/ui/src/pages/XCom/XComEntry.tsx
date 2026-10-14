@@ -37,6 +37,8 @@ type XComEntryProps = {
   readonly dagId: string;
   readonly mapIndex: number;
   readonly open?: boolean;
+  readonly regionId?: string;
+  readonly regionIndex?: number;
   readonly runId: string;
   readonly taskId: string;
   readonly xcomKey: string;
@@ -44,13 +46,11 @@ type XComEntryProps = {
 
 const renderTextWithLinks = (text: string) => {
   const urls = text.match(urlRegex);
-  const parts = text.split(/\s+/u);
+  const parts = text.split(/(\s+)/u);
 
   return (
     <>
-      {parts.map((part, index) => {
-        const isLastPart = index === parts.length - 1;
-
+      {parts.map((part) => {
         if (urls?.includes(part)) {
           return (
             <Link
@@ -66,7 +66,7 @@ const renderTextWithLinks = (text: string) => {
           );
         }
 
-        return `${part}${isLastPart ? "" : " "}`;
+        return part;
       })}
     </>
   );
@@ -107,12 +107,23 @@ const XComError = ({ error }: { readonly error: unknown }) => {
   );
 };
 
-export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKey }: XComEntryProps) => {
+export const XComEntry = ({
+  dagId,
+  mapIndex,
+  open = false,
+  regionId,
+  regionIndex,
+  runId,
+  taskId,
+  xcomKey,
+}: XComEntryProps) => {
   const { data, error, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
     dagId,
     dagRunId: runId,
     deserialize: true,
     mapIndex,
+    regionId,
+    regionIndex,
     stringify: false,
     taskId,
     xcomKey,
@@ -127,6 +138,7 @@ export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKe
   const xcomValue = data?.value;
   const isObjectOrArray = Array.isArray(xcomValue) || (xcomValue !== null && typeof xcomValue === "object");
   const valueFormatted = typeof xcomValue === "string" ? xcomValue : JSON.stringify(xcomValue, undefined, 4);
+  const hasNewline = typeof xcomValue === "string" && xcomValue.includes("\n");
 
   return isLoading ? (
     <Skeleton
@@ -140,7 +152,15 @@ export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKe
       {isObjectOrArray ? (
         <RenderedJsonField collapsed={!open} content={xcomValue as object} enableClipboard={false} />
       ) : (
-        <Text>{renderTextWithLinks(valueFormatted)}</Text>
+        <Text
+          maxHeight="200px"
+          minWidth={hasNewline ? "250px" : undefined}
+          overflowWrap="anywhere"
+          overflowY="auto"
+          whiteSpace="pre-wrap"
+        >
+          {renderTextWithLinks(valueFormatted)}
+        </Text>
       )}
       {xcomValue === undefined || xcomValue === null ? undefined : (
         <ClipboardRoot value={valueFormatted}>

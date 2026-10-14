@@ -178,16 +178,16 @@ Save the task implementations as
 
     package com.mycompany.airflow.sales;
 
-    import org.apache.airflow.sdk.Builder;
+    import org.apache.airflow.sdk.Airflow;
 
     public class SalesPipeline {
 
-      @Builder.TaskHandler(dag = "sales_pipeline", task = "extract")
+      @Airflow.TaskHandler(dag = "sales_pipeline", task = "extract")
       public long extract() {
         return 3;
       }
 
-      @Builder.TaskHandler(dag = "sales_pipeline", task = "transform")
+      @Airflow.TaskHandler(dag = "sales_pipeline", task = "transform")
       public long transform(long recordCount) {
         return recordCount * 2;
       }
@@ -344,20 +344,20 @@ Annotate a plain Java class and let the SDK generate the boilerplate at compile 
 
    * - Annotation
      - Purpose
-   * - ``@Builder.TaskHandler(dag = "...", task = "...")``
+   * - ``@Airflow.TaskHandler(dag = "...", task = "...")``
      - Marks a method as the Java body of a task the Python Dag file declares with ``@task.stub``.
        ``dag`` must match the ``dag_id`` and ``task`` the stub function name; omitting ``task``
        derives it from the method name.  There is no class-level annotation on this surface — the
        Dag is the Python file's, so the handler names the pair it binds to.
-   * - ``@Builder.Dag(id = "...")``
+   * - ``@Airflow.Dag(id = "...")``
      - Marks a class as a Dag that Java itself owns.  Attributes (``schedule``, ``description``,
        ``tags``, ``catchup``, …) are Airflow's own Dag settings; only attributes written
        explicitly are applied.  See :ref:`java-sdk/native-dags`.
-   * - ``@Builder.Task(id = "...")``
+   * - ``@Airflow.Task(id = "...")``
      - Marks a method as a task of a Java-owned Dag.  If ``id`` is omitted the method name is
        used.  Further attributes (``retries``, ``queue``, ``retryDelay``, …) are Airflow's own
        task settings; only attributes written explicitly are applied.
-   * - ``@Builder.Deps``
+   * - ``@Airflow.Deps``
      - Marks the nested class that declares the task graph in Java, TaskFlow-style.  Required for
        a Dag that Java owns end to end.  See :ref:`java-sdk/native-dags`.
    * - ``TaskInput`` / ``@ArgName("...")``
@@ -378,14 +378,14 @@ registry and resolves data parameters and XCom pushes automatically.
 
     public class MyDag {
 
-      @Builder.TaskHandler(dag = "my_dag", task = "fetch")
+      @Airflow.TaskHandler(dag = "my_dag", task = "fetch")
       public String fetch(Client client) throws Exception {
         var conn = client.getConnection("my_api");
         // implement task logic
         return result;
       }
 
-      @Builder.TaskHandler(dag = "my_dag", task = "process")
+      @Airflow.TaskHandler(dag = "my_dag", task = "process")
       public long process(Client client, String fetched) {
         var threshold = (String) client.getVariable("process_threshold");
         // implement task logic
@@ -493,7 +493,7 @@ so renaming one in an IDE never rebinds an input.
 
 .. code-block:: java
 
-    @Builder.TaskHandler(dag = "etl", task = "score")
+    @Airflow.TaskHandler(dag = "etl", task = "score")
     public long score(Client client, long rows, double threshold) {
       // rows      <- the load_rows XCom (position 0)
       // threshold <- the literal 0.75   (position 1)
@@ -552,7 +552,7 @@ and reported rather than handed the wrong value.
       public double threshold; // binds threshold
     }
 
-    @Builder.TaskHandler(dag = "etl", task = "score")
+    @Airflow.TaskHandler(dag = "etl", task = "score")
     public long score(Client client, ScoreInput input) { ... }
 
 Reach for ``@ArgName`` when the argument name is not a legal or usable Java identifier — a Python
@@ -620,12 +620,12 @@ Edges are checked when the Dag is registered with a ``Bundle``: an upstream that
 Dag, or to no Dag, and a cycle anywhere in the graph both fail there rather than at the first task
 run.
 
-Wiring the graph with ``@Builder.Deps``
+Wiring the graph with ``@Airflow.Deps``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For a Dag written with annotations, the graph is declared by a nested ``@Builder.Deps`` class.  The
+For a Dag written with annotations, the graph is declared by a nested ``@Airflow.Deps`` class.  The
 annotation processor generates a ``<ClassName>Deps`` interface, the *wiring view*, with one method
-per ``@Builder.Task`` method: the injected ``Client`` and ``Context`` parameters are dropped, each
+per ``@Airflow.Task`` method: the injected ``Client`` and ``Context`` parameters are dropped, each
 data parameter becomes an ``Arg<T>``, and the return value becomes a ``TaskRef<T>``.  Calling a view
 method registers its task, and passing the handle one returned into another feeds the upstream's
 output into the downstream's parameter *and* wires the data edge.  The call graph is the task graph,
@@ -636,34 +636,34 @@ generated view, with a no-argument ``depends()`` method:
 
 .. code-block:: java
 
-    @Builder.Dag(
+    @Airflow.Dag(
         id = "java_etl",
         schedule = "@daily",
         description = "Pure-Java Dag built with annotations",
         tags = {"example", "java-sdk"})
     public class EtlPipeline {
 
-      @Builder.Task(id = "extract", retries = 2)
+      @Airflow.Task(id = "extract", retries = 2)
       public long extract() {
         return 42L;
       }
 
-      @Builder.Task(id = "transform")
+      @Airflow.Task(id = "transform")
       public long transform(long extracted, double factor) {
         return (long) (extracted * factor);
       }
 
-      @Builder.Task(id = "load")
+      @Airflow.Task(id = "load")
       public void load(long transformed) {
         // implement task logic
       }
 
-      @Builder.Task(id = "audit")
+      @Airflow.Task(id = "audit")
       public void audit() {
         // side effect only, no data in or out
       }
 
-      @Builder.Deps
+      @Airflow.Deps
       static class Wiring implements EtlPipelineDeps {
         void depends() {
           var rows = extract();
@@ -673,9 +673,11 @@ generated view, with a no-argument ``depends()`` method:
       }
     }
 
-Every ``@Builder.Task`` method must be called in the wiring class; a task the wiring missed fails at
+Every ``@Airflow.Task`` method must be called in the wiring class; a task the wiring missed fails at
 Dag-parse time.  ``lit(...)`` wires an inline constant where no upstream feeds a parameter.  A bare
-``double`` cannot be an ``Arg``, so a constant is wrapped.  A view method that takes no arguments
+``double`` cannot be an ``Arg``, so a constant is wrapped.  Airflow records what each task is called
+with, and that record travels as JSON, so a constant has to be a string, number, boolean, list or
+map.  A view method that takes no arguments
 returns the same handle every time, so it names one node wherever it appears; one that takes
 arguments is called once, and the wiring fails if it is called again with arguments, so hold its
 handle in a local and reuse that.
@@ -684,20 +686,83 @@ handle in a local and reuse that.
 the wiring class ``Flow`` is inherited by simple name, so it needs no import and never collides with
 ``java.util.concurrent.Flow``.
 
-Every ``@Builder.Dag`` class declares a wiring class, because the graph is what the Dag owns.  A
+Every ``@Airflow.Dag`` class declares a wiring class, because the graph is what the Dag owns.  A
 class that supplies only task bodies, for a Dag a Python file declares, carries
-``@Builder.TaskHandler`` instead and contributes no Dag.
+``@Airflow.TaskHandler`` instead and contributes no Dag.
 
 .. note::
 
-   Runtime argument bindings win over Java-declared wiring.  When the supervisor delivers bindings
-   for a run (see :ref:`java-sdk/arg-binding`), the binding at a parameter's position is what the
-   task receives.  Wired inputs are the fallback, which is what a native Java Dag always uses.
+   A native Java Dag binds its task arguments from its own wiring, and the ``_arg_bindings`` it
+   serializes are what Airflow records and shows.  Runtime bindings (see :ref:`java-sdk/arg-binding`)
+   are what an ``@Airflow.TaskHandler`` class reads, for a task whose Dag a Python file declares.
+
+Task groups
+~~~~~~~~~~~
+
+A task group gathers tasks that the Airflow UI shows as one node, as Python's ``TaskGroup`` does.
+Everything declared in a group carries the group's ID as a prefix, so task ``stage`` in group
+``staging`` is the task ``staging.stage``.  On the interface surface, ``taskGroup`` declares a group on
+the Dag or inside another group, and the group declares its tasks:
+
+.. code-block:: java
+
+    var staging = dag.taskGroup("staging");
+    var stage = staging.task("stage", Stage.class);              // "staging.stage"
+    staging.taskGroup("checks").task("nulls", Nulls.class).after(stage); // "staging.checks.nulls"
+    extract.before(staging);
+
+With annotations, an ``@Airflow.TaskGroup`` class holds the tasks of one group, and nesting one in
+another nests the groups:
+
+.. code-block:: java
+
+    @Airflow.TaskGroup                      // the group "Staging", after the class
+    static class Staging {
+      @Airflow.Task
+      public long stage(long rows) { ... }  // the task "Staging.stage"
+
+      @Airflow.TaskGroup(id = "checks")
+      static class Checks {
+        @Airflow.Task
+        public void nulls(long staged) { ... }   // "Staging.checks.nulls"
+      }
+    }
+
+    @Airflow.Deps
+    static class Wiring implements EtlPipelineDeps {
+      void depends() {
+        var rows = extract();
+        load(transform(rows, lit(0.9)));
+        rows.before(audit());
+        var staged = staging().stage(rows);
+        staging().checks().nulls(staged);
+        extract().before(staging());
+      }
+    }
+
+The generated view nests the same way, so a group is both the namespace of what it holds and a point
+in the flow: ``staging().checks().nulls(staged)`` reaches a task, and ``extract().before(staging())``
+orders the whole group.  Task method names scope to their own group, so two groups can each declare
+``run()``.  A group class is ``static``, non-private, and needs a no-argument constructor, because the
+generated task bodies instantiate it.
+
+A group stands at either end of ``before``, ``after`` and ``Flow.of``.  As an upstream it stands for
+its leaves, the tasks nothing else in the group runs after; as a downstream, for its roots, the tasks
+that run after nothing else in the group.  A group ID contains only ASCII letters, digits,
+underscores, or dashes, and no task or other group in the Dag can share it.
+
+.. note::
+
+    What a group holds is read once, when the Dag is serialized, which is what lets the wiring class
+    above order a whole group before any of its tasks are declared, as ``extract().before(staging())``
+    does.  Python instead reads it at each ``>>``.  Edges are still resolved in the order they were
+    drawn, as Python resolves them, so drawing an inner edge before or after an outer one gives
+    different upstreams.
 
 Configuration attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The ``@Builder.Dag`` and ``@Builder.Task`` configuration attributes, and the keys accepted by
+The ``@Airflow.Dag`` and ``@Airflow.Task`` configuration attributes, and the keys accepted by
 ``DagDef.config`` and ``TaskDef.config``, are Airflow's own Dag and task settings, under the names
 Airflow uses.  Annotation attributes are ``camelCase`` (``retryDelay``); ``config`` keys are those
 names as Airflow writes them (``"retry_delay"``).
@@ -708,6 +773,9 @@ Durations and date-times are ISO-8601 strings in annotations (``retryDelay = "PT
 ``startDate = "2026-01-01T00:00:00Z"``, validated at compile time) and ``java.time.Duration`` /
 ``java.time.OffsetDateTime`` values in ``config`` calls.  An unknown key or a mismatched value type
 fails the build for an annotation, and the ``config`` call itself for an object.
+
+A Dag with a cron ``schedule`` runs in the time zone of its ``startDate``.  With no ``startDate`` it
+is scheduled in UTC, so set ``startDate`` to pin the zone.
 
 .. _java-sdk/task-state-store:
 
@@ -720,7 +788,7 @@ remember things like an external job ID so a retried task can resume instead of 
 
 .. code-block:: java
 
-    @Builder.Task(id = "submit")
+    @Airflow.Task(id = "submit")
     public void submit(Client client) throws Exception {
       var store = client.getTaskStateStore();
       var jobId = (String) store.get("job_id");
@@ -777,7 +845,7 @@ SDK older than schema ``2026-10-30``, every released one today, fails to parse a
 several Java coordinators, an unmapped bundle's JARs fail to parse too.
 
 * Every JAR in the bundle whose manifest sets ``Main-Class`` is parsed. Each Dag its main class
-  declares, through ``Bundle.register`` of a ``DagDef`` or an ``@Builder.Dag`` class, is stored with
+  declares, through ``Bundle.register`` of a ``DagDef`` or an ``@Airflow.Dag`` class, is stored with
   that JAR as its file. Task handlers for a Python Dag are not Dags. A JAR without ``Main-Class`` is
   skipped, but many dependency JARs set one (the PostgreSQL JDBC driver and H2 do, for example), so a
   thin bundle should set ``main_class`` or list its dependency JARs in ``.airflowignore``.
@@ -790,7 +858,7 @@ several Java coordinators, an unmapped bundle's JARs fail to parse too.
   ``Main-Class`` are parsed. List JARs that should not be parsed in ``.airflowignore``.
 * Two JARs in the bundle that set the same ``Main-Class`` fail to parse, because the JVM would load
   the classes of only one of them. Keep one in the bundle.
-* Set ``queue`` on every task, with ``@Builder.Task(queue = "java-native")`` or
+* Set ``queue`` on every task, with ``@Airflow.Task(queue = "java-native")`` or
   ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
   Dag-level queue yet.
 * A task runs the JAR of its Dag on the ``JavaCoordinator`` that its queue routes to,
@@ -821,7 +889,7 @@ is the conventional pattern regardless of which logging framework you choose:
     private static final System.Logger log =
         System.getLogger(SalesPipeline.class.getName());
 
-    @Builder.TaskHandler(dag = "etl", task = "extract")
+    @Airflow.TaskHandler(dag = "etl", task = "extract")
     public long extract(Client client) {
         log.log(System.Logger.Level.INFO, "Starting extraction");
         return recordCount;
@@ -1075,6 +1143,10 @@ The plugin also packs the source file of ``mainClass``, and of each class that d
 into the bundle JAR, so the Airflow UI can show the source of a native Java Dag (see
 :ref:`java-sdk/native-dag-parsing`). To find those classes, the plugin runs ``mainClass`` once at build
 time. If that run fails, the build logs a warning and packs only the ``mainClass`` source.
+
+A Dag is recorded against the class that constructed it. A Dag built by a factory therefore maps to the
+factory's class, and one built by a factory in a dependency JAR has no source in the project and falls
+back to the ``mainClass`` source.
 
 .. note::
 

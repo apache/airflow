@@ -46,11 +46,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, aliased, foreign, mapped_column, relationship
-from sqlalchemy.schema import conv
 from sqlalchemy.sql.visitors import cloned_traverse
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base, TaskInstanceDependencies
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, public_region_filter
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
@@ -99,7 +99,6 @@ class XComModelV1(TaskInstanceDependencies):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
-        CheckConstraint(mapped_length >= 0, name=conv("ck_xcom_mapped_length_not_negative")),
         PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
@@ -266,6 +265,7 @@ class _XComOperations:
         task_id: str,
         run_id: str,
         map_index: int = -1,
+        region_id: UUID = SENTINEL_REGION_ID,
         serialize: bool = True,
         dag_result: bool = False,
         mapped_length: int | None = None,
@@ -280,6 +280,7 @@ class _XComOperations:
         :param task_id: Task ID.
         :param run_id: DAG run ID for the task.
         :param map_index: Optional map index to assign XCom for a mapped task.
+        :param region_id: Region owning the task instance. Defaults to the top-level region.
         :param serialize: Optional parameter to specify if value should be serialized or not.
             The default is ``True``.
         :param mapped_length: Length of the value, if it can be used to expand a
@@ -290,7 +291,13 @@ class _XComOperations:
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
         owner = session.scalar(
-            select_producers(dag_ids=dag_id, task_ids=task_id, run_id=run_id, map_indexes=map_index)
+            select_producers(
+                dag_ids=dag_id,
+                task_ids=task_id,
+                run_id=run_id,
+                map_indexes=map_index,
+                region_id=region_id,
+            )
         )
         if owner is None:
             raise ValueError(
@@ -315,6 +322,9 @@ class _XComOperations:
         task_ids: str | Iterable[str] | None = None,
         dag_ids: str | Iterable[str] | None = None,
         map_indexes: int | Iterable[int] | None = None,
+        region_id: UUID | None = SENTINEL_REGION_ID,
+        include_node_regions: bool = True,
+        producer_ids: Select | None = None,
         include_prior_dates: bool = False,
         limit: int | None = None,
         try_number: int | None = None,
@@ -324,6 +334,13 @@ class _XComOperations:
 
         This function returns an SQLAlchemy query of full XCom objects. If you
         just want one stored value, use :meth:`get_one` instead.
+
+        ``region_id`` is the exact producer region (the legacy sentinel by default); pass ``None`` to
+        enumerate across regions. For the sentinel, ``include_node_regions`` also admits the top-level
+        region each producer task owns, which is where its mapped instances live. ``producer_ids`` names
+        task instances already resolved by :func:`~airflow.models.dynamic_region.resolve_current_producers`
+        and cannot be combined with ``task_ids``, ``dag_ids``, ``map_indexes``, ``region_id`` or
+        ``include_prior_dates``.
 
         Use :func:`xcom_entity` for columns added to the returned statement.
 
@@ -347,17 +364,30 @@ class _XComOperations:
             raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
-        statement = build_xcom_read_query(
-            producer_ids=select_producers(
+        if producer_ids is not None:
+            if (
+                any(value is not None for value in (task_ids, dag_ids, map_indexes))
+                or include_prior_dates
+                or try_number is not None
+                or region_id != SENTINEL_REGION_ID
+            ):
+                raise ValueError("producer_ids cannot be combined with coordinate filters")
+        else:
+            if include_prior_dates and region_id not in (None, SENTINEL_REGION_ID):
+                raise ValueError(
+                    "Prior-run lookup requires producer coordinates resolved separately for each run"
+                )
+            producer_ids = select_producers(
                 run_id=run_id,
                 task_ids=task_ids,
                 dag_ids=dag_ids,
                 map_indexes=map_indexes,
+                region_id=region_id,
+                include_node_regions=include_node_regions,
                 include_prior_dates=include_prior_dates,
                 try_number=try_number,
-            ),
-            key=key,
-        )
+            )
+        statement = build_xcom_read_query(producer_ids=producer_ids, key=key)
         entity = xcom_entity(statement)
         statement = statement.order_by(entity.logical_date.desc(), entity.timestamp.desc())
         if limit:
@@ -432,7 +462,12 @@ def _rows():
     data = ("key", "value", "timestamp", "dag_result", "mapped_length")
     run_join = and_(DagRun.dag_id == TaskInstance.dag_id, DagRun.run_id == TaskInstance.run_id)
     context = [
-        *(getattr(TaskInstance, name) for name in coordinates),
+        TaskInstance.dag_id,
+        TaskInstance.task_id,
+        TaskInstance.run_id,
+        TaskInstance.region_index.label("map_index"),
+        TaskInstance.region_id,
+        TaskInstance.region_index,
         DagRun.id.label("dag_run_id"),
         DagRun.logical_date,
         DagRun.run_after,
@@ -578,13 +613,27 @@ def select_producers(
     dag_ids=None,
     task_ids=None,
     map_indexes=None,
+    region_id=SENTINEL_REGION_ID,
+    include_node_regions=True,
     include_prior_dates=False,
     try_number=None,
 ):
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
 
+    dag_ids = list(dag_ids) if is_container(dag_ids) else dag_ids
+    task_ids = list(task_ids) if is_container(task_ids) else task_ids
     query = select(TaskInstance.id)
+    if region_id is not None:
+        region_filter = TaskInstance.region_id == region_id
+        if include_node_regions and region_id == SENTINEL_REGION_ID:
+            region_filter = public_region_filter(
+                TaskInstance,
+                dag_ids=dag_ids,
+                run_ids=None if include_prior_dates else run_id,
+                task_ids=task_ids,
+            )
+        query = query.where(region_filter)
     if try_number is not None:
         query = query.where(TaskInstance.try_number == try_number)
     for column, value in ((TaskInstance.dag_id, dag_ids), (TaskInstance.task_id, task_ids)):
@@ -594,12 +643,12 @@ def select_producers(
             query = query.where(column == value)
     if isinstance(map_indexes, range) and map_indexes.step == 1:
         query = query.where(
-            TaskInstance.map_index >= map_indexes.start, TaskInstance.map_index < map_indexes.stop
+            TaskInstance.region_index >= map_indexes.start, TaskInstance.region_index < map_indexes.stop
         )
     elif is_container(map_indexes):
-        query = query.where(TaskInstance.map_index.in_(map_indexes))
+        query = query.where(TaskInstance.region_index.in_(map_indexes))
     elif map_indexes is not None:
-        query = query.where(TaskInstance.map_index == map_indexes)
+        query = query.where(TaskInstance.region_index == map_indexes)
     if include_prior_dates:
         requested_run = aliased(DagRun)
         cutoff = (
