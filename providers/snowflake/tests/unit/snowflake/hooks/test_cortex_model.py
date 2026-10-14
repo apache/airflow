@@ -248,17 +248,14 @@ class TestSnowflakeCortexAuth:
 class TestGetConn:
     @mock.patch(f"{MODULE_PATH}.SnowflakeRestTokenProvider", autospec=True)
     @mock.patch(f"{MODULE_PATH}.SnowflakeHook", autospec=True)
-    @mock.patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider", autospec=True)
     def test_get_conn_uses_explicit_credentials_despite_connection_password(
-        self, mock_infer_provider, mock_hook_cls, mock_provider_cls
+        self, mock_hook_cls, mock_provider_cls
     ):
-        """End-to-end: get_conn() must not raise and must not fall back to env-var auth.
+        """End-to-end: get_conn() must build the provider from this hook's own kwargs.
 
-        ``infer_provider`` is only reached by the base hook's ``except TypeError`` fallback
-        (``pydantic_ai.py``'s ``_provider_factory``), so asserting it was never called pins that
-        the explicit-credentials path was taken -- ``model is not None`` alone would also pass
-        if this hook's kwargs were rejected and pydantic-ai silently fell back to
-        ``SNOWFLAKE_ACCOUNT``/``SNOWFLAKE_TOKEN`` env vars instead.
+        The connection carries a stray password, so if the base hook's ``api_key``/``base_url``
+        mapper ran instead of this subclass's ``_get_provider_kwargs``, ``SnowflakeProvider``
+        would reject ``api_key``. Asserting the Cortex base URL pins the subclass path.
         """
         mock_hook_cls.return_value._get_static_conn_params = {"account": "airflow"}
 
@@ -274,9 +271,8 @@ class TestGetConn:
             hook = PydanticAISnowflakeHook(llm_conn_id="test_conn")
             model = hook.get_conn()
 
-        assert model is not None
+        assert model.base_url == f"https://airflow.snowflakecomputing.com{CORTEX_CHAT_COMPLETIONS_PATH}/"
         mock_hook_cls.assert_called_once_with(snowflake_conn_id="snowflake_conn")
-        mock_infer_provider.assert_not_called()
 
     @mock.patch(f"{MODULE_PATH}.SnowflakeRestTokenProvider", autospec=True)
     @mock.patch(f"{MODULE_PATH}.SnowflakeHook", autospec=True)
