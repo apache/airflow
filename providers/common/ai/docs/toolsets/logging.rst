@@ -18,11 +18,15 @@
 Tool call logging
 =================
 
+.. note::
+
+    Experimental: the constructor and the behaviour of
+    :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability` can change
+    or be removed in a minor release of this provider. See :ref:`howto/stability`.
+
 :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability` wraps the
 assembled function toolset so that each tool invocation is logged in real time.
-``AgentOperator`` applies it automatically (see ``enable_tool_logging``).
-Applying the wrapper as a capability means logging covers the assembled
-function toolset, including tools supplied through ``toolsets=``,
+Logging covers tools supplied through ``toolsets=``,
 ``agent_params={"tools": [...]}``, and capabilities such as factory-backed
 toolsets, nested capabilities, and MCP toolsets. Output tools such as
 ``final_result`` and provider-native tools, including native MCP, are not
@@ -34,6 +38,21 @@ capability through its own wrapper toolset, such as ToolSearch's
 ``enable_tool_logging=True``. If ``capabilities=`` already contains one,
 including inside a combined or wrapper capability, the operator does not add
 another, so the logger on the supplied instance is used.
+
+For an agent you build yourself, pass the capability to any pydantic-ai ``Agent``:
+
+.. code-block:: python
+
+    from pydantic_ai import Agent
+
+    from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+    agent = Agent(
+        "openai:gpt-5",
+        toolsets=[SQLToolset(db_conn_id="my_db")],
+        capabilities=[ToolLoggingCapability()],
+    )
 
 Each tool call logs its name and timing at INFO, inside a collapsible
 ``::group::`` block in the task log, and its arguments at DEBUG. Control-flow

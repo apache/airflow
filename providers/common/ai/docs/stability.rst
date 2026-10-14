@@ -249,6 +249,10 @@ Everything this provider ships that is not in the table above is experimental.
        ``capture_content``; :doc:`observability`)
      - Span names and attributes come from Pydantic AI's instrumentation and the
        OpenTelemetry GenAI conventions, which are still in development.
+   * - :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`
+       (:doc:`toolsets/logging`)
+     - The capability ``AgentOperator`` applies for ``enable_tool_logging``; its constructor
+       and behaviour may change.
    * - The Strands plugin, the ADK toolset and Strands checkpoint resume
        (:doc:`frameworks/index`)
      - Written against Strands 1.56 and ADK 2.9.1, which change often. Strands marks its
