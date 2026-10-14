@@ -64,6 +64,14 @@ class RetryAction(Enum):
     FAIL = "fail"
     """Fail immediately, skip remaining retries."""
 
+    SKIP = "skip"
+    """Mark the task as skipped instead of failed.
+
+    No retry is consumed, failure callbacks and failure metrics do not fire, and
+    downstream tasks see a ``skipped`` upstream like they do for
+    ``AirflowSkipException``. The reason is stored as ``retry_reason``.
+    """
+
     DEFAULT = "default"
     """Fall through to standard retry logic."""
 
@@ -141,6 +149,11 @@ class RetryDecision:
             max_reschedules=max_reschedules,
             reschedule_timeout=reschedule_timeout,
         )
+
+    @classmethod
+    def skip(cls, reason: str | None = None) -> RetryDecision:
+        """Don't retry.  Mark as skipped."""
+        return cls(action=RetryAction.SKIP, reason=reason)
 
     @classmethod
     def default(cls) -> RetryDecision:
@@ -459,8 +472,8 @@ class ChainRetryPolicy(RetryPolicy):
 
     The winning decision's reason names the policy that decided, then what every earlier policy
     said: ``HTTPStatusRetryPolicy: HTTP 404 (after ExceptionRetryPolicy: no decision)``. The
-    worker stores it as ``retry_reason`` on a RETRY or a FAIL, and on a RESCHEDULE past its
-    bound; it logs it on a RESCHEDULE that goes ahead or when no policy decided.
+    worker stores it as ``retry_reason`` on a RETRY, a FAIL, or a SKIP, and on a RESCHEDULE past
+    its bound; it logs it on a RESCHEDULE that goes ahead or when no policy decided.
 
     :param policies: The policies to consult, in order. At least one.
     """

@@ -221,7 +221,7 @@ task logs as ``Retry policy decision action=<action> reason=<reason>``. A matchi
 so does ``ChainRetryPolicy``. When no rule matches, or a custom policy returns a decision
 without a reason, no line is logged.
 
-When a task fails, the policy evaluates the exception and returns one of four actions:
+When a task fails, the policy evaluates the exception and returns one of five actions:
 
 * **RETRY** -- retry the task, optionally with a custom delay that overrides ``retry_delay``.
   The retry is still subject to the task's ``retries`` count -- a policy can fail earlier but
@@ -229,6 +229,14 @@ When a task fails, the policy evaluates the exception and returns one of four ac
 * **FAIL** -- fail immediately, skipping any remaining retries.
 * **RESCHEDULE** -- run the task again later without using a retry, within bounds the policy
   sets. See :ref:`concepts:retry-policies-reschedule`.
+* **SKIP** -- mark the task as ``skipped`` instead of failed. No retry is consumed, failure
+  callbacks and failure metrics do not fire, and downstream tasks see a skipped upstream, exactly
+  as if the task had raised ``AirflowSkipException``. Use it for domain exceptions that mean
+  "nothing to do" (no new input, source unchanged) so business code need not raise Airflow's
+  own exception. Match narrow exception types; a broad rule turns real bugs into silent skips.
+
+  .. versionadded:: 3.5.0
+
 * **DEFAULT** -- fall through to the standard retry logic (``retries`` count and ``retry_delay``).
 
 Rules are evaluated in order; the first matching rule wins.
@@ -266,6 +274,8 @@ Composition with existing parameters
        A reschedule without its own delay waits ``retry_delay``, without backoff.
    * - ``on_retry_callback``
      - Fires on retries only, including policy-driven retries.
+   * - ``on_skipped_callback``
+     - Fires when the policy returns SKIP, as it does for ``AirflowSkipException``.
    * - ``AirflowFailException``, ``AirflowSensorTimeout``, ``AirflowTaskTerminated``
      - Always take precedence. The task fails without consulting the policy.
 
@@ -393,7 +403,7 @@ Chaining policies
 
 .. versionadded:: 3.4.0
 
-``ChainRetryPolicy`` consults policies in order. The first RETRY, FAIL, or RESCHEDULE wins; a
+``ChainRetryPolicy`` consults policies in order. The first RETRY, FAIL, RESCHEDULE, or SKIP wins; a
 policy that returns DEFAULT has nothing to add and the next one is asked. When every
 policy returns DEFAULT, the task's own ``retries`` and ``retry_delay`` apply. Every
 policy sees the original task exception.
