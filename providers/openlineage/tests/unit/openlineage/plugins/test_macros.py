@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 
@@ -32,7 +34,7 @@ from airflow.providers.openlineage.plugins.macros import (
     lineage_run_id,
 )
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_4_PLUS
 
 _DAG_NAMESPACE = namespace()
 
@@ -46,18 +48,54 @@ def test_lineage_job_namespace():
     assert lineage_job_namespace() == _DAG_NAMESPACE
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+@pytest.mark.parametrize("map_index", [-1, 2])
+def test_regional_lineage_macro_and_parent_use_exact_execution_uuid(map_index):
+    from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk import DAG, task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("dag") as dag:
+
+        @task_group
+        def loop():
+            EmptyOperator(task_id="work")
+
+        create_loop(loop, max_iterations=2)
+    dag_run = SimpleNamespace(logical_date=datetime(2024, 1, 1, tzinfo=UTC))
+    ti = SimpleNamespace(
+        task=dag.get_task("loop.work"),
+        id=uuid4(),
+        region_id=uuid4(),
+        region_index=2,
+        map_index=map_index,
+        dag_id="dag",
+        task_id="loop.work",
+        try_number=1,
+        dag_run=dag_run,
+        get_template_context=lambda: {"dag_run": dag_run},
+    )
+
+    assert lineage_run_id(ti) == str(ti.id)
+    assert lineage_parent_id(ti) == f"{_DAG_NAMESPACE}/dag.loop.work/{ti.id}"
+    previous_id = ti.id
+    ti.id = uuid4()
+    assert lineage_run_id(ti) == str(ti.id)
+    assert lineage_run_id(ti) != str(previous_id)
+
+
 def test_lineage_job_name():
     task_instance = mock.MagicMock(
         dag_id="dag_id",
         task_id="task_id",
         try_number=1,
-        **{LOGICAL_DATE_KEY: datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)},
+        **{LOGICAL_DATE_KEY: datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=UTC)},
     )
     assert lineage_job_name(task_instance) == "dag_id.task_id"
 
 
 def test_lineage_run_id():
-    date = datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)
+    date = datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=UTC)
     dag_run = mock.MagicMock(run_id="run_id")
     dag_run.logical_date = date
     task_instance = mock.MagicMock(
@@ -80,7 +118,7 @@ def test_lineage_run_id():
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
 def test_lineage_run_after_airflow_3():
     dag_run = mock.MagicMock(run_id="run_id")
-    dag_run.run_after = datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)
+    dag_run.run_after = datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=UTC)
     dag_run.logical_date = None
     task_instance = mock.MagicMock(
         dag_id="dag_id",
@@ -105,7 +143,7 @@ def test_lineage_parent_id(mock_run_id):
         dag_id="dag_id",
         task_id="task_id",
         try_number=1,
-        **{LOGICAL_DATE_KEY: datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)},
+        **{LOGICAL_DATE_KEY: datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=UTC)},
     )
     actual = lineage_parent_id(task_instance)
     expected = f"{_DAG_NAMESPACE}/dag_id.task_id/run_id"
@@ -347,7 +385,7 @@ def test_lineage_root_macros_use_parent_from_conf_when_root_missing_af2():
 )
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 2")
 def test_lineage_root_macros_use_dagrun_info_when_missing_or_invalid_conf_af2(conf):
-    date = datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)
+    date = datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=UTC)
     conf = {}
     dag_run = mock.MagicMock(run_id="run_id", conf=conf)
     dag_run.logical_date = date

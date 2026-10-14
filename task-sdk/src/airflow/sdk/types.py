@@ -181,12 +181,21 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
 
+    def update_dagrun_note(self, note: str | None) -> None: ...
+
     def get_previous_ti(
         self,
         state: TaskInstanceState | None = None,
         logical_date: AwareDatetime | None = None,
         map_index: int = -1,
-    ) -> PreviousTIResponse | None: ...
+    ) -> PreviousTIResponse | None:
+        """
+        Return the previous task instance matching the given criteria.
+
+        Inside a loop, this is the task instance at the same iteration in the closest earlier Dag run
+        that reached that iteration, not that run's last iteration.
+        """
+        ...
 
     @staticmethod
     def get_ti_count(

@@ -27,6 +27,7 @@ import (
 	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/example/bundle/concurrentxcom"
 	"github.com/apache/airflow/go-sdk/example/bundle/taskflowbinding"
+	"github.com/apache/airflow/go-sdk/example/bundle/taskstate"
 	"github.com/apache/airflow/go-sdk/example/bundle/variablewrite"
 )
 
@@ -61,8 +62,18 @@ func main() {
 		),
 		airflow.TaskHandler(
 			"taskflow_binding_dag",
-			"via_struct_unmatched_arg",
-			taskflowbinding.ViaStructUnmatchedArg,
+			"via_struct_default_arg",
+			taskflowbinding.ViaStructDefaultArg,
+		),
+		airflow.TaskHandler(
+			"taskflow_binding_dag",
+			"via_struct_more_args",
+			taskflowbinding.ViaStructMoreArgs,
+		),
+		airflow.TaskHandler(
+			"taskflow_binding_dag",
+			"via_struct_fewer_args",
+			taskflowbinding.ViaStructFewerArgs,
 		),
 		airflow.TaskHandler("taskflow_binding_dag", "via_flat_map", taskflowbinding.ViaFlatMap),
 		airflow.TaskHandler("taskflow_binding_dag", "via_struct_map", taskflowbinding.ViaStructMap),
@@ -73,6 +84,8 @@ func main() {
 			"write_and_delete_variable",
 			variablewrite.WriteAndDeleteVariable,
 		),
+
+		airflow.TaskHandler("task_state_dag", "roundtrip_task_state", taskstate.RoundtripTaskState),
 	)
 
 	if err := bundle.Serve(); err != nil {

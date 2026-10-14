@@ -31,7 +31,7 @@ import warnings
 from argparse import Namespace
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, Literal, TypeVar, cast, overload
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -44,6 +44,7 @@ from airflow.utils.platform import getuser, is_terminal_support_colors
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
+    from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.sdk import DAG
     from airflow.serialization.definitions.dag import SerializedDAG
 
@@ -281,16 +282,51 @@ def _search_for_dag_file(val: str | None) -> str | None:
     return None
 
 
-def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> DAG:
+@overload
+def get_bagged_dag(
+    bundle_names: list | None,
+    dag_id: str,
+    dagfile_path: str | None = None,
+    *,
+    allow_lang_sdk_dag: Literal[False] = False,
+) -> DAG: ...
+
+
+@overload
+def get_bagged_dag(
+    bundle_names: list | None,
+    dag_id: str,
+    dagfile_path: str | None = None,
+    *,
+    allow_lang_sdk_dag: bool,
+) -> BaggedDAG: ...
+
+
+def get_bagged_dag(
+    bundle_names: list | None,
+    dag_id: str,
+    dagfile_path: str | None = None,
+    *,
+    allow_lang_sdk_dag: bool = False,
+) -> BaggedDAG:
     """
     Return DAG of a given dag_id.
 
     First we'll try to use the given subdir.  If that doesn't work, we'll try to
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
+
+    :param allow_lang_sdk_dag: when ``True``, also parses native Lang-SDK Dag files with their runtime,
+        and may return such a Dag as a ``LangSDKSerializedDAG``.
     """
-    from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
+    from airflow.dag_processing.dagbag import BundleDagBag, LangSDKSerializedDAG, sync_bag_to_db
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+
+    def check_dag(dag: BaggedDAG) -> BaggedDAG:
+        # TODO: Support running a Lang-SDK Dag directly from the CLI.
+        if not allow_lang_sdk_dag and isinstance(dag, LangSDKSerializedDAG):
+            raise SystemExit(f"Dag {dag_id!r} is a native Lang-SDK Dag, which this command cannot run.")
+        return dag
 
     manager = DagBundlesManager()
     for bundle_name in bundle_names or ():
@@ -300,9 +336,10 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
                 bundle_name=bundle.name,
+                parse_lang_sdk_files=allow_lang_sdk_dag,
             )
         if dag := dagbag.dags.get(dag_id):
-            return dag
+            return check_dag(dag)
 
     manager.sync_bundles_to_db()
     for bundle in manager.get_all_dag_bundles():
@@ -312,10 +349,11 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
                 bundle_name=bundle.name,
+                parse_lang_sdk_files=allow_lang_sdk_dag,
             )
             sync_bag_to_db(dagbag, bundle.name, bundle.version)
         if dag := dagbag.dags.get(dag_id):
-            return dag
+            return check_dag(dag)
         if dag:
             break
     raise AirflowException(

@@ -1916,6 +1916,36 @@ class TestPytestSnowflakeHook:
         assert "token" not in conn_params
         assert "token_file_path" not in conn_params
 
+    def test_get_conn_params_pat_authenticator_passes_password_as_token(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["password"] = "pat-value"
+        connection_kwargs["extra"]["authenticator"] = "programmatic_access_token"
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["token"] == "pat-value"
+        assert conn_params["password"] == "pat-value"
+
+    def test_get_conn_params_default_authenticator_omits_token(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["password"] == "pw"
+        assert "token" not in conn_params
+
+    def test_get_conn_params_pat_authenticator_without_password_omits_token(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["password"] = ""
+        connection_kwargs["extra"]["authenticator"] = "programmatic_access_token"
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert "token" not in conn_params
+
 
 class TestAccountIdentifierValidation:
     """``account`` and ``region`` are interpolated into the Snowflake REST URLs.

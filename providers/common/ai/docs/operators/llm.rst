@@ -113,9 +113,14 @@ Common knobs on ``UsageLimits``:
   without an explicit value, so passing ``UsageLimits(input_tokens_limit=4_000)``
   (or the dict form ``{"input_tokens_limit": 4_000}``) silently inherits that
   50-request cap. Set ``request_limit=None`` explicitly when you only want a
-  token cap.
-- ``input_tokens_limit`` / ``output_tokens_limit``: per-run token caps.
-- ``total_tokens_limit``: combined input + output cap.
+  token cap. On Airflow >= 3.3 with ``usage_limits`` set, the ``LLM*`` operators and
+  ``AgentOperator`` count this (including the ``50`` default) across the whole task
+  instance; otherwise each attempt (run) counts on its own -- see below.
+- ``input_tokens_limit`` / ``output_tokens_limit``: token caps. On Airflow >= 3.3
+  with ``usage_limits`` set, the ``LLM*`` operators and ``AgentOperator`` count them
+  across the whole task instance; otherwise each attempt (run) counts on its own --
+  see below.
+- ``total_tokens_limit``: combined input + output cap, scoped like the limits above.
 - ``tool_calls_limit``: max tool invocations (``AgentOperator`` only).
 - ``cost_limit``: a ``Decimal`` cap on the run's estimated USD cost. This is **not** a
   hard guarantee against overspend: the response that crosses the limit has already been
@@ -134,15 +139,37 @@ Common knobs on ``UsageLimits``:
   alone still inherits the ``request_limit=50`` default; see the ``request_limit`` note
   above. Note that ``cost_limit`` only caps the operator's own LLM calls --
   the meta-agent that ``LLMRetryPolicy`` runs to classify a failed task is a separate,
-  uncapped LLM call; see :doc:`../retry_policies`.
+  uncapped LLM call; see :doc:`../retry_policies`. It counts model spend only, so
+  compute billed by a ``SandboxToolset`` backend is outside it; see
+  :ref:`sandbox-cost`.
 
 When the limit is hit pydantic-ai raises ``UsageLimitExceeded``, which
 propagates to Airflow as a task failure, so Airflow's standard retry policy
-applies on top. Every limit here bounds a single agent *run*, not a task: each
-Airflow task retry re-renders ``usage_limits`` and starts a fresh count, and for
-``AgentOperator`` so does each HITL regeneration. A ``cost_limit`` of
-``Decimal("0.50")`` caps one run, so it is not a bound on what the task spends in
-total.
+applies on top.
+
+On Airflow >= 3.3, setting ``usage_limits`` makes every limit bound the whole
+task instance, for the ``LLM*`` family (``LLMOperator``, ``LLMBranchOperator``,
+``LLMSQLQueryOperator``, ``LLMSchemaCompareOperator``, ``LLMFileAnalysisOperator`` and
+the matching ``@task.*`` decorators) the same way it does for ``AgentOperator``:
+the initial run and every retry add to one running total, including the implicit
+``request_limit=50``. A pause for approval, and a retry after a reviewer rejects the
+output, share the same total. The total is cleared only once the task succeeds -- a
+reviewer approval, or a ``LLMBranchOperator`` skip, counts as success -- and a
+cleared task instance starts a fresh one. A ``cost_limit`` of ``Decimal("0.50")``
+therefore bounds what the task spends across every attempt combined (best-effort,
+like the rest of ``cost_limit`` above -- a SIGKILL loses the spend of the attempt
+it kills, and this is not a hard guarantee). To keep the old per-attempt headroom,
+scale each limit by ``retries + 1`` or set ``usage_limits=None``. See
+:ref:`the cross-attempt usage budget <agent-usage-budget>` for how that budget is
+persisted and how to reset it.
+
+Clearing and rerunning a *finished* (failed or succeeded) task instance gets a
+fresh budget automatically; clearing a *running* task instance does not bump
+``max_tries``, so the restarted attempt still sees the prior spend.
+
+On Airflow < 3.3, and whenever ``usage_limits`` is ``None``, each Airflow task
+retry re-renders ``usage_limits`` and starts a fresh count, so a limit bounds a
+single agent *run*, not the task. ``LLMBatchOperator`` has no ``usage_limits``.
 
 TaskFlow decorator
 ------------------
@@ -209,6 +236,11 @@ reviewer. The full guide, including timeouts, notifiers and assigned reviewers, 
 
 Reviewing uncertain output
 --------------------------
+
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
 
 A ``decision_policy`` with a confidence bar sends output the model is unsure about to the
 same review flow. See :doc:`../approval_gates`.

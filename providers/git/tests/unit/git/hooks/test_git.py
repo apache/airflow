@@ -28,6 +28,7 @@ import subprocess
 import tempfile
 import threading
 import warnings
+from datetime import UTC
 from unittest import mock
 
 import pytest
@@ -780,6 +781,25 @@ class TestGitHook:
             assert "GIT_CONFIG_COUNT" not in hook.env
             assert "AIRFLOW_GIT_TOKEN" not in hook.env
 
+    def test_passphrase_askpass_script_is_executable(self, create_connection_without_db):
+        """ssh must be able to exec the helper: it has to be closed before it runs (ETXTBSY on Linux)."""
+        create_connection_without_db(
+            Connection(
+                conn_id="git_passphrase_exec",
+                host=AIRFLOW_GIT,
+                conn_type="git",
+                extra={
+                    "key_file": "/files/pkey.pem",
+                    "private_key_passphrase": "my_secret",
+                },
+            )
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
+            hook = GitHook(git_conn_id="git_passphrase_exec")
+        with hook.configure_hook_env():
+            result = subprocess.run([hook.env["SSH_ASKPASS"]], capture_output=True, text=True, check=True)
+        assert result.stdout.strip() == "my_secret"
+
     # --- GitHub App auth tests ---
 
     def test_only_app_id_without_installation_id_raises(self):
@@ -802,6 +822,16 @@ class TestGitHook:
         assert hook.github_installation_id == "67890"
         assert hook.private_key is None
 
+    @pytest.mark.parametrize(
+        ("conn_id", "expected"),
+        [
+            pytest.param(CONN_APP_NO_KEY, True, id="github-app"),
+            pytest.param(CONN_HTTPS, False, id="token"),
+        ],
+    )
+    def test_uses_github_app_auth(self, conn_id, expected):
+        assert GitHook(git_conn_id=conn_id).uses_github_app_auth is expected
+
     def test_app_auth_with_key_file_reads_file(self, create_connection_without_db, tmp_path, monkeypatch):
         key_file = tmp_path / "app_key.pem"
         key_file.write_text("file_pem_key_content")
@@ -817,9 +847,9 @@ class TestGitHook:
                 },
             )
         )
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
-        mock_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+        mock_expiry = datetime.now(UTC) + timedelta(hours=1)
         monkeypatch.setattr(
             "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
             lambda self: ("x-access-token", "ghs_test_token", mock_expiry),
@@ -848,13 +878,13 @@ class TestGitHook:
 
     def test_app_auth_defers_token_fetch(self, monkeypatch):
         """GitHub App token is not fetched in __init__, only on configure_hook_env."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         mock_called = []
 
         def mock_get_token(self):
             mock_called.append(True)
-            return ("x-access-token", "ghs_test_token", datetime.now(timezone.utc) + timedelta(hours=1))
+            return ("x-access-token", "ghs_test_token", datetime.now(UTC) + timedelta(hours=1))
 
         monkeypatch.setattr(
             "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
@@ -891,7 +921,7 @@ class TestGitHook:
     def test_app_id_and_installation_id_are_stored_as_provided(
         self, app_id, installation_id, create_connection_without_db, monkeypatch
     ):
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         create_connection_without_db(
             Connection(
@@ -907,7 +937,7 @@ class TestGitHook:
         )
         monkeypatch.setattr(
             "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
-            lambda self: ("x-access-token", "token", datetime.now(timezone.utc) + timedelta(hours=1)),
+            lambda self: ("x-access-token", "token", datetime.now(UTC) + timedelta(hours=1)),
         )
         with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
             hook = GitHook(git_conn_id="git_app_int_check")
@@ -916,14 +946,14 @@ class TestGitHook:
 
     def test_github_app_token_is_scoped_to_the_repository_host(self, monkeypatch):
         """The installation token goes through the same host-scoped helper as a connection token."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         monkeypatch.setattr(
             "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
             lambda self: (
                 "x-access-token",
                 "ghs_installation_token",
-                datetime.now(timezone.utc) + timedelta(hours=1),
+                datetime.now(UTC) + timedelta(hours=1),
             ),
         )
         with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
@@ -944,7 +974,7 @@ class TestGitHook:
 
     def test_github_app_token_refresh_near_expiry(self, monkeypatch):
         """Token is refreshed when near expiry during configure_hook_env."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         mock_get_token_call_count = [0]
 
@@ -955,13 +985,13 @@ class TestGitHook:
                 return (
                     "x-access-token",
                     f"token_{mock_get_token_call_count[0]}",
-                    datetime.now(timezone.utc) + timedelta(minutes=3),
+                    datetime.now(UTC) + timedelta(minutes=3),
                 )
             # Second call (refresh) returns token expiring in 1 hour
             return (
                 "x-access-token",
                 f"token_{mock_get_token_call_count[0]}",
-                datetime.now(timezone.utc) + timedelta(hours=1),
+                datetime.now(UTC) + timedelta(hours=1),
             )
 
         monkeypatch.setattr(
@@ -984,13 +1014,13 @@ class TestGitHook:
 
     def test_github_app_integration_call_shape(self, monkeypatch):
         """Verify GithubIntegration is called with correct arguments."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
         from unittest import mock
 
         mock_integration = mock.MagicMock()
         mock_access_token = mock.MagicMock()
         mock_access_token.token = "ghs_test_token"
-        mock_access_token.expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        mock_access_token.expires_at = datetime.now(UTC) + timedelta(hours=1)
         mock_integration.get_access_token.return_value = mock_access_token
 
         import sys

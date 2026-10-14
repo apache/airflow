@@ -1,5 +1,6 @@
 aarch
 abc
+AbstractCapability
 AbstractFileSystem
 AbstractToolset
 accessor
@@ -28,6 +29,7 @@ afterall
 agentcore
 AgentDetails
 agentic
+AgentResult
 AgentVersionDetails
 ai
 aio
@@ -232,6 +234,7 @@ ccache
 cdc
 celltags
 centric
+Cerebras
 cfg
 cgi
 cgitb
@@ -287,6 +290,7 @@ Colour
 colour
 colours
 ColumnLineageDatasetFacet
+CombinedCapability
 CommandType
 comparator
 compat
@@ -325,6 +329,7 @@ contextmgr
 contrib
 convertToIri
 cooldown
+Copilot
 copyable
 coreutils
 CoreV
@@ -632,6 +637,7 @@ ExaConnection
 Exasol
 exasol
 exc
+execd
 executables
 exitcode
 expanduser
@@ -676,6 +682,7 @@ Filesystem
 filesystem
 filesystems
 filetype
+FilteredToolset
 finalStatus
 fips
 firebase
@@ -838,6 +845,7 @@ ideation
 idempotence
 idempotency
 IdP
+idp
 ie
 iframe
 iframes
@@ -874,7 +882,9 @@ instafail
 installable
 InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceGroupManager
 InstanceSelection
+InstanceTemplate
 instanceTemplates
 InstanceType
 instanceType
@@ -947,6 +957,7 @@ Json
 json
 jsonl
 JsonValue
+jti
 juli
 Jupyter
 jupyter
@@ -957,6 +968,7 @@ jwt
 Kafka
 kafka
 Kamil
+Kata
 KEDA
 keepalive
 keepalives
@@ -965,6 +977,7 @@ kerberized
 Kerberos
 kerberos
 KerberosClient
+Kev
 keycloak
 Keyfile
 keyfile
@@ -1099,6 +1112,7 @@ midnights
 milli
 millis
 milton
+minification
 minikube
 misconfiguration
 misconfigured
@@ -1146,6 +1160,7 @@ NCUs
 nd
 ndjson
 nearText
+Nebius
 neighbours
 neo
 Neo4j
@@ -1212,6 +1227,7 @@ openfaas
 OpenID
 openjdk
 openlineage
+opensandbox
 OpenSearch
 opensearch
 OpenTelemetry
@@ -1322,6 +1338,7 @@ preflight
 prek
 Preload
 preload
+PreparedToolset
 prepend
 prepended
 prepends
@@ -1385,6 +1402,7 @@ pyproject
 pypsrp
 pyspark
 pytest
+PythonAgentTool
 pythonic
 PythonOperator
 pythonpath
@@ -1447,6 +1465,7 @@ renderers
 renewer
 reparse
 reparsed
+reparsing
 replicaSet
 repo
 repos
@@ -1483,6 +1502,7 @@ rollup
 rom
 romeoandjuliet
 rootcss
+routable
 rowid
 rpc
 rsa
@@ -1492,6 +1512,7 @@ rtype
 ru
 ruleset
 runAsUser
+RunContext
 runnable
 RunQueryOperator
 RunQuerySensor
@@ -1817,6 +1838,7 @@ triggerer
 triggerers
 trino
 trojan
+TrustedRouter
 truthy
 tsql
 tsv
@@ -1912,6 +1934,7 @@ Vectorizers
 vendored
 venv
 venvs
+Vercel
 Vertica
 vertica
 Vespa
@@ -1957,12 +1980,14 @@ winrm
 WIT
 workgroup
 workspaces
+WrapperToolset
 writeable
 wsman
 WTF
 wtf
 wtforms
 www
+xAI
 XCom
 Xcom
 xcom

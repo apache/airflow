@@ -17,11 +17,20 @@
 from __future__ import annotations
 
 import inspect
+import io
+import os
 import subprocess
+from types import SimpleNamespace
 
 import pytest
+import time_machine
 
+from airflow.providers.common.ai.sandbox import base
 from airflow.providers.common.ai.sandbox.base import (
+    EXPIRES_AT_TAG,
+    HOLDER_TAG,
+    NETWORK_TAG,
+    OWNER_TAG,
     SandboxBackend,
     SandboxError,
     SandboxExecResult,
@@ -30,7 +39,12 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxTerminalError,
     _new_sandbox_name,
     _validate_positive_finite,
+    dag_run_owner,
+    decode_network_policy,
+    encode_network_policy,
 )
+
+from unit.common.ai.sandbox.fake_tags import TaggedBackend
 
 
 class TestValidation:
@@ -61,6 +75,7 @@ class TestSandboxSpec:
         assert spec.block_network is True
         assert spec.env is None
         assert spec.allow_egress_to is None
+        assert spec.owner is None
 
     def test_is_frozen_so_a_backend_cannot_mutate_the_authors_intent(self):
         spec = SandboxSpec()
@@ -112,7 +127,7 @@ class TestBackendContract:
         assert required == {"create", "run_command", "destroy"}
 
     def test_file_operations_are_overridable_defaults(self):
-        for name in ("read_file", "write_file", "list_directory"):
+        for name in ("read_file", "write_file", "list_directory", "export_file"):
             method = getattr(SandboxBackend, name)
             assert not getattr(method, "__isabstractmethod__", False)
 
@@ -239,3 +254,322 @@ class TestDefaultFileOperations:
     def test_listing_a_missing_directory_is_an_error(self, local, tmp_path):
         with pytest.raises(SandboxError):
             local.list_directory("s", str(tmp_path / "nope"))
+
+
+class TestDefaultExport:
+    """The inherited export_file, against a real shell, with slices small enough to need several."""
+
+    @pytest.fixture(autouse=True)
+    def _small_slices(self, monkeypatch):
+        monkeypatch.setattr(base, "_EXPORT_CHUNK_BYTES", 64)
+
+    @pytest.mark.parametrize("size", [0, 1, 63, 64, 128, 1000], ids=lambda n: f"{n}-bytes")
+    def test_copies_the_file_byte_for_byte_across_slices(self, local, tmp_path, size):
+        blob = os.urandom(size)
+        (tmp_path / "out.bin").write_bytes(blob)
+        dest = io.BytesIO()
+
+        written = local.export_file("s", str(tmp_path / "out.bin"), dest, max_bytes=10_000)
+
+        assert written == size
+        assert dest.getvalue() == blob
+
+    def test_a_relative_path_resolves_like_read_file(self, local, tmp_path):
+        (tmp_path / "report.csv").write_bytes(b"a,b\n1,2\n")
+        dest = io.BytesIO()
+
+        local.export_file("s", "report.csv", dest, max_bytes=100)
+
+        assert dest.getvalue() == local.read_file("s", "report.csv", max_bytes=100)
+
+    @pytest.mark.parametrize("name", ["with space.bin", "with'quote.bin", "semi;colon.bin", "$dollar.bin"])
+    def test_hostile_filenames_are_quoted(self, local, tmp_path, name):
+        (tmp_path / name).write_bytes(b"payload")
+        dest = io.BytesIO()
+
+        local.export_file("s", str(tmp_path / name), dest, max_bytes=100)
+
+        assert dest.getvalue() == b"payload"
+
+    def test_a_missing_file_is_an_error(self, local, tmp_path):
+        with pytest.raises(SandboxError, match="does not exist"):
+            local.export_file("s", str(tmp_path / "nope.bin"), io.BytesIO(), max_bytes=100)
+
+    def test_a_directory_is_refused(self, local, tmp_path):
+        (tmp_path / "sub").mkdir()
+
+        with pytest.raises(SandboxError, match="is a directory"):
+            local.export_file("s", str(tmp_path / "sub"), io.BytesIO(), max_bytes=100)
+
+    def test_a_stream_with_no_size_is_refused_rather_than_read_without_end(self, local):
+        with pytest.raises(SandboxError, match="not a regular file"):
+            local.export_file("s", "/dev/zero", io.BytesIO(), max_bytes=100)
+
+    def test_a_file_over_the_budget_is_refused_before_anything_is_written(self, local, tmp_path):
+        (tmp_path / "big.bin").write_bytes(b"x" * 500)
+        dest = io.BytesIO()
+
+        with pytest.raises(SandboxFileTooLargeError) as error:
+            local.export_file("s", str(tmp_path / "big.bin"), dest, max_bytes=100)
+
+        assert error.value.size_bytes == 500
+        assert dest.getvalue() == b""
+
+    def test_a_file_that_grows_while_it_is_exported_is_an_error(self, local, tmp_path):
+        target = tmp_path / "growing.bin"
+        target.write_bytes(b"x" * 100)
+        run_command = local.run_command
+
+        def grow_after_the_check(sandbox, command, **kwargs):
+            result = run_command(sandbox, command, **kwargs)
+            if "stat" in command:
+                with target.open("ab") as f:
+                    f.write(b"y" * 10)
+            return result
+
+        local.run_command = grow_after_the_check
+
+        with pytest.raises(SandboxError, match="changed while it was exported"):
+            local.export_file("s", str(target), io.BytesIO(), max_bytes=1000)
+
+    def test_a_file_that_grows_past_the_budget_mid_copy_is_refused(self, local, tmp_path):
+        target = tmp_path / "growing.bin"
+        target.write_bytes(b"x" * 100)
+        run_command = local.run_command
+
+        def grow_after_the_check(sandbox, command, **kwargs):
+            result = run_command(sandbox, command, **kwargs)
+            if "stat" in command:
+                with target.open("ab") as f:
+                    f.write(b"y" * 500)
+            return result
+
+        local.run_command = grow_after_the_check
+
+        with pytest.raises(SandboxFileTooLargeError):
+            local.export_file("s", str(target), io.BytesIO(), max_bytes=200)
+
+    def test_an_export_slower_than_its_deadline_is_ended(self, local, tmp_path, monkeypatch):
+        # Each slice has its own command timeout, so only the whole-copy deadline stops a
+        # guest that sends every slice just inside it.
+        (tmp_path / "out.bin").write_bytes(b"x" * 100)
+        monkeypatch.setattr(base, "_export_allowance", lambda max_bytes: 0.0)
+
+        with pytest.raises(SandboxError, match="took longer than"):
+            local.export_file("s", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=1000)
+
+    def test_the_deadline_scales_with_the_budget(self):
+        assert base._export_allowance(1024**3) == 1024
+        assert base._export_allowance(1024) == base._FILE_OP_TIMEOUT
+
+    def test_a_truncated_slice_is_an_error_not_a_short_file(self, local, tmp_path):
+        # A slice cut short decodes cleanly into the wrong bytes, so it must not be
+        # mistaken for the end of the file.
+        (tmp_path / "out.bin").write_bytes(b"x" * 100)
+        run_command = local.run_command
+
+        def truncate_slices(sandbox, command, **kwargs):
+            result = run_command(sandbox, command, **kwargs)
+            if "tail" in command:
+                return SandboxExecResult(
+                    exit_code=0, stdout=result.stdout[:8], stderr="", stdout_truncated=True
+                )
+            return result
+
+        local.run_command = truncate_slices
+
+        with pytest.raises(SandboxError, match="Could not export"):
+            local.export_file("s", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=1000)
+
+    def test_a_sandbox_that_ends_mid_export_is_terminal(self, local, tmp_path):
+        (tmp_path / "out.bin").write_bytes(b"x" * 100)
+        run_command = local.run_command
+
+        def end_on_first_slice(sandbox, command, **kwargs):
+            if "tail" in command:
+                return SandboxExecResult(exit_code=-1, stdout="", stderr="", sandbox_terminated=True)
+            return run_command(sandbox, command, **kwargs)
+
+        local.run_command = end_on_first_slice
+
+        with pytest.raises(SandboxTerminalError, match="ended"):
+            local.export_file("s", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=1000)
+
+    def test_the_size_is_found_among_other_output(self, local, tmp_path):
+        # A vendor CLI can print notices on the same stream as the guest.
+        (tmp_path / "out.bin").write_bytes(b"x" * 10)
+        run_command = local.run_command
+
+        def noisy(sandbox, command, **kwargs):
+            result = run_command(sandbox, command, **kwargs)
+            if "stat" in command:
+                return SandboxExecResult(
+                    exit_code=0, stdout=f"Starting daemon...\n{result.stdout}", stderr=""
+                )
+            return result
+
+        local.run_command = noisy
+        dest = io.BytesIO()
+
+        assert local.export_file("s", str(tmp_path / "out.bin"), dest, max_bytes=100) == 10
+
+
+class TestDagRunOwner:
+    def test_names_the_dag_and_the_run(self):
+        context = {"ti": SimpleNamespace(dag_id="my_dag", run_id="manual__2026-01-01T00:00:00+00:00")}
+
+        assert dag_run_owner(context) == "my_dag/manual__2026-01-01T00:00:00+00:00"
+
+
+class _RacingBackend(TaggedBackend):
+    """A store in which someone else's claim lands between our check and our write."""
+
+    def write_tags(self, sandbox, tags):
+        super().write_tags(sandbox, {**tags, HOLDER_TAG: "someone/faster"})
+
+
+class TestNetworkPolicyTag:
+    @pytest.mark.parametrize(
+        "spec",
+        [
+            SandboxSpec(),
+            SandboxSpec(block_network=False),
+            SandboxSpec(allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["203.0.113.0/24"]),
+        ],
+    )
+    def test_round_trips_the_network_fields_and_nothing_else(self, spec):
+        decoded = decode_network_policy(encode_network_policy(spec))
+
+        assert decoded == SandboxSpec(
+            block_network=spec.block_network,
+            allow_egress_to=list(spec.allow_egress_to) if spec.allow_egress_to else None,
+            allow_egress_to_cidrs=list(spec.allow_egress_to_cidrs) if spec.allow_egress_to_cidrs else None,
+        )
+
+    def test_the_encoding_is_stable(self):
+        # Sorted keys and no whitespace: the same policy stamps the same string.
+        assert encode_network_policy(SandboxSpec()) == (
+            '{"allow_egress_to":[],"allow_egress_to_cidrs":[],"block_network":true}'
+        )
+
+    @pytest.mark.parametrize("value", ["", "not json", '{"block_network": true}', "[1, 2]"])
+    def test_anything_else_is_refused(self, value):
+        with pytest.raises(ValueError, match="is not a network policy stamp"):
+            decode_network_policy(value)
+
+
+class TestAttachablePolicy:
+    """
+    The ownership rules, written once on the base class over two tag primitives.
+
+    What they stop: a run reaching the wrong sandbox by mistake, including through a bad
+    XCom, and two runs sharing one workspace. What they do not stop, and do not claim
+    to: anyone holding the vendor credential, who can rewrite the tags.
+    """
+
+    def test_a_bare_handle_is_never_enough(self):
+        backend = TaggedBackend({"sb": {}})
+
+        with pytest.raises(SandboxTerminalError, match="carries no owner"):
+            backend.attach("sb", owner="dag/run", holder="dag/task")
+
+    def test_the_wrong_owner_is_refused_and_named(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "other_dag/run"}})
+
+        with pytest.raises(SandboxTerminalError, match="not owned by 'dag/run'.*'other_dag/run'"):
+            backend.attach("sb", owner="dag/run", holder="dag/task")
+        assert HOLDER_TAG not in backend.tags["sb"], "a refused attach must leave no claim"
+
+    def test_a_sandbox_held_by_another_task_is_refused(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", HOLDER_TAG: "dag/other_task"}})
+
+        with pytest.raises(SandboxTerminalError, match="already held by 'dag/other_task'"):
+            backend.attach("sb", owner="o", holder="dag/task")
+
+    def test_the_same_holder_may_attach_again(self):
+        # A retry of the agent task is the same holder, and the previous attempt may
+        # have died without releasing. It must find its files, not a locked door.
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", HOLDER_TAG: "dag/task"}})
+
+        backend.attach("sb", owner="o", holder="dag/task")
+
+        assert backend.tags["sb"][HOLDER_TAG] == "dag/task"
+
+    def test_attaching_marks_the_holder_and_keeps_every_other_tag(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", "team": "data"}})
+
+        backend.attach("sb", owner="o", holder="dag/task")
+
+        assert backend.tags["sb"] == {OWNER_TAG: "o", "team": "data", HOLDER_TAG: "dag/task"}
+
+    def test_a_claim_that_lost_the_race_is_refused_not_kept(self):
+        # No conditional write exists, so the write is read back: whoever lost sees the
+        # other holder and backs off instead of both runs proceeding in silence.
+        backend = _RacingBackend({"sb": {OWNER_TAG: "o"}})
+
+        with pytest.raises(SandboxTerminalError, match="claimed by 'someone/faster' while 'dag/task'"):
+            backend.attach("sb", owner="o", holder="dag/task")
+
+    @time_machine.travel(1_000_000, tick=False)
+    def test_the_remaining_lifetime_comes_from_the_stamped_expiry(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", EXPIRES_AT_TAG: str(1_000_000 + 600)}})
+
+        assert backend.attach("sb", owner="o", holder="h").remaining_lifetime == 600.0
+
+    @time_machine.travel(1_000_000, tick=False)
+    def test_an_expired_stamp_reports_zero_not_a_negative_number(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", EXPIRES_AT_TAG: str(1_000_000 - 60)}})
+
+        assert backend.attach("sb", owner="o", holder="h").remaining_lifetime == 0.0
+
+    @pytest.mark.parametrize("tags", [{OWNER_TAG: "o"}, {OWNER_TAG: "o", EXPIRES_AT_TAG: "soon"}])
+    def test_no_usable_expiry_means_no_claim_about_the_lifetime(self, tags):
+        backend = TaggedBackend({"sb": tags})
+
+        assert backend.attach("sb", owner="o", holder="h").remaining_lifetime is None
+
+    def test_the_network_policy_comes_back_as_a_spec(self):
+        stamped = encode_network_policy(SandboxSpec(allow_egress_to_cidrs=["203.0.113.7/32"]))
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", NETWORK_TAG: stamped}})
+
+        attached = backend.attach("sb", owner="o", holder="h")
+
+        assert attached.network == SandboxSpec(block_network=True, allow_egress_to_cidrs=["203.0.113.7/32"])
+
+    def test_no_network_stamp_means_no_claim_about_the_network(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o"}})
+
+        assert backend.attach("sb", owner="o", holder="h").network is None
+
+    def test_a_stamp_this_contract_did_not_write_is_reported_and_ignored(self, caplog):
+        # Better to say nothing about the network than to describe one nobody asked for,
+        # but not silently: the stamp is somebody's mistake.
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", NETWORK_TAG: "open-ish"}})
+
+        attached = backend.attach("sb", owner="o", holder="h")
+
+        assert attached.network is None
+        assert "Sandbox sb carries a network stamp this backend cannot read: 'open-ish'" in caplog.messages
+
+    def test_release_clears_only_the_callers_claim(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", HOLDER_TAG: "someone_else"}})
+
+        backend.release("sb", holder="h")
+
+        assert backend.tags["sb"][HOLDER_TAG] == "someone_else"
+
+    def test_release_is_idempotent(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", HOLDER_TAG: "h"}})
+
+        backend.release("sb", holder="h")
+        backend.release("sb", holder="h")
+
+        assert backend.tags["sb"] == {OWNER_TAG: "o"}
+
+    def test_a_missing_sandbox_is_terminal_for_both(self):
+        backend = TaggedBackend({})
+
+        with pytest.raises(SandboxTerminalError):
+            backend.attach("sb", owner="o", holder="h")
+        with pytest.raises(SandboxTerminalError):
+            backend.release("sb", holder="h")

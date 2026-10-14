@@ -46,6 +46,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import TypeAdapter
+from sqlalchemy import delete, update
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
@@ -54,6 +55,7 @@ from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
+    _REASSIGNED_CANCEL_MSG,
     _USER_ACTION_CANCEL_MSG,
     ToTriggerRunner,
     ToTriggerSupervisor,
@@ -70,15 +72,18 @@ from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.xcom import XComModel
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import DAG, Asset, BaseHook, BaseOperator
+from airflow.sdk import DAG, Asset, BaseHook, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
@@ -234,6 +239,36 @@ def test_is_needed(session):
     assert triggerer_job_runner.is_needed() is True
 
 
+def test_build_trigger_workloads_preserves_region_and_projects_public_map_index(
+    session, supervisor_builder, dag_maker
+):
+    @task_group
+    def body():
+        EmptyOperator(task_id="task")
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+    run = dag_maker.create_dagrun()
+    ti = run.task_instances[0]
+    trigger = Trigger.from_object(TimeDeltaTrigger(datetime.timedelta(days=7)))
+    session.add(trigger)
+    session.flush()
+    ti.trigger_id = trigger.id
+    region = DynamicRegion.get_or_create(
+        dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id, session=session
+    )
+    session.add(region)
+    session.flush()
+    ti.region_id, ti.region_index = region.id, 2
+    session.commit()
+
+    (workload,) = supervisor_builder().build_trigger_workloads({trigger.id})
+
+    assert workload.ti.map_index == -1
+    assert workload.ti.region_index == 2
+    assert workload.ti.region_id == region.id
+
+
 def test_capacity_decode():
     """
     Tests that TriggererJob correctly sets capacity to a valid value passed in as a CLI arg,
@@ -269,7 +304,7 @@ def test_execute_passes_job_team_name_to_supervisor(mock_supervisor_start, team_
     mock_supervisor._exit_code = 0
     mock_supervisor_start.return_value = mock_supervisor
 
-    job = Job(team_name=team_name)
+    job = Job(team_names=[team_name] if team_name else [])
     job_runner = TriggererJobRunner(job)
     with (
         patch.object(job_runner, "register_signals"),
@@ -687,9 +722,12 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
     trigger.task_instance.dag_version_id = uuid.uuid4()
     trigger.task_instance.task_id = "t"
     trigger.task_instance.trigger_timeout = None
+    trigger.task_instance.region_id = uuid.UUID(int=0)
+    trigger.task_instance.region_index = -1
 
     mocker.patch(
-        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        "airflow.jobs.triggerer_job_runner.task_instance_to_runtime",
+        autospec=True,
         return_value=mocker.Mock(spec=TaskInstanceDTO),
     )
 
@@ -728,6 +766,8 @@ def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mo
     trigger.task_instance.dag_version_id = bumped_ti_version
     trigger.task_instance.task_id = "t"
     trigger.task_instance.trigger_timeout = None
+    trigger.task_instance.region_id = uuid.UUID(int=0)
+    trigger.task_instance.region_index = -1
 
     dag_run = mocker.Mock(spec=DagRun)
     dag_run.dag_id = "test_dag"
@@ -741,7 +781,8 @@ def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mo
         DagVersion, "get_latest_version", return_value=mocker.Mock(spec=DagVersion, id=latest_version)
     )
     mocker.patch(
-        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        "airflow.jobs.triggerer_job_runner.task_instance_to_runtime",
+        autospec=True,
         return_value=mocker.Mock(spec=TaskInstanceDTO),
     )
 
@@ -1234,18 +1275,24 @@ def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, sess
     Checks that the triggerer will log watcher and trigger in separate lines.
     """
     create_trigger_in_db(session, trigger)
+    trigger_line = f"{trigger_count} triggers currently running"
+    watcher_line = f"{watcher_count} watchers currently running"
 
     trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
-    trigger_runner_supervisor.load_triggers()
+    try:
+        trigger_runner_supervisor.load_triggers()
 
-    for _ in range(30):
-        trigger_runner_supervisor._service_subprocess(0.1)
+        stdout = ""
+        for _ in range(300):
+            trigger_runner_supervisor._service_subprocess(0.1)
+            stdout += capsys.readouterr().out
+            if trigger_line in stdout and watcher_line in stdout:
+                break
+    finally:
+        trigger_runner_supervisor.kill(force=False)
 
-    stdout = capsys.readouterr().out
-    assert f"{trigger_count} triggers currently running" in stdout
-    assert f"{watcher_count} watchers currently running" in stdout
-
-    trigger_runner_supervisor.kill(force=False)
+    assert trigger_line in stdout
+    assert watcher_line in stdout
 
 
 def test_trigger_logger_close():
@@ -1475,6 +1522,63 @@ class TestTriggerRunner:
             asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
         mock_trigger.on_kill.assert_not_called()
+
+    def test_run_trigger_skips_on_kill_when_trigger_reassigned(self, session, cap_structlog) -> None:
+        """on_kill() is not called when the trigger was handed to another triggerer."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.run.side_effect = asyncio.CancelledError(_REASSIGNED_CANCEL_MSG)
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
+        mock_trigger.on_kill = AsyncMock()
+
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+
+        mock_trigger.on_kill.assert_not_called()
+        assert {
+            "event": "Trigger reassigned to another triggerer, dropping it without on_kill",
+            "log_level": "info",
+            "name": "mock_name",
+        } in cap_structlog
+
+    @pytest.mark.asyncio
+    async def test_cancel_triggers_uses_distinct_messages_for_user_action_and_reassignment(self) -> None:
+        trigger_runner = TriggerRunner()
+        user_task = MagicMock(spec=asyncio.Task)
+        reassigned_task = MagicMock(spec=asyncio.Task)
+        trigger_runner.triggers = {
+            1: {"task": user_task, "is_watcher": False, "name": "user", "events": 0},
+            2: {"task": reassigned_task, "is_watcher": False, "name": "moved", "events": 0},
+        }
+        trigger_runner.to_cancel.append(1)
+        trigger_runner.to_release.append(2)
+        # An id the runner no longer knows about is ignored on both queues.
+        trigger_runner.to_cancel.append(3)
+        trigger_runner.to_release.append(4)
+
+        await trigger_runner.cancel_triggers()
+
+        user_task.cancel.assert_called_once_with(_USER_ACTION_CANCEL_MSG)
+        reassigned_task.cancel.assert_called_once_with(_REASSIGNED_CANCEL_MSG)
+        assert not trigger_runner.to_cancel
+        assert not trigger_runner.to_release
+
+    @pytest.mark.asyncio
+    async def test_sync_state_to_supervisor_queues_released_triggers(self) -> None:
+        trigger_runner = TriggerRunner()
+        trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
+        trigger_runner.comms_decoder.asend.return_value = messages.TriggerStateSync(
+            to_create=[], to_cancel={1}, to_release={2}
+        )
+
+        await trigger_runner.sync_state_to_supervisor([])
+
+        assert list(trigger_runner.to_cancel) == [1]
+        assert list(trigger_runner.to_release) == [2]
 
     def test_run_trigger_on_kill_exception_does_not_swallow_cancelled_error(self, session) -> None:
         """CancelledError propagates even if on_kill() raises."""
@@ -2427,6 +2531,9 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
         }
     }
     assert task_instance.next_kwargs == expected_event
+    session.expire_all()
+    assert XComModelV2.get_for_attempt(task_instance.id, "test_set_xcom", session=session).value == "set_xcom"
+    assert XComModelV2.get_for_attempt(task_instance.id, "test_delete_xcom", session=session) is None
 
 
 class CustomTriggerDagRun(BaseTrigger):
@@ -2779,6 +2886,97 @@ def test_update_triggers_skips_when_ti_has_no_dag_version(session, supervisor_bu
     supervisor.stdin.write.assert_not_called()
 
 
+def _alive_triggerer_job(session) -> Job:
+    other_job = Job(job_type="TriggererJob")
+    other_job.latest_heartbeat = timezone.utcnow()
+    session.add(other_job)
+    session.flush()
+    return other_job
+
+
+def test_load_triggers_releases_reassigned_trigger_without_user_action_cancel(session, supervisor_builder):
+    """
+    A trigger whose row moved to another triggerer must be dropped locally, not queued
+    as a user-action cancel (which would fire ``on_kill()`` and cancel remote work the new
+    owner is still polling).
+    """
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    _, _, trigger_orm, _ = create_trigger_in_db(session, trigger)
+    supervisor = supervisor_builder()
+    supervisor.running_triggers = {trigger_orm.id}
+
+    # Our heartbeat lapsed and another (alive) triggerer took the trigger over.
+    other_job = _alive_triggerer_job(session)
+    session.execute(update(Trigger).where(Trigger.id == trigger_orm.id).values(triggerer_id=other_job.id))
+    session.flush()
+
+    supervisor.load_triggers()
+
+    assert supervisor.cancelling_triggers == set()
+    assert supervisor.releasing_triggers == {trigger_orm.id}
+
+
+def test_load_triggers_cancels_deleted_trigger_as_user_action(session, supervisor_builder):
+    """A trigger whose row is gone (task left the deferred state) takes the user-action path."""
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    _, _, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
+    supervisor = supervisor_builder()
+    supervisor.running_triggers = {trigger_orm.id}
+
+    session.execute(
+        update(TaskInstance)
+        .where(TaskInstance.id == task_instance.id)
+        .values(trigger_id=None, state="scheduled")
+    )
+    session.execute(delete(Trigger).where(Trigger.id == trigger_orm.id))
+    session.flush()
+
+    supervisor.load_triggers()
+
+    assert supervisor.cancelling_triggers == {trigger_orm.id}
+    assert supervisor.releasing_triggers == set()
+
+
+def test_update_triggers_splits_cancel_set_by_row_existence(supervisor_builder, mocker):
+    supervisor = supervisor_builder()
+    supervisor.running_triggers = {1, 2, 3}
+    fetch_assignments = mocker.patch.object(
+        TriggerRunnerSupervisor, "fetch_trigger_assignments", autospec=True, return_value={2: 99}
+    )
+
+    supervisor.update_triggers({3})
+
+    fetch_assignments.assert_called_once_with(supervisor, {1, 2})
+    assert supervisor.releasing_triggers == {2}
+    assert supervisor.cancelling_triggers == {1}
+
+    # Already-classified triggers are not re-queried on the next loop.
+    supervisor.update_triggers({3})
+    fetch_assignments.assert_called_once()
+
+
+def test_state_sync_sends_released_triggers_separately_from_cancels(supervisor_builder, mocker):
+    supervisor = supervisor_builder()
+    send_msg = mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+    log = MagicMock(spec=FilteringBoundLogger)
+    supervisor.running_triggers = {1, 2}
+    supervisor.cancelling_triggers = {1}
+    supervisor.releasing_triggers = {2}
+
+    supervisor._handle_request(messages.TriggerStateChanges(), log=log, req_id=1)
+
+    resp = send_msg.call_args.args[1]
+    assert isinstance(resp, messages.TriggerStateSync)
+    assert resp.to_cancel == {1}
+    assert resp.to_release == {2}
+
+    # The runner reporting them finished clears both tracking sets.
+    supervisor._handle_request(messages.TriggerStateChanges(finished=[1, 2]), log=log, req_id=2)
+    assert supervisor.cancelling_triggers == set()
+    assert supervisor.releasing_triggers == set()
+    assert supervisor.running_triggers == set()
+
+
 class TestTriggererJobRunner:
     @patch("airflow.jobs.triggerer_job_runner.stats.initialize")
     @patch.object(TriggerRunnerSupervisor, "start")
@@ -2908,12 +3106,14 @@ class TestTriggererMessageTypes:
             "ResendLoggingFD",
             "CreateHITLDetailPayload",
             "SetRenderedMapIndex",
+            "SetExecutionTimeout",
             "GetDag",
             # AIP-103 task store — triggerer has no task execution context.
             "GetTaskStateStore",
             "SetTaskStateStore",
             "DeleteTaskStateStore",
             "ClearTaskStateStore",
+            "UpdateDagRunNote",
         }
 
         in_task_but_not_in_trigger_runner = {

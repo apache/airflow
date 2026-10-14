@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
-from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -80,6 +79,11 @@ DEFAULT_SYSTEM_PROMPT = (
 class LLMSchemaCompareOperator(LLMOperator):
     """
     Compare schemas across different database systems and detect drift using LLM reasoning.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     The LLM handles complex cross-system type mapping that simple equality checks
     miss (e.g., ``varchar(255)`` vs ``string``, ``timestamp`` vs ``timestamptz``).
@@ -149,6 +153,10 @@ class LLMSchemaCompareOperator(LLMOperator):
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         **kwargs: Any,
     ) -> None:
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMSchemaCompareOperator does not accept 'output_type'; it always returns SchemaCompareResult."
+            )
         kwargs["output_type"] = SchemaCompareResult
         # execute() always returns a dict, so the approval resume path must too
         kwargs["serialize_output"] = True
@@ -340,8 +348,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             **self.agent_params,
         )
         self.log.info("Running LLM schema comparison...")
-        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 
         output_result = output.model_dump()
@@ -361,6 +368,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             )
             self.defer_for_approval(context, output, body=body)  # type: ignore[misc]
 
+        self._clear_usage_budget(context)
         return output_result
 
     def execute_complete(
@@ -370,10 +378,11 @@ class LLMSchemaCompareOperator(LLMOperator):
         event: dict[str, Any],
         decision: dict[str, Any] | None = None,
     ) -> Any:
-        output = super().execute_complete(context, generated_output, event, decision)
-        if isinstance(output, dict):
-            return output
-        try:
-            return SchemaCompareResult.model_validate_json(output).model_dump()
-        except ValidationError as e:
-            raise ValueError(f"Reviewed output is not a valid SchemaCompareResult: {e}") from e
+        output = self._complete_review(context, generated_output, event, decision)
+        if not isinstance(output, dict):
+            try:
+                output = SchemaCompareResult.model_validate_json(output).model_dump()
+            except ValidationError as e:
+                raise ValueError(f"Reviewed output is not a valid SchemaCompareResult: {e}") from e
+        self._clear_usage_budget(context)
+        return output

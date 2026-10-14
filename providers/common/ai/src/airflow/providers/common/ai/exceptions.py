@@ -16,11 +16,41 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowFailException
 
 
 class HITLMaxIterationsError(AirflowException):
     """Raised when the HITL review loop exhausts max iterations without approval or rejection."""
+
+
+class ToolApprovalError(RuntimeError):
+    """
+    Raised when a run paused for tool approval cannot resume safely.
+
+    The saved transcript, or the agent's rendered toolset ids, no longer match what the
+    reviewer saw. A retry starts a fresh run.
+    """
+
+
+class ToolApprovalAlreadyRequestedError(AirflowFailException):
+    """
+    Raised when a task instance asks for a second tool approval.
+
+    Airflow keeps one approval request per task instance, across retries and clears, and a
+    second request would show the reviewer the first one's details. The task fails without
+    retrying, since a retry would ask again.
+    """
+
+
+class UnsupportedToolDeferralError(AirflowFailException):
+    """
+    Raised when an agent defers a tool call that ``AgentOperator`` cannot resolve.
+
+    Either the tool hands its work to an external system, or it needs approval where
+    approval is not available (before Airflow 3.3, or with ``durable``,
+    ``enable_hitl_review``, code mode or a ``SandboxToolset``). A retry would repeat
+    the same call, so the task fails without retrying.
+    """
 
 
 class LLMFileAnalysisError(ValueError):
@@ -55,8 +85,19 @@ class ManagedAgentInvocationError(RuntimeError):
 
     Reserved for terminal conditions -- bad credentials, a missing agent, a
     revoked quota. Transient failures should propagate unchanged so Airflow's
-    task-level retry handles them, and requests the model could fix by
-    rephrasing should raise ``pydantic_ai.exceptions.ModelRetry`` instead.
+    task-level retry handles them, and requests the agent rejected in a way the
+    calling model could fix by rephrasing should raise
+    :class:`ManagedAgentRejected` instead.
+    """
+
+
+class ManagedAgentRejected(Exception):
+    """
+    Raised when a managed agent rejected a request in a way rephrasing could fix.
+
+    Vendor hooks raise this instead of pydantic-ai's ``ModelRetry`` so that the contract
+    module stays free of pydantic-ai; the managed-agent toolset translates it to
+    ``ModelRetry`` at the boundary, and the calling model sees the message and tries again.
     """
 
 

@@ -49,6 +49,8 @@ from structlog.contextvars import bind_contextvars as bind_log_contextvars
 from airflow._shared.module_loading import import_string
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import task_instance_to_runtime
+from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
 from airflow.executors import workloads
@@ -56,6 +58,7 @@ from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.dagbag import DBDagBag
+from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
@@ -131,8 +134,9 @@ from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamManager
-from airflow.utils.helpers import log_filename_template_renderer, prune_dict
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
 from airflow.utils.session import create_session, provide_session
 
 if TYPE_CHECKING:
@@ -140,16 +144,19 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
     from airflow.sdk.api.client import Client
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
+    from airflow.utils.log.task_log_address import TaskLogContext
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
 # Private sentinel passed as the cancel message when a trigger is cancelled by user action
 _USER_ACTION_CANCEL_MSG = "__airflow_user_action__"
+# Private sentinel passed as the cancel message when a trigger's row moved to another triggerer, so
+# run_trigger() drops it locally without invoking on_kill()
+_REASSIGNED_CANCEL_MSG = "__airflow_reassigned__"
 
 _ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
 
@@ -273,7 +280,10 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
                 capacity=self.capacity,
                 logger=log,
                 queues=self.queues,
-                team_name=self.job.team_name,
+                # A triggerer is started with at most one ``--team-name`` for now, so while a Job can
+                # serve several teams this one never does, and the runner stays scoped to a single team.
+                # If we later let a triggerer take several ``--team-name`` values, this must fan out.
+                team_name=next(iter(self.job.team_names), None),
             )
             # Run the main DB comms loop in this process
             self.trigger_runner.run()
@@ -336,7 +346,10 @@ class messages:
         type: Literal["TriggerStateSync"] = "TriggerStateSync"
 
         to_create: list[workloads.RunTrigger]
+        # Triggers whose row is gone (task no longer deferred on it); the runner invokes on_kill()
         to_cancel: set[int]
+        # Triggers whose row now belongs to another triggerer; the runner drops them without on_kill()
+        to_release: set[int] = Field(default_factory=set)
         # Seqs of shared-stream trigger events the supervisor has persisted
         # since the previous sync; the runner releases the matching broker
         # advances on receipt.
@@ -460,13 +473,6 @@ class TriggerLoggingFactory:
         upload_to_remote(self.bound_logger, self.ti)
 
 
-def in_process_api_server() -> InProcessExecutionAPI:
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-
-    api = InProcessExecutionAPI()
-    return api
-
-
 @attrs.define(kw_only=True)
 class TriggerRunnerSupervisor(WatchedSubprocess):
     """
@@ -512,6 +518,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     # A list of triggers that we have told the async process to cancel. We keep them here until we receive the
     # FinishedTriggers message
     cancelling_triggers: set[int] = attrs.field(factory=set, init=False)
+
+    releasing_triggers: set[int] = attrs.field(factory=set, init=False)
 
     # A list of RunTrigger workloads to send to the async process when it next checks in. We can't send it
     # directly as all comms has to be initiated by the subprocess
@@ -573,7 +581,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         """
         from airflow.sdk.api.client import Client
 
-        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
+        client = Client(base_url=None, token="", dry_run=True, transport=InProcessExecutionAPI().transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
         return client
@@ -592,6 +600,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             for id in msg.finished or ():
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
+                self.releasing_triggers.discard(id)
                 if factory := self.logger_cache.pop(id, None):
                     try:
                         factory.upload_to_remote()
@@ -610,6 +619,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             response = messages.TriggerStateSync(
                 to_create=[],
                 to_cancel=self.cancelling_triggers,
+                to_release=self.releasing_triggers,
                 events_persisted=events_persisted or None,
             )
 
@@ -838,6 +848,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         dag_bag: DBDagBag,
         render_log_fname: Callable[..., str],
         session: Session,
+        log_context: TaskLogContext | None = None,
     ) -> workloads.RunTrigger | None:
         if trigger.task_instance is None:
             watched_assets: dict[str, str] | None = None
@@ -861,7 +872,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             return None
 
         log_path = render_log_fname(ti=trigger.task_instance)
-        ser_ti = TaskInstanceDTO.model_validate(trigger.task_instance, from_attributes=True)
+        ser_ti = task_instance_to_runtime(
+            trigger.task_instance,
+            model=TaskInstanceDTO,
+            map_index=(
+                log_context.map_index
+                if log_context is not None
+                else TaskCoordinateResolver(dag_bag, session).public_map_index(trigger.task_instance)
+            ),
+        )
 
         # When producing logs from TIs, include the supervisor id producing the logs to disambiguate it.
         # Note: with a Job this is an int (Job.id); without a Job it's a UUID. The reader side
@@ -923,12 +942,35 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         """Fetch trigger IDs associated with non-task entities."""
         return Trigger.fetch_trigger_ids_with_non_task_associations(session=session)
 
+    def fetch_trigger_assignments(self, trigger_ids: set[int]) -> dict[int, int | None]:
+        """
+        Map each trigger ID whose row still exists to the triggerer that owns it now.
+
+        Owns its own session so that ``update_triggers`` stays a pure diff/enqueue step that
+        subclasses without a metadata DB can keep calling after overriding this hook.
+        """
+        with create_session() as session:
+            return Trigger.fetch_assignments(trigger_ids, session=session)
+
     def build_trigger_workloads(self, new_trigger_ids: set[int]) -> list[workloads.RunTrigger]:
         """Build workloads for new trigger IDs."""
         dag_bag = DBDagBag()
-        render_log_fname = log_filename_template_renderer()
         with create_session() as session:
             new_triggers = self.fetch_trigger_details(new_trigger_ids, session=session)
+            log_contexts = prepare_task_log_contexts(
+                [
+                    trigger.task_instance
+                    for trigger in new_triggers.values()
+                    if trigger.task_instance is not None and trigger.task_instance.dag_version_id
+                ],
+                session=session,
+                dag_bag=dag_bag,
+                filename_template=conf.get("logging", "log_filename_template"),
+            )
+
+            def render_log_fname(*, ti):
+                return render_task_log_filename(ti, ti.try_number, context=log_contexts[ti.id])
+
             trigger_ids_with_non_task_associations = self.fetch_non_task_trigger_ids(session=session)
             to_create: list[workloads.RunTrigger] = []
             for new_trigger_id in new_trigger_ids:
@@ -961,6 +1003,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     dag_bag=dag_bag,
                     render_log_fname=render_log_fname,
                     session=session,
+                    log_context=(
+                        log_contexts.get(new_trigger_orm.task_instance.id)
+                        if new_trigger_orm.task_instance is not None
+                        else None
+                    ),
                 ):
                     to_create.append(workload)
 
@@ -977,12 +1024,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         known_trigger_ids = self.running_triggers.union(
             (x[0] for x in self.events),
             self.cancelling_triggers,
+            self.releasing_triggers,
             (trigger[0] for trigger in self.failed_triggers),
             (trigger.id for trigger in self.creating_triggers),
         )
-        # Work out the two difference sets
+        # Work out the two difference sets. Triggers already queued for cancellation or release stay
+        # in running_triggers until the runner reports them finished; don't classify them again.
         new_trigger_ids = requested_trigger_ids - known_trigger_ids
-        cancel_trigger_ids = self.running_triggers - requested_trigger_ids
+        cancel_trigger_ids = (
+            self.running_triggers - requested_trigger_ids - self.cancelling_triggers - self.releasing_triggers
+        )
 
         if new_trigger_ids:
             workloads_to_create = self.build_trigger_workloads(new_trigger_ids)
@@ -995,8 +1046,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             self.creating_triggers.extend(workloads_to_create)
 
         if cancel_trigger_ids:
-            # Enqueue orphaned triggers for cancellation
-            self.cancelling_triggers.update(cancel_trigger_ids)
+            # Only the DB tells the two cases apart: a gone row means the task left the
+            # deferred state (user action), a surviving row means assign_unassigned handed
+            # the trigger to a triggerer that is now polling the remote work.
+            assignments = self.fetch_trigger_assignments(cancel_trigger_ids)
+            if assignments:
+                log.info(
+                    "Triggers were reassigned to another triggerer, releasing them without on_kill",
+                    new_owners=assignments,
+                )
+                self.releasing_triggers.update(assignments)
+            self.cancelling_triggers.update(cancel_trigger_ids - assignments.keys())
 
     def _register_pipe_readers(
         self,
@@ -1180,8 +1240,11 @@ class TriggerRunner:
     # Inbound queue of new triggers
     to_create: deque[workloads.RunTrigger]
 
-    # Inbound queue of deleted triggers
+    # Inbound queue of deleted triggers (user acted on the task; on_kill() runs)
     to_cancel: deque[int]
+
+    # Inbound queue of triggers reassigned to another triggerer (dropped locally; on_kill() skipped)
+    to_release: deque[int]
 
     # Outbound queue of events
     events: deque[TriggerEventEntry]
@@ -1207,6 +1270,7 @@ class TriggerRunner:
         self.trigger_cache = {}
         self.to_create = deque()
         self.to_cancel = deque()
+        self.to_release = deque()
         self.events = deque()
         self.failed_triggers = deque()
         self.team_name = None
@@ -1441,20 +1505,16 @@ class TriggerRunner:
             )
 
     async def cancel_triggers(self):
-        """
-        Drain the to_cancel queue and ensure all triggers that are not in the DB are cancelled.
-
-        This allows the cleanup job to delete them.
-        Passes "user-action" as the cancel message so that run_trigger() knows to invoke
-        on_kill(). Triggers in this queue are always removed because this is the path in which
-        the user performed some action on the task. Trigger redistribution goes through a separate
-        path.
-        """
-        while self.to_cancel:
-            trigger_id = self.to_cancel.popleft()
-            if trigger_id in self.triggers:
-                self.triggers[trigger_id]["task"].cancel(_USER_ACTION_CANCEL_MSG)
-            await asyncio.sleep(0)
+        """Drain to_cancel and to_release; the cancel message tells run_trigger() if on_kill() applies."""
+        for queue, cancel_msg in (
+            (self.to_cancel, _USER_ACTION_CANCEL_MSG),
+            (self.to_release, _REASSIGNED_CANCEL_MSG),
+        ):
+            while queue:
+                trigger_id = queue.popleft()
+                if trigger_id in self.triggers:
+                    self.triggers[trigger_id]["task"].cancel(cancel_msg)
+                await asyncio.sleep(0)
 
     async def cleanup_finished_triggers(self) -> list[int]:
         """
@@ -1564,6 +1624,7 @@ class TriggerRunner:
         if resp:
             self.to_create.extend(resp.to_create)
             self.to_cancel.extend(resp.to_cancel)
+            self.to_release.extend(resp.to_release)
             if resp.events_persisted:
                 self._shared_streams.confirm_persisted(resp.events_persisted)
 
@@ -1692,11 +1753,13 @@ class TriggerRunner:
                     self.events.append(TriggerEventEntry(trigger_id=trigger_id, event=event, persist_seq=seq))
                 span.set_status(Status(StatusCode.OK))
             except asyncio.CancelledError as e:
-                # A trigger can be cancelled for two reasons:
+                # A trigger can be cancelled for three reasons:
                 #   - The user acted on the task (mark failed / clear / mark succeeded).
+                #   - The trigger was reassigned to another triggerer (see
+                #     TriggerRunnerSupervisor.update_triggers); the new owner keeps running it.
                 #   - The triggerer is shutting down, here cancel_triggers() is not
                 #     involved — the shutdown path cancels tasks directly without a message.
-                # Only first case should invoke on_kill().
+                # Only the first case should invoke on_kill().
                 #
                 # For timeout, raise immediately without calling on_kill().
                 if timeout := timeout_after:
@@ -1705,7 +1768,11 @@ class TriggerRunner:
                         await self.log.aerror("Trigger cancelled due to timeout")
                         span.set_status(Status(StatusCode.ERROR), description=str(e))
                         raise
-                if e.args and e.args[0] == _USER_ACTION_CANCEL_MSG:
+                if e.args and e.args[0] == _REASSIGNED_CANCEL_MSG:
+                    await self.log.ainfo(
+                        "Trigger reassigned to another triggerer, dropping it without on_kill", name=name
+                    )
+                elif e.args and e.args[0] == _USER_ACTION_CANCEL_MSG:
                     await self.log.ainfo("Trigger cancelled by user action, invoking on_kill", name=name)
                     try:
                         await asyncio.wait_for(trigger.on_kill(), timeout=_ON_CANCEL_TIMEOUT)

@@ -39,7 +39,7 @@ class TestRealBackendsSatisfyProtocol:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store backend requires Airflow >= 3.3")
     def test_task_state_store_backend_satisfies_protocol(self):
-        # Imported inside the test: this module runs on all cores, but
+        # Imported inside the test: this module runs on all supported Airflow versions, but
         # ``task_state_store`` pulls in ``NEVER_EXPIRE``, which only exists on 3.3+.
         from airflow.providers.common.ai.durable.task_state_store import TaskStateStoreDurableStorage
 

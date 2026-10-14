@@ -23,7 +23,7 @@ import pytest
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if not AIRFLOW_V_3_3_PLUS:
-    # ``airflow.sdk.execution_time.context`` exists on older cores, but ``NEVER_EXPIRE``
+    # ``airflow.sdk.execution_time.context`` exists on older Airflow versions, but ``NEVER_EXPIRE``
     # (imported transitively via ``task_state_store``) only lands in 3.3, so an
     # ``importorskip`` on the module is not enough -- gate on the version instead.
     pytest.skip("task state store needs Airflow >= 3.3", allow_module_level=True)
@@ -176,7 +176,7 @@ class TestSaveLoadToolResult:
 
     def test_non_serializable_result_is_skipped_not_raised(self, storage, accessor):
         """A non-serializable tool result skips caching with a warning; the tool step still succeeds."""
-        storage.save_tool_result("tool_step_0", object(), fingerprint="fp")  # must not raise
+        assert storage.save_tool_result("tool_step_0", object(), fingerprint="fp") is False  # must not raise
 
         assert "tool_step_0" not in accessor.store
         assert storage.load_tool_result("tool_step_0") == (False, None, None)
@@ -208,6 +208,26 @@ class TestSaveLoadToolResult:
         found, value, _ = storage.load_tool_result("tool_step_0")
         assert found is True
         assert value == {"1": "a", "2": "b"}
+
+
+class TestSaveReturnsWhetherWritten:
+    def test_written_entries_return_true(self, storage, sample_response):
+        assert storage.save_model_response("model_step_0", sample_response, fingerprint="fp") is True
+        assert storage.save_tool_result("tool_step_1", {"rows": [1]}, fingerprint="fp") is True
+
+    @pytest.mark.parametrize("method", ["save_model_response", "save_tool_result"])
+    def test_write_rejected_by_the_store_returns_false(self, storage, accessor, sample_response, method):
+        """A store write that fails skips the entry and says so."""
+
+        def reject(key, value, *, retention=None):
+            raise ValueError("value exceeds the maximum size")
+
+        accessor.set = reject
+        value = sample_response if method == "save_model_response" else "result"
+
+        assert getattr(storage, method)("step_0", value, fingerprint="fp") is False
+        # Not tracked for cleanup either: a skipped key was never written.
+        assert "step_0" not in storage._keys
 
 
 class TestCleanup:

@@ -23,13 +23,13 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
 from airflow.providers.common.compat.sdk import (
+    SET_DURING_EXECUTION,
     DecoratedOperator,
     TaskDecorator,
     context_merge,
     determine_kwargs,
     task_decorator_factory,
 )
-from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -100,6 +100,11 @@ def llm_file_analysis_task(
 ) -> TaskDecorator:
     """
     Wrap a callable that returns a prompt into an LLM-backed file-analysis task.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     Any file-analysis keyword arguments accepted by
     :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`,

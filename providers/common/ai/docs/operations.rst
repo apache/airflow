@@ -41,5 +41,4 @@ An AI task fails in more ways than a SQL task, and it costs money each time it r
     Durable execution <durable_execution>
     Retry policies <retry_policies>
     Observability <observability>
-    Securing agent tools <agent_security>
     Troubleshooting <troubleshooting>

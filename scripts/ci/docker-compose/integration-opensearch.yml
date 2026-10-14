@@ -19,6 +19,8 @@ services:
   opensearch:
     image: opensearchproject/opensearch:2.19.0
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for OpenSearch hooks."
     environment:
       - discovery.type=single-node
@@ -47,3 +49,6 @@ services:
 
 volumes:
   opensearch-db-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"

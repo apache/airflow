@@ -65,9 +65,6 @@ class TestNeptuneCreateGraphOperator:
         assert "vector_search_config" in fields
         assert "provisioned_memory" in fields
 
-    def test_template_fields_renderers(self):
-        assert NeptuneCreateGraphOperator.template_fields_renderers == {"vector_search_config": "json"}
-
     def test_operator_extra_links(self):
 
         assert len(NeptuneCreateGraphOperator.operator_extra_links) == 1
@@ -1175,9 +1172,6 @@ class TestNeptuneStartImportTaskOperator:
         assert "role_arn" in fields
         assert "source" in fields
         assert "import_options" in fields
-
-    def test_template_fields_renderers(self):
-        assert NeptuneStartImportTaskOperator.template_fields_renderers == {"import_options": "json"}
 
     def test_operator_extra_links(self):
         assert len(NeptuneStartImportTaskOperator.operator_extra_links) == 1

@@ -22,7 +22,7 @@ from unittest import mock
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -31,7 +31,10 @@ from airflow.configuration import conf
 from airflow.models import DagRun
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.hitl import HITLDetail
+from airflow.models.taskinstance import TaskInstance as TI
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.timezone import utcnow
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -245,6 +248,49 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert [dag["dag_id"] for dag in any_state.json()["dags"]] == [DAG1_ID]
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_dag_run_state_within_hours_filters_out_older_runs(self, test_client, session):
+        # Give DAG1 a recent failed run while DAG2 keeps only its original (years-old) failed
+        # runs, so a time-bounded any-run filter can separate the two.
+        recent_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "run_id_1")
+        )
+        recent_run.state = DagRunState.FAILED
+        recent_run.run_after = utcnow() - pendulum.duration(hours=1)
+        session.commit()
+
+        # Without a window both Dags match: each has a failed run somewhere in its history.
+        any_time = test_client.get("/dags", params={"dag_run_state": "failed", "dag_ids": [DAG1_ID, DAG2_ID]})
+        assert any_time.status_code == 200
+        assert sorted(dag["dag_id"] for dag in any_time.json()["dags"]) == [DAG1_ID, DAG2_ID]
+
+        # A 24h window keeps only DAG1, whose failure is recent; DAG2's failures are years old.
+        within_window = test_client.get(
+            "/dags",
+            params={
+                "dag_run_state": "failed",
+                "dag_run_state_within_hours": 24,
+                "dag_ids": [DAG1_ID, DAG2_ID],
+            },
+        )
+        assert within_window.status_code == 200
+        assert [dag["dag_id"] for dag in within_window.json()["dags"]] == [DAG1_ID]
+
+        # The window is ignored unless a state is given, so on its own it never narrows results.
+        window_only = test_client.get(
+            "/dags",
+            params={"dag_run_state_within_hours": 24, "dag_ids": [DAG1_ID, DAG2_ID]},
+        )
+        assert window_only.status_code == 200
+        assert sorted(dag["dag_id"] for dag in window_only.json()["dags"]) == [DAG1_ID, DAG2_ID]
+
+        # An absurd window is rejected up front instead of overflowing the timedelta arithmetic.
+        overflowing = test_client.get(
+            "/dags",
+            params={"dag_run_state": "failed", "dag_run_state_within_hours": 10**18},
+        )
+        assert overflowing.status_code == 422
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_last_and_any_run_state_filters_combined(self, test_client, session):
         # Regression: combining the last-run and any-run state filters must return the
         # intersection, not raise. The any-run EXISTS subquery must not correlate to the
@@ -359,6 +405,24 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 pending_actions = dag_json["pending_actions"]
                 pending_actions.sort(key=lambda x: x["subject"])
                 assert pending_actions == expected_pending_actions
+
+    def test_pending_actions_filter_ignores_archived_task_instances_with_stale_pending_state(
+        self, test_client: TestClient, setup_hitl_data, session: Session
+    ):
+        pending_details = session.scalars(select(HITLDetail).where(HITLDetail.responded_at.is_(None))).all()
+        assert len(pending_details) == 3
+        for detail in pending_details:
+            detail.task_instance.working_set = None
+            detail.task_instance.archived_reason = "retry"
+        session.commit()
+
+        with_pending = test_client.get("/dags", params={"has_pending_actions": True})
+        without_pending = test_client.get("/dags", params={"has_pending_actions": False})
+
+        assert with_pending.status_code == 200
+        assert with_pending.json()["total_entries"] == 0
+        assert without_pending.status_code == 200
+        assert without_pending.json()["total_entries"] == 3
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags", params={})
@@ -809,3 +873,377 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/dags/run_state_counts", params={"dag_ids": [DAG1_ID]})
         assert response.status_code == 403
+
+
+TI_COUNTS_DAG_ID = "test_dag_recent_ti_counts"
+RECENT_TI_COUNTS_ENDPOINT = "/dags/recent_task_instance_state_counts"
+
+
+class TestGetRecentTaskInstanceStateCounts(TestPublicDagEndpoint):
+    """Tests for ``GET /ui/dags/recent_task_instance_state_counts``."""
+
+    @pytest.fixture(autouse=True)
+    def seed_runs_with_task_instances(self, setup, dag_maker, session) -> None:
+        # A dedicated Dag with an older finished run and a latest running run. The older
+        # run proves which runs are counted: it joins the counts only once it is running.
+        # The latest run's four tasks cover three distinct states plus the null-state
+        # ("no_status") case.
+        with dag_maker(TI_COUNTS_DAG_ID, schedule=None, session=session):
+            for idx in range(4):
+                EmptyOperator(task_id=f"task_{idx}")
+
+        base = utcnow() - pendulum.duration(days=1)
+        older_run = dag_maker.create_dagrun(
+            run_id="older_run", state=DagRunState.SUCCESS, logical_date=base, run_after=base
+        )
+        for ti in older_run.task_instances:
+            ti.state = TaskInstanceState.SUCCESS
+        latest = base + pendulum.duration(hours=1)
+        latest_run = dag_maker.create_dagrun(
+            run_id="latest_run", state=DagRunState.RUNNING, logical_date=latest, run_after=latest
+        )
+        latest_states = [
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.FAILED,
+            TaskInstanceState.RUNNING,
+            None,
+        ]
+        tis = sorted(latest_run.task_instances, key=lambda ti: ti.task_id)
+        for ti, state in zip(tis, latest_states, strict=True):
+            ti.state = state
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+        self.older_run_id = older_run.id
+        self.latest_run_id = latest_run.id
+
+    @staticmethod
+    def _run_id_for(session, dag_id: str) -> int:
+        return session.scalar(
+            select(DagRun.id).where(DagRun.dag_id == dag_id).order_by(DagRun.run_after.desc()).limit(1)
+        )
+
+    @staticmethod
+    def _set_run_state(session, run_id: int, state: DagRunState) -> None:
+        session.get(DagRun, run_id).set_state(state)
+        session.commit()
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_counts_the_running_run(self, test_client):
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]})
+        assert response.status_code == 200
+        # Only the running run's states may appear: the older all-success run must not
+        # leak in (it would push success to 5), and unset states surface as "no_status".
+        assert response.json()["dags"] == [
+            {
+                "dag_id": TI_COUNTS_DAG_ID,
+                "run_ids": ["latest_run"],
+                "state_counts": {"success": 1, "failed": 1, "running": 1, "no_status": 1},
+            }
+        ]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_sums_every_running_run(self, test_client, session):
+        self._set_run_state(session, self.older_run_id, DagRunState.RUNNING)
+
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]})
+        assert response.status_code == 200
+        assert response.json()["dags"] == [
+            {
+                "dag_id": TI_COUNTS_DAG_ID,
+                "run_ids": ["older_run", "latest_run"],
+                "state_counts": {"success": 5, "failed": 1, "running": 1, "no_status": 1},
+            }
+        ]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_running_runs_win_over_the_requested_run(self, test_client):
+        # The requested run only stands in when its Dag has nothing running, so asking for
+        # the finished older run still returns the running latest run's counts.
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.older_run_id]})
+        assert response.status_code == 200
+        assert response.json()["dags"] == [
+            {
+                "dag_id": TI_COUNTS_DAG_ID,
+                "run_ids": ["latest_run"],
+                "state_counts": {"success": 1, "failed": 1, "running": 1, "no_status": 1},
+            }
+        ]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_falls_back_to_the_requested_run_when_none_is_running(self, test_client, session):
+        self._set_run_state(session, self.latest_run_id, DagRunState.FAILED)
+
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]})
+        assert response.status_code == 200
+        assert response.json()["dags"] == [
+            {
+                "dag_id": TI_COUNTS_DAG_ID,
+                "run_ids": ["latest_run"],
+                "state_counts": {"success": 1, "failed": 1, "running": 1, "no_status": 1},
+            }
+        ]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_lists_a_counted_run_without_task_instances(self, test_client, session):
+        session.execute(delete(TI).where(TI.run_id == "latest_run"))
+        session.commit()
+
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]})
+        assert response.status_code == 200
+        assert response.json()["dags"] == [
+            {"dag_id": TI_COUNTS_DAG_ID, "run_ids": ["latest_run"], "state_counts": {}},
+        ]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_omits_unknown_run_ids(self, test_client):
+        response = test_client.get(
+            RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id, 999999]}
+        )
+        assert response.status_code == 200
+        dag_ids = [entry["dag_id"] for entry in response.json()["dags"]]
+        assert dag_ids == [TI_COUNTS_DAG_ID]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_counts_multiple_dags_independently(self, test_client, session):
+        dag1_run_id = self._run_id_for(session, DAG1_ID)
+        response = test_client.get(
+            RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id, dag1_run_id]}
+        )
+        assert response.status_code == 200
+        by_dag = {entry["dag_id"]: entry for entry in response.json()["dags"]}
+        assert set(by_dag) == {TI_COUNTS_DAG_ID, DAG1_ID}
+        # DAG1's only run comes from the parent fixture: a single task instance that was
+        # never scheduled, so it surfaces under "no_status".
+        assert by_dag[DAG1_ID]["state_counts"] == {"no_status": 1}
+        assert by_dag[TI_COUNTS_DAG_ID]["state_counts"] == {
+            "success": 1,
+            "failed": 1,
+            "running": 1,
+            "no_status": 1,
+        }
+
+    def test_deduplicates_run_ids(self, test_client):
+        response = test_client.get(
+            RECENT_TI_COUNTS_ENDPOINT,
+            params={"dag_run_ids": [self.latest_run_id, self.latest_run_id]},
+        )
+        assert response.status_code == 200
+        dag_ids = [entry["dag_id"] for entry in response.json()["dags"]]
+        assert dag_ids == [TI_COUNTS_DAG_ID]
+
+    def test_rejects_too_many_run_ids(self, test_client):
+        # The page never sends more than maximum_page_limit runs; a direct call with a
+        # larger list is rejected so the per-run UNION ALL width stays bounded.
+        too_many = list(range(conf.getint("api", "maximum_page_limit") + 1))
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": too_many})
+        assert response.status_code == 422
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_permission_filter_hides_disallowed_dags(self, test_client, session):
+        dag1_run_id = self._run_id_for(session, DAG1_ID)
+        with mock.patch.object(
+            SimpleAuthManager,
+            "get_authorized_dag_ids",
+            return_value={TI_COUNTS_DAG_ID},
+        ):
+            response = test_client.get(
+                RECENT_TI_COUNTS_ENDPOINT,
+                params={"dag_run_ids": [self.latest_run_id, dag1_run_id]},
+            )
+        assert response.status_code == 200
+        dag_ids = [entry["dag_id"] for entry in response.json()["dags"]]
+        assert dag_ids == [TI_COUNTS_DAG_ID]
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]}
+        )
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]}
+        )
+        assert response.status_code == 403
+
+
+# Maps dag_id -> (bundle_name, relative_fileloc). ``team_alpha`` proves a folder
+# name is never matched as a prefix of another (``team_a`` must not catch it),
+# ``root_dag.py`` lives at the bundle root (no folder), and ``other_bundle`` reuses
+# the ``team_a/etl`` path to prove folders are kept separate per bundle.
+OTHER_BUNDLE = "other_bundle"
+FOLDER_DAGS = {
+    "folder_dag_a_etl_extract": ("dag_maker", "team_a/etl/extract.py"),
+    "folder_dag_a_etl_load": ("dag_maker", "team_a/etl/load.py"),
+    "folder_dag_a_report": ("dag_maker", "team_a/report.py"),
+    "folder_dag_b_ml_train": ("dag_maker", "team_b/ml/train.py"),
+    "folder_dag_alpha": ("dag_maker", "team_alpha/x.py"),
+    "folder_dag_root": ("dag_maker", "root_dag.py"),
+    "folder_dag_other_etl": (OTHER_BUNDLE, "team_a/etl/other.py"),
+}
+
+
+class TestDagFolders(TestPublicDagEndpoint):
+    @pytest.fixture(autouse=True)
+    @provide_session
+    def setup_folder_dags(self, *, session: Session = NEW_SESSION) -> None:
+        # The extra bundle must exist before its Dags are inserted (FK on ``bundle_name``).
+        session.merge(DagBundleModel(name=OTHER_BUNDLE))
+        session.flush()
+        for dag_id, (bundle_name, relative_fileloc) in FOLDER_DAGS.items():
+            session.add(
+                DagModel(
+                    dag_id=dag_id,
+                    bundle_name=bundle_name,
+                    relative_fileloc=relative_fileloc,
+                    fileloc=f"/tmp/{relative_fileloc}",
+                    is_stale=False,
+                    is_paused=False,
+                )
+            )
+        session.commit()
+
+    def test_get_dag_folders(self, test_client):
+        response = test_client.get("/dags/folders")
+        assert response.status_code == 200
+        body = response.json()
+        # Distinct (bundle, folder) pairs of every readable Dag, sorted. Root-level
+        # Dags contribute no folder, and ``team_a/etl`` exists under both bundles
+        # yet stays as two separate entries.
+        assert body["folders"] == [
+            {"bundle_name": "dag_maker", "folder": "team_a"},
+            {"bundle_name": "dag_maker", "folder": "team_a/etl"},
+            {"bundle_name": "dag_maker", "folder": "team_alpha"},
+            {"bundle_name": "dag_maker", "folder": "team_b/ml"},
+            {"bundle_name": OTHER_BUNDLE, "folder": "team_a/etl"},
+        ]
+        assert body["total_entries"] == 5
+
+    def test_get_dag_folders_query_count_does_not_scale_with_dags(self, session, test_client):
+        """The folders endpoint must run a finite number of queries regardless of how many Dags exist."""
+        with count_queries() as result:
+            response = test_client.get("/dags/folders")
+        assert response.status_code == 200
+        baseline = sum(result.values())
+
+        # Add many more Dags (in both new and existing folders); the query count must not grow.
+        for i in range(50):
+            relative_fileloc = f"team_c/sub_{i}/dag_{i}.py"
+            session.add(
+                DagModel(
+                    dag_id=f"folder_scale_dag_{i}",
+                    bundle_name="dag_maker",
+                    relative_fileloc=relative_fileloc,
+                    fileloc=f"/tmp/{relative_fileloc}",
+                    is_stale=False,
+                    is_paused=False,
+                )
+            )
+        session.commit()
+        session.expire_all()
+
+        with count_queries() as result_after:
+            response = test_client.get("/dags/folders")
+        assert response.status_code == 200
+        assert sum(result_after.values()) == baseline
+
+    def test_get_dag_folders_excludes_stale_dags(self, session, test_client):
+        # A bundle that stops being parsed leaves its Dags stale; the Dag list hides them by
+        # default, so their folders must not linger in the tree and select down to nothing.
+        session.merge(DagBundleModel(name="retired_bundle"))
+        session.flush()
+        session.add(
+            DagModel(
+                dag_id="folder_dag_retired",
+                bundle_name="retired_bundle",
+                relative_fileloc="retired/old.py",
+                fileloc="/tmp/retired/old.py",
+                is_stale=True,
+                is_paused=False,
+            )
+        )
+        session.commit()
+
+        response = test_client.get("/dags/folders")
+        assert response.status_code == 200
+        folders = response.json()["folders"]
+        assert {"bundle_name": "retired_bundle", "folder": "retired"} not in folders
+        # The live folders are still returned.
+        assert {"bundle_name": OTHER_BUNDLE, "folder": "team_a/etl"} in folders
+
+    def test_get_dag_folders_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/dags/folders")
+        assert response.status_code == 401
+
+    def test_get_dag_folders_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/dags/folders")
+        assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        ("prefix", "expected_dag_ids"),
+        [
+            pytest.param(
+                "team_a",
+                {
+                    "folder_dag_a_etl_extract",
+                    "folder_dag_a_etl_load",
+                    "folder_dag_a_report",
+                    "folder_dag_other_etl",
+                },
+                id="folder-with-subfolders",
+            ),
+            pytest.param(
+                "team_a/etl",
+                {"folder_dag_a_etl_extract", "folder_dag_a_etl_load", "folder_dag_other_etl"},
+                id="nested-folder-across-bundles",
+            ),
+            pytest.param(
+                "team_a/etl/",
+                {"folder_dag_a_etl_extract", "folder_dag_a_etl_load", "folder_dag_other_etl"},
+                id="trailing-slash-normalized",
+            ),
+            pytest.param("team_b", {"folder_dag_b_ml_train"}, id="intermediate-folder"),
+            pytest.param("team_b/ml", {"folder_dag_b_ml_train"}, id="leaf-folder"),
+            pytest.param("team_alpha", {"folder_dag_alpha"}, id="sibling-prefix-folder"),
+            pytest.param("does/not/exist", set(), id="no-match"),
+        ],
+    )
+    def test_folder_filter(self, test_client, prefix, expected_dag_ids):
+        # The folder filter matches on path only; bundle scoping is layered on via the
+        # existing ``bundle_name`` filter (see test_folder_filter_scoped_by_bundle).
+        response = test_client.get("/dags", params={"relative_fileloc_prefix": prefix})
+        assert response.status_code == 200
+        returned = {dag["dag_id"] for dag in response.json()["dags"]}
+        # Intersect with our Dags so pre-existing setup Dags don't affect the assertion.
+        assert returned & set(FOLDER_DAGS) == expected_dag_ids
+        # ``team_a`` must never match ``team_alpha`` (and vice-versa).
+        if prefix == "team_a":
+            assert "folder_dag_alpha" not in returned
+
+    @pytest.mark.parametrize(
+        ("bundle_name", "expected_dag_ids"),
+        [
+            pytest.param(
+                "dag_maker",
+                {"folder_dag_a_etl_extract", "folder_dag_a_etl_load"},
+                id="dag_maker-bundle",
+            ),
+            pytest.param(OTHER_BUNDLE, {"folder_dag_other_etl"}, id="other-bundle"),
+        ],
+    )
+    def test_folder_filter_scoped_by_bundle(self, test_client, bundle_name, expected_dag_ids):
+        # Selecting a folder in the UI combines the folder path with its bundle, so the
+        # same ``team_a/etl`` path resolves to different Dags in different bundles.
+        response = test_client.get(
+            "/dags",
+            params={"relative_fileloc_prefix": "team_a/etl", "bundle_name": bundle_name},
+        )
+        assert response.status_code == 200
+        returned = {dag["dag_id"] for dag in response.json()["dags"]}
+        assert returned & set(FOLDER_DAGS) == expected_dag_ids
+
+    def test_no_folder_filter_returns_all_folder_dags(self, test_client):
+        response = test_client.get("/dags", params={"limit": 100})
+        assert response.status_code == 200
+        returned = {dag["dag_id"] for dag in response.json()["dags"]}
+        assert set(FOLDER_DAGS) <= returned

@@ -1196,3 +1196,10 @@ def test_run_immediately_does_not_pick_future_run(get_info: typing.Callable[[], 
     assert info is not None
     assert info.run_after <= pendulum.DateTime(2024, 11, 3, 5, 30, tzinfo=utc)
     assert info.run_after == pendulum.DateTime(2024, 11, 2, 5, tzinfo=utc)
+
+
+def test_cron_timetables_are_hashable():
+    timetable = CronTriggerTimetable("0 0 * * *", timezone="UTC")
+    same = CronTriggerTimetable("0 0 * * *", timezone="UTC")
+    assert timetable == same
+    assert hash(timetable) == hash(same)

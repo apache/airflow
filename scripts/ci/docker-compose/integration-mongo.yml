@@ -19,6 +19,8 @@ services:
   mongo:
     image: mongo:latest
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for MongoDB hooks."
     volumes:
       - mongo-db-volume:/data/db
@@ -40,3 +42,6 @@ services:
 
 volumes:
   mongo-db-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"

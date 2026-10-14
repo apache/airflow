@@ -353,6 +353,7 @@ class TestCommands:
             {"_id": "r10", "name": "Asset"},
             {"_id": "r11", "name": "AssetAlias"},
             {"_id": "r12", "name": "Configuration"},
+            {"_id": "r13", "name": "AdminView"},
         ]
 
         client.get_clients.return_value = [
@@ -415,6 +416,17 @@ class TestCommands:
                 "decisionStrategy": "UNANIMOUS",
                 "scopes": ["1"],
                 "resources": ["r5"],
+            },
+        )
+        client.create_client_authz_scope_permission.assert_any_call(
+            client_id="test-id",
+            payload={
+                "name": "AdminViewAccess",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "scopes": ["1"],
+                "resources": ["r13"],
             },
         )
         client.create_client_authz_scope_permission.assert_any_call(
@@ -746,16 +758,33 @@ class TestCommands:
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
+        for role_name in TEAM_ROLE_NAMES:
+            mock_attach_policy.assert_any_call(
+                client,
+                "test-id",
+                permission_name="ViewAccess",
+                policy_name=f"Allow-{role_name}-team-a",
+                scope_names=["GET"],
+                resource_names=["View"],
+                decision_strategy="AFFIRMATIVE",
+                _dry_run=False,
+            )
         mock_attach_policy.assert_any_call(
             client,
             "test-id",
-            permission_name="ViewAccess",
-            policy_name="Allow-Viewer-team-a",
+            permission_name="AdminViewAccess",
+            policy_name="Allow-SuperAdmin",
             scope_names=["GET"],
-            resource_names=["View"],
+            resource_names=["AdminView"],
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
+        admin_view_policies = [
+            c.kwargs["policy_name"]
+            for c in mock_attach_policy.call_args_list
+            if c.kwargs["permission_name"] == "AdminViewAccess" or "AdminView" in c.kwargs["resource_names"]
+        ]
+        assert admin_view_policies == ["Allow-SuperAdmin"]
         mock_ensure_scope_permission.assert_any_call(
             client,
             "test-id",

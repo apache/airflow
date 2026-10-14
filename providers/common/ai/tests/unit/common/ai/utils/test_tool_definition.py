@@ -23,7 +23,11 @@ import pytest
 from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.utils import tool_definition
-from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
+from airflow.providers.common.ai.utils.tool_definition import (
+    build_args_validator,
+    return_schema_kwargs,
+    serialize_for_llm,
+)
 
 
 def test_returns_kwarg_when_supported():
@@ -162,3 +166,18 @@ class TestBuildArgsValidator:
         validator = build_args_validator(schema)
         args = {"payload": {"any": 1, "deep": {"k": "v"}}}
         assert _validate(validator, args, use_json) == args
+
+
+@pytest.mark.enable_redact
+def test_serialize_for_llm_masks_a_secret_that_json_escapes(register_secret):
+    secret = register_secret('db-pa"ss-91c3')
+
+    assert json.loads(serialize_for_llm({"password": secret})) == {"password": "***"}
+
+
+@pytest.mark.enable_redact
+def test_serialize_for_llm_masks_before_rendering_a_value_json_cannot_encode(register_secret):
+    """A tuple key makes json.dumps fail, and str() would escape the backslash in the secret."""
+    secret = register_secret("db-pa\\ss-91c3")
+
+    assert serialize_for_llm({("eu", "gold"): f"dsn={secret}"}) == "{('eu', 'gold'): 'dsn=***'}"

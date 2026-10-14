@@ -345,6 +345,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param cluster: the cluster name on Elastic Container Service
     :param overrides: the same parameter that boto3 will receive (templated):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+        Note that ``containerOverrides[].environment`` is merged into the environment defined by
+        the task definition, while the other container override fields replace the task
+        definition's value. See :ref:`howto/operator:EcsRunTaskOperator`.
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
         (https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html).

@@ -23,8 +23,7 @@ Model-backed retry policies, one per layer of a ladder from hardcoded to reasoni
 * **Classifier.** :class:`ClassifierRetryPolicy`: the model names one of the author's
   ``categories`` and the :class:`ErrorCategory` table decides whether that category is
   retried, after how long, and how sure the model has to be. Tuned through descriptions and
-  a confidence bar, not through reasoning. A classifier model such as TypeSafe's Jev runs
-  here; a text model can too.
+  a confidence bar, not through reasoning. A decision model runs here; a text model can too.
 * **LLM.** :class:`LLMRetryPolicy`: a text model classifies the failure, decides whether to
   retry and how long to wait from ``instructions``, and explains itself.
 
@@ -38,11 +37,12 @@ Requires Airflow 3.3+ (RetryPolicy was added in AIP-105).
 from __future__ import annotations
 
 import logging
+import traceback
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel
 
@@ -56,7 +56,7 @@ from airflow.providers.common.ai.utils.decision import (
     review_reason,
     threshold_for,
 )
-from airflow.providers.common.compat.sdk import redact
+from airflow.providers.common.ai.utils.masking import mask_secrets
 
 try:
     from airflow.sdk.definitions.retry_policy import (
@@ -128,6 +128,11 @@ class ErrorClassification(BaseModel):
 class ErrorCategory:
     """
     One kind of failure a :class:`ClassifierRetryPolicy` may name, and what it does when it does.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     The value of the policy's ``categories`` mapping, keyed by the category name the model
     answers with.
@@ -215,13 +220,14 @@ categories: those travel in the output schema with their descriptions, so a prom
 
 def redact_registered_secrets(message: str) -> str:
     """Mask values registered via ``mask_secret()``; the default ``redactor`` for the policies here."""
-    # redact() is typed for arbitrary containers; a str in always yields a str out.
-    return cast("str", redact(message))
+    return mask_secrets(message)
 
 
 _REDACTION_PARAMS_DOC = """
-    :param redactor: Callable applied to the exception's string representation
-        before it is added to the classification prompt. Defaults to
+    :param redactor: Callable applied to the exception text (its string
+        representation, or the whole formatted traceback with
+        ``include_traceback=True``) before it is added to the classification
+        prompt. Defaults to
         :func:`~airflow.providers.common.ai.policies.retry.redact_registered_secrets`,
         which only masks values already registered via ``mask_secret()``.
         Pass a custom callable to replace the default masking entirely --
@@ -235,17 +241,31 @@ _REDACTION_PARAMS_DOC = """
         an explicit ``redactor`` raises ``ValueError`` at construction time,
         since the two settings would otherwise conflict silently.
     :param max_exception_length: Maximum number of characters of the
-        (already redacted) exception message included in the prompt. Longer
-        messages are truncated with a trailing ``"... (truncated)"`` marker.
-        Must be a positive integer. Defaults to 4096.
+        (already redacted) exception text included in the prompt. A longer
+        message is cut to its head with a trailing ``"... (truncated)"`` marker;
+        a longer traceback (``include_traceback=True``) is cut to its tail with a
+        leading ``"(truncated) ..."`` marker, so the innermost frames and the
+        final exception line survive. Must be a positive integer. Defaults to 4096.
+    :param include_traceback: Send the formatted traceback instead of
+        ``ExceptionType: message``. Defaults to ``False``. The traceback is what
+        :func:`traceback.format_exception` produces: the stack frames with their
+        file paths and source lines, every chained exception (``__cause__`` and
+        ``__context__``), and module-qualified class names such as
+        ``botocore.exceptions.ClientError``. Local variable values of the frames
+        are not included. The whole text goes through ``redactor`` before it is
+        truncated. A traceback is usually many times longer than the message, so
+        each classification costs more input tokens, up to
+        ``max_exception_length`` characters.
 
     .. warning::
         The exception's string representation is sent to the configured
         external LLM provider (OpenAI, Anthropic, Bedrock, Vertex, Ollama,
         etc.) as part of the classification prompt, so it may leak whatever
         the failing task put in the exception message — connection strings,
-        credential fragments, PII, or other secrets. By default the message
-        is run through
+        credential fragments, PII, or other secrets. With
+        ``include_traceback=True`` that also covers the messages of chained
+        exceptions, file paths on the worker, and the source line of each
+        frame. By default the text is run through
         :func:`~airflow.providers.common.ai.policies.retry.redact_registered_secrets`
         via ``redactor``, which masks values already registered via
         ``mask_secret()`` (for example, connection passwords Airflow
@@ -276,6 +296,7 @@ class _ModelRetryPolicy(RetryPolicy):
         redactor: Callable[[str], str] | None = None,
         redact_exception: bool = True,
         max_exception_length: int = 4096,
+        include_traceback: bool = False,
     ) -> None:
         if max_exception_length <= 0:
             raise ValueError(f"max_exception_length must be a positive integer, got {max_exception_length}")
@@ -296,6 +317,7 @@ class _ModelRetryPolicy(RetryPolicy):
         )
         self.redact_exception = redact_exception
         self.max_exception_length = max_exception_length
+        self.include_traceback = include_traceback
 
     def _hook(self) -> PydanticAIHook:
         from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
@@ -303,14 +325,23 @@ class _ModelRetryPolicy(RetryPolicy):
         return PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
 
     def _prompt(self, exception: BaseException, try_number: int, max_tries: int) -> str:
+        if self.include_traceback:
+            text = "".join(traceback.format_exception(exception)).rstrip("\n")
+        else:
+            text = str(exception)
         # Redact before truncating -- truncating first could cut a registered secret in half.
-        message = self.redactor(str(exception)) if self.redactor is not None else str(exception)
-        if len(message) > self.max_exception_length:
-            message = f"{message[: self.max_exception_length]}... (truncated)"
+        if self.redactor is not None:
+            text = self.redactor(text)
+        if len(text) > self.max_exception_length:
+            if self.include_traceback:
+                # Keep the tail: the innermost frames and the final exception line say the most.
+                text = f"(truncated) ...{text[-self.max_exception_length :]}"
+            else:
+                text = f"{text[: self.max_exception_length]}... (truncated)"
+        if not self.include_traceback:
+            text = f"{type(exception).__name__}: {text}"
         return (
-            f"Classify this error from a data pipeline task "
-            f"(attempt {try_number} of {max_tries}):\n\n"
-            f"{type(exception).__name__}: {message}"
+            f"Classify this error from a data pipeline task (attempt {try_number} of {max_tries}):\n\n{text}"
         )
 
     def _run(
@@ -343,9 +374,8 @@ class LLMRetryPolicy(_ModelRetryPolicy):
     Ollama, etc.) for error classification with structured output. The model
     returns an :class:`ErrorClassification`: which category the error is, whether
     to retry, how long to wait, and why, all steered by ``instructions``. This is
-    the reasoning layer; for a cheap typed decision from a classifier model such as
-    TypeSafe's Jev, use :class:`ClassifierRetryPolicy`, which can name this policy as
-    its ``fallback_policy``.
+    the reasoning layer; for a cheap typed decision from a decision model, use
+    :class:`ClassifierRetryPolicy`, which can name this policy as its ``fallback_policy``.
 
     When the LLM call itself fails, the policy falls back to ``fallback_rules``
     (if provided) or returns DEFAULT to use the task's standard retry logic.
@@ -394,11 +424,11 @@ class LLMRetryPolicy(_ModelRetryPolicy):
             result = self._run(agent, exception, try_number, max_tries)
         except Exception as exc:
             if "not supported by this model" in str(exc):
-                # A classifier model refuses ErrorClassification's free-text fields client-side. A text
+                # A decision model refuses ErrorClassification's free-text fields client-side. A text
                 # model whose profile lacks structured output raises the same words, so this is a hint.
                 log.error(
-                    "This model cannot answer ErrorClassification. If it is a classifier model such as "
-                    "TypeSafe's Jev, use ClassifierRetryPolicy, which asks it a typed question."
+                    "This model cannot answer ErrorClassification. If it is a decision model, "
+                    "use ClassifierRetryPolicy, which asks it a typed question."
                 )
             raise
         classification = result.output
@@ -429,11 +459,15 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
     """
     Retry policy where the model names the kind of failure and the author's table decides.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The model's only job is to pick one of ``categories``; it reads each one's description
     from the output schema. Whether that category is retried, after how long, and how sure
     the model has to be all come from the :class:`ErrorCategory` in the worker process.
-    That is the shape a classifier model such as TypeSafe's Jev answers, in a few hundred
-    milliseconds and with a confidence; a text model answers it too.
+    That is the shape a decision model answers, with a confidence; a text model answers it too.
 
     When the model call fails, or the answer is under its confidence bar, the policy
     consults ``fallback_policy`` if set, then ``fallback_rules``, then returns DEFAULT to use
@@ -458,7 +492,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         outside them is rejected before the policy acts on it.
     :param min_confidence: The confidence, from 0 to 1, the model's answer needs for the
         policy to act on it. ``None`` (default) is no bar: the answer is acted on whatever
-        the confidence. Confidence comes from models that report one, such as a classifier
+        the confidence. Confidence comes from models that report one, such as a decision
         model, in ``provider_details``. Under the bar, or when a bar is set and the model
         reported no confidence, the answer is discarded and ``fallback_policy``, then
         ``fallback_rules``, then the task's own retry behaviour apply, so swapping the
@@ -492,6 +526,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         redactor: Callable[[str], str] | None = None,
         redact_exception: bool = True,
         max_exception_length: int = 4096,
+        include_traceback: bool = False,
     ) -> None:
         super().__init__(
             llm_conn_id,
@@ -502,6 +537,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
             redactor=redactor,
             redact_exception=redact_exception,
             max_exception_length=max_exception_length,
+            include_traceback=include_traceback,
         )
         self.min_confidence = None if min_confidence is None else check_bar(min_confidence, "min_confidence")
         self.categories: dict[str, ErrorCategory] = self._validate_categories(

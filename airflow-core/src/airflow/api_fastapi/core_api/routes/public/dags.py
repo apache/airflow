@@ -58,7 +58,9 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.dags import (
+    BulkDAGBody,
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
@@ -71,24 +73,19 @@ from airflow.api_fastapi.core_api.security import (
     GetUserDep,
     ReadableDagsFilterDep,
     requires_access_dag,
+    requires_access_dag_bulk,
 )
+from airflow.api_fastapi.core_api.services.public.dags import BulkDagService, get_scheduling_state
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DagModel
 from airflow.models.dag_favorite import DagFavorite
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, DagSchedulingState
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
-
-
-def _get_scheduling_state(patch_body: DAGPatchBody) -> DagSchedulingState:
-    if patch_body.scheduling_state is not None:
-        return patch_body.scheduling_state
-    if patch_body.is_paused is True:
-        return DagSchedulingState.PAUSED
-    return DagSchedulingState.ACTIVE
 
 
 @dags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
@@ -274,11 +271,26 @@ def get_dag_details(
         or 0
     )
 
-    # Add is_favorite and active_runs_count fields to the Dag model
+    latest_dag_version = DagVersion.get_latest_version(
+        dag_id, load_dag_model=True, load_bundle_model=True, session=session
+    )
+
+    # Add is_favorite, active_runs_count and latest_dag_version fields to the Dag model
     setattr(dag_model, "is_favorite", is_favorite)
     setattr(dag_model, "active_runs_count", active_runs_count)
+    setattr(dag_model, "latest_dag_version", latest_dag_version)
 
     return DAGDetailsResponse.model_validate(dag_model)
+
+
+@dags_router.patch(
+    # Declared before "/{dag_id}" so this literal segment isn't shadowed by that path param.
+    "/bulk",
+    dependencies=[Depends(requires_access_dag_bulk()), Depends(action_logging())],
+)
+def bulk_dags(request: BulkBody[BulkDAGBody], session: SessionDep) -> BulkResponse:
+    """Bulk pause, resume, or drain Dags by id."""
+    return BulkDagService(session=session, request=request).handle_request()
 
 
 @dags_router.patch(
@@ -327,7 +339,7 @@ def patch_dag(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
 
-    dag.set_scheduling_state(_get_scheduling_state(patch_body))
+    dag.set_scheduling_state(get_scheduling_state(patch_body))
 
     return dag
 
@@ -410,7 +422,7 @@ def patch_dags(
         ],
     ).subquery()
 
-    scheduling_state = _get_scheduling_state(patch_body)
+    scheduling_state = get_scheduling_state(patch_body)
     session.execute(
         update(DagModel)
         .where(DagModel.dag_id.in_(select(filtered_dag_ids.c.dag_id)))
@@ -430,7 +442,7 @@ def patch_dags(
 @dags_router.post(
     "/{dag_id}/favorite",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
     dependencies=[Depends(requires_access_dag(method="GET")), Depends(action_logging())],
 )
 def favorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
@@ -440,6 +452,19 @@ def favorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Dag with id '{dag_id}' not found")
 
     user_id = str(user.get_id())
+
+    favorite_exists = session.execute(
+        select(DagFavorite)
+        .where(
+            DagFavorite.dag_id == dag_id,
+            DagFavorite.user_id == user_id,
+        )
+        .limit(1)
+    ).first()
+
+    if favorite_exists:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Dag is already marked as favorite")
+
     session.execute(insert(DagFavorite).values(dag_id=dag_id, user_id=user_id))
 
 

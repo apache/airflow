@@ -30,7 +30,8 @@ the shape most of the others build on: structured output plus dynamic task mappi
 
 Every Dag needs the provider installed with the extra for your model vendor and a
 ``pydanticai`` connection named ``pydanticai_default``; :doc:`../quickstart` covers both.
-Each page's "Run it" lists only what that Dag adds.
+Each page's "Run it" lists only what that Dag adds. :doc:`route_pipeline_failures` is the
+exception: it reads a decision-model connection, ``decision_default``, instead.
 
 .. list-table::
    :header-rows: 1

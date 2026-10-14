@@ -32,7 +32,8 @@ Before you start
 ------------------
 
 This guide assumes a working :doc:`apache-airflow:installation/index`
-(Airflow 3.0+) already exists. Its job stops at wiring Airflow to a server
+(Airflow 2.11+; on Airflow 2 see :ref:`howto/installation` for
+what differs) already exists. Its job stops at wiring Airflow to a server
 that's already running -- it doesn't cover installing or operating the
 model-serving stack itself.
 
@@ -373,6 +374,9 @@ Where to go next
 -------------------
 
 - :ref:`howto/connection:pydanticai` -- the full connection field reference.
+- :doc:`decision_models` -- a self-hosted decision model, such as Strands Decider or one
+  Ollama runs, takes ``system-one:<model>`` with the server URL in ``host`` rather than
+  the ``openai:`` or ``ollama:`` prefixes on this page.
 - :doc:`retry_policies` -- the "Local LLM support" section covers pointing
   ``LLMRetryPolicy`` at a self-hosted endpoint.
 - :doc:`examples` -- more runnable Dags against the ``pydanticai``

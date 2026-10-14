@@ -89,7 +89,11 @@ type CardContentMode = "fallback" | "hydrated" | "pending";
 // skeletons rather than StateBadges. Without this, every card would emit
 // 4 extra "state-badge" testids and break getByTestId assertions in tests
 // that target the latest-run badge.
-const renderCard = (dag: DAGWithLatestDagRunsResponse, contentMode: CardContentMode = "hydrated") => {
+const renderCard = (
+  dag: DAGWithLatestDagRunsResponse,
+  contentMode: CardContentMode = "hydrated",
+  showRecentTaskStateCounts = true,
+) => {
   dagCardObservers.length = 0;
 
   if (contentMode === "fallback") {
@@ -99,7 +103,13 @@ const renderCard = (dag: DAGWithLatestDagRunsResponse, contentMode: CardContentM
   }
 
   const result = render(
-    <DagCard dag={dag} runStateCounts={undefined} runStateCountsLoading stateCountLimit={undefined} />,
+    <DagCard
+      dag={dag}
+      recentTasks={{ entriesByDag: {}, isLoading: true, show: showRecentTaskStateCounts }}
+      runStateCounts={undefined}
+      runStateCountsLoading
+      stateCountLimit={undefined}
+    />,
     {
       wrapper: GMTWrapper,
     },
@@ -430,5 +440,17 @@ describe("DagCard", () => {
     expect(stateBadge).toBeInTheDocument();
     // Should have the failed state
     expect(stateBadge).toHaveAttribute("aria-label", "failed");
+  });
+
+  it.each([true, false])("shows recent tasks only when the setting is %s", (show) => {
+    renderCard(mockDag, "hydrated", show);
+
+    const counts = screen.queryByTestId(`recent-task-state-counts-loading-${mockDag.dag_id}`);
+
+    if (show) {
+      expect(counts).toBeInTheDocument();
+    } else {
+      expect(counts).not.toBeInTheDocument();
+    }
   });
 });

@@ -114,7 +114,7 @@ class PydanticAIHook(BaseHook):
     Hook for LLM access via pydantic-ai.
 
     Covers providers that use a standard ``api_key`` + optional ``base_url``
-    (OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, vLLM, …).
+    (OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, vLLM, GitHub Copilot, …).
 
     For cloud providers with non-standard auth use the dedicated subclasses:
     :class:`PydanticAIAzureHook`, :class:`PydanticAIBedrockHook`,
@@ -192,6 +192,16 @@ class PydanticAIHook(BaseHook):
         self._embedder_kwargs: dict[str, Any] | None = None
         self._connections: dict[str, Connection] = {}
         self._connection_extra_dejson: dict[str, dict[str, Any]] = {}
+
+    @classmethod
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None):
+        """
+        Return the hook for ``conn_id``, built with ``hook_params``.
+
+        Airflow 3's ``BaseHook.get_hook`` already takes ``hook_params``; Airflow 2's does
+        not, so this mirrors the Airflow 3 body.
+        """
+        return cls.get_connection(conn_id).get_hook(hook_params=hook_params)
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:

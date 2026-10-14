@@ -22,7 +22,6 @@ from __future__ import annotations
 import inspect
 import re
 import time
-import warnings
 from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -62,6 +61,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocSubmitTrigger,
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import StartTriggerArgs
 
@@ -117,6 +117,14 @@ class InstanceFlexibilityPolicy:
     instance_selection_list: list[InstanceSelection]
 
 
+@deprecated(
+    planned_removal_date="September 1, 2027",
+    reason="Since passing cluster parameters by keyword in the DataprocCreateClusterOperator is scheduled "
+    "for deletion, there is no longer a need to maintain the 'ClusterGenerator' helper class.",
+    instructions="Please pass 'cluster_config' or 'virtual_cluster_config' directly as "
+    "DataprocCreateClusterOperator arguments.",
+    category=AirflowProviderDeprecationWarning,
+)
 class ClusterGenerator:
     """
     Create a new Dataproc Cluster.
@@ -712,16 +720,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
-        # TODO: remove one day
         if cluster_config is None and virtual_cluster_config is None:
-            warnings.warn(
-                f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
-                "Please provide cluster_config object using `cluster_config` parameter. "
-                "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` "
-                "method to obtain cluster object. Planned removal date: October 5, 2026.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
             # Remove result of apply defaults
             if "params" in kwargs:
                 del kwargs["params"]

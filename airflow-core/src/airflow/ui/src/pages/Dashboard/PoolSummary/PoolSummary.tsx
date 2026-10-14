@@ -46,7 +46,7 @@ export const PoolSummary = () => {
       refetchInterval: (query) => {
         const apiError = query.state.error;
 
-        return apiError?.status === 403 ? false : refetchInterval;
+        return apiError?.status !== 403 && refetchInterval;
       },
     },
   );

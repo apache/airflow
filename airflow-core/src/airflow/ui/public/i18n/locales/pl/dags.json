@@ -1,34 +1,59 @@
 {
-  "assetSchedule": "Uaktualniono {{count}} z {{total}} zasobów",
+  "assetSchedule": "Uaktualniono {{count, number}} z {{total, number}} zasobów",
   "dagActions": {
     "delete": {
       "button": "Usuń Daga",
       "warning": "Wszystkie metadane, włączając metadane Dagów, wykonań Dagów i zadań zostaną usunięte."
     }
   },
+  "draining": {
+    "badgeTooltip": "Ten Dag zostanie wstrzymany, gdy zakończą się jego trwające wykonania.",
+    "label": "Wygaszane",
+    "tooltip": "Wygaszanie {{dagDisplayName}} — wstrzymanie nastąpi po zakończeniu trwających wykonań. Kliknij, aby wznowić."
+  },
   "favoriteDag": "Ulubiony Dag",
   "filters": {
     "allRunTypes": "Wszystkie Typy Wykonań Dagów",
     "allStates": "Wszystkie Stany",
-    "anyRunState": "Dowolne wykonanie",
     "favorite": {
       "all": "Wszystkie",
       "favorite": "Ulubione",
       "unfavorite": "Nieulubione"
     },
-    "lastRunState": "Ostatnie wykonanie",
+    "favoriteState": "Stan ulubionych",
+    "favoriteStatePlaceholder": "Wybierz stan ulubionych…",
+    "noTimetableTypesFound": "Nie znaleziono typów harmonogramu",
     "paused": {
       "active": "Aktywne",
       "all": "Wszystkie",
       "paused": "Wstrzymane"
     },
-    "runIdPatternFilter": "Szukaj Wykonań Dagów"
+    "pausedPlaceholder": "Wybierz stan wstrzymania…",
+    "pausedState": "Stan wstrzymania",
+    "requiresHitlAction": "Wymaga akcji HITL",
+    "runIdPatternFilter": "Szukaj Wykonań Dagów",
+    "runState": "Stan wykonania",
+    "runStatePlaceholder": "Wybierz stan wykonania…",
+    "timetableType": "Typ harmonogramu"
+  },
+  "folders": {
+    "all": "Wszystkie Dagi",
+    "empty": "Brak folderów",
+    "hide": "Ukryj foldery",
+    "show": "Pokaż foldery",
+    "title": "Foldery"
   },
   "ownerLink": "Link do właściciela {{owner}}",
+  "recentTaskStateCounts": {
+    "description": "Stan zadań ze wszystkich trwających wykonań Dagów lub, jeśli żadne nie trwa, z ostatniego wykonania. Możesz to wyłączyć w ustawieniach użytkownika.",
+    "label": "Ostatnie zadania",
+    "loading": "Ładowanie liczby ostatnich zadań według stanu",
+    "tooltip": "{{state}}: {{formattedCount}} — kliknij, aby filtrować zadania"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Nie znaleziono zadań.",
-      "title": "Liczba wybranych zadań: {{count}}"
+      "title": "Liczba wybranych zadań: {{count, number}}"
     },
     "clear": {
       "button": "Wyczyść {{type}}",
@@ -64,17 +89,20 @@
         "failed": "Użyj shift+f aby oznaczyć jako nieudane",
         "success": "Użyj shift+s aby oznaczyć jako udane"
       },
+      "skippedInfo": "Oznaczenie instancji zadania jako pominiętej zapisuje, że celowo jej nie uruchomiono. Zadania zależne są nadal oceniane według swoich reguł zależności: przy domyślnej regule \"all_success\" również zostaną pominięte. Pominąć można tylko instancje zadań, które jeszcze nie zostały uruchomione, a zmiana dotyczy tylko tej instancji zadania.",
       "title": "Ustaw {{type}} jako {{state}}"
     },
     "options": {
       "downstream": "Taski podrzędne",
       "existingTasks": "Wyczyść istniejące zadania",
       "future": "Przyszłe zadania",
+      "keepTaskState": "Zachowaj stan zadania i wznów",
       "onlyFailed": "Wyczyść tylko nieudane zadania",
       "past": "Przeszłe zadania",
       "preventRunningTasks": "Zapobiegaj ponownemu uruchomieniu, jeśli zadanie jest uruchomione",
       "queueNew": "Kolejkuj nowe zadania",
       "runOnLatestVersion": "Uruchom w najnowszej wersji paczki Dagów",
+      "runOnLatestVersionForced": "Zawsze używa najnowszej — nie ma wcześniejszej wersji, do której można wrócić",
       "upstream": "Taski nadrzędne"
     }
   },
@@ -83,9 +111,20 @@
     "loading": "Ładowanie liczby wykonań według stanu",
     "tooltip": "{{state}}: {{formattedCount}} — kliknij, aby filtrować wykonania"
   },
+  "schedulingActions": {
+    "cancelDrain": "Anuluj wygaszanie",
+    "drain": "Wygaś, potem wstrzymaj",
+    "drainPrompt": "Ten Dag ma trwające wykonania. Wygaszanie pozwoli im się zakończyć, zanim Dag zostanie wstrzymany; wstrzymanie teraz natychmiast zatrzyma planowanie, bez czekania na nie.",
+    "pauseNow": "Wstrzymaj teraz",
+    "pauseSelected": "Wstrzymaj / wygaś"
+  },
+  "schedulingBanner": {
+    "message": "Ten Dag jest wygaszany. Zostanie wstrzymany, gdy zakończą się jego trwające wykonania."
+  },
   "search": {
     "advanced": "Wyszukiwanie zaawansowane",
     "clear": "Wyczyść wyszukiwanie",
+    "dagRuns": "Szukaj wykonań Dagów",
     "dags": "Szukaj Dagów",
     "hotkey": "+K",
     "tasks": "Szukaj instancji zadań"
