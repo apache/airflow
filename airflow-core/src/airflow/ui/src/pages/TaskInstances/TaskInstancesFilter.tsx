@@ -65,7 +65,7 @@ export const TaskInstancesFilter = () => {
 
   // A loop lives in one run, so this only makes sense once a run is in scope.
   if (runId !== undefined) {
-    paramKeys.push(LOOP_PARAM);
+    paramKeys.push(LOOP_PARAM as FilterableSearchParamsKeys);
   }
 
   if (multiTeamEnabled) {

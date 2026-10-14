@@ -19,7 +19,6 @@
 import { useRef } from "react";
 
 import { Box, HStack, createListCollection } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
 import { MdLoop } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
@@ -54,7 +53,6 @@ const collapsePill = () => {
  * leave the table empty with nothing to say why.
  */
 export const LoopFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
-  const { t: translate } = useTranslation(["common"]);
   const { dagId, groupId, runId } = useParams();
   const value = isLoopFilterValue(filter.value) ? filter.value : undefined;
   const { options } = useLoopFilterOptions({ dagId, groupId, runId });

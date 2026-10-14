@@ -122,7 +122,6 @@ describe("Modal", () => {
       { wrapper: BaseWrapper },
     );
 
-    const footer = screen.getByRole("button", { name: "Save" }).closest(".chakra-dialog__footer");
     const option = screen.getByText("Keep state");
 
     // Compared against the Save button rather than the footer's first child, which wraps both

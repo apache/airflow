@@ -126,7 +126,7 @@ const TaskInstanceTooltip = ({
                   never reached it. Shown for a first try too, since clearing a loop pass
                   regenerates the later ones as fresh executions that start at try 1 -- two
                   neighbouring bars can both be a first try, and this is what tells them apart. */}
-              {typeof taskInstance.try_number === "number" && (
+              {"try_number" in taskInstance && typeof taskInstance.try_number === "number" && (
                 <Text>
                   {translate("tryNumber")}: {taskInstance.try_number}
                 </Text>
