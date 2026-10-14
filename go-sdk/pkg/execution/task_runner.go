@@ -34,11 +34,10 @@ import (
 // RunTask executes a task based on StartupDetails received from the supervisor.
 //
 // It looks up the task in the bundle, creates a CoordinatorClient for SDK
-// calls, deletes the XComs that ti_context.xcom_keys_to_clear lists, executes
-// the task, and returns the terminal body to ship as the final response frame:
-// one of genmodels.SucceedTask, TaskState, RetryTask, or DeferTask. A task from airflow.TriggerDagRun
-// is the only one that defers, and RunTask runs it without a Go function. When RunTask cannot
-// delete an XCom, or arg_bindings is invalid, the task fails without running.
+// calls, executes the task, and returns the terminal body to ship as the final
+// response frame: one of genmodels.SucceedTask, TaskState, RetryTask, or DeferTask. A task from
+// airflow.TriggerDagRun is the only task that defers, and RunTask runs it without a Go function.
+// When arg_bindings is invalid, the task fails without running.
 //
 // The supervisor owns the Execution-API state transitions, so the runtime only
 // invokes the user's task function and returns its terminal response.
@@ -89,23 +88,6 @@ func RunTask(
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))
 	ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
 	ctx = bundle.WithSkipDownstreamTasks(ctx, client.skipDownstreamTasks)
-
-	// Airflow keeps the XComs that a task instance already has when it starts a new try. It lists
-	// their keys in xcom_keys_to_clear, and the runtime deletes them before the task runs, as the
-	// Python task runner does before it renders templates. The list is empty when the task resumes
-	// from a deferral.
-	for _, key := range details.TIContext.XcomKeysToClear {
-		logger.Debug("Clearing XCom with key", "key", key)
-		if err := client.deleteXCom(ctx, ti, key); err != nil {
-			logger.Error("Unable to clear XCom",
-				"dag_id", details.TI.DagID,
-				"task_id", details.TI.TaskID,
-				"key", key,
-				"error", err,
-			)
-			return failTask(details.TIContext.ShouldRetry, err)
-		}
-	}
 
 	// The runtime runs a TriggerDagRun task itself. It has no Go function to bind arguments to.
 	if trigger, ok := task.(*bundle.TriggerTask); ok {

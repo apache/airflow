@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -181,15 +180,12 @@ func TestTaskRunnerTaskNotFound(t *testing.T) {
 	})
 
 	details := newStartupDetails("nonexistent")
-	details.TIContext.XcomKeysToClear = []string{"return_value"}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	var sent bytes.Buffer
-	comm := NewCoordinatorComm(bytes.NewReader(nil), &sent, logger)
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assertTaskState(t, result, genmodels.TaskStateStateRemoved)
-	assert.Zero(t, sent.Len(), "a task that is not in the bundle must not delete any XCom")
 }
 
 func TestTaskRunnerPanic(t *testing.T) {
@@ -1105,23 +1101,12 @@ func serveTask(
 // answerAll replies to every runtime request with an empty response.
 func answerAll(map[string]any) map[string]any { return nil }
 
-// TestServeClearsTheXComsOfEarlierTriesEndToEnd pins that the runtime deletes each XCom that
-// ti_context.xcom_keys_to_clear lists before the task sends anything. The DeleteXCom frame leaves
-// map_index out for an unmapped task instance and carries the index of a mapped one, 0 included.
-func TestServeClearsTheXComsOfEarlierTriesEndToEnd(t *testing.T) {
-	deleteXCom := func(key string, mapIndex any) map[string]any {
-		frame := map[string]any{
-			"type":    "DeleteXCom",
-			"dag_id":  "dag1",
-			"run_id":  "run1",
-			"task_id": "extract",
-			"key":     key,
-		}
-		if mapIndex != nil {
-			frame["map_index"] = mapIndex
-		}
-		return frame
-	}
+// TestServeLeavesTheXComsToClearToTheSupervisorEndToEnd runs tasks through the real Serve, and
+// each task's ti_context lists XComs to clear. The runtime sends only the task's own requests,
+// that is, the return value XCom. For a mapped task instance, that XCom carries the task
+// instance's map_index, including 0. The runtime sends no request to delete the listed XComs.
+// A task with an invalid arg binding does not run, and ends as RetryTask when should_retry is set.
+func TestServeLeavesTheXComsToClearToTheSupervisorEndToEnd(t *testing.T) {
 	returnValue := func(mapIndex any) map[string]any {
 		frame := map[string]any{
 			"type":    "SetXCom",
@@ -1139,41 +1124,37 @@ func TestServeClearsTheXComsOfEarlierTriesEndToEnd(t *testing.T) {
 	tests := []struct {
 		name         string
 		mapIndex     *int
-		keys         []any
+		tiContext    map[string]any
 		wantRequests []map[string]any
+		wantTerminal string
+		wantReason   string
 	}{
 		{
-			name:     "unmapped",
-			mapIndex: ptr(-1),
-			keys:     []any{"return_value", "skipmixin_key"},
-			wantRequests: []map[string]any{
-				deleteXCom("return_value", nil),
-				deleteXCom("skipmixin_key", nil),
-				returnValue(nil),
-			},
-		},
-		{
-			name:     "map index 0",
-			mapIndex: ptr(0),
-			keys:     []any{"return_value"},
-			wantRequests: []map[string]any{
-				deleteXCom("return_value", int8(0)),
-				returnValue(int8(0)),
-			},
-		},
-		{
-			name:     "map index 2",
-			mapIndex: ptr(2),
-			keys:     []any{"return_value"},
-			wantRequests: []map[string]any{
-				deleteXCom("return_value", int8(2)),
-				returnValue(int8(2)),
-			},
-		},
-		{
-			name:         "no keys",
+			name:         "unmapped",
 			mapIndex:     ptr(-1),
 			wantRequests: []map[string]any{returnValue(nil)},
+			wantTerminal: "SucceedTask",
+		},
+		{
+			name:         "map index 0",
+			mapIndex:     ptr(0),
+			wantRequests: []map[string]any{returnValue(int8(0))},
+			wantTerminal: "SucceedTask",
+		},
+		{
+			name:         "map index 2",
+			mapIndex:     ptr(2),
+			wantRequests: []map[string]any{returnValue(int8(2))},
+			wantTerminal: "SucceedTask",
+		},
+		{
+			name: "invalid arg binding",
+			tiContext: map[string]any{
+				"arg_bindings": []any{map[string]any{"kind": "bogus", "name": "x"}},
+				"should_retry": true,
+			},
+			wantTerminal: "RetryTask",
+			wantReason:   `unknown kind "bogus"`,
 		},
 	}
 	for _, tt := range tests {
@@ -1182,9 +1163,11 @@ func TestServeClearsTheXComsOfEarlierTriesEndToEnd(t *testing.T) {
 				func(contexttest.Context) (string, error) { return "rows", nil },
 			)
 			require.NoError(t, err)
-			tiContext := map[string]any{}
-			if tt.keys != nil {
-				tiContext["xcom_keys_to_clear"] = tt.keys
+			tiContext := map[string]any{
+				"xcom_keys_to_clear": []any{"return_value", "skipmixin_key"},
+			}
+			for k, v := range tt.tiContext {
+				tiContext[k] = v
 			}
 
 			requests, terminal := serveTask(
@@ -1197,145 +1180,10 @@ func TestServeClearsTheXComsOfEarlierTriesEndToEnd(t *testing.T) {
 			)
 
 			assert.Equal(t, tt.wantRequests, requests)
-			assert.Equal(t, "SucceedTask", terminal["type"])
-		})
-	}
-}
-
-// TestServeFailsWhenItCannotClearAnXComEndToEnd pins that the task does not run when the runtime
-// cannot delete an XCom that ti_context.xcom_keys_to_clear lists. The task then ends like a failed
-// task: as RetryTask when ti_context.should_retry is set, and as a FAILED TaskState otherwise.
-func TestServeFailsWhenItCannotClearAnXComEndToEnd(t *testing.T) {
-	for _, shouldRetry := range []bool{true, false} {
-		t.Run(fmt.Sprintf("should_retry=%t", shouldRetry), func(t *testing.T) {
-			ran := false
-			extract, err := bundle.NewTaskFunction(func(contexttest.Context) error {
-				ran = true
-				return nil
-			})
-			require.NoError(t, err)
-
-			requests, terminal := serveTask(t, "extract", extract, nil, map[string]any{
-				"xcom_keys_to_clear": []any{"return_value", "skipmixin_key"},
-				"should_retry":       shouldRetry,
-			}, func(map[string]any) map[string]any {
-				return map[string]any{
-					"type":   "ErrorResponse",
-					"error":  "API_SERVER_ERROR",
-					"detail": map[string]any{"status_code": 500},
-				}
-			})
-
-			assert.False(t, ran, "the task must not run")
-			assert.Equal(t, []map[string]any{{
-				"type":    "DeleteXCom",
-				"dag_id":  "dag1",
-				"run_id":  "run1",
-				"task_id": "extract",
-				"key":     "return_value",
-			}}, requests, "the runtime stops at the first XCom it cannot delete")
-			if shouldRetry {
-				assert.Equal(t, "RetryTask", terminal["type"])
-				assert.Contains(t, terminal["retry_reason"], "API_SERVER_ERROR")
-			} else {
-				assert.Equal(t, "TaskState", terminal["type"])
-				assert.Equal(t, "failed", terminal["state"])
-			}
-		})
-	}
-}
-
-// TestServeClearsXComsBeforeItBindsArgumentsEndToEnd pins that the runtime deletes the XComs
-// before it converts arg_bindings. When arg_bindings is invalid, the task fails without running,
-// and the XComs are still gone, as they are for a Python task whose templates fail to render.
-func TestServeClearsXComsBeforeItBindsArgumentsEndToEnd(t *testing.T) {
-	ran := false
-	extract, err := bundle.NewTaskFunction(func(contexttest.Context) error {
-		ran = true
-		return nil
-	})
-	require.NoError(t, err)
-
-	requests, terminal := serveTask(t, "extract", extract, nil, map[string]any{
-		"xcom_keys_to_clear": []any{"skipmixin_key"},
-		"arg_bindings":       []any{map[string]any{"kind": "bogus", "name": "x"}},
-	}, answerAll)
-
-	assert.False(t, ran, "the task must not run")
-	assert.Equal(t, []map[string]any{{
-		"type":    "DeleteXCom",
-		"dag_id":  "dag1",
-		"run_id":  "run1",
-		"task_id": "extract",
-		"key":     "skipmixin_key",
-	}}, requests)
-	assert.Equal(t, "TaskState", terminal["type"])
-	assert.Equal(t, "failed", terminal["state"])
-}
-
-// TestServeConditionDoesNotLeaveTheListOfAnEarlierTryEndToEnd covers a task that skips downstream
-// tasks and whose earlier try skipped load. When this try fails or skips nothing, it writes no
-// list, so only the deletion keeps NotPreviouslySkippedDep from reading the old list and skipping
-// load again. The fake supervisor keeps the XComs of the task instance to show what is left.
-func TestServeConditionDoesNotLeaveTheListOfAnEarlierTryEndToEnd(t *testing.T) {
-	tests := []struct {
-		name         string
-		fn           func(contexttest.Context) (bool, error)
-		wantTerminal string
-		wantXComs    map[string]any
-	}{
-		{
-			name: "fails",
-			fn: func(contexttest.Context) (bool, error) {
-				return false, errors.New("cannot reach the table")
-			},
-			wantTerminal: "TaskState",
-			wantXComs:    map[string]any{},
-		},
-		{
-			name:         "skips nothing",
-			fn:           func(contexttest.Context) (bool, error) { return true, nil },
-			wantTerminal: "SucceedTask",
-			wantXComs:    map[string]any{"return_value": true},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			decide, err := bundle.NewPositionalBranchFunction(
-				tt.fn,
-				func(result any) (any, []string, error) {
-					if result.(bool) {
-						return result, nil, nil
-					}
-					return result, []string{"load"}, nil
-				},
-			)
-			require.NoError(t, err)
-
-			xcoms := map[string]any{
-				"return_value":  false,
-				"skipmixin_key": map[string]any{"skipped": []any{"load"}},
-			}
-			requests, terminal := serveTask(t, "decide", decide, nil, map[string]any{
-				"xcom_keys_to_clear": []any{"return_value", "skipmixin_key"},
-			}, func(request map[string]any) map[string]any {
-				switch request["type"] {
-				case "DeleteXCom":
-					delete(xcoms, request["key"].(string))
-				case "SetXCom":
-					xcoms[request["key"].(string)] = request["value"]
-				}
-				return nil
-			})
-
-			require.GreaterOrEqual(t, len(requests), 2)
-			assert.Equal(t, "DeleteXCom", requests[0]["type"])
-			assert.Equal(t, "DeleteXCom", requests[1]["type"])
-			for _, request := range requests {
-				assert.NotEqual(t, "SkipDownstreamTasks", request["type"])
-			}
-			assert.Equal(t, tt.wantXComs, xcoms)
 			assert.Equal(t, tt.wantTerminal, terminal["type"])
+			if tt.wantReason != "" {
+				assert.Contains(t, terminal["retry_reason"], tt.wantReason)
+			}
 		})
 	}
 }
