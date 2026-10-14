@@ -49,9 +49,10 @@ How it works
   no GenAI spans are emitted.
 * **Correlation.** The worker opens a task span before the operator runs, so the
   agent's spans nest under it and share its ``trace_id``.
-  :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` (and
-  ``@task.agent``) additionally stamps the task-instance identity on every GenAI
-  span it emits: the five keys core tracing already puts on the task span
+  :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` and
+  :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` (and their
+  ``@task.agent`` / ``@task.llm`` decorator forms) additionally stamp the
+  task-instance identity on every GenAI span they emit: the five keys core tracing already puts on the task span
   (``airflow.dag_id``, ``airflow.task_id``, ``airflow.dag_run.run_id``,
   ``airflow.task_instance.try_number``, ``airflow.task_instance.map_index``) plus
   ``airflow.task_instance.id`` as the per-attempt run join key. So a span is

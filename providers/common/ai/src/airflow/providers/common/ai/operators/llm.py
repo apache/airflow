@@ -54,6 +54,7 @@ from airflow.providers.common.ai.utils.logging import (
     MODEL_NAME_XCOM_KEY,
     format_usage_for_xcom,
     log_run_summary,
+    log_run_usage,
 )
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
@@ -377,6 +378,10 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         except BaseException:
             # A run that raises partway through (e.g. a cost_limit-triggered UsageLimitExceeded)
             # still reports what it spent: the capped run is the one cost tracking most needs.
+            try:
+                log_run_usage(self.log, attempt_usage, outcome="failed")
+            except Exception:
+                self.log.warning("Failed to log partial usage for the failed run", exc_info=True)
             try:
                 self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
             except Exception:
