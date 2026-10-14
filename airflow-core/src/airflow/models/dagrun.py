@@ -90,6 +90,7 @@ from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.dynamic_region import (
+    FIRST_LOOP_ITERATION,
     LOOP_DECISION_REASON_KEY,
     SENTINEL_REGION_ID,
     DynamicRegion,
@@ -154,7 +155,7 @@ class InvalidLoopDecision(ValueError):
 
 def validate_loop_decision(stop: bool | None, region_index: int, group: SerializedLoopTaskGroup) -> None:
     """Raise :class:`InvalidLoopDecision` unless ``stop`` is valid for the gate of pass ``region_index``."""
-    at_limit = region_index + 1 >= group.max_iterations
+    at_limit = region_index >= group.max_iterations
     if stop is None:
         raise InvalidLoopDecision("Successful loop gate requires a decision")
     if not stop and at_limit:
@@ -2433,7 +2434,7 @@ class DagRun(Base, LoggingMixin):
                 region = DynamicRegion.get_or_create(
                     dag_id=self.dag_id, run_id=self.run_id, node_id=loops[group_id].node_id, session=session
                 )
-                coordinates = [(region.id, 0)]
+                coordinates = [(region.id, FIRST_LOOP_ITERATION)]
             for region_id, region_index in coordinates:
                 if DynamicRegion.is_coordinate_superseded(region_id, region_index, regions):
                     continue

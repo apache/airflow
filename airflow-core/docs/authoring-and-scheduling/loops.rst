@@ -145,11 +145,11 @@ definition.
    * - Attribute
      - Meaning
    * - ``loop.index``
-     - The current iteration number, starting at zero.
+     - The current iteration number, starting at one.
    * - ``loop.max_iterations``
      - The configured limit on the number of iterations.
    * - ``loop.previous``
-     - The previous iteration's result, or ``None`` in iteration 0.
+     - The previous iteration's result, or ``None`` in iteration 1.
    * - ``loop.result``
      - The terminal body task's result (the XCom pushed under the key ``return_value``) for the current iteration, used by the gate.
 
@@ -159,7 +159,7 @@ task instance's position. Each task instance can have several tries, each with i
 Pass data between iterations
 ============================
 
-Between iterations, use ``loop.previous``. Check ``loop.index == 0`` to handle
+Between iterations, use ``loop.previous``. Check ``loop.index == 1`` to handle
 the first iteration. Do not test ``loop.previous is None``: it is also ``None``
 when the previous terminal task returned nothing, and a previous result of
 ``0``, ``False``, or an empty collection can be valid data.

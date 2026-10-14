@@ -151,6 +151,21 @@ def test_previous_iteration_xcom_uses_retained_predecessor(client, loop_xcoms, s
     assert client.head(url, params=params).headers["Content-Range"] == "map_indexes 1"
 
 
+def test_previous_iteration_of_the_first_pass_resolves_to_nothing(client, loop_xcoms, authenticate_as):
+    """The first pass has no predecessor, so the server stops before looking for one."""
+    dr, _, _, previous = loop_xcoms
+    # `previous` produced the first pass; asking it for its own predecessor asks for the pass
+    # below the first one, which cannot exist.
+    authenticate_as(previous)
+
+    response = client.get(
+        f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{previous.task_id}/key",
+        params={"previous_iteration": True},
+    )
+
+    assert response.status_code == 404
+
+
 def test_previous_iteration_rejects_prior_dates(client, loop_xcoms):
     dr, producer, _, _ = loop_xcoms
 
@@ -182,7 +197,7 @@ def test_previous_mapped_iteration_reads_retained_slots_before_count_and_slice(
         run_id=dr.run_id,
         node_id="body.mapped",
         parent_region_id=parent.id,
-        parent_region_index=0,
+        parent_region_index=1,
         session=session,
     )
     current = DynamicRegion.get_or_create(
@@ -190,7 +205,7 @@ def test_previous_mapped_iteration_reads_retained_slots_before_count_and_slice(
         run_id=dr.run_id,
         node_id="body.mapped",
         parent_region_id=parent.id,
-        parent_region_index=1,
+        parent_region_index=2,
         session=session,
     )
     session.add_all([previous, current])
@@ -200,13 +215,13 @@ def test_previous_mapped_iteration_reads_retained_slots_before_count_and_slice(
         run_id=dr.run_id,
         node_id="body.mapped",
         parent_region_id=parent.id,
-        parent_region_index=0,
+        parent_region_index=1,
         forked_from_region_id=previous.id,
     )
     session.add(replacement)
     session.flush()
     consumer = next(ti for ti in dr.task_instances if ti.task_id == "body.consumer")
-    consumer.region_id, consumer.region_index = parent.id, 1
+    consumer.region_id, consumer.region_index = parent.id, 2
     for ti in dr.task_instances:
         if ti.task_id == "body.mapped":
             ti.region_id = current.id
@@ -242,8 +257,8 @@ def test_previous_mapped_iteration_reads_retained_slots_before_count_and_slice(
 
 
 LOOP_SEQUENCES = {
-    "unmapped": ("body.step", ["step-0", "step-1", "step-2"]),
-    "mapped": ("body.fanout", ["0-0", "0-1", "1-0", "1-1", "2-0", "2-1"]),
+    "unmapped": ("body.step", ["step-1", "step-2", "step-3"]),
+    "mapped": ("body.fanout", ["1-0", "1-1", "2-0", "2-1", "3-0", "3-1"]),
 }
 
 
@@ -271,9 +286,9 @@ def outside_loop_run(dag_maker, session, authenticate_as):
         )
     )
     tis = {(ti.task_id, ti.region_id, ti.region_index): ti for ti in dr.task_instances}
-    steps = {0: tis["body.step", root.id, 0]}
-    fanouts = {(0, ti.region_index): ti for ti in dr.task_instances if ti.task_id == "body.fanout"}
-    for iteration in (1, 2):
+    steps = {1: tis["body.step", root.id, 1]}
+    fanouts = {(1, ti.region_index): ti for ti in dr.task_instances if ti.task_id == "body.fanout"}
+    for iteration in (2, 3):
         steps[iteration] = TaskInstance(
             dag.get_task("body.step"),
             dr.created_dag_version_id,
@@ -301,7 +316,7 @@ def outside_loop_run(dag_maker, session, authenticate_as):
             )
             session.add(fanouts[iteration, slot])
     session.flush()
-    for iteration in (2, 1, 0):
+    for iteration in (3, 2, 1):
         XComModel.set_for_attempt(
             task_instance_id=steps[iteration].id,
             key="key",
@@ -359,13 +374,13 @@ def test_parsing_attempt_id_does_not_select_a_loop_iteration(
     dr, _, _, steps, _ = outside_loop_run
     token = ExecutionToken.model_validate(
         {
-            "id": steps[0].id,
+            "id": steps[1].id,
             "claims": {
                 "scope": "dag_parse",
                 "exp": 2000000000,
                 "dag_bundles": [session.get(DagModel, dr.dag_id).bundle_name],
                 "job_id": 1,
-                "session_id": steps[0].id,
+                "session_id": steps[1].id,
                 "relative_fileloc": "dag.py",
             },
         }
@@ -393,8 +408,8 @@ def test_outside_task_that_uses_loop_outputs_waits_for_the_gate_and_reads_the_lo
     assert consumer.upstream_task_ids == {"body.__loop_gate"}
     url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/body.step/{XCOM_RETURN_KEY}"
     assert client.head(url).headers["Content-Range"] == "map_indexes 3"
-    assert client.get(f"{url}/slice").json() == ["returned-0", "returned-1", "returned-2"]
-    assert client.get(f"{url}/item/-1").json() == "returned-2"
+    assert client.get(f"{url}/slice").json() == ["returned-1", "returned-2", "returned-3"]
+    assert client.get(f"{url}/item/-1").json() == "returned-3"
 
 
 @pytest.mark.parametrize("shape", LOOP_SEQUENCES)
@@ -430,7 +445,7 @@ def test_outside_caller_reads_a_forked_loop_from_the_region_that_owns_each_pass(
         run_id=dr.run_id,
         node_id="body",
         forked_from_region_id=root.id,
-        resumes_from_index=2,
+        resumes_from_index=3,
     )
     nested = DynamicRegion(
         dag_id=dr.dag_id,
@@ -441,7 +456,7 @@ def test_outside_caller_reads_a_forked_loop_from_the_region_that_owns_each_pass(
     )
     session.add(fork)
     session.flush()
-    nested.parent_region_id, nested.parent_region_index = fork.id, 2
+    nested.parent_region_id, nested.parent_region_index = fork.id, 3
     session.add(nested)
     session.flush()
     replacements = [
@@ -450,7 +465,7 @@ def test_outside_caller_reads_a_forked_loop_from_the_region_that_owns_each_pass(
             dr.created_dag_version_id,
             run_id=dr.run_id,
             region_id=fork.id,
-            region_index=2,
+            region_index=3,
         ),
         *(
             TaskInstance(
@@ -465,15 +480,15 @@ def test_outside_caller_reads_a_forked_loop_from_the_region_that_owns_each_pass(
     ]
     session.add_all(replacements)
     session.flush()
-    for ti, value in zip(replacements, ["step-2-again", "2-0-again", "2-1-again"]):
+    for ti, value in zip(replacements, ["step-3-again", "3-0-again", "3-1-again"]):
         XComModel.set_for_attempt(
             task_instance_id=ti.id, key="key", value=value, serialize=False, session=session
         )
     session.commit()
     task_id = LOOP_SEQUENCES[shape][0]
     expected = {
-        "unmapped": ["step-0", "step-1", "step-2-again"],
-        "mapped": ["0-0", "0-1", "1-0", "1-1", "2-0-again", "2-1-again"],
+        "unmapped": ["step-1", "step-2", "step-3-again"],
+        "mapped": ["1-0", "1-1", "2-0", "2-1", "3-0-again", "3-1-again"],
     }[shape]
     url = get_loop_url(dr, task_id)
 
@@ -504,7 +519,7 @@ def test_outside_caller_cannot_read_a_loop_with_several_executions(client, sessi
             run_id=dr.run_id,
             node_id="body",
             parent_region_id=root.id,
-            parent_region_index=0,
+            parent_region_index=1,
         )
     )
     session.commit()
@@ -517,15 +532,15 @@ def test_outside_caller_cannot_read_a_loop_with_several_executions(client, sessi
 
 def test_loop_task_reads_from_inside_the_loop_stay_on_one_pass(client, outside_loop_run):
     dr, _, _, steps, authenticate_as = outside_loop_run
-    authenticate_as(steps[1])
+    authenticate_as(steps[2])
     step_url = get_loop_url(dr, "body.step")
     fanout_url = get_loop_url(dr, "body.fanout")
 
     assert client.head(step_url).headers["Content-Range"] == "map_indexes 1"
-    assert client.get(f"{step_url}/slice").json() == ["step-1"]
-    assert client.get(f"{step_url}/slice", params={"previous_iteration": True}).json() == ["step-0"]
-    assert client.get(f"{fanout_url}/slice").json() == ["1-0", "1-1"]
-    assert client.get(f"{fanout_url}/item/-1").json() == "1-1"
+    assert client.get(f"{step_url}/slice").json() == ["step-2"]
+    assert client.get(f"{step_url}/slice", params={"previous_iteration": True}).json() == ["step-1"]
+    assert client.get(f"{fanout_url}/slice").json() == ["2-0", "2-1"]
+    assert client.get(f"{fanout_url}/item/-1").json() == "2-1"
 
 
 @pytest.fixture
@@ -535,8 +550,8 @@ def deferred_loop_pass(session, outside_loop_run):
     trigger.triggerer_id = TRIGGERER_ID
     session.add(trigger)
     session.flush()
-    steps[1].state = TaskInstanceState.DEFERRED
-    steps[1].trigger_id = trigger.id
+    steps[2].state = TaskInstanceState.DEFERRED
+    steps[2].trigger_id = trigger.id
     session.commit()
     yield dr, steps, trigger
     clear_db_triggers()
@@ -544,7 +559,7 @@ def deferred_loop_pass(session, outside_loop_run):
 
 def test_trigger_in_a_loop_reads_and_writes_as_its_deferred_pass(session, deferred_loop_pass):
     dr, steps, _ = deferred_loop_pass
-    headers = {TRIGGER_TI_ID_HEADER: str(steps[1].id)}
+    headers = {TRIGGER_TI_ID_HEADER: str(steps[2].id)}
     step_url = f"/xcoms/{dr.dag_id}/{dr.run_id}/body.step/key"
 
     sessions_begun = []
@@ -556,10 +571,10 @@ def test_trigger_in_a_loop_reads_and_writes_as_its_deferred_pass(session, deferr
         event.listen(Session, "after_begin", record)
         try:
             with capture_orm_selects("task_instance") as task_instance_selects:
-                assert api.get(step_url, headers=headers).json() == {"key": "key", "value": "step-1"}
+                assert api.get(step_url, headers=headers).json() == {"key": "key", "value": "step-2"}
             assert api.head(step_url, headers=headers).headers["Content-Range"] == "map_indexes 1"
-            assert api.get(f"{step_url}/slice", headers=headers).json() == ["step-1"]
-            assert api.get(f"{step_url}/item/0", headers=headers).json() == "step-1"
+            assert api.get(f"{step_url}/slice", headers=headers).json() == ["step-2"]
+            assert api.get(f"{step_url}/item/0", headers=headers).json() == "step-2"
             assert api.post(f"{step_url}-written", json="from-trigger", headers=headers).status_code == 201
             assert api.delete(step_url, headers=headers).status_code == 200
         finally:
@@ -573,9 +588,9 @@ def test_trigger_in_a_loop_reads_and_writes_as_its_deferred_pass(session, deferr
     assert len(liveness_checks) == 1
     assert len(set(map(id, sessions_begun))) == 6
     session.expire_all()
-    assert XComModelV2.get_for_attempt(steps[1].id, "key-written", session=session).value == "from-trigger"
-    assert XComModelV2.get_for_attempt(steps[1].id, "key", session=session) is None
-    assert XComModelV2.get_for_attempt(steps[0].id, "key", session=session).value == "step-0"
+    assert XComModelV2.get_for_attempt(steps[2].id, "key-written", session=session).value == "from-trigger"
+    assert XComModelV2.get_for_attempt(steps[2].id, "key", session=session) is None
+    assert XComModelV2.get_for_attempt(steps[1].id, "key", session=session).value == "step-1"
 
 
 @pytest.mark.parametrize(
@@ -591,7 +606,7 @@ def test_trigger_ti_id_header_rejected(deferred_loop_pass, api_triggerer_id, hea
     with TestClient(InProcessExecutionAPI(triggerer_id=api_triggerer_id).app) as api:
         response = api.get(
             f"/xcoms/{dr.dag_id}/{dr.run_id}/body.step/key",
-            headers={TRIGGER_TI_ID_HEADER: header or str(steps[1].id)},
+            headers={TRIGGER_TI_ID_HEADER: header or str(steps[2].id)},
         )
 
     assert response.status_code == expected_status
@@ -632,7 +647,7 @@ NOT_A_LIVE_ATTEMPT = "Task instance is not a live attempt"
             "get",
             {"state": TaskInstanceState.FAILED, "trigger_removed": True},
             200,
-            "step-1",
+            "step-2",
             None,
             id="read-live-task-no-longer-deferred",
         ),
@@ -652,20 +667,20 @@ def test_trigger_ti_id_claim_check(
 ):
     dr, steps, trigger = deferred_loop_pass
     trigger.triggerer_id = change.get("triggerer_id", TRIGGERER_ID)
-    steps[1].state = change.get("state", TaskInstanceState.DEFERRED)
+    steps[2].state = change.get("state", TaskInstanceState.DEFERRED)
     if change.get("trigger_removed"):
-        steps[1].trigger_id = None
+        steps[2].trigger_id = None
         session.delete(trigger)
     session.commit()
     if change.get("archived"):
-        steps[1].archive(reason="cleared", session=session)
+        steps[2].archive(reason="cleared", session=session)
         session.commit()
 
     with TestClient(InProcessExecutionAPI(triggerer_id=TRIGGERER_ID).app) as api:
         response = api.request(
             method,
             f"/xcoms/{dr.dag_id}/{dr.run_id}/body.step/key",
-            headers={TRIGGER_TI_ID_HEADER: str(steps[1].id)},
+            headers={TRIGGER_TI_ID_HEADER: str(steps[2].id)},
             json="from-trigger" if method == "post" else None,
         )
 
@@ -697,15 +712,15 @@ def test_loop_result_item_read_loads_no_producer_rows(dag_maker, session, client
         create_loop(body, max_iterations=3)
     dr = dag_maker.create_dagrun()
     tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
-    consumer = tis["body.consumer", 0]
+    consumer = tis["body.consumer", 1]
     loop_region = DynamicRegion.get_or_create(
         dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session
     )
     session.add(loop_region)
     session.flush()
-    consumer.region_id, consumer.region_index = loop_region.id, 1
+    consumer.region_id, consumer.region_index = loop_region.id, 2
     mapped_task = dag.get_task("body.mapped")
-    for iteration in range(3):
+    for iteration in range(1, 4):
         region = DynamicRegion.get_or_create(
             dag_id=dr.dag_id,
             run_id=dr.run_id,
@@ -717,7 +732,7 @@ def test_loop_result_item_read_loads_no_producer_rows(dag_maker, session, client
         session.add(region)
         session.flush()
         for map_index in range(3):
-            ti = tis.get(("body.mapped", map_index)) if iteration == 0 else None
+            ti = tis.get(("body.mapped", map_index)) if iteration == 1 else None
             if ti is None:
                 ti = TaskInstance(mapped_task, consumer.dag_version_id, run_id=dr.run_id, map_index=map_index)
                 session.add(ti)
@@ -745,7 +760,7 @@ def test_loop_result_item_read_loads_no_producer_rows(dag_maker, session, client
     finally:
         event.remove(Session, "loaded_as_persistent", record)
 
-    assert response.json() == "1-0"
+    assert response.json() == "2-0"
     assert loaded == []
 
 

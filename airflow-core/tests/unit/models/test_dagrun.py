@@ -156,7 +156,7 @@ def test_loop_first_pass_uses_one_region_and_mapped_child(dag_maker, session, va
     assert {region.node_id for region in regions} == {loop.group_id, "body.mapped"}
     parent = next(region for region in regions if region.node_id == loop.group_id)
     mapped_region = next(region for region in regions if region.node_id == "body.mapped")
-    assert (mapped_region.parent_region_id, mapped_region.parent_region_index) == (parent.id, 0)
+    assert (mapped_region.parent_region_id, mapped_region.parent_region_index) == (parent.id, 1)
     original_ids = {ti.id for ti in dr.task_instances}
     for ti in dr.task_instances:
         if ti.task_id == "outside":
@@ -164,7 +164,7 @@ def test_loop_first_pass_uses_one_region_and_mapped_child(dag_maker, session, va
         elif ti.task_id == "body.mapped":
             assert ti.region_id == mapped_region.id
         else:
-            assert (ti.region_id, ti.region_index) == (parent.id, 0)
+            assert (ti.region_id, ti.region_index) == (parent.id, 1)
 
     dr.verify_integrity(session=session, dag_version_id=dr.created_dag_version_id)
 
@@ -237,7 +237,7 @@ def test_loop_new_member_joins_live_pass_after_reserialization(dag_maker, sessio
     current = dr.get_task_instances(session=session)
     assert {ti.id for ti in current if ti.task_id != "body.new"} == original_ids
     added = next(ti for ti in current if ti.task_id == "body.new")
-    assert (added.region_id, added.region_index, added.dag_version_id) == (gate.region_id, 0, version_id)
+    assert (added.region_id, added.region_index, added.dag_version_id) == (gate.region_id, 1, version_id)
     assert session.get(TI, gate.id).state == State.SUCCESS
 
 
@@ -329,7 +329,7 @@ def test_loop_runs_through_scheduler_sdk_and_api(dag_maker, session, mode):
             terminal(1)
 
     def converged(*, loop):
-        return mode == "until_true" and loop.index == 1
+        return mode == "until_true" and loop.index == 2
 
     with dag_maker(serialized=False) as dag:
         loop = body.loop(max_iterations=2, until=converged if mode.startswith("until") else None)
@@ -343,13 +343,13 @@ def test_loop_runs_through_scheduler_sdk_and_api(dag_maker, session, mode):
         if ti.task_id == loop.gate_task_id
     )
     if mode == "empty":
-        assert gates == [(0, State.SKIPPED)]
+        assert gates == [(1, State.SKIPPED)]
     elif mode == "until_false":
-        assert gates == [(0, State.SUCCESS), (1, State.FAILED)]
+        assert gates == [(1, State.SUCCESS), (2, State.FAILED)]
     elif mode == "unhandled_failure":
-        assert gates == [(0, State.UPSTREAM_FAILED)]
+        assert gates == [(1, State.UPSTREAM_FAILED)]
     else:
-        assert gates == [(0, State.SUCCESS), (1, State.SUCCESS)]
+        assert gates == [(1, State.SUCCESS), (2, State.SUCCESS)]
     outside = dr.get_task_instance(task_id="outside", session=session)
     assert outside.state == State.SUCCESS
 
@@ -385,7 +385,7 @@ def test_documented_task_loop_examples_complete(session, dag_id, expected_iterat
     assert dr.state == DagRunState.SUCCESS
     gates = [ti for ti in dr.get_task_instances(session=session) if ti.operator == "LoopGateOperator"]
     assert sorted((ti.region_index, ti.state) for ti in gates) == [
-        (index, State.SUCCESS) for index in range(expected_iterations)
+        (index, State.SUCCESS) for index in range(1, expected_iterations + 1)
     ]
 
 
@@ -6353,9 +6353,9 @@ def test_integrity_does_not_create_members_at_draining_gate_coordinates(complete
         for ti in dr.get_task_instances(session=session)
         if ti.task_id == loop.gate_task_id
     }
-    gates[4].state = State.RUNNING
+    gates[5].state = State.RUNNING
     session.flush()
-    clear_loop_task_instances([gates[2]], downstream=False, session=session)
+    clear_loop_task_instances([gates[3]], downstream=False, session=session)
 
     @task_group
     def body():
@@ -6373,7 +6373,7 @@ def test_integrity_does_not_create_members_at_draining_gate_coordinates(complete
 
     dr.verify_integrity(session=session, dag_version_id=version)
 
-    assert gates[4].state == State.RESTARTING
+    assert gates[5].state == State.RESTARTING
     assert set(
         session.scalars(
             select(TaskInstance.region_index).where(
@@ -6382,7 +6382,7 @@ def test_integrity_does_not_create_members_at_draining_gate_coordinates(complete
                 TaskInstance.task_id == "body.new",
             )
         )
-    ) == {0, 1, 2}
+    ) == {1, 2, 3}
 
 
 def test_run_stays_running_after_clearing_a_gate_while_the_last_pass_is_running(completed_loop, session):
@@ -6392,15 +6392,15 @@ def test_run_stays_running_after_clearing_a_gate_while_the_last_pass_is_running(
         for ti in dr.get_task_instances(session=session)
         if ti.task_id == loop.gate_task_id
     }
-    assert sorted(gates) == [0, 1, 2, 3, 4], "Checking pre-conditions: every pass has a gate"
+    assert sorted(gates) == [1, 2, 3, 4, 5], "Checking pre-conditions: every pass has a gate"
     # Pretend the last pass's gate is still running, so that clearing an earlier gate supersedes it and
     # leaves it RESTARTING until its worker acknowledges the termination.
-    gates[4].state = State.RUNNING
+    gates[5].state = State.RUNNING
     session.flush()
-    clear_loop_task_instances([gates[2]], downstream=False, session=session)
+    clear_loop_task_instances([gates[3]], downstream=False, session=session)
     dr.dag = DBDagBag().get_dag_for_run(dr, session=session)
 
-    assert gates[4].state == State.RESTARTING
+    assert gates[5].state == State.RESTARTING
 
     dr.update_state(session=session)
 
@@ -6411,26 +6411,26 @@ def test_run_stays_running_when_clearing_an_early_gate_restarts_a_running_body_t
     dr, loop, _ = completed_loop
     members = {(ti.task_id, ti.region_index): ti for ti in dr.get_task_instances(session=session)}
     # `completed_loop` creates and completes every pass up front, but a real loop creates pass N + 1 only
-    # when gate N completes. Remove pass 4 so that pass 3 is the last pass and is still in progress.
-    for ti in [ti for (_, index), ti in members.items() if index == 4]:
+    # when gate N completes. Remove pass 5 so that pass 4 is the last pass and is still in progress.
+    for ti in [ti for (_, index), ti in members.items() if index == 5]:
         session.delete(ti)
-    # Pass 3 is mid-flight: its `process` task is running and `consume` and the gate have not started.
+    # Pass 4 is mid-flight: its `process` task is running and `consume` and the gate have not started.
     for task_id in ("body.consume", loop.gate_task_id):
-        members[task_id, 3].state = None
-    members["body.process", 3].state = State.RUNNING
+        members[task_id, 4].state = None
+    members["body.process", 4].state = State.RUNNING
     session.flush()
-    assert {ti.region_index for ti in dr.get_task_instances(session=session)} == {0, 1, 2, 3}, (
-        "Checking pre-conditions: pass 3 is the last pass"
+    assert {ti.region_index for ti in dr.get_task_instances(session=session)} == {1, 2, 3, 4}, (
+        "Checking pre-conditions: pass 4 is the last pass"
     )
-    # Clearing gate 1 supersedes passes 2 and 3: `prepare[3]` is archived and the running `process[3]`
+    # Clearing gate 2 supersedes passes 3 and 4: `prepare[4]` is archived and the running `process[4]`
     # goes RESTARTING, so it is left with no live upstream while it waits for its worker to acknowledge.
     clear_loop_task_instances(
-        [members[loop.gate_task_id, 1]], downstream=False, dag_run_state=False, session=session
+        [members[loop.gate_task_id, 2]], downstream=False, dag_run_state=False, session=session
     )
     dr.dag = DBDagBag().get_dag_for_run(dr, session=session)
 
-    assert members["body.process", 3].state == State.RESTARTING
-    assert members["body.prepare", 3].working_set is None
+    assert members["body.process", 4].state == State.RESTARTING
+    assert members["body.prepare", 4].working_set is None
 
     dr.update_state(session=session)
 
@@ -6444,23 +6444,23 @@ def test_rerun_gate_continues_while_superseded_later_passes_terminate(completed_
         for ti in dr.get_task_instances(session=session)
         if ti.task_id == loop.gate_task_id
     }
-    gates[4].state = State.RUNNING
+    gates[5].state = State.RUNNING
     session.flush()
-    clear_loop_task_instances([gates[2]], downstream=False, session=session)
-    rerun = session.get(TaskInstance, gates[2].id)
+    clear_loop_task_instances([gates[3]], downstream=False, session=session)
+    rerun = session.get(TaskInstance, gates[3].id)
     rerun.state = State.SUCCESS
     session.flush()
     group, _ = TaskCoordinateResolver(DBDagBag(), session).loop_context(rerun)
 
     dr.complete_loop_gate(rerun, group, State.SUCCESS, stop=False, reason=None, session=session)
 
-    assert gates[4].state == State.RESTARTING
+    assert gates[5].state == State.RESTARTING
     assert session.scalars(
         select(TaskInstance.state).where(
             TaskInstance.dag_id == dr.dag_id,
             TaskInstance.run_id == dr.run_id,
             TaskInstance.task_id == "body.prepare",
-            TaskInstance.region_index == 3,
+            TaskInstance.region_index == 4,
         )
     ).all() == [None]
 

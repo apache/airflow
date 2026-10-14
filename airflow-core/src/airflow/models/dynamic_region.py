@@ -51,6 +51,9 @@ from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import CompactUUID, UtcDateTime
 
 SENTINEL_REGION_ID = UUID(int=0)
+# Loop iterations are numbered from one, so an iteration number reads the same in a Dag author's
+# ``loop.index``, the API and the UI. Mapped expansion indexes in the same column stay zero-based.
+FIRST_LOOP_ITERATION = 1
 LOOP_XCOM_PREFIX = "_airflow_loop_"
 LOOP_DECISION_REASON_KEY = f"{LOOP_XCOM_PREFIX}decision_reason"
 LOOP_DECISION_REASON_MAX_BYTES = 512

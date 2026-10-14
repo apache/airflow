@@ -679,31 +679,31 @@ def test_gate_rerun_after_chained_forks_keeps_later_passes_in_later_regions(comp
             if ti.task_id == loop.gate_task_id and ti.region_index == index
         )
 
+    clear_loop_task_instances([gate_at(3)], downstream=False, session=session)
+    complete_pass(3, "continue")
+    complete_pass(4, "continue")
     clear_loop_task_instances([gate_at(2)], downstream=False, session=session)
     complete_pass(2, "continue")
     complete_pass(3, "continue")
-    clear_loop_task_instances([gate_at(1)], downstream=False, session=session)
-    complete_pass(1, "continue")
-    complete_pass(2, "continue")
     before = {
         (ti.task_id, ti.region_index): (ti.id, ti.region_id) for ti in dr.get_task_instances(session=session)
     }
-    clear_loop_task_instances([gate_at(1)], downstream=False, later_loop_iterations=False, session=session)
+    clear_loop_task_instances([gate_at(2)], downstream=False, later_loop_iterations=False, session=session)
 
-    complete_pass(1, "continue")
+    complete_pass(2, "continue")
 
     current = {
         (ti.task_id, ti.region_index): (ti.id, ti.region_id) for ti in dr.get_task_instances(session=session)
     }
-    assert {key: value for key, value in current.items() if key[1] >= 2} == {
-        key: value for key, value in before.items() if key[1] >= 2
+    assert {key: value for key, value in current.items() if key[1] >= 3} == {
+        key: value for key, value in before.items() if key[1] >= 3
     }
 
 
 def test_repeated_rewind_appends_empty_forks_and_generates_in_latest_region(completed_loop, session):
     dr, loop, complete_pass = completed_loop
     original_region = next(ti.region_id for ti in dr.get_task_instances(session=session))
-    for index in (2, 1):
+    for index in (3, 2):
         gate = next(
             ti
             for ti in dr.get_task_instances(session=session)
@@ -714,21 +714,21 @@ def test_repeated_rewind_appends_empty_forks_and_generates_in_latest_region(comp
     regions = list(session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)))
     first = next(region for region in regions if region.forked_from_region_id == original_region)
     second = next(region for region in regions if region.forked_from_region_id == first.id)
-    assert (first.resumes_from_index, second.resumes_from_index) == (3, 2)
+    assert (first.resumes_from_index, second.resumes_from_index) == (4, 3)
     assert not session.scalar(
         select(TaskInstance.id).where(TaskInstance.region_id.in_([first.id, second.id]))
     )
     gate = next(
         ti
         for ti in dr.get_task_instances(session=session)
-        if ti.task_id == loop.gate_task_id and ti.region_index == 1
+        if ti.task_id == loop.gate_task_id and ti.region_index == 2
     )
 
     clear_loop_task_instances([gate], downstream=False, session=session)
-    complete_pass(1, "continue")
+    complete_pass(2, "continue")
 
     third = session.scalar(select(DynamicRegion).where(DynamicRegion.forked_from_region_id == second.id))
-    generated = [ti for ti in dr.get_task_instances(session=session) if ti.region_index == 2]
+    generated = [ti for ti in dr.get_task_instances(session=session) if ti.region_index == 3]
     assert len(generated) == 4
     assert {ti.region_id for ti in generated} == {third.id}
 
@@ -751,7 +751,7 @@ def test_loop_sequence_of_unmapped_task_is_ordered_by_iteration(loop_run, sessio
 
     sequence = read_loop_sequence(session, dr, loop, "body.prepare", is_mapped=False)
 
-    assert [ti.region_index for ti in sequence] == [0, 1, 2, 3, 4]
+    assert [ti.region_index for ti in sequence] == [1, 2, 3, 4, 5]
     assert {ti.task_id for ti in sequence} == {"body.prepare"}
 
 
@@ -761,7 +761,7 @@ def test_loop_sequence_of_mapped_task_is_iteration_major_then_map_index(loop_run
     sequence = read_loop_sequence(session, dr, loop, "body.process", is_mapped=True)
 
     assert [(iteration(ti), ti.region_index) for ti in sequence] == [
-        (index, slot) for index in range(5) for slot in range(2)
+        (index, slot) for index in range(1, 6) for slot in range(2)
     ]
 
 
@@ -785,7 +785,7 @@ def test_loop_sequence_skips_archived_and_other_regions(loop_run, session):
 
     sequence = read_loop_sequence(session, dr, loop, "body.prepare", is_mapped=False)
 
-    assert [ti.region_index for ti in sequence] == [0, 1, 3, 4]
+    assert [ti.region_index for ti in sequence] == [1, 3, 4, 5]
 
 
 def test_loop_sequence_without_a_loop_region_is_empty(dag_maker, session):
@@ -824,13 +824,13 @@ def test_loop_sequence_rejects_a_loop_with_several_executions(loop_run, session)
 def test_loop_sequence_takes_each_pass_from_the_region_that_owns_it(loop_run, session):
     dr, dag, loop, root, tis, iteration = loop_run
     first = add_region(
-        session, dr, node_id=loop.group_id, forked_from_region_id=root.id, resumes_from_index=3
+        session, dr, node_id=loop.group_id, forked_from_region_id=root.id, resumes_from_index=4
     )
     second = add_region(
-        session, dr, node_id=loop.group_id, forked_from_region_id=first.id, resumes_from_index=2
+        session, dr, node_id=loop.group_id, forked_from_region_id=first.id, resumes_from_index=3
     )
     prepare = dag.get_task("body.prepare")
-    for region, index in [(first, 3), (first, 4), (second, 2)]:
+    for region, index in [(first, 4), (first, 5), (second, 3)]:
         session.add(
             TaskInstance(
                 prepare, dr.created_dag_version_id, run_id=dr.run_id, region_id=region.id, region_index=index
@@ -841,21 +841,21 @@ def test_loop_sequence_takes_each_pass_from_the_region_that_owns_it(loop_run, se
     sequence = read_loop_sequence(session, dr, loop, "body.prepare", is_mapped=False)
 
     assert [(ti.region_id, ti.region_index) for ti in sequence] == [
-        (root.id, 0),
         (root.id, 1),
-        (second.id, 2),
+        (root.id, 2),
+        (second.id, 3),
     ]
 
 
 def test_loop_sequence_of_mapped_task_skips_passes_a_fork_replaced(loop_run, session):
     dr, dag, loop, root, tis, iteration = loop_run
-    fork = add_region(session, dr, node_id=loop.group_id, forked_from_region_id=root.id, resumes_from_index=3)
+    fork = add_region(session, dr, node_id=loop.group_id, forked_from_region_id=root.id, resumes_from_index=4)
     replacement = add_region(
         session,
         dr,
         node_id="body.process",
         parent_region_id=fork.id,
-        parent_region_index=3,
+        parent_region_index=4,
     )
     process = dag.get_task("body.process")
     for slot in range(2):
@@ -874,12 +874,12 @@ def test_loop_sequence_of_mapped_task_skips_passes_a_fork_replaced(loop_run, ses
 
     passes = {region.id: region.parent_region_index for region in session.scalars(select(DynamicRegion))}
     assert [(ti.region_id == replacement.id, passes[ti.region_id], ti.region_index) for ti in sequence] == [
-        (False, 0, 0),
-        (False, 0, 1),
         (False, 1, 0),
         (False, 1, 1),
         (False, 2, 0),
         (False, 2, 1),
-        (True, 3, 0),
-        (True, 3, 1),
+        (False, 3, 0),
+        (False, 3, 1),
+        (True, 4, 0),
+        (True, 4, 1),
     ]

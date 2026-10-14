@@ -38,7 +38,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 
 
 class AddLoopContext(VersionChange):
-    """Provide the pinned loop definition and enclosing iteration at task startup."""
+    """Provide the pinned loop definition and enclosing iteration, numbered from one, at task startup."""
 
     description = __doc__
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("loop").didnt_exist,)
