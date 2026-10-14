@@ -64,7 +64,6 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
 from airflow.configuration import conf
-from airflow.dag_processing.api_client import DagProcessorRegistrationRetired, get_error_reason
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
     unpack_bundle_version,
@@ -122,12 +121,13 @@ if TYPE_CHECKING:
 # Each send has its own short timeout; this bounds how long one loop spends on queued sends
 # before it goes back to heartbeating and supervising parsing processes.
 _API_SEND_BUDGET_SECONDS = 1.0
+_MAX_REJECTION_REASON_LENGTH = 1024
 _REJECTED_CONTENT_REASONS = frozenset({"dag_owned_by_another_bundle", "plugin_not_granted"})
 
 
 def _is_rejected_content(status_code: int, reason: str | None) -> bool:
     """Whether the API refused a result for what it contains, so sending it again cannot succeed."""
-    return status_code in (413, 422, 500) or reason in _REJECTED_CONTENT_REASONS
+    return status_code in (413, 422) or (status_code in (403, 409) and reason in _REJECTED_CONTENT_REASONS)
 
 
 class BundleState(NamedTuple):
@@ -1043,13 +1043,16 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 if bundle.supports_versioning:
                     bundle.initialize()
-            except DagProcessorRegistrationRetired:
-                raise
             except Exception as error:
-                if self.api_client is not None and self.api_client.restart_required:
-                    raise DagProcessorRegistrationRetired(
-                        "The Dag processor registration has ended; restart required"
-                    ) from error
+                if self.api_client is not None:
+                    from airflow.dag_processing.api_client import DagProcessorRegistrationRetired
+
+                    if isinstance(error, DagProcessorRegistrationRetired):
+                        raise
+                    if self.api_client.restart_required:
+                        raise DagProcessorRegistrationRetired(
+                            "The Dag processor registration has ended; restart required"
+                        ) from error
                 self.log.exception(
                     "Error preparing bundle %s version %s for callback, skipping",
                     request.bundle_name,
@@ -1854,6 +1857,8 @@ class DagFileProcessorManager(LoggingMixin):
         """Publish queued results until the deadline, stopping early while the API is unavailable."""
         if self.api_client is None:
             return
+        from airflow.dag_processing.api_client import get_error_reason
+
         if deadline is None:
             deadline = time.monotonic() + _API_SEND_BUDGET_SECONDS
         files = deque(self._pending_publications)
@@ -1904,6 +1909,10 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.warning("The API server rejected the parsing result for %s", file)
                     status_code = status_error.response.status_code
                     detail = f"HTTP {status_code}: {reason}" if reason else f"HTTP {status_code}"
+                    if reason == "invalid_dag":
+                        message = status_error.response.json()["detail"].get("message")
+                        if isinstance(message, str):
+                            detail += f": {message}"
                     self._pending_publications[file] = self._build_rejection_report(
                         pending, f"the API server rejected it ({detail})"
                     )
@@ -1921,20 +1930,23 @@ class DagFileProcessorManager(LoggingMixin):
         """Replace a result that cannot be published with an import error users can see."""
         self._finish_priority_claims(pending.body.attempt_id, failed=True)
         self._dispatch_sequence += 1
+        if len(reason) > _MAX_REJECTION_REASON_LENGTH:
+            reason = reason[:_MAX_REJECTION_REASON_LENGTH] + "..."
         import_errors = {
-            **pending.body.import_errors,
             pending.body.relative_fileloc: f"The parsing result was not published: {reason}.",
         }
         return PendingDagPublication(
-            body=pending.body.model_copy(
-                update={
-                    "attempt_id": uuid7(),
-                    "dispatch_sequence": self._dispatch_sequence,
-                    "serialized_dags": [],
-                    "source_codes": {},
-                    "warnings": [],
-                    "import_errors": import_errors,
-                }
+            body=DagParseResultBody(
+                attempt_id=uuid7(),
+                dispatch_sequence=self._dispatch_sequence,
+                bundle_name=pending.body.bundle_name,
+                relative_fileloc=pending.body.relative_fileloc,
+                bundle_version=pending.body.bundle_version,
+                bundle_revision=pending.body.bundle_revision,
+                parse_duration=pending.body.parse_duration,
+                serialized_dags=[],
+                source_codes={},
+                import_errors=import_errors,
             ),
             stat=attrs.evolve(pending.stat, num_dags=0, import_errors=len(import_errors)),
             refresh_generation=pending.refresh_generation,

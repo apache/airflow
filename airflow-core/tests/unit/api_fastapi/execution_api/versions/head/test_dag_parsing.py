@@ -492,6 +492,76 @@ def test_fab_permissions_share_publication_transaction(update_errors, client, se
     assert (manager.get_resource(f"DAG:{dag_id}") is None) == fail
 
 
+@conf_vars({("core", "auth_manager"): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"})
+@pytest.mark.parametrize("existing", [False, True])
+def test_invalid_fab_access_control_rejects_and_rolls_back_publication(client, session, job, body, existing):
+    security = pytest.importorskip("airflow.providers.fab.www.security_appless")
+    dag_id = f"published_{uuid7().hex}"
+    missing_role = f"missing_{uuid7().hex}"
+    body["serialized_dags"][0]["dag"]["dag_id"] = dag_id
+    body["source_codes"] = {dag_id: body["source_codes"].pop("published")}
+    original_attempt = UUID(body["attempt_id"])
+    if existing:
+        assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
+    dag = DAG(dag_id, schedule=None, access_control={missing_role: {"can_read"}})
+    body["serialized_dags"][0]["dag"]["access_control"] = LazyDeserializedDAG.from_dag(dag).data["dag"][
+        "access_control"
+    ]
+    body.update(attempt_id=str(uuid7()), dispatch_sequence=2, parse_duration=2.0)
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": {
+            "reason": "invalid_dag",
+            "message": f"The access_control mapping for DAG '{dag_id}' includes a role named "
+            f"'{missing_role}', but that role does not exist",
+        }
+    }
+    session.expire_all()
+    stored_dag = session.get(DagModel, dag_id)
+    checkpoint = session.scalar(select(DagParseCheckpoint))
+    if existing:
+        assert stored_dag.last_parse_duration == 0.5
+        assert not stored_dag.is_stale
+        assert checkpoint.attempt_id == original_attempt
+    else:
+        assert stored_dag is None
+        assert checkpoint is None
+    assert len(session.scalars(select(SerializedDagModel)).all()) == int(existing)
+    assert len(session.scalars(select(DagVersion)).all()) == int(existing)
+    assert len(session.scalars(select(DagCode)).all()) == int(existing)
+    assert session.scalar(select(ParseImportError)) is None
+    manager = security.ApplessAirflowSecurityManager(session=session)
+    assert (manager.get_resource(f"DAG:{dag_id}") is not None) == existing
+
+
+@conf_vars({("core", "auth_manager"): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"})
+def test_transient_permission_failure_remains_server_error(client, session, job, body, mocker):
+    fab = pytest.importorskip("airflow.providers.fab.auth_manager.fab_auth_manager")
+    assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
+    original_attempt = UUID(body["attempt_id"])
+    body.update(attempt_id=str(uuid7()), dispatch_sequence=2, parse_duration=2.0)
+    sync_permissions = mocker.patch.object(
+        fab.FabAuthManager,
+        "sync_dag_perms",
+        autospec=True,
+        side_effect=OperationalError(None, None, RuntimeError("temporary database failure")),
+    )
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 500
+    sync_permissions.assert_called_once()
+    session.expire_all()
+    stored_dag = session.get(DagModel, "published")
+    assert stored_dag.last_parse_duration == 0.5
+    assert not stored_dag.is_stale
+    assert session.scalar(select(DagParseCheckpoint)).attempt_id == original_attempt
+    assert session.scalar(select(ParseImportError)) is None
+
+
 @pytest.mark.parametrize("ineligible", [None, "active_bundle", "active_dag", "file_location", "version"])
 def test_recovers_only_orphaned_legacy_dags(client, session, job, body, ineligible):
     previous_bundle = session.get(DagBundleModel, "other")

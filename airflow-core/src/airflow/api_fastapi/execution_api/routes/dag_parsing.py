@@ -47,6 +47,7 @@ from airflow.api_fastapi.execution_api.security import CurrentExecutionToken, Ex
 from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     DagBundleOwnershipError,
+    DagPublicationValidationError,
     _reject_other_teams_plugin_classes,
     is_source_discovery_failed,
     update_dag_parsing_results_in_db,
@@ -113,7 +114,12 @@ router = VersionedAPIRouter(route_class=DagParsingRoute)
 @router.post(
     "/{job_id}/parse-results",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT, status.HTTP_413_CONTENT_TOO_LARGE]
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+        ]
     ),
     dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
 )
@@ -224,6 +230,11 @@ def publish_parse_result(
             resolve_bundle_paths=False,
             session=session,
         )
+    except DagPublicationValidationError as error:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"reason": "invalid_dag", "message": str(error)},
+        ) from error
     except DagBundleOwnershipError as error:
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail={"reason": "dag_owned_by_another_bundle"}

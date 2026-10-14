@@ -591,20 +591,24 @@ Each request carries an attempt UUID and a dispatch sequence within its Job. A c
 and the metadata writes commit together. Replaying the latest identical request returns
 the saved receipt; conflicting payloads and superseded sequences are rejected. Checkpoints
 retain one entry per Job and source and are removed with Job cleanup. There is no total
-ordering between different Jobs publishing an unversioned source; an already-accepted
+ordering between different Jobs publishing a source without versioning; an already-accepted
 request's retry does not overwrite another Job's result. Listener side effects are not
 transactional and may repeat after a failed transaction.
 
 Publication and inventory request bodies are limited to 16 MiB, and the API refuses a
 larger body before reading the rest of it. A rejected publication does not fall back
-to direct database writes, and does not prevent other files from being processed. When the
-API refuses a result for its content, or the result is over the limit, the processor publishes
-an import error for the file instead, so the problem is visible; the file's existing Dags age
-out like those of any file with an import error. Empty
-imports still publish a receipt and clear the file's earlier import errors. A bundle
-refresh, including one forced by a parse request, waits for that bundle's active imports
-instead of discarding them; only reinitializing a bundle invalidates and requeues older
-in-flight results from that manager.
+to direct database writes, and does not prevent other files from being processed. Transport
+failures and server errors are retried; exhausting those retries preserves the last accepted
+result. When the API refuses a result for its content, or the result is over the limit, the
+processor publishes an import error for the file instead, so the problem is visible. As with
+any import error, the Dags recorded for that file are marked stale until a later parse
+publishes them again. An invalid ``access_control`` is refused this way, with the reason in
+the import error, only with a FAB provider release that reports it as a validation error;
+with older releases the publication fails with a server error, which the processor retries
+and then only logs. Empty imports still publish a receipt and clear the file's earlier import
+errors. A bundle refresh, including one forced by a parse request, waits for that bundle's
+active imports instead of discarding them; only initializing a bundle again invalidates and
+requeues older in-flight results from that manager.
 
 Inventories report discovered definitions and sources whose discovery failed separately.
 Failed sources preserve their existing definitions and diagnostics, including archive members;
@@ -677,7 +681,7 @@ entrypoint otherwise checks the database before starting the command. Do not set
 ``_AIRFLOW_DB_MIGRATE`` or ``_AIRFLOW_WWW_USER_CREATE`` in that container.
 
 Isolated deployment examples
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The following examples run only the processor, alongside an existing trusted deployment.
 Use an image containing processor API support; this feature targets Airflow 3.5.

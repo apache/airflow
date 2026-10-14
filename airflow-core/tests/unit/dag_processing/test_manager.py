@@ -23,9 +23,11 @@ import logging
 import os
 import random
 import re
+import runpy
 import selectors
 import shutil
 import signal
+import sys
 import textwrap
 import time
 import zipfile
@@ -6407,10 +6409,12 @@ def _make_pending_publication(
     )
 
 
-def _make_status_error(status_code: int, reason: str | None = None) -> httpx2.HTTPStatusError:
+def _make_status_error(
+    status_code: int, reason: str | None = None, *, message: str | None = None
+) -> httpx2.HTTPStatusError:
     response = httpx2.Response(
         status_code,
-        json={"detail": {"reason": reason}} if reason else None,
+        json={"detail": {"reason": reason, "message": message}} if reason else None,
         request=httpx2.Request("POST", "http://api/parse-results"),
     )
     return httpx2.HTTPStatusError("Rejected", request=response.request, response=response)
@@ -6441,7 +6445,10 @@ def test_publication_sends_every_ready_result_within_the_loop_budget():
         (_make_status_error(403, "plugin_not_granted"), "HTTP 403: plugin_not_granted"),
         (_make_status_error(413), "HTTP 413"),
         (_make_status_error(422), "HTTP 422"),
-        (_make_status_error(500), "HTTP 500"),
+        (
+            _make_status_error(422, "invalid_dag", message="Unknown role: missing_role"),
+            "HTTP 422: invalid_dag: Unknown role: missing_role",
+        ),
     ],
 )
 def test_result_the_api_refuses_is_replaced_by_an_import_error(error, message):
@@ -6466,13 +6473,105 @@ def test_result_the_api_refuses_is_replaced_by_an_import_error(error, message):
     assert report.serialized_dags == []
     assert report.source_codes == {}
     assert report.import_errors == {
-        "a.py/member.py": "member failed",
         "a.py": f"The parsing result was not published: the API server rejected it ({message}).",
     }
     assert not manager._pending_publications
     assert manager._file_stats[file].num_dags == 0
-    assert manager._file_stats[file].import_errors == 2
+    assert manager._file_stats[file].import_errors == 1
     assert manager._pending_work_acks == [("priority", work, True)]
+
+
+@conf_vars({("workers", "execution_api_retries"): "1"})
+def test_server_failure_after_publication_retries_preserves_previous_result():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.publish_parse_result.side_effect = [_make_status_error(500), None]
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["a.py"])[0]
+    work = _claim_priority_parse(manager, file)
+    previous = DagFileStat(num_dags=2, last_finish_time=DEFAULT_DATE)
+    manager._file_stats[file] = previous
+    pending = _make_pending_publication(file, attempt_id=manager._priority_claims[work.id].attempt_id)
+    manager._pending_publications[file] = pending
+
+    manager._publish_pending_results()
+
+    client.publish_parse_result.assert_called_once_with(pending.body)
+    assert not manager._pending_publications
+    assert manager._file_stats[file].num_dags == previous.num_dags
+    assert manager._file_stats[file].last_finish_time == previous.last_finish_time
+    assert manager._file_stats[file].last_attempt_time is not None
+    assert manager._pending_work_acks == [("priority", work, True)]
+
+
+@mock.patch("airflow.dag_processing.manager.MAX_PUBLICATION_BYTES", 32 * 1024)
+@pytest.mark.parametrize("oversized_field", ["import_errors", "version_data", "parsed_definitions"])
+def test_rejection_report_discards_oversized_parse_metadata(oversized_field):
+    limit = 32 * 1024
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.publish_parse_result.side_effect = [_make_status_error(413), None]
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["a.py"])[0]
+    original = _make_pending_publication(file)
+    original.body.bundle_version = "v1"
+    original.body.bundle_revision = uuid7()
+    oversized = {
+        "import_errors": {"a.py/member.py": "é" * limit},
+        "version_data": {"metadata": "é" * limit},
+        "parsed_definitions": ["a.py/member.py"] * limit,
+    }
+    setattr(original.body, oversized_field, oversized[oversized_field])
+    assert len(original.body.model_dump_json().encode()) > limit
+    manager._pending_publications[file] = original
+
+    manager._publish_pending_results()
+
+    report = client.publish_parse_result.call_args_list[1].args[0]
+    assert len(report.model_dump_json().encode()) < limit
+    assert DagParseResultBody.model_validate_json(report.model_dump_json()) == report
+    assert report.bundle_version == original.body.bundle_version
+    assert report.bundle_revision == original.body.bundle_revision
+    assert report.version_data is None
+    assert report.parsed_definitions == []
+    assert list(report.import_errors) == ["a.py"]
+    assert manager._file_stats[file].import_errors == 1
+    assert not manager._pending_publications
+
+
+@mock.patch("airflow.dag_processing.manager.MAX_PUBLICATION_BYTES", 32 * 1024)
+def test_rejection_report_bounds_server_validation_message():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    message = "Unknown role: " + "é" * (32 * 1024)
+    client.publish_parse_result.side_effect = [_make_status_error(422, "invalid_dag", message=message), None]
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["a.py"])[0]
+    manager._pending_publications[file] = _make_pending_publication(file)
+
+    manager._publish_pending_results()
+
+    report = client.publish_parse_result.call_args_list[1].args[0]
+    assert "Unknown role: é" in report.import_errors["a.py"]
+    assert len(report.model_dump_json().encode()) < 32 * 1024
+
+
+def test_direct_manager_does_not_import_api_client(monkeypatch, mocker):
+    monkeypatch.setitem(sys.modules, "airflow.dag_processing.api_client", None)
+    namespace = runpy.run_path(sys.modules[DagFileProcessorManager.__module__].__file__)
+    manager_class = namespace["DagFileProcessorManager"]
+    bundle_manager = mocker.patch.object(manager_class, "_create_bundle_manager", autospec=True)
+    bundle_manager.return_value.get_bundle.side_effect = ValueError("missing bundle")
+    manager = manager_class(max_runs=1)
+
+    manager._publish_pending_results()
+    manager.after_run()
+    request = DagCallbackRequest(
+        filepath="a.py",
+        dag_id="dag1",
+        run_id="run1",
+        is_failure_callback=False,
+        bundle_name="testing",
+        bundle_version="v1",
+    )
+    assert manager.prepare_callback_bundle(request) is None
 
 
 @pytest.mark.parametrize("reason", ["bundle_inactive", "publication_superseded", None])

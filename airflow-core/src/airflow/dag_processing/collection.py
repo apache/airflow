@@ -91,6 +91,10 @@ class DagBundleOwnershipError(ValueError):
     """A publication would replace a Dag owned by another bundle."""
 
 
+class DagPublicationValidationError(ValueError):
+    """A publication contains invalid Dag metadata."""
+
+
 def is_source_discovery_failed(relative_fileloc: str | None, failed_sources: Collection[str]) -> bool:
     """Check the source and its enclosing containers without matching sibling path prefixes."""
     if relative_fileloc is None or not failed_sources:
@@ -344,7 +348,10 @@ def _serialize_dag_capturing_errors(
                     # SQLite's legacy transaction mode does not start a transaction for SELECTs.
                     connection.exec_driver_sql("BEGIN")
                 with Session(bind=connection, join_transaction_mode="create_savepoint") as perms:
-                    sync_dag_perms(dag, session=perms)
+                    try:
+                        sync_dag_perms(dag, session=perms)
+                    except ValueError as error:
+                        raise DagPublicationValidationError(str(error)) from error
                     perms.commit()
             else:
                 sync_dag_perms(dag, session=session)
