@@ -73,15 +73,6 @@ export const getPreloadHITLFormData = (searchParams: URLSearchParams, hitlDetail
   };
 };
 
-const allowsObjectValue = (type: ParamSchema["type"]): boolean => {
-  if (type === undefined) {
-    return true;
-  }
-  const types = Array.isArray(type) ? type : [type];
-
-  return types.includes("object") && !types.includes("string");
-};
-
 export const getHITLParamsDict = (
   hitlDetail: HITLDetailHistory,
   translate: TFunction,
@@ -138,30 +129,9 @@ export const getHITLParamsDict = (
       // default is null" from "bare value".
       const isWrapped = paramData !== undefined && "value" in paramData;
 
-      // Check if there's a preloaded value from URL params
-      let finalValue = hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value);
-
-      const declaredSchema =
-        paramData?.schema && typeof paramData.schema === "object" ? paramData.schema : undefined;
-
-      // A JSON-looking string is parsed into an object only when the param may hold an object.
-      // A param declared as a string keeps its text: parsing it would render "[object Object]" in
-      // the string field and send an object back where the task expects a string.
-      if (
-        typeof finalValue === "string" &&
-        finalValue.trim().startsWith("{") &&
-        allowsObjectValue(declaredSchema?.type)
-      ) {
-        try {
-          const parsed: unknown = JSON.parse(finalValue);
-
-          if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-            finalValue = parsed;
-          }
-        } catch {
-          // If parsing fails, keep the string value
-        }
-      }
+      // Values arrive as stored JSON, so an object param's value is already an object. A string is
+      // never parsed: a JSON-looking string would render as "[object Object]" and go back as an object.
+      const finalValue = hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value);
 
       const description: string =
         paramData && typeof paramData.description === "string" ? paramData.description : "";
@@ -192,7 +162,7 @@ export const getHITLParamsDict = (
         title: key,
         type: valueType,
         values_display: undefined,
-        ...declaredSchema,
+        ...(paramData?.schema && typeof paramData.schema === "object" ? paramData.schema : {}),
       };
 
       paramsDict[key] = {
