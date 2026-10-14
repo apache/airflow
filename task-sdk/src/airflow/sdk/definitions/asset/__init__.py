@@ -32,6 +32,7 @@ from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
     from collections.abc import Collection
+    from datetime import datetime
     from typing import Self
     from urllib.parse import SplitResult
 
@@ -49,6 +50,7 @@ else:
 __all__ = [
     "Asset",
     "AssetAccessControl",
+    "AssetEventReceipt",
     "Dataset",
     "Model",
     "AssetAlias",
@@ -67,6 +69,14 @@ log = logging.getLogger(__name__)
 
 
 SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
+
+
+@attrs.define(frozen=True)
+class AssetEventReceipt:
+    """Acknowledgement of an immediately persisted asset event."""
+
+    id: int
+    timestamp: datetime
 
 
 @attrs.define(frozen=True)
@@ -397,6 +407,28 @@ class Asset(os.PathLike, BaseAsset):
     def __hash__(self):
         f = attrs.filters.include(*attrs.fields_dict(Asset))
         return hash(json.dumps(attrs.asdict(self, filter=f), sort_keys=True))
+
+    def emit(
+        self,
+        *,
+        extra: dict[str, JsonValue] | None = None,
+        partition_key: str | None = None,
+        partition_date: datetime | None = None,
+    ) -> AssetEventReceipt:
+        """
+        Immediately emit an event from a running task or a Dag lifecycle callback.
+
+        Unlike outlets, the event is not conditional on task success and is not
+        rolled back if the task later fails. The asset must already be registered.
+        Partition values are explicit; omitted values do not inherit the run's
+        partition. A partition date requires a partition key.
+
+        This experimental synchronous API does not retry ambiguous failures or
+        deduplicate calls. Retrying a task or callback can emit duplicate events.
+        """
+        from airflow.sdk.execution_time.asset_events import emit_asset_event
+
+        return emit_asset_event(self, extra=extra, partition_key=partition_key, partition_date=partition_date)
 
     @property
     def normalized_uri(self) -> str | None:

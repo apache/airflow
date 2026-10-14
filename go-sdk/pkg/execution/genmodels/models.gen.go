@@ -60,6 +60,17 @@ type AssetEventDagRunReference struct {
 	Timestamp time.Time `msgpack:"timestamp"`
 }
 
+type AssetEventEmissionResult struct {
+	// ID corresponds to the JSON schema field "id".
+	ID int `msgpack:"id"`
+
+	// Timestamp corresponds to the JSON schema field "timestamp".
+	Timestamp time.Time `msgpack:"timestamp"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 // Asset event schema with fields that are needed for Runtime.
 type AssetEventResponse struct {
 	// Asset corresponds to the JSON schema field "asset".
@@ -784,6 +795,29 @@ type EmailRequestEmailType string
 
 const EmailRequestEmailTypeFailure EmailRequestEmailType = "failure"
 const EmailRequestEmailTypeRetry EmailRequestEmailType = "retry"
+
+type EmitAssetEvent struct {
+	// CallbackIndex corresponds to the JSON schema field "callback_index".
+	CallbackIndex interface{} `msgpack:"callback_index,omitempty"`
+
+	// Extra corresponds to the JSON schema field "extra".
+	Extra Extra `msgpack:"extra,omitempty"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name string `msgpack:"name"`
+
+	// PartitionDate corresponds to the JSON schema field "partition_date".
+	PartitionDate interface{} `msgpack:"partition_date,omitempty"`
+
+	// PartitionKey corresponds to the JSON schema field "partition_key".
+	PartitionKey interface{} `msgpack:"partition_key,omitempty"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+
+	// URI corresponds to the JSON schema field "uri".
+	URI string `msgpack:"uri"`
+}
 
 type ErrorResponse struct {
 	// Detail corresponds to the JSON schema field "detail".
@@ -1823,6 +1857,10 @@ type TaskCallbackRequest struct {
 	// VersionData corresponds to the JSON schema field "version_data".
 	VersionData *VersionData `msgpack:"version_data,omitempty"`
 }
+
+type TriggerKwargs map[string]interface{}
+
+type Warnings []interface{}
 
 type TaskIds []string
 

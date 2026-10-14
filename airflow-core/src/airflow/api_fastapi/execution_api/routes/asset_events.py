@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from sqlalchemy import and_, select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -32,10 +32,18 @@ from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
 from airflow.api_fastapi.execution_api.datamodels.asset_event import (
+    AssetEventReceipt,
     AssetEventResponse,
     AssetEventsResponse,
+    EmitAssetEventBody,
 )
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.security import _IN_PROCESS_NON_TI_CALLER, CurrentTIToken
+from airflow.assets.manager import AssetManager
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.utils.sqlalchemy import JsonContains
 
 router = APIRouter(
@@ -44,6 +52,47 @@ router = APIRouter(
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
     },
 )
+
+
+@router.post("/emit", status_code=status.HTTP_201_CREATED)
+def emit_asset_event(
+    *,
+    body: EmitAssetEventBody,
+    request: Request,
+    session: SessionDep,
+    token: TIToken = CurrentTIToken,
+) -> AssetEventReceipt:
+    ti = None
+    dag_run = None
+    if body.source_dag_id is not None or body.source_run_id is not None:
+        # The PoC only accepts callback provenance through the trusted, in-process
+        # Dag processor transport, never from a worker's HTTP request.
+        if not request.scope.get(_IN_PROCESS_NON_TI_CALLER):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Callback provenance requires the Dag processor")
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == body.source_dag_id, DagRun.run_id == body.source_run_id)
+        )
+        if dag_run is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Source Dag run not found")
+    else:
+        ti = session.get(TaskInstance, token.id)
+        if ti is None:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Asset emission requires a task or Dag callback")
+
+    event = AssetManager.register_asset_change(
+        asset=SerializedAssetUniqueKey(name=body.name, uri=body.uri),
+        task_instance=ti,
+        dag_run=dag_run,
+        extra=body.extra,
+        partition_key=body.partition_key,
+        partition_date=body.partition_date,
+        session=session,
+    )
+    if event is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "Asset must already be registered with this name and URI"
+        )
+    return AssetEventReceipt(id=event.id, timestamp=event.timestamp)
 
 
 def _get_asset_events_through_sql_clauses(

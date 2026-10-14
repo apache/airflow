@@ -31,6 +31,13 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunConte
 from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBody, VariableResponse
 
 
+class AddImmediateAssetEmission(VersionChange):
+    """Add native immediate asset-event emission."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (endpoint("/asset-events/emit", ["POST"]).didnt_exist,)
+
+
 class AddDagProcessorJobEndpoints(VersionChange):
     """Add Dag processor lifecycle, inventory, shared-source publication, and requested-work endpoints."""
 

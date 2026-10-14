@@ -81,6 +81,7 @@ from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
+    AssetEventEmissionResult,
     AssetEventsResult,
     AssetResult,
     AssetsByAliasResult,
@@ -102,6 +103,7 @@ from airflow.sdk.execution_time.comms import (
     DeleteVariable,
     DeleteXCom,
     DRCount,
+    EmitAssetEvent,
     ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
@@ -2414,6 +2416,20 @@ class RequestTestCase:
 
 # Test cases for request handling
 REQUEST_TEST_CASES = [
+    RequestTestCase(
+        message=EmitAssetEvent(name="immediate", uri="example://immediate", partition_key="eu"),
+        test_id="emit_asset_event",
+        client_mock=ClientMock(
+            method_path="asset_events.emit",
+            args=(EmitAssetEvent(name="immediate", uri="example://immediate", partition_key="eu"),),
+            response=AssetEventEmissionResult(id=12, timestamp=timezone.datetime(2026, 10, 1)),
+        ),
+        expected_body={
+            "id": 12,
+            "timestamp": timezone.datetime(2026, 10, 1),
+            "type": "AssetEventEmissionResult",
+        },
+    ),
     RequestTestCase(
         message=GetConnection(conn_id="test_conn"),
         test_id="get_connection",

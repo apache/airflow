@@ -22,6 +22,9 @@ A brand-new message body needs no field-level migration instructions here: a lan
 pinned to an older version simply never sends it, so there is nothing to strip on the
 way down. Only *changes* to bodies that already existed at an earlier dated version
 require a ``VersionChange`` entry below.
+
+This version also introduces ``EmitAssetEvent`` and ``AssetEventEmissionResult``.
+These new bodies have no older wire shape to migrate.
 """
 
 from __future__ import annotations
