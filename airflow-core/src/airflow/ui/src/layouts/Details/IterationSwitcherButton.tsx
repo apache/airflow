@@ -73,15 +73,12 @@ export const IterationSwitcherButton = ({ children, includeWholeLoop = false, op
     } else {
       next.set(SearchParamsKeys.ITERATION, String(option.iteration));
     }
-    // A looped task has one row per pass, so the pass has to move the coordinate as well as the
-    // filter: without it a task instance page would keep showing the row it was already on.
-    if (option.loopRegionId === undefined || option.iteration === undefined) {
-      next.delete(SearchParamsKeys.REGION_ID);
-      next.delete(SearchParamsKeys.REGION_INDEX);
-    } else {
-      next.set(SearchParamsKeys.REGION_ID, option.loopRegionId);
-      next.set(SearchParamsKeys.REGION_INDEX, String(option.iteration));
-    }
+    // The pass is named, never addressed. A coordinate points at one row, and this control does
+    // not know which row a pass became: a mapped expansion lives in its own region, and a clear
+    // forks later passes into a successor one. Dropping the old coordinate lets the page resolve
+    // the pass against the server instead of being sent to a row that may not exist.
+    next.delete(SearchParamsKeys.REGION_ID);
+    next.delete(SearchParamsKeys.REGION_INDEX);
     setSearchParams(next);
     setOpen(false);
   };

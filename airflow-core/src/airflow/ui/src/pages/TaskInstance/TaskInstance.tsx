@@ -38,6 +38,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { type TabItem, useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
+import { useResolvePassCoordinate } from "src/hooks/useResolvePassCoordinate";
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useTaskInstanceView } from "src/hooks/useTaskInstanceView";
 import { useDefaultTaskInstanceTab } from "src/hooks/useUserSettings";
@@ -54,6 +55,7 @@ export const TaskInstance = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const coordinates = useTaskInstanceCoordinates();
+  const isResolvingCoordinate = useResolvePassCoordinate();
   const { error, historical, historicalTaskInstance, isLoading, liveTaskInstance, taskInstance } =
     useTaskInstanceView();
   const regional = liveTaskInstance !== undefined && isLoopTaskInstance(liveTaskInstance);
@@ -174,7 +176,9 @@ export const TaskInstance = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
+      {/* Held rather than rendered empty: a looped task instance cannot be asked for without a
+          coordinate, so the children must not run their queries until the pass resolves. */}
+      <DetailsLayout error={error} isLoading={isLoading || isResolvingCoordinate} tabs={displayTabs}>
         {taskInstance === undefined ? (
           isLoading ? undefined : (
             <Heading p={2} size="lg">
