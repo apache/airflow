@@ -19,7 +19,8 @@
 Dag File Processing
 -------------------
 
-Dag File Processing refers to the process of reading the python files that define your Dags and storing them such that the scheduler can schedule them.
+Dag File Processing refers to the process of reading the files that define your Dags and storing them such that the scheduler can schedule them.
+Airflow reads these files through :doc:`Dag importers <dag-importers>`; the built-in ones read Python files and zip archives.
 
 There are two primary components involved in Dag file processing.  The ``DagFileProcessorManager`` is a process executing an infinite loop that determines which files need
 to be processed, and the ``DagFileProcessorProcess`` is a separate process that is started to convert an individual file into one or more Dag objects.
@@ -30,7 +31,7 @@ The ``DagFileProcessorManager`` coordinates this work but never runs user code i
 
 ``DagFileProcessorManager`` has the following steps:
 
-1. Check for new files:  If the elapsed time since the Dag was last refreshed is > :ref:`config:dag_processor__refresh_interval` then update the file paths list
+1. Check for new files:  If the elapsed time since the Dag was last refreshed is > :ref:`config:dag_processor__refresh_interval` then update the file paths list with the files holding the Dag definitions that the bundle's importers list
 2. Exclude recently processed files:  Exclude files that have been processed more recently than :ref:`min_file_process_interval<config:dag_processor__min_file_process_interval>` and have not been modified
 3. Queue file paths: Add files discovered to the file path queue
 4. Process files:  Start a new ``DagFileProcessorProcess`` for each file, up to a maximum of :ref:`config:dag_processor__parsing_processes`
@@ -40,9 +41,8 @@ The ``DagFileProcessorManager`` coordinates this work but never runs user code i
 ``DagFileProcessorProcess`` has the following steps:
 
 1. Process file: The entire process must complete within :ref:`dag_file_processor_timeout<config:dag_processor__dag_file_processor_timeout>`
-2. The Dag files are loaded as Python module: Must complete within :ref:`dagbag_import_timeout<config:core__dagbag_import_timeout>`
-3. Process modules:  Find Dag objects within Python module
-4. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered Dag objects
+2. Import Dag definitions: Each Dag definition in the file is imported by the importer that listed it. The Python importer loads the file as a Python module, which must complete within :ref:`dagbag_import_timeout<config:core__dagbag_import_timeout>`, and finds the Dag objects within it
+3. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered Dag objects
 
 
 Fine-tuning your Dag processor performance

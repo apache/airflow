@@ -69,8 +69,8 @@ with is resolved in the worker and is not part of any of that.
 
 Two controls work on every toolset. ``.approval_required()`` pauses the task before a
 matching call runs, until a person approves or rejects it on the **Required Actions**
-page. It needs Airflow 3.3 or later, pauses a task instance at most once per Dag run,
-and does not combine with ``durable=True`` or a ``SandboxToolset`` that provisions its
+page. It needs Airflow 3.3 or later, pauses at every step that calls a matching tool on
+Airflow 3.4 and later (once per Dag run on 3.3), and does not combine with ``durable=True`` or a ``SandboxToolset`` that provisions its
 own sandbox (:doc:`../tool_approval` lists every limit). ``.filtered()`` drops tools
 from what the model is offered, as the :ref:`MCP guide <howto/toolset:mcp-filtered>`
 shows.
@@ -96,14 +96,24 @@ toolset to log its calls, the other converts a toolset for a LangChain agent.
 Importing toolsets
 ------------------
 
-Six toolsets import from the ``airflow.providers.common.ai.toolsets`` package root:
-``HookToolset``, ``SQLToolset``, ``ObjectStorageToolset``, ``MCPToolset``,
-``SandboxToolset`` and ``ManagedAgentToolset``. Import the other three from their own
-submodules::
+Every toolset imports from the ``airflow.providers.common.ai.toolsets`` package root::
 
-    from airflow.providers.common.ai.toolsets.datafusion import DataFusionToolset
-    from airflow.providers.common.ai.toolsets.logging import LoggingToolset
-    from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset
+    from airflow.providers.common.ai.toolsets import (
+        AgentSkillsToolset,
+        DataFusionToolset,
+        HookToolset,
+        LoggingToolset,
+        ManagedAgentToolset,
+        MCPToolset,
+        ObjectStorageToolset,
+        SandboxToolset,
+        SQLToolset,
+    )
+
+``SQLToolset`` and ``DataFusionToolset`` depend on optional extras. If the extra is not
+installed, the first access to the name raises ``AirflowOptionalProviderFeatureException``.
+``MCPToolset`` imports without its extra; the missing dependency raises ``ImportError``
+when the toolset first connects to the MCP server.
 
 Every toolset here implements pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface, so it works in any
@@ -284,17 +294,16 @@ used to allow exactly one correction whatever ``retries`` said, so an agent that
 ``retries`` now applies it to them too: ``retries=0`` fails the run on the first bad
 query, and a large integer ``retries`` meant for output validation also lets a failing
 database be queried that many times. Pass ``max_retries=1`` to a toolset to keep the old
-behaviour. Outside a pydantic-ai agent (the LangChain, Strands and Google ADK bridges)
-there is no agent budget, so each tool gets one correction unless its toolset sets
-``max_retries``.
+behaviour. Outside a pydantic-ai agent (the LangChain, Strands, Google ADK and Anthropic
+tool runner bridges) there is no agent budget, so each tool gets one correction unless its
+toolset sets ``max_retries``.
 
 Layering
 --------
 
-:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` and the
-durable-execution ``CachingToolset`` are not alternatives to anything above. Both
-are wrappers: they take a toolset and return a toolset, adding per-call logging
-or replay from a durable cache. Choose a route first, then decide whether to wrap
+:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is not an
+alternative to anything above. It is a wrapper: it takes a toolset and returns a
+toolset that logs each call. Choose a route first, then decide whether to wrap
 it. The same applies to
 :func:`~airflow.providers.common.ai.toolsets.langchain_bridge.airflow_toolset_to_langchain_tools`,
 which converts a chosen toolset for a different agent framework rather than
@@ -322,8 +331,9 @@ context.
 This approach gives you full control over the agent lifecycle -- you can call
 ``agent.run_sync()`` multiple times, swap models at runtime, or combine
 results from several agents in a single task. The tradeoff is that you lose
-the durable execution (step-level caching with retry replay), HITL review
-integration, and automatic tool call logging that ``AgentOperator`` provides.
+the HITL review integration and automatic tool call logging that
+``AgentOperator`` provides. Durable replay is still available: attach
+``AirflowDurability`` to the agent (see :doc:`../durable_execution`).
 
 Running the agent outside the data system
 -----------------------------------------

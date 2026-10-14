@@ -19,12 +19,14 @@
 import { useParams } from "react-router-dom";
 
 import {
+  useAssetServiceGetAsset,
   useDagRunServiceGetDagRun,
   useDagServiceGetDag,
   useTaskInstanceServiceGetMappedTaskInstance,
   useTaskServiceGetTask,
 } from "openapi/queries";
 
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import type { AppliesToContext } from "src/utils/pluginAppliesTo";
 
 /**
@@ -43,8 +45,15 @@ import type { AppliesToContext } from "src/utils/pluginAppliesTo";
  * Task groups are skipped for the task query, since `groupId` is not a task_id and would 404.
  */
 export const usePluginAppliesToContext = (enabled: boolean): AppliesToContext => {
-  const { dagId = "", groupId, mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const { assetId, dagId = "", groupId, mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
   const parsedMapIndex = parseInt(mapIndex, 10);
+
+  const { data: asset, isLoading: isAssetLoading } = useAssetServiceGetAsset(
+    { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },
+    undefined,
+    { enabled: enabled && Boolean(assetId) },
+  );
 
   const { data: dag, isLoading: isDagLoading } = useDagServiceGetDag({ dagId }, undefined, {
     enabled: enabled && Boolean(dagId),
@@ -66,7 +75,7 @@ export const usePluginAppliesToContext = (enabled: boolean): AppliesToContext =>
 
   const { data: taskInstance, isLoading: isTaskInstanceLoading } =
     useTaskInstanceServiceGetMappedTaskInstance(
-      { dagId, dagRunId: runId, mapIndex: parsedMapIndex, taskId },
+      { ...coordinates, dagId, dagRunId: runId, mapIndex: parsedMapIndex, taskId },
       undefined,
       { enabled: hasTaskInstance },
     );
@@ -88,12 +97,13 @@ export const usePluginAppliesToContext = (enabled: boolean): AppliesToContext =>
   );
 
   return {
+    asset,
     dag,
     dagRun,
     // `isLoading` (not `isPending`) is deliberate: a disabled query reports
     // `isPending` forever, which would withhold scoped views indefinitely on
-    // destinations that legitimately have no run, task or task instance.
-    isLoading: isDagLoading || isDagRunLoading || isTaskLoading || isTaskInstanceLoading,
+    // destinations that legitimately have no asset, run, task or task instance.
+    isLoading: isAssetLoading || isDagLoading || isDagRunLoading || isTaskLoading || isTaskInstanceLoading,
     task,
     taskInstance,
   };

@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import call, patch
+from uuid import UUID
 
 import attrs
 import pandas as pd
@@ -51,6 +52,7 @@ from airflow._shared.observability.traces import (
 )
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
 from airflow.listeners import hookimpl
+from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
@@ -62,6 +64,7 @@ from airflow.sdk import (
     dag as dag_decorator,
     get_current_context,
     task as task_decorator,
+    task_group,
     timezone,
 )
 from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
@@ -81,6 +84,7 @@ from airflow.sdk.bases.operator import ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
@@ -175,6 +179,7 @@ from airflow.sdk.execution_time.context import (
     VariableAccessor,
     _wrap_external_ref,
 )
+from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
@@ -208,6 +213,13 @@ if TYPE_CHECKING:
 import time_machine
 
 
+@pytest.fixture(autouse=True)
+def _clear_structlog_contextvars():
+    # startup() binds TI identifiers for the life of the worker process; we need to clear them else other tests will be impacted.
+    yield
+    structlog.contextvars.clear_contextvars()
+
+
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
     """Creates an inline dag and returns it based on dag_id and task."""
     dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
@@ -222,7 +234,17 @@ class CustomOperator(BaseOperator):
         print(f"Hello World {task_id}!")
 
 
-def test_parse(test_dags_dir: Path, make_ti_context):
+@pytest.mark.parametrize(
+    "coordinates",
+    [
+        {},
+        {"region_id": None, "region_index": None},
+        {"region_id": UUID(int=0), "region_index": -1},
+        {"region_id": uuid7(), "region_index": 7},
+    ],
+)
+@pytest.mark.parametrize("map_index", [-1, 3])
+def test_parse(test_dags_dir: Path, make_ti_context, coordinates, map_index):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
         ti=TaskInstance(
@@ -233,6 +255,8 @@ def test_parse(test_dags_dir: Path, make_ti_context):
             try_number=1,
             dag_version_id=uuid7(),
             queue="default",
+            map_index=map_index,
+            **coordinates,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -259,6 +283,11 @@ def test_parse(test_dags_dir: Path, make_ti_context):
 
     assert ti.task
     assert ti.task.dag
+    assert ti.region_id == (coordinates.get("region_id") or UUID(int=0))
+    assert ti.region_index == (
+        coordinates["region_index"] if coordinates.get("region_index") is not None else map_index
+    )
+    assert ti.map_index == map_index
 
 
 @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
@@ -727,14 +756,17 @@ def test_task_span_is_child_of_dag_run_span(make_ti_context):
     mock_ti.task_id = "my_task"
     mock_ti.run_id = "test_run"
     mock_ti.try_number = 1
-    mock_ti.map_index = -1
+    mock_ti.region_id = UUID(int=0)
+    mock_ti.region_index = -1
     mock_ti.queued_dttm = None
     mock_ti.start_date = timezone.utcnow()
     mock_ti.dag_run.context_carrier = dag_run_carrier
     mock_ti.context_carrier = ti_carrier
     api_tracer = provider.get_tracer("airflow.api_fastapi.execution_api.routes.task_instances")
+    resolver = mock.create_autospec(TaskCoordinateResolver, instance=True)
+    resolver.public_map_index.return_value = -1
     with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.tracer", api_tracer):
-        _emit_task_span(mock_ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(mock_ti, TaskInstanceState.SUCCESS, resolver=resolver)
 
     finished = in_mem_exporter.get_finished_spans()
 
@@ -906,6 +938,79 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
         ti = parse(what, mock.Mock())
 
     assert ti.task.dag.dag_id == "dag_name"
+
+
+@pytest.mark.parametrize(
+    ("use_startup", "expected_dag_id", "expected_task_id"),
+    [
+        pytest.param(True, "expected_dag", "my_task", id="startup"),
+        pytest.param(False, None, None, id="parse"),
+    ],
+)
+@mock.patch("airflow.sdk.execution_time.task_runner.get_listener_manager")
+@mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
+@mock.patch("airflow.sdk.execution_time.bundles.DagBundlesManager")
+def test_bundle_initialize_parsing_context(
+    mock_manager_cls,
+    mock_bag_cls,
+    mock_listener_manager,
+    use_startup,
+    expected_dag_id,
+    expected_task_id,
+    make_ti_context,
+    tmp_path: Path,
+    monkeypatch,
+):
+    from airflow.sdk import get_parsing_context
+    from airflow.sdk.definitions.context import (
+        _AIRFLOW_PARSING_CONTEXT_DAG_ID,
+        _AIRFLOW_PARSING_CONTEXT_TASK_ID,
+    )
+
+    captured: dict[str, str | None] = {}
+    mock_bundle = mock.Mock()
+    mock_bundle.path = tmp_path
+
+    def capture_parsing_context():
+        ctx = get_parsing_context()
+        captured["dag_id"] = ctx.dag_id
+        captured["task_id"] = ctx.task_id
+
+    mock_bundle.initialize.side_effect = capture_parsing_context
+    mock_manager = mock_manager_cls.return_value
+    mock_manager.get_bundle.return_value = mock_bundle
+
+    with DAG("expected_dag") as dag:
+        BaseOperator(task_id="my_task")
+    mock_bag_cls.return_value.dags = {"expected_dag": dag}
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="expected_dag",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="dag.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_DAG_ID, raising=False)
+    monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_TASK_ID, raising=False)
+
+    if use_startup:
+        startup(what)
+    else:
+        parse(what, mock.Mock())
+
+    assert captured == {"dag_id": expected_dag_id, "task_id": expected_task_id}
+    mock_bundle.initialize.assert_called_once()
 
 
 class NativeDagImporter(CoordinatorDagImporter):
@@ -2438,6 +2543,45 @@ def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_su
     assert ti.rendered_map_index == "Hello! test_run"
 
 
+@pytest.mark.parametrize(
+    ("map_index_template", "expected"),
+    [
+        ("{{ ti.try_number }}", "1"),
+        ("index-{{ ti.try_number }}", "index-1"),
+        ("{{ '3.10' }}", "3.10"),
+    ],
+)
+@pytest.mark.parametrize("render_template_as_native_obj", [False, True])
+def test_execute_success_task_with_numeric_rendered_map_index(
+    create_runtime_ti,
+    mock_supervisor_comms,
+    map_index_template,
+    expected,
+    render_template_as_native_obj,
+):
+    """Test that numeric-looking map indices remain strings in both rendering modes."""
+
+    def test_function():
+        return "test function"
+
+    with DAG(
+        dag_id="dag_with_numeric_map_index_template",
+        schedule=None,
+        render_template_as_native_obj=render_template_as_native_obj,
+    ):
+        task = PythonOperator(
+            task_id="test_task",
+            python_callable=test_function,
+            map_index_template=map_index_template,
+        )
+
+    ti = create_runtime_ti(task)
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.rendered_map_index == expected
+
+
 def test_execute_failed_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
     """Test that the map index is rendered in the task context."""
 
@@ -2562,6 +2706,25 @@ class TestRuntimeTaskInstance:
             ),
             "ti": runtime_ti,
         }
+
+    def test_task_state_store_scope_carries_region_coordinates(self, create_runtime_ti):
+        region_id = uuid7()
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="hello"))
+        runtime_ti.region_id = region_id
+        runtime_ti.region_index = 4
+
+        accessor = runtime_ti.get_template_context()["task_state_store"]
+
+        assert accessor == TaskStateStoreAccessor(
+            ti_id=runtime_ti.id,
+            scope=TaskScope(
+                dag_id=runtime_ti.dag_id,
+                run_id=runtime_ti.run_id,
+                task_id="hello",
+                map_index=4,
+                region_id=region_id,
+            ),
+        )
 
     def test_macros_in_context_are_scoped_to_the_tasks_team(self, create_runtime_ti, mock_supervisor_comms):
         """The accessor placed in the context must carry the team the server reported."""
@@ -3132,6 +3295,67 @@ class TestRuntimeTaskInstance:
             ),
         )
 
+    @staticmethod
+    def _make_loop_dag():
+        @task_group
+        def body():
+            BaseOperator(task_id="first") >> BaseOperator(task_id="second")
+
+        with DAG("loop_dag", schedule=None) as dag:
+            create_loop(body, max_iterations=3) >> BaseOperator(task_id="after")
+        return dag
+
+    def test_xcom_pull_of_a_loop_task_from_outside_the_loop_returns_every_iteration(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        dag = self._make_loop_dag()
+        runtime_ti = create_runtime_ti(task=dag.get_task("after"))
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=[1, 2, 3])
+
+        result = runtime_ti.xcom_pull(key="test_key", task_ids="body.first")
+
+        assert isinstance(result, LazyXComSequence)
+        mock_supervisor_comms.send.assert_not_called()
+        assert result[:] == [1, 2, 3]
+        sent = mock_supervisor_comms.send.call_args.args[0]
+        assert (sent.task_id, sent.key, sent.previous_iteration) == ("body.first", "test_key", False)
+
+    @pytest.mark.parametrize(
+        ("task_id", "pull_kwargs"),
+        [
+            pytest.param("body.second", {"task_ids": "body.first"}, id="caller inside the loop"),
+            pytest.param("after", {"task_ids": "body.first", "include_prior_dates": True}, id="prior dates"),
+            pytest.param("after", {"task_ids": "body.first", "run_id": "other_run"}, id="other run"),
+            pytest.param("after", {"task_ids": "body.first", "map_indexes": -1}, id="explicit map index"),
+            pytest.param("after", {"task_ids": ["body.first"]}, id="several task ids"),
+            pytest.param("after", {"task_ids": "removed"}, id="task missing from the dag"),
+            pytest.param("after", {"task_ids": "after"}, id="task outside any loop"),
+        ],
+    )
+    def test_xcom_pull_keeps_pulling_values_unless_an_outside_caller_reads_a_loop_task(
+        self, create_runtime_ti, mock_supervisor_comms, task_id, pull_kwargs
+    ):
+        dag = self._make_loop_dag()
+        runtime_ti = create_runtime_ti(task=dag.get_task(task_id))
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=[1, 2, 3])
+
+        with patch.object(XCom, "get_one", return_value=7):
+            result = runtime_ti.xcom_pull(key="test_key", **pull_kwargs)
+
+        assert not isinstance(result, LazyXComSequence)
+
+    @pytest.mark.asyncio
+    async def test_axcom_pull_of_a_loop_task_from_outside_the_loop_returns_a_list_for_one_iteration(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        dag = self._make_loop_dag()
+        runtime_ti = create_runtime_ti(task=dag.get_task("after"))
+        mock_supervisor_comms.asend.return_value = XComSequenceSliceResult(root=["only"])
+
+        result = await runtime_ti.axcom_pull(key="test_key", task_ids="body.first")
+
+        assert result == ["only"]
+
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
     ):
@@ -3416,7 +3640,7 @@ class TestRuntimeTaskInstance:
     def test_get_first_reschedule_date(
         self, create_runtime_ti, mock_supervisor_comms, task_reschedule_count, expected_date
     ):
-        """Test that the first reschedule date is fetched from the Supervisor."""
+        """Test that the first reschedule date falls back to the Supervisor."""
         task = BaseOperator(task_id="hello")
         runtime_ti = create_runtime_ti(task=task, task_reschedule_count=task_reschedule_count)
 
@@ -3426,6 +3650,22 @@ class TestRuntimeTaskInstance:
 
         context = runtime_ti.get_template_context()
         assert runtime_ti.get_first_reschedule_date(context=context) == expected_date
+
+    def test_get_first_reschedule_date_uses_context_from_server(
+        self, create_runtime_ti, make_ti_context, mock_supervisor_comms
+    ):
+        """Test that first reschedule date from server context avoids a Supervisor request."""
+        first_reschedule_date = timezone.datetime(2025, 1, 1)
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, task_reschedule_count=1)
+        runtime_ti._ti_context_from_server = make_ti_context(
+            task_reschedule_count=1,
+            first_task_reschedule_start_date=first_reschedule_date,
+        )
+
+        context = runtime_ti.get_template_context()
+        assert runtime_ti.get_first_reschedule_date(context=context) == first_reschedule_date
+        mock_supervisor_comms.send.assert_not_called()
 
     def test_get_ti_count(self, mock_supervisor_comms):
         """Test that get_ti_count sends the correct request and returns the count."""
@@ -6988,7 +7228,6 @@ class TestRegisterDeserializationAllowedClasses:
     """
 
     def test_registers_real_and_mapped_operators(self):
-
         with DAG("walker_dag") as dag:
             # Non-mapped producer: output_type is a plain attribute.
             _WalkerOperator(task_id="real", output_type=_WalkerModelA)
@@ -7004,7 +7243,6 @@ class TestRegisterDeserializationAllowedClasses:
         assert _WalkerModelB in registered, "mapped operator output_type not registered"
 
     def test_default_operator_registers_nothing(self):
-
         with DAG("walker_dag_plain") as dag:
             BaseOperator(task_id="plain")
 

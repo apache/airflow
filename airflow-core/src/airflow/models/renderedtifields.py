@@ -227,7 +227,7 @@ class RenderedTaskInstanceFields(Base):
                 TaskInstance.dag_id == ti.dag_id,
                 TaskInstance.task_id == ti.task_id,
                 TaskInstance.run_id == ti.run_id,
-                TaskInstance.map_index == ti.map_index,
+                TaskInstance.region_index == ti.map_index,
                 TaskInstance.try_number == ti.try_number,
             )
             .execution_options(include_all_attempts=True)

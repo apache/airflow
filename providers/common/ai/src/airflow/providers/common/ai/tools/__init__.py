@@ -20,20 +20,14 @@ Framework-neutral tools backed by Airflow connections.
 An :class:`AirflowTool` is one operation an agent can call: a name, a
 description, a JSON Schema for its arguments, and an async function. Nothing in
 it belongs to a particular agent framework, so the same tool can be handed to
-Strands Agents, Google ADK or LangChain through a small adapter, while the agent
-itself stays native to that framework.
+Strands Agents, Google ADK, LangChain or the Anthropic SDK's tool runner through a
+small adapter, while the agent itself stays native to that framework.
 
 The toolsets this provider ships, such as
 :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` and
 :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`, implement
 :class:`ToolProvider` and expose their tools through
 :meth:`ToolProvider.airflow_tools`.
-
-.. note::
-
-    Experimental: this interface can change or be removed in a minor release of this
-    provider.
-    See :ref:`howto/stability`.
 """
 
 from __future__ import annotations
@@ -154,7 +148,8 @@ def collect_tools(sources: Iterable[ToolProvider | AirflowTool]) -> list[Airflow
     Flatten toolsets and individual tools, as a framework adapter receives them, into tools.
 
     :raises ValueError: when two tools share a name. Frameworks route a call by name, so one
-        of them would silently never run; give one toolset a tool name prefix.
+        of them would silently never run; give the toolsets different ``tool_prefix`` values,
+        where they take one.
     """
     tools: list[AirflowTool] = []
     for source in sources:
@@ -165,8 +160,7 @@ def collect_tools(sources: Iterable[ToolProvider | AirflowTool]) -> list[Airflow
     names = [tool.name for tool in tools]
     if duplicates := sorted({name for name in names if names.count(name) > 1}):
         raise ValueError(
-            f"More than one tool is named {', '.join(duplicates)}. Give the toolsets different tool "
-            "name prefixes where they take one (HookToolset's tool_name_prefix, the tool_prefix of "
-            "SandboxToolset), so the model can call each of them."
+            f"More than one tool is named {', '.join(duplicates)}. "
+            "Give the toolsets different tool_prefix values, where they take one, so the model can call each of them."
         )
     return tools

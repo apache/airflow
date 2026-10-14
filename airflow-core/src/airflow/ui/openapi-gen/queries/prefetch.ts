@@ -73,6 +73,7 @@ export const prefetchUseAssetServiceGetAssetAlias = (queryClient: QueryClient, {
 * @param data.assetId
 * @param data.sourceDagId
 * @param data.sourceTaskId
+* @param data.sourceTaskInstanceId
 * @param data.sourceRunId
 * @param data.sourceMapIndex
 * @param data.partitionKey
@@ -87,7 +88,7 @@ export const prefetchUseAssetServiceGetAssetAlias = (queryClient: QueryClient, {
 * @returns AssetEventCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, { assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, { assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }: {
   assetId?: number;
   extra?: string[];
   limit?: number;
@@ -101,11 +102,12 @@ export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, 
   sourceMapIndex?: number;
   sourceRunId?: string;
   sourceTaskId?: string;
+  sourceTaskInstanceId?: string;
   timestampGt?: string;
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }) });
 /**
 * Get Asset Queued Events
 * Get queued asset events for an asset.
@@ -542,6 +544,34 @@ export const prefetchUseDagRunServiceGetDagRunStats = (queryClient: QueryClient,
   dagId: string;
   dagRunId: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceGetDagRunStatsKeyFn({ dagId, dagRunId }), queryFn: () => DagRunService.getDagRunStats({ dagId, dagRunId }) });
+/**
+* Get Execution
+* List a Dag run's live task instances with the region structure that locates them.
+*
+* Supplying ``try_number`` selects the tries with that number instead, including archived
+* ones. Use ``region_id``, ``region_index`` and ``try_number`` for exact links.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.regionId
+* @param data.regionIndex
+* @param data.tryNumber
+* @param data.limit
+* @param data.offset
+* @returns ExecutionCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseDagRunServiceGetExecution = (queryClient: QueryClient, { dagId, dagRunId, limit, offset, regionId, regionIndex, taskId, tryNumber }: {
+  dagId: string;
+  dagRunId: string;
+  limit?: number;
+  offset?: number;
+  regionId?: string;
+  regionIndex?: number;
+  taskId?: string;
+  tryNumber?: number;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceGetExecutionKeyFn({ dagId, dagRunId, limit, offset, regionId, regionIndex, taskId, tryNumber }), queryFn: () => DagRunService.getExecution({ dagId, dagRunId, limit, offset, regionId, regionIndex, taskId, tryNumber }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.
@@ -984,11 +1014,14 @@ export const prefetchUseEventLogServiceGetEventLog = (queryClient: QueryClient, 
 * Get Event Logs
 * Get all Event Logs.
 * @param data The data for the request.
+* @param data.regionId
+* @param data.regionIndex
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, owner_display_name, extra, when, event_log_id`
 * @param data.dagId
 * @param data.taskId
+* @param data.taskInstanceId
 * @param data.runId
 * @param data.mapIndex
 * @param data.tryNumber
@@ -1014,7 +1047,7 @@ export const prefetchUseEventLogServiceGetEventLog = (queryClient: QueryClient, 
 * @returns EventLogCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseEventLogServiceGetEventLogs = (queryClient: QueryClient, { after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, tryNumber }: {
+export const prefetchUseEventLogServiceGetEventLogs = (queryClient: QueryClient, { after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }: {
   after?: string;
   before?: string;
   dagId?: string;
@@ -1034,15 +1067,18 @@ export const prefetchUseEventLogServiceGetEventLogs = (queryClient: QueryClient,
   ownerDisplayNamePrefixPattern?: string;
   ownerPattern?: string;
   ownerPrefixPattern?: string;
+  regionId?: string;
+  regionIndex?: number;
   runId?: string;
   runIdPattern?: string;
   runIdPrefixPattern?: string;
   taskId?: string;
   taskIdPattern?: string;
   taskIdPrefixPattern?: string;
+  taskInstanceId?: string;
   teams?: string[];
   tryNumber?: number;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, tryNumber }), queryFn: () => EventLogService.getEventLogs({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, tryNumber }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }), queryFn: () => EventLogService.getEventLogs({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }) });
 /**
 * Get Extra Links
 * Get extra links for task instance.
@@ -1051,17 +1087,21 @@ export const prefetchUseEventLogServiceGetEventLogs = (queryClient: QueryClient,
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.tryNumber
 * @returns ExtraLinkCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseExtraLinksServiceGetExtraLinks = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+export const prefetchUseExtraLinksServiceGetExtraLinks = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   tryNumber?: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }), queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId, tryNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }), queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }) });
 /**
 * Get Extra Links
 * Get extra links for task instance.
@@ -1070,17 +1110,21 @@ export const prefetchUseExtraLinksServiceGetExtraLinks = (queryClient: QueryClie
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.tryNumber
 * @returns ExtraLinkCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetExtraLinks = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+export const prefetchUseTaskInstanceServiceGetExtraLinks = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   tryNumber?: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId, tryNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }) });
 /**
 * Get Task Instance
 * Get task instance.
@@ -1088,14 +1132,18 @@ export const prefetchUseTaskInstanceServiceGetExtraLinks = (queryClient: QueryCl
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetTaskInstance = (queryClient: QueryClient, { dagId, dagRunId, taskId }: {
+export const prefetchUseTaskInstanceServiceGetTaskInstance = (queryClient: QueryClient, { dagId, dagRunId, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }), queryFn: () => TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, regionId, regionIndex, taskId }), queryFn: () => TaskInstanceService.getTaskInstance({ dagId, dagRunId, regionId, regionIndex, taskId }) });
 /**
 * Get Mapped Task Instances
 * Get list of mapped task instances.
@@ -1103,6 +1151,8 @@ export const prefetchUseTaskInstanceServiceGetTaskInstance = (queryClient: Query
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
+* @param data.regionId
+* @param data.regionIndex
 * @param data.runAfterGte
 * @param data.runAfterGt
 * @param data.runAfterLte
@@ -1149,7 +1199,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstance = (queryClient: Query
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (queryClient: QueryClient, { dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
+export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (queryClient: QueryClient, { dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   dagId: string;
   dagRunId: string;
   durationGt?: number;
@@ -1178,6 +1228,8 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (queryClient
   queue?: string[];
   queueNamePattern?: string;
   queueNamePrefixPattern?: string;
+  regionId?: string;
+  regionIndex?: number;
   renderedMapIndexPattern?: string;
   renderedMapIndexPrefixPattern?: string;
   runAfterGt?: string;
@@ -1196,7 +1248,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (queryClient
   updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }), queryFn: () => TaskInstanceService.getMappedTaskInstances({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }), queryFn: () => TaskInstanceService.getMappedTaskInstances({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) });
 /**
 * Get Task Instance Dependencies
 * Get dependencies blocking task from getting scheduled.
@@ -1205,15 +1257,19 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (queryClient
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskDependencyCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+export const prefetchUseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskInstanceService.getTaskInstanceDependenciesByMapIndex({ dagId, dagRunId, mapIndex, taskId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }), queryFn: () => TaskInstanceService.getTaskInstanceDependenciesByMapIndex({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) });
 /**
 * Get Task Instance Dependencies
 * Get dependencies blocking task from getting scheduled.
@@ -1222,48 +1278,65 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskDependencyCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }), queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) });
 /**
 * Get Task Instance Tries
 * Get list of task instances history.
+*
+* Tries recorded before the task had regions are not included once it has them.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceHistoryCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceTries = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+export const prefetchUseTaskInstanceServiceGetTaskInstanceTries = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskInstanceService.getTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }), queryFn: () => TaskInstanceService.getTaskInstanceTries({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) });
 /**
 * Get Mapped Task Instance Tries
+* Get list of task instances history for a mapped task instance.
+*
+* Tries recorded before the task had regions are not included once it has them.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceHistoryCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTries = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTries = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTriesKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskInstanceService.getMappedTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTriesKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }), queryFn: () => TaskInstanceService.getMappedTaskInstanceTries({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) });
 /**
 * Get Mapped Task Instance
 * Get task instance.
@@ -1272,15 +1345,19 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTries = (queryCl
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskInstanceService.getMappedTaskInstance({ dagId, dagRunId, mapIndex, taskId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }), queryFn: () => TaskInstanceService.getMappedTaskInstance({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) });
 /**
 * Get Task Instances
 * Get list of task instances.
@@ -1300,7 +1377,11 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (queryClient:
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
+* @param data.regionId
+* @param data.regionIndex
 * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+* @param data.loopId
+* @param data.iteration
 * @param data.taskId
 * @param data.runAfterGte
 * @param data.runAfterGt
@@ -1356,7 +1437,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (queryClient:
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetTaskInstances = (queryClient: QueryClient, { cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
+export const prefetchUseTaskInstanceServiceGetTaskInstances = (queryClient: QueryClient, { cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, iteration, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, loopId, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   cursor?: string;
   dagId: string;
   dagIdPattern?: string;
@@ -1371,11 +1452,13 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (queryClient: Quer
   endDateLt?: string;
   endDateLte?: string;
   executor?: string[];
+  iteration?: number;
   limit?: number;
   logicalDateGt?: string;
   logicalDateGte?: string;
   logicalDateLt?: string;
   logicalDateLte?: string;
+  loopId?: string;
   mapIndex?: number[];
   offset?: number;
   operator?: string[];
@@ -1388,6 +1471,8 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (queryClient: Quer
   queue?: string[];
   queueNamePattern?: string;
   queueNamePrefixPattern?: string;
+  regionId?: string;
+  regionIndex?: number;
   renderedMapIndexPattern?: string;
   renderedMapIndexPrefixPattern?: string;
   runAfterGt?: string;
@@ -1412,7 +1497,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (queryClient: Quer
   updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }), queryFn: () => TaskInstanceService.getTaskInstances({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, iteration, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, loopId, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }), queryFn: () => TaskInstanceService.getTaskInstances({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, iteration, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, loopId, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) });
 /**
 * Get Task Instance Try Details
 * Get task instance details by try number.
@@ -1422,16 +1507,20 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (queryClient: Quer
 * @param data.taskId
 * @param data.taskTryNumber
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceHistoryResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId, taskTryNumber }: {
+export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   taskTryNumber: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn({ dagId, dagRunId, mapIndex, taskId, taskTryNumber }), queryFn: () => TaskInstanceService.getTaskInstanceTryDetails({ dagId, dagRunId, mapIndex, taskId, taskTryNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }), queryFn: () => TaskInstanceService.getTaskInstanceTryDetails({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }) });
 /**
 * Get Mapped Task Instance Try Details
 * @param data The data for the request.
@@ -1440,16 +1529,20 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (queryCli
 * @param data.taskId
 * @param data.taskTryNumber
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceHistoryResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTryDetails = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId, taskTryNumber }: {
+export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTryDetails = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   taskTryNumber: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTryDetailsKeyFn({ dagId, dagRunId, mapIndex, taskId, taskTryNumber }), queryFn: () => TaskInstanceService.getMappedTaskInstanceTryDetails({ dagId, dagRunId, mapIndex, taskId, taskTryNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTryDetailsKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }), queryFn: () => TaskInstanceService.getMappedTaskInstanceTryDetails({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }) });
 /**
 * Get Log
 * Get logs for a specific task instance.
@@ -1459,22 +1552,26 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTryDetails = (qu
 * @param data.taskId
 * @param data.tryNumber
 * @param data.fullContent
-* @param data.mapIndex
 * @param data.token
+* @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.accept
 * @returns TaskInstancesLogResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetLog = (queryClient: QueryClient, { accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber }: {
+export const prefetchUseTaskInstanceServiceGetLog = (queryClient: QueryClient, { accept, dagId, dagRunId, fullContent, mapIndex, regionId, regionIndex, taskId, token, tryNumber }: {
   accept?: "application/json" | "*/*" | "application/x-ndjson";
   dagId: string;
   dagRunId: string;
   fullContent?: boolean;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   token?: string;
   tryNumber: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetLogKeyFn({ accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber }), queryFn: () => TaskInstanceService.getLog({ accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetLogKeyFn({ accept, dagId, dagRunId, fullContent, mapIndex, regionId, regionIndex, taskId, token, tryNumber }), queryFn: () => TaskInstanceService.getLog({ accept, dagId, dagRunId, fullContent, mapIndex, regionId, regionIndex, taskId, token, tryNumber }) });
 /**
 * Get External Log Url
 * Get external log URL for a specific task instance.
@@ -1484,16 +1581,20 @@ export const prefetchUseTaskInstanceServiceGetLog = (queryClient: QueryClient, {
 * @param data.taskId
 * @param data.tryNumber
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns ExternalLogUrlResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetExternalLogUrl = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+export const prefetchUseTaskInstanceServiceGetExternalLogUrl = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   tryNumber: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }) });
 /**
 * Get Hitl Detail
 * Get a Human-in-the-loop detail of a specific task instance.
@@ -1502,15 +1603,19 @@ export const prefetchUseTaskInstanceServiceGetExternalLogUrl = (queryClient: Que
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns HITLDetail Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetHitlDetail = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+export const prefetchUseTaskInstanceServiceGetHitlDetail = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskInstanceService.getHitlDetail({ dagId, dagRunId, mapIndex, taskId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }), queryFn: () => TaskInstanceService.getHitlDetail({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) });
 /**
 * Get Hitl Detail Try Detail
 * Get a Human-in-the-loop detail of a specific task instance.
@@ -1520,22 +1625,28 @@ export const prefetchUseTaskInstanceServiceGetHitlDetail = (queryClient: QueryCl
 * @param data.taskId
 * @param data.mapIndex
 * @param data.tryNumber
+* @param data.regionId
+* @param data.regionIndex
 * @returns HITLDetailHistory Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetHitlDetailTryDetail = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+export const prefetchUseTaskInstanceServiceGetHitlDetailTryDetail = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   tryNumber: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailTryDetailKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getHitlDetailTryDetail({ dagId, dagRunId, mapIndex, taskId, tryNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailTryDetailKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getHitlDetailTryDetail({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }) });
 /**
 * Get Hitl Details
 * Get Human-in-the-loop details.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
+* @param data.regionId
+* @param data.regionIndex
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
@@ -1559,7 +1670,7 @@ export const prefetchUseTaskInstanceServiceGetHitlDetailTryDetail = (queryClient
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetHitlDetails = (queryClient: QueryClient, { bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }: {
+export const prefetchUseTaskInstanceServiceGetHitlDetails = (queryClient: QueryClient, { bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, regionId, regionIndex, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }: {
   bodySearch?: string;
   createdAtGt?: string;
   createdAtGte?: string;
@@ -1573,6 +1684,8 @@ export const prefetchUseTaskInstanceServiceGetHitlDetails = (queryClient: QueryC
   mapIndex?: number;
   offset?: number;
   orderBy?: string[];
+  regionId?: string;
+  regionIndex?: number;
   respondedByUserId?: string[];
   respondedByUserName?: string[];
   responseReceived?: boolean;
@@ -1582,7 +1695,7 @@ export const prefetchUseTaskInstanceServiceGetHitlDetails = (queryClient: QueryC
   taskIdPattern?: string;
   taskIdPrefixPattern?: string;
   teams?: string[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailsKeyFn({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }), queryFn: () => TaskInstanceService.getHitlDetails({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailsKeyFn({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, regionId, regionIndex, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }), queryFn: () => TaskInstanceService.getHitlDetails({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, regionId, regionIndex, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }) });
 /**
 * Get Import Error
 * Get an import error.
@@ -1759,19 +1872,23 @@ export const prefetchUseAssetStateStoreServiceGetAssetStateStore = (queryClient:
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.limit
 * @param data.offset
 * @returns TaskStateStoreCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskStateStoreServiceListTaskStateStore = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId }: {
+export const prefetchUseTaskStateStoreServiceListTaskStateStore = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
   offset?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, limit, mapIndex, offset, taskId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }) });
 /**
 * Get Task State Store
 * Get a single task state store entry.
@@ -1781,16 +1898,20 @@ export const prefetchUseTaskStateStoreServiceListTaskStateStore = (queryClient: 
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskStateStoreResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskStateStoreServiceGetTaskStateStore = (queryClient: QueryClient, { dagId, dagRunId, key, mapIndex, taskId }: {
+export const prefetchUseTaskStateStoreServiceGetTaskStateStore = (queryClient: QueryClient, { dagId, dagRunId, key, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   key: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskStateStoreServiceGetTaskStateStoreKeyFn({ dagId, dagRunId, key, mapIndex, taskId }), queryFn: () => TaskStateStoreService.getTaskStateStore({ dagId, dagRunId, key, mapIndex, taskId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskStateStoreServiceGetTaskStateStoreKeyFn({ dagId, dagRunId, key, mapIndex, regionId, regionIndex, taskId }), queryFn: () => TaskStateStoreService.getTaskStateStore({ dagId, dagRunId, key, mapIndex, regionId, regionIndex, taskId }) });
 /**
 * Get Xcom Entry
 * Get an XCom entry.
@@ -1800,20 +1921,24 @@ export const prefetchUseTaskStateStoreServiceGetTaskStateStore = (queryClient: Q
 * @param data.dagRunId
 * @param data.xcomKey
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.deserialize
 * @param data.stringify
 * @returns unknown Successful Response
 * @throws ApiError
 */
-export const prefetchUseXcomServiceGetXcomEntry = (queryClient: QueryClient, { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey }: {
+export const prefetchUseXcomServiceGetXcomEntry = (queryClient: QueryClient, { dagId, dagRunId, deserialize, mapIndex, regionId, regionIndex, stringify, taskId, xcomKey }: {
   dagId: string;
   dagRunId: string;
   deserialize?: boolean;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   stringify?: boolean;
   taskId: string;
   xcomKey: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseXcomServiceGetXcomEntryKeyFn({ dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey }), queryFn: () => XcomService.getXcomEntry({ dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseXcomServiceGetXcomEntryKeyFn({ dagId, dagRunId, deserialize, mapIndex, regionId, regionIndex, stringify, taskId, xcomKey }), queryFn: () => XcomService.getXcomEntry({ dagId, dagRunId, deserialize, mapIndex, regionId, regionIndex, stringify, taskId, xcomKey }) });
 /**
 * Get Xcom Entries
 * Get all XCom entries.
@@ -1825,6 +1950,8 @@ export const prefetchUseXcomServiceGetXcomEntry = (queryClient: QueryClient, { d
 * @param data.taskId
 * @param data.xcomKey
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.limit
 * @param data.offset
 * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -1845,11 +1972,11 @@ export const prefetchUseXcomServiceGetXcomEntry = (queryClient: QueryClient, { d
 * @param data.runAfterLte
 * @param data.runAfterLt
 * @param data.teams
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, region_id, region_index, timestamp, run_after`
 * @returns XComCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseXcomServiceGetXcomEntries = (queryClient: QueryClient, { dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }: {
+export const prefetchUseXcomServiceGetXcomEntries = (queryClient: QueryClient, { dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }: {
   dagDisplayNamePattern?: string;
   dagDisplayNamePrefixPattern?: string;
   dagId: string;
@@ -1863,6 +1990,8 @@ export const prefetchUseXcomServiceGetXcomEntries = (queryClient: QueryClient, {
   mapIndexFilter?: number;
   offset?: number;
   orderBy?: string[];
+  regionId?: string;
+  regionIndex?: number;
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
@@ -1876,7 +2005,7 @@ export const prefetchUseXcomServiceGetXcomEntries = (queryClient: QueryClient, {
   xcomKey?: string;
   xcomKeyPattern?: string;
   xcomKeyPrefixPattern?: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }) });
 /**
 * Get Tasks
 * Get tasks for Dag.
@@ -2063,13 +2192,15 @@ export const prefetchUsePartitionedDagRunServiceGetPartitionedDagRuns = (queryCl
 * @param data The data for the request.
 * @param data.dagId
 * @param data.partitionKey
+* @param data.partitionedDagRunId
 * @returns PartitionedDagRunDetailResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUsePartitionedDagRunServiceGetPendingPartitionedDagRun = (queryClient: QueryClient, { dagId, partitionKey }: {
+export const prefetchUsePartitionedDagRunServiceGetPendingPartitionedDagRun = (queryClient: QueryClient, { dagId, partitionedDagRunId, partitionKey }: {
   dagId: string;
+  partitionedDagRunId?: number;
   partitionKey: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn({ dagId, partitionKey }), queryFn: () => PartitionedDagRunService.getPendingPartitionedDagRun({ dagId, partitionKey }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn({ dagId, partitionedDagRunId, partitionKey }), queryFn: () => PartitionedDagRunService.getPendingPartitionedDagRun({ dagId, partitionedDagRunId, partitionKey }) });
 /**
 * Get Dependencies
 * Dependencies graph.
@@ -2288,6 +2419,38 @@ export const prefetchUseGridServiceGetGridTiSummariesStream = (queryClient: Quer
   dagId: string;
   runIds?: string[];
 }) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, runIds }), queryFn: () => GridService.getGridTiSummariesStream({ dagId, runIds }) });
+/**
+* Get Loop Summary
+* Summarize one loop invocation from the run's live task instances.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.runId
+* @param data.groupId
+* @param data.loopRegionId
+* @returns LoopSummaryResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseGridServiceGetLoopSummary = (queryClient: QueryClient, { dagId, groupId, loopRegionId, runId }: {
+  dagId: string;
+  groupId: string;
+  loopRegionId?: string;
+  runId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetLoopSummaryKeyFn({ dagId, groupId, loopRegionId, runId }), queryFn: () => GridService.getLoopSummary({ dagId, groupId, loopRegionId, runId }) });
+/**
+* Get Loop History
+* Show loop invocations from recent runs, oldest first.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.groupId
+* @param data.limit
+* @returns LoopHistoryResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseGridServiceGetLoopHistory = (queryClient: QueryClient, { dagId, groupId, limit }: {
+  dagId: string;
+  groupId: string;
+  limit?: number;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetLoopHistoryKeyFn({ dagId, groupId, limit }), queryFn: () => GridService.getLoopHistory({ dagId, groupId, limit }) });
 /**
 * Get Gantt Data
 * Get all task instance tries for Gantt chart.

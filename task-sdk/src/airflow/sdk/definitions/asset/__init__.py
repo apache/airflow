@@ -231,6 +231,11 @@ class BaseAsset:
     :meta private:
     """
 
+    @property
+    def requires_batching(self) -> bool:
+        """Whether this condition needs multiple asset events to be satisfied."""
+        return False
+
     def __or__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):
             return NotImplemented
@@ -487,6 +492,10 @@ class AssetBooleanCondition(BaseAsset):
     def __hash__(self) -> int:
         return hash(tuple(self.objects))
 
+    @property
+    def requires_batching(self) -> bool:
+        return any(obj.requires_batching for obj in self.objects)
+
 
 class AssetAny(AssetBooleanCondition):
     """Use to combine assets schedule references in an "or" relationship."""
@@ -505,6 +514,10 @@ class AssetAll(AssetBooleanCondition):
     """Use to combine assets schedule references in an "and" relationship."""
 
     agg_func = all  # type: ignore[assignment]
+
+    @property
+    def requires_batching(self) -> bool:
+        return len(self.objects) > 1 or super().requires_batching
 
     def __and__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):

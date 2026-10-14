@@ -18,16 +18,20 @@
 
 from __future__ import annotations
 
+import base64
 import copy
+import functools
 import inspect
 import re
 import types
+import warnings
 from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hints
 
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import ToolsetTool
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.utils.tool_definition import (
     build_args_validator,
     return_schema_kwargs,
@@ -53,6 +57,8 @@ _TYPE_MAP: dict[type, dict[str, Any]] = {
     bytes: {"type": "string"},
 }
 
+_BASE64_PARAM_NOTE = "Provide this value base64-encoded."
+
 
 class HookToolset(AirflowToolset):
     """
@@ -70,9 +76,13 @@ class HookToolset(AirflowToolset):
         is not modified; each task instance gets a copy.
     :param allowed_methods: Method names to expose as tools. Required —
         auto-discovery is intentionally not supported for safety.
-    :param tool_name_prefix: Optional prefix prepended to each tool name
-        (e.g. ``"s3_"`` → ``"s3_list_keys"``).
-    :param pinned_arguments: Experimental. Arguments the Dag author fixes, such as the bucket a
+    :param tool_prefix: Optional prefix joined to each tool name with an underscore
+        (e.g. ``"s3"`` → ``"s3_list_keys"``). Must be a valid Python identifier.
+    :param tool_name_prefix: Deprecated. Concatenated to each tool name as given
+        (``"s3_"`` → ``"s3_list_keys"``, ``"s3"`` → ``"s3list_keys"``) and not validated.
+        Passing it with ``tool_prefix`` raises ``ValueError`` unless it equals
+        ``"<tool_prefix>_"``.
+    :param pinned_arguments: Arguments the Dag author fixes, such as the bucket a
         storage hook may use: ``{"bucket_name": "reports"}``. Each is left out of the
         arguments the model sees, refused if the model supplies it anyway, and passed to
         every allowed method as it is written here, not rendered as a template. Every allowed
@@ -95,10 +105,32 @@ class HookToolset(AirflowToolset):
         hook: BaseHook,
         *,
         allowed_methods: list[str],
-        tool_name_prefix: str = "",
+        tool_prefix: str = "",
+        tool_name_prefix: str | None = None,
         pinned_arguments: dict[str, Any] | None = None,
         max_retries: int | None = None,
     ) -> None:
+        if tool_prefix and not tool_prefix.isidentifier():
+            # The prefixed names are rendered as Python function signatures under
+            # code mode, so a name that is not an identifier breaks there.
+            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
+        if tool_name_prefix is not None:
+            if tool_prefix and f"{tool_prefix}_" != tool_name_prefix:
+                raise ValueError(
+                    f"tool_prefix={tool_prefix!r} and tool_name_prefix={tool_name_prefix!r} conflict. "
+                    f"Pass only tool_prefix; tool_name_prefix is its deprecated alias and must equal "
+                    f"{tool_prefix + '_'!r} when both are given."
+                )
+            warnings.warn(
+                f"Parameter `tool_name_prefix` is deprecated. Use "
+                f"`tool_prefix={tool_name_prefix.removesuffix('_')!r}` instead; "
+                f"HookToolset adds the '_' itself.",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            name_prefix = tool_name_prefix
+        else:
+            name_prefix = f"{tool_prefix}_" if tool_prefix else ""
         self._max_retries = validate_max_retries(max_retries)
         if not allowed_methods:
             raise ValueError("allowed_methods must be a non-empty list.")
@@ -135,7 +167,7 @@ class HookToolset(AirflowToolset):
 
         self._hook = hook
         self._allowed_methods = allowed_methods
-        self._tool_name_prefix = tool_name_prefix
+        self._name_prefix = name_prefix
         # The attribute holding the hook's connection ID, e.g. ``postgres_conn_id``. Some hooks
         # name one attribute in conn_name_attr but keep the ID in ``conn_id`` (WasbHook,
         # KubernetesHook), so fall back to that.
@@ -143,6 +175,10 @@ class HookToolset(AirflowToolset):
         if conn_attr is None or not hasattr(hook, conn_attr):
             conn_attr = "conn_id" if hasattr(hook, "conn_id") else None
         self._conn_attr = conn_attr
+        self._bytes_params = {
+            method_name: _introspect_signature(getattr(hook, method_name))[1]
+            for method_name in allowed_methods
+        }
 
     @property
     def conn_id(self) -> str | None:
@@ -170,16 +206,25 @@ class HookToolset(AirflowToolset):
         tools: dict[str, ToolsetTool[Any]] = {}
         for method_name in self._allowed_methods:
             method = getattr(self._hook, method_name)
-            tool_name = f"{self._tool_name_prefix}{method_name}" if self._tool_name_prefix else method_name
+            tool_name = f"{self._name_prefix}{method_name}"
 
-            json_schema = _build_json_schema_from_signature(method)
+            json_schema, bytes_params = _introspect_signature(method)
             description = _extract_description(method)
             param_docs = _parse_param_docs(method.__doc__ or "")
+            properties = json_schema["properties"]
 
             # Enrich parameter descriptions from docstring.
             for param_name, param_desc in param_docs.items():
-                if param_name in json_schema.get("properties", {}):
-                    json_schema["properties"][param_name]["description"] = param_desc
+                if param_name in properties:
+                    properties[param_name]["description"] = param_desc
+            # After the loop above, which would otherwise overwrite the note. The encoding is
+            # stated in the description rather than as ``contentEncoding``: Gemini drops that
+            # keyword, and pydantic-ai passes it through to OpenAI strict mode.
+            for param_name in bytes_params:
+                existing = properties[param_name].get("description")
+                properties[param_name]["description"] = (
+                    f"{existing} {_BASE64_PARAM_NOTE}" if existing else _BASE64_PARAM_NOTE
+                )
             _drop_properties(json_schema, self._pinned)
             # The validator accepts the pinned names, with any value, so a model that sends one
             # anyway is told it is fixed rather than given a generic extra-input or type error.
@@ -208,9 +253,19 @@ class HookToolset(AirflowToolset):
                 max_retries=max_retries,
                 args_validator=build_args_validator(args_schema),
                 # Refused during validation, so an approval gate never asks about such a call.
-                args_validator_func=self._refuse_pinned if self._pinned else None,
+                args_validator_func=(
+                    functools.partial(self._validate_args, bytes_params)
+                    if self._pinned or bytes_params
+                    else None
+                ),
             )
         return tools
+
+    def _validate_args(self, bytes_params: frozenset[str], ctx: RunContext[Any], /, **tool_args: Any) -> None:
+        self._refuse_pinned(ctx, **tool_args)
+        # Only checked here: the decoded bytes are not kept, so what the toolset chain passes
+        # on, and the durable journal fingerprints, stays JSON.
+        _decode_bytes_args(tool_args, bytes_params)
 
     def _refuse_pinned(self, ctx: RunContext[Any], /, **tool_args: Any) -> None:
         if supplied := sorted(self._pinned.keys() & tool_args.keys()):
@@ -228,10 +283,14 @@ class HookToolset(AirflowToolset):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        method_name = name.removeprefix(self._tool_name_prefix) if self._tool_name_prefix else name
+        method_name = name.removeprefix(self._name_prefix)
         method: Callable[..., Any] = getattr(self._hook, method_name)
         # The framework bridges validate arguments without args_validator_func, so check again here.
         self._refuse_pinned(ctx, **tool_args)
+        # Decoded here rather than in the args validator: validated arguments travel the whole
+        # toolset chain, and the durable journal fingerprints them with a plain json.dumps, so bytes
+        # upstream of this point would make every binary call unverifiable on durable replay.
+        tool_args = _decode_bytes_args(tool_args, self._bytes_params[method_name])
         # A copy per call, so a method that modifies an argument it is given cannot change the pin.
         result = await self.run_blocking(method, **tool_args, **copy.deepcopy(self._pinned))
         return serialize_for_llm(result)
@@ -270,17 +329,70 @@ def _python_type_to_json_schema(annotation: Any) -> dict[str, Any]:
     return dict(schema) if schema else {}
 
 
-def _build_json_schema_from_signature(method: Callable[..., Any]) -> dict[str, Any]:
-    """Build a JSON Schema ``object`` from a method's signature and type hints."""
-    sig = inspect.signature(method)
+def _resolves_to_bytes(annotation: Any) -> bool:
+    """Whether ``annotation`` is ``bytes`` or ``bytes | None``."""
+    if annotation is bytes:
+        return True
+    if get_origin(annotation) in (types.UnionType, Union):
+        non_none = [arg for arg in get_args(annotation) if arg is not type(None)]
+        return len(non_none) == 1 and _resolves_to_bytes(non_none[0])
+    return False
 
-    try:
-        hints = get_type_hints(method)
-    except Exception:
-        hints = {}
+
+def _decode_bytes_args(tool_args: dict[str, Any], bytes_params: frozenset[str]) -> dict[str, Any]:
+    """Decode the base64 strings the model supplied for ``bytes``-typed parameters."""
+    decoded = dict(tool_args)
+    for name in bytes_params & tool_args.keys():
+        value = tool_args[name]
+        if not isinstance(value, str):
+            continue
+        try:
+            # Whitespace never carries data, so line-wrapped base64 is accepted. validate=True
+            # because the default discards any other character outside the alphabet instead of
+            # failing, which would store the wrong bytes without a word.
+            decoded[name] = base64.b64decode("".join(value.split()), validate=True)
+        except ValueError as e:
+            # ModelRetry asks the model to correct the call; a ValueError would fail the run.
+            raise ModelRetry(f"Parameter {name!r} must be base64-encoded binary data: {e}.") from e
+    return decoded
+
+
+def _resolve_annotations(method: Callable[..., Any]) -> dict[str, Any]:
+    """
+    Resolve each of ``method``'s annotations on its own.
+
+    ``get_type_hints`` is all-or-nothing: one annotation that does not resolve discards the
+    hints for every parameter. ``CloudKMSHook.encrypt`` hits this, its ``bytes`` parameters
+    sitting next to ``retry: Retry | _MethodDefault`` with ``Retry`` imported under
+    ``TYPE_CHECKING``. An annotation that does not resolve is left out, so only its own
+    parameter is advertised untyped.
+    """
+    globalns = getattr(inspect.unwrap(method), "__globals__", {})
+    hints: dict[str, Any] = {}
+    for name, annotation in getattr(method, "__annotations__", {}).items():
+        holder = types.SimpleNamespace(__annotations__={name: annotation})
+        try:
+            hints |= get_type_hints(holder, globalns=globalns)
+        except Exception:
+            # Evaluating an annotation runs an arbitrary expression: a TYPE_CHECKING-only name
+            # raises NameError, a name a module no longer has AttributeError.
+            continue
+    return hints
+
+
+def _introspect_signature(method: Callable[..., Any]) -> tuple[dict[str, Any], frozenset[str]]:
+    """
+    Build ``method``'s JSON Schema and the names of its ``bytes``-typed parameters.
+
+    Both come from one pass, so the parameters described to the model as base64 are
+    exactly the ones decoded on the way back.
+    """
+    sig = inspect.signature(method)
+    hints = _resolve_annotations(method)
 
     properties: dict[str, Any] = {}
     required: list[str] = []
+    bytes_params: set[str] = set()
     allows_additional_properties = False
 
     for name, param in sig.parameters.items():
@@ -295,6 +407,8 @@ def _build_json_schema_from_signature(method: Callable[..., Any]) -> dict[str, A
         annotation = hints.get(name, param.annotation)
         prop = _python_type_to_json_schema(annotation)
         properties[name] = prop
+        if _resolves_to_bytes(annotation):
+            bytes_params.add(name)
 
         if param.default is inspect.Parameter.empty:
             required.append(name)
@@ -304,7 +418,7 @@ def _build_json_schema_from_signature(method: Callable[..., Any]) -> dict[str, A
         schema["required"] = required
     if allows_additional_properties:
         schema["additionalProperties"] = True
-    return schema
+    return schema, frozenset(bytes_params)
 
 
 def _extract_description(method: Callable[..., Any]) -> str:

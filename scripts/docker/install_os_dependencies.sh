@@ -317,12 +317,15 @@ function install_python() {
         [3.13]="thomas@python.org"
         # https://peps.python.org/pep-0745/#release-manager-and-crew
         [3.14]="hugo@python.org"
+        # https://peps.python.org/pep-0790/#release-manager-and-crew
+        [3.15]="hugo@python.org"
     )
     declare -A sigstore_issuers=(
         [3.11]="https://accounts.google.com"
         [3.12]="https://accounts.google.com"
         [3.13]="https://accounts.google.com"
         [3.14]="https://github.com/login/oauth"
+        [3.15]="https://github.com/login/oauth"
     )
     wget --tries=3 --waitretry=5 -O python.tar.xz.sigstore \
         "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"

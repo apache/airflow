@@ -30,6 +30,7 @@ import {
   type TaskSpec,
 } from "../../src/sdk/dag.js";
 import { Bundle, finalizeBundleDags } from "../../src/sdk/bundle.js";
+import { brandOperator, type Operator } from "../../src/sdk/operator.js";
 
 describe("Dag", () => {
   it("returns a factory whose call yields a frozen TaskRef with the Dag and task identity", () => {
@@ -1080,5 +1081,39 @@ describe("Dag", () => {
     // And not the prefix or the leaf on its own.
     expect(bundle.getTaskHandler("example_dag", "transforms")).toBeUndefined();
     expect(bundle.getTaskHandler("example_dag", "normalize")).toBeUndefined();
+  });
+});
+
+describe("an operator that does not enforce executionTimeout", () => {
+  const waiter = (alternative?: string) =>
+    brandOperator<Operator<void, void>>({
+      operatorName: "WaitOperator",
+      label: "wait",
+      ...(alternative !== undefined && { executionTimeoutAlternative: alternative }),
+      execute: async () => {
+        throw new Error("not run");
+      },
+    });
+
+  it("is rejected with an executionTimeout, naming the option that bounds it", () => {
+    const dag = new Dag("d");
+
+    expect(() => dag.task("wait", waiter("pollTimeout"), { executionTimeout: 60 })).toThrowError(
+      'Task "wait" of Dag "d" is a wait task, which does not enforce executionTimeout; use ' +
+        "pollTimeout instead",
+    );
+    expect(dag.taskIds).toEqual([]);
+  });
+
+  it("takes the other options, and no executionTimeout", () => {
+    const dag = new Dag("d");
+
+    expect(() => dag.task("wait", waiter("pollTimeout"), { retries: 1 })).not.toThrow();
+  });
+
+  it("leaves an operator that does not name one free to take an executionTimeout", () => {
+    const dag = new Dag("d");
+
+    expect(() => dag.task("wait", waiter(), { executionTimeout: 60 })).not.toThrow();
   });
 });
