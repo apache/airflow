@@ -667,7 +667,7 @@ export class Dag {
     const taskId = condition.taskId;
     const branches: ConditionRecord = {};
     this.#conditions.set(taskId, branches);
-    this.#wrapDecider(taskId, async (held: unknown) => {
+    this.#wrapDecider("dag.if", taskId, async (held: unknown) => {
       if (typeof held !== "boolean") {
         throw new Error(
           `Condition "${taskId}" of Dag "${this.dagId}" returned ${describeValue(held)} ` +
@@ -730,12 +730,20 @@ export class Dag {
   }
 
   #wrapDecider(
+    verb: "dag.if" | "dag.switch",
     taskId: string,
     decide: (returned: unknown) => Promise<{ skip: string[]; result: unknown }>,
   ): void {
-    const { task, spec, fn } = this.#tasks.get(taskId)!;
-    // A decider is always declared from a handler, never from an operator.
-    const inner = fn!;
+    const record = this.#tasks.get(taskId)!;
+    // Only an operator task has no handler.
+    if (record.fn === undefined) {
+      const { label, operatorName } = record.operator;
+      throw new Error(
+        `A ${label ?? operatorName} task of Dag "${this.dagId}" was given to ${verb}, ` +
+          "which needs a handler to decide the branch with",
+      );
+    }
+    const { task, spec, fn: inner } = record;
     const wrapped: TaskFunction = async (args) => {
       const { skip, result } = await decide(await inner(args as never));
       if (skip.length > 0) await skipTasks(getClient() as CoordinatorClient, skip);
@@ -775,7 +783,7 @@ export class Dag {
     const taskId = decider.taskId;
     const candidates: TaskRef[] = [];
     this.#branches.set(taskId, candidates);
-    this.#wrapDecider(taskId, async (chosen: unknown) => {
+    this.#wrapDecider("dag.switch", taskId, async (chosen: unknown) => {
       const known = candidates.map((ref) => ref.taskId);
       const picked = isTaskRef(chosen) && chosen.dagId === this.dagId ? chosen.taskId : undefined;
       if (picked === undefined || !known.includes(picked)) {

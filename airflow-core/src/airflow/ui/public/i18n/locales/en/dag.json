@@ -346,9 +346,10 @@
     },
     "record_one": "Record",
     "record_other": "Records",
+    "schemaChange": "Serialized schema {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "Select two versions to see what changed between them.",
-    "summary_one": "{{count, number}} change · serialized schema {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count, number}} changes · serialized schema {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count, number}} change",
+    "summary_other": "{{count, number}} changes",
     "target": "Compare to",
     "truncated": {
       "description": "Changes at paths not shown were dropped to stay within the limit, so the count is a lower bound.",

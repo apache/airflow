@@ -33,7 +33,9 @@ longer match.
 
 Fields that pydantic-ai regenerates on every attempt (message-level
 ``timestamp``/``run_id``/``conversation_id`` and part-level ``timestamp``)
-are excluded from the fingerprint.  Plain JSON tool arguments and settings are
+are excluded from the fingerprint, and registered secrets in the message history
+are masked before hashing, as they are in the tool results the journal records.
+Plain JSON tool arguments and settings are
 hashed exactly as before.  Everything else is rendered by pydantic: the message
 history and the request parameters by their json-mode dump, which is also what
 they were always hashed from, and other tool arguments and settings by
@@ -74,15 +76,15 @@ computed field, a cached property, a serializer -- reaches the objects the tool 
 about to receive.  An argument that cannot be copied, such as a lazily validated
 ``Iterable``, is refused.
 
-A request that cannot be fingerprinted fingerprints as ``None``: that step is
-neither replayed nor cached, and re-runs live instead of replaying without
-verification.  On the model path this is seldom confined to one step, because
-model settings, the tool definitions and the message history are usually carried
-into every later request, so the model steps from that point on are lost too.  A
-tool call is fingerprinted from its name, arguments and call id alone, so it
-cannot stop another step from being fingerprinted, though a live re-run that
-returns something different still invalidates the model steps after it, because
-its result is part of the history they fingerprint.
+A request that cannot be fingerprinted fingerprints as ``None``.  The journal
+replays such a step without verification, and only when its name matches and the
+step before it replayed, so it is never matched against a different preceding
+conversation (see ``DurableRun.claim``).  On the model path this is seldom
+confined to one step, because model settings, the tool definitions and the
+message history are usually carried into every later request, so the model steps
+from that point on lose verification too.  A tool call is fingerprinted from its
+name, arguments and call id alone, so it cannot stop another step from being
+fingerprinted.
 """
 
 from __future__ import annotations
@@ -105,6 +107,7 @@ from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_core import to_jsonable_python
 
+from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.prompt_cache import PROMPT_CACHE_SETTING_NAMES
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
@@ -319,10 +322,10 @@ def _unpaired(guide: Any, rendered: Any) -> Any:
 
     Raises ``TypeError`` if that part of the guide holds a set whose order follows
     the hash seed. Its members are somewhere in ``rendered`` in that order, and
-    hashing them would cache a digest the next attempt cannot reproduce: the step
-    would miss with a "diverged" warning on every retry instead of being reported
-    as not cached. A set whose order is the same in every process is kept as
-    rendered, which is what was always hashed.
+    hashing them would record a digest the next attempt cannot reproduce: the run
+    would diverge at that step on every retry, where a step without a fingerprint
+    still replays right after a step that replayed. A set whose order is the same
+    in every process is kept as rendered, which is what was always hashed.
     """
     pending = [guide]
     seen: set[int] = set()
@@ -508,12 +511,13 @@ def fingerprint_model_request(
     model invalidates the cached response; only each tool's ``capability_id`` and
     ``deferred_capability_ids`` are left out.
 
-    Returns ``None`` when the request cannot be fingerprinted, which prevents the
-    step from being replayed or cached. Model settings, the tool definitions in the
-    request parameters and the message history are normally carried into every
-    later request, so such a value in any of them usually degrades every
-    subsequent model step of the run the same way. ``step`` is attached to the
-    warning so the log names where it began.
+    Returns ``None`` when the request cannot be fingerprinted. The journal then
+    replays the step without verification, and only right after a step that
+    replayed. Model settings, the tool definitions in the request parameters and
+    the message history are normally carried into every later request, so such a
+    value in any of them usually degrades every subsequent model step of the run
+    the same way. ``step`` is attached to the warning so the log names where it
+    began.
     """
     try:
         # Messages and parameters are hashed from pydantic's json-mode dump, as they
@@ -531,7 +535,10 @@ def fingerprint_model_request(
         return _digest(
             {
                 "model": model_identifier,
-                "messages": _strip_volatile(dumped),
+                # The journal records tool results with secrets masked, while a live run hands
+                # the model the unmasked result, so a replayed history holds ``***`` where the
+                # live one held the secret. Masking the history here as well makes both match.
+                "messages": _strip_volatile(mask_secrets(dumped)),
                 "settings": _render(_content_settings(model_settings)),
                 "params": _normalize_params(params),
             }
@@ -539,13 +546,14 @@ def fingerprint_model_request(
     except Exception as exc:
         # Rendering runs user code -- computed fields, serializers, custom mappings --
         # so anything can be raised here, and a fingerprint that cannot be computed
-        # must cost this step a live re-run, never the task. For a value pydantic
+        # must cost this step its verification, never the task. For a value pydantic
         # cannot serialize, the error names its type, the only pointer to the
         # setting or message at fault.
         log.warning(
-            "Durable: could not fingerprint model request; this step will not be cached and will "
-            "execute live on retry. If the cause is in model settings, tool definitions or message "
-            "history, later model steps of this run are usually affected too",
+            "Durable: could not fingerprint model request; on retry this step replays without "
+            "verification, and only right after a step that replayed. If the cause is in model "
+            "settings, tool definitions or message history, later model steps of this run are "
+            "usually affected too",
             step=step,
             error=str(exc),
             error_type=type(exc).__name__,
@@ -580,10 +588,10 @@ def fingerprint_tool_call(
         )
     except Exception as exc:
         # As for model requests: whatever rendering the arguments raises costs this
-        # step a live re-run, never the task.
+        # step its verification, never the task.
         log.warning(
-            "Durable: could not fingerprint tool call; this step will not be cached and will "
-            "execute live on retry",
+            "Durable: could not fingerprint tool call; on retry this step replays without "
+            "verification, and only right after a step that replayed",
             error=str(exc),
             error_type=type(exc).__name__,
             tool=name,

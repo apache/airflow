@@ -278,6 +278,18 @@ class TestModelRequestFingerprint:
 
         assert fp1 != fp2
 
+    @pytest.mark.enable_redact
+    def test_stable_when_a_registered_secret_in_the_history_is_masked(self, registered_secret):
+        """The journal records tool results masked, so a replayed history holds ``***``."""
+        live = fingerprint_model_request(
+            "m", make_messages(user=f"password={registered_secret}"), None, ModelRequestParameters()
+        )
+        replayed = fingerprint_model_request(
+            "m", make_messages(user="password=***"), None, ModelRequestParameters()
+        )
+
+        assert live == replayed
+
     def test_unserializable_request_returns_none(self):
         fp = fingerprint_model_request("m", [object()], None, ModelRequestParameters())  # type: ignore[list-item]
 
