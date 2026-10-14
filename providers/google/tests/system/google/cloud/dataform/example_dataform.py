@@ -25,6 +25,8 @@ import os
 from datetime import datetime
 
 from google.cloud.dataform_v1beta1 import WorkflowInvocation, WorkflowInvocationAction
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteDatasetOperator
@@ -51,6 +53,13 @@ from airflow.providers.google.cloud.sensors.dataform import (
 )
 from airflow.providers.google.cloud.utils.dataform import make_initialization_workspace_flow
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+
 try:
     from airflow.sdk import TriggerRule
 except ImportError:
@@ -68,6 +77,10 @@ REPOSITORY_ID = f"example_dataform_repository_{ENV_ID}"
 REGION = "us-central1"
 WORKSPACE_ID = f"example_dataform_workspace_{ENV_ID}"
 DATAFORM_SCHEMA_NAME = f"schema_{DAG_ID}_{ENV_ID}"
+# To run it in your project with "strict act-as mode" you need to configure the
+# https://docs.cloud.google.com/dataform/docs/strict-act-as-mode#grant-iam-roles,
+# against the <DATAFORM_ACT_AS_SA> you've plan to use.
+DATAFORM_ACT_AS_SA = os.environ.get("DATAFORM_ACT_AS_SA")
 
 # This DAG is not self-run we need to do some extra configuration to execute it in automation process
 with DAG(
@@ -77,6 +90,31 @@ with DAG(
     catchup=False,
     tags=["example", "dataform"],
 ) as dag:
+
+    @task(task_id="get_project_number")
+    def get_project_number():
+        """Helper function to retrieve the number of the project based on PROJECT_ID"""
+        try:
+            with build("cloudresourcemanager", "v1") as service:
+                response = service.projects().get(projectId=PROJECT_ID).execute()
+            return response["projectNumber"]
+        except HttpError as exc:
+            if exc.status_code == 403:
+                raise ValueError(
+                    "No project found with specified name, "
+                    "or caller does not have permissions to read specified project"
+                )
+            raise exc
+
+    @task(task_id="get_dataform_sa")
+    def get_dataform_sa(project_number):
+        if DATAFORM_ACT_AS_SA:
+            return DATAFORM_ACT_AS_SA
+        return f"{project_number}-compute@developer.gserviceaccount.com"
+
+    project_number_result = get_project_number()
+    service_account = get_dataform_sa(project_number_result)
+
     # [START howto_operator_create_repository]
     make_repository = DataformCreateRepositoryOperator(
         task_id="make-repository",
@@ -153,7 +191,10 @@ with DAG(
         region=REGION,
         repository_id=REPOSITORY_ID,
         workflow_invocation={
-            "compilation_result": "{{ task_instance.xcom_pull('create-compilation-result')['name'] }}"
+            "compilation_result": "{{ task_instance.xcom_pull('create-compilation-result')['name'] }}",
+            "invocation_config": {
+                "service_account": service_account,
+            },
         },
     )
     # [END howto_operator_create_workflow_invocation]
@@ -166,7 +207,10 @@ with DAG(
         repository_id=REPOSITORY_ID,
         asynchronous=True,
         workflow_invocation={
-            "compilation_result": "{{ task_instance.xcom_pull('create-compilation-result')['name'] }}"
+            "compilation_result": "{{ task_instance.xcom_pull('create-compilation-result')['name'] }}",
+            "invocation_config": {
+                "service_account": service_account,
+            },
         },
     )
 
@@ -238,7 +282,10 @@ with DAG(
         region=REGION,
         repository_id=REPOSITORY_ID,
         workflow_invocation={
-            "compilation_result": "{{ task_instance.xcom_pull('create-compilation-result')['name'] }}"
+            "compilation_result": "{{ task_instance.xcom_pull('create-compilation-result')['name'] }}",
+            "invocation_config": {
+                "service_account": service_account,
+            },
         },
         asynchronous=True,
     )
@@ -333,7 +380,8 @@ with DAG(
 
     (
         # TEST SETUP
-        make_repository
+        service_account
+        >> make_repository
         >> make_workspace
         # TEST BODY
         >> first_initialization_step

@@ -21,7 +21,8 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Hashable
-from typing import TYPE_CHECKING, Any
+from enum import Enum
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -30,6 +31,34 @@ from airflow.configuration import conf
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.executors.workloads.types import WorkloadState
+
+
+class WorkloadType(str, Enum):
+    """Central registry of executor workload types."""
+
+    EXECUTE_TASK = "ExecuteTask"
+    EXECUTE_CALLBACK = "ExecuteCallback"
+    TEST_CONNECTION = "TestConnection"
+
+
+# Central executor priority registry: tuple is ordered from highest priority to lowest.
+#
+# Connection tests are short-lived and user-interactive, so they sort ahead of tasks:
+# otherwise a sustained task backlog would starve them until the reaper times them out.
+#
+# Adding a ``WorkloadType`` member: the aliases are enforced by
+# ``test_workload_families_track_every_workload_type``; the ``isinstance`` chains in
+# ``BaseExecutor.run_workload``, ``state_class_for_key`` and
+# ``SchedulerJobRunner.process_executor_events`` must be extended by hand.
+_workload_type_priority_order = (
+    WorkloadType.EXECUTE_CALLBACK,
+    WorkloadType.TEST_CONNECTION,
+    WorkloadType.EXECUTE_TASK,
+)
+
+WORKLOAD_TYPE_PRIORITY: dict[WorkloadType, int] = {
+    name: idx for idx, name in enumerate(_workload_type_priority_order)
+}
 
 
 class BaseWorkload:
@@ -83,15 +112,30 @@ class BaseWorkloadSchema(BaseModel):
     token: str = Field(repr=False)
     """The identity token for this workload"""
 
-    @staticmethod
-    def generate_token(sub_id: str, generator: JWTGenerator | None = None) -> str:
+    token_scope: ClassVar[str] = "workload"
+    """Scope claim stamped into tokens minted for this workload type."""
+
+    @classmethod
+    def generate_token(cls, sub_id: str, generator: JWTGenerator | None = None) -> str:
         if not generator:
             return ""
         valid_for = conf.getfloat("scheduler", "task_queued_timeout")
         return generator.generate(
-            extras={"sub": sub_id, "scope": "workload"},
+            extras={"sub": sub_id, "scope": cls.token_scope},
             valid_for=valid_for,
         )
+
+    @property
+    def sort_key(self) -> int:
+        """
+        Return the sort key for ordering workloads within the same priority.
+
+        The default of ``0`` gives FIFO behaviour (Python's stable sort preserves
+        insertion order among equal keys).  Override in subclasses that need
+        priority ordering within their priority group — for example, ``ExecuteTask`` returns
+        ``-self.ti.priority_weight`` so that higher-weight tasks are scheduled first.
+        """
+        return 0
 
 
 class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):

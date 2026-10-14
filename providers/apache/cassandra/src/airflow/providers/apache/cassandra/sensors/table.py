@@ -49,7 +49,10 @@ class CassandraTableSensor(BaseSensorOperator):
         when connecting to Cassandra cluster
     """
 
-    template_fields: Sequence[str] = ("table",)
+    template_fields: Sequence[str] = (
+        "table",
+        "cassandra_conn_id",
+    )
 
     def __init__(
         self,

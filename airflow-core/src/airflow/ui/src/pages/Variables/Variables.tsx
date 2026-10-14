@@ -16,16 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Spacer, useDisclosure, VStack } from "@chakra-ui/react";
+import { useState } from "react";
+
+import { Box, Flex, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useVariableServiceGetVariables } from "openapi/queries";
 import type { VariableResponse } from "openapi/requests/types.gen";
+
+import { Tooltip, ActionBar } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -37,12 +42,12 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { SearchBar } from "src/components/SearchBar";
-import { Tooltip } from "src/components/ui";
-import { ActionBar } from "src/components/ui/ActionBar";
+import { TeamName } from "src/components/TeamName";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
-import { useDocumentTitle } from "src/utils";
+import { formatNumber, useDocumentTitle } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 
 import DeleteVariablesButton from "./DeleteVariablesButton";
@@ -61,8 +66,10 @@ const getColumns = ({
   multiTeam,
   open,
   translate,
-}: { hasSelection: boolean } & ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
-  const columns: Array<ColumnDef<VariableResponse>> = [
+}: { hasSelection: boolean } & ColumnProps & GetColumnsParams): Array<
+  ColumnDef<DataTableFeatures, VariableResponse>
+> => {
+  const columns: Array<ColumnDef<DataTableFeatures, VariableResponse>> = [
     {
       accessorKey: "select",
       cell: ({ row }) => <SelectionRowCheckbox rowKey={row.original.key} />,
@@ -112,6 +119,9 @@ const getColumns = ({
       ? [
           {
             accessorKey: "team_name",
+            cell: ({ row: { original } }: { row: { original: VariableResponse } }) => (
+              <TeamName teamName={original.team_name} />
+            ),
             header: translate("columns.team"),
           },
         ]
@@ -136,7 +146,7 @@ const getColumns = ({
 };
 
 export const Variables = () => {
-  const { t: translate } = useTranslation("admin");
+  const { i18n, t: translate } = useTranslation("admin");
 
   useDocumentTitle(translate("common:admin.Variables"));
 
@@ -154,7 +164,7 @@ export const Variables = () => {
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`] : ["-key"];
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
-  const { data, error, isFetching, isLoading } = useVariableServiceGetVariables({
+  const { data, error, isLoading } = useVariableServiceGetVariables({
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
@@ -169,6 +179,7 @@ export const Variables = () => {
       getKey: (variable) => variable.key,
     });
 
+  const variables = data?.variables ?? [];
   const columns = getColumns({
     hasSelection: selectedRows.size > 0,
     multiTeam: multiTeamEnabled,
@@ -198,42 +209,46 @@ export const Variables = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <VStack alignItems="none">
-        <SearchBar
-          advancedSearch={advancedSearch}
-          defaultValue={variableKeyPattern ?? ""}
-          onChange={handleSearchChange}
-          placeholder={translate("variables.searchPlaceholder")}
-        />
-        <HStack gap={4} mt={2}>
-          <ExpandCollapseButtons
-            collapseLabel={translate("common:expand.collapse")}
-            expandLabel={translate("common:expand.expand")}
-            isExpanded={open}
-            onCollapse={onClose}
-            onExpand={onOpen}
-          />
-          <Spacer />
-          <ImportVariablesButton disabled={selectedRows.size > 0} />
-          <AddVariableButton disabled={selectedRows.size > 0} />
-        </HStack>
-      </VStack>
       <DataTable
         columns={columns}
-        data={data?.variables ?? []}
+        data={variables}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={
+          <SearchBar
+            advancedSearch={advancedSearch}
+            defaultValue={variableKeyPattern ?? ""}
+            onChange={handleSearchChange}
+            placeholder={translate("variables.searchPlaceholder")}
+          />
+        }
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="admin:variables.variable"
         noRowsMessage={translate("variables.noRowsMessage")}
         onStateChange={setTableURLState}
+        presentationActions={
+          variables.length > 0 ? (
+            <ExpandCollapseButtons
+              collapseLabel={translate("common:expand.collapse")}
+              expandLabel={translate("common:expand.expand")}
+              isExpanded={open}
+              onCollapse={onClose}
+              onExpand={onOpen}
+            />
+          ) : undefined
+        }
+        primaryActions={
+          <>
+            <ImportVariablesButton disabled={selectedRows.size > 0} />
+            <AddVariableButton disabled={selectedRows.size > 0} />
+          </>
+        }
         total={data?.total_entries ?? 0}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("deleteActions.selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip content={translate("variables.delete.tooltip")}>

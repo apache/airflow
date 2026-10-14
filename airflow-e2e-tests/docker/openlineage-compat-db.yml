@@ -1,0 +1,48 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Docker Compose override for the openlineage E2E compat matrix (``--airflow-version``).
+#
+# docker-compose.yaml points sql_alchemy_conn/result_backend at the ``psycopg`` (v3) driver, matching
+# the current default. The compat matrix runs unmodified released ``apache/airflow:<version>`` images
+# for versions that only ever bundled psycopg2 by default (no psycopg3 provider dependency existed
+# yet), and does not reinstall the postgres provider on top of them — so the psycopg3 dialect can't
+# load there. Pin the explicit psycopg2 scheme these images actually support.
+---
+x-airflow-common-compat-db-env: &airflow-common-compat-db-env
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+  AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql+psycopg2://airflow:airflow@postgres/airflow
+
+services:
+  airflow-apiserver:
+    environment:
+      <<: *airflow-common-compat-db-env
+  airflow-scheduler:
+    environment:
+      <<: *airflow-common-compat-db-env
+  airflow-dag-processor:
+    environment:
+      <<: *airflow-common-compat-db-env
+  airflow-triggerer:
+    environment:
+      <<: *airflow-common-compat-db-env
+  airflow-worker:
+    environment:
+      <<: *airflow-common-compat-db-env
+  airflow-init:
+    environment:
+      <<: *airflow-common-compat-db-env

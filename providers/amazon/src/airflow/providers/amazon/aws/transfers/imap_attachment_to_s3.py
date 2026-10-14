@@ -54,7 +54,13 @@ class ImapAttachmentToS3Operator(BaseOperator):
         maintained on each worker node).
     """
 
-    template_fields: Sequence[str] = ("imap_attachment_name", "s3_key", "imap_mail_filter")
+    template_fields: Sequence[str] = (
+        "imap_attachment_name",
+        "s3_key",
+        "imap_mail_filter",
+        "imap_conn_id",
+        "aws_conn_id",
+    )
 
     def __init__(
         self,

@@ -34,7 +34,6 @@ from typing import NamedTuple
 from airflow_breeze.global_constants import (
     ALL_HISTORICAL_PYTHON_VERSIONS,
     ALL_PYPROJECT_TOML_FILES,
-    PYTHON_TO_MIN_AIRFLOW_MAPPING,
     UPDATE_PROVIDER_DEPENDENCIES_SCRIPT,
 )
 from airflow_breeze.utils.ci_group import ci_group
@@ -179,24 +178,30 @@ def _calculate_provider_deps_hash():
 def get_provider_dependencies() -> dict:
     if not PROVIDER_DEPENDENCIES_JSON_PATH.exists():
         calculated_hash = _calculate_provider_deps_hash()
-        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_hash + "\n")
         # We use regular print there as rich console might not be initialized yet here
         print("Regenerating provider dependencies file")
         regenerate_provider_dependencies_once()
+        # Only record the hash once regeneration succeeded, otherwise a failed run would
+        # leave a sidecar claiming that a missing/stale file is up to date.
+        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_hash + "\n")
     return json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
+
+
+def _force_regenerate_provider_dependencies() -> None:
+    # get_provider_dependencies() only regenerates when the JSON is absent, so the file has
+    # to be removed for it to pick up changed provider.yaml/pyproject.toml contents.
+    PROVIDER_DEPENDENCIES_JSON_PATH.unlink(missing_ok=True)
+    get_provider_dependencies.cache_clear()
+    get_provider_dependencies()
 
 
 def generate_provider_dependencies_if_needed():
     if not PROVIDER_DEPENDENCIES_JSON_PATH.exists() or not PROVIDER_DEPENDENCIES_JSON_HASH_PATH.exists():
-        get_provider_dependencies.cache_clear()
-        get_provider_dependencies()
+        _force_regenerate_provider_dependencies()
     else:
         calculated_hash = _calculate_provider_deps_hash()
         if calculated_hash.strip() != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text().strip():
-            # Force re-generation
-            PROVIDER_DEPENDENCIES_JSON_PATH.unlink(missing_ok=True)
-            get_provider_dependencies.cache_clear()
-            get_provider_dependencies()
+            _force_regenerate_provider_dependencies()
 
 
 def get_related_providers(
@@ -225,15 +230,6 @@ def get_related_providers(
         for dep_name in get_provider_dependencies()[provider_to_check]["cross-providers-deps"]:
             related_providers.add(dep_name)
     return related_providers
-
-
-def is_airflow_version_supported_for_python(airflow_version: str, python_version: str) -> bool:
-    from packaging.version import Version
-
-    min_airflow_version = PYTHON_TO_MIN_AIRFLOW_MAPPING.get(python_version)
-    if not min_airflow_version:
-        return False
-    return Version(airflow_version) >= Version(min_airflow_version)
 
 
 def get_all_constraint_files_and_airflow_releases(

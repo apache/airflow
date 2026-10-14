@@ -19,11 +19,11 @@ from __future__ import annotations
 
 from unittest import mock
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
     GoogleDisplayVideo360SDFtoGCSOperator,
 )
-from airflow.utils import timezone
 
 API_VERSION = "v4"
 GCP_CONN_ID = "google_cloud_default"

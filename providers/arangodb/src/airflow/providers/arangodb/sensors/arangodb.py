@@ -38,7 +38,10 @@ class AQLSensor(BaseSensorOperator):
     :param arangodb_db: Target ArangoDB name.
     """
 
-    template_fields: Sequence[str] = ("query",)
+    template_fields: Sequence[str] = (
+        "query",
+        "arangodb_conn_id",
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
 

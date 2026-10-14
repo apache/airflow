@@ -1,0 +1,17 @@
+Support for Python 3.10 has been removed
+
+Airflow now requires Python 3.11 or newer. Python 3.10 reaches its end of life in October 2026,
+and Airflow drops support for a Python version in ``main`` as soon as it reaches end of life.
+The ``apache-airflow`` distribution, the Task SDK, ``airflowctl`` and all providers released
+from ``main`` declare ``requires-python = ">=3.11"``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [x] Dependency changes
+  * [ ] Code interface changes

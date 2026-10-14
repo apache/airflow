@@ -24,7 +24,7 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.sensors.livy import LivySensor
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

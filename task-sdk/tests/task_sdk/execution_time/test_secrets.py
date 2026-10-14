@@ -17,11 +17,20 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+import textwrap
+
 import pytest
 
 from airflow.sdk.api.datamodels._generated import ConnectionResponse
+from airflow.sdk.configuration import clear_secrets_backends_cache, ensure_secrets_loaded
 from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied, ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, VariableResult
+from airflow.sdk.execution_time.secrets import (
+    _SERVER_DEFAULT_SECRETS_SEARCH_PATH,
+    DEFAULT_SECRETS_SEARCH_PATH_WORKERS,
+)
 from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
 
 
@@ -36,6 +45,9 @@ class TestExecutionAPISecretsBackend:
             host="example.com",
             port=443,
             schema="https",
+            login=None,
+            password=None,
+            extra=None,
         )
         conn_result = ConnectionResult.from_conn_response(conn_response)
         mock_supervisor_comms.send.return_value = conn_result
@@ -299,3 +311,52 @@ class TestContextDetection:
         assert "EnvironmentVariablesBackend" in backend_classes
         assert "MetastoreBackend" not in backend_classes
         assert "ExecutionAPISecretsBackend" not in backend_classes
+
+    def test_does_not_import_task_runner_outside_task_execution(self):
+        code = textwrap.dedent(
+            """
+            import sys
+            from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
+
+            ensure_secrets_backend_loaded()
+            print("airflow.sdk.execution_time.task_runner" in sys.modules)
+            """
+        )
+
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip().splitlines()[-1] == "False"
+
+
+class TestSecretsBackendMemoisation:
+    BACKEND = "airflow.secrets.environment_variables.EnvironmentVariablesBackend"
+
+    def test_nothing_is_memoised_until_a_custom_backend_is_configured(self):
+        first = ensure_secrets_loaded(default_backends=_SERVER_DEFAULT_SECRETS_SEARCH_PATH)
+
+        assert ensure_secrets_loaded(default_backends=_SERVER_DEFAULT_SECRETS_SEARCH_PATH) is not first
+
+    def test_backends_are_built_once_with_a_custom_backend(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW__SECRETS__BACKEND", self.BACKEND)
+
+        first = ensure_secrets_loaded(default_backends=_SERVER_DEFAULT_SECRETS_SEARCH_PATH)
+
+        assert ensure_secrets_loaded(default_backends=_SERVER_DEFAULT_SECRETS_SEARCH_PATH) is first
+
+    def test_worker_chain_is_memoised_separately_from_the_server_chain(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW__SECRETS__BACKEND", self.BACKEND)
+
+        server = ensure_secrets_loaded(default_backends=_SERVER_DEFAULT_SECRETS_SEARCH_PATH)
+        worker = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+
+        assert server is not worker
+        assert ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS) is worker
+
+    def test_clearing_the_cache_rebuilds_backends(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW__SECRETS__BACKEND", self.BACKEND)
+
+        first = ensure_secrets_loaded(default_backends=_SERVER_DEFAULT_SECRETS_SEARCH_PATH)
+        clear_secrets_backends_cache()
+
+        assert ensure_secrets_loaded(default_backends=_SERVER_DEFAULT_SECRETS_SEARCH_PATH) is not first

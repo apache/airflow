@@ -18,11 +18,22 @@
 
 from __future__ import annotations
 
+import subprocess
+import textwrap
+from unittest.mock import MagicMock, call, patch
+
+import pytest
 from extract_versions import (
     AIRFLOW_ROOT,
     PROVIDERS_JSON_CANDIDATES,
     SCRIPT_DIR,
+    extract_modules_from_yaml,
+    extract_version_data,
+    git_cat_file_batch,
+    git_ls_tree,
+    read_guide_docs,
 )
+from registry_tools.types import CLASS_LEVEL_SECTIONS, DICT_SHAPED_CLASS_LEVEL_SECTIONS
 
 
 class TestProvidersJsonCandidates:
@@ -49,3 +60,400 @@ class TestProvidersJsonCandidates:
         # should be caught and fixed at the source. Match siblings (extract_
         # parameters.py, extract_metadata.py) which use exactly these two.
         assert len(PROVIDERS_JSON_CANDIDATES) == 2
+
+
+# Expected (category, description_suffix) per class-level section, entered by
+# hand from the PR #70190 spec rather than derived from production code, so a
+# regression in extract_versions.py's mapping logic is actually caught.
+EXPECTED_CLASS_LEVEL_CATEGORIES = {
+    "notifications": "notifications",
+    "secrets-backends": "secrets",
+    "logging": "logging",
+    "executors": "executors",
+    "extra-links": "extra-links",
+    "queues": "queues",
+    "auth-managers": "auth-managers",
+    "db-managers": "db-managers",
+}
+
+EXPECTED_CLASS_LEVEL_DESC_SUFFIXES = {
+    "notifier": "notifier",
+    "secret": "secrets backend",
+    "logging": "log handler",
+    "executor": "executor",
+    "extra_link": "extra link",
+    "queue": "queue",
+    "auth_manager": "auth manager",
+    "db_manager": "db manager",
+}
+
+
+@patch("extract_versions.read_guide_docs", autospec=True, return_value={})
+def _extract_class_level_modules(provider_yaml: dict, _mock_read_guide_docs) -> list[dict]:
+    return extract_modules_from_yaml(
+        provider_yaml,
+        tag="providers-test/1.0.0",
+        layout="new",
+        dir_path="test",
+        provider_id="test",
+        version="1.0.0",
+    )
+
+
+class TestExtractModulesFromYamlClassLevelSections:
+    @pytest.mark.parametrize(("yaml_key", "mod_type"), list(CLASS_LEVEL_SECTIONS.items()))
+    def test_class_level_section_produces_module(self, yaml_key, mod_type):
+        class_path = f"airflow.providers.test.{yaml_key.replace('-', '_')}.example.ExampleClass"
+        provider_yaml = {yaml_key: [class_path]}
+
+        modules = _extract_class_level_modules(provider_yaml)
+
+        assert len(modules) == 1
+        module = modules[0]
+        assert module["type"] == mod_type
+        assert module["category"] == EXPECTED_CLASS_LEVEL_CATEGORIES[yaml_key]
+        expected_desc_suffix = EXPECTED_CLASS_LEVEL_DESC_SUFFIXES[mod_type]
+        assert module["short_description"] == f"ExampleClass {expected_desc_suffix}"
+
+    def test_all_class_level_sections_produce_covered_types(self):
+        """Type coverage must track CLASS_LEVEL_SECTIONS; a key added there
+        without matching handling in extract_versions.py fails here."""
+        provider_yaml = {
+            yaml_key: [f"airflow.providers.test.{yaml_key.replace('-', '_')}.example.ExampleClass"]
+            for yaml_key in CLASS_LEVEL_SECTIONS
+        }
+
+        modules = _extract_class_level_modules(provider_yaml)
+
+        assert {m["type"] for m in modules} == set(CLASS_LEVEL_SECTIONS.values())
+
+
+# plugins/dialects aren't in CLASS_LEVEL_CATEGORY_OVERRIDES, so category ==
+# yaml_key itself (same fallback as EXPECTED_CLASS_LEVEL_CATEGORIES above).
+EXPECTED_DICT_SHAPED_CATEGORIES = {
+    "plugins": "plugins",
+    "dialects": "dialects",
+}
+
+EXPECTED_DICT_SHAPED_DESC_SUFFIXES = {
+    "plugin": "plugin",
+    "dialect": "dialect",
+}
+
+
+class TestExtractModulesFromYamlDictShapedSections:
+    @pytest.mark.parametrize(
+        ("yaml_key", "type_and_field"),
+        list(DICT_SHAPED_CLASS_LEVEL_SECTIONS.items()),
+    )
+    def test_dict_shaped_section_produces_module(self, yaml_key, type_and_field):
+        mod_type, class_path_field, _integration_field = type_and_field
+        class_path = f"airflow.providers.test.{yaml_key.replace('-', '_')}.example.ExampleClass"
+        provider_yaml = {yaml_key: [{class_path_field: class_path}]}
+
+        modules = _extract_class_level_modules(provider_yaml)
+
+        assert len(modules) == 1
+        module = modules[0]
+        assert module["type"] == mod_type
+        assert module["category"] == EXPECTED_DICT_SHAPED_CATEGORIES[yaml_key]
+        expected_desc_suffix = EXPECTED_DICT_SHAPED_DESC_SUFFIXES[mod_type]
+        assert module["short_description"] == f"ExampleClass {expected_desc_suffix}"
+
+    def test_all_dict_shaped_sections_produce_covered_types(self):
+        """Type coverage must track DICT_SHAPED_CLASS_LEVEL_SECTIONS; a key
+        added there without matching handling in extract_versions.py fails here."""
+        provider_yaml = {
+            yaml_key: [
+                {
+                    class_path_field: f"airflow.providers.test.{yaml_key.replace('-', '_')}.example.ExampleClass"
+                }
+            ]
+            for yaml_key, (
+                _,
+                class_path_field,
+                _integration_field,
+            ) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items()
+        }
+
+        modules = _extract_class_level_modules(provider_yaml)
+
+        assert {m["type"] for m in modules} == {t for t, _, _ in DICT_SHAPED_CLASS_LEVEL_SECTIONS.values()}
+
+
+class TestExtractVersionDataConnectionTypes:
+    """`external-services` on a connection-types entry must survive into the
+    per-version metadata.json (extract_versions.py:399) the same way it does
+    for the latest release in providers.json (extract_metadata.py). A
+    superseded release only has this file as its data source, so a dropped
+    or mis-keyed field here silently vanishes from just that version's page.
+    """
+
+    PROVIDER_YAML = textwrap.dedent("""\
+        name: Test Provider
+        connection-types:
+          - connection-type: testconn
+            hook-class-name: airflow.providers.test.hooks.TestHook
+            external-services:
+              - openai
+              - anthropic
+        """)
+
+    @patch("extract_versions.extract_modules_from_yaml", autospec=True, return_value=[])
+    @patch("extract_versions.fetch_provider_inventory", autospec=True, return_value=None)
+    @patch("extract_versions.git_show", autospec=True)
+    @patch("extract_versions.detect_layout", autospec=True, return_value="new")
+    @patch("extract_versions.git_tag_exists", autospec=True, return_value=True)
+    def test_external_services_propagates_to_version_metadata(
+        self, _tag_exists, _layout, mock_git_show, _inventory, _modules
+    ):
+        mock_git_show.side_effect = lambda tag, path: (
+            self.PROVIDER_YAML if path.endswith("provider.yaml") else None
+        )
+
+        result = extract_version_data("test", "1.0.0", "test")
+
+        assert result is not None
+        assert result["connection_types"][0]["external_services"] == ["openai", "anthropic"]
+
+
+class TestExtractVersionDataUriSchemes:
+    """A superseded release's page reads URI schemes from its metadata.json, so the
+    filesystem module source must come from the release tag, not the working tree."""
+
+    PROVIDER_YAML = textwrap.dedent("""\
+        name: Test Provider
+        filesystems:
+          - airflow.providers.test.fs.testfs
+        remote-logging:
+          - classpath: airflow.providers.test.log.TestRemoteLogIO
+            scheme: testfs
+        """)
+
+    @pytest.mark.parametrize(
+        ("layout", "yaml_path", "fs_source_path"),
+        [
+            pytest.param(
+                "new",
+                "providers/test/provider.yaml",
+                "providers/test/src/airflow/providers/test/fs/testfs.py",
+                id="new-layout",
+            ),
+            pytest.param(
+                "old",
+                "providers/src/airflow/providers/test/provider.yaml",
+                "providers/src/airflow/providers/test/fs/testfs.py",
+                id="old-layout",
+            ),
+        ],
+    )
+    @patch("extract_versions.extract_modules_from_yaml", autospec=True, return_value=[])
+    @patch("extract_versions.fetch_provider_inventory", autospec=True, return_value=None)
+    @patch("extract_versions.git_show", autospec=True)
+    @patch("extract_versions.detect_layout", autospec=True)
+    @patch("extract_versions.git_tag_exists", autospec=True, return_value=True)
+    def test_filesystem_schemes_read_from_release_tag(
+        self, _tag_exists, mock_layout, mock_git_show, _inventory, _modules, layout, yaml_path, fs_source_path
+    ):
+        mock_layout.return_value = layout
+        sources = {yaml_path: self.PROVIDER_YAML, fs_source_path: 'schemes = ["testfs", "tfs"]\n'}
+        mock_git_show.side_effect = lambda tag, path: sources.get(path)
+
+        result = extract_version_data("test", "1.0.0", "test")
+
+        assert result is not None
+        assert result["uri_schemes"] == [
+            {
+                "scheme": "testfs",
+                "filesystem": "airflow.providers.test.fs.testfs",
+                "remote_logging": "airflow.providers.test.log.TestRemoteLogIO",
+            },
+            {"scheme": "tfs", "filesystem": "airflow.providers.test.fs.testfs"},
+        ]
+        mock_git_show.assert_any_call("providers-test/1.0.0", fs_source_path)
+
+
+class TestExtractModulesGuideUrls:
+    """A class the provider's guides document in a section of its own must get a
+    ``guide_url`` for every version, not just the latest. A superseded version's
+    page is rendered only from the per-version file this module writes, so a link
+    resolved on the latest path alone disappears the moment a new version lands.
+    """
+
+    PROVIDER_YAML = {
+        "toolsets": [
+            {
+                "integration-name": "Test",
+                "python-modules": ["airflow.providers.test.toolsets.hook"],
+            }
+        ]
+    }
+    SOURCE = 'class HookToolset:\n    """A toolset."""\n'
+    GUIDE = "``HookToolset``\n---------------\n\nProse.\n"
+
+    def _extract(self, layout="new", docs_paths=("providers/test/docs/toolsets.rst",)):
+        def fake_git_show(_tag, path):
+            return self.SOURCE if path.endswith(".py") else None
+
+        def fake_git_cat_file_batch(_tag, paths):
+            return {p: self.GUIDE for p in paths}
+
+        with (
+            patch("extract_versions.git_ls_tree", autospec=True, return_value=list(docs_paths)),
+            patch("extract_versions.git_show", autospec=True, side_effect=fake_git_show),
+            patch("extract_versions.git_cat_file_batch", autospec=True, side_effect=fake_git_cat_file_batch),
+        ):
+            return extract_modules_from_yaml(
+                self.PROVIDER_YAML, "providers-test/1.0.0", layout, "test", "test", "1.0.0"
+            )
+
+    def test_documented_class_gets_a_versioned_guide_url(self):
+        modules = self._extract()
+
+        assert [m["name"] for m in modules] == ["HookToolset"]
+        assert modules[0]["guide_url"] == (
+            "https://airflow.apache.org/docs/apache-airflow-providers-test/1.0.0/toolsets.html#hooktoolset"
+        )
+
+    def test_undocumented_class_gets_no_guide_url(self):
+        modules = self._extract(docs_paths=())
+
+        assert [m["name"] for m in modules] == ["HookToolset"]
+        assert "guide_url" not in modules[0]
+
+    def test_old_layout_gets_no_guide_url(self):
+        # Pre-per-provider tags kept docs in a top-level tree, so there is no
+        # provider-relative page path to build a link from.
+        modules = self._extract(layout="old")
+
+        assert "guide_url" not in modules[0]
+
+
+class TestReadGuideDocs:
+    def test_skips_generated_and_release_note_pages_before_calling_git_show(self):
+        docs_prefix = "providers/test/docs/"
+        paths = [
+            docs_prefix + "_api/x/index.rst",
+            docs_prefix + "changelog.rst",
+            docs_prefix + "diagram.png",
+            docs_prefix + "conf.py",
+            docs_prefix + "toolsets.rst",
+        ]
+
+        with (
+            patch("extract_versions.git_ls_tree", autospec=True, return_value=paths),
+            patch(
+                "extract_versions.git_cat_file_batch",
+                autospec=True,
+                side_effect=lambda tag, paths: {p: "Prose.\n" for p in paths},
+            ) as mock_git_cat_file_batch,
+        ):
+            result = read_guide_docs("providers-test/1.0.0", "new", "test")
+
+        assert set(result) == {"toolsets.rst"}
+        # Filtering must happen before the batch call, not just before the dict write.
+        assert mock_git_cat_file_batch.call_args_list == [
+            call("providers-test/1.0.0", [docs_prefix + "toolsets.rst"])
+        ]
+
+    def test_skips_a_page_whose_content_is_an_empty_string(self):
+        docs_prefix = "providers/test/docs/"
+        paths = [docs_prefix + "empty.rst"]
+
+        with (
+            patch("extract_versions.git_ls_tree", autospec=True, return_value=paths),
+            patch(
+                "extract_versions.git_cat_file_batch",
+                autospec=True,
+                return_value={docs_prefix + "empty.rst": ""},
+            ),
+        ):
+            result = read_guide_docs("providers-test/1.0.0", "new", "test")
+
+        assert result == {}
+
+
+class TestGitLsTree:
+    def test_passes_quote_path_false_to_git(self):
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.stdout = b"providers/test/docs/toolsets.rst\n"
+        with patch("extract_versions.subprocess.run", autospec=True, return_value=mock_result) as mock_run:
+            git_ls_tree("providers-test/1.0.0", "providers/test/docs/")
+
+        assert mock_run.call_args.args[0] == [
+            "git",
+            "-c",
+            "core.quotePath=false",
+            "ls-tree",
+            "-r",
+            "--name-only",
+            "providers-test/1.0.0",
+            "--",
+            "providers/test/docs/",
+        ]
+
+    def test_decodes_stdout_as_utf8(self):
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.stdout = "docs/café.rst\ndocs/b.rst\n".encode()
+        with patch("extract_versions.subprocess.run", autospec=True, return_value=mock_result):
+            result = git_ls_tree("providers-test/1.0.0", "providers/test/docs/")
+
+        assert result == ["docs/café.rst", "docs/b.rst"]
+
+
+def _batch_hit(sha1: str, obj_type: str, content: bytes) -> bytes:
+    return f"{sha1} {obj_type} {len(content)}\n".encode() + content + b"\n"
+
+
+def _batch_missing(spec: str) -> bytes:
+    return f"{spec} missing\n".encode()
+
+
+class TestGitCatFileBatch:
+    def test_empty_paths_returns_empty_dict_without_subprocess(self):
+        with patch("extract_versions.subprocess.run", autospec=True) as mock_run:
+            result = git_cat_file_batch("providers-test/1.0.0", [])
+
+        assert result == {}
+        mock_run.assert_not_called()
+
+    def test_two_hits_with_different_sizes_and_multibyte_content(self):
+        tag = "providers-test/1.0.0"
+        paths = ["providers/test/docs/a.rst", "providers/test/docs/b.rst"]
+        first_content = b"short\n"
+        second_content = "café prôse with more text\n".encode()
+        payload = _batch_hit("aaa1", "blob", first_content) + _batch_hit("bbb2", "blob", second_content)
+
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.stdout = payload
+        with patch("extract_versions.subprocess.run", autospec=True, return_value=mock_result):
+            result = git_cat_file_batch(tag, paths)
+
+        assert result == {
+            paths[0]: "short\n",
+            paths[1]: "café prôse with more text\n",
+        }
+
+    def test_hit_followed_by_missing_path(self):
+        tag = "providers-test/1.0.0"
+        paths = ["providers/test/docs/a.rst", "providers/test/docs/missing.rst"]
+        payload = _batch_hit("aaa1", "blob", b"content\n") + _batch_missing(f"{tag}:{paths[1]}")
+
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.stdout = payload
+        with patch("extract_versions.subprocess.run", autospec=True, return_value=mock_result):
+            result = git_cat_file_batch(tag, paths)
+
+        assert result == {paths[0]: "content\n"}
+
+    def test_all_missing_returns_empty_dict(self):
+        tag = "providers-test/1.0.0"
+        paths = ["providers/test/docs/a.rst", "providers/test/docs/b.rst"]
+        payload = _batch_missing(f"{tag}:{paths[0]}") + _batch_missing(f"{tag}:{paths[1]}")
+
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.stdout = payload
+        with patch("extract_versions.subprocess.run", autospec=True, return_value=mock_result):
+            result = git_cat_file_batch(tag, paths)
+
+        assert result == {}

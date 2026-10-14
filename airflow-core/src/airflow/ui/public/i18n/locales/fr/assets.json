@@ -1,8 +1,31 @@
 {
   "additional_data": "Données supplémentaires",
+  "alias_many": "Alias",
+  "alias_one": "Alias",
+  "alias_other": "Alias",
+  "aliases": "Alias",
   "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
+  "assetStateStore": {
+    "add": "Ajouter un stockage d'état d'Asset",
+    "clearAll": {
+      "resource": "tout le stockage d'état d'Asset",
+      "title": "Effacer tout le stockage d'état d'Asset",
+      "warning": "Tout le stockage d'état d'Asset sera effacé. Les tâches qui utilisent ce stockage pour coordonner leur travail perdront leur mémoire persistée."
+    },
+    "delete": "Supprimer le stockage d'état d'Asset",
+    "deleteWarning": "L'Asset perdra cette entrée de stockage d'état persistée.",
+    "edit": "Modifier le stockage d'état d'Asset",
+    "emptyState": "Le stockage d'état d'Asset stocke des valeurs liées à l'identité d'un Asset, partagées entre toutes les exécutions de Dag. Les workers peuvent écrire dans le stockage d'état d'Asset via le Task SDK.",
+    "entry_many": "Entrées",
+    "entry_one": "Entrée",
+    "entry_other": "Entrées",
+    "lastUpdatedBy": "Dernière mise à jour par",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "Stockage d'état d'Asset"
+  },
   "consumingDags": "Dags consomatteurs",
   "consumingTasks": "Tâches consommatrices",
   "createEvent": {
@@ -26,7 +49,12 @@
     },
     "title": "Créer un événement d'Asset pour {{name}}"
   },
-  "extra": "Extra",
+  "events": "Événements",
+  "filters": {
+    "groupPlaceholder": "Rechercher un groupe",
+    "hasEvents": "A des événements",
+    "lastEventDateRange": "Date du dernier événement"
+  },
   "group": "Group",
   "lastAssetEvent": "Dernier événement d'Asset",
   "name": "Nom",
@@ -34,5 +62,9 @@
   "scheduledDags": "Dags planifiés",
   "scheduling": "Planification",
   "searchPlaceholder": "Rechercher des Assets",
-  "taskDependencies": "Dépendances de tâches"
+  "taskDependencies": "Dépendances de tâches",
+  "watcher_many": "Observateurs",
+  "watcher_one": "Observateur",
+  "watcher_other": "Observateurs",
+  "watchers": "Observateurs"
 }

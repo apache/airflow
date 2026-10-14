@@ -23,12 +23,14 @@ from airflow.api_fastapi.execution_api.routes import (
     asset_events,
     asset_state_store,
     assets,
+    callbacks,
     connection_tests,
     connections,
     dag_runs,
     dags,
     health,
     hitl,
+    jobs,
     task_instances,
     task_reschedules,
     task_state_store,
@@ -53,6 +55,7 @@ authenticated_router.include_router(
     connection_tests.router, prefix="/connection-tests", tags=["Connection Tests"]
 )
 authenticated_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
+authenticated_router.include_router(callbacks.router, prefix="/callbacks", tags=["Callbacks"])
 authenticated_router.include_router(dag_runs.router, prefix="/dag-runs", tags=["Dag Runs"])
 authenticated_router.include_router(dags.router, prefix="/dags", tags=["Dags"])
 authenticated_router.include_router(task_instances.router, prefix="/task-instances", tags=["Task Instances"])
@@ -62,6 +65,7 @@ authenticated_router.include_router(
 authenticated_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
 authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
 authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["Human in the Loop"])
+authenticated_router.include_router(jobs.router, tags=["Jobs"])
 authenticated_router.include_router(task_state_store.router, prefix="/store/ti", tags=["Task State Store"])
 authenticated_router.include_router(
     asset_state_store.router, prefix="/store/asset", tags=["Asset State Store"]

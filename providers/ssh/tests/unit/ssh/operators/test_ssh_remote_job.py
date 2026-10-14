@@ -202,6 +202,66 @@ class TestSSHRemoteJobOperator:
         with pytest.raises(AirflowException, match="command not specified"):
             op.execute({})
 
+    def test_init_does_not_validate_remote_base_dir(self):
+        """
+        __init__ must not validate remote_base_dir: at construction time this is the raw,
+        un-rendered Jinja expression (e.g. "{{ dag_run.conf['base_dir'] }}"), not the real path,
+        so any validation performed here operates on the wrong value.
+        """
+
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_base_dir="../etc",
+        )
+        assert op.remote_base_dir == "../etc"
+
+    def test_execute_validates_remote_base_dir(self):
+        """
+        execute() must validate remote_base_dir using its final (post-templating) value, and
+        must do so before any SSH connection is opened.
+        """
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_base_dir="{{ dag_run.conf['base_dir'] }}",
+        )
+        # Simulate what Airflow's templating engine does between __init__ and execute():
+        # the template field is overwritten in place with its rendered value.
+        op.remote_base_dir = "/tmp/../etc"
+
+        with pytest.raises(ValueError, match="path traversal not allowed"):
+            op.execute({})
+
+        self.mock_hook.get_conn.assert_not_called()
+
+    def test_execute_accepts_valid_custom_remote_base_dir(self):
+        """A valid, non-default remote_base_dir must pass validation and proceed normally."""
+        self.mock_hook.exec_ssh_client_command.return_value = (
+            0,
+            b"af_test_dag_test_task_run1_try1_abc123",
+            b"",
+        )
+
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_os="posix",
+            remote_base_dir="/opt/custom-airflow-jobs",
+        )
+        op.remote_base_dir = "/opt/custom-airflow-jobs"  # post-templating value
+
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id, mock_ti.task_id, mock_ti.run_id, mock_ti.try_number = "d", "t", "r", 1
+
+        with pytest.raises(TaskDeferred):
+            op.execute({"ti": mock_ti})
+
+        assert op._paths.job_dir.startswith("/opt/custom-airflow-jobs")
+
     @mock.patch.object(SSHRemoteJobOperator, "defer")
     def test_execute_complete_re_defers_if_not_done(self, mock_defer):
         """Test that execute_complete re-defers if job is not done."""
@@ -460,3 +520,27 @@ class TestSSHRemoteJobOperator:
             op._cleanup_remote_job("/tmp/airflow-ssh-jobs/test_job_123", "posix")
 
         assert self.mock_hook.exec_ssh_client_command.call_count == 3
+
+    def test_cleanup_with_custom_remote_base_dir(self):
+        """Cleanup validates the job dir against the operator's remote_base_dir, not the default.
+
+        Regression test for https://github.com/apache/airflow/issues/69813: with a custom
+        remote_base_dir the job ran fine but cleanup raised ValueError because the job dir
+        was validated against the default base directory.
+        """
+        self.mock_hook.exec_ssh_client_command.return_value = (0, b"", b"")
+
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_base_dir="/tmp-data/airflow-ssh-jobs",
+        )
+
+        # Must not raise; before the fix this failed with "Invalid job directory".
+        op._cleanup_remote_job("/tmp-data/airflow-ssh-jobs/test_job_123", "posix")
+
+        assert self.mock_hook.exec_ssh_client_command.call_count == 1
+        cleanup_cmd = self.mock_hook.exec_ssh_client_command.call_args.args[1]
+        # shlex.quote leaves a path with no shell metacharacters unquoted.
+        assert "rm -rf /tmp-data/airflow-ssh-jobs/test_job_123" in cleanup_cmd

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "packaging>=25",
 #   "pyyaml>=6.0.2",
@@ -37,7 +37,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 
@@ -46,6 +46,7 @@ from common_prek_utils import (
     AIRFLOW_CORE_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
     console,
+    read_allowed_python_major_minor_versions,
     read_default_python_major_minor_version_for_images,
     retrieve_gh_token,
 )
@@ -77,6 +78,16 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "airflow_breeze"
         / "commands"
         / "release_management_commands.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "dev"
+        / "breeze"
+        / "src"
+        / "airflow_breeze"
+        / "templates"
+        / "pyproject_TEMPLATE.toml.jinja2",
         False,
     ),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
@@ -266,7 +277,7 @@ def _is_version_within_cooldown(releases: dict, version: str, cooldown_hours: fl
         return False
     upload_time = datetime.fromisoformat(files[0]["upload_time_iso_8601"].replace("Z", "+00:00"))
     effective_hours = COOLDOWN_DAYS * 24 if cooldown_hours is None else cooldown_hours
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=effective_hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=effective_hours)
     return upload_time > cutoff
 
 
@@ -769,7 +780,10 @@ UPGRADE_PROTOC: bool = get_env_bool("UPGRADE_PROTOC")
 UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
 UPGRADE_SPHINX_AIRFLOW_THEME: bool = get_env_bool("UPGRADE_SPHINX_AIRFLOW_THEME")
 
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
+# Read from global_constants.py rather than repeating the list here. A hard-coded copy silently
+# stops upgrading the versions it does not know about: 3.14 was added to Airflow in March 2026 and
+# its pinned patchlevel was never bumped afterwards, because this list still ended at 3.13.
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = read_allowed_python_major_minor_versions()
 DEFAULT_PROD_IMAGE_PYTHON_VERSION = read_default_python_major_minor_version_for_images()
 
 
@@ -1046,14 +1060,14 @@ def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
     Resolve the full transitive dependency list for hatchling using uv pip compile.
 
     When with_gitpython is True, also includes GitPython and its transitive dependencies (gitdb, smmap).
-    Returns a sorted list of pinned requirement strings, with tomli carrying its python_version marker.
+    Returns a sorted list of pinned requirement strings.
     """
     packages = ["hatchling"]
     if with_gitpython:
         packages.append("gitpython")
 
     result = subprocess.run(
-        ["uv", "pip", "compile", "-", "--resolution", "highest", "--python-version", "3.10"],
+        ["uv", "pip", "compile", "-", "--resolution", "highest", "--python-version", "3.11"],
         input="\n".join(packages) + "\n",
         capture_output=True,
         text=True,
@@ -1083,7 +1097,6 @@ def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
             "pathspec": "pathspec",
             "pluggy": "pluggy",
             "trove_classifiers": "trove-classifiers",
-            "tomli": "tomli",
             "virtualenv": "virtualenv",
             "distlib": "distlib",
             "filelock": "filelock",
@@ -1091,13 +1104,7 @@ def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
             "typing_extensions": "typing-extensions",
         }
         canonical = CANONICAL_NAMES.get(pkg_name_lower, pkg_spec.split("==")[0])
-        if pkg_name_lower == "tomli":
-            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
-        elif pkg_name_lower == "typing_extensions":
-            # typing_extensions is built-in from Python 3.11+
-            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
-        else:
-            requires.append(f"{canonical}=={pkg_version}")
+        requires.append(f"{canonical}=={pkg_version}")
 
     return sorted(requires, key=lambda r: r.split("==")[0].lower())
 

@@ -6,6 +6,7 @@
     "title": "Εξαρτήσεις που εμποδίζουν τον προγραμματισμό της εργασίας"
   },
   "calendar": {
+    "backfill": "Backfill",
     "daily": "Καθημερινά",
     "hourly": "Ωριαία",
     "legend": {
@@ -20,7 +21,7 @@
       "previousYear": "Προηγούμενο έτος"
     },
     "noData": "Δεν υπάρχουν διαθέσιμα δεδομένα",
-    "noFailedRuns": "No failed runs",
+    "noFailedRuns": "Δεν υπάρχουν αποτυχημένες εκτελέσεις",
     "noRuns": "Δεν υπάρχουν εκτελέσεις",
     "totalRuns": "Σύνολο Εκτελέσεων",
     "week": "Εβδομάδα {{weekNumber}}",
@@ -40,17 +41,50 @@
     "parseDuration": "Διάρκεια Ανάλυσης:",
     "parsedAt": "Αναλύθηκε στις:"
   },
+  "deadlineAlerts": {
+    "completionRule": "Πρέπει να ολοκληρωθεί εντός {{interval}} από {{reference}}",
+    "completionRuleDynamic": "Πρέπει να ολοκληρωθεί εντός μεταβλητού διαστήματος που μετριέται από {{reference}}",
+    "count_one": "{{count, number}} προθεσμία",
+    "count_other": "{{count, number}} προθεσμίες",
+    "referenceType": {
+      "AverageRuntimeDeadline": "μέσος χρόνος εκτέλεσης",
+      "DagRunLogicalDateDeadline": "λογική ημερομηνία",
+      "DagRunQueuedAtDeadline": "χρόνος στην ουρά"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Πραγματικό",
+    "expected": "Αναμενόμενο",
+    "finishedEarly": "Ολοκληρώθηκε {{duration}} πριν από την προθεσμία",
+    "finishedLate": "Ολοκληρώθηκε {{duration}} μετά την προθεσμία",
+    "label": "Προθεσμία",
+    "met": "Τηρήθηκε",
+    "missed": "Χάθηκε",
+    "missedCount_one": "{{count, number}} Χαμένη Προθεσμία",
+    "missedCount_other": "{{count, number}} Χαμένες Προθεσμίες",
+    "mixedCount": "{{missedCount, number}} Χαμένες, {{upcomingCount, number}} Επερχόμενες",
+    "stillRunning": "Εκτελείται ακόμη",
+    "upcoming": "Επερχόμενη",
+    "upcomingCount_one": "{{count, number}} Επερχόμενη Προθεσμία",
+    "upcomingCount_other": "{{count, number}} Επερχόμενες Προθεσμίες"
+  },
   "extraLinks": "Επιπλέον Σύνδεσμοι",
   "grid": {
     "buttons": {
+      "newerRuns": "Νεότερες εκτελέσεις",
+      "olderRuns": "Παλαιότερες εκτελέσεις",
       "resetToLatest": "Επαναφορά στα πιο πρόσφατα",
       "toggleGroup": "Εναλλαγή ομάδας"
-    }
+    },
+    "runTypeLegend": "Υπόμνημα Τύπων Εκτέλεσης"
   },
   "header": {
     "buttons": {
       "advanced": "Για προχωρημένους",
       "dagDocs": "Τεκμήρια Dag"
+    },
+    "status": {
+      "deactivated": "Απενεργοποιημένο"
     }
   },
   "logs": {
@@ -59,19 +93,26 @@
     "critical": "ΚΡΙΣΙΜΟ",
     "debug": "DEBUG",
     "error": "ΣΦΑΛΜΑ",
-    "fullscreen": {
-      "button": "Πλήρης οθόνη",
-      "tooltip": "Πατήστε {{hotkey}} για πλήρη οθόνη"
-    },
     "info": "INFO",
     "noTryNumber": "Χωρίς αριθμό προσπάθειας",
+    "search": {
+      "matchCount": "{{current, number}} από {{total, number}}",
+      "noMatches": "Δεν βρέθηκαν αντιστοιχίες",
+      "placeholder": "Αναζήτηση στις καταγραφές..."
+    },
     "settings": "Ρυθμίσεις Καταγραφής",
+    "tryNotStarted": "Αυτή η προσπάθεια δεν έχει ξεκινήσει ακόμη.",
+    "viewFailedTry": "Προβολή καταγραφών για την αποτυχημένη προσπάθεια {{tryNumber}}",
     "viewInExternal": "Προβολή καταγραφών στο {{name}} (προσπάθεια {{attempt}})",
+    "viewPreviousTry": "Προβολή καταγραφών για την προηγούμενη προσπάθεια {{tryNumber}}",
+    "waitingToRetry": "Η προσπάθεια {{tryNumber}} αναμένει να επαναληφθεί.",
     "warning": "ΠΡΟΕΙΔΟΠΟΙΗΣΗ"
   },
-  "navigation": {
-    "navigation": "Πλοήγηση: Shift+{{arrow}}",
-    "toggleGroup": "Εναλλαγή ομάδας: Space"
+  "notFound": {
+    "back": "Επιστροφή",
+    "backToDags": "Επιστροφή στα Dags",
+    "message": "Το Dag «{{dagId}}» δεν υπάρχει.",
+    "title": "Το Dag Δεν Βρέθηκε"
   },
   "overview": {
     "buttons": {
@@ -85,6 +126,10 @@
     "charts": {
       "assetEvent_one": "Δημιουργήθηκε Συμβάν Οντότητας",
       "assetEvent_other": "Δημιουργήθηκαν Συμβάντα Οντοτήτων"
+    },
+    "deadlines": {
+      "showAll": "Εμφάνιση Όλων",
+      "title": "Προθεσμίες"
     },
     "failedLogs": {
       "hideLogs": "Απόκρυψη Καταγραφών",
@@ -104,16 +149,49 @@
       "label": "Αριθμός Εκτελέσεων Dag"
     },
     "dependencies": {
-      "label": "Εξαρτήσεις",
-      "options": {
-        "allDagDependencies": "Όλες οι Εξαρτήσεις Dag",
-        "externalConditions": "Εξωτερικές συνθήκες",
-        "onlyTasks": "Μόνο εργασίες"
-      },
-      "placeholder": "Εξαρτήσεις"
+      "allDagDependencies": "Όλες οι Εξαρτήσεις Dag"
     },
     "graphDirection": {
       "label": "Κατεύθυνση Γραφήματος"
+    },
+    "graphFilters": {
+      "clearFilters": "Εκκαθάριση Φίλτρων",
+      "durationGte": "Ελάχ. διάρκεια (δευτ.)",
+      "durationGteHint": "Για χαρτογραφημένες εργασίες, μετρά τη συνολική διάρκεια όλων των εκτελέσεων",
+      "mapIndex": "Ελάχ. δείκτης χάρτη",
+      "mapIndexHint": "Εμφανίζει χαρτογραφημένες εργασίες αναπτυγμένες τουλάχιστον έως αυτόν τον δείκτη",
+      "selectStatus": "Επιλέξτε κατάσταση",
+      "selectTaskGroup": "Επιλέξτε ομάδα εργασιών",
+      "title": "Φίλτρα Εργασιών"
+    },
+    "showVersionIndicator": {
+      "label": "Εμφάνιση Ένδειξης Έκδοσης",
+      "options": {
+        "hideAll": "Απόκρυψη Όλων",
+        "showAll": "Εμφάνιση Όλων",
+        "showBundleVersion": "Εμφάνιση Έκδοσης Πακέτου",
+        "showDagVersion": "Εμφάνιση Έκδοσης Dag"
+      }
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Ενεργό φίλτρο",
+      "clearFilter": "Εκκαθάριση Φίλτρου",
+      "clickTask": "Κάντε κλικ σε μια εργασία για να την ορίσετε ως ρίζα του φίλτρου",
+      "depth": "Βάθος",
+      "direction": "Κατεύθυνση",
+      "label": "Φίλτρο",
+      "mode": "Λειτουργία",
+      "modeTooltip": "Η στατική λειτουργία διατηρεί την τρέχουσα προβολή κατά τη μετάβαση σε άλλες εργασίες, ενώ η λειτουργία διάσχισης ενημερώνει αυτόματα το ενεργό φίλτρο στην επιλεγμένη εργασία για ευκολότερη διάσχιση του Dag.",
+      "modes": {
+        "static": "Στατική",
+        "traverse": "Διάσχιση"
+      },
+      "options": {
+        "both": "Ανάντη & κατάντη",
+        "downstream": "Κατάντη",
+        "upstream": "Ανάντη"
+      },
+      "selectedTask": "Επιλεγμένη εργασία"
     }
   },
   "paramsFailed": "Αποτυχία φόρτωσης παραμέτρων",
@@ -137,18 +215,104 @@
     "code": "Κώδικας",
     "details": "Λεπτομέρειες",
     "logs": "Καταγραφές",
-    "mappedTaskInstances_one": "Στιγμιαία Κατάσταση Εργασίας [{{count}}]",
-    "mappedTaskInstances_other": "Στιγμιαίες Καταστάσεις Εργασίας [{{count}}]",
+    "mappedTaskInstances_one": "Στιγμιαία Κατάσταση Εργασίας [{{count, number}}]",
+    "mappedTaskInstances_other": "Στιγμιαίες Καταστάσεις Εργασίας [{{count, number}}]",
     "overview": "Επισκόπηση",
     "renderedTemplates": "Αποδοθέντα Πρότυπα",
     "requiredActions": "Απαιτούμενες Ενέργειες",
     "runs": "Εκτελέσεις",
     "taskInstances": "Στιγμιαίες Καταστάσεις Εργασίας",
+    "taskStateStore": "Αποθήκη Καταστάσεων Εργασίας",
     "tasks": "Εργασίες",
+    "versions": "Εκδόσεις",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Σύμπτυξη όλων των ομάδων εργασιών",
     "expandAll": "Ανάπτυξη όλων των ομάδων εργασιών"
+  },
+  "taskStateStore": {
+    "add": "Προσθήκη Αποθήκης Καταστάσεων Εργασίας",
+    "clearAll": {
+      "resource": "όλη την αποθήκη καταστάσεων εργασίας",
+      "title": "Εκκαθάριση Ολόκληρης της Αποθήκης Καταστάσεων Εργασίας",
+      "warning": "Ολόκληρη η αποθήκη καταστάσεων εργασίας θα διαγραφεί. Οι εργασίες που χρησιμοποιούν αυτήν την αποθήκη για την παρακολούθηση εξωτερικών εργασιών δεν θα μπορούν να συνεχίσουν χωρίς πλήρη επανεκτέλεση."
+    },
+    "delete": "Διαγραφή Αποθήκης Καταστάσεων Εργασίας",
+    "deleteWarning": "Η εργασία θα χάσει αυτήν την αποθηκευμένη μνήμη. Αν η εργασία χρησιμοποιεί αυτό το κλειδί για την παρακολούθηση εξωτερικής εργασίας (π.χ. ένα εξωτερικό ID διεργασίας), δεν θα μπορεί να τη συνεχίσει.",
+    "edit": "Επεξεργασία Αποθήκης Καταστάσεων Εργασίας",
+    "emptyStore": "Η αποθήκη καταστάσεων εργασίας αποθηκεύει τιμές που διατηρούνται μεταξύ επαναλήψεων. Οι εργάτες μπορούν να γράψουν στην αποθήκη καταστάσεων εργασίας μέσω του Task SDK.",
+    "entry_one": "Εγγραφή",
+    "entry_other": "Εγγραφές",
+    "expiresAt": {
+      "column": "Λήγει Στις",
+      "custom": "Προσαρμοσμένη",
+      "default": "Προεπιλογή ({{interval}})",
+      "label": "Λήξη",
+      "never": "Ποτέ"
+    },
+    "title": "Αποθήκη Καταστάσεων Εργασίας"
+  },
+  "versions": {
+    "aboutThisComparison": "Σχετικά με αυτήν τη σύγκριση",
+    "base": "Σύγκριση από",
+    "categories": {
+      "asset": "Οντότητα",
+      "authorization": "Εξουσιοδότηση",
+      "callback": "Callback",
+      "deadline": "Προθεσμία",
+      "dependency": "Εξάρτηση",
+      "metadata": "Μεταδεδομένα",
+      "param": "Παράμετρος",
+      "provenance": "Προέλευση",
+      "schedule": "Πρόγραμμα",
+      "task": "Εργασία",
+      "unknown": "Άγνωστο"
+    },
+    "codeAccess": "Οι τιμές απαιτούν πρόσβαση στον κώδικα του Dag",
+    "columns": {
+      "after": "Μετά",
+      "before": "Πριν",
+      "category": "Κατηγορία",
+      "impact": "Επίδραση",
+      "occurrences": "Εμφανίσεις",
+      "operation": "Διαδικασία",
+      "path": "Διαδρομή"
+    },
+    "heading": "Έκδοση {{base}} → Έκδοση {{target}}",
+    "impacts": {
+      "authorization": "Εξουσιοδότηση",
+      "execution": "Εκτέλεση",
+      "metadata": "Μεταδεδομένα",
+      "provenance": "Προέλευση",
+      "unknown": "Άγνωστο"
+    },
+    "maxChanges": "Μέγιστες αλλαγές",
+    "maxChangesDefault": "Προεπιλογή",
+    "noChanges": "Αυτές οι εκδόσεις έχουν την ίδια κατάσταση.",
+    "observedState": "Παρατηρούμενη κατάσταση",
+    "observedStateBoundary": "Συγκρίνει την τρέχουσα αποθηκευμένη κατάσταση, όχι στοιχεία από τη στιγμή της δημιουργίας. Η σύγκριση πηγαίου κώδικα δεν είναι διαθέσιμη για ιστορικές εκδόσεις· χρησιμοποιήστε την καρτέλα Κώδικας για σύγκριση πηγαίου κώδικα.",
+    "operations": {
+      "added": "Προστέθηκε",
+      "changed": "Άλλαξε",
+      "removed": "Αφαιρέθηκε"
+    },
+    "record_one": "Εγγραφή",
+    "record_other": "Εγγραφές",
+    "selectPrompt": "Επιλέξτε δύο εκδόσεις για να δείτε τι άλλαξε μεταξύ τους.",
+    "summary_one": "{{count, number}} αλλαγή",
+    "summary_other": "{{count, number}} αλλαγές",
+    "target": "Σύγκριση με",
+    "truncated": {
+      "description": "Οι αλλαγές σε διαδρομές που δεν εμφανίζονται παραλείφθηκαν για να τηρηθεί το όριο, επομένως το πλήθος είναι ένας μικρότερος αριθμός ορίου.",
+      "title": "Ορισμένες αλλαγές δεν επιστράφηκαν"
+    },
+    "unavailable": {
+      "description": "Δεν ήταν δυνατή η σύγκριση αυτών των εκδόσεων. Αιτία:",
+      "title": "Η σύγκριση δεν είναι διαθέσιμη",
+      "withoutReason": "Δεν ήταν δυνατή η σύγκριση αυτών των εκδόσεων."
+    },
+    "valuesHidden": "Οι τιμές είναι κρυφές",
+    "valuesShown": "Οι τιμές εμφανίζονται"
   }
 }

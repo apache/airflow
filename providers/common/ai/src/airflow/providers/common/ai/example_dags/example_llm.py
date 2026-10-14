@@ -19,11 +19,13 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from decimal import Decimal
 
 from pydantic import BaseModel
 from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.common.compat.sdk import dag, task
 
 
@@ -139,6 +141,11 @@ def example_llm_operator_usage_limits():
             request_limit=5,
             input_tokens_limit=4_000,
             output_tokens_limit=1_000,
+            # Fail the task if the run's estimated USD cost exceeds $0.50.
+            # See docs/operators/llm.rst for caveats (not a hard guarantee;
+            # not enforced for models pydantic-ai can't price, which log a
+            # warning instead of failing the run).
+            cost_limit=Decimal("0.50"),
         ),
     )
 
@@ -148,7 +155,43 @@ def example_llm_operator_usage_limits():
 example_llm_operator_usage_limits()
 
 
+# [START howto_operator_llm_templated_usage_limits]
+@dag(tags=["example"])
+def example_llm_operator_templated_usage_limits():
+    LLMOperator(
+        task_id="capped_summary",
+        prompt="Summarize the trade-offs of a message queue vs. direct HTTP calls in three bullet points.",
+        llm_conn_id="pydanticai_default",
+        system_prompt="You are a concise technical reviewer.",
+        # A plain dict lets every UsageLimits field be templated -- e.g. driven by
+        # an Airflow Variable so the budget can change per environment without
+        # editing the Dag. This caps a single task run, not a day's total spend --
+        # each run gets the full budget again. Use var.value.get() with a default
+        # so the example doesn't fail outright if the Variable isn't set.
+        usage_limits={
+            "cost_limit": "{{ var.value.get('llm_cost_cap_per_task', '0.50') }}",
+            "request_limit": 5,
+        },
+    )
+
+
+# [END howto_operator_llm_templated_usage_limits]
+
+example_llm_operator_templated_usage_limits()
+
+
 # [START howto_operator_llm_approval]
+class LogNotifier(BaseNotifier):
+    template_fields = ("message",)
+
+    def __init__(self, message: str) -> None:
+        super().__init__()
+        self.message = message
+
+    def notify(self, context) -> None:
+        self.log.info(self.message)
+
+
 @dag(tags=["example"])
 def example_llm_operator_approval():
 
@@ -159,7 +202,9 @@ def example_llm_operator_approval():
         system_prompt="You are a financial analyst. Be concise and accurate.",
         require_approval=True,
         approval_timeout=timedelta(hours=24),
+        on_approval_timeout="approve",
         allow_modifications=True,
+        approval_notifiers=LogNotifier(message="{{ task.subject }}\n{{ task.body }}"),
     )
 
 

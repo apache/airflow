@@ -27,6 +27,99 @@
 Changelog
 ---------
 
+.. warning::
+  In multi-team mode with ``use_team_secrets_path`` enabled (the default), a connection or variable
+  looked up with no team is no longer resolved when its id contains ``/`` below the mount point. Such an
+  id resolves under the same base path that team-scoped secrets are stored under, so it could name a
+  team's secret. Store secrets used outside any team under ids without ``/``, or set
+  ``use_team_secrets_path=False`` if the deployment does not use team-scoped Vault paths.
+
+4.8.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Refuse nested secret ids looked up with no team in multi-team mode (#73789)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+4.8.2
+.....
+
+Misc
+~~~~
+
+* ``Bump the minimum apache-airflow-providers-common-compat version to 1.12.0 (#72503)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+4.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Halve external vault API lookup requests per airflow secret lookup (#71701)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+4.8.0
+.....
+
+.. note::
+    ``VaultBackend`` no longer falls back to the team-agnostic ``{base_path}/{key}`` path when a
+    team-scoped lookup misses, so a task in one team can no longer resolve another team's or the
+    shared secret. Multi-team deployments that kept shared secrets at ``{base_path}/{key}`` must
+    store them under each team's path, or list the shared path explicitly now that
+    ``connections_path``/``variables_path``/``config_path`` accept a list of paths tried in order.
+    The deprecated ``global_secrets_path`` is now appended as a standalone base path, so it
+    resolves ``{global_secrets_path}/{key}`` rather than ``{base_path}/{global_secrets_path}/{key}``.
+
+Features
+~~~~~~~~
+
+* ``Support multiple paths fallback in VaultBackend (#70006)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'VaultBackend.get_connection()' breaking 'PythonVirtualenvOperator' in Airflow 3 (#68305)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 4.7.1
 .....
 

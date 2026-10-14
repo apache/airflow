@@ -28,6 +28,65 @@
 Changelog
 ---------
 
+4.6.3
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+4.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix LivyAsyncHook get_batch_state and get_batch_logs sending POST to GET-only Livy endpoints (#71867)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+4.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+
+4.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Reconnect to the running Livy batch on retry instead of resubmitting (#68956)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 4.5.7
 .....
 
@@ -302,7 +361,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 
 4.1.0

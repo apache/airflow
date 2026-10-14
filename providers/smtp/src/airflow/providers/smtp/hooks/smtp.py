@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 
 def build_xoauth2_string(username: str, token: str) -> str:
-    """Local fallback for older Airflow cores (≤2.11)."""
+    """Local fallback for older Airflow versions (≤2.11)."""
     return f"user={username}\x01auth=Bearer {token}\x01\x01"
 
 
@@ -82,11 +82,17 @@ class SmtpHook(BaseHook):
         return await self.aget_conn()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._smtp_client.close()
+        try:
+            self._smtp_client.close()
+        finally:
+            self._smtp_client = None
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self._smtp_client:
-            await self._smtp_client.quit()
+            try:
+                await self._smtp_client.quit()
+            finally:
+                self._smtp_client = None
 
     def _setup_oauth2(self) -> tuple[str, str]:
         """
@@ -140,7 +146,7 @@ class SmtpHook(BaseHook):
                             )
                         self._smtp_client.auth(
                             "XOAUTH2",
-                            lambda _=None: build_xoauth2_string(user_identity, self._access_token),
+                            lambda _=None, ui=user_identity: build_xoauth2_string(ui, self._access_token),
                         )
                     elif self.smtp_user and self.smtp_password:
                         self._smtp_client.login(self.smtp_user, self.smtp_password)
@@ -573,7 +579,7 @@ class SmtpHook(BaseHook):
             basename = os.path.basename(fname)
             with open(fname, "rb") as file:
                 part = MIMEApplication(file.read(), Name=basename)
-                part["Content-Disposition"] = f'attachment; filename="{basename}"'
+                part.add_header("Content-Disposition", "attachment", filename=basename)
                 part["Content-ID"] = f"<{basename}>"
                 msg.attach(part)
 

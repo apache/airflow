@@ -27,12 +27,108 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+.. warning::
+  The ``no_host_key_check`` connection extra now defaults to ``false``. A connection to a host that has
+  no entry in the known hosts file is refused unless host key verification is disabled explicitly or a
+  ``host_key`` is supplied in the connection's extra field.
+
+  Deployments that relied on the previous default can keep the earlier behaviour by adding the host key
+  to the known hosts file, supplying ``host_key`` on the connection, setting the ``no_host_key_check``
+  connection extra to ``true``, or -- when building ``SSHHook``/``SFTPHook``/``SFTPHookAsync`` directly
+  rather than from a connection -- passing the new ``no_host_key_check=True`` constructor argument. The
+  constructor argument takes precedence over the connection extra, and a value set on the hook passed to
+  a deferrable ``SFTPOperator`` is carried into its trigger.
+
+  The previously undocumented ``ignore_hostkey_verification`` extra is now honoured as a deprecated alias
+  for ``no_host_key_check`` and emits a ``DeprecationWarning``. It had no effect before: connections that
+  set it were relying on the old permissive default rather than on the setting itself.
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* ``Bump minimum paramiko to 4.0.0; DSA/DSS keys are no longer supported (#54079)``
+* ``Verify SSH host keys by default in SSH and SFTP hooks (#73419)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix concurrent SFTP directory transfers dropping parent hook's connection overrides (#73647)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add deferrable mode to SFTPOperator (#72336)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep pooled SFTP connection on application-level SFTP errors (#73288)``
+* ``Fix SFTPHookAsync letting a connection's known_hosts extra override an explicit constructor path (#73593)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add missing tests for sftp exceptions (#72456)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+6.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix encrypted private keys in async SFTP hook (#70858)``
+
+Misc
+~~~~
+
+* ``Support Paramiko 5 (#69712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Bump minimum paramiko to 4.0.0; DSA/DSS keys are no longer supported (#69669)``
 
   This provider depends on paramiko 4.0+, which dropped ``DSS``/``DSA`` keys; see `paramiko changelog <https://www.paramiko.org/changelog.html>`__. To migrate: create a key pair that does not use ``DSA`` (Ed25519 or RSA are typical, e.g. ``ssh-keygen -t ed25519``), add the public key to the SFTP server, then update your Airflow SFTP (or shared SSH) connection so ``key_file`` or the ``private_key`` extra uses the new key, and ensure any ``host_key`` extra is not in ``ssh-dss`` form. If you are not ready to migrate keys, stay on a provider release that still pins ``paramiko<4`` until you can switch.
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 
 5.8.2
 .....

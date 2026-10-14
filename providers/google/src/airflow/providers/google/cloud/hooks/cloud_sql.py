@@ -34,14 +34,13 @@ import subprocess
 import time
 import uuid
 from collections.abc import Sequence
-from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote_plus
 
-import httpx
+import httpx2
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
 from googleapiclient.discovery import Resource, build
@@ -66,6 +65,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
     get_field,
+    is_operation_in_progress_exception,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -83,6 +83,10 @@ TIME_TO_SLEEP_IN_SECONDS = 20
 CLOUD_SQL_PROXY_VERSION_REGEX = re.compile(r"^v?(\d+\.\d+\.\d+)(-\w*.?\d?)?$")
 
 
+class CloudSQLImportError(AirflowException):
+    """Raised when importing data into a Cloud SQL instance fails."""
+
+
 class CloudSqlOperationStatus:
     """Helper class with operation statuses."""
 
@@ -90,6 +94,15 @@ class CloudSqlOperationStatus:
     RUNNING = "RUNNING"
     DONE = "DONE"
     UNKNOWN = "UNKNOWN"
+
+
+# Statuses that mean an administrative operation is still in flight on the instance. Cloud SQL
+# serializes admin operations per instance, so a new import/export submitted while one of these is
+# active fails with HTTP 409 ``operationInProgress``. Keying off an explicit set (rather than
+# ``status != DONE``) avoids treating UNKNOWN/unexpected statuses as in-progress and poking forever.
+CLOUD_SQL_NON_TERMINAL_STATUSES = frozenset(
+    {CloudSqlOperationStatus.PENDING, CloudSqlOperationStatus.RUNNING}
+)
 
 
 class CloudSQLHook(GoogleBaseHook):
@@ -324,9 +337,13 @@ class CloudSQLHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.operation_in_progress_retry()
     def export_instance(self, instance: str, body: dict, project_id: str):
         """
         Export data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump or CSV file.
+
+        Cloud SQL runs one admin operation at a time per instance, so this submit can come back
+        409 — hence the retry decorator.
 
         :param instance: Database instance ID of the Cloud SQL instance. This does not include the
             project ID.
@@ -345,10 +362,44 @@ class CloudSQLHook(GoogleBaseHook):
         operation_name = response["name"]
         return operation_name
 
+    @GoogleBaseHook.operation_in_progress_retry()
+    def _submit_import(self, instance: str, body: dict, project_id: str) -> str:
+        """
+        Submit an import request for a Cloud SQL instance, retrying while an operation is in progress.
+
+        Cloud SQL runs one admin operation at a time per instance, so this submit can come back 409.
+        The retry covers the submit only: repeating a rejected submit is safe, repeating an accepted
+        one is not.
+
+        :param instance: Database instance ID. This does not include the project ID.
+        :param body: The request body, as described in
+            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import#request-body
+        :param project_id: Project ID of the project that contains the instance.
+        :return: The name of the accepted import operation.
+        """
+        try:
+            response = (
+                self.get_conn()
+                .instances()
+                .import_(project=project_id, instance=instance, body=body)
+                .execute(num_retries=self.num_retries)
+            )
+            return response["name"]
+        except HttpError as ex:
+            # The decorator retries HttpError, not CloudSQLImportError, so don't wrap the 409.
+            if is_operation_in_progress_exception(ex):
+                raise
+            raise CloudSQLImportError(
+                f"Importing instance {instance} failed: {ex.content.decode('utf-8', errors='replace')}"
+            )
+
     @GoogleBaseHook.fallback_to_default_project_id
     def import_instance(self, instance: str, body: dict, project_id: str) -> None:
         """
         Import data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
+
+        The submit retries on 409 (see ``_submit_import``). The polling below stays outside that
+        retry: re-submitting an accepted import would load the same data twice.
 
         :param instance: Database instance ID. This does not include the
             project ID.
@@ -358,17 +409,13 @@ class CloudSQLHook(GoogleBaseHook):
             to None or missing, the default project_id from the Google Cloud connection is used.
         :return: None
         """
+        operation_name = self._submit_import(instance=instance, body=body, project_id=project_id)
         try:
-            response = (
-                self.get_conn()
-                .instances()
-                .import_(project=project_id, instance=instance, body=body)
-                .execute(num_retries=self.num_retries)
-            )
-            operation_name = response["name"]
             self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
         except HttpError as ex:
-            raise AirflowException(f"Importing instance {instance} failed: {ex.content}")
+            raise CloudSQLImportError(
+                f"Importing instance {instance} failed: {ex.content.decode('utf-8', errors='replace')}"
+            )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def clone_instance(self, instance: str, body: dict, project_id: str) -> None:
@@ -395,7 +442,7 @@ class CloudSQLHook(GoogleBaseHook):
             operation_name = response["name"]
             self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
         except HttpError as ex:
-            raise AirflowException(f"Cloning of instance {instance} failed: {ex.content}")
+            raise AirflowException(f"Cloning of instance {instance} failed: {ex.content.decode('utf-8')}")
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_ssl_certificate(self, instance: str, body: dict, project_id: str):
@@ -428,6 +475,29 @@ class CloudSQLHook(GoogleBaseHook):
             .get(project=project_id, operation=operation_name)
             .execute(num_retries=self.num_retries)
         )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_operations(self, instance: str, project_id: str, max_results: int | None = None) -> list[dict]:
+        """
+        List administrative operations for a Cloud SQL instance.
+
+        Must be called with keyword arguments because ``project_id`` is injected by the
+        ``fallback_to_default_project_id`` decorator.
+
+        :param instance: Name of the Cloud SQL instance whose operations are listed.
+        :param project_id: Project ID of the project that contains the instance.
+        :param max_results: Optional maximum number of operations to return per page.
+        :return: The list of operation resources for the instance (may be empty).
+        """
+        response = (
+            self.get_conn()
+            .operations()
+            .list(project=project_id, instance=instance, maxResults=max_results)
+            .execute(num_retries=self.num_retries)
+        )
+        # ``operations.list`` already filters server-side by ``instance``; keep a defensive
+        # client-side filter on ``targetId`` in case the API ever returns broader results.
+        return [op for op in response.get("items", []) if op.get("targetId") == instance]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def _wait_for_operation_to_complete(
@@ -576,12 +646,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         download_url = self._get_sql_proxy_download_url()
         proxy_path_tmp = self.sql_proxy_path + ".tmp"
         self.log.info("Downloading cloud_sql_proxy from %s to %s", download_url, proxy_path_tmp)
-        # httpx has a breaking API change (follow_redirects vs allow_redirects)
-        # and this should work with both versions (cf. issue #20088)
-        if "follow_redirects" in signature(httpx.get).parameters.keys():
-            response = httpx.get(download_url, follow_redirects=True)
-        else:
-            response = httpx.get(download_url, allow_redirects=True)  # type: ignore[call-arg]
+        response = httpx2.get(download_url, follow_redirects=True)
         # Downloading to .tmp file first to avoid case where partially downloaded
         # binary is used by parallel operator which uses the same fixed binary path
         with open(proxy_path_tmp, "wb") as file:

@@ -101,6 +101,12 @@ option_build_progress = click.option(
     show_default=True,
     default=ALLOWED_BUILD_PROGRESS[0],
 )
+option_cache_from_image = click.option(
+    "--cache-from-image",
+    help="Additional image to read the build cache from - it has to be pullable from a registry, "
+    "an image only present in the local docker engine contributes no cache.",
+    envvar="CACHE_FROM_IMAGE",
+)
 option_debian_version = click.option(
     "--debian-version",
     type=BetterChoice(ALLOWED_DEBIAN_VERSIONS),
@@ -199,6 +205,11 @@ option_skip_image_file_deletion = click.option(
     help="Skip image deletion after loading.",
     is_flag=True,
     envvar="SKIP_IMAGE_FILE_DELETION",
+)
+option_tag_as = click.option(
+    "--tag-as",
+    help="Additionally tag the loaded image with this reference.",
+    envvar="TAG_AS",
 )
 option_from_run = click.option(
     "--from-run",

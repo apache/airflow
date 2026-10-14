@@ -16,14 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Table, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Table, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
+
+import { RouterLink } from "src/system-components";
+
 import Time from "src/components/Time.tsx";
-import { RouterLink } from "src/components/ui/RouterLink.tsx";
-import { getRelativeTime } from "src/utils/datetimeUtils.ts";
+
+import { useDurationFormat } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links.ts";
 
 const HITLReviewRow = ({ label, value }: { readonly label: string; readonly value: ReactNode }) => (
@@ -41,6 +45,7 @@ export const HITLReviewDetailSummary = ({
   readonly onOpenTask: () => void;
 }) => {
   const { t: translate } = useTranslation(["hitl", "common"]);
+  const { formatRelative } = useDurationFormat();
   const ti = detail.task_instance;
   const mappedIndex = ti.rendered_map_index ?? (ti.map_index >= 0 ? ti.map_index : undefined);
 
@@ -53,7 +58,7 @@ export const HITLReviewDetailSummary = ({
         <HITLReviewRow
           label={translate("common:taskId")}
           value={
-            <RouterLink onClick={onOpenTask} to={`${getTaskInstanceLink(ti)}/required_actions`}>
+            <RouterLink onClick={onOpenTask} to={getTaskInstanceLink(ti, "required_actions")}>
               {ti.task_id}
             </RouterLink>
           }
@@ -63,7 +68,7 @@ export const HITLReviewDetailSummary = ({
           value={
             <Text>
               <Time datetime={detail.created_at} />
-              {` (${getRelativeTime(detail.created_at)})`}
+              {` (${formatRelative(detail.created_at)})`}
             </Text>
           }
         />

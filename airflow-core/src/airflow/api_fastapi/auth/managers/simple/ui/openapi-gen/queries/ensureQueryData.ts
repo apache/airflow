@@ -1,9 +1,8 @@
-// generated with @7nohe/openapi-react-query-codegen@2.2.0
-import { type QueryClient } from "@tanstack/react-query";
+// generated with @7nohe/openapi-react-query-codegen@3.0.2
+import { type EnsureQueryDataOptions, type QueryClient } from "@tanstack/react-query";
 
-import type { Options } from "../requests/sdk.gen";
-import { createTokenAllAdmins, loginAllAdmins } from "../requests/sdk.gen";
-import { CreateTokenAllAdminsData, LoginAllAdminsData } from "../requests/types.gen";
+import { createTokenAllAdmins, loginAllAdmins, type Options } from "../requests/sdk.gen";
+import type { CreateTokenAllAdminsData, LoginAllAdminsData } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
@@ -14,10 +13,15 @@ import * as Common from "./common";
 export const ensureUseCreateTokenAllAdminsData = (
   queryClient: QueryClient,
   clientOptions: Options<CreateTokenAllAdminsData, true> = {},
+  options?: Omit<EnsureQueryDataOptions<Common.CreateTokenAllAdminsDefaultResponse>, "queryKey" | "queryFn">,
 ) =>
   queryClient.ensureQueryData({
     queryKey: Common.UseCreateTokenAllAdminsKeyFn(clientOptions),
-    queryFn: () => createTokenAllAdmins({ ...clientOptions }).then((response) => response.data),
+    queryFn: ({ signal }) =>
+      createTokenAllAdmins({ ...clientOptions, signal, throwOnError: true }).then(
+        (response) => response.data,
+      ),
+    ...options,
   });
 /**
  * Login All Admins
@@ -27,8 +31,11 @@ export const ensureUseCreateTokenAllAdminsData = (
 export const ensureUseLoginAllAdminsData = (
   queryClient: QueryClient,
   clientOptions: Options<LoginAllAdminsData, true> = {},
+  options?: Omit<EnsureQueryDataOptions<Common.LoginAllAdminsDefaultResponse>, "queryKey" | "queryFn">,
 ) =>
   queryClient.ensureQueryData({
     queryKey: Common.UseLoginAllAdminsKeyFn(clientOptions),
-    queryFn: () => loginAllAdmins({ ...clientOptions }).then((response) => response.data),
+    queryFn: ({ signal }) =>
+      loginAllAdmins({ ...clientOptions, signal, throwOnError: true }).then((response) => response.data),
+    ...options,
   });

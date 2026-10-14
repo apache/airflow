@@ -50,6 +50,7 @@ Documentation in separate distributions:
 * `chart/docs` - documentation for the Helm Chart
 * `task-sdk/docs` - documentation for Task SDK (new format not yet published)
 * `airflow-ctl/docs` - documentation for Airflow CLI
+* `dev/mypy/docs` - documentation for the Apache Airflow Mypy plugins
 
 Documentation for a general overview and summaries not connected with any specific distribution:
 
@@ -141,7 +142,7 @@ You can also specify whether documentation should be published to `live` or `sta
 The person who triggers the build (release manager) should specify the tag name of the docs to be published
 and the list of documentation packages to be published. Usually it is:
 
-* Airflow: `apache-airflow docker-stack task-sdk apache-airflow-ctl`
+* Airflow: `apache-airflow docker-stack task-sdk apache-airflow-ctl apache-airflow-mypy`
 * Helm chart: `helm-chart`
 * Providers: `provider_id1 provider_id2` or `all providers` if all providers should be published.
 
@@ -283,7 +284,7 @@ Note that it is advised to add `--dry-run` if you just want to see what would ha
 the `s3://staging-docs-airflow-apache-org/docs/` bucket to test the publishing using staging site.
 
 ```bash
-breeze build-docs "<package_id1>" "<package_id2>" --docs-only
+breeze build-docs "<package_id1>" "<package_id2>"
 mkdir /tmp/airflow-site
 breeze release-management publish-docs --override-versioned --airflow-site-directory /tmp/airflow-site
 breeze release-management publish-docs-to-s3 --source-dir-path /tmp/airflow-site/docs-archive \
@@ -307,7 +308,7 @@ The process is as follows:
    publish the docs to the checked out `airflow-site-archive` branch.
 
 ```bash
-breeze build-docs "<package_id1>" "<package_id2>" --docs-only
+breeze build-docs "<package_id1>" "<package_id2>"
 breeze release-management publish-docs --override-versioned --airflow-site-directory <PATH_TO_THE_ARCHIVE_REPO>
 ```
 

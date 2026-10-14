@@ -16,27 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, SimpleGrid, Skeleton } from "@chakra-ui/react";
-import { flexRender, type Row } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 
+import { Box, SimpleGrid, Skeleton, Text } from "@chakra-ui/react";
+import { flexRender, type Row, type RowData } from "@tanstack/react-table";
+
+import type { DataTableFeatures } from "./features";
 import type { CardDef } from "./types";
 
-type DataTableProps<TData> = {
+type CardListProps<TData extends RowData> = {
   readonly cardDef: CardDef<TData>;
   readonly isLoading?: boolean;
-  readonly rows: Array<Row<TData>>;
+  readonly noRowsMessage?: ReactNode;
+  readonly rows: Array<Row<DataTableFeatures, TData>>;
 };
 
-export const CardList = <TData,>({ cardDef, isLoading, rows }: DataTableProps<TData>) => (
-  <SimpleGrid data-testid="card-list" {...{ columns: { base: 1 }, gap: 2, ...cardDef.gridProps }}>
-    {rows.map((row) => (
-      <Box key={row.id}>
-        {Boolean(isLoading) &&
-          (cardDef.meta?.customSkeleton ?? (
-            <Skeleton data-testid="skeleton" display="inline-block" height={80} width="100%" />
-          ))}
-        {!Boolean(isLoading) && flexRender(cardDef.card, { row: row.original })}
-      </Box>
-    ))}
-  </SimpleGrid>
-);
+export const CardList = <TData extends RowData>({
+  cardDef,
+  isLoading,
+  noRowsMessage,
+  rows,
+}: CardListProps<TData>) =>
+  rows.length === 0 ? (
+    <Text as="div" data-testid="card-no-rows" pl={4} pt={1}>
+      {noRowsMessage}
+    </Text>
+  ) : (
+    <SimpleGrid data-testid="card-list" {...{ columns: { base: 1 }, gap: 2, ...cardDef.gridProps }}>
+      {rows.map((row) => (
+        <Box key={row.id}>
+          {Boolean(isLoading) &&
+            (cardDef.meta?.customSkeleton ?? (
+              <Skeleton data-testid="skeleton" display="inline-block" height={80} width="100%" />
+            ))}
+          {!Boolean(isLoading) && flexRender(cardDef.card, { row: row.original })}
+        </Box>
+      ))}
+    </SimpleGrid>
+  );

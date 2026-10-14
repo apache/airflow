@@ -19,6 +19,8 @@ services:
   kdc-server-example-com:
     image: ghcr.io/apache/airflow-krb5-kdc-server:2021.07.04
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration that provides Kerberos authentication."
     hostname: krb5-kdc-server-example-com
     domainname: example.com
@@ -49,6 +51,7 @@ services:
       interval: 5s
       timeout: 30s
       start_period: 30s
+      start_interval: 1s
       retries: 50
     restart: "on-failure"
 
@@ -77,9 +80,14 @@ services:
 
 volumes:
   kerberos-keytabs:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
 
 networks:
   example.com:
+    labels:
+      org.apache.airflow.breeze: "true"
     name: example.com
     driver: bridge
     ipam:

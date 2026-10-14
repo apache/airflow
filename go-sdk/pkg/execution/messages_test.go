@@ -30,25 +30,18 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
-// sourceSchemaRelPath locates the canonical supervisor schema snapshot owned by
-// the Python Task SDK, relative to this package directory within the monorepo.
-// It is the same file genmodels is generated against (referenced by relative
-// path rather than vendored into go-sdk).
-const sourceSchemaRelPath = "../../../task-sdk/src/airflow/sdk/execution_time/schema/schema.json"
+// vendoredSchemaRelPath locates go-sdk's vendored copy of the supervisor schema
+// snapshot the Python Task SDK owns, relative to this package directory. It is
+// the file genmodels is generated against, and it ships with go-sdk, so this
+// test needs no monorepo around it. The sync-go-sdk-schemas prek hook is what
+// keeps the copy equal to task-sdk's.
+const vendoredSchemaRelPath = "../../schema/supervisor-schema.json"
 
 // TestSupervisorSchemaVersionMatchesSnapshot pins SupervisorSchemaVersion to the
 // api_version of the schema the models are generated from, so a schema bump that
-// forgets to update the constant (or vice versa) fails loudly. It only runs when
-// the task-sdk source is reachable from the checkout, so a standalone go-sdk
-// build (without the rest of the monorepo) does not fail.
+// forgets to update the constant (or vice versa) fails loudly.
 func TestSupervisorSchemaVersionMatchesSnapshot(t *testing.T) {
-	raw, err := os.ReadFile(sourceSchemaRelPath)
-	if os.IsNotExist(err) {
-		t.Skipf(
-			"task-sdk schema source not reachable at %s; skipping version check",
-			sourceSchemaRelPath,
-		)
-	}
+	raw, err := os.ReadFile(vendoredSchemaRelPath)
 	require.NoError(t, err)
 	var snapshot struct {
 		APIVersion string `json:"api_version"`
@@ -225,7 +218,7 @@ func TestDecodeConnectionResult(t *testing.T) {
 // TestConnectionResultNullableCredentials covers the shapes login / password
 // can take on the wire: absent, explicit nil, explicit "", and a real value.
 // Empty-string and absent must be distinguishable so URI building in
-// sdk.Connection picks the same branch the HTTP-backed SDK would.
+// sdk.Connection preserves the distinction from an omitted credential.
 func TestConnectionResultNullableCredentials(t *testing.T) {
 	empty := ""
 	user := "user"
@@ -492,7 +485,7 @@ func TestPeekBodyType(t *testing.T) {
 	assert.Equal(t, "", peekBodyType(msgpack.RawMessage{0xc0})) // msgpack nil
 }
 
-func TestApiErrorFromFrame(t *testing.T) {
+func TestAPIErrorFromFrame(t *testing.T) {
 	t.Run("error element of 3-tuple", func(t *testing.T) {
 		f := IncomingFrame{
 			Body: marshalBody(t, map[string]any{"type": "ConnectionResult"}),
@@ -536,7 +529,7 @@ func TestApiErrorFromFrame(t *testing.T) {
 
 	t.Run("off-contract detail still recovers the error code", func(t *testing.T) {
 		// detail is a string instead of the schema's object|null; the typed
-		// error code must survive so translateApiError maps it correctly.
+		// error code must survive so translateAPIError maps it correctly.
 		f := IncomingFrame{
 			Err: marshalBody(
 				t,

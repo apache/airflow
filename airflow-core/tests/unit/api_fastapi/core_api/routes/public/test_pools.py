@@ -272,6 +272,14 @@ class TestGetPools(TestPoolsEndpoint):
         assert pools["unlimited_pool"]["slots"] == -1
         assert pools["unlimited_pool"]["open_slots"] == -1
 
+    def test_should_not_query_on_event_loop(self, test_client, event_loop_queries):
+        """Regression for #74239: the slot counts of each pool must not be queried during serialization."""
+        self.create_pools()
+        response = test_client.get("/pools")
+        assert response.status_code == 200
+        assert response.json()["pools"][1]["open_slots"] == POOL1_SLOT
+        assert event_loop_queries == []
+
 
 class TestPatchPool(TestPoolsEndpoint):
     @pytest.mark.parametrize(
@@ -1201,6 +1209,48 @@ class TestBulkPools(TestPoolsEndpoint):
 
         assert query_count == EXPECTED_QUERY_COUNT, (
             f"Bulk-delete query count {query_count} does not match expected {EXPECTED_QUERY_COUNT}. "
+            f"A regression that re-queries pools inside the loop would add one SELECT per pool."
+        )
+
+    @pytest.mark.parametrize(
+        ("pool_count"),
+        [5, 10, 20],
+    )
+    def test_bulk_update_query_count_is_independent_of_pool_count(self, test_client, session, pool_count):
+        # Regression guard for the N+1 fix in BulkPoolService.handle_bulk_update:
+        # the query count for a bulk update must be the same regardless of how
+        # many pools are updated. A regression that re-queries each pool inside
+        # the loop would add one SELECT per pool, so the larger run would issue
+        # strictly more queries than the smaller one.
+
+        EXPECTED_QUERY_COUNT = 4
+
+        pool_names = [f"perf_update_pool_{pool_count}_{i}" for i in range(pool_count)]
+        session.add_all(Pool(pool=name, slots=1, include_deferred=False) for name in pool_names)
+        session.commit()
+
+        request_body = {
+            "actions": [
+                {
+                    "action": "update",
+                    "entities": [
+                        {"name": name, "slots": 99, "include_deferred": False} for name in pool_names
+                    ],
+                    "action_on_non_existence": "fail",
+                }
+            ]
+        }
+
+        with count_queries() as result:
+            response = test_client.patch("/pools", json=request_body)
+
+        assert response.status_code == 200
+        assert sorted(response.json()["update"]["success"]) == sorted(pool_names)
+
+        query_count = sum(result.values())
+
+        assert query_count == EXPECTED_QUERY_COUNT, (
+            f"Bulk-update query count {query_count} does not match expected {EXPECTED_QUERY_COUNT}. "
             f"A regression that re-queries pools inside the loop would add one SELECT per pool."
         )
 

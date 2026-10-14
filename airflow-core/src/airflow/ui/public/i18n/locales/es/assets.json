@@ -1,5 +1,30 @@
 {
-  "consumingDags": "Consumiendo Dags",
+  "additional_data": "Datos Adicionales",
+  "alias_one": "Alias",
+  "alias_other": "Alias",
+  "aliases": "Alias",
+  "asset_one": "Asset",
+  "asset_other": "Assets",
+  "assetStateStore": {
+    "add": "Agregar Almacenamiento de Estado de Asset",
+    "clearAll": {
+      "resource": "todo el almacenamiento de estado de Asset",
+      "title": "Limpiar Todo el Almacenamiento de Estado de Asset",
+      "warning": "Se borrará todo el almacenamiento de estado de Asset. Las tareas que usan este almacenamiento para coordinar trabajo perderán su memoria persistente."
+    },
+    "delete": "Eliminar Almacenamiento de Estado de Asset",
+    "deleteWarning": "El Asset perderá esta entrada de almacenamiento de estado persistente.",
+    "edit": "Editar Almacenamiento de Estado de Asset",
+    "emptyState": "El almacenamiento de estado de Asset almacena valores con alcance en la identidad de un Asset, compartidos entre todas las ejecuciones del Dag. Los workers pueden escribir en el almacenamiento de estado de Asset mediante el Task SDK.",
+    "entry_one": "Entrada",
+    "entry_other": "Entradas",
+    "lastUpdatedBy": "Última Actualización Realizada Por",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "Almacenamiento de Estado de Asset"
+  },
+  "consumingDags": "Dags Consumidores",
+  "consumingTasks": "Tareas Consumidoras",
   "createEvent": {
     "button": "Crear Evento",
     "manual": {
@@ -21,10 +46,20 @@
     },
     "title": "Crear Evento de Asset para {{name}}"
   },
+  "events": "Eventos",
+  "filters": {
+    "groupPlaceholder": "Buscar grupo",
+    "lastEventDateRange": "Fecha del Último Evento"
+  },
   "group": "Grupo",
   "lastAssetEvent": "Último Evento de Asset",
   "name": "Nombre",
-  "producingTasks": "Tareas produciendo",
-  "scheduledDags": "Dags programados",
-  "searchPlaceholder": "Buscar Assets"
+  "producingTasks": "Tareas Productoras",
+  "scheduledDags": "Dags Programados",
+  "scheduling": "Programación",
+  "searchPlaceholder": "Buscar Assets",
+  "taskDependencies": "Dependencias de Tareas",
+  "watcher_one": "Watcher",
+  "watcher_other": "Watchers",
+  "watchers": "Watchers"
 }

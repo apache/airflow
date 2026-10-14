@@ -46,7 +46,7 @@ class DataprocJobSensor(BaseSensorOperator):
     :param wait_timeout: How many seconds wait for job to be ready.
     """
 
-    template_fields: Sequence[str] = ("project_id", "region", "dataproc_job_id")
+    template_fields: Sequence[str] = ("project_id", "region", "dataproc_job_id", "gcp_conn_id")
     ui_color = "#f0eee4"
 
     def __init__(
@@ -128,7 +128,7 @@ class DataprocBatchSensor(BaseSensorOperator):
     :param wait_timeout: How many seconds wait for job to be ready.
     """
 
-    template_fields: Sequence[str] = ("project_id", "region", "batch_id")
+    template_fields: Sequence[str] = ("project_id", "region", "batch_id", "gcp_conn_id")
     ui_color = "#f0eee4"
 
     def __init__(

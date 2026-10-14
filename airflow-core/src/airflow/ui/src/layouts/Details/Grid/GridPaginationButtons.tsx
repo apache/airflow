@@ -20,7 +20,7 @@ import { Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight, FiChevronsRight } from "react-icons/fi";
 
-import { IconButton } from "src/components/ui";
+import { IconButton } from "src/system-components";
 
 type Props = {
   readonly hasNewerRuns: boolean;
@@ -58,7 +58,7 @@ export const GridPaginationButtons = ({
   return (
     <>
       {latestNotVisible || hasNewerRuns ? (
-        <Flex bottom={0} flexDirection="column" gap={1} position="absolute" right={-6} zIndex={1}>
+        <Flex bottom={0} flexDirection="column" gap={1} position="absolute" right={1} zIndex={1}>
           {latestNotVisible ? (
             <IconButton label={resetLabel} onClick={onJumpToLatest} {...buttonProps}>
               <FiChevronsRight />

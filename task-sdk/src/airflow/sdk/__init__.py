@@ -26,11 +26,14 @@ __all__ = [
     "AssetAlias",
     "AssetAll",
     "AssetAny",
+    "AssetAndTimeSchedule",
     "AssetOrTimeSchedule",
+    "AssetTriggeredTimetable",
     "AssetWatcher",
     "AsyncCallback",
     "BaseAsyncOperator",
     "BaseBranchOperator",
+    "BaseDeadlineReference",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",
@@ -39,6 +42,7 @@ __all__ = [
     "BaseXCom",
     "BranchMixIn",
     "ChainMapper",
+    "ChainRetryPolicy",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -105,6 +109,7 @@ __all__ = [
     "conf",
     "cross_downstream",
     "dag",
+    "deadline_reference",
     "get_current_context",
     "get_parsing_context",
     "literal",
@@ -151,7 +156,12 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
-    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+    from airflow.sdk.definitions.deadline import (
+        BaseDeadlineReference,
+        DeadlineAlert,
+        DeadlineReference,
+        deadline_reference,
+    )
     from airflow.sdk.definitions.decorators import result, setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
@@ -189,6 +199,7 @@ if TYPE_CHECKING:
         YearWindow,
     )
     from airflow.sdk.definitions.retry_policy import (
+        ChainRetryPolicy,
         ExceptionRetryPolicy,
         RetryAction,
         RetryDecision,
@@ -198,7 +209,9 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
+        AssetAndTimeSchedule,
         AssetOrTimeSchedule,
+        AssetTriggeredTimetable,
         PartitionedAssetTimetable,
         PartitionedAtRuntime,
     )
@@ -228,12 +241,15 @@ __lazy_imports: dict[str, str] = {
     "AssetAccessControl": ".definitions.asset",
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
+    "AssetAndTimeSchedule": ".definitions.timetables.assets",
     "AssetAny": ".definitions.asset",
     "AssetOrTimeSchedule": ".definitions.timetables.assets",
+    "AssetTriggeredTimetable": ".definitions.timetables.assets",
     "AssetWatcher": ".definitions.asset",
     "AsyncCallback": ".definitions.callback",
     "BaseAsyncOperator": ".bases.operator",
     "BaseBranchOperator": ".bases.branch",
+    "BaseDeadlineReference": ".definitions.deadline",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
     "BaseOperator": ".bases.operator",
@@ -242,6 +258,7 @@ __lazy_imports: dict[str, str] = {
     "BaseXCom": ".bases.xcom",
     "BranchMixIn": ".bases.branch",
     "ChainMapper": ".definitions.partition_mappers.chain",
+    "ChainRetryPolicy": ".definitions.retry_policy",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",
@@ -308,6 +325,7 @@ __lazy_imports: dict[str, str] = {
     "conf": ".configuration",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
+    "deadline_reference": ".definitions.deadline",
     "NEVER_EXPIRE": ".execution_time.context",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",

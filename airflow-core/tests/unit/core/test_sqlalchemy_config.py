@@ -121,6 +121,30 @@ class TestSqlAlchemySettings:
         assert "pool_recycle" not in engine_args
         assert "pool_pre_ping" not in engine_args
 
+    @pytest.mark.parametrize(
+        ("conn_str", "use_psycopg3", "expect_psycopg2_tuning"),
+        [
+            ("postgresql+psycopg2://user:pass@host/db", True, True),
+            ("postgresql+psycopg2://user:pass@host/db", False, True),
+            ("postgresql+psycopg://user:pass@host/db", True, False),
+            ("postgresql+psycopg://user:pass@host/db", False, False),
+        ],
+    )
+    def test_prepare_engine_args_psycopg2_tuning_follows_configured_scheme(
+        self, conn_str, use_psycopg3, expect_psycopg2_tuning, monkeypatch
+    ):
+        """executemany tuning must follow the configured scheme, not whether psycopg happens to be importable."""
+        monkeypatch.setattr(settings, "SQL_ALCHEMY_CONN", conn_str)
+        monkeypatch.setattr(settings, "_USE_PSYCOPG3", use_psycopg3)
+        engine_args = settings.prepare_engine_args()
+        assert engine_args["insertmanyvalues_page_size"] == 10000
+        if expect_psycopg2_tuning:
+            assert engine_args["executemany_mode"] == "values_plus_batch"
+            assert engine_args["executemany_batch_page_size"] == 2000
+        else:
+            assert "executemany_mode" not in engine_args
+            assert "executemany_batch_page_size" not in engine_args
+
     @patch("airflow.settings.setup_event_handlers")
     @patch("airflow.settings.scoped_session")
     @patch("airflow.settings.sessionmaker")
@@ -141,8 +165,18 @@ class TestSqlAlchemySettings:
             engine_args = {"arg": 1}
             if settings.SQL_ALCHEMY_CONN.startswith("mysql"):
                 engine_args["isolation_level"] = "READ COMMITTED"
+            # Airflow merges driver defaults under the configured args rather than passing
+            # the configured object through, so compare against the merge rather than
+            # against SQL_ALCHEMY_CONNECT_ARGS itself.
+            expected_connect_args = {
+                **settings._psycopg3_connect_args(settings.SQL_ALCHEMY_CONN),
+                **SQL_ALCHEMY_CONNECT_ARGS,
+            }
+            if settings.SQL_ALCHEMY_CONN.startswith("sqlite"):
+                # configure_orm adds this after the merge.
+                expected_connect_args["check_same_thread"] = False
             expected_kwargs = dict(
-                connect_args=SQL_ALCHEMY_CONNECT_ARGS,
+                connect_args=expected_connect_args,
                 poolclass=NullPool,
                 future=True,
                 **engine_args,

@@ -40,6 +40,7 @@
 !airflow-ctl/
 !go-sdk/
 !java-sdk/
+!ts-sdk/
 
 # Add all "test" distributions
 !tests

@@ -149,12 +149,12 @@ Screenshots
 Light Mode
 """"""""""
 
-.. image:: ../img/change-theme/exmaple_theme_configuration_light_mode.png
+.. image:: ../img/change-theme/example_theme_configuration_light_mode.png
 
 Dark Mode
 """""""""
 
-.. image:: ../img/change-theme/exmaple_theme_configuration_dark_mode.png
+.. image:: ../img/change-theme/example_theme_configuration_dark_mode.png
 
 3.  To add custom CSS rules to the airflow UI, you can include a ``globalCss`` key in the theme configuration. More information https://chakra-ui.com/docs/theming/customization/global-css
 
@@ -281,7 +281,7 @@ To add static alert messages that remain constant until the webserver is restart
       from airflow.api_fastapi.common.types import UIAlert
 
       DASHBOARD_UIALERTS = [
-          UIAlert("Welcome to Airflow", category="info"),
+          UIAlert(text="Welcome to Airflow", category="info"),
       ]
 
 3. Restart the Airflow webserver, and you should now see the alert message displayed on the dashboard.
@@ -365,9 +365,9 @@ cases might include alerts yielded from APIs, database queries or files.
             # This method is called each time Airflow iterates over DASHBOARD_UIALERTS
             # Example: Flip a coin
             if random.choice([True, False]):
-                yield UIAlert("Heads!", category="info")
+                yield UIAlert(text="Heads!", category="info")
             else:
-                yield UIAlert("Tails!", category="warning")
+                yield UIAlert(text="Tails!", category="warning")
 
 
     # Create an instance of the class

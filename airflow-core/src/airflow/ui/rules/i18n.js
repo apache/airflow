@@ -16,11 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import jsoncParser from "jsonc-eslint-parser";
+import * as jsoncParser from "jsonc-eslint-parser";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,11 +39,9 @@ const getKeys = (obj, prefix = "") => {
     const newPrefix = prefix ? `${prefix}.${key}` : key;
     const value = obj[key];
 
-    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      return [newPrefix, ...getKeys(value, newPrefix)];
-    }
-
-    return [newPrefix];
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+      ? [newPrefix, ...getKeys(value, newPrefix)]
+      : [newPrefix];
   });
 };
 

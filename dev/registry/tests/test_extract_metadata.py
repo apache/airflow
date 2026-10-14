@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import sys
 import textwrap
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -36,6 +37,7 @@ from extract_metadata import (
     find_latest_released_version,
     find_related_providers,
     load_release_tags,
+    main,
     module_path_to_file_path,
     parse_pyproject_toml,
     preserve_nonzero_downloads,
@@ -169,7 +171,7 @@ class TestParsePyprojectToml:
         toml_file.write_text(
             textwrap.dedent("""\
                 [project]
-                requires-python = ">=3.10"
+                requires-python = ">=3.11"
                 dependencies = [
                     "apache-airflow>=3.0.0",
                     "boto3>=1.28.0",
@@ -177,7 +179,7 @@ class TestParsePyprojectToml:
             """)
         )
         result = parse_pyproject_toml(toml_file)
-        assert result["requires_python"] == ">=3.10"
+        assert result["requires_python"] == ">=3.11"
         assert result["dependencies"] == ["apache-airflow>=3.0.0", "boto3>=1.28.0"]
 
     def test_optional_dependencies(self, tmp_path):
@@ -185,7 +187,7 @@ class TestParsePyprojectToml:
         toml_file.write_text(
             textwrap.dedent("""\
                 [project]
-                requires-python = ">=3.10"
+                requires-python = ">=3.11"
                 dependencies = []
 
                 [project.optional-dependencies]
@@ -828,3 +830,107 @@ class TestVersionsListFiltering:
         filtered = [v for v in raw_versions if f"providers-{provider_id}/{v}" in release_tags]
         # Order from raw_versions is preserved; only the phantom is dropped
         assert filtered == ["9.26.0", "9.25.0", "9.24.0"]
+
+
+# ---------------------------------------------------------------------------
+# main() -- provider.yaml fields reaching providers.json
+# ---------------------------------------------------------------------------
+@patch("extract_metadata.fetch_provider_inventory", autospec=True, return_value=None)
+@patch("extract_metadata.fetch_pypi_data_parallel", autospec=True, return_value={})
+@patch("extract_metadata.load_release_tags", autospec=True, return_value=set())
+def _run_main_for_provider(
+    _load_release_tags,
+    _fetch_pypi_data_parallel,
+    _fetch_provider_inventory,
+    tmp_path,
+    provider_yaml,
+    src_files,
+):
+    """Run main() on one provider under tmp_path and return its providers.json entry.
+
+    Network and filesystem dependencies are mocked or redirected, so the
+    written entry has also passed main()'s ProviderContract (extra="forbid")
+    validation, catching key-name drift between provider.yaml, main() and
+    registry_contract_models.py.
+    """
+    providers_dir = tmp_path / "providers"
+    provider_dir = providers_dir / "testprov"
+    provider_dir.mkdir(parents=True)
+    (provider_dir / "provider.yaml").write_text(provider_yaml)
+    for rel_path, content in src_files.items():
+        src_file = provider_dir / "src" / rel_path
+        src_file.parent.mkdir(parents=True, exist_ok=True)
+        src_file.write_text(content)
+    output_dir = tmp_path / "output"
+    script_dir = tmp_path / "script"
+    output_dir.mkdir()
+    script_dir.mkdir()
+
+    with (
+        patch("extract_metadata.PROVIDERS_DIR", providers_dir),
+        patch("extract_metadata.OUTPUT_DIR", output_dir),
+        patch("extract_metadata.SCRIPT_DIR", script_dir),
+        patch.object(sys, "argv", ["extract_metadata.py"]),
+    ):
+        main()
+
+    written = json.loads((output_dir / "providers.json").read_text())
+    return next(p for p in written["providers"] if p["id"] == "testprov")
+
+
+class TestMainConnectionTypesExternalServices:
+    """The connection-types extraction loop lives inline in main() rather than
+    a standalone function, so this drives main() end-to-end to prove
+    `external-services` from provider.yaml reaches the written providers.json.
+    """
+
+    def test_external_services_propagates_to_providers_json(self, tmp_path):
+        provider = _run_main_for_provider(
+            tmp_path=tmp_path,
+            provider_yaml=textwrap.dedent("""\
+                name: Test Provider
+                description: A test provider.
+                versions:
+                  - 1.0.0
+                connection-types:
+                  - connection-type: testconn
+                    hook-class-name: airflow.providers.test.hooks.TestHook
+                    external-services:
+                      - openai
+                      - anthropic
+                """),
+            src_files={},
+        )
+
+        assert provider["connection_types"][0]["external_services"] == ["openai", "anthropic"]
+
+
+class TestMainUriSchemes:
+    """main() must read filesystem schemes from the provider's src/ tree, skip a
+    listed module whose file is missing, and write the entries to providers.json."""
+
+    def test_uri_schemes_propagate_to_providers_json(self, tmp_path):
+        provider = _run_main_for_provider(
+            tmp_path=tmp_path,
+            provider_yaml=textwrap.dedent("""\
+                name: Test Provider
+                description: A test provider.
+                versions:
+                  - 1.0.0
+                filesystems:
+                  - airflow.providers.testprov.fs.testfs
+                  - airflow.providers.testprov.fs.missing
+                asset-uris:
+                  - schemes: [testfs]
+                    handler: null
+                """),
+            src_files={"airflow/providers/testprov/fs/testfs.py": 'schemes = ["testfs"]\n'},
+        )
+
+        assert provider["uri_schemes"] == [
+            {
+                "scheme": "testfs",
+                "filesystem": "airflow.providers.testprov.fs.testfs",
+                "asset": {"handler": None, "factory": None, "to_openlineage_converter": None},
+            }
+        ]

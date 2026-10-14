@@ -53,6 +53,8 @@ STAGING_LOCATION = "gs://test/staging"
 OUTPUT_LOCATION = "gs://test/output"
 TEST_VERSION = f"v{version.replace('.', '-').replace('+', '-')}"
 TEST_IMPERSONATION_ACCOUNT = "test@impersonation.com"
+TEST_POLL_SLEEP = 30
+TEST_SERVICE_ACCOUNT = "test@service-account.com"
 BEAM_OPERATOR_PATH = "airflow.providers.apache.beam.operators.beam.{}"
 
 
@@ -218,7 +220,10 @@ class TestBeamRunPythonPipelineOperator:
         """
         gcs_provide_file = gcs_hook.return_value.provide_file
         op = BeamRunPythonPipelineOperator(
-            dataflow_config={"impersonation_chain": TEST_IMPERSONATION_ACCOUNT},
+            dataflow_config={
+                "impersonation_chain": TEST_IMPERSONATION_ACCOUNT,
+                "service_account": TEST_SERVICE_ACCOUNT,
+            },
             runner="DataflowRunner",
             **self.default_op_kwargs,
         )
@@ -243,6 +248,7 @@ class TestBeamRunPythonPipelineOperator:
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
             "region": "us-central1",
+            "service_account_email": TEST_SERVICE_ACCOUNT,
             "impersonate_service_account": TEST_IMPERSONATION_ACCOUNT,
             "requirements_file": gcs_provide_file.return_value.__enter__.return_value.name,
         }
@@ -445,7 +451,9 @@ class TestBeamRunJavaPipelineOperator:
         """Test DataflowHook is created and the right args are passed to
         start_java_dataflow.
         """
-        dataflow_config = DataflowConfiguration(impersonation_chain="test@impersonation.com")
+        dataflow_config = DataflowConfiguration(
+            impersonation_chain="test@impersonation.com", service_account=TEST_SERVICE_ACCOUNT
+        )
         op = BeamRunJavaPipelineOperator(
             **self.default_op_kwargs, dataflow_config=dataflow_config, runner="DataflowRunner"
         )
@@ -472,6 +480,7 @@ class TestBeamRunJavaPipelineOperator:
             "region": "us-central1",
             "labels": {"foo": "bar"},
             "output": "gs://test/output",
+            "serviceAccount": TEST_SERVICE_ACCOUNT,
             "impersonateServiceAccount": TEST_IMPERSONATION_ACCOUNT,
         }
         persist_link_mock.assert_called_once_with(
@@ -776,7 +785,9 @@ class TestBeamRunGoPipelineOperator:
         start_go_dataflow.
         """
         gcs_download_method = gcs_hook.return_value.download
-        dataflow_config = DataflowConfiguration(impersonation_chain="test@impersonation.com")
+        dataflow_config = DataflowConfiguration(
+            impersonation_chain="test@impersonation.com", service_account=TEST_SERVICE_ACCOUNT
+        )
         op = BeamRunGoPipelineOperator(
             runner="DataflowRunner",
             dataflow_config=dataflow_config,
@@ -802,6 +813,7 @@ class TestBeamRunGoPipelineOperator:
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
             "region": "us-central1",
+            "service_account_email": TEST_SERVICE_ACCOUNT,
         }
         persist_link_mock.assert_called_once_with(context={})
         expected_go_file = "/tmp/apache-beam-go/main.go"
@@ -992,12 +1004,10 @@ class TestBeamRunPythonPipelineOperatorAsync:
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_dataflow_runner(self, gcs_hook_mock, dataflow_hook_mock, beam_hook_mock):
-        """
-        Test DataflowHook is created and the right args are passed to
-        start_python_dataflow when executing Dataflow runner.
-        """
-
-        dataflow_config = DataflowConfiguration(impersonation_chain=TEST_IMPERSONATION_ACCOUNT)
+        """Test the Dataflow hook and the deferral trigger both receive the dataflow_config args."""
+        dataflow_config = DataflowConfiguration(
+            impersonation_chain=TEST_IMPERSONATION_ACCOUNT, poll_sleep=TEST_POLL_SLEEP
+        )
         op = BeamRunPythonPipelineOperator(
             runner="DataflowRunner",
             dataflow_config=dataflow_config,
@@ -1005,7 +1015,7 @@ class TestBeamRunPythonPipelineOperatorAsync:
         )
         magic_mock = mock.MagicMock()
         if AIRFLOW_V_3_0_PLUS:
-            with pytest.raises(TaskDeferred):
+            with pytest.raises(TaskDeferred) as exc:
                 op.execute(context=magic_mock)
         else:
             exception_msg = (
@@ -1014,11 +1024,13 @@ class TestBeamRunPythonPipelineOperatorAsync:
                 " completed!"
             )
             with (
-                pytest.raises(TaskDeferred),
+                pytest.raises(TaskDeferred) as exc,
                 pytest.warns(AirflowProviderDeprecationWarning, match=exception_msg),
             ):
                 op.execute(context=magic_mock)
 
+        assert exc.value.trigger.impersonation_chain == TEST_IMPERSONATION_ACCOUNT
+        assert exc.value.trigger.poll_sleep == TEST_POLL_SLEEP
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id=dataflow_config.gcp_conn_id,
             poll_sleep=dataflow_config.poll_sleep,
@@ -1122,18 +1134,17 @@ class TestBeamRunJavaPipelineOperatorAsync:
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_dataflow_runner(self, gcs_hook_mock, dataflow_hook_mock, beam_hook_mock):
-        """
-        Test DataflowHook is created and the right args are passed to
-        start_java_pipeline when executing Dataflow runner.
-        """
-        dataflow_config = DataflowConfiguration(impersonation_chain=TEST_IMPERSONATION_ACCOUNT)
+        """Test the Dataflow hook and the deferral trigger both receive the dataflow_config args."""
+        dataflow_config = DataflowConfiguration(
+            impersonation_chain=TEST_IMPERSONATION_ACCOUNT, poll_sleep=TEST_POLL_SLEEP
+        )
         op = BeamRunJavaPipelineOperator(
             runner="DataflowRunner", dataflow_config=dataflow_config, **self.default_op_kwargs
         )
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         magic_mock = mock.MagicMock()
         if AIRFLOW_V_3_0_PLUS:
-            with pytest.raises(TaskDeferred):
+            with pytest.raises(TaskDeferred) as exc:
                 op.execute(context=magic_mock)
         else:
             exception_msg = (
@@ -1142,11 +1153,13 @@ class TestBeamRunJavaPipelineOperatorAsync:
                 " completed!"
             )
             with (
-                pytest.raises(TaskDeferred),
+                pytest.raises(TaskDeferred) as exc,
                 pytest.warns(AirflowProviderDeprecationWarning, match=exception_msg),
             ):
                 op.execute(context=magic_mock)
 
+        assert exc.value.trigger.impersonation_chain == TEST_IMPERSONATION_ACCOUNT
+        assert exc.value.trigger.poll_sleep == TEST_POLL_SLEEP
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id=dataflow_config.gcp_conn_id,
             poll_sleep=dataflow_config.poll_sleep,

@@ -122,6 +122,7 @@ class TestGetDAGSource:
             "dag_id": TEST_DAG_ID,
             "version_number": 1,
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
+            "language": "python",
         }
         assert response.headers["Content-Type"].startswith("application/json")
 
@@ -167,6 +168,7 @@ class TestGetDAGSource:
                 "dag_id": TEST_DAG_ID,
                 "version_number": 2,
                 "dag_display_name": TEST_DAG_DISPLAY_NAME,
+                "language": "python",
             }
 
     def test_should_respond_406_unsupport_mime_type(self, test_client, test_dag):
@@ -181,6 +183,18 @@ class TestGetDAGSource:
         url = f"{API_PREFIX}/{wrong_fileloc}"
         response = test_client.get(url, headers={"Accept": "application/json"})
         assert response.status_code == 404
+
+    def test_should_respond_404_for_version_number_zero(self, test_client, test_dag):
+        """version_number=0 is a real filter that matches nothing, not a fallback to the latest version."""
+        response = test_client.get(
+            f"{API_PREFIX}/{TEST_DAG_ID}",
+            params={"version_number": 0},
+            headers={"Accept": "application/json"},
+        )
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": f"The source code of the Dag {TEST_DAG_ID}, version_number 0 was not found"
+        }
 
     @pytest.fixture
     def colocated_unreadable_dag(self, session, test_dag):
@@ -213,6 +227,7 @@ class TestGetDAGSource:
             "dag_id": TEST_DAG_ID,
             "version_number": 1,
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
+            "language": "python",
         }
         mock_get_auth_manager.return_value.get_authorized_dag_ids.assert_called_once_with(user=mock.ANY)
 
@@ -236,4 +251,5 @@ class TestGetDAGSource:
             "dag_id": TEST_DAG_ID,
             "version_number": 1,
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
+            "language": "python",
         }

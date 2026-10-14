@@ -264,9 +264,9 @@ of the Cloud SQL instance is authorized to write to the selected GCS bucket.
 It is not the service account configured in Airflow that communicates with GCS,
 but rather the service account of the particular Cloud SQL instance.
 
-To grant the service account with the appropriate WRITE permissions for the GCS bucket
-you can use the :class:`~airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator`,
-as shown in the example:
+Grant the Cloud SQL instance service account the ``roles/storage.objectAdmin`` IAM role
+on the GCS bucket. This works with uniform bucket-level access, where bucket and object
+ACLs are disabled:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
@@ -349,15 +349,53 @@ of the Cloud SQL instance is authorized to read from the selected GCS object.
 It is not the service account configured in Airflow that communicates with GCS,
 but rather the service account of the particular Cloud SQL instance.
 
-To grant the service account with the appropriate READ permissions for the GCS object
-you can use the :class:`~airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator`,
-as shown in the example:
+The ``roles/storage.objectAdmin`` IAM role granted for export also provides the object read
+permissions required for import:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_cloudsql_import_gcs_permissions]
-    :end-before: [END howto_operator_cloudsql_import_gcs_permissions]
+    :start-after: [START howto_operator_cloudsql_export_gcs_permissions]
+    :end-before: [END howto_operator_cloudsql_export_gcs_permissions]
+
+.. _howto/operator:CloudSQLNoOperationInProgressSensor:
+
+CloudSQLNoOperationInProgressSensor
+-----------------------------------
+
+Cloud SQL serializes administrative operations per instance: only one import, export, backup or
+similar operation can run against an instance at a time. Submitting another while one is in flight
+fails immediately with HTTP 409 ``operationInProgress``. This commonly affects DAGs that fan out
+multiple :class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLImportInstanceOperator`
+/ :class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSQLExportInstanceOperator` tasks
+against the same instance in parallel.
+
+Use
+:class:`~airflow.providers.google.cloud.sensors.cloud_sql.CloudSQLNoOperationInProgressSensor`
+to wait until the instance has no administrative operation in progress before submitting the next
+one. The sensor polls ``sqladmin.operations.list`` for the instance and succeeds once no operation
+is in a non-terminal (``PENDING`` / ``RUNNING``) state. It supports deferrable mode and fails fast
+on HTTP 403/404 (the instance is missing or access is denied).
+
+.. code-block:: python
+
+    from airflow.providers.google.cloud.sensors.cloud_sql import (
+        CloudSQLNoOperationInProgressSensor,
+    )
+
+    wait_for_slot = CloudSQLNoOperationInProgressSensor(
+        task_id="wait_for_slot",
+        instance="my-cloudsql-pg",
+        poke_interval=60,
+        timeout=2 * 60 * 60,
+        deferrable=True,
+    )
+
+    wait_for_slot >> import_data
+
+The sensor is best-effort: it reduces the chance of a 409 but cannot guarantee exclusivity, since a
+new operation (for example one triggered from the console or by an automated backup) could start
+between the sensor passing and the operator submitting.
 
 .. _howto/operator:CloudSQLCreateInstanceOperator:
 

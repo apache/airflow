@@ -25,6 +25,9 @@ services:
       mysql:
         condition: service_healthy
   mysql:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
     image: mysql:${MYSQL_VERSION}
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
@@ -39,6 +42,7 @@ services:
       interval: 10s
       timeout: 15s
       start_period: 60s
+      start_interval: 1s
       retries: 5
     restart: "on-failure"
     command: [
@@ -48,3 +52,6 @@ services:
     ]
 volumes:
   mysql-db-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"

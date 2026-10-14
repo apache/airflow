@@ -206,6 +206,79 @@ class TestCustomJobWithDefaultProjectIdHook:
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
+    @pytest.mark.parametrize(
+        "job_state_value",
+        [
+            JobState.JOB_STATE_SUCCEEDED,
+        ],
+    )
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_custom_job"))
+    def test_wait_for_custom_job(
+        self,
+        mock_get_custom_job,
+        job_state_value,
+        test_custom_job_name,
+    ):
+        expected_obj = types.CustomJob(
+            state=job_state_value,
+            name=test_custom_job_name,
+        )
+        mock_get_custom_job.return_value = expected_obj
+        actual_obj = self.hook.wait_for_custom_job(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            custom_job_id=TEST_PIPELINE_JOB_ID,
+        )
+        assert actual_obj == expected_obj
+
+    @pytest.mark.parametrize(
+        ("job_state_value", "error_message"),
+        [
+            (
+                JobState.JOB_STATE_FAILED,
+                "Error message from VertexAI",
+            ),
+            (
+                JobState.JOB_STATE_CANCELLED,
+                "The CustomJob has been cancelled.",
+            ),
+            (
+                JobState.JOB_STATE_PAUSED,
+                "The CustomJob has been stopped, and can be resumed.",
+            ),
+            (
+                JobState.JOB_STATE_EXPIRED,
+                "The CustomJob has expired.",
+            ),
+            (
+                JobState.JOB_STATE_PARTIALLY_SUCCEEDED,
+                "Error message from VertexAI",
+            ),
+        ],
+    )
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_custom_job"))
+    def test_wait_for_custom_job_failed_states(
+        self,
+        mock_get_custom_job,
+        job_state_value,
+        error_message,
+        test_custom_job_name,
+    ):
+        expected_obj = types.CustomJob(
+            state=job_state_value,
+            name=test_custom_job_name,
+            error={
+                "message": "Error message from VertexAI",
+            },
+        )
+        mock_get_custom_job.return_value = expected_obj
+        with pytest.raises(RuntimeError, match=error_message):
+            self.hook.wait_for_custom_job(
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                custom_job_id=TEST_PIPELINE_JOB_ID,
+            )
+
 
 class TestCustomJobWithoutDefaultProjectIdHook:
     def setup_method(self):
@@ -214,105 +287,53 @@ class TestCustomJobWithoutDefaultProjectIdHook:
         ):
             self.hook = CustomJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
-    def test_cancel_training_pipeline(self, mock_client) -> None:
-        self.hook.cancel_training_pipeline(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            training_pipeline=TEST_TRAINING_PIPELINE_NAME,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.cancel_training_pipeline.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.training_pipeline_path.return_value,
+    @pytest.mark.parametrize(
+        ("job_state_value", "error_message"),
+        [
+            (
+                JobState.JOB_STATE_FAILED,
+                "Error message from VertexAI",
             ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_client.return_value.training_pipeline_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
-        )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
-    def test_create_training_pipeline(self, mock_client) -> None:
-        self.hook.create_training_pipeline(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            training_pipeline=TEST_TRAINING_PIPELINE,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.create_training_pipeline.assert_called_once_with(
-            request=dict(
-                parent=mock_client.return_value.common_location_path.return_value,
-                training_pipeline=TEST_TRAINING_PIPELINE,
+            (
+                JobState.JOB_STATE_CANCELLED,
+                "The CustomJob has been cancelled.",
             ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
-
-    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
-    def test_delete_training_pipeline(self, mock_client) -> None:
-        self.hook.delete_training_pipeline(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            training_pipeline=TEST_TRAINING_PIPELINE_NAME,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.delete_training_pipeline.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.training_pipeline_path.return_value,
+            (
+                JobState.JOB_STATE_PAUSED,
+                "The CustomJob has been stopped, and can be resumed.",
             ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_client.return_value.training_pipeline_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
-        )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
-    def test_get_training_pipeline(self, mock_client) -> None:
-        self.hook.get_training_pipeline(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            training_pipeline=TEST_TRAINING_PIPELINE_NAME,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.get_training_pipeline.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.training_pipeline_path.return_value,
+            (
+                JobState.JOB_STATE_EXPIRED,
+                "The CustomJob has expired.",
             ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_client.return_value.training_pipeline_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
-        )
-
-    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
-    def test_list_training_pipelines(self, mock_client) -> None:
-        self.hook.list_training_pipelines(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.list_training_pipelines.assert_called_once_with(
-            request=dict(
-                parent=mock_client.return_value.common_location_path.return_value,
-                page_size=None,
-                page_token=None,
-                filter=None,
-                read_mask=None,
+            (
+                JobState.JOB_STATE_PARTIALLY_SUCCEEDED,
+                "Error message from VertexAI",
             ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
+        ],
+    )
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_custom_job"))
+    def test_wait_for_custom_job_failed_states(
+        self,
+        mock_get_custom_job,
+        job_state_value,
+        error_message,
+        test_custom_job_name,
+    ):
+        expected_obj = types.CustomJob(
+            state=job_state_value,
+            name=test_custom_job_name,
+            error={
+                "message": "Error message from VertexAI",
+            },
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+        mock_get_custom_job.return_value = expected_obj
+        with pytest.raises(RuntimeError, match=error_message):
+            self.hook.wait_for_custom_job(
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                custom_job_id=TEST_PIPELINE_JOB_ID,
+            )
 
 
 class TestCustomJobAsyncHook:
@@ -398,9 +419,6 @@ class TestCustomJobAsyncHook:
     @pytest.mark.parametrize(
         "job_state_value",
         [
-            JobState.JOB_STATE_CANCELLED,
-            JobState.JOB_STATE_FAILED,
-            JobState.JOB_STATE_PAUSED,
             JobState.JOB_STATE_SUCCEEDED,
         ],
     )
@@ -426,6 +444,59 @@ class TestCustomJobAsyncHook:
         )
         mock_get_job_service_client.assert_awaited_once_with(region=TEST_REGION)
         assert actual_obj == expected_obj
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("job_state_value", "error_message"),
+        [
+            (
+                JobState.JOB_STATE_FAILED,
+                "Error message from VertexAI",
+            ),
+            (
+                JobState.JOB_STATE_CANCELLED,
+                "The CustomJob has been cancelled.",
+            ),
+            (
+                JobState.JOB_STATE_PAUSED,
+                "The CustomJob has been stopped, and can be resumed.",
+            ),
+            (
+                JobState.JOB_STATE_EXPIRED,
+                "The CustomJob has expired.",
+            ),
+            (
+                JobState.JOB_STATE_PARTIALLY_SUCCEEDED,
+                "Error message from VertexAI",
+            ),
+        ],
+    )
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobAsyncHook.get_custom_job"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobAsyncHook.get_job_service_client"))
+    async def test_wait_for_custom_job_failed_states(
+        self,
+        mock_get_job_service_client,
+        mock_get_custom_job,
+        job_state_value,
+        error_message,
+        test_async_hook,
+        test_custom_job_name,
+    ):
+        expected_obj = types.CustomJob(
+            state=job_state_value,
+            name=test_custom_job_name,
+            error={
+                "message": "Error message from VertexAI",
+            },
+        )
+        mock_get_custom_job.return_value = expected_obj
+        with pytest.raises(RuntimeError, match=error_message):
+            await test_async_hook.wait_for_custom_job(
+                project_id=TEST_PROJECT_ID,
+                location=TEST_REGION,
+                job_id=TEST_PIPELINE_JOB_ID,
+            )
+        mock_get_job_service_client.assert_awaited_once_with(region=TEST_REGION)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
-from airflow.executors.workloads.base import BaseWorkloadSchema
+from airflow.executors.workloads.base import BaseWorkloadSchema, WorkloadType
 from airflow.models.connection_test import ConnectionTestKey, ConnectionTestState
 
 if TYPE_CHECKING:
@@ -37,8 +37,9 @@ class TestConnection(BaseWorkloadSchema):
     connection_id: str
     timeout: int
     queue: str | None = None
+    team_name: str | None = None
 
-    type: Literal["TestConnection"] = Field(init=False, default="TestConnection")
+    type: Literal[WorkloadType.TEST_CONNECTION] = Field(init=False, default=WorkloadType.TEST_CONNECTION)
 
     @property
     def key(self) -> ConnectionTestKey:
@@ -70,6 +71,7 @@ class TestConnection(BaseWorkloadSchema):
         connection_id: str,
         timeout: int,
         queue: str | None = None,
+        team_name: str | None = None,
         generator: JWTGenerator | None = None,
     ) -> TestConnection:
         return cls(
@@ -77,5 +79,6 @@ class TestConnection(BaseWorkloadSchema):
             connection_id=connection_id,
             timeout=timeout,
             queue=queue,
+            team_name=team_name,
             token=cls.generate_token(str(connection_test_id), generator),
         )

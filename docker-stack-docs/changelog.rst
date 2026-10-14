@@ -34,6 +34,15 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
+Airflow 3.4.0
+~~~~~~~~~~~~~
+
+  * The image does not support Python 3.10 anymore as Python 3.10 reaches end of life in October 2026.
+    Images are released for Python 3.11, 3.12, 3.13 and 3.14.
+
+  * The ``tdsodbc`` package was added to the image so that the FreeTDS ODBC driver
+    (``libtdsodbc.so``) is available for connecting to Sybase/TDS databases via ODBC.
+
 Airflow 3.1.4
 ~~~~~~~~~~~~~
 

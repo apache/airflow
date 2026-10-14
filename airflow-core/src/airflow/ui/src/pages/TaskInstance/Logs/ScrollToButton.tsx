@@ -19,7 +19,8 @@
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 
-import { IconButton } from "src/components/ui";
+import { IconButton } from "src/system-components";
+
 import { getMetaKey } from "src/utils";
 
 export const ScrollToButton = ({

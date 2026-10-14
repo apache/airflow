@@ -31,7 +31,7 @@ import traceback
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
-from sqlalchemy import delete, false, func, insert, select, tuple_, update
+from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
@@ -50,11 +50,13 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
+from airflow.plugins_manager import get_scheduling_class_teams
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -77,7 +79,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.serialized_dag import DagWriteMetadata
-    from airflow.typing_compat import Self, Unpack
+    from airflow.sdk.importers import DagSourceCode  # noqa: SDK001
+    from airflow.typing_compat import Self
 
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
@@ -104,6 +107,18 @@ def _create_orm_dags(
         yield orm_dag
 
 
+def _build_latest_run_load_options() -> Any:
+    return load_only(
+        DagRun.dag_id,
+        DagRun.logical_date,
+        DagRun.run_after,
+        DagRun.data_interval_start,
+        DagRun.data_interval_end,
+        DagRun.partition_key,
+        DagRun.partition_date,
+    )
+
+
 def _get_latest_runs_stmt(dag_id: str) -> Select:
     """Build a select statement to retrieve the last automated run for each dag."""
     max_logical_date = (
@@ -125,17 +140,7 @@ def _get_latest_runs_stmt(dag_id: str) -> Select:
             DagRun.dag_id == dag_id,
             DagRun.logical_date == max_logical_date,
         )
-        .options(
-            load_only(
-                DagRun.dag_id,
-                DagRun.logical_date,
-                DagRun.run_after,
-                DagRun.data_interval_start,
-                DagRun.data_interval_end,
-                DagRun.partition_key,
-                DagRun.partition_date,
-            )
-        )
+        .options(_build_latest_run_load_options())
     )
 
 
@@ -161,21 +166,7 @@ def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
         .limit(1)
         .scalar_subquery()
     )
-    return (
-        select(DagRun)
-        .where(DagRun.id == latest_run_id)
-        .options(
-            load_only(
-                DagRun.dag_id,
-                DagRun.logical_date,
-                DagRun.run_after,
-                DagRun.data_interval_start,
-                DagRun.data_interval_end,
-                DagRun.partition_key,
-                DagRun.partition_date,
-            )
-        )
-    )
+    return select(DagRun).where(DagRun.id == latest_run_id).options(_build_latest_run_load_options())
 
 
 class _RunInfo(NamedTuple):
@@ -270,12 +261,14 @@ def _serialize_dag_capturing_errors(
     bundle_version: str | None,
     version_data: dict | None = None,
     _prefetched: DagWriteMetadata | None = None,
+    dag_source_code: DagSourceCode | None = None,
 ):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
 
     We can't place them directly in import_errors, as this may be retried, and work the next time
     """
+    from airflow.api_fastapi.app import get_auth_manager_cls
     from airflow.models.dagcode import DagCode
 
     # Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
@@ -291,14 +284,19 @@ def _serialize_dag_capturing_errors(
             bundle_version=bundle_version,
             version_data=version_data,
             min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+            dag_source_code=dag_source_code,
             session=session,
             _prefetched=_prefetched,
         )
         if not dag_was_updated:
             # Check and update DagCode
-            DagCode.update_source_code(dag.dag_id, dag.fileloc, session=session)
-        if "FabAuthManager" in conf.get("core", "auth_manager"):
-            _sync_dag_perms(dag, session=session)
+            DagCode.update_source_code(
+                dag.dag_id, dag.fileloc, dag_source_code=dag_source_code, session=session
+            )
+
+        sync_dag_perms = getattr(get_auth_manager_cls(), "sync_dag_perms", None)
+        if sync_dag_perms:
+            sync_dag_perms(dag, session=session)
 
         return []
     except OperationalError:
@@ -312,17 +310,6 @@ def _serialize_dag_capturing_errors(
                 traceback.format_exc(limit=-dagbag_import_error_traceback_depth),
             )
         ]
-
-
-def _sync_dag_perms(dag: LazyDeserializedDAG, session: Session):
-    """Sync DAG specific permissions."""
-    dag_id = dag.dag_id
-
-    log.debug("Syncing DAG permissions: %s to the DB", dag_id)
-    from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
-
-    security_manager = ApplessAirflowSecurityManager(session=session)
-    security_manager.sync_perm_for_dag(dag_id, dag.access_control)
 
 
 def _build_duplicate_dag_id_warnings(
@@ -381,7 +368,11 @@ def _update_dag_warnings(
         session.scalars(
             select(DagWarning).where(
                 DagWarning.dag_id.in_(dag_ids),
-                DagWarning.warning_type.in_(warning_types),
+                or_(
+                    DagWarning.warning_type.in_(warning_types),
+                    # Importer-namespaced types are only ever reported while parsing.
+                    DagWarning.warning_type.not_in([t.value for t in DagWarningType]),
+                ),
             )
         )
     )
@@ -395,7 +386,6 @@ def _update_dag_warnings(
 
 def _update_import_errors(
     files_parsed: set[tuple[str, str]],
-    bundle_name: str,
     import_errors: dict[tuple[str, str], str],
     session: Session,
     *,
@@ -428,10 +418,19 @@ def _update_import_errors(
             )
         return import_error.full_file_path() if import_error is not None else None
 
-    # Check existing import errors BEFORE deleting, so we can determine if we should update or create
-    existing_import_error_files = set(
-        session.execute(select(ParseImportError.bundle_name, ParseImportError.filename))
-    )
+    # Read before the delete below, so an error still present is updated rather than recreated.
+    # Scoped to the keys being written: the table is not indexed on (bundle_name, filename) so this
+    # still scans, but it no longer builds a row per import error the deployment is carrying.
+    existing_import_error_files: set[tuple[str | None, str | None]] = set()
+    if import_errors:
+        existing_import_error_files = {
+            (bundle, filename)
+            for bundle, filename in session.execute(
+                select(ParseImportError.bundle_name, ParseImportError.filename).where(
+                    tuple_(ParseImportError.bundle_name, ParseImportError.filename).in_(list(import_errors))
+                )
+            )
+        }
 
     # Delete errors for files that were parsed but don't have errors in import_errors
     # (i.e., files that were successfully parsed without errors)
@@ -456,6 +455,7 @@ def _update_import_errors(
                 )
                 .values(
                     filename=relative_fileloc,
+                    source_reference=relative_fileloc,
                     bundle_name=bundle_name_,
                     timestamp=utcnow(),
                     stacktrace=stacktrace,
@@ -482,7 +482,8 @@ def _update_import_errors(
         else:
             import_error = ParseImportError(
                 filename=relative_fileloc,
-                bundle_name=bundle_name,
+                source_reference=relative_fileloc,
+                bundle_name=bundle_name_,
                 timestamp=utcnow(),
                 stacktrace=stacktrace,
             )
@@ -505,11 +506,105 @@ def _update_import_errors(
             )
             .values(
                 has_import_errors=True,
-                bundle_name=bundle_name,
                 is_stale=True,
             )
             .execution_options(synchronize_session="fetch")
         )
+
+
+def _iter_serialized_class_names(data: Any) -> Iterator[str]:
+    """
+    Yield every string in a serialized Dag, which includes every class name it records.
+
+    Timetables, partition mappers and windows are encoded as ``{"__type": <qualname>, ...}``,
+    a custom deadline reference carries ``"__class_path"``, and a task's ``weight_rule`` is
+    stored as the strategy's qualname. Yielding every string rather than reading known keys
+    means it does not matter where the encoders put a name; ordinary strings simply match
+    nothing in the plugin map.
+
+    This is what ``DagSerialization.to_dict`` returns, before it is dumped to JSON, so it
+    holds tuples as well as lists (a partition mapper config is a list of pairs), and names
+    can sit in keys as well as values. None of it is cyclic.
+    """
+    stack = [data]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, str):
+            yield item
+        elif isinstance(item, dict):
+            stack.extend(item.keys())
+            stack.extend(item.values())
+        elif isinstance(item, (list, tuple, set, frozenset)):
+            stack.extend(item)
+
+
+def _reject_other_teams_plugin_classes(
+    bundle_name: str,
+    dags: Collection[LazyDeserializedDAG],
+    import_errors: dict[tuple[str, str], str],
+    *,
+    session: Session,
+) -> list[LazyDeserializedDAG]:
+    """
+    Drop Dags that name a scheduling class belonging to another team's plugin.
+
+    Timetables, partition mappers, windows, deadline references and priority weight
+    strategies are named by the Dag itself, with no team-aware lookup in between, so this is
+    the only thing keeping a team-scoped plugin's scheduling classes to that team.
+
+    It runs here, on the data about to be stored, because that is exactly what the scheduler
+    will resolve, and because on the Dag processor path this runs in the manager, which never
+    executes Dag code. Configuration read in the process that imported the Dag file cannot be
+    trusted: the file could have changed it.
+
+    A partition mapper a timetable picks inside ``get_partition_mapper()`` is not covered,
+    because nothing decides it until the timetable runs.
+    """
+    if not conf.getboolean("core", "multi_team"):
+        return list(dags)
+
+    # A class registered by any global plugin is available to every Dag, so only classes
+    # that every registering plugin scoped to a team can be refused.
+    restricted: dict[str, frozenset[str]] = {
+        name: frozenset(team for team in teams if team is not None)
+        for name, teams in get_scheduling_class_teams().items()
+        if None not in teams
+    }
+    if not restricted:
+        return list(dags)
+
+    accepted: list[LazyDeserializedDAG] = []
+    dag_team_name: str | None = None
+    team_looked_up = False
+    for dag in dags:
+        used = {
+            name: restricted[name] for name in _iter_serialized_class_names(dag.data) if name in restricted
+        }
+        if used and not team_looked_up:
+            dag_team_name = DagBundleModel.get_team_name(bundle_name, session=session)
+            team_looked_up = True
+        refused = {name: teams for name, teams in used.items() if dag_team_name not in teams}
+        if not refused:
+            accepted.append(dag)
+            continue
+
+        name, owning_teams = min(refused.items())
+        owners = ", ".join(sorted(owning_teams))
+        belongs_to = f"team '{dag_team_name}'" if dag_team_name else "no team"
+        log.warning(
+            "Refusing Dag that uses another team's plugin class",
+            dag_id=dag.dag_id,
+            class_name=name,
+            owning_teams=sorted(owning_teams),
+            dag_team=dag_team_name,
+        )
+        import_errors[(bundle_name, dag.relative_fileloc)] = (
+            f"Dag '{dag.dag_id}' uses {name}, which is provided by a plugin belonging to {owners}. "
+            f"This Dag belongs to {belongs_to}, so it cannot use it. Move the Dag into a bundle "
+            f"owned by {owners}, or have the plugin provide the class globally instead of for a "
+            "single team."
+        )
+    return accepted
 
 
 def update_dag_parsing_results_in_db(
@@ -526,9 +621,11 @@ def update_dag_parsing_results_in_db(
         DagWarningType.DUPLICATE_DAG_ID,
         DagWarningType.NONEXISTENT_POOL,
         DagWarningType.RUNTIME_VARYING_VALUE,
+        DagWarningType.TASK_GROUP_CYCLE,
     ),
     files_parsed: set[tuple[str, str]] | None = None,
     bundle_path: Path | None = None,
+    dag_source_codes: dict[str, DagSourceCode] | None = None,
 ):
     """
     Update everything to do with DAG parsing in the DB.
@@ -554,7 +651,17 @@ def update_dag_parsing_results_in_db(
         used to build the file path passed to import-error listeners without re-instantiating the
         bundle inside this transaction. If None, ``ParseImportError.full_file_path()`` is used as a
         fallback.
+    :param dag_source_codes: Source code read by the Dag importers, keyed by dag_id. Dags
+        without an entry have their source read from ``fileloc``.
     """
+    accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+    if len(accepted) != len(dags):
+        # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
+        rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}
+        warnings = {warning for warning in warnings if warning.dag_id not in rejected_ids}
+    dags = accepted
+
+    dag_source_codes = dag_source_codes or {}
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
     # In case of failures, provide_session handles rollback
@@ -595,6 +702,7 @@ def update_dag_parsing_results_in_db(
                             version_data=version_data,
                             session=session,
                             _prefetched=prefetched_metadata.get(dag.dag_id),
+                            dag_source_code=dag_source_codes.get(dag.dag_id),
                         )
                     )
             except OperationalError:
@@ -607,7 +715,6 @@ def update_dag_parsing_results_in_db(
     try:
         _update_import_errors(
             files_parsed=files_parsed if files_parsed is not None else set(),
-            bundle_name=bundle_name,
             import_errors=import_errors,
             session=session,
             bundle_path=bundle_path,
@@ -633,7 +740,7 @@ class DagModelOperation(NamedTuple):
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
-        stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
+        stmt: Select[*tuple[DagModel]] = with_row_locks(
             (
                 select(DagModel)
                 .options(joinedload(DagModel.tags, innerjoin=False))
@@ -723,6 +830,7 @@ class DagModelOperation(NamedTuple):
             dm.timetable_description = dag.timetable.description
             dm.timetable_partitioned = dag.timetable.partitioned
             dm.timetable_periodic = dag.timetable.periodic
+            dm.timetable_asset_gated = dag.timetable.asset_gated
             dm.partition_mapper_info = dag.timetable.partition_mapper_info
             dm.fail_fast = dag.fail_fast if dag.fail_fast is not None else False
 
@@ -1226,6 +1334,7 @@ class AssetModelOperation(NamedTuple):
                         classpath=triggers[trigger_hash]["classpath"],
                         kwargs=triggers[trigger_hash]["kwargs"],
                         team_name=team_name,
+                        queue=triggers[trigger_hash].get("queue"),
                     )
                     for trigger_hash in all_trigger_hashes
                     if trigger_hash not in orm_triggers

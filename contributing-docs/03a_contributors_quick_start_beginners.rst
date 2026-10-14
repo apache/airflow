@@ -39,7 +39,11 @@ Prerequisites
 For Breeze (local development):
 
 * `Docker Desktop <https://www.docker.com/products/docker-desktop/>`__
-* `Podman <https://podman.io/>`__, a drop-in, license-friendly replacement for Docker Desktop
+* `Podman <https://podman.io/>`__ is a license-friendly alternative to Docker Desktop, but it is
+  **not yet fully supported** by Breeze. Breeze will detect Podman and print a warning, and you
+  may run into issues that do not occur with Docker. Docker Desktop is recommended unless you are
+  comfortable troubleshooting Podman-specific problems yourself. Track full support in
+  `#54894 <https://github.com/apache/airflow/issues/54894>`_.
 * `Docker Compose <https://docs.docker.com/compose/install/>`__
 * `uv <https://github.com/astral-sh/uv>`__, which is a fast, reliable package manager that you'll use to install other developer tools to make contributing to Airflow easier.
 
@@ -51,25 +55,34 @@ For Breeze (local development):
 .. code-block:: bash
 
     uv tool install prek
-    prek install -f
-    prek install -f --hook-type pre-push
 
 * 4GB RAM, 40GB disk space, and at least 2 CPU cores
 
 .. note::
-   Docker **or Podman** installation varies by OS. See the `full guide <03_contributors_quick_start.rst#local-machine-development>`_ for Ubuntu, macOS, and Windows instructions.
+   Docker installation varies by OS. See the `full guide <03_contributors_quick_start.rst#local-machine-development>`_
+   for Ubuntu, macOS, and Windows instructions. Podman can be installed the same way, but since it is not
+   yet fully supported by Breeze, use it at your own risk and prefer Docker if you run into problems.
 
 Option A – Breeze on Your Laptop
 --------------------------------
-1.  **Clone your fork and install Breeze**
+1.  **Clone your fork**
 
 .. code-block:: bash
 
     git clone https://github.com/<you>/airflow.git
     cd airflow
+
+2.  **Set up Git hooks and install Breeze**
+
+Run these commands from the root of your cloned Airflow repository:
+
+.. code-block:: bash
+
+    prek install -f
+    prek install -f --hook-type pre-push
     ./scripts/tools/setup_breeze
 
-2. Setup your idea workspace to detect project src/ and tests/ folders as source roots.
+3. Setup your idea workspace to detect project src/ and tests/ folders as source roots.
 
 .. code-block:: bash
 
@@ -79,13 +92,13 @@ Option A – Breeze on Your Laptop
     # For VS Code
     uv run dev/ide_setup/setup_vscode.py
 
-3. Create a branch for your change
+4. Create a branch for your change
 
 .. code-block:: bash
 
     git checkout -b <your-branch-name>
 
-4.  **Start the development container** (first run builds the image)
+5.  **Start the development container** (first run builds the image)
 
 .. code-block:: bash
 
@@ -116,19 +129,19 @@ To exit breeze, press ``q`` in the ``mprocs`` interface (or in any of the tmux p
 
 This flag enables configuration to load example Dags when starting Airflow, which is useful for exploring Airflow's capabilities and testing.
 
-5. **Set up virtual environment and install dependencies**  - To run prek locally
+6. **Set up virtual environment and install dependencies**  - To run prek locally
 
 Install airflow dependencies from this `guide <03_contributors_quick_start.rst#setting-up-virtual-env>`__.
 
-6.  **Make a tiny change** – e.g. fix a typo in docs
+7.  **Make a tiny change** – e.g. fix a typo in docs
 
-7.  **Run local checks**
+8.  **Run local checks**
 
 .. code-block:: bash
 
     prek --all-files
 
-8.  **Run tests**
+9.  **Run tests**
 
 Run tests related to your change **before** pushing:
 
@@ -140,14 +153,14 @@ Run tests related to your change **before** pushing:
 Run ``breeze testing --help`` to see all available test groups.
 For more on testing, see the `Testing Guide <09_testing.rst>`_.
 
-9.  **Commit & push**
+10.  **Commit & push**
 
 .. code-block:: bash
 
     git commit -am "fix typo in README"
     git push -u origin <your-branch-name>
 
-10.  **Open the PR** – GitHub shows a "Compare & pull request" button.
+11.  **Open the PR** – GitHub shows a "Compare & pull request" button.
 
 *Syncing your branch*
 

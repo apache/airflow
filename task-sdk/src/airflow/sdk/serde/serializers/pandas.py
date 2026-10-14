@@ -22,7 +22,11 @@ from typing import TYPE_CHECKING
 from airflow.sdk.module_loading import qualname
 
 # lazy loading for performance reasons
+# pandas 3 moved the public classes to the `pandas` namespace, so a DataFrame is qualified as
+# `pandas.DataFrame` there and as `pandas.core.frame.DataFrame` on pandas 2. Both are registered so
+# that XComs serialized by either version stay readable.
 serializers = [
+    "pandas.DataFrame",
     "pandas.core.frame.DataFrame",
 ]
 deserializers = serializers

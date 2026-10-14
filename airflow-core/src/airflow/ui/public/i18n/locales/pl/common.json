@@ -8,6 +8,7 @@
     "Variables": "Zmienne"
   },
   "allOperators": "Wszystkie operatory",
+  "allTeams": "Wszystkie zespoły",
   "appearance": {
     "appearance": "Wygląd",
     "darkMode": "Tryb ciemny",
@@ -29,8 +30,10 @@
   "backfill_many": "Wypełnień wstecznych",
   "backfill_one": "Wypełnienie wsteczne",
   "backfill_other": "Wypełnienia wsteczne",
+  "breadcrumb": "Ścieżka nawigacji",
   "browse": {
     "auditLog": "Log audytu",
+    "dagBundles": "Paczki Dagów",
     "deadlines": "Terminy",
     "jobs": "Zadania",
     "requiredActions": "Wymagane akcje",
@@ -47,7 +50,12 @@
   "dag_many": "Dagów",
   "dag_one": "Dag",
   "dag_other": "Dagi",
+  "dagBundle_few": "Paczki Dagów",
+  "dagBundle_many": "Paczek Dagów",
+  "dagBundle_one": "Paczka Dagów",
+  "dagBundle_other": "Paczki Dagów",
   "dagDetails": {
+    "activeRuns": "Aktywne wykonania",
     "catchup": "Nadrabianie zaległości",
     "dagRunTimeout": "Limit czasu wykonania",
     "defaultArgs": "Domyślne argumenty",
@@ -67,7 +75,8 @@
     "owner": "Właściciel",
     "params": "Parametry",
     "schedule": "Harmonogram",
-    "tags": "Etykiety"
+    "tags": "Etykiety",
+    "team": "Zespół"
   },
   "dagId": "Identyfikator Daga",
   "dagRun": {
@@ -82,6 +91,7 @@
     "expectedDuration": "Oczekiwany Czas Trwania",
     "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
     "mappedPartitionKey": "Zmapowany klucz partycji",
+    "partitionDate": "Data partycji",
     "partitionKey": "Klucz partycji",
     "queuedAt": "Zakolejkowano o",
     "runAfter": "Wykonaj po",
@@ -95,9 +105,8 @@
   "dagRun_one": "Wykonanie",
   "dagRun_other": "Wykonania",
   "dagRunId": "Identyfikator wykonania",
+  "dagRunState": "Stan wykonania Daga",
   "dagWarnings": "Ostrzeżenia/Błędy Daga",
-  "defaultToGraphView": "Domyślnie widok grafu",
-  "defaultToGridView": "Domyślnie widok siatki",
   "delete": "Usuń",
   "diff": "Porównaj",
   "diffCompareWith": "Porównaj z",
@@ -131,6 +140,10 @@
       "title": "Dostęp zabroniony"
     }
   },
+  "event_few": "Zdarzenia",
+  "event_many": "Zdarzeń",
+  "event_one": "Zdarzenie",
+  "event_other": "Zdarzenia",
   "expand": {
     "collapse": "Zwiń",
     "expand": "Rozwiń",
@@ -146,19 +159,37 @@
   },
   "filter": "Filtr",
   "filters": {
+    "addFilter": "Dodaj filtr",
+    "completedAt": "Zakończono o",
+    "date": "Data",
     "durationFrom": "Czas trwania od",
     "durationTo": "Czas trwania do",
     "endTime": "Czas zakończenia",
     "logicalDateFrom": "Data logiczna od",
     "logicalDateTo": "Data logiczna do",
+    "maxActiveRunsFrom": "Maksymalna liczba aktywnych wykonań od",
+    "maxActiveRunsTo": "Maksymalna liczba aktywnych wykonań do",
+    "removeFilter": "Usuń filtr",
     "runAfterFrom": "Uruchom po (od)",
     "runAfterTo": "Uruchom po (do)",
     "searchAsset": "Szukaj zasobu",
     "selectDateRange": "Wybierz zakres dat",
-    "startTime": "Czas rozpoczęcia"
+    "selectDateTime": "Wybierz datę i godzinę",
+    "startTime": "Czas rozpoczęcia",
+    "time": "Godzina"
+  },
+  "fullscreen": {
+    "tooltip": "Naciśnij {{hotkey}}, aby przejść na pełny ekran"
   },
   "generateToken": "Wygeneruj token",
+  "includedIn": "Zawarte w",
   "key": "Klucz",
+  "loading": "Ładowanie…",
+  "logLevel": {
+    "hide": "Ukryj poziomy logów",
+    "hotkey": "l",
+    "show": "Pokaż poziomy logów"
+  },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
@@ -178,21 +209,30 @@
     "assets": "Zasoby",
     "browse": "Przegląd",
     "dags": "Dagi",
+    "dashboard": "Pulpit",
     "docs": "Pomoc",
-    "home": "Pulpit",
+    "home": "Strona główna",
     "legacyFabViews": "Widoki Fab z Airflow 2",
     "plugins": "Wtyczki",
     "security": "Dostęp"
   },
+  "no": "Nie",
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
   "note": {
     "add": "Dodaj notatkę",
     "dagRun": "Notatki wykonania",
+    "edit": "Edytuj notatkę",
     "label": "Notatka",
     "placeholder": "Dodaj notatkę...",
-    "taskInstance": "Notatka instancji zadania"
+    "preview": "Podgląd",
+    "taskInstance": "Notatka instancji zadania",
+    "write": "Napisz"
   },
   "overallStatus": "Stan ogólny",
+  "partition_few": "Partycje",
+  "partition_many": "Partycji",
+  "partition_one": "Partycja",
+  "partition_other": "Partycje",
   "partitionedDagRun_few": "Partycjonowane wykonania Dagów",
   "partitionedDagRun_many": "Partycjonowanych wykonań Dagów",
   "partitionedDagRun_one": "Partycjonowane wykonanie Daga",
@@ -200,10 +240,28 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Otrzymane zdarzenia zasobów"
   },
-  "pendingDagRun_few": "{{count}} oczekujące wykonania Dagów",
-  "pendingDagRun_many": "{{count}} oczekujących wykonań Dagów",
-  "pendingDagRun_one": "{{count}} oczekujące wykonanie Daga",
-  "pendingDagRun_other": "{{count}} oczekujących wykonań Dagów",
+  "pause": "Wstrzymaj",
+  "pendingDagRun_few": "{{count, number}} oczekujące wykonania Dagów",
+  "pendingDagRun_many": "{{count, number}} oczekujących wykonań Dagów",
+  "pendingDagRun_one": "{{count, number}} oczekujące wykonanie Daga",
+  "pendingDagRun_other": "{{count, number}} oczekujących wykonań Dagów",
+  "presetFilters": {
+    "deleteTitle": "Usuń zapisany filtr",
+    "deleteWarning": "Zapisane filtry są przechowywane wyłącznie w tej przeglądarce.",
+    "duplicate": "Zapisany filtr \"{{name}}\" zawiera już dokładnie taką konfigurację.",
+    "empty": "Brak zapisanych filtrów",
+    "info": {
+      "default": "Przypnij zapisany filtr jako domyślny, a zostanie zastosowany automatycznie, gdy wejdziesz na tę stronę bez żadnych filtrów.",
+      "save": "Zapisz bieżące filtry i sortowanie jako nazwany filtr, aby móc do niego wrócić w dowolnej chwili.",
+      "storage": "Zapisane filtry są przechowywane w tej przeglądarce."
+    },
+    "namePlaceholder": "Nazwa zapisanego filtra",
+    "nothingToSave": "Nie ma czego zapisać. Zastosuj filtry lub sortowanie, aby zapisać filtr.",
+    "save": "Zapisz",
+    "setDefault": "Ustaw jako domyślny",
+    "title": "Zapisane filtry",
+    "unsetDefault": "Usuń ustawienie domyślne"
+  },
   "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {
@@ -235,8 +293,128 @@
   },
   "selectLanguage": "Wybierz język",
   "selected": "Wybrano",
+  "settings": {
+    "clearing": {
+      "keepTaskState": {
+        "helper": "Domyślnie zachowuj wpisy magazynu stanu zadania podczas czyszczenia instancji zadań, zamiast je usuwać.",
+        "label": "Zachowuj stan zadania przy czyszczeniu"
+      },
+      "preventRunningTask": {
+        "helper": "Pomijaj aktualnie uruchomione zadania podczas czyszczenia instancji zadań.",
+        "label": "Zapobiegaj czyszczeniu uruchomionych zadań"
+      },
+      "runSelection": {
+        "helper": "Opcje wybrane domyślnie podczas czyszczenia wykonania Daga.",
+        "label": "Domyślny wybór przy czyszczeniu wykonania"
+      },
+      "taskSelection": {
+        "helper": "Opcje wybrane domyślnie podczas czyszczenia instancji zadań.",
+        "label": "Domyślny wybór przy czyszczeniu zadań"
+      },
+      "title": "Czyszczenie"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Pokazuj ostatnie stany zadań każdego Daga na liście Dagów. Wyłącz, aby ich nie ładować, co może pomóc we wdrożeniach z wieloma Dagami.",
+        "label": "Pokazuj ostatnie zadania"
+      },
+      "title": "Lista Dagów"
+    },
+    "description": "Te preferencje są zapisywane tylko w tej przeglądarce i obowiązują w całej aplikacji.",
+    "general": {
+      "landingPage": {
+        "helper": "Strona wyświetlana po otwarciu Airflow.",
+        "label": "Strona startowa",
+        "options": {
+          "dags": "Dagi",
+          "dashboard": "Pulpit"
+        }
+      },
+      "title": "Ogólne"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "Kierunek układu grafów Dagów i zasobów, dla których nie ustawiono go indywidualnie.",
+        "label": "Domyślny kierunek grafu"
+      },
+      "taskGroupsExpanded": {
+        "helper": "Rozwijaj grupy zadań w Dagach, dla których nie zapisano wyboru grup. Istniejące wybory są zachowywane.",
+        "label": "Domyślnie rozwijaj grupy zadań"
+      },
+      "title": "Graf"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Opcje wybrane domyślnie podczas oznaczania stanu instancji zadania.",
+        "label": "Domyślny wybór przy oznaczaniu"
+      },
+      "title": "Oznaczanie"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Wybór dokonany w konkretnym polu wyszukiwania i udostępnione linki nadal mają pierwszeństwo.",
+        "label": "Domyślnie dopasowuj w dowolnym miejscu"
+      },
+      "title": "Wyszukiwanie"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Zakładka wyświetlana jako pierwsza po otwarciu instancji zadania. Linki do konkretnej zakładki nadal ją otwierają.",
+        "label": "Domyślna zakładka instancji zadania"
+      },
+      "title": "Instancja zadania"
+    },
+    "title": "Ustawienia"
+  },
+  "shortcuts": {
+    "categories": {
+      "code": "Kod",
+      "dagView": "Widok Daga",
+      "filters": "Filtry",
+      "global": "Globalne",
+      "logs": "Logi",
+      "navigation": "Nawigacja",
+      "runActions": "Akcje wykonań i zadań",
+      "search": "Wyszukiwanie"
+    },
+    "descriptions": {
+      "clearRun": "Wyczyść wykonanie",
+      "clearTaskInstance": "Wyczyść instancję zadania",
+      "downloadLogs": "Pobierz logi",
+      "focusFilterSearch": "Przejdź do wyszukiwania filtrów",
+      "focusLogSearch": "Szukaj w logach",
+      "focusSearch": "Przejdź do wyszukiwania",
+      "markRunFailed": "Oznacz wykonanie jako nieudane",
+      "markRunSuccess": "Oznacz wykonanie jako udane",
+      "markTaskFailed": "Oznacz zadanie jako nieudane",
+      "markTaskGroupFailed": "Oznacz grupę zadań jako nieudaną",
+      "markTaskGroupSuccess": "Oznacz grupę zadań jako udaną",
+      "markTaskSuccess": "Oznacz zadanie jako udane",
+      "navigateTasks": "Nawiguj po zadaniach",
+      "openGraphFilters": "Otwórz filtry grafu",
+      "scrollBottom": "Przewiń do dołu",
+      "scrollTop": "Przewiń do góry",
+      "searchDags": "Szukaj Dagów",
+      "showHelp": "Pokaż skróty klawiszowe",
+      "toggleExpand": "Rozwiń lub zwiń wszystkie grupy",
+      "toggleFullscreen": "Przełącz pełny ekran",
+      "toggleGraphGrid": "Przełącz widok grafu / siatki",
+      "toggleLogLevel": "Przełącz poziomy logów",
+      "toggleSource": "Przełącz źródła",
+      "toggleTaskGroup": "Rozwiń lub zwiń grupę zadań",
+      "toggleTimestamp": "Przełącz znaczniki czasu",
+      "toggleWrap": "Przełącz zawijanie"
+    },
+    "empty": "Na tej stronie nie ma dostępnych skrótów klawiszowych.",
+    "title": "Skróty klawiszowe"
+  },
   "showDetailsPanel": "Pokaż panel szczegółów",
   "signedInAs": "Zalogowano jako",
+  "slot": "Slot",
+  "slot_few": "Sloty",
+  "slot_many": "Slotów",
+  "slot_one": "Slot",
+  "slot_other": "Sloty",
   "source": {
     "hide": "Ukryj źródła",
     "hotkey": "s",
@@ -250,7 +428,7 @@
   "state": "Stan",
   "states": {
     "awaiting_input": "Oczekuje na dane wejściowe",
-    "deferred": "Odłożone",
+    "deferred": "Odroczone",
     "failed": "Niepowodzenie",
     "no_status": "Brak stanu",
     "none": "Brak stanu",
@@ -267,6 +445,8 @@
     "up_for_retry": "Do ponownej próby",
     "upstream_failed": "Niepowodzenie poprzednika"
   },
+  "switchDag": "Przełącz $t(dag_one)",
+  "switchDagRun": "Przełącz wykonanie",
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",
@@ -278,7 +458,10 @@
     "filterReset_other": "Resetuj filtry",
     "from": "Od",
     "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
+    "noResultsFound": "Nie znaleziono wyników",
     "noTagsFound": "Nie znaleziono etykiet",
+    "noTeamsFound": "Nie znaleziono zespołów",
+    "ownerPlaceholder": "Filtruj według właściciela",
     "tagMode": {
       "all": "Wszystkie",
       "any": "Dowolne"
@@ -309,10 +492,12 @@
   "taskGroup_other": "Grupy zadań",
   "taskId": "Identyfikator Zadania",
   "taskInstance": {
+    "additionalAttributes": "Dodatkowe atrybuty instancji zadania",
     "dagVersion": "Wersja Daga",
     "executor": "Wykonawca",
     "executorConfig": "Konfiguracja wykonawcy",
     "hostname": "Nazwa hosta",
+    "id": "ID",
     "maxTries": "Maksymalna liczba prób",
     "pid": "PID",
     "pool": "Pula",
@@ -322,11 +507,18 @@
     "queuedWhen": "Zakolejkowano o",
     "renderedMapIndex": "Wyrenderowany indeks mapowania",
     "scheduledWhen": "Zaplanowano o",
+    "stateReason": "Przyczyna stanu",
+    "stateReasonSummary": {
+      "failed": "Zatrzymano przy próbie {{tryNumber}} z {{totalTries}}",
+      "upForRetry": "Ponawianie po próbie {{tryNumber}} z {{totalTries}}"
+    },
+    "trigger": "Wyzwalacz",
     "triggerer": {
       "assigned": "Przypisany wyzwalacz",
       "class": "Klasa wyzwalacza",
       "createdAt": "Czas utworzenia wyzwalacza",
       "id": "Identyfikator wyzwalacza",
+      "job": "Zadanie wyzwalacza",
       "latestHeartbeat": "Ostatni heartbeat wyzwalacza",
       "title": "Informacje o wyzwalaczu"
     },
@@ -336,10 +528,23 @@
   "taskInstance_many": "Instancji Zadań",
   "taskInstance_one": "Instancja Zadania",
   "taskInstance_other": "Instancje Zadań",
+  "teams": {
+    "more_few": "i jeszcze {{count, number}}",
+    "more_many": "i jeszcze {{count, number}}",
+    "more_one": "i jeszcze {{count, number}}",
+    "more_other": "i jeszcze {{count, number}}",
+    "none": "Brak zespołu",
+    "title": "Zespoły"
+  },
   "timeRange": {
+    "anyTime": "Dowolny czas",
+    "in": "w okresie",
+    "last7Days": "Ostatnie 7 dni",
     "last12Hours": "Ostatnie 12 godzin",
     "last24Hours": "Ostatnie 24 godziny",
+    "last30Days": "Ostatnie 30 dni",
     "lastHour": "Ostatnia godzina",
+    "latestRun": "Ostatnie wykonanie",
     "pastWeek": "Poprzedni tydzień"
   },
   "timestamp": {
@@ -358,21 +563,21 @@
     "bulkClear": {
       "error": "Nie udało się wykonać żądania grupowego wyczyszczenia {{resourceName}}",
       "success": {
-        "description": "Pomyślnie wyczyszczono {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie wyczyszczono {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowego wyczyszczenia {{resourceName}}"
       }
     },
     "bulkDelete": {
       "error": "Nie udało się wykonać żądania grupowego usunięcia {{resourceName}}",
       "success": {
-        "description": "Pomyślnie usunięto {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie usunięto {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowego usunięcia {{resourceName}}"
       }
     },
     "bulkUpdate": {
       "error": "Nie udało się wykonać żądania grupowej aktualizacji {{resourceName}}",
       "success": {
-        "description": "Pomyślnie zaktualizowano {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "description": "Pomyślnie zaktualizowano {{count, number}} {{resourceName}}. Klucze: {{keys}}",
         "title": "Wysłano żądanie grupowej aktualizacji {{resourceName}}"
       }
     },
@@ -393,7 +598,7 @@
     "import": {
       "error": "Nie udało się wykonać żądania importu {{resourceName}}",
       "success": {
-        "description": "Pomyślnie zaimportowano {{count}} {{resourceName}}.",
+        "description": "Pomyślnie zaimportowano {{count, number}} {{resourceName}}.",
         "title": "Wysłano żądanie importu {{resourceName}}"
       }
     },
@@ -420,6 +625,7 @@
   "total": "Wszystkie {{state}}",
   "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
+  "unpause": "Wznów",
   "user": "Profil",
   "validation": {
     "mustBeAtLeast": "Musi wynosić co najmniej {{min}}.",
@@ -431,5 +637,6 @@
     "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
     "unwrap": "Wyłącz zawijanie",
     "wrap": "Włącz zawijanie"
-  }
+  },
+  "yes": "Tak"
 }

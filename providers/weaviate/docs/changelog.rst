@@ -20,6 +20,84 @@
 Changelog
 ---------
 
+3.5.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Prepare providers release 2026-09-22``
+   * ``Migrate google + pagerduty + anthropic providers to 'httpx2' (#72111)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+3.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix WeaviateIngestOperator input_data validation before rendering (#70326)``
+
+Misc
+~~~~
+
+
+Doc-only
+~~~~~~~~
+
+* ``Fix duplicated and incorrect words in documentation (#70868)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
+3.4.0
+.....
+
+.. note::
+    The minimum ``weaviate-client`` requirement moves from ``4.4.0`` to ``4.16.0`` (the
+    ``!=4.16.7`` exclusion for the known protobuf issue is unchanged). Every 4.4–4.15 release is
+    excluded, so an environment pinned to one of those will no longer resolve this provider. The
+    provider's own hooks and operators are unchanged and did not need the newer client — the floor
+    follows the example Dags, which were rewritten for the 4.16 vector configuration API
+    (``vector_config`` / ``Configure.Vectors`` instead of the deprecated ``vectorizer_config`` /
+    ``Configure.Vectorizer``). To migrate, upgrade ``weaviate-client`` to 4.16.0 or newer; if you
+    cannot, stay on this provider's 3.3.x line, which still works with 4.4+.
+
+Misc
+~~~~
+
+* ``Update Weaviate examples for client 4.16 API (#67343)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 3.3.5
 .....
 

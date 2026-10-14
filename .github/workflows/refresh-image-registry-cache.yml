@@ -1,0 +1,145 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Refresh image registry cache
+# Refreshes the CI image cache in the GitHub registry, in a run of its own.
+#
+# It has to be its own workflow rather than a job inside `ci-amd.yml` / `ci-arm.yml`, because a
+# job cannot opt out of its run being cancelled, and those runs are cancelled by the next push.
+# With no cache a branch builds cold (~20 minutes per Python version), which widens the window in
+# which the next push cancels the run, which leaves the cache missing. `v3-3-test` sat in that
+# loop -- its `linux/amd64` cache covered the default Python version alone, the single matrix
+# entry that finished before the next push killed the other four seconds later. Being a separate
+# workflow is what lets a manual run escape that (see the concurrency group below).
+#
+# Every Python version is refreshed in both trigger paths. That is what makes the cache useful:
+# a version with no cache entry builds from scratch on every run, whichever way it got skipped.
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform to refresh the cache for"
+        type: choice
+        options:
+          - "both"
+          - "linux/amd64"
+          - "linux/arm64"
+        default: "both"
+  push:
+    # Release-prep and providers branches only -- they are built on push, so the CI run that
+    # would have refreshed their cache is also the run that keeps being cancelled. `main` is not
+    # built on push; its cache is refreshed by the Push Image Cache job at the end of the
+    # scheduled canary, which runs to completion.
+    branches:
+      - v[0-9]+-[0-9]+-test
+      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+permissions:
+  contents: read
+concurrency:
+  # Push runs are never cancelled -- being cancelled by the next merge is the whole failure this
+  # workflow exists to escape, so a newer one queues behind the one in flight rather than
+  # replacing it. GitHub keeps at most one run pending per group, so the queue cannot grow.
+  #
+  # Manual runs are grouped separately, which is what keeps a merge from cancelling one, and they
+  # do supersede each other: firing the workflow again for the same branch says the run in flight
+  # is not the one you want.
+  group: refresh-image-registry-cache-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' }}
+jobs:
+  build-info:
+    name: "Build info"
+    # No outputs yet at this stage, so the runner has to be hard-coded to a public one.
+    runs-on: ["ubuntu-22.04"]
+    outputs:
+      default-branch: ${{ steps.selective-checks.outputs.default-branch }}
+      default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      disable-airflow-repo-cache: ${{ steps.selective-checks.outputs.disable-airflow-repo-cache }}
+      docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
+      include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
+      python-versions: ${{ steps.selective-checks.outputs.python-versions }}
+      use-uv: ${{ steps.selective-checks.outputs.force-pip == 'true' && 'false' || 'true' }}
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Selective checks
+        id: selective-checks
+        env:
+          # Forces every Python version. Selective checks narrows `python-versions` down to the
+          # default one on a push where only text files changed
+          # (`_should_run_all_tests_and_versions`), which would leave the rest of the versions
+          # with no cache -- the failure mode this workflow exists to prevent.
+          PR_LABELS: '["all versions"]'
+          COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+
+  refresh-ci-cache-amd:
+    name: "Refresh cache linux/amd64"
+    needs: [build-info]
+    uses: ./.github/workflows/push-image-cache.yml
+    permissions:
+      contents: read
+      # Only granted for `push` / `workflow_dispatch` on apache/airflow itself, never for forks.
+      packages: write
+    with:
+      runners: '["ubuntu-22.04"]'
+      platform: "linux/amd64"
+      cache-type: "Refresh"
+      # The PROD cache is built from distributions prepared earlier in a CI run, and a standalone
+      # refresh has no such artifact. The CI cache is also where the build time goes.
+      include-prod-images: "false"
+      # `latest` is what a build pulls when it has no cache at all. Moving it belongs to a canary
+      # run that has passed its tests, not to a cache refresh.
+      push-latest-images: "false"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      branch: ${{ needs.build-info.outputs.default-branch }}
+      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
+    if: github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'linux/amd64'
+
+  refresh-ci-cache-arm:
+    name: "Refresh cache linux/arm64"
+    needs: [build-info]
+    uses: ./.github/workflows/push-image-cache.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      runners: '["ubuntu-22.04-arm"]'
+      platform: "linux/arm64"
+      cache-type: "Refresh"
+      include-prod-images: "false"
+      push-latest-images: "false"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      branch: ${{ needs.build-info.outputs.default-branch }}
+      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
+    if: github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'linux/arm64'

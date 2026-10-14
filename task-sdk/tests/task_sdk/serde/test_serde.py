@@ -297,7 +297,7 @@ class TestSerDe:
 
     def test_no_serializer(self):
         i = Exception
-        with pytest.raises(TypeError, match="^cannot serialize"):
+        with pytest.raises(TypeError, match="^Cannot serialize"):
             serialize(i)
 
     def test_ser_registered(self):
@@ -523,8 +523,13 @@ class TestSerDe:
                 "__version__": 0,
             }
         )
-        with pytest.raises(TypeError, match="No deserializer"):
+        with pytest.raises(TypeError, match="No deserializer") as exc_info:
             deserialize(data)
+        assert (
+            "It must provide a `deserialize(data, version)` staticmethod (matching how it "
+            "serializes), or be decorated with @dataclass or @attr.define." in str(exc_info.value)
+        )
+        assert "authoring-and-scheduling/serializers.html" in str(exc_info.value)
 
     def test_backwards_compat(self):
         """
@@ -645,6 +650,11 @@ class TestSerDe:
         i = C()
         with pytest.raises(
             TypeError,
-            match="cannot serialize object of type <class 'tests.task_sdk.serde.test_serde.C'>",
-        ):
+            match="Cannot serialize object of type <class 'tests.task_sdk.serde.test_serde.C'>",
+        ) as exc_info:
             serialize(i)
+        assert (
+            "Give it a `serialize()` method and a `deserialize(data, version)` staticmethod, or "
+            "decorate the class with @dataclass or @attr.define." in str(exc_info.value)
+        )
+        assert "authoring-and-scheduling/serializers.html" in str(exc_info.value)

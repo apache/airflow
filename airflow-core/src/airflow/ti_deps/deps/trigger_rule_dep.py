@@ -20,8 +20,9 @@ from __future__ import annotations
 import collections.abc
 import functools
 from collections import Counter
-from collections.abc import Iterator, KeysView, Mapping, Sequence
+from collections.abc import Iterator, KeysView, Mapping
 from typing import TYPE_CHECKING, NamedTuple
+from uuid import UUID
 
 from sqlalchemy import and_, func, or_, select
 
@@ -31,16 +32,14 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import ColumnElement
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.mappedoperator import Operator
-    from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
-    from airflow.typing_compat import Unpack
 
 
 class _UpstreamTIStates(NamedTuple):
@@ -140,6 +139,19 @@ class TriggerRuleDep(BaseTIDep):
         if TYPE_CHECKING:
             assert task
 
+        regional = dep_context.has_regions(ti, session=session)
+        map_index = (
+            dep_context.coordinate_resolver(ti, session=session).public_map_index(ti)
+            if regional
+            else ti.region_index
+        )
+
+        @functools.lru_cache
+        def _selected_upstream_ids(upstream_id: str) -> frozenset[UUID]:
+            return frozenset(
+                upstream.id for upstream in dep_context.upstream_tis(ti, upstream_id, session=session)
+            )
+
         @functools.lru_cache
         def _get_expanded_ti_count() -> int:
             """
@@ -150,9 +162,14 @@ class TriggerRuleDep(BaseTIDep):
             """
             from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
-            return get_mapped_ti_count(task, ti.run_id, session=session)
+            contexts = (
+                dep_context.coordinate_resolver(ti, session=session).producer_contexts(ti)
+                if regional
+                else None
+            )
+            return get_mapped_ti_count(task, ti.run_id, session=session, producer_contexts=contexts)
 
-        def _iter_expansion_dependencies(task_group: SerializedMappedTaskGroup | None) -> Iterator[str]:
+        def _iter_expansion_dependencies(task_group: SerializedTaskGroup | None) -> Iterator[str]:
             if is_mapped(task):
                 for op in task.iter_mapped_dependencies():
                     yield op.task_id
@@ -177,14 +194,22 @@ class TriggerRuleDep(BaseTIDep):
                 assert task.task_group
 
             # Only the not-yet-expanded summary ti (map_index < 0) needs the broad
-            # "depend on every upstream ti" behavior, so a fast-triggered rule
-            # (ONE_SUCCESS / ONE_FAILED / ONE_DONE) does not skip it before the
-            # mapped task group has expanded (see #34023). Once the ti is expanded,
-            # each instance must depend on the upstream instance(s) that share its
-            # map index, otherwise a single upstream failure would wrongly trigger
-            # every expanded instance (see #50210).
-            if is_mapped(task.task_group) and ti.map_index < 0:
-                is_fast_triggered = task.trigger_rule in (TR.ONE_SUCCESS, TR.ONE_FAILED, TR.ONE_DONE)
+            # "depend on every upstream ti" behavior, so a rule that can be satisfied
+            # by a subset of upstreams (ONE_SUCCESS / ONE_FAILED / ONE_DONE /
+            # NONE_FAILED_MIN_ONE_SUCCESS) does not skip it before the mapped task
+            # group has expanded (see #34023, #39801). Once the ti is expanded, each
+            # instance must depend on the upstream instance(s) that share its map
+            # index, otherwise a single upstream failure would wrongly trigger every
+            # expanded instance (see #50210). The task may be nested in plain task
+            # groups inside the mapped one (see #39801), so check the closest mapped
+            # ancestor rather than only the immediate parent group.
+            if map_index < 0 and task.get_closest_mapped_task_group() is not None:
+                is_fast_triggered = task.trigger_rule in (
+                    TR.ONE_SUCCESS,
+                    TR.ONE_FAILED,
+                    TR.ONE_DONE,
+                    TR.NONE_FAILED_MIN_ONE_SUCCESS,
+                )
                 if is_fast_triggered and upstream_id not in set(
                     _iter_expansion_dependencies(task_group=task.task_group)
                 ):
@@ -198,6 +223,11 @@ class TriggerRuleDep(BaseTIDep):
                 upstream=task.dag.task_dict[upstream_id],
                 ti_count=expanded_ti_count,
                 session=session,
+                producer_contexts=(
+                    dep_context.coordinate_resolver(ti, session=session).producer_contexts(ti)
+                    if regional
+                    else None
+                ),
             )
 
         def _is_relevant_upstream(upstream: TaskInstance, relevant_ids: set[str] | KeysView[str]) -> bool:
@@ -213,22 +243,29 @@ class TriggerRuleDep(BaseTIDep):
             # Not actually an upstream task.
             if upstream.task_id not in relevant_ids:
                 return False
+            if regional and upstream.id not in _selected_upstream_ids(upstream.task_id):
+                return False
             # The current task is not in a mapped task group. All tis from an
             # upstream task are relevant.
             if task.get_closest_mapped_task_group() is None:
                 return True
             # The upstream ti is not expanded. The upstream may be mapped or
             # not, but the ti is relevant either way.
-            if upstream.map_index < 0:
+            upstream_map_index = (
+                dep_context.coordinate_resolver(ti, session=session).public_map_index(upstream)
+                if regional
+                else upstream.region_index
+            )
+            if upstream_map_index < 0:
                 return True
             # Now we need to perform fine-grained check on whether this specific
             # upstream ti's map index is relevant.
             relevant = _get_relevant_upstream_map_indexes(upstream_id=upstream.task_id)
             if relevant is None:
                 return True
-            if relevant == upstream.map_index:
+            if relevant == upstream_map_index:
                 return True
-            if isinstance(relevant, collections.abc.Container) and upstream.map_index in relevant:
+            if isinstance(relevant, collections.abc.Container) and upstream_map_index in relevant:
                 return True
             return False
 
@@ -236,6 +273,16 @@ class TriggerRuleDep(BaseTIDep):
             # Optimization: If the current task is not in a mapped task group,
             # it depends on all upstream task instances.
             from airflow.models.taskinstance import TaskInstance
+
+            if regional:
+                for upstream_id in relevant_tasks:
+                    selected = dep_context.upstream_tis(ti, upstream_id, session=session)
+                    yield TaskInstance.id.in_(
+                        upstream.id
+                        for upstream in selected
+                        if _is_relevant_upstream(upstream, relevant_tasks.keys())
+                    )
+                return
 
             if task.get_closest_mapped_task_group() is None:
                 yield TaskInstance.task_id.in_(relevant_tasks.keys())
@@ -251,17 +298,19 @@ class TriggerRuleDep(BaseTIDep):
                 # of this upstream task. Since the upstream may not have been
                 # expanded at this point, we also depend on the non-expanded ti
                 # to ensure at least one ti is included for the task.
-                yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index < 0)
+                yield and_(TaskInstance.task_id == upstream_id, TaskInstance.region_index < 0)
                 if isinstance(map_indexes, range) and map_indexes.step == 1:
                     yield and_(
                         TaskInstance.task_id == upstream_id,
-                        TaskInstance.map_index >= map_indexes.start,
-                        TaskInstance.map_index < map_indexes.stop,
+                        TaskInstance.region_index >= map_indexes.start,
+                        TaskInstance.region_index < map_indexes.stop,
                     )
                 elif isinstance(map_indexes, collections.abc.Container):
-                    yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index.in_(map_indexes))
+                    yield and_(
+                        TaskInstance.task_id == upstream_id, TaskInstance.region_index.in_(map_indexes)
+                    )
                 else:
-                    yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
+                    yield and_(TaskInstance.task_id == upstream_id, TaskInstance.region_index == map_indexes)
 
         def _evaluate_setup_constraint(
             *, relevant_setups: Mapping[str, Operator]
@@ -312,8 +361,8 @@ class TriggerRuleDep(BaseTIDep):
                     new_state = TaskInstanceState.UPSTREAM_FAILED
                 elif skipped:
                     new_state = TaskInstanceState.SKIPPED
-                elif removed and success and ti.map_index > -1:
-                    if ti.map_index >= success:
+                elif removed and success and map_index > -1:
+                    if map_index >= success:
                         new_state = TaskInstanceState.REMOVED
 
             if new_state is not None:
@@ -338,7 +387,7 @@ class TriggerRuleDep(BaseTIDep):
                 dep_context.have_changed_ti_states = True
 
             non_successes = upstream - success
-            if ti.map_index > -1:
+            if map_index > -1:
                 non_successes -= removed
             if non_successes > 0:
                 yield (
@@ -382,13 +431,34 @@ class TriggerRuleDep(BaseTIDep):
                 upstream = len(upstream_tasks)
                 upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
             else:
-                # The below type annotation is acceptable on SQLA2.1, but not on 2.0
-                task_id_counts: Sequence[Row[Unpack[tuple[str, int]]]] = session.execute(  # type: ignore[type-arg]
-                    select(TaskInstance.task_id, func.count(TaskInstance.task_id))
-                    .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
-                    .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
-                    .group_by(TaskInstance.task_id)
-                ).all()
+                # Regional selections share counts only for identical producer UUID sets;
+                # legacy runs can share by task IDs. Expansion invalidates both forms.
+                cache_key: tuple[str, str, frozenset[str | UUID]] | None = None
+                task_id_counts: list[tuple[str, int]] | None = None
+                if task.get_closest_mapped_task_group() is None:
+                    scope: frozenset[str | UUID] = (
+                        frozenset(
+                            ti_id for task_id in upstream_tasks for ti_id in _selected_upstream_ids(task_id)
+                        )
+                        if regional
+                        else frozenset(upstream_tasks)
+                    )
+                    cache_key = (ti.dag_id, ti.run_id, scope)
+                    task_id_counts = dep_context.upstream_task_id_counts.get(cache_key)
+                if task_id_counts is None:
+                    task_id_counts = [
+                        (task_id, count)
+                        for task_id, count in session.execute(
+                            select(TaskInstance.task_id, func.count(TaskInstance.task_id))
+                            .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
+                            .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
+                            .group_by(TaskInstance.task_id)
+                        )
+                    ]
+                    if cache_key is not None:
+                        dep_context.upstream_task_id_counts[cache_key] = task_id_counts
+                # `task_id_counts` only contains task_ids matched by `task_id IN (upstream_tasks)`,
+                # so every key is present in `upstream_tasks`; is_setup is re-derived locally.
                 upstream = sum(count for _, count in task_id_counts)
                 upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
 
@@ -402,8 +472,8 @@ class TriggerRuleDep(BaseTIDep):
                         new_state = TaskInstanceState.UPSTREAM_FAILED
                     elif skipped:
                         new_state = TaskInstanceState.SKIPPED
-                    elif removed and success and ti.map_index > -1:
-                        if ti.map_index >= success:
+                    elif removed and success and map_index > -1:
+                        if map_index >= success:
                             new_state = TaskInstanceState.REMOVED
                 elif trigger_rule == TR.ALL_FAILED:
                     if success or skipped:

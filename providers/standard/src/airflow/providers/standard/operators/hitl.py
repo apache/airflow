@@ -46,7 +46,7 @@ from airflow.sdk.timezone import utcnow
 
 if AIRFLOW_V_3_3_PLUS:
     # On Airflow 3.3+ the operator parks the task in the first-class AWAITING_INPUT state instead of
-    # deferring to a trigger. On older cores this name is absent and the defer() fallback is used.
+    # deferring to a trigger. On older Airflow versions this name is absent and the defer() fallback is used.
     from airflow.sdk.exceptions import TaskAwaitingInput
 
 if TYPE_CHECKING:
@@ -132,8 +132,20 @@ class HITLOperator(BaseOperator):
         self.validate_params()
         self.validate_defaults()
 
-        # HITL summary for the use of listeners; subclasses can extend it.
-        self.hitl_summary: dict[str, Any] = {
+        # Runtime/subclass additions to the summary; config-derived entries live in the property.
+        self.hitl_summary_extra: dict[str, Any] = {}
+
+    @property
+    def hitl_summary(self) -> dict[str, Any]:
+        """
+        Summary of the Human-in-the-loop request, for listeners/observability.
+
+        A property so the ``subject``/``body`` template fields are read after rendering, not
+        captured as un-rendered Jinja in ``__init__``. Each access builds a fresh snapshot, so
+        mutating the returned dict has no effect — runtime code and subclasses extend the summary
+        by adding entries to ``hitl_summary_extra`` instead.
+        """
+        return {
             "subject": self.subject,
             "body": self.body,
             "options": self.options,
@@ -141,6 +153,7 @@ class HITLOperator(BaseOperator):
             "multiple": self.multiple,
             "assigned_users": self.assigned_users,
             "serialized_params": self.serialized_params or None,
+            **self.hitl_summary_extra,
         }
 
     def validate_options(self) -> None:
@@ -210,14 +223,16 @@ class HITLOperator(BaseOperator):
             timeout_datetime = None
 
         # Enrich summary with runtime info
-        self.hitl_summary["timeout_datetime"] = timeout_datetime.isoformat() if timeout_datetime else None
+        self.hitl_summary_extra["timeout_datetime"] = (
+            timeout_datetime.isoformat() if timeout_datetime else None
+        )
 
         self.log.info("Waiting for response")
         for notifier in self.notifiers:
             notifier(context)
 
         if AIRFLOW_V_3_3_PLUS:
-            # New core (3.3+): park the task in AWAITING_INPUT -- no trigger, no triggerer. The task
+            # Airflow 3.3+: park the task in AWAITING_INPUT -- no trigger, no triggerer. The task
             # is resumed by the Core API response handler or the scheduler timeout sweep, so the
             # triggerer no longer needs to run for Human-in-the-loop tasks to make progress.
             raise TaskAwaitingInput(
@@ -225,7 +240,7 @@ class HITLOperator(BaseOperator):
                 timeout=self.response_timeout,
             )
 
-        # Fallback for cores < 3.3: defer the response check to HITLTrigger on the triggerer.
+        # Fallback for Airflow versions < 3.3: defer the response check to HITLTrigger on the triggerer.
         self.defer(
             trigger=HITLTrigger(
                 ti_id=ti_id,
@@ -246,7 +261,7 @@ class HITLOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         if "error" in event:
-            self.hitl_summary["error_type"] = event["error_type"]
+            self.hitl_summary_extra["error_type"] = event["error_type"]
             self.process_trigger_event_error(event)
 
         chosen_options = event["chosen_options"]
@@ -254,7 +269,7 @@ class HITLOperator(BaseOperator):
         self.validate_chosen_options(chosen_options)
         self.validate_params_input(params_input)
 
-        self.hitl_summary.update(
+        self.hitl_summary_extra.update(
             {
                 "chosen_options": chosen_options,
                 "params_input": params_input,
@@ -432,14 +447,14 @@ class ApprovalOperator(HITLOperator, SkipMixin):
             **kwargs,
         )
 
-        self.hitl_summary["ignore_downstream_trigger_rules"] = self.ignore_downstream_trigger_rules
-        self.hitl_summary["fail_on_reject"] = self.fail_on_reject
+        self.hitl_summary_extra["ignore_downstream_trigger_rules"] = self.ignore_downstream_trigger_rules
+        self.hitl_summary_extra["fail_on_reject"] = self.fail_on_reject
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         ret = super().execute_complete(context=context, event=event)
 
         chosen_option = ret["chosen_options"][0]
-        self.hitl_summary["approved"] = chosen_option == self.APPROVE
+        self.hitl_summary_extra["approved"] = chosen_option == self.APPROVE
         if chosen_option == self.APPROVE:
             self.log.info("Approved. Proceeding with downstream tasks...")
             return ret
@@ -493,7 +508,7 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
         super().__init__(**kwargs)
         self.options_mapping = options_mapping or {}
         self.validate_options_mapping()
-        self.hitl_summary["options_mapping"] = self.options_mapping
+        self.hitl_summary_extra["options_mapping"] = self.options_mapping
 
     def validate_options_mapping(self) -> None:
         """
@@ -528,7 +543,7 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
 
         # Map options to task IDs using the mapping, fallback to original option
         chosen_options = [self.options_mapping.get(option, option) for option in chosen_options]
-        self.hitl_summary["branches_to_execute"] = chosen_options
+        self.hitl_summary_extra["branches_to_execute"] = chosen_options
         return self.do_branch(context=context, branches_to_execute=chosen_options)
 
 

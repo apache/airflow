@@ -19,24 +19,32 @@ package sdk
 
 import (
 	"context"
-
-	"github.com/apache/airflow/go-sdk/pkg/api"
+	"math"
+	"time"
 )
 
 const (
 	// VariableEnvPrefix is the environment-variable prefix used as a local
 	// fallback for Variable lookups. GetVariable first checks the process
 	// environment for VariableEnvPrefix plus the uppercased key (so key
-	// "my_var" is read from AIRFLOW_VAR_MY_VAR) before asking the API server,
+	// "my_var" is read from AIRFLOW_VAR_MY_VAR) before asking Airflow,
 	// mirroring the Python SDK and making local development and tests easy.
 	VariableEnvPrefix = "AIRFLOW_VAR_"
 
 	// ConnectionEnvPrefix is the matching prefix for Connections. The
 	// connection env fallback is not wired up yet, so it is currently unused.
 	ConnectionEnvPrefix = "AIRFLOW_CONN_"
+
+	// XComReturnValueKey is the key Airflow uses for a task's returned value.
+	XComReturnValueKey = "return_value"
 )
 
-// VariableClient reads Airflow Variables.
+// NeverExpire, passed to [WithRetention], exempts a task state key from expiry:
+// it is kept until deleted or until its Dag run is removed. It is the Go
+// equivalent of the Python SDK's “NEVER_EXPIRE“.
+const NeverExpire = time.Duration(math.MaxInt64)
+
+// VariableClient reads, writes, and deletes Airflow Variables.
 //
 // Go has no function overloading, so the "give me the raw string" and
 // "give me a decoded struct" cases are split into two methods rather
@@ -48,8 +56,8 @@ const (
 type VariableClient interface {
 	// GetVariable returns the value of an Airflow Variable.
 	//
-	// It will first look in the os.environ for the appropriately named variable, and if not found there will
-	// fallback to asking the API server
+	// It first looks in the process environment for the appropriately named
+	// variable and, if absent, asks Airflow through the coordinator.
 	//
 	// If the variable is not found error will be a wrapped ``VariableNotFound``:
 	//
@@ -57,7 +65,7 @@ type VariableClient interface {
 	//		if errors.Is(err, VariableNotFound) {
 	//				// Handle not found, set default, return custom error etc
 	//		} else {
-	//				// Other errors here, such as http network timeouts etc.
+	//				// Other errors here, such as transport timeouts etc.
 	//		}
 	GetVariable(ctx context.Context, key string) (string, error)
 
@@ -68,6 +76,19 @@ type VariableClient interface {
 	//
 	// pointer must be a non-nil pointer, as required by encoding/json.
 	UnmarshalJSONVariable(ctx context.Context, key string, pointer any) error
+
+	// SetVariable stores value under key, creating the Variable or replacing
+	// an existing one. An empty description is sent as null, which clears any
+	// description the Variable already had.
+	//
+	// The value is stored as-is: encode structured data (for example with
+	// json.Marshal) before storing it. A value supplied by a secrets backend
+	// (for example an AIRFLOW_VAR_<KEY> environment variable) still takes
+	// precedence over the stored value when the Variable is read back.
+	SetVariable(ctx context.Context, key, value, description string) error
+
+	// DeleteVariable removes the Variable stored under key.
+	DeleteVariable(ctx context.Context, key string) error
 }
 
 // ConnectionClient reads Airflow Connections.
@@ -80,7 +101,7 @@ type ConnectionClient interface {
 	//		if errors.Is(err, ConnectionNotFound) {
 	//				// Handle not found, set default, return custom error etc
 	//		} else {
-	//				// Other errors here, such as http network timeouts etc.
+	//				// Other errors here, such as transport timeouts etc.
 	//		}
 	GetConnection(ctx context.Context, connID string) (Connection, error)
 }
@@ -91,29 +112,101 @@ type ConnectionClient interface {
 // another task's XCom, or to push under a custom key.
 type XComClient interface {
 	// GetXCom returns the value stored under key by the task identified by
-	// dagId/runId/taskId. For a mapped task instance pass its mapIndex,
+	// dagID/runID/taskID. For a mapped task instance pass its mapIndex,
 	// otherwise pass nil. If no value exists the error wraps XComNotFound.
 	//
 	// value is reserved for future typed decoding and is currently ignored; the
 	// stored value is returned as the first result instead.
 	GetXCom(
 		ctx context.Context,
-		dagId, runId, taskId string,
+		dagID, runID, taskID string,
 		mapIndex *int,
 		key string,
 		value any,
 	) (any, error)
 
 	// PushXCom stores value under key for the given task instance ti.
-	PushXCom(ctx context.Context, ti api.TaskInstance, key string, value any) error
+	PushXCom(ctx context.Context, ti TaskInstance, key string, value any) error
 }
 
-// Client is the full task-facing API: read Variables and Connections, and
-// read/write XCom. A task that declares an sdk.Client parameter is handed one
-// by the runtime. If a task needs only one capability, ask for the narrower
-// VariableClient, ConnectionClient, or XComClient instead.
+// TaskStateStoreClient exposes the task state store of the running task
+// instance.
+type TaskStateStoreClient interface {
+	// TaskStateStore returns the store scoped to this task instance.
+	TaskStateStore() TaskStateStore
+}
+
+// TaskStateStore reads and writes a key/value store private to the running task
+// instance. The store is keyed by dag_id, run_id, task_id, and map_index but
+// not try_number, so a value written by one attempt is readable by the next — a
+// task can record progress and resume after a retry.
+type TaskStateStore interface {
+	// Get returns the value stored under key for this task instance.
+	//
+	// If the key is not found error will be a wrapped ``TaskStateNotFound``:
+	//
+	//		store := client.TaskStateStore()
+	//		val, err := store.Get(ctx, "checkpoint")
+	//		if errors.Is(err, TaskStateNotFound) {
+	//				// Handle not found, set default, return custom error etc
+	//		} else {
+	//				// Other errors here, such as transport timeouts etc.
+	//		}
+	Get(ctx context.Context, key string) (any, error)
+
+	// UnmarshalJSONValue fetches a task state value and unmarshals it into
+	// pointer via json.Unmarshal. Use it for values stored as JSON objects or
+	// arrays; pointer must be a non-nil pointer.
+	//
+	// The name keeps the UnmarshalJSON prefix of [VariableClient] without
+	// colliding with encoding/json's UnmarshalJSON, whose signature go vet
+	// enforces on any method of that name.
+	UnmarshalJSONValue(ctx context.Context, key string, pointer any) error
+
+	// Set stores value under key, creating or replacing the entry. Without
+	// [WithRetention] the key expires per the deployment's
+	// “[state_store] default_retention_days“; if that setting is invalid or
+	// absent the write fails.
+	//
+	// value must be non-nil and built from strings, numbers, bools, slices,
+	// string-keyed maps, and structs. A time.Time, a byte slice or array, or a
+	// non-finite float is rejected before it is sent.
+	Set(ctx context.Context, key string, value any, opts ...SetOption) error
+
+	// Delete removes the value stored under key. Deleting a key that does not
+	// exist is not an error.
+	Delete(ctx context.Context, key string) error
+
+	// Clear removes every key stored for this task instance.
+	Clear(ctx context.Context) error
+}
+
+// SetOptions carries the options a [TaskStateStore.Set] call was given.
+type SetOptions struct {
+	// Retention is nil unless the caller passed [WithRetention], which is what
+	// tells Set to follow the deployment default instead.
+	Retention *time.Duration
+}
+
+// SetOption overrides a default of [TaskStateStore.Set].
+type SetOption func(*SetOptions)
+
+// WithRetention sets how long a key is kept, counted from the write. It must be
+// positive or [NeverExpire]; zero or negative is rejected.
+func WithRetention(retention time.Duration) SetOption {
+	return func(opts *SetOptions) {
+		opts.Retention = &retention
+	}
+}
+
+// Client is the full task-facing API: read/write Variables, read Connections,
+// read/write XCom, and read/write the task state store. A task gets one from
+// its airflow.Context by calling actx.Client(). A helper that needs only one
+// capability can take the narrower VariableClient, ConnectionClient,
+// XComClient, or TaskStateStoreClient instead.
 type Client interface {
 	VariableClient
 	ConnectionClient
 	XComClient
+	TaskStateStoreClient
 }

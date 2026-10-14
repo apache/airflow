@@ -24,7 +24,7 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.version_compat import NOTSET
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 
 LOGIN_USER = "login"
 LOGIN_PASSWORD = "password"
@@ -53,6 +53,47 @@ class TestRedshiftSQLHookConn:
         db_uri = self.db_hook.get_uri()
         expected = "postgresql://login:password@host:5439/dev"
         assert db_uri == expected
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.create_engine")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql._is_sqlalchemy_2", return_value=True)
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.find_spec")
+    def test_get_sqlalchemy_engine_prefers_psycopg3(self, mock_find_spec, mock_is_sqla2, mock_create_engine):
+        # Mock create_engine so this doesn't depend on psycopg actually being importable, or on
+        # the ambient SQLAlchemy major version matching what _is_sqlalchemy_2 is mocked to return.
+        mock_find_spec.return_value = object()
+        self.db_hook.get_sqlalchemy_engine()
+        engine_url = mock_create_engine.call_args[0][0]
+        assert engine_url.drivername == "postgresql+psycopg"
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.create_engine")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.find_spec")
+    def test_get_sqlalchemy_engine_falls_back_to_psycopg2(self, mock_find_spec, mock_create_engine):
+        # psycopg2 is optional (see providers/postgres's [psycopg2] extra) and may not be
+        # installed here, so mock create_engine instead of letting it actually import the driver.
+        mock_find_spec.side_effect = lambda name: None if name == "psycopg" else object()
+        self.db_hook.get_sqlalchemy_engine()
+        engine_url = mock_create_engine.call_args[0][0]
+        assert engine_url.drivername == "postgresql+psycopg2"
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.create_engine")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql._is_sqlalchemy_2", return_value=False)
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.find_spec")
+    def test_get_sqlalchemy_engine_falls_back_to_psycopg2_on_sqlalchemy_1(
+        self, mock_find_spec, mock_is_sqla2, mock_create_engine
+    ):
+        # psycopg (v3) can be importable even when SQLAlchemy is pinned below 2.0 (e.g. compat
+        # tests against older released Airflow versions) — SQLAlchemy's native "postgresql+psycopg"
+        # dialect only exists from 2.0 onwards, so this must still fall back to psycopg2 rather
+        # than let create_engine raise NoSuchModuleError.
+        mock_find_spec.return_value = object()
+        self.db_hook.get_sqlalchemy_engine()
+        engine_url = mock_create_engine.call_args[0][0]
+        assert engine_url.drivername == "postgresql+psycopg2"
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.find_spec", return_value=None)
+    def test_get_sqlalchemy_engine_raises_clear_error_without_a_driver(self, mock_find_spec):
+        with pytest.raises(AirflowOptionalProviderFeatureException, match="Postgres DB-API driver"):
+            self.db_hook.get_sqlalchemy_engine()
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
     def test_get_conn(self, mock_connect):

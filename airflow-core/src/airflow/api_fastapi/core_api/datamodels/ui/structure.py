@@ -30,7 +30,6 @@ class EdgeResponse(BaseEdgeResponse):
 
     is_setup_teardown: bool | None = None
     label: str | None = None
-    is_source_asset: bool | None = None
 
 
 class NodeResponse(BaseNodeResponse):
@@ -38,10 +37,13 @@ class NodeResponse(BaseNodeResponse):
 
     children: list[NodeResponse] | None = None
     is_mapped: bool | None = None
+    is_loop: bool | None = None
+    loop_max_iterations: int | None = None
+    loop_exit_task_id: str | None = None
+    loop_exit_criteria_doc: str | None = None
     tooltip: str | None = None
     setup_teardown_type: Literal["setup", "teardown"] | None = None
     operator: str | None = None
-    asset_condition_type: Literal["or-gate", "and-gate"] | None = None
     ui_color: str | None = None
     ui_fgcolor: str | None = None
 

@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from airflow_breeze.commands.ui_commands import (
     LocaleFiles,
     LocaleKeySet,
@@ -25,6 +27,7 @@ from airflow_breeze.commands.ui_commands import (
     compare_keys,
     expand_plural_keys,
     flatten_keys,
+    get_locale_files,
     get_plural_base,
 )
 
@@ -79,6 +82,13 @@ class TestPluralHandling:
         assert "warning_other" in expanded
         assert "warning_few" in expanded
         assert "warning_many" in expanded
+
+    @pytest.mark.parametrize("placeholder", ["{{count}}", "{{count, number}}", "{{ count , number }}"])
+    def test_expand_plural_keys_expands_single_en_form_with_count_placeholder(self, placeholder):
+        keys = {"warning_other"}
+        en_key_to_value = {"warning_other": f"{placeholder} Warnings"}
+        expanded = expand_plural_keys(keys, "pl", en_key_to_value)
+        assert expanded == {"warning_one", "warning_few", "warning_many", "warning_other"}
 
     def test_expand_plural_keys_expands_when_en_has_multiple_plural_forms(self):
         # Even without {{count}} in EN values, plural selection is still active when
@@ -273,6 +283,22 @@ class TestCompareKeys:
             # Previously these could be falsely flagged as unused.
             assert "dagWarnings.error_few" not in summary["test.json"].unused_keys.get("pl", [])
             assert "dagWarnings.error_many" not in summary["test.json"].unused_keys.get("pl", [])
+        finally:
+            ui_commands.LOCALES_DIR = original_locales_dir
+
+
+class TestGetLocaleFiles:
+    def test_hidden_directories_are_not_treated_as_locales(self, tmp_path):
+        (tmp_path / "en").mkdir()
+        (tmp_path / "en" / "common.json").write_text(json.dumps({"greeting": "Hello"}))
+        (tmp_path / ".claude" / ".cc-writes").mkdir(parents=True)
+
+        import airflow_breeze.commands.ui_commands as ui_commands
+
+        original_locales_dir = ui_commands.LOCALES_DIR
+        ui_commands.LOCALES_DIR = tmp_path
+        try:
+            assert get_locale_files() == [LocaleFiles(locale="en", files=["common.json"])]
         finally:
             ui_commands.LOCALES_DIR = original_locales_dir
 

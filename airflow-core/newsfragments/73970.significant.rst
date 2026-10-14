@@ -1,0 +1,5 @@
+Language SDK coordinators load task handlers from a Dag bundle
+
+The experimental ``jars_root`` (Java) and ``executables_root`` (Go) coordinator kwargs are removed.
+Put the artifacts in a Dag bundle registered in ``[dag_processor] dag_bundle_config_list`` and set ``task_handler_bundle_name`` in the coordinator's ``kwargs``, or leave it unset to use the task's own Dag bundle.
+A config that still sets a removed kwarg fails with ``Cannot instantiate coordinator '<key>'``.

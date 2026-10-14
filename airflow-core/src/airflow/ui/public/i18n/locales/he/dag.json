@@ -43,8 +43,8 @@
   "deadlineAlerts": {
     "completionRule": "חייב להסתיים תוך {{interval}} מ-{{reference}}",
     "count_one": "מועד אחד",
-    "count_other": "{{count}} מועדים",
-    "count_two": "{{count}} מועדים",
+    "count_other": "{{count, number}} מועדים",
+    "count_two": "{{count, number}} מועדים",
     "referenceType": {
       "AverageRuntimeDeadline": "זמן ריצה ממוצע",
       "DagRunLogicalDateDeadline": "תאריך לוגי",
@@ -60,14 +60,14 @@
     "met": "עמד ביעד",
     "missed": "פוספס",
     "missedCount_one": "מועד אחד שפוספס",
-    "missedCount_other": "{{count}} מועדים שפוספסו",
-    "missedCount_two": "{{count}} מועדים שפוספסו",
-    "mixedCount": "{{missedCount}} פוספסו, {{upcomingCount}} קרובים",
+    "missedCount_other": "{{count, number}} מועדים שפוספסו",
+    "missedCount_two": "{{count, number}} מועדים שפוספסו",
+    "mixedCount": "{{missedCount, number}} פוספסו, {{upcomingCount, number}} קרובים",
     "stillRunning": "עדיין רץ",
     "upcoming": "קרוב",
     "upcomingCount_one": "מועד אחד קרוב",
-    "upcomingCount_other": "{{count}} מועדים קרובים",
-    "upcomingCount_two": "{{count}} מועדים קרובים"
+    "upcomingCount_other": "{{count, number}} מועדים קרובים",
+    "upcomingCount_two": "{{count, number}} מועדים קרובים"
   },
   "extraLinks": "קישורים נוספים",
   "grid": {
@@ -101,7 +101,7 @@
     "info": "INFO",
     "noTryNumber": "אין מספר ניסיון",
     "search": {
-      "matchCount": "{{current}} מתוך {{total}}",
+      "matchCount": "{{current, number}} מתוך {{total, number}}",
       "noMatches": "אין תוצאות",
       "placeholder": "חפש רישומים..."
     },
@@ -226,19 +226,40 @@
     "code": "קוד תכנות",
     "details": "פרטים",
     "logs": "רישומים",
-    "mappedTaskInstances_one": "מופע משימה [{{count}}]",
-    "mappedTaskInstances_other": "מופעי משימה [{{count}}]",
-    "mappedTaskInstances_two": "מופעי משימה [{{count}}]",
+    "mappedTaskInstances_one": "מופע משימה [{{count, number}}]",
+    "mappedTaskInstances_other": "מופעי משימה [{{count, number}}]",
+    "mappedTaskInstances_two": "מופעי משימה [{{count, number}}]",
     "overview": "סקירה כללית",
     "renderedTemplates": "תבניות מעובדות",
     "requiredActions": "פעולות נדרשות",
     "runs": "הרצות",
     "taskInstances": "מופעי משימות",
+    "taskStateStore": "מאגר מצבי משימות",
     "tasks": "משימות",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "כווץ את כל קבוצות המשימות",
     "expandAll": "הרחב את כל קבוצות המשימות"
+  },
+  "taskStateStore": {
+    "add": "הוסף מאגר מצבי משימות",
+    "clearAll": {
+      "resource": "כל מאגר מצבי המשימות",
+      "title": "נקה את כל מאגר מצבי המשימות",
+      "warning": "כל מאגר מצבי המשימות יימחק. משימות שמשתמשות במאגר זה למעקב אחר עבודה חיצונית לא יוכלו להמשיך ללא הרצה מחדש מאפס."
+    },
+    "delete": "מחק מאגר מצבי משימות",
+    "deleteWarning": "המשימה תאבד את הזיכרון השמור הזה. אם המשימה משתמשת במפתח זה למעקב אחר עבודה חיצונית (לדוגמה, מזהה עבודה חיצוני), היא לא תוכל להמשיך אותה.",
+    "edit": "ערוך מאגר מצבי משימות",
+    "emptyStore": "מאגר מצבי המשימות שומר ערכים הנשמרים בין ניסיונות חוזרים. עובדים יכולים לכתוב למאגר מצבי המשימות באמצעות Task SDK.",
+    "expiresAt": {
+      "column": "תקף עד",
+      "custom": "מותאם אישית",
+      "default": "ברירת מחדל ({{interval}})",
+      "label": "תפוגה",
+      "never": "לעולם לא"
+    },
+    "title": "מאגר מצבי משימות"
   }
 }

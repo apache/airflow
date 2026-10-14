@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     import airflow.sdk.io as io  # noqa: F401
@@ -83,6 +83,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
     from airflow.sdk.bases.skipmixin import SkipMixin as SkipMixin
     from airflow.sdk.configuration import conf as conf
+    from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION as SET_DURING_EXECUTION
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
@@ -115,6 +116,16 @@ if TYPE_CHECKING:
         from airflow.sdk.exceptions import (
             DagRunTriggerException as DagRunTriggerException,
             DownstreamTasksSkipped as DownstreamTasksSkipped,
+        )
+    # Retry policies exist from Airflow 3.3 (conditionally imported)
+    if AIRFLOW_V_3_3_PLUS:
+        from airflow.sdk.definitions.retry_policy import (
+            ChainRetryPolicy as ChainRetryPolicy,
+            ExceptionRetryPolicy as ExceptionRetryPolicy,
+            RetryAction as RetryAction,
+            RetryDecision as RetryDecision,
+            RetryPolicy as RetryPolicy,
+            RetryRule as RetryRule,
         )
     from airflow.sdk.execution_time.context import (
         AIRFLOW_VAR_NAME_FORMAT_MAPPING as AIRFLOW_VAR_NAME_FORMAT_MAPPING,
@@ -153,8 +164,16 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # Branching
     # ============================================================================
-    "BaseBranchOperator": ("airflow.sdk.bases.branch", "airflow.providers.standard.operators.branch"),
-    "BranchMixIn": ("airflow.sdk.bases.branch", "airflow.providers.standard.operators.branch"),
+    "BaseBranchOperator": (
+        "airflow.sdk.bases.branch",
+        "airflow.operators.branch",
+        "airflow.providers.standard.operators.branch",
+    ),
+    "BranchMixIn": (
+        "airflow.sdk.bases.branch",
+        "airflow.operators.branch",
+        "airflow.providers.standard.operators.branch",
+    ),
     "SkipMixin": (
         "airflow.sdk.bases.skipmixin",
         "airflow.models.skipmixin",
@@ -246,12 +265,23 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "Context": ("airflow.sdk", "airflow.utils.context"),
     "context_merge": ("airflow.sdk.definitions.context", "airflow.utils.context"),
+    # Default for a decorated operator's argument that the callable's return value fills in
+    "SET_DURING_EXECUTION": (
+        "airflow.sdk.definitions._internal.types",
+        "airflow.providers.common.compat._set_during_execution",
+    ),
     "context_to_airflow_vars": ("airflow.sdk.execution_time.context", "airflow.utils.operator_helpers"),
     "AIRFLOW_VAR_NAME_FORMAT_MAPPING": (
         "airflow.sdk.execution_time.context",
         "airflow.utils.operator_helpers",
     ),
-    "get_current_context": ("airflow.sdk", "airflow.operators.python"),
+    # On Airflow 2 the standard provider's version comes before core's: it raises RuntimeError
+    # outside a task, as Airflow 3 does, where core's raises AirflowException.
+    "get_current_context": (
+        "airflow.sdk",
+        "airflow.providers.standard.operators.python",
+        "airflow.operators.python",
+    ),
     "get_parsing_context": ("airflow.sdk", "airflow.utils.dag_parsing_context"),
     # ============================================================================
     # Timeout Utilities
@@ -323,6 +353,24 @@ if AIRFLOW_V_3_0_PLUS:
     # 3.0-3.1: airflow.lineage.hook.AssetLineageInfo
     # 3.2+: airflow.sdk.lineage.AssetLineageInfo
     _IMPORT_MAP["AssetLineageInfo"] = ("airflow.sdk.lineage", "airflow.lineage.hook")
+
+# Retry policies arrived in Airflow 3.3 (AIP-105) and ChainRetryPolicy in 3.4. The SDK module is tried
+# first, so wherever it has the class (3.4 and later) that one is used and the copy in this provider is
+# never imported; on 3.3 the copy stands in for it.
+_AIRFLOW_3_3_ONLY_RETRY_POLICIES: dict[str, str | tuple[str, ...]] = {
+    "ChainRetryPolicy": (
+        "airflow.sdk.definitions.retry_policy",
+        "airflow.providers.common.compat._retry_policy",
+    ),
+    "ExceptionRetryPolicy": "airflow.sdk.definitions.retry_policy",
+    "RetryAction": "airflow.sdk.definitions.retry_policy",
+    "RetryDecision": "airflow.sdk.definitions.retry_policy",
+    "RetryPolicy": "airflow.sdk.definitions.retry_policy",
+    "RetryRule": "airflow.sdk.definitions.retry_policy",
+}
+
+if AIRFLOW_V_3_3_PLUS:
+    _IMPORT_MAP.update(_AIRFLOW_3_3_ONLY_RETRY_POLICIES)
 
 # Module map: module_name -> module_path(s)
 # For entire modules that have been moved (e.g., timezone)

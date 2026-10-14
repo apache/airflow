@@ -19,7 +19,8 @@
 import type { SelectValueChangeDetails } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { Select } from "src/components/ui";
+import { Select } from "src/system-components";
+
 import { createDagSortOptions } from "src/constants/sortParams";
 
 type Props = {

@@ -243,6 +243,8 @@ class TestComprehendCreateDocumentClassifierOperator:
         assert self.operator.language_code == "en"
         assert self.operator.document_classifier_kwargs == {"VersionName": "v1"}
         assert self.operator.fail_on_warnings is False
+        assert self.operator.waiter_delay == 60
+        assert self.operator.waiter_max_attempts == 60
 
     @mock.patch.object(ComprehendHook, "conn")
     def test_create_document_classifier(self, mock_conn):

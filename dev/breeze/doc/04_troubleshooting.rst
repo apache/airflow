@@ -35,6 +35,17 @@ can check whether your problem is fixed.
    * Execute ``breeze down``
    * Cleanup build cache and execute ``breeze cleanup``. Breeze will ask you to confirm each step.
 
+     Cleanup can remove containers, including running ones, belonging to deleted Git worktrees,
+     then prune unused Breeze volumes across all Compose projects. Breeze's Compose containers,
+     volumes, and networks carry ``org.apache.airflow.breeze=true``. Linked worktrees also record their
+     absolute path in ``org.apache.airflow.breeze.worktree``; the primary checkout uses an empty value.
+     Shared cache volumes and shared networks have no worktree owner. Worktree paths are checked
+     on the machine running Breeze, so use this cleanup step with a local Docker daemon.
+
+     Existing volumes keep their original labels. Cleanup retains support for the old
+     ``com.docker.compose.project=breeze`` label, but older volumes from custom projects without
+     the Breeze label require manual removal.
+
 2. Git fetch the origin and git rebase the current branch with main branch.
 3. Restart your Docker Engine and try again.
 4. Restart your machine and try again.
@@ -83,7 +94,7 @@ describe your problem.
     stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
     run Breeze with no problems.
 
-Cannot import name 'cache' or Python >=3.10 required
+Cannot import name 'cache' or Python >=3.11 required
 ---------------------------------------------------
 
 When you see this error:
@@ -96,7 +107,7 @@ or
 
 .. code-block::
 
-    ERROR: Package 'blacken-docs' requires a different Python: 3.8.18 not in '>=3.10'
+    ERROR: Package 'blacken-docs' requires a different Python: 3.8.18 not in '>=3.11'
 
 
 It means that your prek hook is installed with (already End-Of-Life) Python 3.8 and you should reinstall
@@ -107,7 +118,7 @@ This can be done with ``uv tool`` to install ``prek``)
 .. code-block:: bash
 
     uv tool uninstall prek
-    uv tool install prek --python 3.10 --force
+    uv tool install prek --python 3.11 --force
     prek clean
     prek install
 
@@ -116,7 +127,7 @@ You can also use ``pipx``
 .. code-block:: bash
 
     pipx uninstall prek
-    pipx install prek --python $(which python3.10) --force
+    pipx install prek --python $(which python3.11) --force
     prek clean
     prek install
 

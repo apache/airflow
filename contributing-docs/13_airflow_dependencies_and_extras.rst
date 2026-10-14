@@ -239,6 +239,21 @@ rules to remember:
   stopped working (like in case of ``amazon``, ``fab``). You are free to modify those versions to higher
   versions if you need to, and ``prek`` will remove those comments automatically.
 
+* Every dependency we resolve from PyPI must have a lower bound. Without one the resolver is free to answer
+  with any version that has ever been published, so what our constraints pin - and what a user ends up
+  installing - depends on how the resolution went rather than on what the code needs. The
+  ``check-dependency-lower-bounds`` prek hook enforces this across ``project.dependencies``,
+  ``project.optional-dependencies``, ``dependency-groups`` and ``build-system.requires`` of every
+  ``pyproject.toml``. Use the oldest version you are willing to test against:
+
+  .. code-block:: python
+
+     "pyspark>=4.0.0",
+
+  Two kinds of requirement are exempt: distributions that are members of our ``uv`` workspace (they are
+  resolved from the checkout, so a version range would say nothing) and direct URL requirements (the URL
+  already names the exact artifact).
+
 Our CI system will do all the tests for you anyway - including running some lower-bind checks on dependencies.
 For example it will take each provider in a turn and will try to resolve lowest-possible dependencies defined
 for that provider and see if the tests are still passing, so we should be relatively protected against putting
@@ -340,7 +355,7 @@ from the PyPI package:
 .. code-block:: bash
 
   pip install "apache-airflow[google,amazon,async]==3.0.0" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.10.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.11.txt"
 
 The last one can be used to install Airflow in "minimal" mode - i.e when bare Airflow is installed without
 extras.
@@ -352,7 +367,7 @@ requirements).
 .. code-block:: bash
 
   pip install -e ".[devel]" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.10.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.11.txt"
 
 
 This also works with extras - for example:
@@ -360,7 +375,7 @@ This also works with extras - for example:
 .. code-block:: bash
 
   pip install ".[ssh]" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.10.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.11.txt"
 
 
 There are different set of fixed constraint files for different python major/minor versions and you should
@@ -372,7 +387,7 @@ using ``constraints-no-providers`` constraint files as well.
 .. code-block:: bash
 
   pip install . --upgrade \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.10.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.11.txt"
 
 
 These constraint files are generated from the ``uv.lock`` file committed in the repository, using

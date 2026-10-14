@@ -25,7 +25,11 @@
   var extraDepsList = document.getElementById('extra-deps-list');
   var extrasDataEl = document.getElementById('extras-data');
   var moduleSearch = document.getElementById('module-search');
-  var moduleTabs = document.querySelectorAll('.module-tab');
+  var durableOnlyFilter = document.getElementById('durable-only-filter');
+  var deferrableOnlyFilter = document.getElementById('deferrable-only-filter');
+  // [data-type] excludes the "More" toggle button, which is a .module-tab
+  // for styling purposes only and has no data-type of its own.
+  var moduleTabs = document.querySelectorAll('.module-tab[data-type]');
   var categoryBtns = document.querySelectorAll('.category-btn');
   var moduleItems = document.querySelectorAll('.modules .module');
   var copyImportBtns = document.querySelectorAll('.copy-import');
@@ -47,6 +51,8 @@
   var currentType = 'all';
   var currentCategory = '';
   var currentSearch = '';
+  var currentDurableOnly = false;
+  var currentDeferrableOnly = false;
 
   function updateInstallCommand() {
     var version = versionSelect ? versionSelect.value : '';
@@ -137,12 +143,16 @@
       var name = item.dataset.name || '';
       var type = item.dataset.type || '';
       var category = item.dataset.category || '';
+      var durable = item.dataset.durable === 'true';
+      var deferrable = item.dataset.deferrable === 'true';
 
       var matchesType = currentType === 'all' || type === currentType;
       var matchesCategory = !currentCategory || category === currentCategory;
       var matchesSearch = !currentSearch || name.includes(currentSearch.toLowerCase());
+      var matchesDurable = !currentDurableOnly || durable;
+      var matchesDeferrable = !currentDeferrableOnly || deferrable;
 
-      item.style.display = (matchesType && matchesCategory && matchesSearch) ? '' : 'none';
+      item.style.display = (matchesType && matchesCategory && matchesSearch && matchesDurable && matchesDeferrable) ? '' : 'none';
     });
   }
 
@@ -152,8 +162,51 @@
       tab.classList.add('active');
       currentType = tab.dataset.type || 'all';
       filterModules();
+      if (moduleTabMoreBtn && moduleTabMoreMenu) {
+        moduleTabMoreBtn.classList.toggle('active', moduleTabMoreMenu.contains(tab));
+      }
     });
   });
+
+  // "More" overflow menu for module tabs that don't fit in the visible row.
+  var moduleTabMoreBtn = document.getElementById('module-tab-more-btn');
+  var moduleTabMoreMenu = document.getElementById('module-tab-more-menu');
+
+  if (moduleTabMoreBtn && moduleTabMoreMenu) {
+    function closeMoreMenu() {
+      var focusWasInMenu = moduleTabMoreMenu.contains(document.activeElement);
+      moduleTabMoreBtn.setAttribute('aria-expanded', 'false');
+      moduleTabMoreMenu.hidden = true;
+      if (focusWasInMenu) { moduleTabMoreBtn.focus(); }
+    }
+
+    moduleTabMoreBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = moduleTabMoreBtn.getAttribute('aria-expanded') === 'true';
+      if (isOpen) {
+        closeMoreMenu();
+      } else {
+        moduleTabMoreBtn.setAttribute('aria-expanded', 'true');
+        moduleTabMoreMenu.hidden = false;
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!moduleTabMoreMenu.contains(e.target) && e.target !== moduleTabMoreBtn) {
+        closeMoreMenu();
+      }
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeMoreMenu();
+    });
+
+    // Selecting a tab inside the menu also closes it (filtering itself is
+    // handled by the shared moduleTabs click listener above).
+    moduleTabMoreMenu.querySelectorAll('.module-tab').forEach(function(tab) {
+      tab.addEventListener('click', closeMoreMenu);
+    });
+  }
 
   categoryBtns.forEach(function(btn) {
     btn.addEventListener('click', function() {
@@ -173,6 +226,20 @@
         currentSearch = e.target.value.trim();
         filterModules();
       }, 150);
+    });
+  }
+
+  if (durableOnlyFilter) {
+    durableOnlyFilter.addEventListener('change', function(e) {
+      currentDurableOnly = e.target.checked;
+      filterModules();
+    });
+  }
+
+  if (deferrableOnlyFilter) {
+    deferrableOnlyFilter.addEventListener('change', function(e) {
+      currentDeferrableOnly = e.target.checked;
+      filterModules();
     });
   }
 

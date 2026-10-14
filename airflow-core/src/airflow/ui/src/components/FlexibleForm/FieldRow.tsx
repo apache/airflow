@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Field, Stack } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Field, Stack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import ReactMarkdown from "src/components/ReactMarkdown";
+
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";

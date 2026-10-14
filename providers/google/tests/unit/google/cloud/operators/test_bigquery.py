@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import warnings
 from contextlib import suppress
 from unittest import mock
 from unittest.mock import ANY, MagicMock
@@ -48,9 +49,11 @@ from airflow.providers.common.compat.sdk import (
     AirflowSkipException,
     AirflowTaskTimeout,
     TaskDeferred,
+    timezone,
 )
 from airflow.providers.google.cloud.openlineage.utils import BIGQUERY_NAMESPACE
 from airflow.providers.google.cloud.operators.bigquery import (
+    _DURABLE_UNSET,
     BigQueryCheckOperator,
     BigQueryColumnCheckOperator,
     BigQueryCreateEmptyDatasetOperator,
@@ -73,6 +76,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
     BigQueryValueCheckOperator,
+    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
@@ -82,7 +86,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.utils.task_group import TaskGroup
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
@@ -99,7 +102,7 @@ TEST_GCS_CSV_DATA = ["dir1/*.csv"]
 TEST_SOURCE_CSV_FORMAT = "CSV"
 TEST_GCS_PARQUET_DATA = ["dir1/*.parquet"]
 TEST_SOURCE_PARQUET_FORMAT = "PARQUET"
-DEFAULT_DATE = datetime(2015, 1, 1)
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 TEST_DAG_ID = "test-bigquery-operators"
 TEST_TABLE_RESOURCES = {"tableReference": {"tableId": TEST_TABLE_ID}, "expirationTime": 1234567}
 VIEW_DEFINITION = {
@@ -1035,6 +1038,16 @@ class TestBigQueryUpsertTableOperator:
 
 
 class TestBigQueryInsertJobOperator:
+    def test_init_does_not_snapshot_templated_job_id(self):
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration={"query": {"query": "SELECT 1", "useLegacySql": False}},
+            job_id="report_{{ ds_nodash }}",
+        )
+
+        assert op.job_id == "report_{{ ds_nodash }}"
+        assert op._configured_job_id is None
+
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_query_success(self, mock_hook):
         job_id = "123456"
@@ -2550,6 +2563,10 @@ class TestBigQueryInsertJobOperatorDurable:
         assert op.is_job_succeeded("success") is True
         assert op.is_job_succeeded("RUNNING") is False
 
+    def test_default_args_durable_reaches_operator(self):
+        op = self._make_operator(default_args={"durable": False})
+        assert op.durable is False
+
 
 class TestBigQueryIntervalCheckOperator:
     def test_bigquery_interval_check_operator_execute_complete(self):
@@ -3429,3 +3446,18 @@ class TestBigQueryListRoutinesOperator:
         call_kwargs = mock_hook.return_value.list_routines.call_args.kwargs
         assert call_kwargs["dataset_id"] == TEST_DATASET
         assert call_kwargs["max_results"] == 10
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value):
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+        assert result is False
