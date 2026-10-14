@@ -197,7 +197,7 @@ cluster creation reliability.
 
 High Obtainability clusters have the following characteristics:
 
-* **Regional and auto-zoned**: HO clusters are regional and always auto-zoned; do not specify a ``zone``.
+* **Mandatory AutoZone**: HO clusters require AutoZone to dynamically select an optimal zone; do not specify a ``zone``.
 * **Cluster-wide flexible config**: Master and primary workers must both use flexible configurations (or
   ``num_workers=0`` for a single-node cluster).
 * **Mutual exclusivity**: Concrete machine types (e.g. ``master_machine_type``, ``worker_machine_type``),
