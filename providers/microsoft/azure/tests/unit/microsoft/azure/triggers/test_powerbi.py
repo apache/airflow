@@ -124,10 +124,11 @@ class TestPowerBITrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("status", ["InProgress", "NotStarted", "Unknown"])
+    @mock.patch.object(PowerBIHook, "cancel_dataset_refresh", autospec=True)
     @mock.patch("airflow.providers.microsoft.azure.triggers.powerbi.asyncio.sleep", autospec=True)
     @mock.patch.object(PowerBIHook, "run", autospec=True)
     async def test_enhanced_refresh_messages_do_not_end_polling(
-        self, mock_run, mock_sleep, powerbi_trigger, status
+        self, mock_run, mock_sleep, mock_cancel, powerbi_trigger, status
     ):
         history = {
             "value": [{"requestId": DATASET_REFRESH_ID, "refreshType": "ViaEnhancedApi", "status": "Unknown"}]
@@ -135,7 +136,10 @@ class TestPowerBITrigger:
         active = {
             "status": "Unknown",
             "extendedStatus": status,
-            "messages": [{"type": "Error", "message": "Synthetic retried attempt error"}],
+            "messages": [
+                {"type": "Error", "message": "Synthetic retried attempt error"},
+                {"type": "Error", "code": "SyntheticMessageWithoutText"},
+            ],
         }
         mock_run.side_effect = [
             history,
@@ -152,18 +156,20 @@ class TestPowerBITrigger:
         assert events[0].payload["status"] == "success"
         assert events[0].payload["dataset_refresh_status"] == "Completed"
         mock_sleep.assert_awaited_once_with(CHECK_INTERVAL)
+        mock_cancel.assert_not_awaited()
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["Unknown", "NotStarted", "InProgress"])
     @mock.patch("airflow.providers.microsoft.azure.triggers.powerbi.time.monotonic", autospec=True)
     @mock.patch("airflow.providers.microsoft.azure.triggers.powerbi.asyncio.sleep", autospec=True)
     @mock.patch.object(PowerBIHook, "run", autospec=True)
-    async def test_enhanced_refresh_unknown_times_out(
-        self, mock_run, mock_sleep, mock_monotonic, powerbi_trigger
+    async def test_enhanced_refresh_active_times_out(
+        self, mock_run, mock_sleep, mock_monotonic, powerbi_trigger, status
     ):
         history = {
             "value": [{"requestId": DATASET_REFRESH_ID, "refreshType": "ViaEnhancedApi", "status": "Unknown"}]
         }
-        details = {"status": "Unknown", "extendedStatus": "Unknown"}
+        details = {"status": "Unknown", "extendedStatus": status}
         mock_run.side_effect = [history, details, history, details]
         mock_monotonic.return_value = 0
 
